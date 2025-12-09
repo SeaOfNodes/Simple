@@ -203,7 +203,7 @@ while(arg) {
 return arg;
 """);
         code.parse().opto();
-        assertEquals("return (0)Phi(Loop,arg,Phi(Region,Phi(Loop,0,Phi(Region,2,3)),(0)(Phi_arg-1)));", code.print());
+        assertEquals("return 0;", code.print());
     }
 
     @Test

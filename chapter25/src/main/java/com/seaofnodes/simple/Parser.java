@@ -143,7 +143,7 @@ public class Parser {
 
     public void parse() {
         _lexer = new Lexer(_code._src);
-        //// Starting Scope has control, memory, initial arguments
+        // Starting Scope has control, memory, initial arguments
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
         //_scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
@@ -187,11 +187,11 @@ public class Parser {
         // Close over all recursive types, and upgrade TYPES
         Ary<TypeStruct> ary = new Ary<>(TypeStruct.class);
         for( Type t : TYPES.values() )
-            if( t instanceof TypeMemPtr tmp )
-                ary.add(tmp._obj);
-        TypeStruct[] ts = Type.closeOver(ary.asAry());
-        for( TypeStruct t : ts )
-            TYPES.put(t._name,((TypeMemPtr)TYPES.get(t._name)).makeFrom(t));
+            if( t instanceof TypeStruct ts )
+                ary.add(ts);
+        TypeStruct[] tss = Type.closeOver(ary.asAry(),TYPES);
+        for( TypeStruct ts : tss )
+            TYPES.put(ts._name,ts);
 
         // Walk over all Nodes, and upgrade the internal constants to the
         // closed-over types.
@@ -199,12 +199,9 @@ public class Parser {
 
 
         // Gather top-level exported symbols
-        HashMap<String,Type> types = defaultTypes();
         for( Type t : TYPES.values() )
-            if( t instanceof TypeMemPtr tmp &&
-                !types.containsKey(tmp._obj._name) &&
-                !tmp._obj.isAry())
-                _code._publishSymbols.add(tmp._obj);
+            if( t instanceof TypeStruct ts &&!ts.isAry() )
+                _code._publishSymbols.add(ts);
     }
 
 
@@ -252,9 +249,8 @@ public class Parser {
         _scope.push(new Kind.Func(name));
         _scope.ctrl(fun);              // Scope control from function
         // Private mem alias tracking per function
-        MemMergeNode mem = new MemMergeNode(true);
-        mem.addDef(null);       // Alias#0
-        mem.addDef(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole()); // All aliases
+        Node privMem = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole();
+        MemMergeNode mem = new MemMergeNode(true,null,privMem);
         _scope.mem(mem);
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
@@ -262,35 +258,15 @@ public class Parser {
             _scope.define(ids[i], t, i==0 && ids[0]=="self", new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
 
-        // Parse the body.  For initializers also capture all new variables
-        // and include them in the containing struct.
-        ScopeNode.Kind lex = _scope.klast(); // Lexical scope size
+        // Parse the body.
         Node last=ZERO;
-        while (!peek('}') && !_lexer.isEOF()) {
-            int nvars = _scope.nIns() - lex._lexSize;
+        while (!peek('}') && !_lexer.isEOF())
             // Parse a statement; record last statement as default return
             last = parseStatement();
-            if( fun.isInit() ) {
-                // For <init> and <clinit>, local vars are really struct fields
-                // and get exposed as discovered
-                TypeBuilder self = (TypeBuilder)sig._sig[0];
-                int newLex = lex._lexSize;
-                int mvars = _scope.nIns() - newLex;
-                while( nvars < mvars ) {
-                    Var v = _scope.var(newLex+nvars++);
-                    self.add(Field.make(v._name,v.type(),_code.nextALIAS(),v._final));
-                }
-            }
-        }
 
-        // Final update of the self object being built
-        if( fun.isInit() ) {
-            TypeBuilder self = (TypeBuilder)sig._sig[0];
-            TYPES.put( self._name, self.close() );
-            // Improve self, selfMem types in scope
-            _code.addAll(_scope.in(_scope.klast()._lexSize  ));
-            _code.addAll(_scope.in(_scope.klast()._lexSize+1));
-        }
+        if( fun.isInit() && !fun.isClz() )      // <init>, not <clinit>
+            last = fun.parm(2); // Init returns self, not last expression, by default
+        assert last!=null;
 
         // Last expression is the return
         if( ctrl()._type==Type.CONTROL )
@@ -665,6 +641,7 @@ public class Parser {
         return addReturn(expr);
     }
     private Node addReturn(Node expr) {
+      expr.keep();
         // Need default memory, since it can be lazy, need to force
         // a non-lazy Phi
         _scope.mem().removeLazyAll();
@@ -711,7 +688,7 @@ public class Parser {
             _returnScope.ctrl(r.unkeep());
         }
         ctrl(XCTRL);            // Kill control
-        return expr;
+        return expr.unkeep();
     }
 
     /**
@@ -753,7 +730,7 @@ public class Parser {
 
         // Lift expression, based on type
         Type decl = def.type(); // Declared type
-        Node lift = liftExpr(expr.keep(), decl, def._final, true);
+        Node lift = liftExpr(expr.keep(), decl, true);
         // Update
         _scope.update(name,lift);
         // Return un-lifted expr
@@ -762,14 +739,7 @@ public class Parser {
 
     // Make finals deep; widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
-    private Node liftExpr( Node expr, Type t, boolean xfinal, boolean isLoad ) {
-        if( expr._type instanceof TypeBuilder bld )
-            throw error("Must define forward ref "+bld._name);
-        // Final is deep on ptrs
-        if( xfinal && t instanceof TypeMemPtr tmp ) {
-            t = tmp.makeRO();
-            expr = peep(new ReadOnlyNode(expr));
-        }
+    private Node liftExpr( Node expr, Type t, boolean isLoad ) {
         // Auto-widen array to i64 (cast ptr to raw int bits)
         if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
             expr = peep(new AddNode(peep(new CastNode(t,ctrl(),expr)),off(tmp._obj,"[]")));
@@ -778,13 +748,17 @@ public class Parser {
         // Auto-narrow wide ints to narrow ints.  For loads, emit code to force
         // the loaded value to match the declared sign/zero bits.  For stores,
         // just force the type, acting "as if" the store silently truncates.
+        // CNC: Language design question: should these be OK or errors?
+        //    byte b = 123456; // Currently silent, obviously sensible to error
+        //    b++;             // Currently silent, but the math overflows and stores an int
+        // CNC: Same issue for both, should storing an `int` into `byte` silently truncate or fail?
         Type et = expr._type;
-        if( isLoad ) { expr = zsMask(expr,t); /*et = expr._type;*/ }
-        //else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
+        if( isLoad ) { expr = zsMask(expr,t); et = expr._type; }
+        else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
 
         // Lift type to the declaration.  This will report as an error later if
         // we cannot lift the type.
-        if( !expr._type.isa(t) )
+        if( !et.isa(t) )
             expr = peep(new CastNode(t,null,expr));
 
         return expr;
@@ -842,8 +816,6 @@ public class Parser {
                 (t!=Type.BOTTOM &&
                  // no Bang AND
                  !hasBang &&
-                 // Locals are not-final by default
-                 _scope.inFunction() &&
                  // not-null (expecting null to be set to not-null)
                  expr._type != Type.NIL &&
                  // Pointers are final by default; int/flt are not-final by default.
@@ -856,6 +828,13 @@ public class Parser {
                 t = expr._type;
                 if( !xfinal ) t = t.glb(false);  // Widen if not final
             }
+
+            // Final is deep on ptrs
+            if( xfinal && t instanceof TypeMemPtr tmp ) {
+                t = tmp.makeRO();
+                expr = peep(new ReadOnlyNode(expr));
+            }
+
             // expr is a constant function
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
                 if( expr instanceof ExternNode ) t = expr._type; // Upgrade declared type to exact function
@@ -872,9 +851,9 @@ public class Parser {
                 throw errorSyntax("=expression");
             // Initial value for uninitialized struct fields.
             expr = switch( t ) {
-                // Nullable pointers get a NIL; not-null get a TOP which
+                // Nullable pointers get a NIL; not-null get a BOTTOM which
                 // signals that they *must* be initialized in the constructor.
-            case TypeNil tn -> tn.nullable() ? NIL : con(Type.TOP);
+            case TypeNil tn -> tn.nullable() ? NIL : con(Type.BOTTOM);
             case TypeInteger ti -> ZERO;
             case TypeFloat tf -> con(TypeFloat.FZERO);
             // Bottom signals type inference: they must be initialized in
@@ -888,7 +867,7 @@ public class Parser {
         }
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr, t, xfinal, true);
+        Node lift = liftExpr(expr, t, true);
 
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
@@ -906,7 +885,7 @@ public class Parser {
      */
     private String _nestedType;
     private Node parseStruct( ) {
-        // "struct" already parsed, so expect the struct name next.
+        // keyword "struct" already parsed, so expect the struct name next.
         String typeName = requireId();
         require("{");
 
@@ -925,8 +904,7 @@ public class Parser {
         // Future self: means subtyping has to deal with "who does the malloc"
         TypeFunPtr tfp = ret.fun().sig();
         TypeStruct ts = TypeStruct.make(addClzPrefix(typeName),false,Field.make(typeName,tfp,_code.nextALIAS(),true));
-        TypeMemPtr tmp = TypeMemPtr.make((byte)2,ts,true);
-        TYPES.put(ts._name,tmp);
+        TYPES.put(ts._name,ts);
 
         require("}");
         // CNC - TODO, Optionally return a default builder (new XXX{}).
@@ -934,7 +912,7 @@ public class Parser {
         return require(ZERO,";");
     }
 
-    // Parse a struct; file-level is a class-init, and scope structs are normal
+    // Parse a struct declaration (not an allocation); file-level is a class-init, and scope structs are normal
     private ReturnNode parseStruct( boolean isClz, String typeName ) {
         // Record & restore the existing scope vars.  The function parse might
         // update fields, so when the parse is done reset back to the pre-parse
@@ -943,94 +921,63 @@ public class Parser {
         ScopeNode returnScope = _returnScope;
         _returnScope = null;
 
-        //// Make the future clazz/instance struct; no fields yet.
-        //TypeStruct ts = TypeStruct.make( typeName, false);
-        //// Put in TYPES, so <cl/init> can self-refer
-        //TypeMemPtr tself = TypeMemPtr.make((byte)2,ts, isClz );
-        TypeBuilder tself = (TypeBuilder)TYPES.get(typeName);
-        if( tself==null )
-            TYPES.put(typeName, tself=TypeBuilder.make(typeName,isClz));
+        // Make the future clazz/instance struct.
+        TypeStruct tself = TypeStruct.make(typeName,true);
+        TYPES.put(typeName, tself);
 
-        // <cl/init> signature: { self selfMem/arg -> selfMem/BOT }
-        Type targ = isClz ? TypeInteger.BOT : TypeMem.make( 1, tself );
-        Type tret = isClz ? Type.BOTTOM     : TypeMem.make( 1, tself );
-        Type[] targs = new Type[]{ tself , targ };
+        // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
+        // Self-memory is the rare *private* (never aliased) memory for the new object.
+        TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true );
+        Type targ = isClz ? TypeInteger.BOT : privMem;
+        Type tret = isClz ? Type.BOTTOM     : privMem;
+        Type[] targs = new Type[]{ TypeMemPtr.make(tself), targ };
         TypeFunPtr sig = TypeFunPtr.make1((byte)2, false, targs, tret, _code.nextFIDX());
 
         String fname = (typeName + (isClz ? ".<clinit>" : ".<init>")).intern();
         String[] ids = new String[]{"self", isClz ? "arg" : "#selfMem"};
 
-        // Parse function body normally
+        // Struct decls look like function bodies.  Parse function body normally.
         ReturnNode ret = _parseFunctionBody(fname,sig,loc(),ids);
 
         // <cl/init> functions move all new declared variables into the TypeStruct.
-        // Get a full TypeMemPtr
-        TypeMemPtr tmp = (TypeMemPtr)TYPES.get(typeName);
-        int lastLexSize = _scope.klast()._lexSize;
+        int lastLexSize = _scope.klast()._lexSize; // Lexical scope is now all fields
         assert _scope.var(lastLexSize)._name=="self";
-        Node self = _scope.in(lastLexSize); // Self, as pointer base for stores
-        Node selfCon = con(tmp);
-        int newVars = lastLexSize + ids.length;
+        int newVars = lastLexSize + 2;
+        for( int i=newVars; i<_scope.nIns(); i++ ) {
+            Var v = _scope.var(i);
+            tself = tself.add(Field.make(v._name,v.type(),_code.nextALIAS(),v._final));
+        }
+        TYPES.put( tself._name, tself = tself.close() );
 
-        // <clinit> can skip this if it's an infinite loop and never actually
-        // finishes the init process.
-        if( isClz && ret.ctrl()._type!=Type.XCONTROL ) {
+        // Improve self, selfMem types in scope
+        ParmNode self = ret.fun().parm(2);
+        self._minType = self._type = TypeMemPtr.make(tself);
 
-            // <clinit> gets the normal public memory, because no aliasing is
-            // possible, because clazz structs are singletons.
-            MemMergeNode mmm = ret.mem() instanceof MemMergeNode mm0 ? mm0 : null;
-            if( newVars <_scope._vars._len && mmm==null ) {
-                mmm = new MemMergeNode(false);
-                mmm.setDefX(1,ret.mem());
-                ret.setDef(1, mmm.init());
-            }
+        ParmNode smem = ret.fun().parm(3);
+        if( !isClz )            //
+            smem._minType = smem._type = TypeMem.make(1,tself,true);
+        Node selfMem = isClz ? _scope.mem() : smem;
+        // A MemMerge to gather field updates as stores
+        MemMergeNode mmm = new MemMergeNode(false,null,selfMem);
+        // A never-exit constructor will not have any returns, and no need to
+        // gather values and store them into the (never) constructed object
+        if( _returnScope!=null )
             for( int i=newVars; i<_scope._vars._len; i++ ) {
                 Node val = _returnScope.in(i);
-                Field fld = tmp._obj._fields[i-newVars];
-                // Store value into extended struct
-                Node mem = mmm.alias(fld._alias);
-                Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, mem, self, off(typeName,fld._fname), val, true));
-                mmm.alias(fld._alias, st);
-            }
-            _code.add(mmm);     // Need to revisit
-
-            // Upgrade <clinit> self Node.
-            if( self != selfCon )
-                self.subsume(selfCon);
-
-        } else if( !isClz ) {
-
-            // <init> gets private instance memory from #selfMem;
-            Node selfMem = _scope.in(lastLexSize+1);
-            MemMergeNode mmm = new MemMergeNode(false); // The unrelated field memories
-            for( int i=newVars; i<_scope._vars._len; i++ ) {
-                Node val = _returnScope.in(i); // i'th new instance field
-                Field fld = tmp._obj._fields[i-newVars];
+                Field fld = tself._fields[i-newVars];
                 // Store value into extended struct
                 Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(typeName,fld._fname), val, fld._final));
                 mmm.alias(fld._alias, st);
             }
-            //// Upgrade <init> default self Node using declared type
-            //ParmNode parm = ret.fun().parm(2);
-            //parm.setDef(1,selfCon);
-            //parm._minType = tself;
-            //_code.add(parm);
+        Node mmm0 = mmm.peephole();
+        // <clinit> sets public memory.
+        //   <init> sets private memory...which is the usual return
+        ret.setDef(isClz ? 1 : 2, mmm0);
+        _code.add(ret.init());
 
-            // Keep the normal public memory for unrelated memory updates.
-            // The <init> returns private #selfMem to the next nested layer out.
-            // The returned #selfMem is the sharp actual memory, not the declared type
-            Node mmm0 = mmm.peephole();
-            ret.setDef(2, mmm0);
-        }
-
-        //// Update signature in function and parms
-        //targ = isClz ? TypeInteger.BOT  : TypeMem.make( 1, tself );
-        //tret = isClz ? ret.expr()._type : TypeMem.make( 1, tself );
-        //targs = new Type[]{ tself , targ };
-        //// New and Improved signature
-        //sig = TypeFunPtr.make1((byte)2, false, targs, tret, sig.fidx());
-        //ret.fun().setSig(sig);
-        ret.init();
+        // Upgrade <clinit> self Node to the known constant
+        if( isClz )
+            self.subsume(con(TypeMemPtr.make((byte)2,tself,true)));
 
         // Reset all fields to pre-parse days
         if( _returnScope != null ) _returnScope.kill();
@@ -1060,62 +1007,65 @@ public class Parser {
         int old1 = pos();
         String tname = _lexer.matchId();
         if( tname==null ) return null;
+
+        // Convert the type name to a type.
+        Type t0 = TYPES.get(tname), t1 = t0;
         // No new types as keywords
         if( KEYWORDS.contains(tname) ) {
-            Type t0 = TYPES.get(tname);
-            return t0==null ? posT(old1) : t0;
+            if( t0 == null ) return posT(old1);
+            // Something like "int" or "f64" or "var".
+            // Can be "int[]" so still need to check array-ness
+        } else {
+            if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
+            // Now have a tname like "C", which might be followed by more ".D"
+            // typenames.  Do a search for e.g. "A.B.C", then "A.C", then "C".
+            String nest = _nestedType, fullq;
+            while( true ) {
+                fullq = nest+"."+tname; // Full qualified name
+                t0 = TYPES.get(fullq);
+                if( t0 != null )
+                    break;          // Search succeeded
+                // Subtract a layer from nested typenames
+                int idx = nest.lastIndexOf('.');
+                if( idx== -1 ) break; // Search failed
+                nest = nest.substring(0,idx);
+            }
+            tname = fullq;          // Fully qualified type name
+
+            // Gather id.id.id.lasttype.
+            // Ok (and normal) for "id.id.id" to be empty.
+            while( true ) {
+                int old2 = pos();
+                if( !match(".") )  break;
+                String sname = _lexer.matchId();
+                if( sname==null ) { pos(old2); break; }
+                sname = tname+"."+sname;
+                if( TYPES.get(sname) == null ) break;
+            }
+            tname = tname.intern();
+            // Still no type found?  Assume forward reference
+            t1 = t0 == null
+                ? TypeStruct.make(tname,true) // Null: assume a forward ref type
+                : t0;
         }
 
-        // Now have a tname like "C", which might be followed by more ".D"
-        // typenames.  Do a search for e.g. "A.B.C", then "A.C", then "C".
-        String nest = _nestedType, fullq;
-        Type t0;
-        while( true ) {
-            fullq = nest+"."+tname; // Full qualified name
-            t0 = TYPES.get(fullq);
-            if( t0 != null )
-                break;          // Search succeeded
-            // Subtract a layer from nested typenames
-            int idx = nest.lastIndexOf('.');
-            if( idx== -1 ) break; // Search failed
-            nest = nest.substring(0,idx);
-        }
-        if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
-        tname = fullq;          // Fully qualified type name
+        // Structs are always actually references
+        if( t1 instanceof TypeStruct ts1 )
+            t1 = TypeMemPtr.make(ts1);
 
-        // Gather id.id.id.lasttype.
-        // Ok (and normal) for "id.id.id" to be empty.
-        while( true ) {
-            int old2 = pos();
-            if( !match(".") )  break;
-            String sname = _lexer.matchId();
-            if( sname==null ) { pos(old2); break; }
-            sname = tname+"."+sname;
-            Type t1 = TYPES.get(sname);
-            if( t1 == null ) break;
-        }
-
-        // Still no type found?  Assume forward reference
-        tname = tname.intern();
-        Type t1 = t0 == null
-            ? TypeBuilder.make(tname,false) // Null: assume a forward ref type
-            : t0;
         // Nest arrays and '?' as needed
         Type t2 = t1;
         while( true ) {
             if( match("?") ) {
-                if( t2 instanceof TypeBuilder bld ) {
-                    if( bld.nullable() ) throw error("Type "+t2+" already allows null");
-                    t2 = bld.makeNullable();
-                } else if( t2 instanceof TypeMemPtr tmp ) {
+                if( t2 instanceof TypeMemPtr tmp ) {
                     if( tmp.nullable() ) throw error("Type "+t2+" already allows null");
                     t2 = tmp.makeNullable();
                 } else
                     throw error("Type "+t0+" cannot be null");
             } else if( match("[~]") ) {
-                t2 = typeAry(t2,true);
+                t2 = TypeMemPtr.make(typeAry(t2,true));
             } else if( match("[]") ) {
-                t2 = typeAry(t2,false);
+                t2 = TypeMemPtr.make(typeAry(t2,false));
             } else
                 break;
         }
@@ -1131,25 +1081,24 @@ public class Parser {
             return posT(old1);  // Reset lexer to reparse
         pos(old2);              // Reset lexer to reparse
         // Yes a forward ref, so declare it
-        TYPES.put(tname,t1);
+        TYPES.put(tname,((TypeMemPtr)t1)._obj);
         // Return the (array, final) type
         return t2;
     }
 
     // Make an array type of t
-    private TypeMemPtr typeAry( Type t, boolean efinal ) {
+    private TypeStruct typeAry( Type t, boolean efinal ) {
         if( t instanceof TypeMemPtr tmp && tmp.notNull()  )
             throw error("Arrays of reference types must always be nullable");
         String tname = "[]"+t.str();
-        TypeMemPtr ta = (TypeMemPtr)TYPES.get(tname);
+        TypeStruct ta = (TypeStruct)TYPES.get(tname);
         if( ta==null )
             // Remember final version
-            //TYPES.put(tname, ta = TypeMemPtr.make( TypeStruct.makeAry(tname,TypeInteger.U32,_code.nextALIAS(),t,_code.nextALIAS()) ));
-            throw Utils.TODO();
-        Field elem = ta._obj.field("[]");
+            TYPES.put(tname, ta = TypeStruct.makeAry(tname=tname.intern(),TypeInteger.U32,_code.nextALIAS(),t,_code.nextALIAS() ) );
+        Field elem = ta.field("[]");
         if( elem._final == efinal )
             return ta;
-        return TypeMemPtr.make( ta._obj.replace(elem.makeFrom(efinal)));
+        return ta.replace(elem.makeFrom(efinal));
     }
 
     // A function type is `{ type... -> type }` or `{ type }`.
@@ -1393,7 +1342,6 @@ public class Parser {
             int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
             String name = _lexer.matchId();
             if( name!=null ) {
-                // pre-inc/dec cannot FREF
                 Var n = _scope.lookup(name);
                 if( n != null && !(n.type() instanceof TypeMemPtr) ) {
                     if( n._final )
@@ -1404,9 +1352,7 @@ public class Parser {
                     _scope.update(n,expr);
                     return expr;
                 }
-            } else
-                throw Utils.TODO("pre-inc/dec cannot FREF");
-
+            }
             // Reset, try again
             pos(old);
         }
@@ -1524,7 +1470,7 @@ public class Parser {
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return liftExpr(peep(op.widen()),t,false,true);
+        return liftExpr(peep(op.widen()),t,true);
     }
 
 
@@ -1538,80 +1484,85 @@ public class Parser {
         if( match("[") ) {
             if( !t.makeZero().isa(t) )
                 throw error("Cannot allocate a non-nullable, since arrays are always zero/null filled");
-            Node len = parseAsgn();
+            Node len = parseAsgn().keep();
             if( !(len._type instanceof TypeInteger) )
                 throw error("Cannot allocate an array with length "+len._type);
             require("]");
-            TypeMemPtr tmp = typeAry(t,false);
-            return newArray(tmp._obj,len);
+            return allocArray(typeAry(t,false),len);
+        } else {
+            if( !(t instanceof TypeMemPtr tmp) )
+                throw error("Cannot allocate a "+t.str());
+            return allocStruct(tmp._obj);
         }
+    }
 
-        if( !(t instanceof TypeMemPtr tmp) )
-            throw error("Cannot allocate a "+t.str());
+    private Node allocStruct(TypeStruct ts) {
+        Node size = off(ts._name, " len");
 
-        // Build a NewNode; takes in and puts out all aliases.
-        NewNode nnn = new NewNode(tmp._obj, ctrl(), off(tmp._obj._name, " len") ).init();
-        ProjNode self = new ProjNode(nnn,0,"self").init().keep();
+        // Build a NewNode; takes in ctrl and size.
+        // Produces a ptr and a private mem.
+        NewNode nnn = new NewNode(ts, ctrl(), size ).init();
+        ProjNode self = new ProjNode(nnn,0,ts.str()).init().keep();
         ProjNode smem = new ProjNode(nnn,1,"#selfMem").init();
 
-        // Find a "class:XXX" struct, with field "XXX" function ptr.
-        TypeMemPtr pclz = (TypeMemPtr)TYPES.get(addClzPrefix(tmp._obj._name));
-        TypeStruct clz = pclz._obj;
-        TypeFunPtr init = (TypeFunPtr)clz.field(tmp._obj._name)._t;
+        // Find a "class:XXX" struct, with field "XXX" function ptr as the <init>
+        TypeStruct clz = (TypeStruct)TYPES.get(addClzPrefix(ts._name));
+        if( clz==null )
+            throw error("Unknown struct type '" + ts._name + "'");
+        TypeFunPtr init = (TypeFunPtr)clz.field(ts._name)._t;
 
-        // Call <init>(NewNode); encourage inlining
+        // Call construct <init>($ctrl,$mem,NewNode.self,NewNode.#selfMem) and
+        // encourage inlining
         Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(_scope.mem().merge()); add(self); add(smem); add(con(init)); }};
         Node selfMem = functionCall( args ).keep();
         // The returned value is a merge of private *Memory* and NOT some Scalar
-        Type tmem = selfMem._type;
 
-        //// Parse new struct { default_initialization }
-        //StructNode s = INITS.get(tmp._obj._name);
-        //if( s==null ) throw error("Unknown struct type '" + tmp._obj._name + "'");
-        //
-        //Field[] fs = s._ts._fields;
-        // if the object is fully initialized, we can skip a block here.
         // Check for constructor block:
         boolean hasConstructor = match("{");
-        //Ary<Node> init=s._inputs;  int idx=0;
         if( hasConstructor ) {
             int idx = _scope.nIns();
             // Push a scope, and pre-assign all struct fields.
             _scope.push(new Kind.Block());
             Lexer loc = loc();
-            MemMergeNode selfmmm = (MemMergeNode)selfMem;
-            for( Field fld : tmp._obj._fields ) {
-                // An initial TOP means the field needs to be initialized.  We
-                // store a BOT initially; any partial init will fall to BOT
-                // (merge BOT and the partial) and be obviously only a partial
-                // init.  To be initialized the field needs a full clobber.
-                Node finit = selfmmm.alias(fld._alias);
-                _scope.define(fld._fname, fld._t, fld._final, finit._type==Type.TOP ? con(Type.BOTTOM) : finit, loc);
+            for( Field fld : ts._fields ) {
+                Node finit;
+                // Speed optimization: skip load-of-merge-of-store
+                if( selfMem instanceof MemMergeNode mmm && mmm.alias(fld._alias) instanceof StoreNode st )
+                    finit = st.val();
+                else
+                    finit = peep(new LoadNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(ts._name, fld._fname)));
+                _scope.define(fld._fname, fld._t, fld._final, finit, loc);
             }
+
             // Parse the constructor body
-            require(parseBlock(new Kind.Alloc(tmp._obj)),"}");
-            // Reload updated fields
-            for( Field fld : tmp._obj._fields ) {
-                if( selfmmm.alias(fld._alias)!=_scope.in(idx) ) {
-                    Node mem = selfmmm.alias(fld._alias);
-                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, mem, self, off(tmp._obj._name,fld._fname), _scope.in(idx++), true));
-                    selfmmm.alias(fld._alias,st);
+            require(parseBlock(new Kind.Alloc(ts)),"}");
+
+            // Store updated fields
+            MemMergeNode updatedPrivMem = new MemMergeNode(false);
+            for( Field fld : ts._fields ) {
+                Node newval = _scope.in(idx++);
+                // Speed optimization: skip store-of-same
+                if( !(selfMem instanceof MemMergeNode mmm && mmm.alias(fld._alias) instanceof StoreNode st && st.val() == newval) ) {
+                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(ts._name,fld._fname), newval, true));
+                    updatedPrivMem.alias(fld._alias,st);
                 }
             }
-            tmem = selfmmm.init()._type;
+            updatedPrivMem.alias(1,selfMem.unkeep());
+            selfMem = peep(updatedPrivMem).keep();
+        }
 
-
-            //init = _scope._inputs;
-            //throw Utils.TODO("need the updated tmem");
+        // Might be TOP if parsing in dead/unreachable code
+        if( !(selfMem._type instanceof TypeMem tmem) ) {
+            selfMem.unkeep();
+            return self.unkeep();
         }
 
         // Check that all fields are initialized
-        TypeStruct postinit = null;
-        if( tmem instanceof TypeMem tmem0 ) { // Might be TOP if parsing in dead/unreachable code
-            postinit = ((TypeMemPtr)(tmem0._t))._obj;
-            for( Field fld : postinit._fields )
-                if( fld._t == Type.TOP || fld._t == Type.BOTTOM )
-                    throw error("'"+postinit._name+"' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor");
+        TypeStruct postinit = (TypeStruct)(tmem._t);
+        for( Field fld : postinit._fields ) {
+            assert fld._t != Type.TOP;
+            if( fld._t == Type.BOTTOM )
+                throw error("'"+postinit._name+"' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor");
         }
         // Pop constructor scope
         if( hasConstructor )
@@ -1621,69 +1572,43 @@ public class Parser {
         // merged private memory, then all the named public aliases.  The
         // output is all the newly merged public aliases - but not actually
         // bulk memory.
-        if( tmem instanceof TypeMem tmem0 ) { // Might be TOP if parsing in dead/unreachable code
-            for( Field fld : postinit._fields ) {
-                Node esc = peep(new EscapeNode(fld._alias,self,selfMem,memAlias(fld._alias)));
-                memAlias(fld._alias,esc);
-            }
+        for( Field fld : postinit._fields ) {
+            Node esc = peep(new EscapeNode(fld._alias,self,selfMem,memAlias(fld._alias)));
+            memAlias(fld._alias,esc);
         }
-        selfMem.unkeep();
 
+        selfMem.unkeep();
         return self.unkeep();
     }
 
+    private Node allocArray(TypeStruct ts, Node len) {
+        int  lenAlias = ts.field("#" )._alias;
+        int bodyAlias = ts.field("[]")._alias;
 
-    ///**
-    // * Return a NewNode initialized memory.
-    // * //@param obj is the declared type, with GLB fields
-    // * //@param init is a collection of initialized fields
-    // */
-    //private Node newStruct( TypeStruct obj, Node size/*, int idx, Ary<Node> init*/ ) {
-    //    Field[] fs = obj._fields;
-    //    if( fs==null )
-    //        //throw error("Unknown struct type '" + obj._name + "'");
-    //        throw Utils.TODO();
-    //    int len = fs.length;
-    //    Node[] ns = new Node[2+len];
-    //    ns[0] = ctrl();         // Control in slot 0
-    //    // Total allocated length in bytes
-    //    ns[1] = size;
-    //    // Memory aliases for every field
-    //    for( int i = 0; i < len; i++ )
-    //        ns[2+i] = memAlias(fs[i]._alias);
-    //    Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole().keep();
-    //    for( int i = 0; i < len; i++ )
-    //        //if( !fs[i]._one )
-    //            memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
-    //    return new ProjNode(nnn.unkeep(),1,obj._name).peephole().keep();
-    //    //Node ptr = new ProjNode(nnn.unkeep(),1,obj._name).peephole().keep();
-    //    //
-    //    //// Initial nonzero values for every field
-    //    //for( int i = 0; i < len; i++ ) {
-    //    //    Node val = init.get( i + idx );
-    //    //    if( !fs[i]._one && val._type != val._type.makeZero() ) {
-    //    //        Node mem = memAlias(fs[i]._alias);
-    //    //        Node st = new StoreNode(loc(),fs[i]._fname,fs[i]._alias,fs[i]._t,mem,ptr,off(obj,fs[i]._fname),val,true).peephole();
-    //    //        memAlias(fs[i]._alias,st);
-    //    //    }
-    //    //}
-    //    //
-    //    //return ptr.unkeep();
-    //}
+        ConFldOffNode base = off(ts, "[]");
+        int scale = ts.aryScale();
+        Node size = peep(new AddNode(base,peep(new ShlNode(null,len,con(scale)))));
 
-    private static final Ary<Node> ALTMP = new Ary<>(Node.class);
-    private Node newArray(TypeStruct ary, Node len) {
-        ConFldOffNode base = off(ary, "[]");
-        int scale= ary.aryScale();
-        Node size = peep(new AddNode(base,peep(new ShlNode(null,len.keep(),con(scale)))));
-        ALTMP.clear();  ALTMP.add(len.unkeep()); ALTMP.add(con(ary._fields[1]._t.makeZero()));
-        //return newStruct(ary,size,0,ALTMP);
-        throw Utils.TODO();
+        // Build a NewNode; takes in and puts out all aliases.
+        NewNode nnn = new NewNode(ts, ctrl(), size ).init();
+        ProjNode self = new ProjNode(nnn,0,ts.str()).init().keep();
+        ProjNode smem = new ProjNode(nnn,1,"#selfMem").init().keep();
+
+        // Store length.  Rest of array is zero'd via CALLOC during CodeGen
+        Node st = peep(new StoreNode(null, "#", lenAlias, len._type, smem, self, off(ts._name,"#"), len.unkeep(), true));
+
+        // TODO: Allow add-on "constructor" to init the array elements
+
+        memAlias( lenAlias,peep(new EscapeNode( lenAlias,self,st  ,memAlias( lenAlias))));
+        memAlias(bodyAlias,peep(new EscapeNode(bodyAlias,self,smem,memAlias(bodyAlias))));
+        smem.unkeep();
+        return self.unkeep();
     }
+
     private Node newString(String s) {
-        TypeMemPtr tmp = typeAry(TypeInteger.U8,true);
-        int  lenAlias = tmp._obj.field("#" )._alias;
-        int elemAlias = tmp._obj.field("[]")._alias;
+        TypeStruct ts = typeAry(TypeInteger.U8,true);
+        int  lenAlias = ts.field("#" )._alias;
+        int elemAlias = ts.field("[]")._alias;
         TypeConAryB body = TypeConAryB.make(s);
         TypeInteger slen = TypeInteger.constant(s.length());
         // Make a TMP, not-null (byte)2, singleton (true) (requires text
@@ -1737,17 +1662,15 @@ public class Parser {
      * </pre>
      */
     private Node parsePostfixName(Node expr, String name) {
-
-        if( expr._type==Type.NIL )
+        Type etype = expr._type;
+        if( etype==Type.NIL )
             throw error("Accessing unknown field '" + name + "' from 'null'");
 
         // Sanity check expr for being a reference
-        if( !(expr._type instanceof TypeMemPtr ptr) )
-            throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + expr._type.str() );
+        if( !(etype instanceof TypeMemPtr ptr) )
+            throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + etype.str() );
 
         // Find the field from the Type.  Lookup in the base object field names.
-        TypeMemPtr ptr2 = (TypeMemPtr)TYPES.get(ptr._obj._name);
-        ptr = (TypeMemPtr)ptr.join(ptr2);// Upgrade to latest TYPES
         TypeStruct base = ptr._obj;
         int fidx = base.find(name);
         if( fidx == -1 )
@@ -1769,7 +1692,7 @@ public class Parser {
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
             Node val = parseAsgn().keep();
-            Node lift = liftExpr( val, tf, f._final, false );
+            Node lift = liftExpr( val, tf, false );
             Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr, off.unkeep(), lift, false);
             // Arrays include control, as a proxy for a safety range check.
             // Structs don't need this; they only need a NPE check which is
@@ -1936,10 +1859,8 @@ public class Parser {
         // Control from CallEnd
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
         // Memory from CallEnd
-        MemMergeNode mem = new MemMergeNode(true);
-        mem.addDef(null);       // Alias#0
-        mem.addDef(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
-        _scope.mem(mem);
+        Node mem = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
+        _scope.mem(new MemMergeNode(true,null,mem));
         // Call result
         return new ProjNode(cend.unkeep(),2,"#2").peephole();
     }

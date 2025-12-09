@@ -4,8 +4,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
 import java.util.HashMap;
 
@@ -55,10 +54,11 @@ public class ConstantNode extends Node {
     @Override public boolean isConst() { return true; }
     @Override public Type compute() { return _con; }
     @Override public Node idealize() { return null; }
-    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
-        _con = _con.upgradeType(TYPES);
-        return null;
+
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES ) {
+        Type old = _con; _con = _con.upgradeType(TYPES);  return old != _con;
     }
+
 
     @Override public boolean eq(Node n) { return _con==((ConstantNode)n)._con; }
     @Override int hash() { return _con.hashCode(); }

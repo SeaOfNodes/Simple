@@ -198,7 +198,7 @@ public class TypeTest {
 
     @Test
     public void testOpen() {
-        TypeStruct open = TypeStruct.open("List");
+        TypeStruct open = TypeStruct.make("List",false);
         TypeMemPtr plist = TypeMemPtr.makeNullable(open);
         TypeStruct list = open.add(Field.make("next", plist, 2, false) );
         list = list.add(Field.make("x", TypeInteger.BOT, 3, false));

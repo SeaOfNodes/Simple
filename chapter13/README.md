@@ -52,9 +52,9 @@ Reference fields start out as null, doing anything with them will result in a co
 
 ```java 
 struct Person {
-  String name;       
+  String name;
   int age;
-  FamilyTree? tree;  
+  FamilyTree? tree;
 }
 Person p = new Person;
 p.tree.la = null; // Accessing unknown field 'la' from 'null'
@@ -129,9 +129,10 @@ N n = new N;
 return n.next;  // Value reports as null, despite field typed as not-null
 ```
 
-As shown above, we explicitly allow not-null fields to be null initialized.
-(as of chapter13)
-We can't allow null to be stored into a not-null field, but we can allow a not-null field to be null(initially).
+As shown above, we explicitly allow not-null fields to be null initialized (as
+of chapter13).  We can't allow null to be stored into a not-null field, but we
+can allow a not-null field to be null (initially).  This will be corrected in a
+later chapter.
 
 
 ### Self-referential references

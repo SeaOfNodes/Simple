@@ -14,7 +14,7 @@ import java.util.HashMap;
  */
 public class StoreNode extends MemOpNode {
 
-    private final boolean _init; // Initializing writes are allowed to write null
+    final boolean _init; // Initializing writes are allowed to write null
 
     /**
      * @param name  The struct field we are assigning to
@@ -62,14 +62,11 @@ public class StoreNode extends MemOpNode {
         // Allocation uses a known TypeStruct mem type and nothing else does.
         // This memory is truly private; a temporary singleton until it
         // escapes - which is never does in a constructor.
-        String tname=null;
-        if( mem._t instanceof TypeBuilder bld ) tname=bld._name;
-        if( mem._t instanceof TypeMemPtr  tmp ) tname=tmp._obj._name;
-        if( tname!=null ) {
+        if( mem._one ) {
             assert mem._alias==1;
             Field fld = Field.make(_name, val, _alias, _init);
-            TypeStruct ts2 = TypeStruct.make(tname, true, fld);
-            return TypeMem.make(1,TypeMemPtr.make(ts2));
+            TypeStruct ts2 = TypeStruct.make(((TypeStruct)mem._t)._name, false, fld);
+            return TypeMem.make(1,ts2,true);
         }
 
         // Normal aliasing Store
@@ -81,7 +78,7 @@ public class StoreNode extends MemOpNode {
             val = val.join(declType());
             t = val.meet(mem._t);
         }
-        return TypeMem.make(_alias,t);
+        return TypeMem.make(_alias,t,mem._one);
     }
 
     @Override

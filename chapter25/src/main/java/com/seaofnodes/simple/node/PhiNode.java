@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -256,9 +256,8 @@ public class PhiNode extends Node {
         return in(nIns()-1) == null;
     }
 
-    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
-        _minType = _minType.upgradeType(TYPES);
-        return null;
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        Type old = _minType; _minType = _minType.upgradeType(TYPES);  return old != _minType;
     }
 
     // Never equal if inProgress.
@@ -286,7 +285,10 @@ public class PhiNode extends Node {
             if( in(i)._type == Type.BOTTOM )
                 return null;
 
-        throw Utils.TODO();
+        SB sb = new SB().p("No common type amongst ");
+        for( int i=1; i<nIns(); i++ )
+            sb.p(in(i)._type.toString()).p(" and ");
+        return Parser.error(sb.unchar(5).toString(),null);
     }
 
     @Override public void gather( HashMap<String,Integer> strs ) {

@@ -46,19 +46,30 @@ public class LoadNode extends MemOpNode {
         if( err() != null )
             return declType();
         if( !(tptr instanceof TypeMemPtr tmp) )
-            return tptr; // No pointer yet?  Assume TOP/BOT
+            return tptr.oob(); // No pointer yet?  Assume TOP/BOT
         // Load field from object
-        Field f = tmp._obj.field(_name);
+        Field pfld = tmp._obj.field(_name);
         // No field?  Open objects might yet get the field when falling;
         // closed objects with missing field are an error.
-        if( f == null )
+        if( pfld == null )
             return tmp.isHigh() ? Type.TOP : declType();
-        Type t = f._t;
+        Type t = pfld._t;
         // Load member of constant array
         if( t instanceof TypeConAry ary )
             t = ary.elem();     // TODO: if offset is known, can peek the constant
-        // Lift from declared type and memory input
-        t = t.join(mem._t);
+
+        // Now, do the same for memory
+        if( mem._t instanceof TypeStruct ts ) {
+            assert ts._name==tmp._obj._name;
+            Field mfld = ts.field(_name);
+            // Lift from declared type and memory input
+            t = t.join(mfld._t);
+        } else if( mem._t == Type.TOP ) {
+            return Type.TOP;
+        } else {
+            assert mem._t == Type.BOTTOM; // No lifting
+        }
+
         Type decl = declType();
         if( decl.isFinal() )
             t = t.makeRO(); // Deep final applied
@@ -134,7 +145,9 @@ public class LoadNode extends MemOpNode {
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
-                    throw Utils.TODO("Should not see a Load from New; and no bypass Store from New");
+                    // Direct load from e.g. new array elements
+                    assert _name=="[]";
+                    return new ConstantNode(declType().makeZero());
                 case StartNode  start: break outer;
                 case CallEndNode cend: addDep(mproj); break outer; // TODO: Bypass no-alias call
                 default: throw Utils.TODO();
