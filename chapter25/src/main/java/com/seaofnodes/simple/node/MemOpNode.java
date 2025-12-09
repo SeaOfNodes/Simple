@@ -105,9 +105,8 @@ public abstract class MemOpNode extends Node {
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
     public int log_size() { return _declaredType.log_size();  }
 
-    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
-        _declaredType = _declaredType.upgradeType(TYPES);
-        return null;
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        Type old = _declaredType; _declaredType = _declaredType.upgradeType(TYPES);  return old != _declaredType;
     }
 
     @Override

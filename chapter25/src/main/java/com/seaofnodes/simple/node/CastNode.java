@@ -1,9 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
-import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -32,7 +30,6 @@ public class CastNode extends Node {
     public String uniqueName() { return "Cast_" + _nid; }
 
     @Override public boolean isPinned() { return true; }
-    @Override public boolean isConst() { return true; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -45,17 +42,22 @@ public class CastNode extends Node {
         Type t1 = in(1)._type;
         if( _t == TypeInteger.BOT && t1 instanceof TypeMemPtr tmp && tmp._obj.isAry() )
             return _t;
-        // Freeze if the join is high but both inputs are low
-        Type tj = t1.join(_t);
-        if( tj.isHigh() && !t1.isHigh() )
-            return _type==null ? _t : _type;
 
-        return tj;
+        // If unconditional, it must collapse (or error)
+        if( in(0)==null )
+            return _t;
+        // If conditional, return the join.  The guard test ensures
+        // the join is correct.
+        return t1.join(_t);
     }
 
     @Override
     public Node idealize() {
         return in(1)._type.isa(_t) ? in(1) : null;
+    }
+
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        Type old = _t; _t = _t.upgradeType(TYPES);  return old != _t;
     }
 
     @Override
@@ -71,7 +73,22 @@ public class CastNode extends Node {
     public Parser.ParseException err() {
         // Has a condition to test, so OK
         if( in(0) != null ) return null;
-        // No condition to test, so this must optimize away
-        return Parser.error( "Type " + in(1)._type.str() + " is not of declared type " + _t.str(), null );
+        if( in(1)._type != Type.BOTTOM )
+            // No condition to test, so this must optimize away
+            return Parser.error( "Type " + in(1)._type.str() + " is not of declared type " + _t.str(), null );
+        // Only happens for un-initialized refs that must init.
+        // Allow uses of initializing stores, but other uses represent a
+        // partially initialized field, and should error
+        boolean bad = false;
+        StoreNode init=null;
+        for( Node use : _outputs )
+            if( (use instanceof StoreNode st && st._init && !((TypeMemPtr)st.ptr()._type)._obj._name.startsWith("class") ) )
+                init = st;
+            else bad = true;
+        if( !bad ) return null;
+        // Expecting an init store
+        TypeMem privmem = (TypeMem)init._type;
+        TypeStruct ts = (TypeStruct)privmem._t;
+        throw Parser.error("'"+ts._name+"' is not fully initialized, field '" + init._name + "' is only partially set in the constructor", init._loc);
     }
 }

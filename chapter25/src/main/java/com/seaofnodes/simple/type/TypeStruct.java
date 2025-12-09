@@ -14,11 +14,11 @@ public class TypeStruct extends Type {
     // immutable and type ignored (BOT).
 
     // During parsing a mid-declaration struct is flagged as a "open".  It is
-    // treated as having infinite fields with correct name and type TOP.
+    // treated as having infinite fields with correct name and type BOT.
     // CNC: Warning I've flipped these before
 
     public String _name;  // Struct name
-    public boolean _open; // infinite fields are all true:TOP, false:BOT
+    public boolean _open; // infinite fields are all true:BOT, false:TOP
     public Field[] _fields;
 
     private TypeStruct() { super(TSTRUCT); }
@@ -87,37 +87,65 @@ public class TypeStruct extends Type {
         return make(_name,_open,flds);
     }
     public TypeStruct replace( Field f ) {
-        assert !_open;
         Field[] flds = Arrays.copyOf(_fields,_fields.length);
         flds[find(f._fname)] = f;
-        return make(_name,false,flds);
+        return make(_name,_open,flds);
     }
 
 
     public final TypeStruct close() {
-        return (TypeStruct)recurOpen()._close().recurClose();
+        return (TypeStruct)recurOpen()._close(_name, null).recurClose();
     }
-    @Override TypeStruct _close( ) {
+    @Override TypeStruct _close( String name, HashMap<String, Type> TYPES ) {
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
         if( ts!=null ) return ts;
-        ts = recurPre(_name,_name, false);
+        TypeStruct base = TYPES==null ? this : (TypeStruct)TYPES.get(_name);
+        ts = base.recurPre(_name,_name, name != _name && name != null && _open );
         Field[] flds = ts._fields;
 
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
-            flds[i].setType(_fields[i]._t._close());
+            flds[i].setType(base._fields[i]._t._close(name, TYPES ));
 
         return ts;
     }
 
-    @Override public Type upgradeType(HashMap<String,Type> TYPES) {
-        throw Utils.TODO();
+    // Needs full recursive treatment; e.g.
+    //     struct LL { LL? next; int !q; }  // Q is mutable field.
+    // Stored into a not-mutable, so need that version also:
+    //     struct LL { LL? next; int  q; }  // Q is NOT mutable field.
+    // Now upgrade:
+    //     its not the default version from TYPES.
+    //     its fully cyclic
+    //
+    // Evil question: has no *open* internal fields, so can I assume it is fully correct and never needs upgrade?
+    //
+    // upgrades are for well-formed types with internal ptrs to early open
+    // versions of other types, as happens in all the CoRecur tests.
+    // During the co-recur tests, can I make non-default cycles with
+    // weaker versions of other early types?
+    // Seems plausible...
+    @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        TypeStruct base = (TypeStruct)TYPES.get(_name);
+        if( this == base ) return this; // Already the good form
+        TypeStruct ts = (TypeStruct)VISIT.get(_name);
+        if( ts!=null ) return ts;
+        // Main work: replace open with closed
+        if( _open )
+            return base;
+        // Biuld recursive version
+        ts = recurPre(_name,_name,false);
+        Field[] flds = ts._fields;
+        // Now start the recursion
+        for( int i=0; i<flds.length; i++ )
+            flds[i].setType(_fields[i]._t._upgradeType(TYPES));
+        return ts;
     }
 
     static final AryInt CEQUALS = new AryInt();
 
     public  static final String TOPNAME = "$TOP", BOTNAME = "$BOT";
-    public  static final TypeStruct TOP = open("$TOP");
+    public  static final TypeStruct TOP = make("$TOP",false);
     public  static final TypeStruct BOT = TOP.dual();
     public  static final TypeStruct TEST= make("test",false,Field.TEST);
     private static final TypeStruct ARY = makeAry("[]i64",TypeInteger.U32,-1,TypeInteger.BOT,-2);
@@ -125,8 +153,8 @@ public class TypeStruct extends Type {
     private static final TypeStruct ABC = makeAry("[]u8",-1,-4,TypeConAryB.ABC);
 
     // A pair of self-cyclic types
-    private static final TypeStruct SINT0  = open("%SINT");
-    private static final TypeStruct SFLT0  = open("%SFLT");
+    private static final TypeStruct SINT0  = make("%SINT",false);
+    private static final TypeStruct SFLT0  = make("%SFLT",false);
     public  static final TypeStruct SINT1  = SINT0.add(Field.make("a", TypeInteger.U32, -1, false)).add(Field.make("s2",TypeMemPtr.make((byte)2,SFLT0),-2, false));
     public  static final TypeStruct SFLT1  = SFLT0.add(Field.make("b", TypeFloat  .F32, -3, false)).add(Field.make("s1",TypeMemPtr.make((byte)2,SINT1),-4, false));
 
@@ -180,7 +208,7 @@ public class TypeStruct extends Type {
         // if short is BOT, chop     ; recurPre on short.
         // if short is TOP, copy long; recurPre on long.
         TypeStruct min = _fields.length < that._fields.length ? this : that;
-        if( _fields.length != that._fields.length && (min._open ^ min!=this) )
+        if( _fields.length != that._fields.length && (!min._open ^ min!=this) )
             return that.xmeet(this);
 
         assert (_name==that._name) == (_name.equals(that._name)); // Strings are interned
@@ -209,7 +237,7 @@ public class TypeStruct extends Type {
 
         // Setup and install the type, prior to recursing, so we can find our
         // recursive self again.
-        ts = recurPre(pid,name,_open & that._open);
+        ts = recurPre(pid,name,_open | that._open);
 
         // Recurse all common fields
         Field[] flds = ts._fields;
@@ -255,12 +283,10 @@ public class TypeStruct extends Type {
             _name;
     }
 
-    //// Is forward-reference
-    //@Override public boolean isFRef() { return _open; }
-
     @Override boolean _isConstant() {
         if( VISIT.containsKey(_uid) ) return true; // Cycles assume constant
         VISIT.put(_uid,this);
+        if( _open ) return false; // Infinite BOT fields
         // Special case for constant arrays
 
         // Check all fields for being constant
@@ -325,7 +351,7 @@ public class TypeStruct extends Type {
     public TypeStruct glb2() {
         TypeStruct ts = (TypeStruct)VISIT.get(_name);
         if( ts!=null ) return ts;
-        ts = recurPre(_name,_name,false);
+        ts = recurPre(_name,_name,_open);
         Field[] flds = ts._fields;
         for( Field fld : flds ) fld._final = true;
 

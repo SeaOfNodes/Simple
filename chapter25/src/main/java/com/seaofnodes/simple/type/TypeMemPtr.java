@@ -99,10 +99,10 @@ public class TypeMemPtr extends TypeNil {
     @Override TypeMemPtr _makeRO() { return makeFrom(_obj._makeRO()); }
     @Override boolean _isGLB(boolean mem) { return _obj.isGLB2(); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
-    @Override TypeMemPtr _close( ) { return malloc(_nil,_obj._close(),_one); }
+    @Override TypeMemPtr _close( String name, HashMap<String, Type> TYPES ) { return malloc(_nil,_obj._close(name, TYPES ),_one); }
 
-    @Override public Type upgradeType(HashMap<String,Type> TYPES) {
-        return makeFrom((TypeStruct)_obj.upgradeType(TYPES));
+    @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        return makeFrom((TypeStruct)_obj._upgradeType(TYPES));
     }
 
     @Override public int log_size() { return 3; } // (1<<3)==8-byte pointers

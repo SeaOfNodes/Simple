@@ -17,12 +17,14 @@ public class TypeMem extends Type {
     //  N means alias slice#N.
     public int _alias;
     public Type _t;       // Memory contents, some scalar type
+    public boolean _one;  // Private memory, corresponds to TMP _one
 
     private static final Ary<TypeMem> FREE = new Ary<>(TypeMem.class);
-    private TypeMem(int alias, Type t) { super(TMEM); init(alias,t); }
-    private TypeMem init(int alias, Type t) {
+    private TypeMem() { super(TMEM); }
+    private TypeMem init(int alias, Type t, boolean one) {
         _alias = alias;
         _t = t;
+        _one = one;
         return this;
     }
     @Override TypeMem free(Type t) {
@@ -36,15 +38,16 @@ public class TypeMem extends Type {
     }
     @Override boolean isFree() { return _alias == -99; }
 
-    public static TypeMem malloc(int alias, Type t) {
-        return FREE.isEmpty() ? new TypeMem(alias,t) : FREE.pop().init(alias,t);
+    public static TypeMem malloc(int alias, Type t, boolean one) {
+        return (FREE.isEmpty() ? new TypeMem() : FREE.pop()).init(alias,t,one);
     }
-    public static TypeMem make(int alias, Type t) {
-        TypeMem f = malloc(alias,t);
+    public static TypeMem make(int alias, Type t, boolean one) {
+        TypeMem f = malloc(alias,t,one);
         TypeMem f2 = f.intern();
         if( f2==f ) return f;
         return VISIT.isEmpty() ? f2.free(f) : f2.delayFree(f);
     }
+    public static TypeMem make(int alias, Type t) { return make(alias,t,false); }
 
     public static final TypeMem TOP = make(1, Type.TOP   );
     public static final TypeMem BOT = make(1, Type.BOTTOM);
@@ -61,16 +64,16 @@ public class TypeMem extends Type {
         if( that==BOT ) return BOT;
         int alias = _alias==that._alias ? _alias : 1;
         Type mt = _t.meet(that._t);
-        return make(alias,mt);
+        return make(alias,mt, _one & that._one);
     }
 
     @Override
-    Type xdual() { return _t._dual==_t ? this : malloc(_alias,_t.dual()); }
+    Type xdual() { return _t._dual==_t ? this : malloc(_alias,_t.dual(),_one); }
 
     @Override TypeMem rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        TypeMem d = malloc(_alias,null);
+        TypeMem d = malloc(_alias,null,_one);
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
         return d;
@@ -81,24 +84,24 @@ public class TypeMem extends Type {
     @Override public int log_size() { throw Utils.TODO(); }
     @Override boolean _isFinal() { return _t._isFinal(); }
     @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
-    @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true)); }
+    @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true),_one); }
 
-    @Override TypeMem _close( ) { return malloc(_alias,_t._close()); }
+    @Override TypeMem _close( String name, HashMap<String, Type> TYPES ) { return malloc(_alias,_t._close(name, TYPES ),_one); }
 
-    @Override public Type upgradeType(HashMap<String,Type> TYPES) {
-        return make(_alias,_t.upgradeType(TYPES));
+    @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        return make(_alias,_t._upgradeType(TYPES),_one);
     }
 
-    @Override int hash() { return 9876543 + _alias + _t.hashCode(); }
+    @Override int hash() { return 9876543 + _alias + _t.hashCode() + (_one ? 8196 : 0); }
 
     @Override boolean eq(Type t) {
         TypeMem that = (TypeMem) t; // Invariant
-        return _alias == that._alias && _t == that._t;
+        return _alias == that._alias && _t == that._t && _one == that._one;
     }
 
     @Override boolean cycle_eq(Type t) {
         TypeMem that = (TypeMem) t; // Invariant
-        return _alias == that._alias && _t.cycle_eq(that._t);
+        return _alias == that._alias && _one == that._one && _t.cycle_eq(that._t);
     }
 
     @Override public int nkids() { return 1; }
@@ -107,6 +110,8 @@ public class TypeMem extends Type {
     // one tag for alias#1, one tag for generic alias
     @Override int TAGOFF() { return 2; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+        if( _one )
+            throw Utils.TODO();
         if( _alias==1 ) { baos.write(TAGOFFS[_type]); return; }
         // generic alias
         baos.write(TAGOFFS[_type] + 1);
@@ -114,12 +119,13 @@ public class TypeMem extends Type {
         baos.packed1(aliases.get(_alias));
     }
     static TypeMem packed( int tag, BAOS bais ) {
-        if( tag==0 ) return malloc(1,null);
-        return malloc(bais.packed1(),null);
+        if( tag==0 ) return malloc(1,null,false);
+        return malloc(bais.packed1(),null,false);
     }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {
-        sb.p("#");
+        sb.p('#');
+        if( _one ) sb.p('-');
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
         return _t.print(sb.p(_alias).p(":"),visit,html);
     }

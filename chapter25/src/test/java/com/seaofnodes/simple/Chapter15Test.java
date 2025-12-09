@@ -25,14 +25,14 @@ return 3.14;
     public void testCyclic() {
         CodeGen code = new CodeGen(
 """
-struct C { C? l; };
-C !c = new C;
+struct _C { _C? l; };
+_C !c = new _C;
 c.l = c;
 return c;
 """);
         code.parse().opto();
-        assertEquals("return C;", code.print());
-        assertEquals("C{l=$cyclic}", Eval2.eval(code,  0));
+        assertEquals("return Test._C;", code.print());
+        assertEquals("Test._C{l=$cyclic}", Eval2.eval(code,  0));
     }
 
     @Test
@@ -97,34 +97,34 @@ return a[0];
     public void testBasic4() {
         CodeGen code = new CodeGen(
 """
-struct A { int i; };
-A?[] !a = new A?[2];
+struct _A { int i; };
+_A?[] !a = new _A?[2];
 return a;
 """);
         code.parse().opto();
-        assertEquals("return []*A?;", code.print());
-        assertEquals("*A {i64 !i; }?[ null,null]", Eval2.eval(code, 0));
+        assertEquals("return []*Test._A?;", code.print());
+        assertEquals("*Test._A {i64 !i; }?[ null,null]", Eval2.eval(code, 0));
     }
 
     @Test
     public void testBasic5() {
         CodeGen code = new CodeGen(
 """
-struct S { int x; flt y; };
-// A new S
-S !s = new S; s.x=99; s.y = 3.14;
+struct _S { int x; flt y; };
+// A new _S
+_S !s = new _S; s.x=99; s.y = 3.14;
 
-// Double-d array of Ss.  Fill in one row.
-S?[]?[] !iss = new S?[]?[2];
-iss[0] = new S?[7];
+// Double-d array of _Ss.  Fill in one row.
+_S?[]?[] !iss = new _S?[]?[2];
+iss[0] = new _S?[7];
 iss[0][2] = s;
 
 // Now pull out the filled-in value, with null checks
 flt rez;
-S?[]? is = iss[arg];
+_S?[]? is = iss[arg];
 if( !is ) rez = 1.2;
 else {
-    S? i = is[2];
+    _S? i = is[2];
     if( !i ) rez = 2.3;
     else rez = i.y;
 }
@@ -140,13 +140,13 @@ return rez;
     public void testBasic6() {
         CodeGen code = new CodeGen(
 """
-struct S { int x; flt y; };
-// A new S
-S !s = new S; s.x=99; s.y = 3.14;
+struct _S { int x; flt y; };
+// A new _S
+_S !s = new _S; s.x=99; s.y = 3.14;
 
-// Double-d array of Ss.  Fill in one row.
-S?[]?[] !iss = new S?[]?[2];
-iss[0] = new S?[7];
+// Double-d array of _Ss.  Fill in one row.
+_S?[]?[] !iss = new _S?[]?[2];
+iss[0] = new _S?[7];
 iss[0][2] = s;
 
 // Now pull out the filled-in value, with null checks
@@ -167,22 +167,22 @@ return rez;""");
         CodeGen code = new CodeGen(
 """
 // Can we define a forward-reference array?
-struct Tree { Tree?[]? _kids; };
-Tree !root = new Tree;
-root._kids = new Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
-root._kids[0] = new Tree;
+struct _Tree { _Tree?[]? _kids; };
+_Tree !root = new _Tree;
+root._kids = new _Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
+root._kids[0] = new _Tree;
 return root;
 """);
-        code.parse().opto();
-        assertEquals("return Tree;", code.print());
-        assertEquals("Tree{_kids=*Tree {*[]*Tree?? !_kids; }?[ Tree{_kids=null},null]}", Eval2.eval(code,  0));
+        code.parse().opto().typeCheck();
+        assertEquals("return Test._Tree;", code.print());
+        assertEquals("Test._Tree{_kids=*Test._Tree {*[]*Test._Tree?? !_kids; }?[ Test._Tree{_kids=null},null]}", Eval2.eval(code,  0));
     }
 
     @Test
     public void testNestedStructAddMemProj() {
         CodeGen code = new CodeGen(
 """
-struct S { int a; int[] b; };
+struct _S { int a; int[] b; };
 return 0;
 """);
         code.parse().opto();
@@ -208,7 +208,7 @@ while( i < ary# - 1 ) {
 }
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
-        code.parse().opto();
+        code.parse().opto().typeCheck();
         assertEquals("return (.[]+(.[]*1000));", code.print());
         assertEquals("1006", Eval2.eval(code,  4));
     }
@@ -226,12 +226,12 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     public void testNewNodeInit() {
         CodeGen code = new CodeGen(
 """
-struct S {int i; flt f;};
-S !s1 = new S;
-S !s2 = new S;
+struct _S {int i; flt f;};
+_S !s1 = new _S;
+_S !s2 = new _S;
 s2.i = 3;
 s2.f = 2.0;
-if (arg) s1 = new S;
+if (arg) s1 = new _S;
 return s1.i + s1.f;
 """);
         code.parse().opto();

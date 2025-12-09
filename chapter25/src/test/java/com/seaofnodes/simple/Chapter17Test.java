@@ -79,8 +79,8 @@ return xs[0];
     @Test
     public void testInc5() {
         CodeGen code = new CodeGen("""
-struct S { u16 x; };
-S !s = new S;
+struct _S { u16 x; };
+_S !s = new _S;
 s.x--;
 return s.x;
 """);
@@ -132,13 +132,13 @@ return s.x;
     @Test public void testVar0() {
         CodeGen code = new CodeGen("var d; return d;");
         try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected `=expression` but found `;`",e.getMessage()); }
     }
 
     @Test public void testVar1() {
         CodeGen code = new CodeGen("val d; return d;");
         try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected `=expression` but found `;`",e.getMessage()); }
     }
 
     @Test public void testVar2() {
@@ -156,14 +156,14 @@ return s.x;
     }
 
     @Test public void testVar4() {
-        CodeGen code = new CodeGen("struct S{int x;}; S? s; s=new S; s.x++; return s.x; // Ok, no initializer so x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x;}; _S? s; s=new _S; s.x++; return s.x; // Ok, no initializer so x is mutable ");
         code.parse().opto();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar5() {
-        CodeGen code = new CodeGen("struct S{int x;}; S? s; s=new S{x=3;}; s.x++; return s.x; // Ok, no initializer so x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x;}; _S? s; s=new _S{x=3;}; s.x++; return s.x; // Ok, no initializer so x is mutable ");
         code.parse().opto();
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
@@ -182,14 +182,14 @@ return s.x;
     }
 
     @Test public void testVar8() {
-        CodeGen code = new CodeGen("struct S{int x;}; S !s=new S; s.x++; return s.x; // Ok, has '!' so s.x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x;}; _S !s=new _S; s.x++; return s.x; // Ok, has '!' so s.x is mutable ");
         code.parse().opto();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar9() {
-        CodeGen code = new CodeGen("struct S{int x;}; var s=new S; s.x++; return s.x; // Ok, has var so s.x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x;}; var s=new _S; s.x++; return s.x; // Ok, has var so s.x is mutable ");
         code.parse().opto();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
@@ -222,12 +222,12 @@ return xfoo.bar.x;
 
     @Test public void testVar12() {
         CodeGen code = new CodeGen("""
-struct Bar { int x; };
-Bar !bar = new Bar;
+struct _Bar { int x; };
+_Bar !bar = new _Bar;
 bar.x = 3; // Ok, bar is mutable
 
-struct Foo { Bar? !bar; int y; };
-Foo !foo = new Foo;
+struct _Foo { _Bar? !bar; int y; };
+_Foo !foo = new _Foo;
 foo.bar = bar; // Ok bar is mutable
 foo.bar.x++;   // Ok foo and foo.bar and foo.bar.x are all mutable
 
@@ -262,8 +262,8 @@ A x = new A {
     b = new B;
 };
 """);
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot read uninitialized field 'b'",e.getMessage()); }
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
     }
 
     @Test
@@ -275,8 +275,8 @@ return new A {
     if (arg) b = new B; // Constructor ends with partial init of b
 }.b;
 """);
-        try { code.parse(); fail(); }
-        catch( Exception e ) { assertEquals("'A' is not fully initialized, field 'b' needs to be set in a constructor",e.getMessage()); }
+        try { code.parse().opto().typeCheck(); fail(); }
+        catch( Exception e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
     }
 
     @Test
@@ -309,7 +309,7 @@ return me;
 """
 );
         try { code.parse(); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected `=expression` but found `;`",e.getMessage()); }
     }
 
     // ---------------------------------------------------------------
@@ -337,21 +337,22 @@ return arg ? 0 : arg;
     @Test
     public void testTrinary2() {
         CodeGen code = new CodeGen("""
-struct Bar { int x; };
-var b = arg ? new Bar : null;
+struct _Bar { int x; };
+var b = arg ? new _Bar : null;
 return b ? b.x++ + b.x++ : -1;
 """);
         code.parse().opto();
         assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
-        assertEquals("1", Eval2.eval(code, 1));
+
+                                   assertEquals("1", Eval2.eval(code, 1));
     }
 
     @Test
     public void testTrinary3() {
         CodeGen code = new CodeGen("""
-struct Bar { int x; };
-var b = arg ? new Bar;
+struct _Bar { int x; };
+var b = arg ? new _Bar;
 return b ? b.x++ + b.x++ : -1;
 """);
         code.parse().opto();
@@ -364,8 +365,8 @@ return b ? b.x++ + b.x++ : -1;
     public void testTrinary4() {
         // This test case will benefit from an unzipping transformation
         CodeGen code = new CodeGen("""
-struct Bar { Bar? next; int x; };
-var b = arg ? new Bar { next = (arg==2) ? new Bar{x=2;}; x=1; };
+struct _Bar { _Bar? next; int x; };
+var b = arg ? new _Bar { next = (arg==2) ? new _Bar{x=2;}; x=1; };
 return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0"
 """);
         code.parse().opto();
@@ -394,7 +395,7 @@ struct S{};
 return arg ? 7 : new S;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("No common type amongst int and reference",e.getMessage()); }
+        catch( Exception e ) { assertEquals("No common type amongst 7 and *Test.S {}",e.getMessage()); }
     }
 
     // ---------------------------------------------------------------
@@ -469,7 +470,7 @@ return i;
 for(;;arg++;) {}
 """);
         try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected Unexpected code after expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected `Unexpected code after expression` but found `;`",e.getMessage()); }
     }
 
 
@@ -478,39 +479,39 @@ for(;;arg++;) {}
     @Test
     public void testForward0() {
         CodeGen code = new CodeGen("""
-struct A{
+struct _A {
     B? f1;
     B? f2;
 };
-return new A;
+return new _A;
 """);
         code.parse().opto();
-        assertEquals("return A;", code.print());
-        assertEquals("A{f1=null,f2=null}", Eval2.eval(code,0));
+        assertEquals("return Test._A;", code.print());
+        assertEquals("Test._A{f1=null,f2=null}", Eval2.eval(code,0));
     }
 
     @Test
     public void testForward1() {
         CodeGen code = new CodeGen("""
-struct A {
+struct _A {
     B?[]? nil_array_of_b;
     B?[]      array_of_b;
 };
-return new A{array_of_b = new B?[0]; }.array_of_b;
+return new _A{array_of_b = new B?[0]; }.array_of_b;
 """);
         code.parse().opto();
-        assertEquals("return (const)[]*B?;", code.print());
-        assertEquals("*B {... }?[]", Eval2.eval(code,0));
+        assertEquals("return []*Test.B?;", code.print());
+        assertEquals("*Test.B {}?[]", Eval2.eval(code,0));
     }
 
     // ---------------------------------------------------------------
     @Test
     public void testLinkedList2() {
         CodeGen code = new CodeGen("""
-struct LLI { LLI? next; int i; };
-LLI? !head = null;
+struct _LLI { _LLI? next; int i; };
+_LLI? !head = null;
 while( arg-- )
-    head = new LLI { next=head; i=arg; };
+    head = new _LLI { next=head; i=arg; };
 int sum=0;
 var ptr = head; // A read-only ptr, to be assigned from read-only next fields
 for( ; ptr; ptr = ptr.next )

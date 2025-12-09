@@ -144,7 +144,7 @@ public class ScopeNode extends MemMergeNode {
     public boolean inFunction   () { return klast() instanceof Kind.Func  ; }
     // Is the enclosing scope a constructor?  Shallow check, not deep
     public boolean inConstructor() {
-        return klast() instanceof Kind.Func func && FunNode.isInit(func._name);
+        return klast() instanceof Kind.Func func && FunNode.isInstance(func._name);
     }
 
     public int enclosingFunction() {
@@ -433,7 +433,7 @@ public class ScopeNode extends MemMergeNode {
 
 
     // Remove matching pred/cast pairs from this guarded region.
-    public ScopeNode removeGuards( Node ctrl ) {
+    public void removeGuards( Node ctrl ) {
         assert ctrl instanceof CFGNode;
         // 0,1 or 2 guards
         while( true ) {
@@ -443,7 +443,6 @@ public class ScopeNode extends MemMergeNode {
             g            .unkill(); // Pop/kill cast
             _guards.pop().unkill(); // Pop/kill pred
         }
-        return this;
     }
 
     // If we find a guarded instance of pred, replace with the upcasted version

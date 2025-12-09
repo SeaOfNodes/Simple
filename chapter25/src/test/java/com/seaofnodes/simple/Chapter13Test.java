@@ -99,7 +99,7 @@ N n = new N { next = new M; };
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return MEM[ 2:.m=0;]; return MEM[ 2:___ 3:___ 4:.next=Top; 5:.i=0;]; return (const)self; ]", code.print());
+        assertEquals("Stop[ return MEM[ 2:.m=0;]; return MEM[ 2:___ 3:___ 4:.next=(*Test.M)Bot; 5:.i=0;]; return (const)Test.M; ]", code.print());
     }
 
     @Test
@@ -161,19 +161,19 @@ struct S1 { S2? s; };
 return new S2;
 """);
         try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Unknown struct type 'Test.S2'",e.getMessage()); }
     }
 
     @Test
     public void testForwardRef1() {
         CodeGen code = new CodeGen(
 """
-struct S1 { S2? s; };
-struct S2 { int x; };
-return new S1.s=new S2;
+struct _S1 { _S2? s; };
+struct _S2 { int x; };
+return new _S1{}.s=new _S2;
 """);
         code.parse().opto();
-        assertEquals("return S2;", code.print());
+        assertEquals("return Test._S2;", code.print());
     }
 
     @Test
@@ -209,40 +209,40 @@ return a.f0.f1.f0.f1.f0;
 
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return self;", code._stop.toString());
-        assertEquals("B{f0=C},f1=A{f0=$cyclic,f1=$cyclic}}", Eval2.eval(code,  0));
+        assertEquals("return Test._B;", code._stop.toString());
+        assertEquals("Test._B{f0=Test._C{f0=Test._A{f0=$cyclic,f1=$cyclic},f1=$cyclic},f1=$cyclic}", Eval2.eval(code,  0));
     }
 
     @Test
     public void testCoRecur3() {
         CodeGen code = new CodeGen(
 """
-struct A { L? a; T? b; F? c; };  A !a = new A;
-struct B { M? a; U? b; G? c; };  B !b = new B;
-struct C { N? a; V? b; H? c; };  C !c = new C;
-struct D { O? a; W? b; I? c; };  D !d = new D;
-struct E { P? a; X? b; J? c; };  E !e = new E;
-struct F { Q? a; Y? b; K? c; };  F !f = new F;
-struct G { R? a; Z? b; L? c; };  G !g = new G;
-struct H { S? a; A? b; M? c; };  H !h = new H;
-struct I { T? a; B? b; N? c; };  I !i = new I;
-struct J { U? a; C? b; O? c; };  J !j = new J;
-struct K { V? a; D? b; P? c; };  K !k = new K;
-struct L { W? a; E? b; Q? c; };  L !l = new L;
-struct M { X? a; F? b; R? c; };  M !m = new M;
-struct N { Y? a; G? b; S? c; };  N !n = new N;
-struct O { Z? a; H? b; T? c; };  O !o = new O;
-struct P { A? a; I? b; U? c; };  P !p = new P;
-struct Q { B? a; J? b; V? c; };  Q !q = new Q;
-struct R { C? a; K? b; W? c; };  R !r = new R;
-struct S { D? a; L? b; X? c; };  S !s = new S;
-struct T { E? a; M? b; Y? c; };  T !t = new T;
-struct U { F? a; N? b; Z? c; };  U !u = new U;
-struct V { G? a; O? b; A? c; };  V !v = new V;
-struct W { H? a; P? b; B? c; };  W !w = new W;
-struct X { I? a; Q? b; C? c; };  X !x = new X;
-struct Y { J? a; R? b; D? c; };  Y !y = new Y;
-struct Z { K? a; S? b; E? c; };  Z !z = new Z;
+struct _A { _L? a; _T? b; _F? c; };  _A !a = new _A;
+struct _B { _M? a; _U? b; _G? c; };  _B !b = new _B;
+struct _C { _N? a; _V? b; _H? c; };  _C !c = new _C;
+struct _D { _O? a; _W? b; _I? c; };  _D !d = new _D;
+struct _E { _P? a; _X? b; _J? c; };  _E !e = new _E;
+struct _F { _Q? a; _Y? b; _K? c; };  _F !f = new _F;
+struct _G { _R? a; _Z? b; _L? c; };  _G !g = new _G;
+struct _H { _S? a; _A? b; _M? c; };  _H !h = new _H;
+struct _I { _T? a; _B? b; _N? c; };  _I !i = new _I;
+struct _J { _U? a; _C? b; _O? c; };  _J !j = new _J;
+struct _K { _V? a; _D? b; _P? c; };  _K !k = new _K;
+struct _L { _W? a; _E? b; _Q? c; };  _L !l = new _L;
+struct _M { _X? a; _F? b; _R? c; };  _M !m = new _M;
+struct _N { _Y? a; _G? b; _S? c; };  _N !n = new _N;
+struct _O { _Z? a; _H? b; _T? c; };  _O !o = new _O;
+struct _P { _A? a; _I? b; _U? c; };  _P !p = new _P;
+struct _Q { _B? a; _J? b; _V? c; };  _Q !q = new _Q;
+struct _R { _C? a; _K? b; _W? c; };  _R !r = new _R;
+struct _S { _D? a; _L? b; _X? c; };  _S !s = new _S;
+struct _T { _E? a; _M? b; _Y? c; };  _T !t = new _T;
+struct _U { _F? a; _N? b; _Z? c; };  _U !u = new _U;
+struct _V { _G? a; _O? b; _A? c; };  _V !v = new _V;
+struct _W { _H? a; _P? b; _B? c; };  _W !w = new _W;
+struct _X { _I? a; _Q? b; _C? c; };  _X !x = new _X;
+struct _Y { _J? a; _R? b; _D? c; };  _Y !y = new _Y;
+struct _Z { _K? a; _S? b; _E? c; };  _Z !z = new _Z;
 
 a.a=l;  a.b=t; a.c=f;
 b.a=m;  b.b=u; b.c=g;
@@ -275,7 +275,7 @@ return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
 
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return R;", code._stop.toString());
-        assertEquals("R{a=C{a=N},b=V},c=H}},b=K{a=$cyclic,b=D{a=O},b=W},c=I}},c=P}},c=$cyclic}", Eval2.eval(code,  0));
+        assertEquals("return Test._R;", code._stop.toString());
+        assertEquals("Test._R{a=Test._C{a=Test._N{a=Test._Y{a=Test._J{a=Test._U{a=Test._F{a=Test._Q{a=Test._B{a=Test._M{a=Test._X{a=Test._I{a=Test._T{a=Test._E{a=Test._P{a=Test._A{a=Test._L{a=Test._W{a=Test._H{a=Test._S{a=Test._D{a=Test._O{a=Test._Z{a=Test._K{a=Test._V{a=Test._G{a=$cyclic,b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic}", Eval2.eval(code,  0));
     }
 }

@@ -71,8 +71,8 @@ return y;
     @Test
     public void testConstruct0() {
         CodeGen code = new CodeGen("""
-struct X { int x=3; };
-X z = new X;
+struct _X { int x=3; };
+_X z = new _X;
 return z.x;
 """);
         code.parse().opto();
@@ -83,8 +83,8 @@ return z.x;
     @Test
     public void testConstruct1() {
         CodeGen code = new CodeGen("""
-struct X { int !x; };
-X z = new X { x=3; };
+struct _X { int !x; };
+_X z = new _X { x=3; };
 return z.x;
 """);
         code.parse().opto();
@@ -95,8 +95,8 @@ return z.x;
     @Test
     public void testConstruct2() {
         CodeGen code = new CodeGen("""
-struct X { int x=3; };
-X z = new X { x = 4; };
+struct _X { int x=3; };
+_X z = new _X { x = 4; };
 return z.x;
 """);
         code.parse().opto();
@@ -108,20 +108,20 @@ return z.x;
     @Test
     public void testStructFinal0() {
         CodeGen code = new CodeGen("""
-struct Point { int !x, !y; };
-Point p = new Point { x=3; y=4; };
+struct _Point { int !x, !y; };
+_Point p = new _Point { x=3; y=4; };
 return p;
 """);
         code.parse().opto();
-        assertEquals("return Point;", code.print());
-        assertEquals("Point{x=3,y=4}", Eval2.eval(code,  0));
+        assertEquals("return (const)Test._Point;", code.print());
+        assertEquals("Test._Point{x=3,y=4}", Eval2.eval(code,  0));
     }
 
     @Test
     public void testStructFinal1() {
         CodeGen code = new CodeGen("""
-struct Point { int x=3, y=4; };
-val p = new Point { x=5; y=6; };
+struct _Point { int x=3, y=4; };
+val p = new _Point { x=5; y=6; };
 p.x++;
 return p;
 """);
@@ -132,8 +132,8 @@ return p;
     @Test
     public void testStructFinal2() {
         CodeGen code = new CodeGen("""
-struct Point { int x=3, y=4; };
-val p = new Point;
+struct _Point { int x=3, y=4; };
+val p = new _Point;
 p.x++;
 return p;
 """);
@@ -144,20 +144,20 @@ return p;
     @Test
     public void testStructFinal3() {
         CodeGen code = new CodeGen("""
-struct Point { var x; var y; };
-Point p = new Point;
+struct _Point { var x; var y; };
+_Point p = new _Point;
 p.x++;
 return p;
 """);
         try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
+        catch( Exception e ) { assertEquals("'Test._Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
     }
 
     @Test
     public void testStructFinal4() {
         CodeGen code = new CodeGen("""
-struct Point { val x=3; val y=4; };
-Point p = new Point;
+struct _Point { val x=3; val y=4; };
+_Point p = new _Point;
 p.x++;
 return p;
 """);
@@ -168,14 +168,14 @@ return p;
     @Test
     public void testStructFinal5() {
         CodeGen code = new CodeGen("""
-struct Point { var x=3; var y=4; };
-Point !p = new Point;
+struct _Point { var x=3; var y=4; };
+_Point !p = new _Point;
 p.x++;
 return p;
 """);
         code.parse().opto();
-        assertEquals("return Point;", code.print());
-        assertEquals("Point{x=4,y=4}", Eval2.eval(code,  0));
+        assertEquals("return Test._Point;", code.print());
+        assertEquals("Test._Point{x=4,y=4}", Eval2.eval(code,  0));
     }
 
     // Same as the Chapter13 test with the same name, but using the new
@@ -184,19 +184,19 @@ return p;
     public void testLinkedList1() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int i; };
-LLI? !head = null;
+struct _LLI { _LLI? next; int i; };
+_LLI? !head = null;
 while( arg ) {
-    head = new LLI { next=head; i=arg; };
+    head = new _LLI { next=head; i=arg; };
     arg = arg-1;
 }
 if( !head ) return 0;
-LLI? next = head.next;
+_LLI? next = head.next;
 if( !next ) return 1;
 return next.i;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        assertEquals("return Phi(Region,1,.i,0);", code.print());
         assertEquals("0", Eval2.eval(code,  0));
         assertEquals("1", Eval2.eval(code,  1));
         assertEquals("2", Eval2.eval(code,  3));
@@ -206,10 +206,10 @@ return next.i;
     public void testLinkedList2() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int i; };
-LLI? !head = null;
+struct _LLI { _LLI? next; int i; };
+_LLI? !head = null;
 while( arg ) {
-    head = new LLI {
+    head = new _LLI {
         next=head;
         // Any old code in the constructor
         int !tmp=arg;
@@ -222,12 +222,12 @@ while( arg ) {
     arg = arg-1;
 }
 if( !head ) return 0;
-LLI? next = head.next;
+_LLI? next = head.next;
 if( !next ) return 1;
 return next.i;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,0,1,.i);", code.print());
+        assertEquals("return Phi(Region,1,.i,0);", code.print());
         assertEquals("0", Eval2.eval(code,  0));
         assertEquals("1", Eval2.eval(code,  1));
         assertEquals("2", Eval2.eval(code, 11));
@@ -237,7 +237,7 @@ return next.i;
     public void testSquare() {
         CodeGen code = new CodeGen(
 """
-struct Square {
+struct _Square {
     flt !side = arg;
     // Newtons approximation to the square root, computed in a constructor.
     // The actual allocation will copy in this result as the initial
@@ -249,11 +249,11 @@ struct Square {
         diag = next;
     }
 };
-return new Square;
+return new _Square;
 """);
         code.parse().opto();
-        assertEquals("return Square;", code.print());
-        assertEquals("Square{side=3.0,diag=1.7320508075688772}", Eval2.eval(code,  3));
-        assertEquals("Square{side=4.0,diag=2.0}", Eval2.eval(code, 4));
+        assertEquals("return Test._Square;", code.print());
+        assertEquals("Test._Square{side=3.0,diag=1.7320508075688772}", Eval2.eval(code,  3));
+        assertEquals("Test._Square{side=4.0,diag=2.0}", Eval2.eval(code, 4));
     }
 }

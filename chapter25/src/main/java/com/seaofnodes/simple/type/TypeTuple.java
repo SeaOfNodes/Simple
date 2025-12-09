@@ -86,6 +86,12 @@ public class TypeTuple extends Type {
 
     @Override TypeMemPtr _makeRO() { throw Utils.TODO(); }
 
+    @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        Type[] ts = new Type[_types.length];
+        for( int i=0; i<ts.length; i++ )
+            ts[i] = _types[i]._upgradeType(TYPES);
+        return make(ts);
+    }
 
     @Override public int log_size() { throw Utils.TODO(); }
     @Override public int alignment() {

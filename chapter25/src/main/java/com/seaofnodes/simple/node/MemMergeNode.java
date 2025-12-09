@@ -15,12 +15,13 @@ public class MemMergeNode extends Node {
 
     /*
      *  In-Progress means this is being used by the Parser to track memory
-     *  aliases.  No optimizations are allowed.  When no longer "in progress"
+     *  aliases.  No optimizations are allowed.  If not "in progress" then
      *  normal peeps work.
      */
     public final boolean _inProgress;
 
     public MemMergeNode( boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
+    public MemMergeNode( boolean inProgress, Node ...nodes) { super(nodes); _type = TypeMem.BOT; _inProgress = inProgress; }
     public MemMergeNode(MemMergeNode mem) { super(mem); _inProgress = false; }
     @Override public Tag serialTag() { return Tag.MemMerge; }
     public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) { baos.packed1(nIns()); }
@@ -67,22 +68,24 @@ public class MemMergeNode extends Node {
 
     @Override public Type compute() {
         // Is this a single private instance memory?
-        if( nIns()==0 || in(1) == null ) {
+        if( in(1)._type.isHigh() )
+            return TypeMem.TOP;
+        TypeMem defmem = (TypeMem)in(1)._type;
+        if( defmem._one ) {
             // Perfect singleton memory, so all updates are parallel and
             // independent and stack.
-            TypeStruct ts = null;
-            for( Node n : _inputs )
-                if( n != null ) {
-                    if( n._type.isHigh() )
+            TypeStruct ts = (TypeStruct)defmem._t;
+            for( int i=2; i<nIns(); i++ ) {
+                if( in(i) != null ) {
+                    if( in(i)._type.isHigh() )
                         return TypeMem.TOP;
-                    TypeMemPtr tmp0 = (TypeMemPtr)(((TypeMem)n._type)._t);
-                    if( ts==null ) ts = tmp0._obj;
-                    else {
-                        assert tmp0._obj._fields.length==1;
-                        ts = ts.add(tmp0._obj._fields[0]);
-                    }
+                    TypeStruct ts0 = (TypeStruct)(((TypeMem)in(i)._type)._t);
+                    assert ts0._fields.length==1;
+                    ts = ts.replace(ts0._fields[0]);
                 }
-            return TypeMem.make(1,TypeMemPtr.make(ts==null ? TypeStruct.TOP : ts));
+            }
+            return TypeMem.make(1,(ts==null ? TypeStruct.TOP : ts),true);
+
         } else {
             // Default mixed mem is just BOT
             for( Node n : _inputs )
@@ -109,7 +112,7 @@ public class MemMergeNode extends Node {
         if( allDefault )
             return in(1);       // Become default memory
 
-        // Collapse stacked all-mem
+        // Collapse stacked merged-mem
         if( in(1) instanceof MemMergeNode mem ) {
             // Goal is to swap my default mem with mem's default mem
             for( int i=2; i<mem.nIns(); i++ ) {
@@ -166,6 +169,7 @@ public class MemMergeNode extends Node {
     }
 
     public void _merge( MemMergeNode that, RegionNode r) {
+        assert _inProgress;
         int len = Math.max(nIns(),that.nIns());
         for( int i = 1; i < len; i++)
             if( alias(i) != that.alias(i) ) { // No need for redundant Phis
@@ -182,6 +186,7 @@ public class MemMergeNode extends Node {
     // body, gather them into a actual (not inProgress) MemMerge and merge into
     // the default alias.
     void _endLoopMem( ScopeNode scope, MemMergeNode back, MemMergeNode exit ) {
+        assert _inProgress && back._inProgress && exit._inProgress;
         Node exit_def = exit.alias(1);
         MemMergeNode more = null; // Dont often need the "more discovered" merge, make it lazy
         int len = Math.max(nIns(),back.nIns());

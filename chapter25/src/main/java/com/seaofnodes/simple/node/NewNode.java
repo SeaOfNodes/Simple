@@ -44,14 +44,13 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override public TypeTuple compute() {
-        return TypeTuple.make(TypeMemPtr.make(_ts), TypeMem.make(1,TypeMemPtr.make(_ts)));
+        return TypeTuple.make(TypeMemPtr.make(_ts), TypeMem.make(1,_ts,true));
     }
 
     @Override public Node idealize() { return null; }
 
-    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
-        _ts = (TypeStruct)_ts.upgradeType(TYPES);
-        return null;
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        Type old = _ts; _ts = (TypeStruct)_ts.upgradeType(TYPES);  return old != _ts;
     }
 
     // Two NewNodes are never equal; NewNodes always make independent pointers

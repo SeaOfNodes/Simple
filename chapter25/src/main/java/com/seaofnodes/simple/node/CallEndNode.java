@@ -95,6 +95,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
                 // Encouraged inlining because small size and constructor.
                 if( isTrivial==1 && fun._approxUIDs < 100 && fun._name!=null && fun.isInit() && !fun.isClz() ) {
+                    assert !CodeGen.CODE._midAssert; // Triggered inlining
                     // Remove the existing function linkage
                     call.unlink_all();
                     // Clone the function body
@@ -105,8 +106,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     // Link to the new function
                     call.link(fun2);
                     fun = fun2;
-                    isTrivial = trivialInlining( fptr2, fun2, call );
-                    assert isTrivial==0;
+                    assert trivialInlining( fptr2, fun2, call )==0;
+                    isTrivial = 0;
                 }
 
                 // Trivial inlining: call site calls a single function; single function
@@ -133,10 +134,13 @@ public class CallEndNode extends CFGNode implements MultiNode {
         while( true ) {
             idom = idom.idom();
             if( idom instanceof FunNode ) break;
-            if( idom instanceof CallEndNode cend && cend._folding ) break;
+            if( idom instanceof CallEndNode ) break;
         }
+
         // No recursive or mid-folding function
-        if( !(idom instanceof FunNode fun2) || fun2 == fun || fun2._folding )
+        if( idom instanceof FunNode fun2 && (fun2._folding || fun2 == fun) )
+            { addDep(idom); return -1; }
+        if( idom instanceof CallEndNode cend && cend._folding )
             { addDep(idom); return -1; }
 
         // Expecting just the Call

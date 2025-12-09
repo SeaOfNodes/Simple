@@ -127,7 +127,6 @@ abstract public class Opto {
             assert oval.isa(nval);    // Types start high and always fall
             Type pesiVal = oldTypes.at(n._nid);
             assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
-            assert !(nval instanceof TypeBuilder);
             n._type = nval;
 
             // If a TFP adds a new function input to a call, link to the new Fun
@@ -176,8 +175,8 @@ abstract public class Opto {
         for( int i=0; i<code._start.nOuts(); i++ ) {
             Node use = code._start.out(i);
             if( use instanceof ConFldOffNode off ) {
-                TypeMemPtr tmp = (TypeMemPtr) Parser.TYPES.get(off._name);
-                off.subsume( off.asOffset(tmp._obj) );
+                TypeStruct ts = (TypeStruct) Parser.TYPES.get(off._name);
+                off.subsume( off.asOffset(ts) );
                 i--;
             }
         }

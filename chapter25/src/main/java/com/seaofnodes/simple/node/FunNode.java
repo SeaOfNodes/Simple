@@ -83,12 +83,12 @@ public class FunNode extends RegionNode {
         if( _sig != sig ) {
             CODE.add(this);
             _sig = sig;
+            unlock();
         }
     }
 
-    @Override public Node upgradeType(HashMap<String,Type> TYPES) {
-        setSig((TypeFunPtr)_sig.upgradeType(TYPES));
-        return null;
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        Type old = _sig; _sig = (TypeFunPtr)_sig.upgradeType(TYPES);  return old != _sig;
     }
 
     public void setName( String name ) {
@@ -182,6 +182,7 @@ public class FunNode extends RegionNode {
     public boolean isInit( ) { return isInit(_name); }
     public boolean isClz ( ) { return _name!=null && _name.endsWith(".<clinit>"); }
     public static boolean isInit(String name ) { return name!=null && name.endsWith("init>"); }
+    public static boolean isInstance(String name ) { return name!=null && name.endsWith(".<init>"); }
 
     // Function is public (callable from Start directly).
     public boolean isPublic( CodeGen code ) {
@@ -270,6 +271,7 @@ public class FunNode extends RegionNode {
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);
         Node m = n.copy();
+        CodeGen.CODE.add(m);
         map.put(n,m);
         m._type = n._type;
         for( Node x : n._outputs )

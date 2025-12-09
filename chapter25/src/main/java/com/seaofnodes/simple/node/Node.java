@@ -805,7 +805,18 @@ public abstract class Node implements Cloneable {
 
     public void gather(HashMap<String,Integer> strs ) { }
 
-    public Node upgradeType(HashMap<String,Type> TYPES) { return null; }
+    // If a Type upgrade happens, put on worklist
+    boolean _upgradeType( HashMap<String,Type> TYPES ) { return false; }
+    public final Node upgradeType( HashMap<String,Type> TYPES ) {
+        boolean progress = _upgradeType(TYPES);
+        if( progress ) unlock();
+        Type old = _type;  _type = _type.upgradeType(TYPES);
+        if( progress || old != _type ) {
+            CODE.addAll(_outputs);
+            if( _deps!=null ) CODE.addAll(_deps);
+        }
+        return null;
+    }
 
     /**
      * Debugging utility to find a Node by index

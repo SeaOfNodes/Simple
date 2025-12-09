@@ -63,15 +63,14 @@ public class Type /*implements Cloneable*/ {
     static final byte TFLT    = 8; // All Floats  ; see TypeFloat
     static final byte TCONARY = 9; // Constant array
     static final byte TRPC    =10; // Return Program Control (Return PC or RPC)
-    static final byte TBLD    =11; // TypeStruct builder
 
-    static final byte TCYCLIC =12; // Has internal pointers, needs recursive treatment
-    static final byte TMEMPTR =13; // Memory pointer to a struct type
-    static final byte TFUNPTR =14; // Function pointer; unique signature and code address (just a bit)
-    static final byte TMEM    =15; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TFLD    =16; // Named fields in structs
-    static final byte TSTRUCT =17; // Structs; tuples with named fields
-    static final byte TTUPLE  =18; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TCYCLIC =11; // Has internal pointers, needs recursive treatment
+    static final byte TMEMPTR =12; // Memory pointer to a struct type
+    static final byte TFUNPTR =13; // Function pointer; unique signature and code address (just a bit)
+    static final byte TMEM    =14; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TFLD    =15; // Named fields in structs
+    static final byte TSTRUCT =16; // Structs; tuples with named fields
+    static final byte TTUPLE  =17; // Tuples; finite collections of unrelated Types, kept in parallel
 
     static final byte TMAX    =18;
 
@@ -488,21 +487,24 @@ public class Type /*implements Cloneable*/ {
     Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
 
     // Bulk close-over all recursive types
-    public static TypeStruct[] closeOver(TypeStruct[] ts) {
+    public static TypeStruct[] closeOver(TypeStruct[] ts, HashMap<String,Type> TYPES) {
         BOTTOM.recurOpen();
         for( TypeStruct t : ts )
-            t._close();
+            t._close(null, TYPES);
         for( int i=0; i<ts.length; i++ )
             ts[i] = (TypeStruct)VISIT.get(ts[i]._name);
         BOTTOM.recurClose(ts);
         return ts;
     }
 
-    Type _close( ) { return this; }
+    Type _close( String name, HashMap<String, Type> TYPES ) { return this; }
     public Type widen() { return this; }
 
     // Replace recursively all TypeBuilders with cyclic TypeStructs
-    public Type upgradeType(HashMap<String,Type> TYPES) { assert is_nokids(); return this;  }
+    public Type upgradeType(HashMap<String,Type> TYPES) {
+        return recurOpen()._upgradeType(TYPES).recurClose();
+    }
+    Type _upgradeType(HashMap<String,Type> TYPES) { assert is_nokids(); return this;  }
 
 
     // Recursively gather all types
