@@ -137,7 +137,7 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java
 # dumped.  The default sys search needs to NOT include all the dumped test
 # files; move it down into lib/
 
-lib/sys_x86_64_v2_win64.o:	$(CLZDIR)/main/.mtag
+lib_x86_64_v2_win64/sys.o:	$(CLZDIR)/main/.mtag
 	@echo "simping " $@
 	@$(JVM) com.seaofnodes.simple.Simple --cpu x86_64_v2 --abi Win64 --norun -o $@ src/main/smp/sys.smp
 
@@ -145,13 +145,14 @@ lib/sys_x86_64_v2_win64.o:	$(CLZDIR)/main/.mtag
 # Base launch line for JVM tests
 JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
-
+# Tests that do NOT need sys.smp
 tests_raw:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "testing " $(test_raw)
 	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_raw)
 
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag lib/sys_x86_64_v2_win64.o tests_raw
+# Tests that DO need sys.smp
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag lib_x86_64_v2_win64/sys.o tests_raw
 	@echo "testing " $(test_cp)
 	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
