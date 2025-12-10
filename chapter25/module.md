@@ -230,3 +230,14 @@ B
 ### Goal: Easy private fields
 
 Leading underscore makes field or class private.
+
+### Goal: similar to C compiler driver syntax
+
+```
+Simple --cpu x86_64_v2 --abi Win64 --norun -o lib/lib/sys_x86_64_v2_win64.o src/main/smp/sys.smp
+```
+
+Module not mentioned, so top-level file is module: `sys`
+Module directory not mentioned, so is prefix of file name `src/main/smp`.
+Build dir not mentioned, so is prefix of output file: `lib/`
+Output file is default `smp.o`, here renamed.

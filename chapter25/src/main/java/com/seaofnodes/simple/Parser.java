@@ -782,8 +782,6 @@ public class Parser {
             { pos(old); t=null; }
         if( t == null )
             return require(parseAsgn(),";");
-        if( t instanceof TypeStruct ts )
-            t = TypeMemPtr.make(ts); // References by default
 
         // now parse var['=' asgnexpr] in a loop
         Node n = parseDeclaration(t);
@@ -1040,7 +1038,7 @@ public class Parser {
                 String sname = _lexer.matchId();
                 if( sname==null ) { pos(old2); break; }
                 sname = tname+"."+sname;
-                if( TYPES.get(sname) == null ) break;
+                if( TYPES.get(sname) == null ) { pos(old2); break; }
             }
             tname = tname.intern();
             // Still no type found?  Assume forward reference
@@ -1388,8 +1386,8 @@ public class Parser {
         int pos = pos();
         Type t = type();
         if( t!=null ) {
-            //if( peek('.') )
-            //    return parsePostfix(con(t));
+            if( peek('.') )
+                return parsePostfix(con(t));
             ////pos(pos); // TODO: not a `type.fld`
             ////return null;
             throw Utils.TODO();
@@ -1732,7 +1730,7 @@ public class Parser {
             // field type is final.
             if( load._type instanceof TypeFunPtr && name!="[]" &&
                 !(load instanceof ExternNode) &&
-                ((TypeMemPtr)TYPES.get(base._name))._obj.field(name)._final &&
+                ((TypeStruct)TYPES.get(base._name)).field(name)._final &&
                 // And calling a function
                 match("(") ) {
                 return parsePostfix(require(functionCall(load,expr),")"));
@@ -1778,16 +1776,6 @@ public class Parser {
     private Node func() {
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
-
-        //// Defined in constructor?  Add `self` argument.  "static" calls still
-        //// add a `self` they just ignore it.
-        //if( _scope.klast() instanceof Kind.Define define ) {
-        //    //// Upgrade defined struct to latest fields
-        //    //TypeMemPtr tmp = (TypeMemPtr)TYPES.get(define._tmp._obj._name);
-        //    //ts .push(tmp);
-        //    //ids.push("self");
-        //    throw Utils.TODO();
-        //}
 
         // Parse other arguments
         _lexer.skipWhiteSpace();

@@ -2,12 +2,15 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.*;
+import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.stream.Collectors;
 
 public class Simple {
@@ -36,29 +39,39 @@ public class Simple {
         System.out.println(
 """
 simple [options] <input-file> ...args...
+Options are applied in-order.
 Options:
+  --help - This text
+
+  --root root/ - Project root directory; this must end in a '/' and input
+         files are relative paths to this.  If missing, the one input
+         file path is treated as its own root directory.
+
+  -o output - Project output directory; similar to --root, if this ends in a
+     '/', then all output files are relative paths to this using the input file
+     root-relative path.  If --root is missing, the one result file is placed
+     here, using this path as the output directory.
+
+  --eval                   - (slowly) evaluate the compiled code in emulator
+  --run                    - run the compiled code natively; this is the default
+  --cpu <cpu-name>         - use specific CPU (x86_64_v2, riscv, arm)
+  --abi <abi-name>         - use specific ABI variant (SystemV)
+  --target                 - print native CPU and ABI
+  --version
+  -S                       - dump generated assembler code
+  --dump-size              - print the size of generated code
+  --dump-time              - print compilation and execution times
   --dump                   - dump final intermediate representation
   --dump-after-parse       - dump intermediate representation after parse
   --dump-after-opto        - dump intermediate representation after opto pass
   --dump-after-type-check  - dump intermediate representation after type check pass
-  --dump-after-select      - dump intermediate representation after instrution selection pass
+  --dump-after-select      - dump intermediate representation after instruction selection pass
   --dump-after-gcm         - dump intermediate representation after GCM pass
   --dump-after-local-sched - dump intermediate representation after local scheduling pass
   --dump-after-reg-alloc   - dump intermediate representation after register allocation pass
   --dump-after-encode      - dump intermediate representation after encoding pass
   --dump-after-all         - dump intermediate representation after all passes
   --dot                    - dump grapical representation of intermediate code into *.dot file(s)
-  -S                       - dump generated assembler code
-  -o output                - Output file; defaults to <input-file-base>.o
-  --eval                   - evaluate the compiled code in emulator
-  --run                    - run the compiled code natively; this is the default
-  --dump-size              - print the size of generated code
-  --dump-time              - print compilation and execution times
-  --cpu <cpu-name>         - use specific CPU (x86_64_v2, riscv, arm)
-  --abi <abi-name>         - use speific ABI variant (SystemV)
-  --target                 - print native CPU and ABI
-  --version
-  --help
 """
 );
         System.exit(0);
@@ -145,6 +158,7 @@ Options:
     public static void main(String[] args) throws Exception {
         long t0 = System.currentTimeMillis();
 
+        String root = null;
         String input_filename = null;
         boolean do_eval = false;
         boolean do_run = true;
@@ -202,11 +216,51 @@ Options:
             }
         }
 
+        // Break the paths into these parts:
+        // - A module path, given from "--root" or inferred from the one input file
+        // - Some sources [modpath/relpath/file.smp]*, all relative to the module path.
+        // - A build path, given from "-o" or inferred from the one input file
+        //
+        // All the sources are compiled, with outputs in [buildpath/relpath/file.o]*
+
         if (input_filename == null) throw bad("no input file' (use --help)");
         if( !input_filename.isEmpty() && !input_filename.endsWith(".smp") )
             throw bad("File extension must be .smp");
-        if( out == null )
-            out = input_filename.substring(0,input_filename.length()-4)+".o";
+        Path inPath = Path.of(input_filename);
+
+        // Figure out the module path
+        Path modPath;
+        if( root == null ) {
+            modPath = inPath.getParent();
+        } else {
+            throw Utils.TODO();
+        }
+
+        // Compute the module-relative paths for all sources
+        Path srcRelPath = modPath.relativize(inPath);
+        int n = srcRelPath.getNameCount();
+        Path relPath = n==1 ? null : srcRelPath.subpath(0,n-1);
+        // Compute source/class name
+        String srcNameExt = srcRelPath.getName(n-1).toString();
+        String srcName = srcNameExt.substring(0,srcNameExt.length()-4);
+
+        // Compute the build path.
+        Path outPath;
+        if( out == null ) {
+            // If no output given, the build dir is the modPath plus "build"
+            outPath = Path.of(modPath.toString(),"build");
+        } else {
+            // If the output is a directory, thats our out path
+            outPath = Path.of(out);
+            if( !out.endsWith("/") ) {
+                // If the output is a file, the directory is our outPath
+                Path fullOut = outPath;
+                outPath = outPath.getParent();
+                Path foo = outPath.relativize(fullOut);
+                if( !foo.toString().equals(srcName+".o") )
+                    throw bad("Output path needs to be of the form "+srcName+".o");
+            }
+        }
 
         if( do_run || (dump & DUMP_DISASSEMBLE) != 0 || do_print_size ) {
             if (cpu == null) cpu = TestC.CPU_PORT;
@@ -220,7 +274,8 @@ Options:
         } catch( IOException e ) { throw bad("Cannot read input file: "+input_filename);  }
 
         // Compilation pipeline
-        CodeGen code = new CodeGen(src);
+        Ary<String> externPaths = null;
+        CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, TypeInteger.BOT );
 
         code.parse();
         dump(code, dump, DUMP_AFTER_PARSE);
