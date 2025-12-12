@@ -4,7 +4,7 @@
 Goals:
 - 1-liner valid program (for easy tutorial/newbie starts)
 - - Compile and run with minimal effort
-- separate compilation and namespaces; external libs
+- Separate compilation and namespaces; external libs
 - - Compile to ELF or other linkable/executable format
 - Easy private fields & classes
 - Output files are compatible with existing .o/.exe/lib/dll infrastructure
