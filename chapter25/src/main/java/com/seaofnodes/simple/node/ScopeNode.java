@@ -163,6 +163,13 @@ public class ScopeNode extends MemMergeNode {
         return null;
     }
 
+    public Kind kindFcn( Var v ) {
+        for( int i=depth()-1; i>=0; i-- )
+            if( v._idx >= _kinds.at(i)._lexSize && _kinds.at(i) instanceof Kind.Func )
+                return _kinds.at(i);
+        throw Utils.TODO("Should not reach here");
+    }
+
     // Find name in reverse, return an index into _vars or -1.  Linear scan
     // instead of hashtable, but probably doesn't matter until the scan
     // typically hits many dozens of variables.
@@ -187,6 +194,7 @@ public class ScopeNode extends MemMergeNode {
                     if( !xfinal || !declaredType.isConstant() ) throw fref.err();  // Must be a final constant
                     n.defFRef(declaredType,xfinal,loc);   // Declare full correct type, final, source location
                     setDef(n._idx,fref.addDef(init));     // Set FRef to defined; tell parser also
+                    return true;
                 }
             }
         Var v = new Var(nIns(),name,declaredType,xfinal,loc,init==Parser.XCTRL);
@@ -495,8 +503,8 @@ public class ScopeNode extends MemMergeNode {
     private void insert( Var var, Node n, int kidx ) {
         // Insert just prior to scope kidx
         int nidx = _kinds.at(kidx)._lexSize;
-        _vars  .insert(var,nidx);
-        _inputs.insert(n  ,nidx);
+        _vars.insert(var,nidx);
+        insertDef(nidx,n);
         // All outer Kinds lexical offsets bump by one
         for( int i = kidx; i < depth(); i++ )
             _kinds.at(i)._lexSize++;

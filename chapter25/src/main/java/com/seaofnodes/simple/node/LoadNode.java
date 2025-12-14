@@ -125,8 +125,11 @@ public class LoadNode extends MemOpNode {
                     return extend(castRO(st.val())); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
-                    !neverAlias(ptr,st.ptr()) )                   // And might alias
-                    break outer; // Cannot tell, stop trying
+                    !neverAlias(ptr,st.ptr()) ) {                 // And might alias
+                    addDep(   off());                             // Offsets can fold, proving unequal
+                    addDep(st.off());                             // Offsets can fold, proving unequal
+                    break outer;                                  // Cannot tell, stop trying
+                }
                 // Pointers cannot overlap
                 mem = st.mem(); // Proved never equal
                 break;

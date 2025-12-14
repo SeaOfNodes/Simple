@@ -52,15 +52,23 @@ public class EscapeNode extends Node {
         if( priv()._type.isHigh() ) return TypeMem.TOP;
         if( pub ()._type.isHigh() ) return TypeMem.TOP;
         TypeMem mpriv = (TypeMem)priv()._type;
-        assert mpriv._alias==1;
-        TypeStruct tspriv = (TypeStruct) mpriv._t;
-        int x = tspriv.findAlias(_alias);
-        assert x != -1;
+        TypeMem mpub  = (TypeMem)pub ()._type;
+        assert mpriv._alias==1 || mpriv._alias==_alias;
+        assert mpub ._alias==1 || mpub ._alias==_alias;
+        Type tpriv;
+        if( mpriv._t instanceof TypeStruct ts ) {
+            tpriv = ts.at(ts.findAlias(_alias))._t;
+        } else {
+            tpriv = mpriv._t;
+        }
+        Type tpub;
+        if( mpub._t instanceof TypeStruct ts ) {
+            throw Utils.TODO(); // Must be a TypeStruct, peel out field
+        } else {
+            tpub = mpub._t;
+        }
 
-        TypeMem mpub = (TypeMem)pub()._type;
-        assert mpub._alias==1 || mpub._alias==_alias;
-
-        return TypeMem.make(_alias,tspriv._fields[x]._t.meet(mpub._t));
+        return TypeMem.make(_alias,tpriv.meet(tpub));
     }
 
     @Override public Node idealize() {

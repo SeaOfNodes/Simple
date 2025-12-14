@@ -809,9 +809,9 @@ public abstract class Node implements Cloneable {
     boolean _upgradeType( HashMap<String,Type> TYPES ) { return false; }
     public final Node upgradeType( HashMap<String,Type> TYPES ) {
         boolean progress = _upgradeType(TYPES);
-        if( progress ) unlock();
         Type old = _type;  _type = _type.upgradeType(TYPES);
         if( progress || old != _type ) {
+            CODE.add(this);
             CODE.addAll(_outputs);
             if( _deps!=null ) CODE.addAll(_deps);
         }

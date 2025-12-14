@@ -96,9 +96,6 @@ public class Parser {
     // `type.str()` call.
     public static HashMap<String, Type> TYPES;
 
-    // Mapping from a type name to the constructor for a Type.
-    public final HashMap<String, StructNode> INITS;
-
 
     public Parser(CodeGen code ) {
         _code = code;
@@ -108,7 +105,6 @@ public class Parser {
         NIL  = con(Type.NIL).keep();
         XCTRL= new XCtrlNode().peephole().keep();
         TYPES = defaultTypes();
-        INITS = new HashMap<>();
     }
 
     @Override
@@ -179,9 +175,6 @@ public class Parser {
         // Clean up and reset
         _xScopes.pop();
         _scope.kill();
-        for( StructNode init : INITS.values() )
-            init.unkeep().kill();
-        INITS.clear();
         _code._stop.peephole();
 
         // Close over all recursive types, and upgrade TYPES
@@ -258,11 +251,35 @@ public class Parser {
             _scope.define(ids[i], t, i==0 && ids[0]=="self", new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
 
-        // Parse the body.
-        Node last=ZERO;
-        while (!peek('}') && !_lexer.isEOF())
+        // Parse the function body.
+        ScopeNode.Kind klast = _scope.klast(); // Current lexical scope
+        int nvars = 2;          // Skip "self" and "#selfMem" in current scope
+        Node last=ZERO;         // Last statement as the default result
+        while (!peek('}') && !_lexer.isEOF()) {
             // Parse a statement; record last statement as default return
             last = parseStatement();
+
+            // For <init> and <clinit>, local vars are really struct fields and
+            // get exposed as discovered.  This allows late local functions to
+            // use early declared fields.
+
+            // TODO: Ponder another strategy here; the Actual Problem is later
+            // parsing field loads/stores from pointers which will (eventually)
+            // become the final Type of 'self' - they get an early version of
+            // 'self' missing fields, and the parser wants to complain right
+            // now instead of allowing unknown field loads against unknown
+            // types - and letting everything resolve out later in SCCP.
+            if( fun.isInit() ) {
+                // Load self type in and out of the TYPES hashtable.
+                TypeStruct tself = (TypeStruct)TYPES.get(((TypeMemPtr)sig._sig[0])._obj._name);
+                assert _scope.var(klast._lexSize)._name=="self";
+                while( klast._lexSize+nvars < _scope.nIns() ) {
+                    Var v = _scope.var(klast._lexSize+(nvars++));
+                    tself = tself.add(Field.make(v._name,v.type(),_code.nextALIAS(),v._final));
+                }
+                TYPES.put(tself._name,tself);
+            }
+        }
 
         if( fun.isInit() && !fun.isClz() )      // <init>, not <clinit>
             last = fun.parm(2); // Init returns self, not last expression, by default
@@ -859,7 +876,7 @@ public class Parser {
             case Type tt -> { assert tt==Type.BOTTOM; yield con(tt); }
             };
             // Nullable fields are set in the constructor, but remain shallow final.
-            // e.g. final pointer to a r/w array
+            // e.g. final pointer to a read/write array
             if( t instanceof TypeNil tn && !tn.nullable() && !hasBang )
                 fld_final = true;
         }
@@ -937,29 +954,27 @@ public class Parser {
         // Struct decls look like function bodies.  Parse function body normally.
         ReturnNode ret = _parseFunctionBody(fname,sig,loc(),ids);
 
-        // <cl/init> functions move all new declared variables into the TypeStruct.
-        int lastLexSize = _scope.klast()._lexSize; // Lexical scope is now all fields
-        assert _scope.var(lastLexSize)._name=="self";
-        int newVars = lastLexSize + 2;
-        for( int i=newVars; i<_scope.nIns(); i++ ) {
-            Var v = _scope.var(i);
-            tself = tself.add(Field.make(v._name,v.type(),_code.nextALIAS(),v._final));
-        }
-        TYPES.put( tself._name, tself = tself.close() );
+        // Close Struct type after parsing struct body
+        TYPES.put( tself._name, tself = ((TypeStruct)TYPES.get(typeName)).close() );
 
         // Improve self, selfMem types in scope
         ParmNode self = ret.fun().parm(2);
         self._minType = self._type = TypeMemPtr.make(tself);
-
         ParmNode smem = ret.fun().parm(3);
         if( !isClz )            //
             smem._minType = smem._type = TypeMem.make(1,tself,true);
         Node selfMem = isClz ? _scope.mem() : smem;
+
         // A MemMerge to gather field updates as stores
         MemMergeNode mmm = new MemMergeNode(false,null,selfMem);
-        // A never-exit constructor will not have any returns, and no need to
-        // gather values and store them into the (never) constructed object
-        if( _returnScope!=null )
+
+        // When can _returnScope be null here? A never-exit constructor will
+        // not have any returns, and thus no need to gather values and store
+        // them into the (never) constructed object
+        if( _returnScope!=null ) {
+            int lastLexSize = _scope.klast()._lexSize; // Lexical scope is now all fields
+            assert _scope.var(lastLexSize)._name=="self";
+            int newVars = lastLexSize + 2;
             for( int i=newVars; i<_scope._vars._len; i++ ) {
                 Node val = _returnScope.in(i);
                 Field fld = tself._fields[i-newVars];
@@ -967,6 +982,7 @@ public class Parser {
                 Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(typeName,fld._fname), val, fld._final));
                 mmm.alias(fld._alias, st);
             }
+        }
         Node mmm0 = mmm.peephole();
         // <clinit> sets public memory.
         //   <init> sets private memory...which is the usual return
@@ -1088,15 +1104,13 @@ public class Parser {
     private TypeStruct typeAry( Type t, boolean efinal ) {
         if( t instanceof TypeMemPtr tmp && tmp.notNull()  )
             throw error("Arrays of reference types must always be nullable");
-        String tname = "[]"+t.str();
+        String tname = ((efinal ? "[~]" : "[]")+t.str()).intern();
         TypeStruct ta = (TypeStruct)TYPES.get(tname);
-        if( ta==null )
-            // Remember final version
-            TYPES.put(tname, ta = TypeStruct.makeAry(tname=tname.intern(),TypeInteger.U32,_code.nextALIAS(),t,_code.nextALIAS() ) );
-        Field elem = ta.field("[]");
-        if( elem._final == efinal )
-            return ta;
-        return ta.replace(elem.makeFrom(efinal));
+        if( ta!=null ) return ta;
+        ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.nextALIAS(),t,_code.nextALIAS(),efinal );
+        // Remember final version
+        TYPES.put(tname, ta);
+        return ta;
     }
 
     // A function type is `{ type... -> type }` or `{ type }`.
@@ -1366,7 +1380,7 @@ public class Parser {
      * <pre>
      *     primaryExpr : integerLiteral | "string" | 'char' | true | false | null |
      *                   new Type | '(' expression ')' | Id['++','--'] |
-     *                   [static.]* Id
+     *                   type['.' Id]*
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */
@@ -1381,65 +1395,52 @@ public class Parser {
         if( matchx("new"  ) ) return parsePostfix(alloc());
         if( match ("{"    ) ) return parsePostfix(require(func(),"}"));
 
-        // Parse static variable lookup: `type.fld` in the type namespace
-        // CNC: not a full type parse, just a typename parse
         int pos = pos();
-        Type t = type();
-        if( t!=null ) {
-            if( peek('.') )
-                return parsePostfix(con(t));
-            ////pos(pos); // TODO: not a `type.fld`
-            ////return null;
-            throw Utils.TODO();
-        }
-
         // Expect an identifier now
         String id = _lexer.matchId();
         if( id == null || KEYWORDS.contains(id) )
             throw errorSyntax("an identifier or expression");
-
+        int pos2 = pos();
+        // Attempt a local var lookup first
         Var var = _scope.lookup(id);
-        if( var==null )
-            // Insert FREF outside enclosing Kind.Func scope.
-            // Disallow Kind.Define scope.  Ignore Kind.Block or Kind.Alloc scope.
-            var = _scope.defineFRef(id,loc());
+        if( var==null ) {
+            // Not a local var, try again as a type name
+            pos(pos);
+            Type t = type();
+            if( t!=null ) {
+                // Static <clinit> typename lookup
+                if( peek('.') ) // type.fld, which is really a field lookup in the class object
+                    return parsePostfix(con(t));
+                // Not a local var, but yes a bare type... disallow a local
+                // FREF and return null, not-a-primary parse.
+                pos(pos);
+                return null;
+            }
 
-        //// If a method var, allow nested blocks and methods, but not fcns or other structs.
-        //// Else safety check for accessing fields out of function scope.
-        //if( instance(var) ) {
-        //    Node self = _scope.in(_scope.lookup("self")); // Insert self reference
-        //    return parsePostfixName(self,id);
-        //}
+            // Insert FREF outside enclosing Kind.Func scope.
+            pos(pos2);
+            var = _scope.defineFRef(id,loc());
+        }
 
         // Load local value
         Node rvalue = _scope.in(var);
         if( rvalue._type == Type.BOTTOM )
             if( rvalue instanceof FRefNode )
-                return parsePostfix(rvalue);
+                return parsePostfix(rvalue); // No methods on FRefs right now
             else throw error("Cannot read uninitialized field '"+id+"'");
 
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();
-        if( ch==0  )            // Normal primary, check for postfix updates
-            return parsePostfix(rvalue);
+        if( ch==0  ) {          // Normal primary, check for postfix updates
+            int selfx = _scope.kindFcn(var)._lexSize;
+            // Might be a method call from inside a method, so no explicit "self".
+            // Pass the in-scope "self"
+            return parsePostfixMethod(rvalue,_scope.in(selfx));
+        }
         // Assign-update direct into Scope
         Node op = opAssign(ch,rvalue, var.type() );
         _scope.update(var,op);
         return postfix(ch) ? rvalue.unkeep() : op;
-    }
-
-    // true if instance variable lookup (var is in any number of nested blocks,
-    // then an instance function then inside a struct declaration).
-    private boolean instance(Var var ) {
-        // If a method var, allow nested blocks and methods, but not fcns or other structs
-        Kind kind = _scope.kind(var);
-        // CNC - At the moment *all* functions take a 'self', because they are
-        // *always* nested in some containing struct.
-        return kind instanceof Kind.Func;
-        //if( !(kind instanceof Kind.Func func) )
-        //    return false; // Just a block-local var
-        //// Function is either <clinit> or <init>
-        //return func._name != null && func._name.charAt(func._name.length()-1)=='>';
     }
 
     // Check for assign-update, "x += e0".
@@ -1638,11 +1639,20 @@ public class Parser {
      *     expr '(' [args,]* ')'              // Function call
      * </pre>
      */
+    // 'self' for a possible method call
+    private Node parsePostfixMethod(Node expr, Node self) {
+        if( expr._type instanceof TypeFunPtr tfp && tfp._sig.length>=1 && tfp._sig[0] instanceof TypeMemPtr tself && !tself._obj._name.startsWith( "[" ) && match("(") ) {
+            expr = parsePostfix(require(functionCall(expr,self),")"));
+        } else if( self != null )
+            self.isKill();      // Not a method call, no need for self
+        return parsePostfix(expr);
+    }
     private Node parsePostfix(Node expr) {
         String name;
         if( match(".") )      name = requireId();
         else if( match("#") ) name = "#";
         else if( match("[") ) name = "[]";
+        // can get here without a 'self': "self.method()(next)(next)(next)"
         else if( match("(") ) return parsePostfix(require(functionCall(expr,null),")"));
         else return expr;       // No postfix
 
@@ -1669,7 +1679,7 @@ public class Parser {
             throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + etype.str() );
 
         // Find the field from the Type.  Lookup in the base object field names.
-        TypeStruct base = ptr._obj;
+        TypeStruct base = (TypeStruct)TYPES.get(ptr._obj._name);
         int fidx = base.find(name);
         if( fidx == -1 )
             throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
@@ -1724,25 +1734,10 @@ public class Parser {
             load = postfix(ch) ? load.unkeep() : op;
             // And use the original loaded value as the result
             return load;
-        } else {
-            off.unkill();
-            // Method call: Loaded a function from a named field, AND the base
-            // field type is final.
-            if( load._type instanceof TypeFunPtr && name!="[]" &&
-                !(load instanceof ExternNode) &&
-                ((TypeStruct)TYPES.get(base._name)).field(name)._final &&
-                // And calling a function
-                match("(") ) {
-                return parsePostfix(require(functionCall(load,expr),")"));
-            }
-
-            // Drop expr, keeping load alive
-            load.keep();
-            expr.unkill();
-            load.unkeep();
         }
-
-        return parsePostfix(load);
+        off.unkill();
+        // Might be a method call, so pass expr as 'self'
+        return parsePostfixMethod(load,expr.unkeep());
     }
 
 
@@ -1776,6 +1771,11 @@ public class Parser {
     private Node func() {
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
+        TypeStruct self = (TypeStruct)TYPES.get(_nestedType);
+        if( self != null ) {
+            ts.push( TypeMemPtr.make( self ) ); // Self pointer
+            ids.push( "self" );
+        }
 
         // Parse other arguments
         _lexer.skipWhiteSpace();
@@ -1812,7 +1812,7 @@ public class Parser {
         args.push(null);        // Space for ctrl,mem
         args.push(null);
         if( self != null )      // Method call has a self
-            args.push(self);
+            args.push(self.keep());
         while( !peek(')') ) {
             Node arg = parseAsgn();
             if( arg==null ) break;

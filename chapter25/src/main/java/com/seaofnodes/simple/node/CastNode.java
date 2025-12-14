@@ -87,8 +87,7 @@ public class CastNode extends Node {
             else bad = true;
         if( !bad ) return null;
         // Expecting an init store
-        TypeMem privmem = (TypeMem)init._type;
-        TypeStruct ts = (TypeStruct)privmem._t;
-        throw Parser.error("'"+ts._name+"' is not fully initialized, field '" + init._name + "' is only partially set in the constructor", init._loc);
+        TypeMemPtr ptr = (TypeMemPtr)init.ptr()._type;
+        throw Parser.error("'"+ptr._obj._name+"' is not fully initialized, field '" + init._name + "' is only partially set in the constructor", init._loc);
     }
 }

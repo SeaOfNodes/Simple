@@ -76,12 +76,13 @@ public class MemMergeNode extends Node {
             // independent and stack.
             TypeStruct ts = (TypeStruct)defmem._t;
             for( int i=2; i<nIns(); i++ ) {
-                if( in(i) != null ) {
-                    if( in(i)._type.isHigh() )
+                StoreNode st = (StoreNode)in(i);
+                if( st != null ) {
+                    if( st._type.isHigh() )
                         return TypeMem.TOP;
-                    TypeStruct ts0 = (TypeStruct)(((TypeMem)in(i)._type)._t);
-                    assert ts0._fields.length==1;
-                    ts = ts.replace(ts0._fields[0]);
+                    Type val = (( TypeMem)st._type)._t;
+                    Field fld = ts.field(st._name).makeFrom(val);
+                    ts = ts.replace(fld);
                 }
             }
             return TypeMem.make(1,(ts==null ? TypeStruct.TOP : ts),true);

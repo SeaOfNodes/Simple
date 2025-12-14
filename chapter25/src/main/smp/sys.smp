@@ -37,7 +37,7 @@ struct libc {
 };
 
 // Array utilities
-struct ary {
+struct Ary {
     // Copy byte array contents
     val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
         for( int i=0; i<len; i++ )
@@ -56,7 +56,7 @@ struct aryu8 {
         int newlen = buf# * 2;
         while( len+len2 >= newlen ) newlen *= 2;
         u8[] buf2 = new u8[newlen];
-        ary.copy(buf2,0,buf,0,buf#);
+        Ary.copy(buf2,0,buf,0,buf#);
         buf = buf2;
         self;
     };
@@ -70,7 +70,7 @@ struct aryu8 {
     // Add all of a plain array to the aryu8
     val addAry = { u8[~] ary ->
         _grow(ary#);
-        ary.copy(buf,len,ary,0,ary#);
+        Ary.copy(buf,len,ary,0,ary#);
         len += ary#;
         self;
     };
@@ -98,14 +98,17 @@ struct aryu8 {
     };
 
     // Write to fd, returns the number of bytes written (len).
-    val write = { i32 fd -> i64 ptr = buf; libc.write(fd,ptr,len); };
+    val write = { i32 fd ->
+        i64 ptr = buf; // Cast buffer pointer to i64 for native C call
+        libc.write(fd,ptr,len);
+    };
 };
 
 
 // Scanner; a simple string parser.
 struct Scan {
-    int !x;
-    u8[~] buf;
+    int !x;                     // Cursor
+    u8[~] buf;                  // Immutable byte array, must be set in 2nd constructor
 
     // Skip whitespace
     val skip = { ->

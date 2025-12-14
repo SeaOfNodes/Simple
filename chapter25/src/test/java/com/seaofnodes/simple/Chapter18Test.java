@@ -59,12 +59,12 @@ return x2;
     public void testFcn0() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? sq = { int x ->
+{int -> int}? _sq = { int x ->
     x*x;
 };
 """);
         code.parse().opto();
-        assertEquals("return (Parm_x(sq,i64)*x);", code._stop.toString());
+        assertEquals("return { _sq};", code._stop.toString());
         //assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
     }
 
@@ -72,10 +72,10 @@ return x2;
     public void testFcn1() {
         CodeGen code = new CodeGen(
 """
-var sq = { int x ->
+var _sq = { int x ->
     x*x;
 };
-return sq(arg)+sq(3);
+return _sq(arg)+_sq(3);
 """);
         code.driver(Phase.LocalSched);
         assertEquals("return (#2+#2);", code._stop.toString());
@@ -138,9 +138,9 @@ return fcn(3);
     public void testFcn6() {
         CodeGen code = new CodeGen(
 """
-struct S { int i; };
-val newS = { int x -> return new S { i=x; }; };
-return newS(1).i;
+struct _S { int i; };
+val _newS = { int x -> return new _S { i=x; }; };
+return _newS(1).i;
 """);
         code.parse().opto().typeCheck();
         assertEquals("return 1;", code._stop.toString());
@@ -201,23 +201,23 @@ for(;;) {
     public void testFcn10() {
         CodeGen code = new CodeGen(
 """
-struct Person {
+struct _Person {
   int age;
 };
 
-val fcn = { Person?[] ps, int x ->
+val fcn = { _Person?[] ps, int x ->
   val tmp = ps[x];
   if( ps[x] )
     ps[x].age++;
 };
 
-var ps = new Person?[2];
-ps[0] = new Person;
-ps[1] = new Person;
+var ps = new _Person?[2];
+ps[0] = new _Person;
+ps[1] = new _Person;
 return fcn(ps,1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,.age,0); return #2; ]", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  0));
     }
 
@@ -356,10 +356,10 @@ return f2f(o)(1);
     public void testOperField() {
         CodeGen code = new CodeGen(
 """
-struct Person {
+struct _Person {
     int coffee_count;
 };
-Person !p = new Person;
+_Person !p = new _Person;
 p.coffee_count += 1;
 return p.coffee_count;
 """);
