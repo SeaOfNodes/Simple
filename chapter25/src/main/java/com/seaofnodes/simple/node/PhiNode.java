@@ -257,7 +257,11 @@ public class PhiNode extends Node {
     }
 
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
-        Type old = _minType; _minType = _minType.upgradeType(TYPES);  return old != _minType;
+        Type t = _minType.upgradeType(TYPES);
+        if( t == _minType ) return false;
+        unlock();
+        _minType = t;
+        return true;
     }
 
     // Never equal if inProgress.

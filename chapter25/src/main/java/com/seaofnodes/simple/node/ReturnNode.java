@@ -80,6 +80,8 @@ public class ReturnNode extends CFGNode {
 
     @Override public Parser.ParseException err() {
         if( ctrl()._type != Type.CONTROL ) return null; // Exit path is dead
+        if( expr()._type == Type.TOP )
+            return Parser.error("No defined return type",null);
         if( expr()._type != Type.BOTTOM ) return null;
         throw Utils.TODO();
     }

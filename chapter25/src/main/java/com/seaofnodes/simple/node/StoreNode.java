@@ -59,15 +59,12 @@ public class StoreNode extends MemOpNode {
         TypeMem mem = (TypeMem)mem0; // Invariant
         if( mem == TypeMem.TOP ) return TypeMem.TOP;
 
-        // Allocation uses a known TypeStruct mem type and nothing else does.
-        // This memory is truly private; a temporary singleton until it
-        // escapes - which is never does in a constructor.
-        if( mem._one ) {
-            assert mem._alias==1;
-            Field fld = Field.make(_name, val, _alias, _init);
-            TypeStruct ts2 = TypeStruct.make(((TypeStruct)mem._t)._name, false, fld);
-            return TypeMem.make(1,ts2,true);
-        }
+        // Allocation uses a private TypeMem and nothing else does.  This
+        // memory is truly private; a temporary singleton until it escapes -
+        // which is never does in a constructor.
+        if( mem._one )
+            // Just track the stored value
+            return TypeMem.make(_alias,val,true);
 
         // Normal aliasing Store
         Type t = Type.BOTTOM;               // No idea on field contents
@@ -97,7 +94,7 @@ public class StoreNode extends MemOpNode {
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
             checkOnlyUse(st) ) {
-            assert _name.equals(st._name); // Equiv class aliasing is perfect
+            assert _name==st._name; // Equiv class aliasing is perfect
             setDef(1,st.mem());
             return this;
         }

@@ -24,6 +24,8 @@ public class TypeStruct extends Type {
     private TypeStruct() { super(TSTRUCT); }
     private static final Ary<TypeStruct> FREE = new Ary<>(TypeStruct.class);
     private TypeStruct init(String name, boolean open, Field[] fields) {
+        // Check for const array element name with mutable field
+        assert !name.startsWith("[~]") || fields.length!=2 || fields[1]._t==null || (fields[1]._final != fields[1]._t.isHigh());
         _name = name;
         _open = open;
         _fields = fields;
@@ -59,10 +61,10 @@ public class TypeStruct extends Type {
     public static TypeStruct open( String name ) { return make(name,true); }
 
     // Array, variant body
-    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias) {
+    public static TypeStruct makeAry(String name, TypeInteger len, int lenAlias, Type body, int bodyAlias, boolean efinal) {
         return make(name,false,
-                    Field.make("#" , len, lenAlias, true                     ),
-                    Field.make("[]",body,bodyAlias,body instanceof TypeConAry));
+                    Field.make("#" , len, lenAlias, true ),
+                    Field.make("[]",body,bodyAlias,efinal));
     }
     // Array, known constant body
     public static TypeStruct makeAry(String name, int lenAlias, int bodyAlias, TypeConAry con) {
@@ -115,8 +117,8 @@ public class TypeStruct extends Type {
     // Stored into a not-mutable, so need that version also:
     //     struct LL { LL? next; int  q; }  // Q is NOT mutable field.
     // Now upgrade:
-    //     its not the default version from TYPES.
-    //     its fully cyclic
+    //     it is not the default version from TYPES.
+    //     it is fully cyclic
     //
     // Evil question: has no *open* internal fields, so can I assume it is fully correct and never needs upgrade?
     //
@@ -128,13 +130,13 @@ public class TypeStruct extends Type {
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
         TypeStruct base = (TypeStruct)TYPES.get(_name);
         if( this == base ) return this; // Already the good form
-        TypeStruct ts = (TypeStruct)VISIT.get(_name);
+        TypeStruct ts = (TypeStruct)VISIT.get(_uid);
         if( ts!=null ) return ts;
         // Main work: replace open with closed
         if( _open )
             return base;
         // Biuld recursive version
-        ts = recurPre(_name,_name,false);
+        ts = recurPre(_uid,_name,false);
         Field[] flds = ts._fields;
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
@@ -148,8 +150,8 @@ public class TypeStruct extends Type {
     public  static final TypeStruct TOP = make("$TOP",false);
     public  static final TypeStruct BOT = TOP.dual();
     public  static final TypeStruct TEST= make("test",false,Field.TEST);
-    private static final TypeStruct ARY = makeAry("[]i64",TypeInteger.U32,-1,TypeInteger.BOT,-2);
-    private static final TypeStruct STR = makeAry("[]u8" ,TypeInteger.U32,-1,TypeInteger.U8 ,-4);
+    private static final TypeStruct ARY = makeAry("[]i64",TypeInteger.U32,-1,TypeInteger.BOT,-2,false);
+    private static final TypeStruct STR = makeAry("[]u8" ,TypeInteger.U32,-1,TypeInteger.U8 ,-4,false);
     private static final TypeStruct ABC = makeAry("[]u8",-1,-4,TypeConAryB.ABC);
 
     // A pair of self-cyclic types
@@ -432,7 +434,7 @@ public class TypeStruct extends Type {
     }
 
     @Override public int nkids() { return _fields.length; }
-    @Override public Type at( int idx ) { return _fields[idx]; }
+    @Override public Field at( int idx ) { return _fields[idx]; }
     @Override public void set( int idx, Type t ) { _fields[idx] = (Field)t; }
     // Tags 0-4 - closed +#nflds (+name)
     // Tags 5   - closed(+ nflds  +name)

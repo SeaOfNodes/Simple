@@ -72,6 +72,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     Type tret = in(i)._type instanceof TypeTuple rtt ? rtt.ret() : in(i)._type;
                     ret = ret.meet(tret);
                 }
+                ret = ret.join(tfp.ret());
             }
         }
         return TypeTuple.make(call._type,TypeMem.BOT,ret);

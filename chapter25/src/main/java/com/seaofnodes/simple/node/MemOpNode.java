@@ -24,6 +24,7 @@ public abstract class MemOpNode extends Node {
     public final int _alias;
 
     // True if load-like, false if store-like.
+    // Used on CPU-specific combined memory+arithmetic ops.
     //
     // Stores produce memory (maybe as part of a tuple with other things),
     // loads do not.
