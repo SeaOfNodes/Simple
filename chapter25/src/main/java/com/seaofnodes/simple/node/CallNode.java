@@ -137,21 +137,27 @@ public class CallNode extends CFGNode {
         return this;
     }
 
+    // Unlink a single function
+    void unlink( FunNode fun, int path ) {
+        assert linked(fun);
+        for( Node use : fun._outputs )
+            if( use instanceof ParmNode )
+                use.delDef(path);
+        fun.delDef(path);
+        CallEndNode cend = cend();
+        ReturnNode ret = fun.ret().keep();
+        cend.delDef(cend._inputs.find(ret));
+        assert !linked(fun);
+        ret.unkeep();
+    }
+
+
     // Unlink all linked functions
     public void unlink_all() {
         for( int i=0; i<_outputs._len; i++ )
             if( out(i) instanceof FunNode fun ) {
-                assert linked(fun);
-                int idx = fun._inputs.find(this);
-                for( Node use : fun._outputs )
-                    if( use instanceof ParmNode )
-                        use.delDef(idx);
-                fun.delDef(idx);
-                CallEndNode cend = cend();
-                ReturnNode ret = fun.ret().keep();
-                cend.delDef(cend._inputs.find(ret));
-                assert !linked(fun);
-                ret.unkeep();
+                int path = fun._inputs.find(this);
+                unlink(fun,path);
                 i--;
             }
     }

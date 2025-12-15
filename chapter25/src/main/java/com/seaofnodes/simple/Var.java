@@ -45,6 +45,6 @@ public class Var {
     }
 
     @Override public String toString() {
-        return _type.toString()+(_final ? " ": " !")+_name;
+        return (_fref ? "FREF " : "")+_type.toString()+(_final ? " ": " !")+_name;
     }
 }

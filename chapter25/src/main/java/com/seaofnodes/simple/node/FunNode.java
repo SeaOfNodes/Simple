@@ -93,7 +93,6 @@ public class FunNode extends RegionNode {
 
     public void setName( String name ) {
         if( _name==null ) _name=name;
-        else _name += "."+name;
     }
 
     @Override
@@ -130,16 +129,17 @@ public class FunNode extends RegionNode {
         }
 
         // Attempt to get rid of the unknown caller.
-        // - Must be past Parser, which invites new calls "from whole cloth".
+        // - Must be past Parser, which invents new calls "from whole cloth".
         // - Must have a private name
-        // - Function pointer constant cannot have escape
+        // - Function pointer constant cannot have escaped
         if( CODE._phase.ordinal() > CodeGen.Phase.Parse.ordinal() && in(1) instanceof StartNode ) {
             if( _name==null || _name.contains( "._" ) ) {
                 // TODO: REALLY EXPENSIVE WAY TO FIND USES
                 Node con = new ConstantNode(_sig).peephole();
                 boolean escapes = false;
                 for( Node use : con._outputs )
-                    throw Utils.TODO();
+                    // TODO: no escape for Call-FP uses or if-tests
+                    { escapes = true; break; }
                 // If the function pointer does not escape, remove the unknown caller
                 if( !escapes )
                     return removeDeadPath(1);
@@ -196,9 +196,8 @@ public class FunNode extends RegionNode {
 
     @Override public boolean inProgress() { return unknownCallers(); }
 
-    // Build the function body
+    // Build the function body set
     public BitSet body() {
-
         // Reverse up (stop to start) CFG only, collect bitmap.
         BitSet cfgs = new BitSet();
         cfgs.set(_nid);
@@ -236,9 +235,9 @@ public class FunNode extends RegionNode {
         return in;
     }
 
-    // Clone function body. Give function a new FIDX.
+    // Clone function body.  Give function a new FIDX.
     FunNode copyBody() {
-        // Clone the function body
+        // Build the function body BitSet
         BitSet body = body();
         assert body.cardinality() < 100;
         // Walk the body, cloning
@@ -249,14 +248,17 @@ public class FunNode extends RegionNode {
         bodyEdge( visit, body, map, this );
         visit.clear();
 
-        // Remove all callers - this is a private copy
-        FunNode fun2 = (FunNode)map.get(this);
-        while( fun2.nIns() > 1 )
-            fun2.removeDeadPath(1);
         // New function/return cross-link each other
+        FunNode    fun2 = (FunNode   )map.get(this);
         ReturnNode ret2 = (ReturnNode)map.get(_ret);
         fun2._ret = ret2;
         ret2._fun = fun2;
+
+        // Remove all callers - this is a private copy
+        while( fun2.nIns() > 1 )
+            if( fun2.in(1) instanceof CallNode call && body.get(call._nid) )
+                call.unlink(fun2,1); // Recursive calls unlink
+            else  fun2.removeDeadPath(1); // Start and external calls can just be removed
 
         // Flip to a new FIDX to avoid confusion with the old one
         TypeFunPtr sig2 = _sig.makeFrom(CodeGen.CODE.nextFIDX());

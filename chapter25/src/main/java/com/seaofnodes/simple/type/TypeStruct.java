@@ -93,6 +93,12 @@ public class TypeStruct extends Type {
         flds[find(f._fname)] = f;
         return make(_name,_open,flds);
     }
+    public TypeStruct remove( int i ) {
+        Field[] flds = new Field[_fields.length-1];
+        System.arraycopy(_fields,  0,flds,0,i);
+        System.arraycopy(_fields,i+1,flds,i,flds.length-i);
+        return make(_name,_open,flds);
+    }
 
 
     public final TypeStruct close() {
