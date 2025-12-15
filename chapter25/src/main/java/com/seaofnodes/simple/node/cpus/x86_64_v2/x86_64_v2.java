@@ -352,6 +352,7 @@ public class x86_64_v2 extends Machine {
         case ConstantNode con -> con(con);
         case DivFNode    divf -> new DivFX86(divf);
         case DivNode      div -> new DivX86(div);
+        case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunX86(fun);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);

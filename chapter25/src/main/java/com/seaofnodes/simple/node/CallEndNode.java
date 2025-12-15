@@ -155,7 +155,13 @@ public class CallEndNode extends CFGNode implements MultiNode {
             { addDep(cend); return -1; }
 
         // Expecting just the Call
-        if( fptr.nOuts() > 1 ) { addDep(fptr); return 1; }
+        if( fptr.nOuts() > 1 ) {
+            addDep(fptr);
+            for( Node out : fptr._outputs )
+                if( out instanceof ScopeNode )
+                    return -1;  // Wait for these to disappear on their own
+            return 1;
+        }
         // Only fun user is this call
         if( fun.nIns() > 2 ) { addDep(fun); return 1; }
         // Trivial inlining: call site calls a single function; single function

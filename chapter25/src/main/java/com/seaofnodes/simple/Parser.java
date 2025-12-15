@@ -1642,10 +1642,9 @@ public class Parser {
         // Make a TMP, not-null (byte)2, singleton (true) (requires text
         // strings are hash-interned), with a TypeStruct having a constant
         // array body.
-        //TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8", slen, lenAlias, body, elemAlias),true);
-        //assert str.isConstant();
-        //return con(str);
-        throw Utils.TODO();
+        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[~]u8", slen, lenAlias, body, elemAlias, true),true);
+        assert str.isConstant();
+        return con(str);
     }
 
     // We set up memory aliases by inserting special vars in the scope these
@@ -1670,7 +1669,15 @@ public class Parser {
      */
     // 'self' for a possible method call
     private Node parsePostfixMethod(Node expr, Node self) {
-        if( expr._type instanceof TypeFunPtr tfp && tfp._sig.length>=1 && tfp._sig[0] instanceof TypeMemPtr tself && !tself._obj._name.startsWith( "[" ) && match("(") ) {
+        // Self method call?
+        // - expr is a TFP, with a potential self,
+        // - - which is neither a Class nor an array
+        // - has function call args following
+        if( expr._type instanceof TypeFunPtr tfp && tfp._sig.length>=1 && tfp._sig[0] instanceof TypeMemPtr tself &&
+            // Not an array or Class method
+            !(tself._obj._name.startsWith( "[" ) ||
+              (self._type instanceof TypeMemPtr clzptr && clzptr._obj._name.startsWith(clzPrefix))) &&
+            match("(") ) {
             expr = parsePostfix(require(functionCall(expr,self),")"));
         } else if( self != null )
             self.isKill();      // Not a method call, no need for self

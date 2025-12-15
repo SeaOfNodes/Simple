@@ -26,7 +26,7 @@ return 0;
         String src =
 """
 struct String {
-    u8[] cs;
+    u8[~] cs;
     int _hashCode;
 };
 
@@ -40,12 +40,6 @@ val equals = { String self, String s ->
     return true;
 };
 
-// Return the String hashCode (cached, and never 0)
-val hashCode = { String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
-};
 
 val _hashCodeString = { String self ->
     int hash=0;
@@ -54,10 +48,19 @@ val _hashCodeString = { String self ->
     if( !hash ) hash = 123456789;
     return hash;
 };
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+hashCode(new String{cs="Hello, World!";});
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
-        //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
+        CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
+        assertEquals("Stop[ return MEM[ 2:___ 3:___ 4:.cs=(*[~]u8)Bot; 5:._hashCode=0;]; return Phi(Region,1,1,0,0); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); return #2; return Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); ]", code._stop.toString());
+        assertEquals("4029215624828139541", Eval2.eval(code,  2));
     }
 
     @Test
@@ -234,10 +237,10 @@ return sum;""");
     public void testAlloc1() {
         CodeGen code = new CodeGen(
 """
-struct S { int a; S? c; };
-return new S;""");
+struct _S { int a; _S? c; };
+return new _S;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return S;", code.print());
+        assertEquals("return Test._S;", code.print());
     }
 
     @Test
@@ -325,7 +328,7 @@ return A[1];
     public void testNewton() throws IOException {
         String src =
 """
-val test_sqrt = { flt x ->
+val _test_sqrt = { flt x ->
     flt epsilon = 1e-15;
     flt guess = x;
     while( 1 ) {
@@ -335,7 +338,7 @@ val test_sqrt = { flt x ->
         guess = next;
     }
 };
-flt farg = arg;  return test_sqrt(farg);
+flt farg = arg;  return _test_sqrt(farg);
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
@@ -378,7 +381,7 @@ val sieve = { int N ->
 };
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return []u32;", code.print());
+        assertEquals("Stop[ return []u32; return { sieve}; ]", code.print());
         //assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
@@ -398,10 +401,10 @@ return fcn(2)*10 + fcn(3);
     public void testFcn2() {
         CodeGen code = new CodeGen(
 """
-val sq = { int x -> x*x; };
-return sq(arg) + sq(3);
+val _sq = { int x -> x*x; };
+return _sq(arg) + _sq(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (add,#2,#2);", code.print());
+        assertEquals("return (addi,(mul,arg,arg));", code.print());
     }
 }

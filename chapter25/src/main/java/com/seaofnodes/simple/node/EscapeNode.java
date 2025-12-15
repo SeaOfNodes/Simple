@@ -18,6 +18,7 @@ public class EscapeNode extends Node {
 
     public final int _alias;
     public EscapeNode(int alias, Node self, Node priv, Node pub ) { super(null,self,priv,pub); _alias=alias; }
+    public EscapeNode(EscapeNode esc ) { super(null,null,esc.priv(),esc.pub()); _alias=esc._alias; }
 
     // Pointer to some private (unescaped) memory from a NewNode
     Node self() { return in(1); }
