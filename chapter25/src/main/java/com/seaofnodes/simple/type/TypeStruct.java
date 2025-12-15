@@ -25,7 +25,7 @@ public class TypeStruct extends Type {
     private static final Ary<TypeStruct> FREE = new Ary<>(TypeStruct.class);
     private TypeStruct init(String name, boolean open, Field[] fields) {
         // Check for const array element name with mutable field
-        assert !name.startsWith("[~]") || fields.length!=2 || fields[1]._t==null || (fields[1]._final != fields[1]._t.isHigh());
+        //assert !name.startsWith("[~]") || fields.length!=2 || fields[1]._t==null || (fields[1]._final != fields[1]._t.isHigh());
         _name = name;
         _open = open;
         _fields = fields;

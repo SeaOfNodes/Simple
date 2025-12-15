@@ -180,7 +180,8 @@ public class FunNode extends RegionNode {
         return isClz() && _name.indexOf('.')==_name.lastIndexOf('.');
     }
     public boolean isInit( ) { return isInit(_name); }
-    public boolean isClz ( ) { return _name!=null && _name.endsWith(".<clinit>"); }
+    public boolean isClz ( ) { return isClz (_name); }
+    public static boolean isClz (String name ) { return name!=null && name.endsWith(".<clinit>"); }
     public static boolean isInit(String name ) { return name!=null && name.endsWith("init>"); }
     public static boolean isInstance(String name ) { return name!=null && name.endsWith(".<init>"); }
 
@@ -221,6 +222,7 @@ public class FunNode extends RegionNode {
     }
 
     private static boolean walkDown( Node n, BitSet cfgs, BitSet body, BitSet visit ) {
+        if( n==null ) return false;
         if( visit.get(n._nid) ) return body.get(n._nid);
         visit.set(n._nid);
 
@@ -228,6 +230,11 @@ public class FunNode extends RegionNode {
             return false;
         if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) )
             return false;
+        // Data-only cycles are broken by pre-setting the loop Phis in the body
+        if( n instanceof RegionNode )
+            for( Node phi : n._outputs )
+                if( phi instanceof PhiNode )
+                    body.set(phi._nid); // Find data cycles
         boolean in = n.in(0)!=null || n instanceof CFGNode;
         for( Node use : n._outputs )
             in |= walkDown(use,cfgs,body,visit);
@@ -269,6 +276,7 @@ public class FunNode extends RegionNode {
 
     // Clone small function
     private void bodyCopy( BitSet visit, BitSet body, IdentityHashMap<Node,Node> map, Node n ) {
+        if( n==null ) return;
         if( !body.get(n._nid) ) return; // Not part of the body
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);
@@ -280,6 +288,7 @@ public class FunNode extends RegionNode {
             bodyCopy(visit,body,map,x);
     }
     private void bodyEdge( BitSet visit, BitSet body, IdentityHashMap<Node,Node> map, Node n ) {
+        if( n==null ) return;
         if( !body.get(n._nid) ) return; // Not part of the body
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);

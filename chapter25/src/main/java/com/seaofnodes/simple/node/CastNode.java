@@ -29,7 +29,7 @@ public class CastNode extends Node {
     @Override
     public String uniqueName() { return "Cast_" + _nid; }
 
-    @Override public boolean isPinned() { return true; }
+    @Override public boolean isPinned() { return in(0)!=null; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

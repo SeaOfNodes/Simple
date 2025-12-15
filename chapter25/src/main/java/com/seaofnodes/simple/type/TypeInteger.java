@@ -117,14 +117,17 @@ public class TypeInteger extends Type {
         if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes
         if( this==I32 || this==U32              ) return 2; // 1<<2 == 4 bytes
         if( this==BOT                           ) return 3; // 1<<3 == 8 bytes
-        if( isConstant() ) {                                // just const here
-            if (-0xFF <= _min && _min <= 0xFF)                    return 0;
-            else if (-0xFFFF <= _min && _min <= 0xFFFF)           return 1;
-            else if (-0xFFFFFFFFL <= _min && _min <= 0xFFFFFFFFL) return 2;
-            else return 3;
-        }
-        if( -128 <= _min && _max < 128 ) return 0; // 1 byte
-        throw Utils.TODO();
+        if( isConstant() ) return log(_min);                // just const here
+        int lo = log(_min);
+        int hi = log(_max);
+        return Math.max(lo,hi);
+    }
+
+    private static int log(long x) {
+        if(      -0xFFL <= x && x <=       0xFFL) return 0;
+        if(    -0xFFFFL <= x && x <=     0xFFFFL) return 1;
+        if(-0xFFFFFFFFL <= x && x <= 0xFFFFFFFFL) return 2;
+        return 3;
     }
 
     public long value() { assert isConstant(); return _min; }
