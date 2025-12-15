@@ -220,7 +220,8 @@ public class Parser {
         _scope.restore(preParse);
         return ret;
     }
-    // Parse a function body; leaves function scope around
+    // Parse a function body; leaves function scope around because constructor
+    // parse needs it (and normal function parse just pops the scope)
     private ReturnNode _parseFunctionBody( String name, TypeFunPtr sig, Lexer loc, String[] ids) {
         // Stack parser state on the local Java stack, and unstack it later
         ScopeNode    breakScope =    _breakScope;    _breakScope = null;
@@ -664,7 +665,7 @@ public class Parser {
         _scope.mem().removeLazyAll();
         // For <init> and <clinit> - all fields in scope will be live-on-exit
         // and stored into `self` and need to have lazy-phi's inserted.
-        int lexN = _scope.enclosingFunction();
+        int lexN = _scope.enclosingFuncOrDecl();
         Kind.Func k = (Kind.Func)_scope._kinds.at(lexN);
         if( FunNode.isInit(k._name) ) {
             int nestedLexSize = lexN+1 < _scope.depth() ? _scope._kinds.at(lexN+1)._lexSize : _scope.nIns();
@@ -739,7 +740,7 @@ public class Parser {
         if( _scope.in(def._idx)._type!=Type.TOP && def._final &&
             // Inside an allocation, final assign is OK, outside nope.
             // The alloc() call added the allocation scope
-            !(_scope.inAllocation() && def._idx >= _scope._kinds.last(-1)._lexSize) )
+            !(_scope.inConstructor() && def._idx >= _scope.klast()._lexSize) )
             throw error("Cannot reassign final '"+name+"'");
 
         // Parse assignment expression
@@ -954,8 +955,18 @@ public class Parser {
         // Struct decls look like function bodies.  Parse function body normally.
         ReturnNode ret = _parseFunctionBody(fname,sig,loc(),ids);
 
-        // Close Struct type after parsing struct body
-        TYPES.put( tself._name, tself = ((TypeStruct)TYPES.get(typeName)).close() );
+        int lastLexSize = _scope.klast()._lexSize; // Lexical scope is now all fields
+        assert _scope.var(lastLexSize)._name=="self";
+        int newVars = lastLexSize + 2;
+
+        // Close Struct type after parsing struct body.  Forward-ref fields
+        // where placed in tself but will get promoted to an outer scope - and
+        // should not be in tself.
+        tself = (TypeStruct)TYPES.get(typeName);
+        for( int i=newVars; i<_scope.nIns(); i++ )
+            if( _scope.var(i)._fref )
+                tself = tself.remove(i-newVars);
+        TYPES.put( tself._name, tself = tself.close() );
 
         // Improve self, selfMem types in scope
         ParmNode self = ret.fun().parm(2);
@@ -963,7 +974,7 @@ public class Parser {
         ParmNode smem = ret.fun().parm(3);
         if( !isClz )            //
             smem._minType = smem._type = TypeMem.make(1,tself,true);
-        Node selfMem = isClz ? _scope.mem() : smem;
+        Node selfMem = isClz ? (_returnScope==null ? con(TypeMem.TOP) : _returnScope.mem()) : smem;
 
         // A MemMerge to gather field updates as stores
         MemMergeNode mmm = new MemMergeNode(false,null,selfMem);
@@ -972,15 +983,17 @@ public class Parser {
         // not have any returns, and thus no need to gather values and store
         // them into the (never) constructed object
         if( _returnScope!=null ) {
-            int lastLexSize = _scope.klast()._lexSize; // Lexical scope is now all fields
-            assert _scope.var(lastLexSize)._name=="self";
-            int newVars = lastLexSize + 2;
+            int frefs=0;
             for( int i=newVars; i<_scope._vars._len; i++ ) {
-                Node val = _returnScope.in(i);
-                Field fld = tself._fields[i-newVars];
-                // Store value into extended struct
-                Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(typeName,fld._fname), val, fld._final));
-                mmm.alias(fld._alias, st);
+                if( _scope.var(i)._fref ) // Forward refs not declared here
+                    frefs++;
+                else {
+                    Node val = _returnScope.in(i);
+                    Field fld = tself._fields[i-newVars-frefs];
+                    // Store value into extended struct
+                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(typeName,fld._fname), val, fld._final));
+                    mmm.alias(fld._alias, st);
+                }
             }
         }
         Node mmm0 = mmm.peephole();
@@ -1119,9 +1132,12 @@ public class Parser {
         match("{");             // Skip already-peeked '{'
         Type t0 = type();       // Either return or first arg
         if( t0==null ) return posT(old); // Not a function
-        if( match("}") )                 // No-arg function { -> type }
-            return TypeFunPtr.make(match("?"),false,TypeFunPtr.TEMPTY,t0);
         Ary<Type> ts = new Ary<>(Type.class);
+        // Push 'self' arg unless at file scope
+        if( _scope.inConstructor() )
+            ts.push(TypeMemPtr.make((TypeStruct)TYPES.get(_nestedType)));
+        if( match("}") )                 // No-arg function { -> type }
+            return TypeFunPtr.make(match("?"),false,ts.asAry(),t0);
         ts.push(t0);            // First argument
         while( true ) {
             if( match("->") ) { // End of arguments, parse return
@@ -1429,6 +1445,17 @@ public class Parser {
                 return parsePostfix(rvalue); // No methods on FRefs right now
             else throw error("Cannot read uninitialized field '"+id+"'");
 
+        // Check for a function-escaping variable; these require true
+        // closures.  Final constants are OK; final vars require a hidden var
+        // argument; not-final fields can just use an explicit struct arg.
+        if( !(var._final && rvalue._type.isConstant()) ) {
+            int kx = _scope.kindx(var); // Declaration scope
+            int fx = _scope.enclosingFunction(); // Enclosing function scope
+            if( kx > 0 && // Global scope is OK, only ever one of these (not one per function invoke)
+                kx < fx )
+                throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
+        }
+
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();
         if( ch==0  ) {          // Normal primary, check for postfix updates
@@ -1521,7 +1548,7 @@ public class Parser {
         if( hasConstructor ) {
             int idx = _scope.nIns();
             // Push a scope, and pre-assign all struct fields.
-            _scope.push(new Kind.Block());
+            _scope.push(new Kind.Func((ts._name+".<init>").intern()));
             Lexer loc = loc();
             for( Field fld : ts._fields ) {
                 Node finit;
@@ -1534,7 +1561,9 @@ public class Parser {
             }
 
             // Parse the constructor body
-            require(parseBlock(new Kind.Alloc(ts)),"}");
+            while( !peek('}') && !_lexer.isEOF() )
+                parseStatement();
+            require("}");
 
             // Store updated fields
             MemMergeNode updatedPrivMem = new MemMergeNode(false);

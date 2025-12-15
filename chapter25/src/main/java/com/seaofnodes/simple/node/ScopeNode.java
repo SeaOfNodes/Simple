@@ -30,11 +30,9 @@ public class ScopeNode extends MemMergeNode {
     // Lexical scope is typed:
     public static class Kind {
         // Basic block scoping
-        public static class Block  extends Kind { }
+        public static class Block extends Kind { }
         // Function scope
-        public static class Func   extends Kind { public Func(String name) { _name=name;} public final String _name; }
-        // Struct allocation, mapping values to fields
-        public static class Alloc  extends Kind { public Alloc (TypeStruct ts) { _ts=ts; } public final TypeStruct _ts; }
+        public static class Func  extends Kind { public Func(String name) { _name=name;} public final String _name; }
 
         public int _lexSize;     // Number of Vars in this scope
     }
@@ -62,7 +60,7 @@ public class ScopeNode extends MemMergeNode {
         int j=1;
         for( int i=0; i<nIns(); i++ ) {
             if( j < depth() && i == _kinds.at(j)._lexSize ) { sb.append("| "); j++; }
-            Var v = _vars.at(i);
+            Var v = var(i);
             sb.append(v._type());
             sb.append(" ");
             if( v._final ) sb.append("!");
@@ -124,50 +122,78 @@ public class ScopeNode extends MemMergeNode {
         int n = kind._lexSize;
         for( int i=n; i<nIns(); i++ ) {
             Var v = var(i);
+            Node vn = in(i);
             if( !v.isFRef() ) continue;
-            //if( depth()==1 ) {
+            if( depth()==1 ) {
             //    ExternNode ext = code==null ? null : code.findExternal(v._name);
             //    if( ext == null )
             //        throw Parser.error("Undefined name '" + v._name + "'",v._loc);
-            //    throw Utils.TODO(); // External linkage def
-            //}
-            _vars  .swap(n,i);
-            _inputs.swap(n,i);
-            v._idx = n;
+                throw Utils.TODO(); // External linkage def
+            }
+            // Shuffle vars and inputs to move the forward reference to
+            // *before* the start of the using scope ("as if" it was not
+            // actually a forward reference).
+            for( int j=n; j<=i; j++ ) {
+                Var  vtmp = var(j);
+                Node ntmp = in (j);
+                v._idx = j;
+                _vars  .set(j,v );
+                _inputs.set(j,vn);
+                v  = vtmp;
+                vn = ntmp;
+            }
             kind._lexSize = ++n;
-            throw Utils.TODO("Test: No need for extern lookups yet");
         }
     }
 
 
-    public boolean inAllocation () { return klast() instanceof Kind.Alloc ; }
     public boolean inFunction   () { return klast() instanceof Kind.Func  ; }
     // Is the enclosing scope a constructor?  Shallow check, not deep
     public boolean inConstructor() {
         return klast() instanceof Kind.Func func && FunNode.isInstance(func._name);
     }
 
+    // Find nearest enclosing function scope
     public int enclosingFunction() {
+        for( int i=depth()-1; i>=0; i-- )
+            if( _kinds.at(i) instanceof Kind.Func func && !FunNode.isInstance(func._name) )
+                return i;
+        throw Utils.TODO("Should not reach here");
+    }
+
+    // Find nearest enclosing function or declaration scope
+    public int enclosingFuncOrDecl() {
         for( int i=depth()-1; i>=0; i-- )
             if( _kinds.at(i) instanceof Kind.Func func )
                 return i;
         throw Utils.TODO("Should not reach here");
     }
 
+    // Which lexical scope contains this Var?
+    public int kindx( Var v ) {
+        for( int i=depth()-1; i>=0; i-- )
+            if( v._idx >= _kinds.at(i)._lexSize )
+                return i;
+        return -1;
+    }
 
     // Which lexical scope contains this Var?
     public Kind kind( Var v ) {
-        for( int i=depth()-1; i>=0; i-- )
-            if( v._idx >= _kinds.at(i)._lexSize )
-                return _kinds.at(i);
-        return null;
+        int kx = kindx(v);
+        return kx == -1 ? null : _kinds.at(kx);
     }
 
-    public Kind kindFcn( Var v ) {
+    public int kindFcnx( Var v ) {
         for( int i=depth()-1; i>=0; i-- )
             if( v._idx >= _kinds.at(i)._lexSize && _kinds.at(i) instanceof Kind.Func )
-                return _kinds.at(i);
+                return i;
         throw Utils.TODO("Should not reach here");
+    }
+
+    // Which function scope contains this Var?
+    public Kind kindFcn( Var v ) {
+        int kx = kindFcnx(v);
+        return kx == -1 ? null : _kinds.at(kx);
     }
 
     // Find name in reverse, return an index into _vars or -1.  Linear scan
@@ -213,9 +239,7 @@ public class ScopeNode extends MemMergeNode {
     // must be defined externally, or it's an error.
     public Var defineFRef( String name, Parser.Lexer loc ) {
         // Kind/Lexical scope index
-        int kidx = depth()-1;
-        while( !(_kinds.at(kidx) instanceof Kind.Func) )
-            kidx--;
+        int kidx = enclosingFunction();
         int idx = _kinds.at(kidx)._lexSize;
         Var var = new Var(idx,name,FRefNode.FREF_TYPE,false,loc,true);
         FRefNode fref = new FRefNode(var).init();
@@ -356,12 +380,19 @@ public class ScopeNode extends MemMergeNode {
 
     // Balance arms of an IF.  Extra lonely defs are thrown: "if(pred) int x;".
     // Forward refs are copied to the other side, "as if" they were there all along.
+    // 'this' scope is the default, 'scope' might have frefs.
     public void balanceIf( ScopeNode scope ) {
-        for( int i = nIns(); i < scope.nIns(); i++ ) {
+        if( nIns()==scope.nIns() )
+            return;             // Fast-path cutout
+        int kidx = enclosingFunction();
+        assert _kinds.at(kidx) == scope._kinds.at(kidx);
+        if( kidx==0 ) kidx = 1;
+        for( int i = _kinds.at(kidx-1)._lexSize; i < scope.nIns(); i++ ) {
             Var n = scope.var(i);
+            if( i<nIns() && var(i)==n ) continue;
             if( n.isFRef() ) {  // RHS has forward refs
-                _vars.add(n);   // Copy to LHS
-                addDef(scope.in(i));
+                _vars.insert(n,i);
+                insertDef(i,scope.in(i));
             } else
                 throw Parser.error("Cannot define a '"+n._name+"' on one arm of an if",n._loc);
         }
@@ -510,7 +541,7 @@ public class ScopeNode extends MemMergeNode {
             _kinds.at(i)._lexSize++;
         // All Vars outside the innermost lexical scope bump out one
         for( int i=nidx+1; i<_vars._len; i++ )
-            _vars.at(i)._idx++;
+            var(i)._idx++;
     }
 
     // Save the existing Node state to an array

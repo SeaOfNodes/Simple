@@ -173,7 +173,7 @@ public class PhiNode extends Node {
     // Same op on all Phi paths; all ops have only the Phi as a use.
     // None have a control input.
     private boolean same_op() {
-        int busy=0;
+        Node busy=null;
         for( int i=1; i<nIns(); i++ ) {
             Node op = in(i);
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
@@ -182,11 +182,17 @@ public class PhiNode extends Node {
                 return false;
             if( in(1) instanceof EscapeNode )
                 return false;
-            if( op.nOuts() > 1 && busy++ > 0 ) { // Too many users, but addDep in case lose users
-                for( Node out : op._outputs )
-                    if( out!=null && out!=this )
-                        addDep(out);
-                return false;
+            if( op.nOuts() > 1 ) {
+                if( busy==null ) busy = op;
+                else {         // Too many users, but addDep in case lose users
+                    for( Node out : op._outputs )
+                        if( out!=null && out!=this )
+                            addDep(out);
+                    for( Node out : busy._outputs )
+                        if( out!=null && out!=this )
+                            addDep(out);
+                    return false;
+                }
             }
             for( int j=1; j<in(1).nIns(); j++ )
                 if( op.in(j) instanceof ScopeNode || (op.in(j)==null ^ in(1).in(j)==null) )

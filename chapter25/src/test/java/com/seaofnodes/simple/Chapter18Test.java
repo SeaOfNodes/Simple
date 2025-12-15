@@ -78,17 +78,36 @@ var _sq = { int x ->
 return _sq(arg)+_sq(3);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return (#2+#2);", code._stop.toString());
+        assertEquals("return ((arg*arg)+9);", code._stop.toString());
         assertEquals("13", Eval2.eval(code, 2));
     }
 
     // Function scope test
     @Test
-    public void testFcn2() {
+    public void testFcn2A() {
         CodeGen code = new CodeGen(
 """
-int cnt=1;
-return { -> cnt; };
+int cnt=1;                      // Global scope; exactly one of these
+return { -> cnt++; };           // Escape global-scope variable is OK
+""");
+        code.parse().opto();
+        assertEquals("return { -> 1 #1};", code._stop.toString());
+        assertEquals("{ -> 1 #1}", Eval2.eval(code, 0));
+    }
+
+    // Function scope test
+    @Test
+    public void testFcn2B() {
+        CodeGen code = new CodeGen(
+"""
+val ctr = { ->
+    int cnt; // Function-local var
+    return { -> cnt=cnt+1; cnt; };       // Escape cnt out of scope
+};
+val A = ctr();                  // Make a counter
+val B = ctr();                  // Make a counter
+A();                            // Increment counter A
+return A()*10 + B();            // Incr A and B; result: 2*10+1 == 21
 """);
         try { code.parse().opto(); fail(); }
         catch( Exception e ) { assertEquals("Variable 'cnt' is out of function scope and must be a final constant",e.getMessage()); }
@@ -124,9 +143,9 @@ return fcn(3);
     // Recursive factorial test
     @Test
     public void testFcn5() {
-        CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
+        CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1 : x*_fact(x-1); }; return _fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("return #2;", code._stop.toString());
+        assertEquals("return Phi(Region,1,(arg*#2));", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -152,9 +171,9 @@ return _newS(1).i;
     public void testFcn7() {
         CodeGen code = new CodeGen(
 """
-val f = {->1;};
-val g = {->2;};
-if( arg ? f : g ) return 1;
+val _f = {->1;};
+val _g = {->2;};
+if( arg ? _f : _g ) return 1;
 return 2;
 """);
         code.parse().opto().typeCheck();
@@ -166,17 +185,17 @@ return 2;
     public void testFcn8() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? i2i = null;
-var id = {{int->int} f-> return f;};
+{int -> int}? _i2i = null;
+var _id = {{int->int} f-> return f;};
 for(;;) {
-    if (i2i) return i2i(arg);
-    var x = {int i-> return i;};
-    arg = x(3);
-    i2i = id(x);
+    if (_i2i) return _i2i(arg);
+    var _x = {int i-> return i;};
+    arg = _x(3);
+    _i2i = _id(_x);
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return #2;", code._stop.toString());
+        assertEquals("return Phi(Loop,arg,3);", code._stop.toString());
         assertEquals("3", Eval2.eval(code,  0));
     }
 
@@ -192,7 +211,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return Top;", code._stop.toString());
+        assertEquals("Stop[ return Parm_i(x,i64); return Top; ]", code._stop.toString());
         assertEquals("null", Eval2.eval(code,  0));
     }
 
@@ -217,7 +236,7 @@ ps[1] = new _Person;
 return fcn(ps,1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,.age,0); return #2; ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,.age,0); return 0; ]", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  0));
     }
 
@@ -282,7 +301,7 @@ for(;;) {
 }
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*S'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*Test.S'",e.getMessage()); }
     }
 
     @Test
@@ -340,12 +359,12 @@ for(;;) {
     public void testInline() {
         CodeGen code = new CodeGen(
 """
-{int->int}?! i2i = {int i->return i;};
-{{int->int}->{int->int}}! f2f = {{int->int} f->return f;};
-val o = i2i;
-if (arg) i2i = null;
-if (i2i) return i2i(arg);
-return f2f(o)(1);
+{int->int}?! _i2i_noInline = {int i->return i;};
+{{int->int}->{int->int}}! _f2f = {{int->int} f->return f;};
+val _o = _i2i_noInline;
+if (arg) _i2i_noInline = null;
+if (_i2i_noInline) return _i2i_noInline(arg);
+return _f2f(_o)(1);
 """);
         code.driver(Phase.LocalSched);
         assertEquals("return Phi(Region,#2,#2);", code._stop.toString());

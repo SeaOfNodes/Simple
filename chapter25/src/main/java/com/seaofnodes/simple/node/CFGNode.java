@@ -99,8 +99,10 @@ public abstract class CFGNode extends Node {
     // Find nearest enclosing FunNode
     public FunNode fun() {
         CFGNode cfg = this;
-        while( !(cfg instanceof FunNode fun) )
+        while( !(cfg instanceof FunNode fun) ) {
+            if( cfg==null ) return null;
             cfg = cfg.idom();
+        }
         return fun;
     }
 

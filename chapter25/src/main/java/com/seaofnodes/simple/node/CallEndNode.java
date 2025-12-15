@@ -92,10 +92,11 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 call.err()==null ) {
                 ReturnNode ret = (ReturnNode)in(1);
                 FunNode fun = ret.fun();
-                int isTrivial = trivialInlining( fptr, fun, call );
+                int isTrivial = trivialInlining( fptr, fun );
 
                 // Encouraged inlining because small size and constructor.
-                if( isTrivial==1 && fun._approxUIDs < 100 && fun._name!=null && fun.isInit() && !fun.isClz() ) {
+                int maxSize = fun._name!=null && fun.isInit() && !fun.isClz() ? 200 : 100;
+                if( isTrivial==1 && fun._approxUIDs < maxSize ) {
                     assert !CodeGen.CODE._midAssert; // Triggered inlining
                     // Remove the existing function linkage
                     call.unlink_all();
@@ -107,14 +108,14 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     // Link to the new function
                     call.link(fun2);
                     fun = fun2;
-                    assert trivialInlining( fptr2, fun2, call )==0;
+                    assert trivialInlining( fptr2, fun2 )==0;
                     isTrivial = 0;
                 }
 
                 // Trivial inlining: call site calls a single function; single function
                 // is only called by this call site.
                 if( isTrivial==0 )
-                    return doTrivialInlining(fun, call);
+                    return doTrivialInlining(fun);
 
             } else { // Function not (yet) a constant function pointer
                 addDep(fptr);
@@ -127,11 +128,20 @@ public class CallEndNode extends CFGNode implements MultiNode {
     // Check for trivial inlining: call only calls fun; fun only called by
     // call.  Returns 0 for trivial, +1 for not-trivial because fptr/fun, and
     // -1 for not-trivial because idoms.
-    private int trivialInlining( Node fptr, FunNode fun, CallNode call ) {
+    private int trivialInlining( Node fptr, FunNode fun ) {
+        // Heuristic forced inlining off via name
+        if( fun._name != null &&
+            fun._name.endsWith("_noInline") )
+            return -1;
+
         // Disallow self-recursive inlining (loop unrolling by another name).
+        for( int i=1; i < fun.nIns(); i++ )
+            if( fun.cfg(i).fun()==fun ) // Check for linked call input inside "fun"
+                { addDep(fun); return -1; }
+
         // Disallow if still folding other things, as it makes other
         // dependency checks carry long chains of half-folded calls.
-        CFGNode idom = call;
+        CFGNode idom = call();
         while( true ) {
             idom = idom.idom();
             if( idom instanceof FunNode ) break;
@@ -140,9 +150,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
         // No recursive or mid-folding function
         if( idom instanceof FunNode fun2 && (fun2._folding || fun2 == fun) )
-            { addDep(idom); return -1; }
+            { addDep(fun2); return -1; }
         if( idom instanceof CallEndNode cend && cend._folding )
-            { addDep(idom); return -1; }
+            { addDep(cend); return -1; }
 
         // Expecting just the Call
         if( fptr.nOuts() > 1 ) { addDep(fptr); return 1; }
@@ -150,20 +160,25 @@ public class CallEndNode extends CFGNode implements MultiNode {
         if( fun.nIns() > 2 ) { addDep(fun); return 1; }
         // Trivial inlining: call site calls a single function; single function
         // is only called by this call site.
-        assert fun.in(1)==call;
+        assert fun.in(1)==call();
 
         return 0;
     }
 
+
     // Do trivial inlining.  Inlining does not need to clone code, merely
     // triggers folding the Call/Fun and Return/CallEnd away.
-    private Node doTrivialInlining( FunNode fun, CallNode call ) {
+    private Node doTrivialInlining( FunNode fun ) {
+        // Add the size heuristic to grow caller, preventing self-recursive
+        // functions from endlessly inlining.
+        fun()._approxUIDs += fun._approxUIDs;
         // Trivial inline: rewrite
         _folding = true;
         // Rewrite Fun so the normal RegionNode ideal collapses
         fun._folding = true;
-        fun.setDef(1,call.ctrl());  // Bypass the Call;
+        fun.setDef(1,call().ctrl());// Bypass the Call;
         fun.ret().setDef(3,null);   // Return is folding also
+
         CodeGen.CODE.addAll(fun._outputs);
         // Repeat defs 1 layer down, for users of Parm (Phis)
         for( Node parm : fun._outputs )
