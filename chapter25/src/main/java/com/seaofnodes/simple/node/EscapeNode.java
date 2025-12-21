@@ -41,7 +41,8 @@ public class EscapeNode extends Node {
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("Esc#").append(_alias).append(" {");
-        self()._print0(sb,visited).append(",");
+        if( self()==null ) sb.append("---");
+        else self()._print0(sb,visited).append(",");
         priv()._print0(sb,visited).append("}, ");
         pub ()._print0(sb,visited);
         return sb;

@@ -159,8 +159,8 @@ val _hashCodeString = { String self ->
     public void testCast() {
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
         testCPU(src,"x86_64_v2", "SystemV",2,null);
-        testCPU(src,"riscv"    , "SystemV",2,null);
-        testCPU(src,"arm"      , "SystemV",2,null);
+        testCPU(src,"riscv"    , "SystemV",4,null);
+        testCPU(src,"arm"      , "SystemV",4,null);
     }
 
     @Test
@@ -193,7 +193,7 @@ while (arg > 0) {
 }
 return arg;
 """;
-        testCPU(src,"x86_64_v2", "SystemV",3,null);
+        testCPU(src,"x86_64_v2", "SystemV",1,null);
         testCPU(src,"riscv"    , "SystemV",2,null);
         testCPU(src,"arm"      , "SystemV",2,null);
     }

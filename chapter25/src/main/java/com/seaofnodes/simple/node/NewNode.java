@@ -88,7 +88,7 @@ public class NewNode extends Node implements MultiNode {
     public String op() { return "alloc"; }
     public RegMask regmap(int i) { return i==1 ? _arg3Mask : null; }
     public RegMask outregmap() { return null; }
-    public RegMask outregmap(int idx) { return idx==1  ? _retMask : null; }
+    public RegMask outregmap(int idx) { return idx==0  ? _retMask : null; }
     public RegMask killmap() { return _kills; }
     public void asm(CodeGen code, SB sb) {
         sb.p("#malloc, ").p(code.reg(size()));

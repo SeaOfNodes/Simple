@@ -31,7 +31,8 @@ public class NewARM extends NewNode implements MachNode, RIPRelSize {
     }
     // General form: "alloc #bytes  PC"
     @Override public void asm(CodeGen code, SB sb) {
-        sb.p("ldi   x0=#1\n");
+        sb.p("\n");             // Multi-op trigger
+        sb.p("ldi   ").p(code._mach.regs()[_arg2Reg]).p(" = #1\n");
         sb.p("call  #calloc");
     }
 }

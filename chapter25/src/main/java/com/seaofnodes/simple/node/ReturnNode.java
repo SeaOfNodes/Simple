@@ -90,7 +90,7 @@ public class ReturnNode extends CFGNode {
     // ------------
     // MachNode specifics, shared across all CPUs
     public String op() {
-        return _fun._frameAdjust > 0 ? "addi" : "ret";
+        return _fun._frameAdjust > 0 ? "epilog" : "ret  ";
     }
     // Correct Nodes outside the normal edges
     public void postSelect(CodeGen code) {
@@ -108,9 +108,10 @@ public class ReturnNode extends CFGNode {
     public void asm(CodeGen code, SB sb) {
         int frameAdjust = fun()._frameAdjust;
         if( frameAdjust>0 )
-            sb.p("rsp += #").p(frameAdjust).p("\nret");
+            sb.p("\n").p("rsp += #").p(frameAdjust).p("\nret    ");
         // Post code-gen, just print the "ret"
-        if( code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() )
+        if( code._phase.ordinal() < CodeGen.Phase.RegAlloc.ordinal() ||
+            (code._phase.ordinal() == CodeGen.Phase.RegAlloc.ordinal() && !code._regAlloc.done()) )
             // Prints return reg (either RAX or XMM0), RPC and then the
             // callee-save registers.
             for( int i=2; i<nIns(); i++ )
