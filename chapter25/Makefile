@@ -66,10 +66,10 @@ test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 # These tests do not rely on the stdlib
-test_raw_nums:= 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
-test_raw     := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums))
+test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+test_raw0    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums0))
 test_cp0     := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
-test_cp      := $(filter-out $(test_raw),$(test_cp0))
+test_cp      := $(filter-out $(test_raw0),$(test_cp0))
 classes = $(main_classes) $(test_classes)
 # All the libraries
 libs = $(wildcard lib/*jar)
@@ -146,13 +146,13 @@ lib_x86_64_v2_win64/sys.o:	$(CLZDIR)/main/.mtag
 JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 # Tests that do NOT need sys.smp
-tests_raw:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
-	@echo "testing " $(test_raw)
+tests_raw0:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
+	@echo "testing " $(test_raw0)
 	@[ -d build/objs ] || mkdir -p build/objs
-	@$(JVM) org.junit.runner.JUnitCore $(test_raw)
+	@$(JVM) org.junit.runner.JUnitCore $(test_raw0)
 
 # Tests that DO need sys.smp
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag lib_x86_64_v2_win64/sys.o tests_raw
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag lib_x86_64_v2_win64/sys.o tests_raw0
 	@echo "testing " $(test_cp)
 	@[ -d build/objs ] || mkdir -p build/objs
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)

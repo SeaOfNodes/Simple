@@ -13,7 +13,6 @@ public class riscv extends Machine {
     }
 
     @Override public String name() {return "riscv";}
-    //@Override public int maxReg() { return MAX_REG; }
 
     // Using ABI names instead of register names
     public static int ZERO =  0,  RPC=  1,  RSP=  2,  S12=  3,  S13=  4,  T0 =  5,  T1 =  6,  T2 =  7;
@@ -32,24 +31,24 @@ public class riscv extends Machine {
     public static final int F_OFFSET = 32;
 
     static final String[] REGS = new String[] {
-        "zero","rpc"  , "rsp" , "s12" , "s13" , "t0"  , "t1"  , "t2"  ,
-        "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
-        "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
-        "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
-        "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
-        "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
-        "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-        "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
-        // Register-based naming hella easier to debug than "official" register
-        // names when single-stepping in debugger.
-        //"zero", "r1"  , "rsp" , "r3" , "r4" , "r5" , "r6" , "r7" ,
-        //"r8"  , "r9"  , "r10" , "r11", "r12", "r13", "r14", "r15",
-        //"r16" , "r17" , "r18" , "r19", "r20", "r21", "r22", "r23",
-        //"r24" , "r25" , "r26" , "r27", "r28", "r29", "r30", "r31",
+        //"zero","rpc"  , "rsp" , "s12" , "s13" , "t0"  , "t1"  , "t2"  ,
+        //"s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
+        //"a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
+        //"s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
         //"f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
         //"fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
         //"fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
         //"fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
+        // Register-based naming hella easier to debug than "official" register
+        // names when single-stepping in debugger.
+        "zero", "r1"  , "rsp" , "r3" , "r4" , "r5" , "r6" , "r7" ,
+        "r8"  , "r9"  , "r10" , "r11", "r12", "r13", "r14", "r15",
+        "r16" , "r17" , "r18" , "r19", "r20", "r21", "r22", "r23",
+        "r24" , "r25" , "r26" , "r27", "r28", "r29", "r30", "r31",
+        "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
+        "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
+        "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
+        "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
     };
     @Override public String[] regs() { return REGS; }
 
@@ -91,7 +90,7 @@ public class riscv extends Machine {
     public static RegMask FA6_MASK = new RegMask(FA6);
     public static RegMask FA7_MASK = new RegMask(FA7);
 
-    // Int arguments calling conv
+    // Int/ptr arguments calling convention
     static RegMask[] CALLINMASK = new RegMask[] {
         A0_MASK,
         A1_MASK,
@@ -334,6 +333,7 @@ public class riscv extends Machine {
         case ConstantNode con -> con(con);
         case DivFNode    divf -> new DivFRISC(divf);
         case DivNode      div -> new DivRISC(div);
+        case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunRISC(fun);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);

@@ -56,6 +56,8 @@ public class RegAlloc {
 
     public int _spills, _spillScaled;
 
+    private boolean _done;
+
     // -----------------------
     // Live ranges with self-conflicts or no allowed registers
     private final IdentityHashMap<LRG,String> _failed = new IdentityHashMap<>();
@@ -64,6 +66,7 @@ public class RegAlloc {
         _failed.put(lrg,"");
     }
     boolean success() { return _failed.isEmpty(); }
+    public boolean done() { return _done; }
 
 
     // -----------------------
@@ -177,6 +180,7 @@ public class RegAlloc {
             round++;
         }
         postColor();                       // Remove no-op spills
+        _done = true;
     }
 
     private boolean graphColor(byte round) {

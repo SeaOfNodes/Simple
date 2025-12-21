@@ -661,6 +661,7 @@ public class arm extends Machine {
         case ConstantNode con-> con(con);
         case DivFNode divf   -> new DivFARM(divf);
         case DivNode div     -> new DivARM(div);
+        case EscapeNode esc  -> new EscapeNode(esc);
         case FunNode fun     -> new FunARM(fun);
         case IfNode iff      -> jmp(iff);
         case LoadNode ld     -> ld(ld);

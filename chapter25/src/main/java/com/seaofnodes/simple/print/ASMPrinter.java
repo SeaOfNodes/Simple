@@ -18,6 +18,7 @@ public abstract class ASMPrinter {
 
         // instruction address
         int iadr = 0;
+        // Print all functions in order
         for( int i=0; i<code._cfg._len; i++ )
             if( code._cfg.at(i) instanceof FunNode fun )
                 iadr = print(iadr,sb,code,fun,i);
@@ -88,6 +89,7 @@ public abstract class ASMPrinter {
 
 
     private static int print(int iadr, SB sb, CodeGen code, FunNode fun, int cfgidx) {
+        // Stack and unstack function being printed
         FunNode old=null;
         if( code._encoding!=null ) {
             old = code._encoding._fun;
@@ -102,7 +104,7 @@ public abstract class ASMPrinter {
             iadr = (iadr + 15)&-16; // All function entries padded to 16 align
 
         if( fun._frameAdjust != 0 )
-            iadr = doInst(iadr,sb,code,fun,cfgidx,fun,true,true);
+            iadr = doInst(iadr,sb,code,fun,cfgidx,fun,true,code._encoding!=null);
         while( !(code._cfg.at(cfgidx) instanceof ReturnNode) )
             iadr = doBlock(iadr,sb,code,fun,cfgidx++);
 
@@ -123,8 +125,9 @@ public abstract class ASMPrinter {
         if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
             sb.p(label(bb)).p(":").nl();
         if( bb instanceof CallNode ) return iadr;
-        final boolean postAlloc = code._phase.ordinal() > CodeGen.Phase.RegAlloc.ordinal();
         final boolean postEncode= code._phase.ordinal() >=CodeGen.Phase.Encoding.ordinal();
+        final boolean postAlloc = code._phase.ordinal() > CodeGen.Phase.RegAlloc.ordinal() ||
+            (code._phase.ordinal() == CodeGen.Phase.RegAlloc.ordinal() && code._regAlloc.done());
 
         boolean once=false;
         for( Node n : bb.outs() ) {
@@ -161,6 +164,7 @@ public abstract class ASMPrinter {
         if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
         if( postEncode && n instanceof ProjNode ) return iadr;
         if( n instanceof MemMergeNode ) return iadr;
+        if( n instanceof EscapeNode ) return iadr;
         if( n.getClass() == ConstantNode.class ) return iadr; // Default placeholders
         final int dopz = code._mach==null ? 2 : code._mach.defaultOpSize();
         final int encWidth = dopz*2;
@@ -185,7 +189,9 @@ public abstract class ASMPrinter {
         // get indent slightly and just print their index & node#
         if( n instanceof ProjNode proj ) {
             if( proj._type instanceof TypeMem ) return iadr; // Nothing for the hidden ones
-            sb.fix(4," ").p(" ").fix(encWidth,"").p("    ").fix(opWidth,proj._label==null ? "---" : proj._label).p(" ").p(code.reg(n,fun)).nl();
+            sb.fix(4," ").p(" ").fix(encWidth,"").p("    ").fix(opWidth,code.reg(n,fun)).p(" // ");
+            if( proj._label != null ) sb.p(proj._label);
+            sb.nl();
             return iadr;
         }
 
@@ -244,10 +250,10 @@ public abstract class ASMPrinter {
         sb.nl();
 
         // Printing more op bits than fit
-        if( isMultiOp != null && code._encoding != null && code._encoding._opLen!=null ) {
+        if( isMultiOp != null ) {
             // Multiple ops, template style, no RA, no scheduling.  Print out
             // one-line-per-newline, with encoding bits up front.
-            int size = code._encoding._opLen[n._nid];
+            int size = code._encoding != null && code._encoding._opLen!=null ? code._encoding._opLen[n._nid] : 0;
             int off = Math.min(size,dopz);
             while( isMultiOp!=null ) {
                 sb.hex2(iadr).p(" ");
@@ -294,13 +300,10 @@ public abstract class ASMPrinter {
     }
 
     private static String isMultiOp(SB sb, int old, int len) {
-        for( int i=old; i<len; i++ )
-            if( sb.at(i)=='\n' ) {
-                String s = sb.subString(i+1,len);
-                sb.setLen(i);
-                return s;
-            }
-        return null;
+        if( old==len || sb.at(old)!='\n' ) return null;
+        String rest = sb.subString(old+1,len);
+        sb.setLen(old);
+        return rest;
     }
 
 }
