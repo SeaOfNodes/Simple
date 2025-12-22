@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import java.io.IOException;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -50,41 +49,40 @@ public class Chapter20Test {
         String src =
 """
 // Newtons approximation to the square root
-val sqrt = { int x ->
+val _sqrt = { int x ->
     int guess = x;
     while( 1 ) {
-        int next = (x/guess + guess)/2;
+        int next = (x/guess + guess)>>1;
         if( next == guess ) return guess;
         guess = next;
     }
 };
-int cast_int = arg+2;
-return sqrt(arg) + sqrt(cast_int);
+return _sqrt(arg) + _sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "Win64"  ,55,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,38,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
         testCPU(src,"arm"      , "SystemV",19,null);
     }
 
     @Test
-    public void testNewtonFloat() throws IOException {
+    public void testNewtonFloat() {
         String src =
 """
-val test_sqrt = { flt x ->
+val _test_sqrt = { flt x ->
     flt epsilon = 1e-15;
     flt guess = x;
     while( 1 ) {
         flt next = (x/guess + guess)/2;
-        if( guess-epsilon <= next & next <= guess+epsilon ) return guess;
-        //if( guess==next ) return guess;
+        if( guess-epsilon <= next <= guess+epsilon )
+            return guess;
         guess = next;
     }
 };
-flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);
+flt farg = arg; return _test_sqrt(farg) + _test_sqrt(farg+2.0);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",39,null);
-        testCPU(src,"riscv"    , "SystemV",17,null);
-        testCPU(src,"arm"      , "SystemV",18,null);
+        testCPU(src,"x86_64_v2", "SystemV",100,null);
+        testCPU(src,"riscv"    , "SystemV",34,null);
+        testCPU(src,"arm"      , "SystemV",36,null);
     }
 
     @Test
@@ -98,7 +96,7 @@ flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);
 
 
     @Test
-    public void testArray1() throws IOException {
+    public void testArray1() {
         String src =
 """
 int[] !ary = new int[arg];
@@ -117,7 +115,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 
 
     @Test
-    public void testString() throws IOException {
+    public void testString() {
         String src =
 """
 struct String {
@@ -151,7 +149,7 @@ val _hashCodeString = { String self ->
 };
 """;
         testCPU(src,"x86_64_v2", "SystemV", 9,null);
-        testCPU(src,"riscv"    , "SystemV", 3,null);
+        testCPU(src,"riscv"    , "SystemV", 5,null);
         testCPU(src,"arm"      , "SystemV", 3,null);
     }
 
@@ -172,15 +170,15 @@ val _hashCodeString = { String self ->
     @Test
     public void testFlags1() {
         String src = """
-bool b1 = arg == 1;
+bool _b1 = arg == 1;
 bool b2 = arg == 2;
-if (b2) if (b1) return 1;
-if (b1) return 2;
+if (b2) if (_b1) return 1;
+if (_b1) return 2;
 return 0;
 """;
-        testCPU(src,"x86_64_v2", "SystemV",0,"return Phi(Region,1,2,0);");
-        testCPU(src,"riscv"    , "SystemV",0,"return Phi(Region,1,2,0);");
-        testCPU(src,"arm"      , "SystemV",0,"return Phi(Region,1,2,0);");
+        testCPU(src,"x86_64_v2", "SystemV",0,"return Phi(Region,2,0,1);");
+        testCPU(src,"riscv"    , "SystemV",0,"return Phi(Region,2,0,1);");
+        testCPU(src,"arm"      , "SystemV",0,"return Phi(Region,2,0,1);");
     }
 
     @Test

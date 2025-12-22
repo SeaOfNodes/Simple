@@ -182,25 +182,23 @@ public class Encoding {
         rpos.put(_code._start.loop(),rpo);
         BitSet visit = _code.visit();
         rpo.add(_code._stop);
-        // CNC - compilation unit clinit
-        //// Do any main function last... so it lands at offset 0 in the RPO
-        //FunNode main = _code.link(_code._main);
-        //for( Node n : _code._start._outputs )
-        //    if( n instanceof FunNode fun && fun != main ) {
-        //        int x = rpo._len;
-        //        _rpo_cfg(fun, visit, rpos );
-        //        assert rpo.at(x) instanceof ReturnNode;
-        //    }
-        //if( main!=null )
-        //    _rpo_cfg(main, visit, rpos );
-        //rpo.add(_code._start);
-        //
-        //// Reverse in-place
-        //for( int i=0; i< rpo.size()>>1; i++ )
-        //    rpo.swap(i,rpo.size()-1-i);
-        //visit.clear();
-        //_code._cfg = rpo;       // Save the new ordering
-        throw Utils.TODO();
+        // Do the <clinit> function last... so it lands at offset 0 in the RPO
+        FunNode clinit = _code._linker.at(0);
+        assert clinit.isClz();
+        for( Node n : _code._start._outputs )
+            if( n instanceof FunNode fun && fun != clinit ) {
+                int x = rpo._len;
+                _rpo_cfg(fun, visit, rpos );
+                assert rpo.at(x) instanceof ReturnNode;
+            }
+        _rpo_cfg(clinit, visit, rpos );
+        rpo.add(_code._start);
+
+        // Reverse in-place
+        for( int i=0; i< rpo.size()>>1; i++ )
+            rpo.swap(i,rpo.size()-1-i);
+        visit.clear();
+        _code._cfg = rpo;       // Save the new ordering
     }
 
 

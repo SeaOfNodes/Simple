@@ -40,7 +40,7 @@ abstract public class BuildLRG {
                         int uidx = n.out(0)._inputs.find(n);
                         RegMask mask1 = n.in (1) instanceof MachNode machx ? machx.outregmap() : alloc.lrg(n.in(1))._mask;
                         RegMask mask2 = n.in (2) instanceof MachNode machx ? machx.outregmap() : alloc.lrg(n.in(2))._mask;
-                        RegMask masko = n.out(0) instanceof MachNode machx ? machx.regmap(uidx): alloc.lrg(n      )._mask;
+                        RegMask masko = n.out(0) instanceof MachNode machx ? machx.regmap(uidx): mach.outregmap();
                         if( !mask1.overlap(masko) && mask2.overlap(masko) )
                             n.swap12();
                     }

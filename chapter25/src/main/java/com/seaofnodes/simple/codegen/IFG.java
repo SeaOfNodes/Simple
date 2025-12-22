@@ -402,6 +402,7 @@ abstract public class IFG {
             swap(color_stack,sptr,bidx); // Pick best at sptr
     }
 
+    // Returns true if 'lrg' is better than 'best'
     private static boolean betterLRG( LRG best, LRG lrg ) {
         // If single-def varies, keep the not-single-def
         if( best.size1() != lrg.size1() )
@@ -409,6 +410,10 @@ abstract public class IFG {
         // If hasSplit varies, keep the hasSplit
         if( best.hasSplit() != lrg.hasSplit() )
             return lrg.hasSplit();
+        // If both are single register (so both sizes are 1),
+        // return a multi-use over a multi-def
+        if( best.size1() )
+            return !best._multiUse && lrg._multiUse;
         // Keep large register count
         return best.size() < lrg.size();
     }
@@ -458,7 +463,7 @@ abstract public class IFG {
 
         // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
         // and "area" for benefit
-        return 1000;
+        return 1000 + (lrg._multiUse ? -100 : 0);
     }
 
     private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {
