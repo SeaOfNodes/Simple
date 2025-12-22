@@ -48,12 +48,10 @@ public class ReturnNode extends CFGNode {
 
     @Override
     public Type compute() {
-        if( inProgress () ) return TypeTuple.RET; // In progress
         return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
     }
 
     @Override public Node idealize() {
-        if( inProgress () ) return null;
         if( _fun.isDead() ) return null;
 
         // Upgrade signature based on return type
@@ -72,10 +70,6 @@ public class ReturnNode extends CFGNode {
         }
 
         return null;
-    }
-
-    public boolean inProgress() {
-        return false;
     }
 
     @Override public Parser.ParseException err() {

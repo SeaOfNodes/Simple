@@ -346,7 +346,7 @@ public class JSViewer implements AutoCloseable {
                 sb.i().p(scopeName).p(" -> ").p(n.uniqueName()).p(" [ style=dashed color=grey];\n");
             }
             // Force functions above return
-            if( n instanceof ReturnNode ret && ret.inProgress() && !ret.fun().isDead() )
+            if( n instanceof ReturnNode ret && !ret.fun().isDead() )
                 sb.i().p(ret.ctrl().uniqueName()).p(" -> ").p(ret.fun().uniqueName()).p("[style=invis]\n");
         }
     }
