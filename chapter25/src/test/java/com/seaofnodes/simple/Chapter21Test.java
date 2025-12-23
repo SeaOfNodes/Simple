@@ -17,22 +17,22 @@ public class Chapter21Test {
     public void testJig() throws IOException {
         String src =
 """
-struct s0 {
+struct _s0 {
     bool v1;
     i16 v2;
     int v3;
     i8 v4;
     byte v5;
 };
-while(new s0.v3)
-    while(new s0.v5<<new s0.v4) {}
+while(new _s0.v3)
+    while(new _s0.v5<<new _s0.v4) {}
 if(0) {
     if(0) {
-        flt !P5ZUD4=new s0.v2;
+        flt !P5ZUD4=new _s0.v2;
     }
     while(0) {}
 }
-return new s0.v1;
+return new _s0.v1;
 """;
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
@@ -58,14 +58,14 @@ return new s0.v1;
     }
 
     @Test public void testInfinite() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
+        String src = "struct _S { int i; }; _S !s = new _S; while(1) s.i++; return s.i;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");
     }
 
     @Test
-    public void testArray1() throws IOException {
+    public void testArray1() {
         String src =
 """
 int[] !ary = new int[arg];
@@ -83,13 +83,13 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     }
 
     @Test
-    public void testAntiDeps1() throws IOException {
+    public void testAntiDeps1() {
         String src =
 """
-struct S { int f; };
-var v0 = new S;
-S? v1;
-if (arg) v1 = new S;
+struct _S { int f; };
+var v0 = new _S;
+_S? v1;
+if (arg) v1 = new _S;
 if (v1) {
     v0.f = v1.f;
 } else {
@@ -103,7 +103,7 @@ return v0;
     }
 
     @Test
-    public void testString() throws IOException {
+    public void testString() {
         String src =
 """
 struct String {

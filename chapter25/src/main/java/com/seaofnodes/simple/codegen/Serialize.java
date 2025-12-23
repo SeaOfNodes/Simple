@@ -7,6 +7,7 @@ import com.seaofnodes.simple.util.*;
 import java.util.*;
 
 abstract public class Serialize {
+
     static BAOS serialize( CodeGen code ) {
         // Get all Nodes in a sane order
         Ary<Node> nodes = nodeOrder(code);
@@ -16,8 +17,8 @@ abstract public class Serialize {
 
         //// --- Expensive bijection assert
         //// Inflate into POJOs; renumbers everything
-        //Ary<Node> nodes2 = read(new BAOS(baos.toByteArray()));
-        //BAOS baos2 = write(nodes2, code._published);
+        //Results r = readAll(new BAOS(baos.toByteArray()));
+        //BAOS baos2 = write(r.nodes(), r.published());
         //
         //// Bi-jection
         //for( int i=0; i<baos.size(); i++ )
@@ -101,7 +102,7 @@ abstract public class Serialize {
 
 
         // B - Write unique strings
-        baos.write(published.size());
+        baos.packed4(published.size());
         baos.packed4(strs.size());
         // Write in ID# order
         for( String s : astrs )
@@ -169,7 +170,12 @@ abstract public class Serialize {
         return strs;
     }
 
-    static Ary<TypeStruct> readAll( BAOS bais ) {
+
+    // --------------------------------------------------
+
+    public static record Results( Ary<Node> nodes, Ary<TypeStruct> published ) {}
+
+    static Results readAll( BAOS bais ) {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -178,7 +184,7 @@ abstract public class Serialize {
             throw new IllegalArgumentException("Missing magic word");
 
         // B - Packed read of #strings, then strings
-        int npublish = bais.read();
+        int npublish = bais.packed4();
         int nstrs = bais.packed4();
         String[] strs = new String[nstrs];
         for( int i=0; i<nstrs; i++ )
@@ -194,9 +200,9 @@ abstract public class Serialize {
         aliases.set(0,0);
         // Check and collect first published symbols map to TypeStructs
         Ary<TypeStruct> published = new Ary<>(TypeStruct.class);
-        for( int i=1; i<npublish; i++ ) {
-            TypeStruct ts = (TypeStruct)types[i];
-            //assert ts._name==strs[i];
+        for( int i=0; i<npublish; i++ ) {
+            TypeStruct ts = (TypeStruct)types[i+1];
+            assert ts._name==strs[i+1];
             published.add(ts);
         }
 
@@ -231,7 +237,7 @@ abstract public class Serialize {
         assert check(nodes);
 
         // TODO: also get back #of fidxs, any other global constants
-        return published;
+        return new Results(nodes,published);
     }
 
     private static boolean check( Ary<Node> nodes ) {
@@ -251,8 +257,13 @@ abstract public class Serialize {
 
         // All the global constants
         for( Node n : code._start._outputs )
-            if( !(n instanceof FunNode) )
-                { visit.set(n._nid); nodes.add(n); }
+            if( !(n instanceof FunNode) ) {
+                visit.set(n._nid); nodes.add(n);
+                // Special for Cast:BOT
+                for( Node cast : n._outputs )
+                    if( cast!=null && cast.nIns()==2 && cast.in(0)==null )
+                        { visit.set(cast._nid); nodes.add(cast); }
+            }
 
         // Collect starting functions
         Ary<FunNode> funs = new Ary<>(FunNode.class);

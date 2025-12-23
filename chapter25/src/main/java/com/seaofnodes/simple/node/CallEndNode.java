@@ -143,6 +143,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // dependency checks carry long chains of half-folded calls.
         CFGNode idom = call();
         while( true ) {
+            if( idom==null ) return -1; // Forced off, half-folded call
             idom = idom.idom();
             if( idom instanceof FunNode ) break;
             if( idom instanceof CallEndNode ) break;

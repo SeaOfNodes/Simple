@@ -264,7 +264,7 @@ public class ElfWriter {
         BAOS cpool = new BAOS();
         Encoding enc = _code._encoding;
         enc.writeConstantPool(cpool,false);
-        DataSection rdata = new DataSection(".rodata", Section.SHT_PROGBITS, DataSection.SHF_ALLOC, cpool );
+        DataSection rodata = new DataSection(".rodata", Section.SHT_PROGBITS, DataSection.SHF_ALLOC, cpool );
 
         // populate function symbols
         symbols.encodeFunctions(text._index);
@@ -281,7 +281,7 @@ public class ElfWriter {
 
         // Write relocations for the constant pool
         for( Encoding.Relo relo : enc._bigCons.values() ) {
-            int symidx = symbols.symbol("CPOOL$"+symbols.gidx(), rdata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, relo._target, relo._t.size());
+            int symidx = symbols.symbol("CPOOL$"+symbols.gidx(), rodata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, relo._target, relo._t.size());
             relocations.writeReloOffPlus(relo._opStart+relo._off, symidx, relo._elf );
         }
 
@@ -342,7 +342,7 @@ public class ElfWriter {
             bos.write(out.array());
             bos.close();
         } catch( IOException ioe ) {
-            // Caller does not want to deal, but its a failed compilation in any case
+            // Caller does not want to deal, but it is a failed compilation in any case
             throw new RuntimeException(ioe);
         }
     }

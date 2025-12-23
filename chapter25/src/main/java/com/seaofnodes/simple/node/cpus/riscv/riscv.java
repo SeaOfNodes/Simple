@@ -428,7 +428,10 @@ public class riscv extends Machine {
     }
 
     private Node con( ConstantNode con ) {
-        if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
+        if( !con._con.isConstant() &&
+            // Singleton pointers (to non-constant memory) are still constants here.
+            !(con._con instanceof TypeMemPtr tmp && tmp._one) )
+            return new ConstantNode(con); // Default unknown caller inputs
         return switch( con._con ) {
         case TypeInteger ti -> {
             if( imm12(ti) ) yield new IntRISC(con);

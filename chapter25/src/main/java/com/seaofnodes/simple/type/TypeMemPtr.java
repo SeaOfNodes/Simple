@@ -129,7 +129,7 @@ public class TypeMemPtr extends TypeNil {
         assert _nil>=2;
         baos.write(TAGOFFS[_type]
                    + (_nil==2 ? 0 : 1)
-                   + (_one    ? 2 : 0) );
+                   + (!_one   ? 0 : 2) );
     }
     static TypeMemPtr packed( int tag, BAOS bais ) {
         return malloc((byte)((tag&1)+2),null,(tag&2)==2);

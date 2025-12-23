@@ -147,7 +147,7 @@ public class BAOS {
 
     public String packedS() {
         int len = packed4();
-        String s = new String(_buf,_len,len);
+        String s = new String(_buf,_len,len).intern();
         _len += len;
         return s;
     }
