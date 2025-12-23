@@ -65,14 +65,14 @@ public class Type /*implements Cloneable*/ {
     static final byte TRPC    =10; // Return Program Control (Return PC or RPC)
 
     static final byte TCYCLIC =11; // Has internal pointers, needs recursive treatment
-    static final byte TMEMPTR =12; // Memory pointer to a struct type
-    static final byte TFUNPTR =13; // Function pointer; unique signature and code address (just a bit)
-    static final byte TMEM    =14; // All memory (alias 0) or A slice of memory - with specific alias
-    static final byte TFLD    =15; // Named fields in structs
-    static final byte TSTRUCT =16; // Structs; tuples with named fields
-    static final byte TTUPLE  =17; // Tuples; finite collections of unrelated Types, kept in parallel
+    static final byte TMEMPTR =11; // Memory pointer to a struct type
+    static final byte TFUNPTR =12; // Function pointer; unique signature and code address (just a bit)
+    static final byte TMEM    =13; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TFLD    =14; // Named fields in structs
+    static final byte TSTRUCT =15; // Structs; tuples with named fields
+    static final byte TTUPLE  =16; // Tuples; finite collections of unrelated Types, kept in parallel
 
-    static final byte TMAX    =18;
+    static final byte TMAX    =17;
 
     // Basic RTTI, useful for a lot of fast tests.
     public final byte _type;
@@ -594,27 +594,31 @@ public class Type /*implements Cloneable*/ {
         for( int i=0; i<ntypes; i++ ) {
             if( types[i] instanceof TypeStruct ts ) {
                 int flen = ts._fields.length;
-                //// Find matching local structs
-                //TypeMemPtr tmp = (TypeMemPtr)existingTypes.get( ts._name );
-                //assert tmp==null || !tmp._obj._open;
-                //// For all fields, map aliases
-                //for( int j=0; j<flen; j++ ) {
-                //    Field dfld = ts._fields[j]; // Deserialize field
-                //    int old_alias;
-                //    if( tmp!=null ) {
-                //        // Fields in structs must exactly align
-                //        Field tfld = tmp._obj._fields[j]; // Existing field
-                //        if( !tfld._fname.equals(dfld._fname) )
-                //            throw Utils.TODO("link error: incompatible structs");
-                //        old_alias = tfld._alias; // Use existing alias
-                //    } else
+                // Find matching local structs
+                TypeStruct ts2 = (TypeStruct)existingTypes.get( ts._name );
+                assert ts2==null || !ts2._open;
+                if( flen != ts2._fields.length )
+                    throw Utils.TODO("link error: incompatible structs");
+
+                // For all fields, map aliases
+                for( int j=0; j<flen; j++ ) {
+                    Field dfld = ts._fields[j]; // Deserialize field
+                    int old_alias;
+                    if( ts2!=null ) {
+                        // Fields in structs must exactly align
+                        Field tfld = ts2._fields[j]; // Existing field
+                        if( !tfld._fname.equals(dfld._fname) )
+                            throw Utils.TODO("link error: incompatible structs");
+                        old_alias = tfld._alias; // Use existing alias
+                    } else {
                 //        old_alias = nextAlias++; // Make a new alias
-                //    // Collect the alias mapping
-                //    int deser_alias = aliases.atX(dfld._alias);
-                //    if( deser_alias==0 ) aliases.setX(dfld._alias,old_alias);
-                //    else assert tmp==null || deser_alias==old_alias;
-                //}
-                throw Utils.TODO();
+                        throw Utils.TODO();
+                    }
+                    // Collect the alias mapping
+                    int deser_alias = aliases.atX(dfld._alias);
+                    if( deser_alias==0 ) aliases.setX(dfld._alias,old_alias);
+                    else assert ts2==null || deser_alias==old_alias;
+                }
             }
         }
         // Walk all type aliases, and map to local aliases

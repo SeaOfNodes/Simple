@@ -7,6 +7,7 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMemPtr;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.Utils;
 
 public class TMPARM extends ConstantNode implements MachNode, RIPRelSize {
     TMPARM( ConstantNode con ) { super(con); }
@@ -16,12 +17,17 @@ public class TMPARM extends ConstantNode implements MachNode, RIPRelSize {
     @Override public boolean isClone() { return true; }
     @Override public TMPARM copy() { return new TMPARM(this); }
     @Override public void encoding( Encoding enc ) {
-        enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
-        short dst = enc.reg(this);
-        // adrp    x0, 0
-        enc.add4(arm.adrp(1,0, arm.OP_ADRP, 0,dst));
-        // add     x0, x0, 0
-        arm.imm_inst(enc,arm.OPI_ADD,0, dst);
+        TypeMemPtr tmp = (TypeMemPtr)_con;
+        if( tmp._obj.isAry() ) {
+            enc.largeConstant(this,tmp._obj,0,-1);
+            short dst = enc.reg(this);
+            // adrp    x0, 0
+            enc.add4(arm.adrp(1,0, arm.OP_ADRP, 0,dst));
+            // add     x0, x0, 0
+            arm.imm_inst(enc,arm.OPI_ADD,0, dst);
+        } else {
+            throw Utils.TODO();
+        }
     }
 
     @Override public byte encSize(int delta) {

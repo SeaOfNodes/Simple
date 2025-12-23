@@ -1,9 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
 import java.util.BitSet;
 import java.util.HashMap;
 
@@ -27,15 +25,10 @@ public class EscapeNode extends Node {
 
     @Override public Tag serialTag() { return Tag.Escape; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
-        //baos.packed1(nIns());
-        //baos.packed2(_label==null ? 0 : strs.get(_label));
-        //baos.packed2(types.get(_type)); // Write _type not _minType, which can be higher
-        throw Utils.TODO();
+        baos.packed1(aliases.get(_alias));
     }
-    static Node make( BAOS bais, Type[] types)  {
-        //Node[] ins = new Node[bais.packed1()];
-        //return new EscapeNode(types[bais.packed2()], ins);
-        throw Utils.TODO();
+    static Node make( BAOS bais, AryInt aliases)  {
+        return new EscapeNode(aliases.at(bais.packed2()), null,null,null);
     }
 
     @Override

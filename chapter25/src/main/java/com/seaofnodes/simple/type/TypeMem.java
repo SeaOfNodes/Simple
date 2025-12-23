@@ -108,19 +108,20 @@ public class TypeMem extends Type {
     @Override public Type at( int idx ) { return _t; }
     @Override public void set( int idx, Type t ) { _t = t; }
     // one tag for alias#1, one tag for generic alias
-    @Override int TAGOFF() { return 2; }
+    @Override int TAGOFF() { return 4; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
-        if( _one )
-            throw Utils.TODO();
-        if( _alias==1 ) { baos.write(TAGOFFS[_type]); return; }
+        baos.write(TAGOFFS[_type]
+                   + (_alias==1 ? 0 : 1)
+                   + (!_one     ? 0 : 2) );
+        if( _alias==1 ) return;
         // generic alias
-        baos.write(TAGOFFS[_type] + 1);
         assert _alias <= 255;
         baos.packed1(aliases.get(_alias));
     }
     static TypeMem packed( int tag, BAOS bais ) {
-        if( tag==0 ) return malloc(1,null,false);
-        return malloc(bais.packed1(),null,false);
+        boolean one = (tag&2)==2;
+        if( (tag&1)==0 ) return malloc(1,null,one);
+        return malloc(bais.packed1(),null,one);
     }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {

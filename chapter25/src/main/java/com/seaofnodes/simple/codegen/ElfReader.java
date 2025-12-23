@@ -70,7 +70,8 @@ public class ElfReader {
     Ary<TypeStruct> loadSimple() {
         assert _published == null;
         BAOS baos = new BAOS(_buf, (int)_simple._offset);
-        return (_published = Serialize.readAll(baos));
+        Serialize.Results r = Serialize.readAll(baos);
+        return (_published = r.published());
     }
 
 

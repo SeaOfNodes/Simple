@@ -6,6 +6,7 @@ import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMemPtr;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
     TMPRISC(ConstantNode con) { super(con); }
@@ -15,12 +16,17 @@ public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public boolean isClone() { return true; }
     @Override public TMPRISC copy() { return new TMPRISC(this); }
     @Override public void encoding( Encoding enc ) {
-        enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
-        short dst = enc.reg(this);
-        // AUIPC dst,#hi20_constant_pool
-        enc.add4(riscv.u_type(riscv.OP_AUIPC, dst, 0));
-        // addi dst,[dst+#low12_constant_pool]
-        enc.add4(riscv.i_type(riscv.OP_IMM, dst, 0, dst, 0));
+        TypeMemPtr tmp = (TypeMemPtr)_con;
+        if( tmp._obj.isAry() ) {
+            enc.largeConstant(this,tmp._obj,0,-1);
+            short dst = enc.reg(this);
+            // AUIPC dst,#hi20_constant_pool
+            enc.add4(riscv.u_type(riscv.OP_AUIPC, dst, 0));
+            // addi dst,[dst+#low12_constant_pool]
+            enc.add4(riscv.i_type(riscv.OP_IMM, dst, 0, dst, 0));
+        } else {
+            throw Utils.TODO();
+        }
     }
 
     @Override public byte encSize(int delta) { return 8; }

@@ -24,13 +24,11 @@ public class NewNode extends Node implements MultiNode {
     public NewNode(NewNode nnn) { super(nnn); _ts = nnn._ts; }
     @Override public Tag serialTag() { return Tag.New; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
-        throw Utils.TODO();
+        baos.packed2(types.get(_ts));
     }
     static Node make( BAOS bais, Type[] types)  {
-        //Node[] ins = new Node[bais.packed1()];
-        //TypeMemPtr ptr = (TypeMemPtr)types[bais.packed2()];
-        //return new NewNode(1.0f,ptr,ins);
-        throw Utils.TODO();
+        TypeStruct ts = (TypeStruct)types[bais.packed2()];
+        return new NewNode(ts,null,null);
     }
 
     @Override public String glabel() {

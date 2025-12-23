@@ -504,7 +504,9 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node con( ConstantNode con ) {
-        if( !con._con.isConstant() )
+        if( !con._con.isConstant() &&
+            // Singleton pointers (to non-constant memory) are still constants here.
+            !(con._con instanceof TypeMemPtr tmp && tmp._one) )
             return new ConstantNode(con); // Default unknown caller inputs
         return switch (con._con) {
         case TypeInteger ti -> new IntX86(con);
