@@ -1,11 +1,9 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -60,7 +58,7 @@ val _copy_array = { int[] a, int begin, int end, int[] b ->
         TestC.run(src, "sort", null, sprimes, 40);
 
 
-        EvalRisc5 R5 = TestRisc5.build("src/test/java/com/seaofnodes/simple/progs",src,  "sort", "merge_sort", 0, 36, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "merge_sort", 0, 36, false);
         // Allocate an array of primes, filled in reverse order
         int ps = R5._heap;
         R5._heap += (primes.length+1)*8; // 25 primes, and length

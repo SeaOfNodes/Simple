@@ -16,12 +16,12 @@ public class ParmNode extends PhiNode {
         super(label,declaredType,inputs);
         _idx = idx;
     }
-    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._minType ); _idx = parm._idx; }
+    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._con ); _idx = parm._idx; }
     @Override public Tag serialTag() { return Tag.Parm; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
         baos.packed1(nIns());
         baos.packed2(_label==null ? 0 : strs.get(_label));
-        baos.packed2(types.get(_minType)); // NPE if fails lookup
+        baos.packed2(types.get(_con)); // NPE if fails lookup
         baos.packed1(_idx);
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {

@@ -2,11 +2,11 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
-import com.seaofnodes.simple.type.TypeInteger;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.junit.Ignore;
+
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -53,7 +53,7 @@ public class Chapter23Test {
         TestC.runSF("or1", src, null, "Or", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("or1", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "or1", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -84,7 +84,7 @@ public class Chapter23Test {
         TestC.runSF("and1", src, null, "And", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("and1", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and1", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -124,7 +124,7 @@ public class Chapter23Test {
         assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("ptrand",src2, 1, 8, false);
+        EvalRisc5 R5 = TestRisc5.build( src2, "ptrand", 1, 8, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -163,7 +163,7 @@ public class Chapter23Test {
         TestC.runSF("and2", src, null, "Effected", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("and2", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and2", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -207,7 +207,7 @@ public class Chapter23Test {
         TestC.runSF("or2", src, null, "Effected", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("or2", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "or2", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -244,7 +244,7 @@ public class Chapter23Test {
         TestC.runSF("and3", src, null, "Or", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("and3", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);

@@ -47,8 +47,8 @@ public class Encoding {
         public final Type _t;          // Constant type
         public final byte _off;        // Offset from start of opcode
         public final byte _elf;        // ELF relocation type, e.g. 2/PC32
-        public int _target;      // Where constant is finally placed
-        public int _opStart;     // Opcode start
+        public int _target;            // Where constant is finally placed
+        public int _opStart;           // Opcode start
         Relo( Node op, Type t, byte off, byte elf ) {
             _op=op;  _t=t;  _off=off; _elf=elf;
         }
@@ -96,14 +96,6 @@ public class Encoding {
     }
 
     // Convenience for writing log-N
-    static void addN( int log, Type t, BAOS bits ) {
-        long x = t instanceof TypeInteger ti
-            ? ti.value()
-            : log==3
-            ? Double.doubleToRawLongBits(    ((TypeFloat)t).value())
-            : Float.floatToRawIntBits((float)((TypeFloat)t).value());
-        addN(log,x,bits);
-    }
     static void addN( int log, long x, BAOS bits ) {
         for( int i=0; i < 1<<log; i++ ) {
             bits.write((int)x);
@@ -125,16 +117,18 @@ public class Encoding {
         _internals.put(call,_code.link(call.tfp()));
         return this;
     }
+    // Code address as a constant
     public Encoding relo( ConstantNode con ) {
         TypeFunPtr tfp = (TypeFunPtr)con._con;
         _internals.put(con,_code.link(tfp));
         return this;
     }
+    // Local jump
     public void jump( CFGNode jmp, CFGNode dst ) {
         _internals.put(jmp,dst.uctrlSkipEmpty());
     }
 
-
+    // External references only located by Strings a link-time
     final HashMap<Node,String> _externals = new HashMap<>();
     public Encoding external( Node n, String extern ) {
         _externals.put(n,extern);
@@ -142,9 +136,9 @@ public class Encoding {
     }
 
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
-    // addressing to load it
+    // addressing to load it.  Type is stored in either the .rodata or .data.
     public void largeConstant( Node relo, Type t, int off, int elf ) {
-        assert t.isConstant();
+        assert t.isConstant() || (t instanceof TypeMemPtr tmp && tmp._one && !tmp._obj.isConstant());
         assert (byte)off == off;
         assert (byte)elf == elf;
         _bigCons.put(relo,new Relo(relo,t,(byte)off,(byte)elf));
@@ -272,7 +266,7 @@ public class Encoding {
     private static boolean shouldInvert(CFGNode t, CFGNode f, int bld) {
         int tld = t.loopDepth(), fld = f.loopDepth();
         // These next two are symmetric and can happen in any order; if `tld <
-        // bld` is true, the `fld < bld` must be false, or else both directions
+        // bld` is true, then `fld < bld` must be false, or else both directions
         // exit the loop... and the IF test would not be in the loop.
 
         // true to exit a loop usually (and false falls into Yet Another Loop
@@ -442,6 +436,8 @@ public class Encoding {
         Ary<Relo>[] raligns = new Ary[5];
         for( Node op : _bigCons.keySet() ) {
             Relo relo = _bigCons.get(op);
+            if( relo._t instanceof TypeStruct ts && !ts.isConstant() )
+                throw Utils.TODO(".rodata vs .data");
             int align = relo._t.alignment();
             Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>(Relo.class)) : raligns[align];
             relos.add(relo);
@@ -452,7 +448,7 @@ public class Encoding {
         HashMap<Type,Integer> targets = new HashMap<>();
 
         // By alignment
-        for( int align = 4; align >= 0; align-- ) {
+        for( int align = raligns.length-1; align >= 0; align-- ) {
             Ary<Relo> relos = raligns[align];
             if( relos == null ) continue;
             for( Relo relo : relos ) {
@@ -462,9 +458,9 @@ public class Encoding {
                     targets.put(relo._t,target = bits.size());
                     // Write constant into constant pool
                     switch( relo._t ) {
-                    case TypeTuple  tt -> cpool(align,bits,tt);
+                    case TypeTuple  tt -> throw Utils.TODO("no tuples here, use structs instead");
                     case TypeStruct ts -> cpool(bits,ts);
-                    // Simple primitive (e.g. larger int, float)
+                    // Simple primitive (e.g. larger int, float, function ptr)
                     default -> addN(align,relo._t,bits);
                     }
                 }
@@ -478,10 +474,17 @@ public class Encoding {
         }
     }
 
-    // Constant tuples put all entries at same alignment
-    private void cpool(int align, BAOS bits, TypeTuple tt) {
-        for( Type tx : tt._types )
-            addN(align,tx,bits);
+    // Emit a single scalar as bits
+    static void addN( int log, Type t, BAOS bits ) {
+        long x = switch( t ) {
+        case TypeInteger ti -> ti.value();
+        case TypeFloat tf -> log==3
+        ? Double.doubleToRawLongBits(    tf.value())
+        : Float.floatToRawIntBits((float)tf.value());
+        case TypeFunPtr tfp -> 0; // These need to be relocated
+        default -> throw Utils.TODO();
+        };
+        addN(log,x,bits);
     }
 
     // Structs use internal field layout

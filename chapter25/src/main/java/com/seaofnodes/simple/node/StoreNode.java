@@ -53,29 +53,31 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        Type val = val()._type;
+        Type val  = val()._type;
         Type mem0 = mem()._type;
-        if( mem0 == Type.TOP ) return TypeMem.TOP;
-        TypeMem mem = (TypeMem)mem0; // Invariant
-        if( mem == TypeMem.TOP ) return TypeMem.TOP;
+        Type ptr0 = ptr()._type;
+        // Validate argument types
+        if( mem0.isHigh() || ptr0.isHigh() )
+            return TypeMem.TOP;
+        if( !(mem0 instanceof TypeMem    mem) ||
+            !(ptr0 instanceof TypeMemPtr ptr) )
+            return TypeMem.BOT;
+        // Sharpen memory value; required for narrowing stores where the parser
+        // inserts zero/sign masking and somebody reads the TypeMem type.
+        val = val.join(declType());
 
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
         // which is never does in a constructor.
-        if( mem._one )
+        if( mem._one || ptr._one )
             // Just track the stored value
             return TypeMem.make(_alias,val,true);
 
-        // Normal aliasing Store
-        Type t = Type.BOTTOM;               // No idea on field contents
-        // Same alias, lift val to the declared type and then meet into other fields
-        if( mem._alias == _alias ) {
-            // Sharpen memory value; required for narrowing stores where the parser inserts
-            // zero/sign masking and somebody reads the TypeMem type.
-            val = val.join(declType());
-            t = val.meet(mem._t);
-        }
-        return TypeMem.make(_alias,t,mem._one);
+        // Normal aliasing Store.
+        assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
+        // Same alias, meet into other fields
+        Type t = mem._alias == _alias ? val.meet(mem._t) : Type.BOTTOM;
+        return TypeMem.make(_alias,t,false);
     }
 
     @Override

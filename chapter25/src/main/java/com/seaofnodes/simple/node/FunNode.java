@@ -88,7 +88,11 @@ public class FunNode extends RegionNode {
     }
 
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
-        Type old = _sig; _sig = (TypeFunPtr)_sig.upgradeType(TYPES);  return old != _sig;
+        TypeFunPtr sig = (TypeFunPtr)_sig.upgradeType(TYPES);
+        if( sig == _sig ) return false;
+        unlock();
+        _sig = sig;
+        return true;
     }
 
     public void setName( String name ) {

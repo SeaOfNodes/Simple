@@ -970,10 +970,10 @@ public class Parser {
 
         // Improve self, selfMem types in scope
         ParmNode self = ret.fun().parm(2);
-        self._minType = self._type = TypeMemPtr.make(tself);
+        self._con = self._type = TypeMemPtr.make(tself);
         ParmNode smem = ret.fun().parm(3);
         if( !isClz )            //
-            smem._minType = smem._type = TypeMem.make(1,tself,true);
+            smem._con = smem._type = TypeMem.make(1,tself,true);
         Node selfMem = isClz ? (_returnScope==null ? con(TypeMem.TOP) : _returnScope.mem()) : smem;
 
         // A MemMerge to gather field updates as stores
@@ -1622,8 +1622,10 @@ public class Parser {
         ProjNode self = new ProjNode(nnn,0,ts.str()).init().keep();
         ProjNode smem = new ProjNode(nnn,1,"#selfMem").init().keep();
 
-        // Store length.  Rest of array is zero'd via CALLOC during CodeGen
-        Node st = peep(new StoreNode(null, "#", lenAlias, len._type, smem, self, off(ts._name,"#"), len.unkeep(), true));
+        // Store length.  Rest of array is zero'd via CALLOC during CodeGen.
+        // Length is casted to sanity.
+        // TODO: Needs runtime check.
+        Node st = peep(new StoreNode(null, "#", lenAlias, TypeInteger.U32, smem, self, off(ts._name,"#"), len.unkeep(), true));
 
         // TODO: Allow add-on "constructor" to init the array elements
 

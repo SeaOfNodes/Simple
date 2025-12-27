@@ -5,9 +5,6 @@ import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -223,7 +220,7 @@ val test_sqrt = { flt x ->
 """;
         TestC.run(src, "newtonFloat", null, result, 34);
 
-        EvalRisc5 R5 = TestRisc5.build("newtonFloat",src, 0, 10, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "test_sqrt", 0, 10, false);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
         int trap_r5 = R5.step(1000);
         assertEquals(0,trap_r5);
@@ -231,7 +228,7 @@ val test_sqrt = { flt x ->
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("newtonFloat", src,0, 10, false);
+        EvalArm64 A5 = TestArm64.build("test_sqrt", src,0, 10, false);
         A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
         int trap_arm = A5.step(1000);
         assertEquals(0,trap_arm);
@@ -285,7 +282,7 @@ val sieve = { int N ->
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", src, 100, 160, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sieve", 100, 160, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -310,7 +307,7 @@ val sieve = { int N ->
     @Test public void testFibExport() throws IOException {
         String src =
 """
-val fib = {int n ->
+val fib = { int n ->
     int f1=1;
     int f2=1;
     while( n-- > 1 ){
@@ -324,7 +321,7 @@ val fib = {int n ->
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
         TestC.run(src, "fib", null, fib, 24);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", src, 9, 17, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "fib", 9, 17, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
@@ -362,7 +359,7 @@ val fib = {int n ->
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", src, ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "person", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -410,7 +407,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 
         TestC.run(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
 
-        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", src, 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "no_stack_arg_count", 0, 4, false);
 
         // Todo: handle stack(imaginary stack in emulator)
         // pass in float arguments

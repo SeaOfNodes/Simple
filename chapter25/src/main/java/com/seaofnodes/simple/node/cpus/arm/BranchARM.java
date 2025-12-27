@@ -8,9 +8,11 @@ import com.seaofnodes.simple.util.Utils;
 // Jump on flags, uses flags
 public class BranchARM extends IfNode implements MachNode, RIPRelSize {
     String _bop;
-    BranchARM(IfNode iff, String bop ) {
+    final boolean _fp;
+    BranchARM(IfNode iff, String bop, boolean fp ) {
         super(iff);
         _bop = bop;
+        _fp = fp;
     }
     @Override public String op() { return "j"+_bop; }
     @Override public String label() { return op(); }
@@ -35,7 +37,7 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
         // by comparison (or sub).  No need for regs because it uses flags
         if( in(1)!=null ) {
             // B.cond
-            enc.add4( arm.b_cond(arm.OP_BRANCH, 0, arm.make_condition(_bop)) );
+            enc.add4( arm.b_cond(arm.OP_BRANCH, 0, arm.make_condition(_bop, _fp)) );
         } else {
             if( _bop=="!=" ) return; // Inverted, no code
             enc.add4(arm.b(arm.OP_UJMP, 0));
@@ -55,7 +57,7 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         assert !( in(1)==null && _bop=="!=" ); // Inverted never-node, no code no patch
         if( opLen==4 ) {
-            enc.patch4(opStart,arm.b_cond(arm.OP_BRANCH, delta, arm.make_condition(_bop)));
+            enc.patch4(opStart,arm.b_cond(arm.OP_BRANCH, delta, arm.make_condition(_bop, _fp)));
         } else {
             throw Utils.TODO();
         }

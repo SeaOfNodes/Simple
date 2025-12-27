@@ -18,7 +18,7 @@ import java.util.HashMap;
  * 3 - Offset, integer types
  * 4 - Value, for Stores only
  */
-public abstract class MemOpNode extends Node {
+public abstract class MemOpNode extends TypeNode {
 
     // The equivalence alias class
     public final int _alias;
@@ -36,46 +36,31 @@ public abstract class MemOpNode extends Node {
     // opportunistically hoisted.
     public final boolean _isLoad;
 
-    // Declared type; not final because it might be a forward-reference
-    // which will be lazily improved when the reference is declared.
-    private Type _declaredType;
-
     // A debug name, no semantic meaning
     public final String _name;
     // Source location for late reported errors
     public final Parser.Lexer _loc;
 
     public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node mem, Node ptr, Node off) {
-        super(null, mem, ptr, off);
+        super(glb, null, mem, ptr, off);
         _name  = name;
         _alias = alias;
-        _declaredType = glb;
         _loc = loc;
         _isLoad = isLoad;
     }
     public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node mem, Node ptr, Node off, Node value) {
-        this(loc,name, alias, isLoad, glb, mem, ptr, off);
+        this(loc, name, alias, isLoad, glb, mem, ptr, off);
         addDef(value);
     }
-    public MemOpNode( Node mach, MemOpNode mop ) {
-        super(mach);
+    public MemOpNode( Node ideal, MemOpNode mop ) {
+        super(ideal,mop._con);
+        _con = mop._con;
         _name  = mop==null ? null : mop._name;
         _alias = mop==null ? 0    : mop._alias;
         _loc   = mop==null ? null : mop._loc;
         _isLoad= mop==null ? true : mop._isLoad;
-        _declaredType = mop==null ? Type.BOTTOM : mop._declaredType;
         if( mop==null )
             throw Utils.TODO("Load or not");
-    }
-
-    // Used by M2 when translating graph to Simple
-    public MemOpNode( boolean isLoad ) {
-        super((Node)null);
-        _name         = null;
-        _alias        = 0;
-        _loc          = null;
-        _isLoad       = isLoad;
-        _declaredType = Type.BOTTOM;
     }
 
     MemOpNode( BAOS bais, String[] strs, Type[] types, AryInt aliases, boolean isLoad ) {
@@ -85,13 +70,13 @@ public abstract class MemOpNode extends Node {
              types[bais.packed2()],null,null,null);
     }
 
-    public Type declType() { return _declaredType; }
+    public Type declType() { return _con; }
 
 
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
         baos.packed2(_name==null ? 0 : strs.get(_name));
         baos.packed2(aliases.get(_alias));
-        baos.packed2(types.get(_declaredType)); // NPE if fails lookup
+        baos.packed2(types.get(_con));                // NPE if fails lookup
         assert _isLoad == this instanceof LoadNode; // No machine ops
     }
 
@@ -104,20 +89,16 @@ public abstract class MemOpNode extends Node {
 
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
-    public int log_size() { return _declaredType.log_size();  }
-
-    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
-        Type old = _declaredType; _declaredType = _declaredType.upgradeType(TYPES);  return old != _declaredType;
-    }
+    public int log_size() { return _con.log_size();  }
 
     @Override
     public boolean eq(Node n) {
         MemOpNode mem = (MemOpNode)n; // Invariant
-        return _alias==mem._alias;    // When comparing types error to use "equals"; always use "=="
+        return _alias==mem._alias && super.eq(mem);
     }
 
     @Override
-    int hash() { return _alias; }
+    int hash() { return _alias ^ super.hash(); }
 
     @Override
     public Parser.ParseException err() {

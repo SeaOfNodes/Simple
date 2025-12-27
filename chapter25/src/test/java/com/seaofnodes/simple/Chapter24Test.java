@@ -47,7 +47,7 @@ return 0;
         TestC.runSF("or1", src, null, "Or", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("or1", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "or1", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -78,7 +78,7 @@ return 0;
         TestC.runSF("and1", src, null, "And", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("and1", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and1", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -118,7 +118,7 @@ return 0;
         assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("ptrand",src2, 1, 8, false);
+        EvalRisc5 R5 = TestRisc5.build( src2, "ptrand", 1, 8, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -157,7 +157,7 @@ return 0;
         TestC.runSF("and2", src, null, "Effected", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("and2", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and2", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -202,7 +202,7 @@ return 0;
         TestC.runSF("or2", src, null, "Effected", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("or2", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "or2", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -239,7 +239,7 @@ return 0;
         TestC.runSF("and3", src, null, "Or", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("and3", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -271,7 +271,7 @@ return 0;
         TestC.runSF("stacked_r_1", src, null, "In Range", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_1", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_1", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -302,7 +302,7 @@ return 0;
         TestC.runSF("stacked_r_2", src, null, "In Range", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_2", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_2", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -334,7 +334,7 @@ return 0;
         TestC.runSF("stacked_r_3", src, null, "In Range", 5);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_3", src, 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -365,7 +365,7 @@ return 0;
         TestC.runSF("stacked_r_4", src, null, "Out of Range", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_4", src,0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_4", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -400,7 +400,7 @@ return 0;
         TestC.runSF("stacked_r_5", src, null, "In Range", 5);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_5", src, 0, 7, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_5", 0, 7, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -441,7 +441,7 @@ return (0 < 1) == 1;
         TestC.run(src, "stacked_r_9x", null, stack9,0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_9", src2, 0, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_9", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(1,R5.regs[riscv.A0]);
@@ -469,7 +469,7 @@ return (0 < 1) == (1>0);
         TestC.run(src, "stacked_r_10x", null, stack10,0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_10", src2, 0, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_10", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(1,R5.regs[riscv.A0]);
@@ -497,7 +497,7 @@ return 0 < arg < arg+1 < 4;
         TestC.run(src, "stacked_r_11x", null, stack11,0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_11", src2, 1, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_11", 1, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(1,R5.regs[riscv.A0]);
@@ -527,7 +527,7 @@ return 0 < arg < arg+1 < 4;
         TestC.run(src, "stacked_r_12x", null, stack11,0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_12", src2, 1, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_12", 1, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(1,R5.regs[riscv.A0]);
@@ -558,7 +558,7 @@ return 0 < arg < arg+1 < 4;
         TestC.run(src, "stacked_r_13x", null, stack12,0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_13", src2, 1, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_13", 1, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(1,R5.regs[riscv.A0]);

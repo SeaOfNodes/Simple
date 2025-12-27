@@ -5,35 +5,26 @@ import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
 import java.util.HashMap;
 
-public class PhiNode extends Node {
+public class PhiNode extends TypeNode {
 
     public final String _label;
 
-    // The Phi type we compute must stay within the domain of the Phi.  Example
-    // Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
-    public Type _minType;
-
-    int lattice_drop;
-
     public PhiNode(String label, Type minType, Node... inputs) {
-        super(inputs);
+        super(minType,inputs);
         _label = label;
-        assert minType!=null;
-        _minType = minType;
     }
     // Used by ParmNode
-    public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; _type = _minType = minType; }
+    public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; _type = minType; }
     // Used by instruction Selection
-    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._minType );  }
+    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._con);  }
     // Used by the infinite-loop exit breaker
     public PhiNode(RegionNode r, Node sample) {
-        super(new Node[]{r});
+        super(sample._type,new Node[]{r});
         _label = "";
-        _minType = sample._type;
         while( nIns() < r.nIns() )
             addDef(sample);
     }
@@ -68,7 +59,7 @@ public class PhiNode extends Node {
     }
 
     public CFGNode region() { return (CFGNode)in(0); }
-    @Override public boolean isMem() { return _minType instanceof TypeMem; }
+    @Override public boolean isMem() { return _con instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
     boolean isRPC() { return false; }
 
@@ -82,7 +73,7 @@ public class PhiNode extends Node {
             // the Parser keeps precise types until the loop finishes parsing.
             // Similar, ParmNodes use precise minType until all calls are
             // linked (post opto).
-            return r instanceof LoopNode || (this instanceof ParmNode) ? _minType : Type.BOTTOM;
+            return r instanceof LoopNode || (this instanceof ParmNode) ? _con : Type.BOTTOM;
         // Set type to local top of the starting type
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++) {
@@ -95,7 +86,7 @@ public class PhiNode extends Node {
                 t = t.meet(in(i)._type);
             }
         }
-        Type newt = t.join( _minType );
+        Type newt = t.join( _con );
 
         // phi loop widening part
         if( region() instanceof LoopNode && // Only around loops
@@ -103,7 +94,7 @@ public class PhiNode extends Node {
             // Types changed and are falling (the optimistic case, expected to fall forever)
             newi != _type ) {
             if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
-                return newi.same_but_slightly_wider_than(_minType);
+                return newi.same_but_slightly_wider_than(_con);
         }
 
         return newt;
@@ -262,27 +253,9 @@ public class PhiNode extends Node {
         return in(nIns()-1) == null;
     }
 
-    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
-        Type t = _minType.upgradeType(TYPES);
-        if( t == _minType ) return false;
-        unlock();
-        _minType = t;
-        return true;
-    }
-
     // Never equal if inProgress.
-    // Also, joins
     @Override public boolean eq( Node n ) {
-        if( inProgress() ) return false;
-        Type min = ((PhiNode)n)._minType;
-        if( _minType==min ) return true;
-        Type mt = min.meet(_minType);
-        if( min!=mt && _minType!=mt ) return false;
-        //// Theory says these 2 Phis CAN be merged/GVNd, but I need to pick the
-        //// most general minType.
-        //_minType = ((PhiNode)n)._minType = mt;
-        //return true;
-        return false;
+        return !inProgress() && super.eq(n);
     }
 
     @Override

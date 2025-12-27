@@ -18,13 +18,12 @@ import java.util.HashMap;
  * The Constant's value is the value stored in it.
  */
 
-public class ConstantNode extends Node {
-    public Type _con;
+public class ConstantNode extends TypeNode {
     public ConstantNode( Type type ) {
-        super(new Node[]{CodeGen.CODE._start});
-        _con = _type = type;
+        super(type,new Node[]{CodeGen.CODE._start});
+        _type = type;
     }
-    public ConstantNode( ConstantNode con ) { super(con);  _con = con._type;  }
+    public ConstantNode( ConstantNode con ) { super(con); }
     @Override public Tag serialTag() { return Tag.Con; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
         baos.packed2(types.get(_con)); // NPE if fails lookup
@@ -54,12 +53,4 @@ public class ConstantNode extends Node {
     @Override public boolean isConst() { return true; }
     @Override public Type compute() { return _con; }
     @Override public Node idealize() { return null; }
-
-    @Override boolean _upgradeType( HashMap<String,Type> TYPES ) {
-        Type old = _con; _con = _con.upgradeType(TYPES);  return old != _con;
-    }
-
-
-    @Override public boolean eq(Node n) { return _con==((ConstantNode)n)._con; }
-    @Override int hash() { return _con.hashCode(); }
 }
