@@ -9,6 +9,7 @@ import com.seaofnodes.simple.util.SB;
 
 // Function constants
 public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
+    private byte _opLen;
     TFPX86( ConstantNode con ) {  super(con); }
     @Override public String op() {
         return _con == Type.NIL ? "xor" : "ldx";
@@ -37,19 +38,19 @@ public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
         // lea to load function pointer address
         // lea rax, [rip+disp32]
         enc.relo(this);
-        enc.add1(x86_64_v2.rex(dst, 0, 0));
+        // 0 or 1 for REX depending on the dst.
+        // Zero/sign extend should be fine, so not wide.
+        _opLen = (byte)(6+ x86_64_v2.rexF(dst, 0, 0, false, enc));
         enc.add1(0x8D); // opcode
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0b101));
         enc.add4(0);
     }
 
-    @Override public byte encSize(int delta) {
-        return 7;
-    }
+    @Override public byte encSize(int delta) { return _opLen; }
 
-    // Delta is from opcode start
+    // Delta is from opcode start, X86 expects it from opcode end
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
-        enc.patch4(opStart + 3, delta - 7);
+        enc.patch4(opStart + opLen - 4, delta - opLen);
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,
@@ -60,8 +61,11 @@ public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
         String reg = code.reg(this);
         if( _con == Type.NIL )
             sb.p(reg).p(",").p(reg);
-        else
-            _con.print(sb.p(reg).p(" = #"));
+        else {
+            FunNode fun = code.link(((TypeFunPtr)_con).fidx());
+            int adr = code._encoding==null ? 0 : code._encoding._opStart[fun._nid];
+            _con.print(sb.p(reg).p(" = 0x").hex2(adr).p(" #"));
+        }
     }
     @Override public boolean eq(Node n) { return this==n; }
 }

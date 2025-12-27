@@ -17,17 +17,12 @@ public class TMPARM extends ConstantNode implements MachNode, RIPRelSize {
     @Override public boolean isClone() { return true; }
     @Override public TMPARM copy() { return new TMPARM(this); }
     @Override public void encoding( Encoding enc ) {
-        TypeMemPtr tmp = (TypeMemPtr)_con;
-        if( tmp._obj.isAry() ) {
-            enc.largeConstant(this,tmp._obj,0,-1);
-            short dst = enc.reg(this);
-            // adrp    x0, 0
-            enc.add4(arm.adrp(1,0, arm.OP_ADRP, 0,dst));
-            // add     x0, x0, 0
-            arm.imm_inst(enc,arm.OPI_ADD,0, dst);
-        } else {
-            throw Utils.TODO();
-        }
+        enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
+        short dst = enc.reg(this);
+        // adrp    x0, 0
+        enc.add4(arm.adrp(1,0, arm.OP_ADRP, 0,dst));
+        // add     x0, x0, 0
+        arm.imm_inst(enc,arm.OPI_ADD,0, dst);
     }
 
     @Override public byte encSize(int delta) {

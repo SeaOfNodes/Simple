@@ -514,19 +514,31 @@ public class arm extends Machine {
     public static void f_cmp(Encoding enc, Node n) {
         short reg1 = (short)(enc.reg(n.in(1))-D_OFFSET);
         short reg2 = (short)(enc.reg(n.in(2))-D_OFFSET);
-        int body = f_cmp(0b00011110, 3, reg1,  reg2);
+        int body = f_cmp(0b00011110, 3, reg2,  reg1);
         enc.add4(body);
     }
 
-    public static COND make_condition(String bop) {
-        return switch (bop) {
-        case "==" -> COND.EQ;
-        case "!=" -> COND.NE;
-        case "<"  -> COND.LT;
-        case "<=" -> COND.LE;
-        case ">=" -> COND.GE;
-        case ">"  -> COND.GT;
-        default   -> throw Utils.TODO();
+    public static COND make_condition(String bop, boolean fp) {
+        // One of {N,Z,C} and !V
+        // OR { !N, !Z, C, V }
+        return fp
+            ? switch (bop) {    // FP uses unsigned encodings
+            case "==" -> COND.EQ;  //  Z
+            case "!=" -> COND.NE;  // !Z
+            case "<"  -> COND.MI;  //        N
+            case "<=" -> COND.LS;  //  Z || !C
+            case ">=" -> COND.PL;  //       !N
+            case ">"  -> COND.HI;  // !Z &&  C
+            default   -> throw Utils.TODO();
+        }
+            : switch (bop) {
+            case "==" -> COND.EQ;  //  Z
+            case "!=" -> COND.NE;  // !Z
+            case "<"  -> COND.LT;  //       N != V
+            case "<=" -> COND.LE;  //  Z || N != V
+            case ">=" -> COND.GE;  //       N == V
+            case ">"  -> COND.GT;  // !Z && N == V
+            default   -> throw Utils.TODO();
         };
     }
 
@@ -696,7 +708,7 @@ public class arm extends Machine {
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new SetARM(cmp, bool.op());
+        return new SetARM(cmp, bool.op(), cmp instanceof CmpFARM);
     }
     private Node _cmp(BoolNode bool) {
         if( bool.isFloat() )
@@ -715,10 +727,11 @@ public class arm extends Machine {
         // Most general arith ops will also set flags, which the Jmp needs directly.
         // Loads do not set the flags, and will need an explicit TEST
         String op = "!=";
-        if( iff.in(1) instanceof BoolNode bool ) op = bool.op();
+        boolean fp = false;
+        if( iff.in(1) instanceof BoolNode bool ) { op = bool.op(); fp = bool.isFloat(); }
         else if( iff.in(1)==null ) op = "=="; // Never-node cutout
         else iff.setDef(1, new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
-        return new BranchARM(iff, op);
+        return new BranchARM(iff, op, fp);
     }
 
     private Node add(AddNode add) {

@@ -63,9 +63,9 @@ public class EvalArm64 {
         double frval = 0;
         int pc = _pc;
         int cycle = _cycle;
-        boolean is_f = false;
         outer:
         for(int icount = 0; icount < maxops; icount++) {
+            boolean is_f = false;
             int ir = 0;
             rval = 0;
             frval = 0;
@@ -96,29 +96,28 @@ public class EvalArm64 {
             }
             case 0x1E: {                // floats
                 is_f = true;
-                int rs1 = (ir >> 5) & 0x1F;
+                int rs1 = (ir >>  5) & 0x1F;
                 int rs2 = (ir >> 16) & 0x1F;
 
                 int op = (ir >> 10) & 0x3F;
                 switch(op) {
                 case 16: frval = fregs[rs1]; break; // fmov
-                case 10:frval = fregs[rs1] + fregs[rs2]; break; // fadd
+                case 10: frval = fregs[rs1] + fregs[rs2]; break; // fadd
 
                 case 6: if (fregs[rs2] == 0) frval = 0; else frval = fregs[rs1] / fregs[rs2]; break; // fdiv
                 case 8: {
                     // fcmp
-                    double lhs  = fregs[rs1];
+                    double lhs = fregs[rs1];
                     double rhs = fregs[rs2];
 
                     Z = (lhs == rhs);
-                    N = (lhs < rhs);
-                    C = lhs >= rhs;
+                    N = (lhs <  rhs);
+                    C = (lhs >  rhs);
                     V = Double.isNaN(lhs) || Double.isNaN(rhs);
                     rdid = -1;
-
                     break;
                 }
-                case 2: frval = fregs[rs1] * fregs[rs2]; break; // fmul
+                case  2: frval = fregs[rs1] * fregs[rs2]; break; // fmul
                 case 14: frval = fregs[rs1] - fregs[rs2]; break; // fsub
                 default: trap = (2+1);
                 }
@@ -361,13 +360,11 @@ public class EvalArm64 {
                 int encodedCond = (ir >> 12) & 0xF;
                 int decodedCond  = encodedCond ^ 1;
                 // conditional select(csel)
-                int rm = (ir >> 16) & 0x1F;
-                int rn = (ir >> 5)  & 0x1F;
                 boolean cond = switch (decodedCond) {
                 case 0x0 ->   Z            ;   // eq
                 case 0x1 ->  !Z            ;   // ne
                 case 0x2 ->   C            ;   // cs
-                case 0x3 ->  !C            ;
+                case 0x3 ->  !C            ;   // cc
                 case 0x4 ->   N            ;   // mi
                 case 0x5 ->  !N            ;   // pl
                 case 0x6 ->   V            ;   // vs
@@ -382,11 +379,7 @@ public class EvalArm64 {
                 case 0xF -> false          ;   // never
                 default -> throw Utils.TODO();
                 };
-//                int reg = cond ? rn : rm;
-//                rval = reg==31 ? 0 : regs[reg];
-//                if( cond ) rval++;
-                if(cond) rval = 1;
-                else rval = 0;
+                if( cond ) rval = 1;
                 break;
             }
             case 0x9B: {       // mul
@@ -753,16 +746,15 @@ public class EvalArm64 {
                 break;
             }
             if(rdid != -1) {
-                if(is_f) {fregs[rdid] = frval; is_f = false;}
-                else regs[rdid] = rval;
+                if(is_f) fregs[rdid] = frval;
+                else      regs[rdid] =  rval;
             }
 
             pc += 4;
         }
         // Handle traps and interrupts.
-        if(trap != 0) {
+        if(trap != 0)
             return trap;
-        }
         _cycle = cycle;
         _pc = pc;
         return 0;

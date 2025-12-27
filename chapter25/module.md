@@ -243,3 +243,35 @@ Module not mentioned, so top-level file is module: `sys`
 Module directory not mentioned, so is prefix of file name `src/main/smp`.
 Build dir not mentioned, so is prefix of output file: `lib/`
 Output file is default `smp.o`, here renamed.
+
+
+
+One <clinit> can refer to another, and will be executed as first touched.
+Parents must be touched before children by design.
+However a child A can refer to a child B.
+Touching Parent.B means
+- Parent is touched first, and begins <clinit>
+- Anything it touches, gets recursively <clinit> including e.g. A or B
+- Parent completes.
+- Nothing in a <clinit> can refer to another *module*.
+- Static functions *can* refer to another module, but then can be executed...
+
+Goal: deterministic <clinit> within a module.
+  History: plenty of times I've had complex <clinit> orders, and then discovered
+    some referred static-final-fields are not yet init'd when child uses.
+  SubGoal: deterministic <clinit> *order*, Parent before Child, etc.
+    Issue: mid-Parent <clinit>, refers to Child, so Child <clinit> before Parent completes.
+      SubAnswer: Since parent first, and "parent knows child", this is OK.
+      SubIssue: this does not work across modules; one module is not a parent of another
+    Issue: Parent fcns called during <clinit> can non-determistic init child.
+      "fcn = { -> rand ? A.fld : B.fld }"
+  Answer?: Parent <clinit> *may not* direct or indirect refer to a child.
+  Example: `B  b = new B; // Illegal ref to child in Parent.<clinit>`
+  Example: `B? b = fcn(); fcn = { -> rand ? null : new B; } // Illegal call to fcn referring to B inside Parent <clinit>`
+  Example: `B? b; fcn = { -> new B; } // OK, no B.<clinit> during Parent.<clinit>`
+  
+Goal: external linkage also enjoys the 1-shot init feature.
+  Answer?: extern call to 'Foo.foo()' first checks Foo.<clinit>
+  has run, before calling `Foo.foo()`.  Optional: Caller is
+  modified to bypass <clinit> check after success.
+  

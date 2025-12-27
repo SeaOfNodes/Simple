@@ -2,8 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
@@ -68,7 +66,7 @@ return 0;
         assertEquals(56, testCPUSize(src, "arm","SystemV",4,"return 0;"));
 
         // do assertEquals here
-        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away", src,0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
@@ -88,7 +86,7 @@ return 0;
                 return 0;
         """;
 
-        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away_2", src, 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away_2", 0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
@@ -112,7 +110,7 @@ p.age = (arg<<48)>>48;
 return 0;
        """;
 
-        EvalRisc5 R5 = TestRisc5.build("sext_str_fold_away", src, 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_fold_away", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
@@ -152,7 +150,7 @@ val fcn = { Person?[] ps, int x ->
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", src, ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "person", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -215,7 +213,7 @@ return 0;
         TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("helloWorld", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "helloWorld", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
@@ -260,7 +258,7 @@ return sys.io.p( sys.io.stdin() );
         TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/echo","","",0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("echo", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "echo", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
