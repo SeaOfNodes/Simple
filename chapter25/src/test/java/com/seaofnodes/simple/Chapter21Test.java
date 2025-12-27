@@ -359,7 +359,7 @@ val fib = { int n ->
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build( src, "person", ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "fcn", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -375,7 +375,7 @@ val fib = { int n ->
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("person", src, ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);
@@ -407,7 +407,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 
         TestC.run(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
 
-        EvalRisc5 R5 = TestRisc5.build( src, "no_stack_arg_count", 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "addAll", 0, 4, false);
 
         // Todo: handle stack(imaginary stack in emulator)
         // pass in float arguments
@@ -420,14 +420,13 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
         R5.fregs[riscv.FA6 - riscv.F_OFFSET] = 1.1;
         R5.fregs[riscv.FA7 - riscv.F_OFFSET] = 1.1;
 
-        // a0 is passed in arg
+        R5.regs[riscv.A0] = 2;
         R5.regs[riscv.A1] = 2;
         R5.regs[riscv.A2] = 2;
         R5.regs[riscv.A3] = 2;
         R5.regs[riscv.A4] = 2;
         R5.regs[riscv.A5] = 2;
         R5.regs[riscv.A6] = 2;
-        R5.regs[riscv.A7] = 2;
 
         int trap = R5.step(100);
         assertEquals(0,trap);
@@ -437,7 +436,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
         assertEquals(22.8, result, 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", src, 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("addAll", src, 0, 4, false);
 
         A5.fregs[arm.D0 - arm.D_OFFSET] = 1.1;
         A5.fregs[arm.D1 - arm.D_OFFSET] = 1.1;
