@@ -249,6 +249,8 @@ public class RegAlloc {
         // single-register.  Split after the def and before the use.  Does not
         // require a full pass.
 
+        // Compute def nOuts *before* replacing those uses with a split
+        int defNouts = ((Node)lrg._machDef).nOuts();
         // Split just after def
         if( lrg._1regDefCnt==1 && !lrg._machDef.isClone() )
             // Force must-split, even if a prior split same block because register
@@ -260,7 +262,7 @@ public class RegAlloc {
             //   st4 [V1],len - No good, must split around
             insertAfterAndReplace( makeSplit("def/empty1",round,lrg), (Node)lrg._machDef, false/*true*/);
         // Split just before use
-        if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && ((Node)lrg._machDef).nOuts()==1) )
+        if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && defNouts==1) )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
         return true;
     }

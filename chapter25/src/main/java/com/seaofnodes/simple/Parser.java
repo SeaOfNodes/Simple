@@ -36,6 +36,10 @@ public class Parser {
         assert !x.startsWith(clzPrefix);
         return (clzPrefix+x).intern();
     }
+    public static boolean startsClzPrefix( String s ) {
+        return s.startsWith(clzPrefix);
+    }
+
 
     /**
      * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
@@ -282,8 +286,32 @@ public class Parser {
             }
         }
 
-        if( fun.isInit() && !fun.isClz() )      // <init>, not <clinit>
-            last = fun.parm(2); // Init returns self, not last expression, by default
+        //
+        if( fun.isInit() ) {        // <init>  or  <clinit>
+            // For init functions, upgrade any forward ref fields.
+            TypeStruct tself = (TypeStruct)TYPES.get(((TypeMemPtr)sig._sig[0])._obj._name);
+            for( int i=0; i<tself.nkids(); i++ ) {
+                Var v = _scope.var(klast._lexSize+2+i);
+                Field tfld = tself._fields[i];
+                if( v.type() != tfld._t ) {
+                    assert v.type().isa(tfld._t);
+                    tself = tself.replace(tfld.makeFrom(v.type()));
+                }
+            }
+            TYPES.put(tself._name,tself);
+
+            if( !fun.isClz() ) {    // <init>, not <clinit>
+                last = fun.parm(2); // Init returns self, not last expression
+            } else if( last._type instanceof TypeFunPtr tfp && tfp.nfcns()==1 ) {
+                // Do not return a private function from a <clinit>, as these
+                // might entirely inline and the TFP would otherwise be dead.
+                // The <clinit> exit is only usable as the OS system exit result
+                // or in simple tests.
+                FunNode lastFun = _code.link(tfp);
+                if( lastFun._name==null || lastFun._name.charAt(0)=='_' )
+                    last = ZERO;
+            }
+        }
         assert last!=null;
 
         // Last expression is the return
@@ -983,9 +1011,11 @@ public class Parser {
         // not have any returns, and thus no need to gather values and store
         // them into the (never) constructed object
         if( _returnScope!=null ) {
+            // Store constructor results into fields
             int frefs=0;
             for( int i=newVars; i<_scope._vars._len; i++ ) {
-                if( _scope.var(i)._fref ) // Forward refs not declared here
+                Var v = _scope.var(i);
+                if( v._fref )   // Forward refs not declared here
                     frefs++;
                 else {
                     Node val = _returnScope.in(i);
@@ -1678,7 +1708,7 @@ public class Parser {
         if( expr._type instanceof TypeFunPtr tfp && tfp._sig.length>=1 && tfp._sig[0] instanceof TypeMemPtr tself &&
             // Not an array or Class method
             !(tself._obj._name.startsWith( "[" ) ||
-              (self._type instanceof TypeMemPtr clzptr && clzptr._obj._name.startsWith(clzPrefix))) &&
+              (self._type instanceof TypeMemPtr clzptr && startsClzPrefix(clzptr._obj._name))) &&
             match("(") ) {
             expr = parsePostfix(require(functionCall(expr,self),")"));
         } else if( self != null )

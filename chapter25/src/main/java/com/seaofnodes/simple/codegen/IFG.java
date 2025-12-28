@@ -231,7 +231,9 @@ abstract public class IFG {
         selfConflict(alloc,n,lrg,TMP.get(lrg));
     }
     private static void selfConflict(RegAlloc alloc, Node n, LRG lrg, Node prior) {
-        if( prior!=null && prior != n ) {
+        // Casts never produce a *new* value, just lift our understanding of the value.
+        // They do not force self-conflicts.
+        if( prior!=null && prior != n && !(n instanceof CastNode) ) {
             lrg.selfConflict(prior);
             lrg.selfConflict(n);
             alloc.fail(lrg); // 2 unrelated values live at once same live range; self-conflict

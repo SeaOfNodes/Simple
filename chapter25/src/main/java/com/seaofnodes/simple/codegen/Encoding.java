@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.type.*;
@@ -138,7 +139,8 @@ public class Encoding {
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it.  Type is stored in either the .rodata or .data.
     public void largeConstant( Node relo, Type t, int off, int elf ) {
-        assert t.isConstant() || (t instanceof TypeMemPtr tmp && tmp._one && !tmp._obj.isConstant());
+        // TODO: Any-old struct in the cpool
+        assert t.isConstant() || (t instanceof TypeStruct ts && Parser.startsClzPrefix(ts._name));
         assert (byte)off == off;
         assert (byte)elf == elf;
         _bigCons.put(relo,new Relo(relo,t,(byte)off,(byte)elf));
@@ -420,9 +422,12 @@ public class Encoding {
     void patchLocalRelocations() {
         // Walk the local code-address relocations
         for( Node src : _internals.keySet() ) {
-            int start  = _opStart[src._nid];
+            int start = _opStart[src._nid];
             Node dst =  _internals.get(src);
-            int target = _opStart[dst._nid];
+            // If function is entirely dead, only the function pointer remains
+            // and, it can only be used to test against zero or equals to
+            // another function pointer... i.e., there Is No Code Here.
+            int target = dst == null ? start : _opStart[dst._nid];
             ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
         }
     }

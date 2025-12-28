@@ -74,7 +74,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return mov(.[]);");
         testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
     }
@@ -94,9 +94,9 @@ if (v1) {
 }
 return v0;
 """;
-        testCPU(src,"x86_64_v2", "SystemV", 7,"return mov(mov(S));");
-        testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(S));");
-        testCPU(src,"arm"      , "SystemV",10,"return mov(mov(S));");
+        testCPU(src,"x86_64_v2", "SystemV", 7,"return mov(mov(Test._S));");
+        testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(Test._S));");
+        testCPU(src,"arm"      , "SystemV",10,"return mov(mov(Test._S));");
     }
 
     @Test
@@ -278,11 +278,11 @@ val sieve = { int N ->
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run(src, "sieve", null, sprimes, 257);
+        TestC.run(src, "sieve", null, sprimes, 186);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build( src, "sieve", 100, 160, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sieve", 100, 90, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -294,7 +294,7 @@ val sieve = { int N ->
 
         // Evaluate on ARM5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 160, false);
+        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 105, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];
