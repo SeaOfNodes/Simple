@@ -56,14 +56,14 @@ public class Chapter22Test {
     // Should not fold away
     @Test public void testSextFail() throws IOException {
         String src = """
-struct Person { i32 age;};
-Person !p = new Person;
+struct _Person { i32 age;};
+_Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(46, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(60, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
-        assertEquals(56, testCPUSize(src, "arm","SystemV",4,"return 0;"));
+        assertEquals(58, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
+        assertEquals(72, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
+        assertEquals(68, testCPUSize(src, "arm","SystemV",4,"return 0;"));
 
         // do assertEquals here
         EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 4, false);
@@ -187,12 +187,12 @@ val fcn = { Person?[] ps, int x ->
     public void testCoRecur() {
         String src = """
 val x = 5; // aa.az; // Error to self-define forward ref
-struct A { B? b; C? c; i64 ax; val az = x*2; };
-struct B { A? a; C? c; f32 bx; val bz = x*3; };
-struct C { A? a; B? b; f64 cx; val cz = x*x; };
-A !aa = new A{ ax=17; };
-B !bb = new B{ bx=3.14; a = aa; };
-C !cc = new C{ cx=2.73; a = aa; b = bb; };
+struct _A { _B? b; _C? c; i64 ax; val az = x*2; };
+struct _B { _A? a; _C? c; f32 bx; val bz = x*3; };
+struct _C { _A? a; _B? b; f64 cx; val cz = x*x; };
+_A !aa = new _A{ ax=17; };
+_B !bb = new _B{ bx=3.14; a = aa; };
+_C !cc = new _C{ cx=2.73; a = aa; b = bb; };
 aa.b = bb;
 aa.c = cc;
 bb.c = cc;

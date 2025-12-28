@@ -1147,7 +1147,7 @@ public class Parser {
     private TypeStruct typeAry( Type t, boolean efinal ) {
         if( t instanceof TypeMemPtr tmp && tmp.notNull()  )
             throw error("Arrays of reference types must always be nullable");
-        String tname = ((efinal ? "[~]" : "[]")+t.str()).intern();
+        String tname = ("[]"+t.str()).intern();
         TypeStruct ta = (TypeStruct)TYPES.get(tname);
         if( ta!=null ) return ta;
         ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.nextALIAS(),t,_code.nextALIAS(),efinal );
@@ -1674,7 +1674,7 @@ public class Parser {
         // Make a TMP, not-null (byte)2, singleton (true) (requires text
         // strings are hash-interned), with a TypeStruct having a constant
         // array body.
-        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[~]u8", slen, lenAlias, body, elemAlias, true),true);
+        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8", slen, lenAlias, body, elemAlias, true),true);
         assert str.isConstant();
         return con(str);
     }
