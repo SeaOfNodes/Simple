@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node.cpus.riscv;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
@@ -37,6 +38,21 @@ public class StoreRISC extends MemOpRISC {
         int op = val >= riscv.F_OFFSET ? riscv.OP_STOREFP : riscv.OP_STORE;
         if( val >= riscv.F_OFFSET  ) val -= riscv.F_OFFSET;
         enc.add4(riscv.s_type(op, func3()&7, ptr, val == -1 ? riscv.ZERO : val, _off));
+    }
+
+    // func3 is based on load/store size and extend
+    @Override int func3() {
+        int func3 = -1;
+        // no unsigned flavour for store, so both signed and unsigned trigger the same
+        Type declType = declType();
+        if( declType == TypeInteger. I8 || declType == TypeInteger.U8  || declType == TypeInteger.BOOL) func3=0; //   SB
+        if( declType == TypeInteger.I16 || declType == TypeInteger.U16 ) func3=1; // SH
+        if( declType == TypeInteger.I32 || declType == TypeInteger.U32 ) func3=2; //  SW
+        if( declType instanceof TypeMemPtr) func3=3; //  SD
+        if( declType instanceof TypeFunPtr) func3=3;
+        if( declType == TypeInteger.BOT   ) func3=3; //   SD
+        if( func3 == -1 ) throw Utils.TODO();
+        return func3;
     }
 
     @Override public void asm(CodeGen code, SB sb) {

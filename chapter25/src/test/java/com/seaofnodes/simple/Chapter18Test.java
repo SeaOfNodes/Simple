@@ -59,13 +59,13 @@ return x2;
     public void testFcn0() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? _sq = { int x ->
+{int -> int}? sq = { int x ->
     x*x;
 };
 """);
         code.parse().opto();
-        assertEquals("return { _sq};", code._stop.toString());
-        //assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
+        assertEquals("Stop[ return (Parm_x(sq,i64)*x); return { sq}; ]", code._stop.toString());
+        assertEquals("{ i64 -> i64 #1}", Eval2.eval(code, 3));
     }
 
     @Test

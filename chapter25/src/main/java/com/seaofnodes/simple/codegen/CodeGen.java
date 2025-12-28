@@ -173,12 +173,6 @@ public class CodeGen {
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
         return fun.makeFrom(nextFIDX());
     }
-    //// Signature for MAIN
-    //public TypeFunPtr _main;
-    //public void setMain(FunNode main) {
-    //    _main = main.sig();
-    //    link(main);
-    //}
 
 
     // Reverse from a constant function pointer to the IR function being called.
