@@ -1,8 +1,8 @@
 # Chapter 23: Methods and Revisiting Types
 
-In this chapter add *methods*, functions defined in structs which take a
-hiddent `self` argument and can access the struct fields.  Here is an
-`indexOf` method in a String-like class:
+In this chapter we add *methods*, functions defined in structs which take a
+hidden `self` argument and can access the struct fields.  Here is an `indexOf`
+method in a String-like class:
 
 ```java
 // A String-like class, with methods
@@ -76,8 +76,9 @@ have a type *definition* and a separate type *reference*.  The reference refers
 to the type by doing some kind of lookup; an easy one is via the type name and
 the parsers' symbol table i.e., some kind of hash table lookup.
 
-In this model the cycle is effectively avoided; all "back edges" in the cycle
-are really done by the reference edge (itself possibly a hash table lookup).
+In this model the cycle is effectively avoided; all "back edges" in the type
+cycle are really done by the reference edge (itself possibly a hash table
+lookup).
 
 So why not go down this route?
 
@@ -91,7 +92,7 @@ Here's example, a Linked List with a Java `Object` or a C `void*` payload:
 ```java
 struct List {
   List next;
-  Object payload;  // equivalently: void*
+  Object payload;  // equivalently for C: void* 
 }
 // Then walk a collection of ints and build a List:
 List nums = null;
