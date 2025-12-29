@@ -8,12 +8,13 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 public class FltRISC extends ConstantNode implements MachNode, RIPRelSize {
-    FltRISC(ConstantNode con) { super(con); }
+    final String _ext;
+    FltRISC( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() { return "ld8"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.FMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public FltRISC copy() { return new FltRISC(this); }
+    @Override public FltRISC copy() { return new FltRISC(this,_ext); }
 
     @Override public void encoding( Encoding enc ) {
         enc.largeConstant(this,_con, 0, -1);

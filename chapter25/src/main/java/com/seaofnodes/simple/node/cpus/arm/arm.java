@@ -751,14 +751,15 @@ public class arm extends Machine {
             // Singleton pointers (to non-constant memory) are still constants here.
             !(con._con instanceof TypeMemPtr tmp && tmp._one) )
             return new ConstantNode(con); // Default unknown caller inputs
+        String ext = con instanceof ExternNode ext0 ? ext0._extern : null;
         return switch( con._con ) {
-        case TypeInteger ti -> new IntARM(con);
-        case TypeFloat   tf -> new FloatARM(con);
-        case TypeFunPtr tfp -> new TFPARM(con);
-        case TypeMemPtr tmp -> new TMPARM(con);
+        case TypeInteger ti -> new IntARM(con,ext);
+        case TypeFloat   tf -> new FltARM(con,ext);
+        case TypeFunPtr tfp -> new TFPARM(con,ext);
+        case TypeMemPtr tmp -> new TMPARM(con,ext);
         case TypeNil tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> t==Type.NIL ? new IntARM(con) : new ConstantNode(con);
+        case Type t -> t==Type.NIL ? new IntARM(con,ext) : new ConstantNode(con);
         };
     }
 

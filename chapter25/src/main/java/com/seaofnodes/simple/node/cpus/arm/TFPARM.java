@@ -9,13 +9,15 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 public class TFPARM extends ConstantNode implements MachNode, RIPRelSize {
-    TFPARM( ConstantNode con ) { super(con); }
+    final String _ext;
+    TFPARM( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() { return "ldx"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return arm.WMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public TFPARM copy() { return new TFPARM(this); }
+    @Override public TFPARM copy() { return new TFPARM(this,_ext); }
     @Override public void encoding( Encoding enc ) {
+        if( _ext!=null ) throw Utils.TODO();
         enc.relo(this);
         short self = enc.reg(this);
         // adrp    x0, 0

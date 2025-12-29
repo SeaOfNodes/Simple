@@ -3,21 +3,22 @@ package com.seaofnodes.simple.node.cpus.arm;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
-import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 //FMOV (scalar, immediate)
 //Floating-point move immediate.
-public class FloatARM extends ConstantNode implements MachNode, RIPRelSize {
-    FloatARM(ConstantNode con) { super(con); }
+public class FltARM extends ConstantNode implements MachNode, RIPRelSize {
+    final String _ext;
+    FltARM( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() { return "ld8"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return arm.DMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public FloatARM copy() { return new FloatARM(this); }
+    @Override public FltARM copy() { return new FltARM(this,_ext); }
 
     @Override public void encoding( Encoding enc ) {
+        if( _ext!=null ) throw Utils.TODO();
         enc.largeConstant(this,_con,0,-1/*TODO: ARM-style ELF patching*/);
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
         enc.add4(arm.load_pc(arm.OPF_ARM, 0, dst));

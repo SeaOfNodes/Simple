@@ -9,13 +9,15 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
-    TFPRISC(ConstantNode con) { super(con); }
+    final String _ext;
+    TFPRISC( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() { return "ldx"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public TFPRISC copy() { return new TFPRISC(this); }
+    @Override public TFPRISC copy() { return new TFPRISC(this,_ext); }
     @Override public void encoding( Encoding enc ) {
+        if( _ext!=null ) throw Utils.TODO();
         enc.relo(this);
         // TODO: 1 op encoding, plus a TODO if it does not fit
         short dst = enc.reg(this);

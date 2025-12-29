@@ -7,16 +7,17 @@ import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMemPtr;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
-import com.seaofnodes.simple.util.Utils;
 
 public class TMPARM extends ConstantNode implements MachNode, RIPRelSize {
-    TMPARM( ConstantNode con ) { super(con); }
+    final String _ext;
+    TMPARM( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() { return "ldp"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return arm.WMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public TMPARM copy() { return new TMPARM(this); }
+    @Override public TMPARM copy() { return new TMPARM(this,_ext); }
     @Override public void encoding( Encoding enc ) {
+        if( _ext!=null ) throw Utils.TODO();
         enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
         short dst = enc.reg(this);
         // adrp    x0, 0

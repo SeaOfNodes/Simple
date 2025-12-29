@@ -9,13 +9,15 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
-    TMPRISC(ConstantNode con) { super(con); }
+    final String _ext;
+    TMPRISC( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() { return "ldp"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public TMPRISC copy() { return new TMPRISC(this); }
+    @Override public TMPRISC copy() { return new TMPRISC(this,_ext); }
     @Override public void encoding( Encoding enc ) {
+        if( _ext!=null ) throw Utils.TODO();
         enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
         short dst = enc.reg(this);
         // AUIPC dst,#hi20_constant_pool

@@ -10,7 +10,7 @@ import com.seaofnodes.simple.util.SB;
 // 12-bit integer constant.  Larger constants are made up in the instruction
 // selection by adding with a LUI.
 public class IntRISC extends ConstantNode implements MachNode {
-    public IntRISC(ConstantNode con) { super(con); }
+    IntRISC(ConstantNode con) { super(con); }
     @Override public String op() { return "ldi"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
