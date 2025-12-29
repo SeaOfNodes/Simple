@@ -6,19 +6,22 @@ import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 // Integer constants
 public class IntARM extends ConstantNode implements MachNode {
-    IntARM( ConstantNode con ) { super(con); }
+    final String _ext;
+    IntARM( ConstantNode con, String ext ) { super(con); _ext = ext; }
 
     @Override public String op() { return "ldi"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return arm.WMASK; }
 
     @Override public boolean isClone() { return true; }
-    @Override public IntARM copy() { return new IntARM(this); }
+    @Override public IntARM copy() { return new IntARM(this,_ext); }
 
     @Override public void encoding( Encoding enc ) {
+        if( _ext!=null ) throw Utils.TODO();
         short self = enc.reg(this);
         long x = _con==Type.NIL ? 0 : ((TypeInteger)_con).value();
         int nb0 = 0;

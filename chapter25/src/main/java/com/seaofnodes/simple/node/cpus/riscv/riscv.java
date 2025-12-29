@@ -432,8 +432,11 @@ public class riscv extends Machine {
             // Singleton pointers (to non-constant memory) are still constants here.
             !(con._con instanceof TypeMemPtr tmp && tmp._one) )
             return new ConstantNode(con); // Default unknown caller inputs
+        String ext = con instanceof ExternNode ext0 ? ext0._extern : null;
         return switch( con._con ) {
         case TypeInteger ti -> {
+            // External; without knowing the size assume we have to load something
+            if( ext!=null ) yield new Int8RISC(con,ext);
             if( imm12(ti) ) yield new IntRISC(con);
             long x = ti.value();
             if( imm20Exact(ti) ) yield new LUI((int)x);
@@ -446,12 +449,12 @@ public class riscv extends Machine {
             }
             // Need more complex sequence for larger constants... or a load
             // from a constant pool, which does not need an extra register
-            yield new Int8RISC(con);
+            yield new Int8RISC(con,null);
         }
         // Load from constant pool
-        case TypeFloat   tf  -> new FltRISC(con);
-        case TypeFunPtr  tfp -> new TFPRISC(con);
-        case TypeMemPtr  tmp -> new TMPRISC(con);
+        case TypeFloat   tf  -> new FltRISC(con,ext);
+        case TypeFunPtr  tfp -> new TFPRISC(con,ext);
+        case TypeMemPtr  tmp -> new TMPRISC(con,ext);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);

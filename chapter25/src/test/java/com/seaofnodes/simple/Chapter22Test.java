@@ -204,9 +204,15 @@ return cc.cz;
 
     @Test
     public void testHelloWorld() throws IOException {
-        String src =
-"""
-sys.io.p("Hello, World!");
+        String src = """
+// fd  buf len -> len
+{  i32 i64 u32 -> u32 } write = "C";
+// Write byte array to stdout
+val p = { u8[~] str ->
+    i64 ptr = str;  // cast array base to i64
+    return write(1,ptr,str#);
+};
+p("Hello, World!");
 return 0;
 """;
         TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);

@@ -508,14 +508,15 @@ public class x86_64_v2 extends Machine {
             // Singleton pointers (to non-constant memory) are still constants here.
             !(con._con instanceof TypeMemPtr tmp && tmp._one) )
             return new ConstantNode(con); // Default unknown caller inputs
+        String ext = con instanceof ExternNode ext0 ? ext0._extern : null;
         return switch (con._con) {
-        case TypeInteger ti -> new IntX86(con);
-        case TypeFloat   tf -> new FltX86(con);
-        case TypeFunPtr tfp -> new TFPX86(con);
-        case TypeMemPtr tmp -> new TMPX86(con);
+        case TypeInteger ti -> new IntX86(con,ext);
+        case TypeFloat   tf -> new FltX86(con,ext);
+        case TypeFunPtr tfp -> new TFPX86(con,ext);
+        case TypeMemPtr tmp -> new TMPX86(con,ext);
         case TypeNil tn -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> t == Type.NIL ? new IntX86(con) : new ConstantNode(con);
+        case Type t -> t == Type.NIL ? new IntX86(con,null) : new ConstantNode(con);
         };
     }
 

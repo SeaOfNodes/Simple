@@ -2,20 +2,21 @@ package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 // Function constants
 public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
     private byte _opLen;
-    TFPX86( ConstantNode con ) {  super(con); }
+    final String _ext;
+    TFPX86( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() {
         return _con == Type.NIL ? "xor" : "ldx";
     }
     @Override public boolean isClone() { return true; }
-    @Override public Node copy() { return new TFPX86(this); }
+    @Override public Node copy() { return new TFPX86(this,_ext); }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     // Zero-set uses XOR kills flags
@@ -37,7 +38,10 @@ public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
 
         // lea to load function pointer address
         // lea rax, [rip+disp32]
-        enc.relo(this);
+        if( _ext==null )
+            enc.relo(this);     // Internal patch
+        else
+            enc.external(this,_ext); // ELF-file external patch
         // 0 or 1 for REX depending on the dst.
         // Zero/sign extend should be fine, so not wide.
         _opLen = (byte)(6+ x86_64_v2.rexF(dst, 0, 0, false, enc));
