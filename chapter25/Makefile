@@ -206,4 +206,4 @@ lib/hamcrest-core-1.3.jar:
 # Build emacs tags (part of a tasty emacs ide experience)
 tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
-	@$(CTAGS) -e --recurse=yes --extras=+q --fields=+fksaiS $(SRC) $(TST)
+	@$(CTAGS) -e --recurse=yes --fields=+fksaiS $(SRC) $(TST)

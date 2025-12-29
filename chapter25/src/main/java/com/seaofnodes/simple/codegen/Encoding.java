@@ -434,16 +434,17 @@ public class Encoding {
 
     // --------------------------------------------------
     // Write the constant pool into the BAOS and optionally patch locally
-    void writeConstantPool( BAOS bits, boolean patch ) {
+    void writeConstantPool( BAOS bits, boolean ro, boolean patch ) {
         padN(16,bits);
 
         // radix sort the big constants by alignment
         Ary<Relo>[] raligns = new Ary[5];
         for( Node op : _bigCons.keySet() ) {
             Relo relo = _bigCons.get(op);
-            if( relo._t instanceof TypeStruct ts && !ts.isConstant() )
-                throw Utils.TODO(".rodata vs .data");
             int align = relo._t.alignment();
+            // non-constant structs in the r/w data, everything else in r/o data
+            if( (relo._t instanceof TypeStruct ts && !ts.isConstant()) == ro )
+                continue;
             Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>(Relo.class)) : raligns[align];
             relos.add(relo);
         }
@@ -452,7 +453,7 @@ public class Encoding {
         // Types can be used more than once; collapse the dups
         HashMap<Type,Integer> targets = new HashMap<>();
 
-        // By alignment
+        // By alignment for read-only
         for( int align = raligns.length-1; align >= 0; align-- ) {
             Ary<Relo> relos = raligns[align];
             if( relos == null ) continue;
@@ -464,7 +465,7 @@ public class Encoding {
                     // Write constant into constant pool
                     switch( relo._t ) {
                     case TypeTuple  tt -> throw Utils.TODO("no tuples here, use structs instead");
-                    case TypeStruct ts -> cpool(bits,ts);
+                    case TypeStruct ts -> addStruct(bits,ts);
                     // Simple primitive (e.g. larger int, float, function ptr)
                     default -> addN(align,relo._t,bits);
                     }
@@ -477,6 +478,7 @@ public class Encoding {
                     ((RIPRelSize)relo._op).patch(this, relo._opStart, _opLen[relo._op._nid], relo._target - relo._opStart);
             }
         }
+
     }
 
     // Emit a single scalar as bits
@@ -487,13 +489,14 @@ public class Encoding {
         ? Double.doubleToRawLongBits(    tf.value())
         : Float.floatToRawIntBits((float)tf.value());
         case TypeFunPtr tfp -> 0; // These need to be relocated
+        case TypeMemPtr tmp -> 0; // These need to be relocated
         default -> throw Utils.TODO();
         };
         addN(log,x,bits);
     }
 
     // Structs use internal field layout
-    private void cpool( BAOS bits, TypeStruct ts ) {
+    private void addStruct( BAOS bits, TypeStruct ts ) {
         // Field order by offset
         int[] layout = ts.layout();
         int off=0; // offset in the struct

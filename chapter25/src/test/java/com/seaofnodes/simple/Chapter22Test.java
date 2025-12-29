@@ -13,25 +13,24 @@ public class Chapter22Test {
 
     @Test
     public void testJig() throws IOException {
-        String src =
-                """
-                struct s0 {
-                    bool v1;
-                    i16 v2;
-                    int v3;
-                    i8 v4;
-                    byte v5;
-                };
-                while(new s0.v3)
-                    while(new s0.v5<<new s0.v4) {}
-                if(0) {
-                    if(0) {
-                        flt !P5ZUD4=new s0.v2;
-                    }
-                    while(0) {}
-                }
-                return new s0.v1;
-                """;
+        String src = """
+struct s0 {
+    bool v1;
+    i16 v2;
+    int v3;
+    i8 v4;
+    byte v5;
+};
+while(new s0.v3)
+    while(new s0.v5<<new s0.v4) {}
+if(0) {
+    if(0) {
+        flt !P5ZUD4=new s0.v2;
+    }
+    while(0) {}
+}
+return new s0.v1;
+""";
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
@@ -108,7 +107,7 @@ struct Person { i8 age;};
 Person !p = new Person;
 p.age = (arg<<48)>>48;
 return 0;
-       """;
+""";
 
         EvalRisc5 R5 = TestRisc5.build( src, "sext_str_fold_away", 0, 5, false);
         int trap = R5.step(100);
@@ -150,7 +149,7 @@ val fcn = { Person?[] ps, int x ->
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build( src, "person", ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "fcn", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -166,7 +165,7 @@ val fcn = { Person?[] ps, int x ->
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("person", src, ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);
