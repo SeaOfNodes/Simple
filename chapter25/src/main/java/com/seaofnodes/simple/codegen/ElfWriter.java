@@ -263,9 +263,17 @@ public class ElfWriter {
         // Build and write constant pool
         BAOS cpool = new BAOS();
         Encoding enc = _code._encoding;
-        enc.writeConstantPool(cpool,false);
+        enc.writeConstantPool(cpool,true,false);
         DataSection rodata = new DataSection(".rodata", Section.SHT_PROGBITS, DataSection.SHF_ALLOC, cpool );
 
+        // Build and write r/w data 
+        BAOS rwpool = new BAOS();
+        enc.writeConstantPool(rwpool,false,false);
+        if( rwpool.size() > 0 )
+            throw Utils.TODO();
+        DataSection rwdata = new DataSection(".data", Section.SHT_PROGBITS, DataSection.SHF_ALLOC, rwpool );
+
+        
         // populate function symbols
         symbols.encodeFunctions(text._index);
 

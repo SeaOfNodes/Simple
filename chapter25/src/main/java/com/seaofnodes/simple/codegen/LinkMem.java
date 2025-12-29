@@ -16,8 +16,9 @@ public class LinkMem {
 
         // Write any large constants into a constant pool; they
         // are accessed by RIP-relative addressing.
-        enc.writeConstantPool(enc._bits,true);
-
+        enc.writeConstantPool(enc._bits,true ,true);
+        // Write r/w structs in the same place
+        enc.writeConstantPool(enc._bits,false,true);
         return _code;
     }
 }
