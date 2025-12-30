@@ -19,9 +19,9 @@ public class EscapeNode extends Node {
     public EscapeNode(EscapeNode esc ) { super(null,null,esc.priv(),esc.pub()); _alias=esc._alias; }
 
     // Pointer to some private (unescaped) memory from a NewNode
-    Node self() { return in(1); }
-    Node priv() { return in(2); }
-    Node pub () { return in(3); }
+    public Node self() { return in(1); }
+    public Node priv() { return in(2); }
+    public Node pub () { return in(3); }
 
     @Override public Tag serialTag() { return Tag.Escape; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {

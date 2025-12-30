@@ -274,7 +274,7 @@ public abstract class Eval2 {
         case ConstantNode con  -> con(con._con);
         case DivFNode     dvf  -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
         case DivNode      div  -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));
-        case EscapeNode   esc  -> "$mem";
+        case EscapeNode   esc  -> esc(esc);
         case LoadNode     ld   -> load(ld);
         case MemMergeNode merge-> "$mem";
         case MinusFNode   mnf  -> - d(mnf.in(1));
@@ -338,6 +338,25 @@ public abstract class Eval2 {
         default -> null;
         };
     }
+
+    // Escapes of constant memory actually needs to set the memory
+    private static Object esc(EscapeNode esc) {
+        if( esc.priv() instanceof ConstantNode con ) {
+            TypeMem mem = (TypeMem)con._type;
+            Object val = con(mem._t);
+            TypeMemPtr tmp = (TypeMemPtr)esc.self()._type;
+            int idx = tmp._obj.findAlias(esc._alias);
+            Object[] fs = (Object[])val(esc.self());
+            if( tmp._obj.isAry() ) {
+                assert idx==0; // length field
+                assert (Long)val==fs.length;
+            } else {
+                fs[idx] = val;
+            }
+        }
+        return "$mem";
+    }
+
 
     // Convert array size to array element count
     private static int offToIdx( long off, TypeStruct t) {

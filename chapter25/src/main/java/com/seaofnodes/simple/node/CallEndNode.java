@@ -98,6 +98,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 int maxSize = fun._name!=null && fun.isInit() && !fun.isClz() ? 200 : 100;
                 if( isTrivial==1 && fun._approxUIDs < maxSize ) {
                     assert !CodeGen.CODE._midAssert; // Triggered inlining
+                    CodeGen.CODE.add(fun);
                     // Remove the existing function linkage
                     call.unlink_all();
                     // Clone the function body
@@ -154,6 +155,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
             { addDep(fun2); return -1; }
         if( idom instanceof CallEndNode cend && cend._folding )
             { addDep(cend); return -1; }
+        if( fun()==null ) return -1;
 
         // Expecting just the Call
         if( fptr.nOuts() > 1 ) {

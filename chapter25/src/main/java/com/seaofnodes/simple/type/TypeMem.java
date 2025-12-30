@@ -80,7 +80,7 @@ public class TypeMem extends Type {
     }
 
     @Override public boolean isHigh() { return _t.isHigh(); }
-    //@Override boolean _isConstant() { return _t._isConstant(); }
+    @Override boolean _isConstant() { return _one && _alias!= 1 && _t._isConstant(); }
     @Override public int log_size() { throw Utils.TODO(); }
     @Override boolean _isFinal() { return _t._isFinal(); }
     @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }

@@ -36,8 +36,12 @@ public class BAOS {
         _buf[_len++] = (byte)b; // Silent chop
         return this;
     }
+
+    // Read an UNSIGNBED bytes at INDEX, AIOOBE if off end
+    public int read1(int idx) { return _buf[idx] & 0xFF; }
+
     // Read an UNSIGNED byte, AIOOBE if off end
-    public int read() { return _buf[_len++] & 0xFF; }
+    public int read() { return read1(_len++); }
 
     // write 2 bytes
     public BAOS write2( int x ) {
@@ -48,7 +52,8 @@ public class BAOS {
     }
 
     // Read a u16 in 2 bytes
-    public int read2() { return read() | (read()<<8);  }
+    public int read2(int idx) { return read1(idx) | (read1(idx+1)<<8);  }
+    public int read2() { return read2(_len+=2); }
 
     // write 4 bytes
     public BAOS write4( int x ) {
@@ -61,7 +66,8 @@ public class BAOS {
     }
 
     // Read a i32 in 4 bytes
-    public int read4() { return read2() | (read2()<<16); }
+    public int read4(int idx) { return read2(idx) | (read2(idx+2)<<8);  }
+    public int read4() { return read2(_len+=4); }
 
     // write 8 bytes
     public BAOS write8( long x ) {
@@ -71,7 +77,8 @@ public class BAOS {
     }
 
     // Read a i64 in 8 bytes
-    public long read8() { return ((long)read4() & 0xFFFFFFFFL) | ((long)read4()<<32); }
+    public long read8(int idx) { return ((long)read4(idx) & 0xFFFFFFFFL) | ((long)read4(idx+4)<<32); }
+    public long read8() { return read8(_len+=8); }
 
     // Write byte array
     public void write( byte[] bs ) {

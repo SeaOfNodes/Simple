@@ -99,7 +99,7 @@ N n = new N { next = new M; };
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return MEM[ 2:.m=0;]; return MEM[ 2:___ 3:___ 4:.next=(*Test.M)Bot; 5:.i=0;]; return (const)Test.M; ]", code.print());
+        assertEquals("Stop[ return MEM[ 2:#-2:0]; return MEM[ 2:___ 3:___ 4:.next=(*Test.M)Bot; 5:#-5:0]; return (const)Test.M; ]", code.print());
     }
 
     @Test

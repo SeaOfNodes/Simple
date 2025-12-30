@@ -5,9 +5,8 @@ import com.seaofnodes.simple.codegen.Encoding.Relo;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
+import java.util.HashMap;
 import java.util.HashSet;
 
 public abstract class ASMPrinter {
@@ -23,66 +22,70 @@ public abstract class ASMPrinter {
             if( code._cfg.at(i) instanceof FunNode fun )
                 iadr = print(iadr,sb,code,fun,i);
 
-        // constant pool
-        iadr = (iadr+15)&-16; // pad to 16
         Encoding enc = code._encoding;
-        if(  enc!=null && !enc._bigCons.isEmpty() && iadr < enc._bits.size() ) {
-            // radix sort the big constants by alignment
-            Ary<Relo>[] raligns = new Ary[5];
-            for( Node op : enc._bigCons.keySet() ) {
-                Relo relo = enc._bigCons.get(op);
-                int align = relo._t.alignment();
-                Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>( Relo.class)) : raligns[align];
-                relos.add(relo);
-            }
+        if( enc!=null ) {       // constant pools
+            iadr = (iadr+15)&-16; // pad to 16
+            if( enc._cpool.size()>0 )
+                iadr = printConstantPool(iadr, sb, enc._cpool,enc._bigCons,true ,"Constant Pool");
 
-            HashSet<Type> targets = new HashSet<>();
-            sb.p("--- Constant Pool ------").nl();
-
-            // By alignment
-            for( int align = 4; align >= 0; align-- ) {
-                Ary<Relo> relos = raligns[align];
-                if( relos == null ) continue;
-                for( Relo relo : relos ) {
-                    if( targets.contains(relo._t) ) continue;
-                    targets.add(relo._t);
-                    sb.hex2(iadr).p("  ");
-                    switch( relo._t ) {
-                    case TypeTuple  tt -> {
-                        for( Type tx : tt._types ) {
-                            pN(enc,sb,iadr,align).p(" ");
-                            iadr += (1<<align);
-                        }
-                    }
-
-                    case TypeStruct ts -> {
-                        int sz = ts.size();
-                        int log = 1<<align;
-                        sz = (sz + (log -1)) & -log; // Round up final padding
-                        for( int i=0; i<sz; i++ )
-                            sb.hex1(enc.read1(iadr++));
-                    }
-
-                    // Simple primitive (e.g. larger int, float)
-                    default -> {
-                        pN(enc,sb,iadr,align).fix(9-(1<<align),"");
-                        iadr += (1<<align);
-                    }
-                    }
-                    relo._t.print(sb).nl();
-                }
-            }
+            iadr = (iadr+15)&-16; // pad to 16
+            if( enc._sdata.size()>0 )
+                iadr = printConstantPool(iadr, sb,enc._sdata,enc._bigCons,false, "Static Data"  );
         }
 
         return sb;
     }
 
-    private static SB pN( Encoding enc, SB sb, int iadr, int log ) {
+
+    static int printConstantPool( int iadr, SB sb, BAOS bits, HashMap<Node,Relo> bigCons, boolean ro, String msg ) {
+        sb.p("--- ").p(msg).p(" ------").nl();
+        // radix sort the big constants by alignment
+        Ary<Relo>[] raligns = new Ary[5];
+        for( Node op : bigCons.keySet() ) {
+            Relo relo = bigCons.get(op);
+            // non-constant structs in the r/w data, everything else in r/o data
+            if( (relo._t instanceof TypeStruct ts && !ts.isConstant()) == ro )
+                continue;
+            int align = relo._t.alignment();
+            Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>( Relo.class)) : raligns[align];
+            relos.add(relo);
+        }
+
+        HashSet<Type> targets = new HashSet<>();
+
+        // By alignment
+        int dadr=0;
+        for( int align = 4; align >= 0; align-- ) {
+            Ary<Relo> relos = raligns[align];
+            if( relos == null ) continue;
+            for( Relo relo : relos ) {
+                if( targets.contains(relo._t) ) continue;
+                targets.add(relo._t);
+                sb.hex2(iadr+dadr).p("  ");
+                if( relo._t instanceof TypeStruct ts ) {
+                    int sz = ts.size();
+                    int log = 1<<align;
+                    sz = (sz + (log -1)) & -log; // Round up final padding
+                    for( int i=0; i<sz; i++ )
+                        sb.hex1(bits.read1(iadr+dadr++));
+                } else {
+                    // Simple primitive (e.g. larger int, float)
+                    pN(bits,sb,dadr,align).fix(9-(1<<align),"");
+                    dadr += (1<<align);
+                }
+                relo._t.print(sb).nl();
+            }
+        }
+        return iadr+dadr;
+    }
+
+
+    private static SB pN( BAOS bits, SB sb, int dadr, int log ) {
         switch( log ) {
-        case 0: sb.hex1(enc.read1(iadr)); break;
-        case 1: sb.hex2(enc.read2(iadr)); break;
-        case 2: sb.hex4(enc.read4(iadr)); break;
-        case 3: sb.hex8(enc.read8(iadr)); break;
+        case 0: sb.hex1(bits.read1(dadr)); break;
+        case 1: sb.hex2(bits.read2(dadr)); break;
+        case 2: sb.hex4(bits.read4(dadr)); break;
+        case 3: sb.hex8(bits.read8(dadr)); break;
         }
         return sb;
     }
@@ -100,8 +103,7 @@ public abstract class ASMPrinter {
         if( fun._name != null ) sb.p(fun._name).p(" ");
         fun.sig().print(sb);
         sb.p("---------------------------").nl();
-        if( code._encoding!=null && code._encoding._padFunHeads )
-            iadr = (iadr + 15)&-16; // All function entries padded to 16 align
+        iadr = (iadr + 15)&-16; // All function entries padded to 16 align
 
         if( fun._frameAdjust != 0 )
             iadr = doInst(iadr,sb,code,fun,cfgidx,fun,true,code._encoding!=null);

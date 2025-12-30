@@ -28,6 +28,7 @@ public class ElfWriter {
         static final int SHT_SYMTAB  = 2;
         static final int SHT_STRTAB  = 3;
         static final int SHT_RELA    = 4;
+        static final int SHT_SIMPLE  = 10; // Simple section
 
         final String _name;
         final int _type, _entsize, _index, _name_pos, _flags;
@@ -77,7 +78,7 @@ public class ElfWriter {
         final BAOS _contents;
 
         DataSection( String name, int type, int flags, int entsize ) { this(name, type, flags, entsize, new BAOS() ); }
-        DataSection( String name, int type, int flags, BAOS contents ) { this(name, type, flags, 0, contents ); }
+        DataSection( String name, int type, BAOS contents, int flags ) { this(name, type, flags, 0, contents ); }
         private DataSection( String name, int type, int flags, int entsize, BAOS contents ) {
             super(name, type, entsize, flags);
             _contents = contents;
@@ -235,7 +236,7 @@ public class ElfWriter {
 
     // ------------------------------------------------------------------------
     public class SimpleSection extends DataSection {
-        SimpleSection(BAOS serial) { super(".simple", 0x0A, 0, serial); }
+        SimpleSection(BAOS serial) { super(".simple", SHT_SIMPLE, serial, 0); }
     }
 
 
@@ -252,28 +253,19 @@ public class ElfWriter {
         _strtab = new StringSection();
 
         // place all the symbols
-        int nlocals = 1/*null*/+6/*number of sections*/+1/*Simple section*/;
+        int nlocals = 1/*null*/+7/*number of sections*/+1/*Simple section*/;
         SymbolSection symbols = new SymbolSection(nlocals);
 
-        // we've already constructed this entire section in the encoding phase
-        DataSection text = new DataSection(".text",
-                                           Section.SHT_PROGBITS, DataSection.SHF_ALLOC | DataSection.SHF_WRITE | DataSection.SHF_EXECINSTR,
-                                           _code._encoding._bits );
-
-        // Build and write constant pool
-        BAOS cpool = new BAOS();
+        // we've already constructed these entire sections in the encoding phase
         Encoding enc = _code._encoding;
-        enc.writeConstantPool(cpool,true,false);
-        DataSection rodata = new DataSection(".rodata", Section.SHT_PROGBITS, DataSection.SHF_ALLOC, cpool );
+        DataSection text   = new DataSection(".text"  , Section.SHT_PROGBITS, enc._bits , DataSection.SHF_ALLOC | DataSection.SHF_WRITE | DataSection.SHF_EXECINSTR );
+        // Constant pool
+        DataSection rodata = new DataSection(".rodata", Section.SHT_PROGBITS, enc._cpool, DataSection.SHF_ALLOC );
+        // Static/global pool
+        if( enc._sdata.size() > 0 ) throw Utils.TODO();
+        DataSection rwdata = new DataSection(".data"  , Section.SHT_PROGBITS, enc._sdata, DataSection.SHF_ALLOC | DataSection.SHF_WRITE );
 
-        // Build and write r/w data 
-        BAOS rwpool = new BAOS();
-        enc.writeConstantPool(rwpool,false,false);
-        if( rwpool.size() > 0 )
-            throw Utils.TODO();
-        DataSection rwdata = new DataSection(".data", Section.SHT_PROGBITS, DataSection.SHF_ALLOC, rwpool );
 
-        
         // populate function symbols
         symbols.encodeFunctions(text._index);
 

@@ -66,8 +66,6 @@ public class LoadNode extends MemOpNode {
             t = t.join(mfld._t);
         } else if( mem._t == Type.TOP ) {
             return Type.TOP;
-        } else {
-            assert mem._t == Type.BOTTOM; // No lifting
         }
 
         Type decl = declType();
@@ -139,11 +137,8 @@ public class LoadNode extends MemOpNode {
                 break outer;
             case ConstantNode con:
                 // Load from constant memory
-                if( con._con instanceof TypeMem tmem && tmem._t instanceof TypeStruct ts ) {
-                    Field fld = ts.field(_name);
-                    if( fld!= null && fld._t.isConstant() )
-                        return new ConstantNode(fld._t);
-                }
+                if( con._con instanceof TypeMem tmem )
+                    return new ConstantNode(tmem._t);
                 break outer;  // Assume shortly dead
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
