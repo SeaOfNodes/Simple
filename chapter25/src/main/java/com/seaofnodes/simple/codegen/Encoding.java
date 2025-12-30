@@ -26,7 +26,7 @@ public class Encoding {
     // is in a fixed format depending on the kind of relocation.
 
     // - RIP-relative offsets into the same chunk are just encoded with their
-    //   check relative offsets; no relocation info is required.
+    //   chunk relative offsets; no relocation info is required.
 
     // - Fixed address targets in the same encoding will be correct for a zero
     //   base; moving the entire encoding requires adding the new base address.
@@ -34,13 +34,12 @@ public class Encoding {
     // - RIP-relative to external chunks have a zero offset; the matching
     //   relocation info will be used to patch the correct value.
 
-    final public BAOS _bits = new BAOS();
+    final public BAOS _bits  = new BAOS(); // Instructions / encodings
+    final public BAOS _cpool = new BAOS(); // Constant r/o pool
+    final public BAOS _sdata = new BAOS(); // Static   r/w pool
 
     public int [] _opStart;     // Start  of opcodes, by _nid
     public byte[] _opLen;       // Length of opcodes, by _nid
-
-    // Function headers now padded when printing
-    public boolean _padFunHeads;
 
     // Big Constant relocation info.
     public static class Relo {
@@ -130,7 +129,7 @@ public class Encoding {
     }
 
     // External references only located by Strings a link-time
-    final HashMap<Node,String> _externals = new HashMap<>();
+    public final HashMap<Node,String> _externals = new HashMap<>();
     public Encoding external( Node n, String extern ) {
         _externals.put(n,extern);
         return this;
@@ -162,6 +161,11 @@ public class Encoding {
         // Short-form RIP-relative support: replace long encodings with short
         // encodings and compact the code, changing all the offsets.
         compactShortForm();
+
+        // Write the constant pool
+        writeConstantPool(_cpool,true );
+        // Write the static memory
+        writeConstantPool(_sdata,false);
 
         // Patch RIP-relative and local encodings now.
         patchLocalRelocations();
@@ -396,7 +400,6 @@ public class Encoding {
                 if( n instanceof MachNode && !(n instanceof CFGNode) )
                     _opStart[n._nid] += slide;
         }
-        _padFunHeads = true;
 
         // Copy/slide the bits to make space for all the longer branches
         int grow = _opStart[_code._cfg.at(len-1)._nid] - oldStarts[len-1];
@@ -434,17 +437,17 @@ public class Encoding {
 
     // --------------------------------------------------
     // Write the constant pool into the BAOS and optionally patch locally
-    void writeConstantPool( BAOS bits, boolean ro, boolean patch ) {
+    void writeConstantPool( BAOS bits, boolean ro ) {
         padN(16,bits);
 
         // radix sort the big constants by alignment
         Ary<Relo>[] raligns = new Ary[5];
         for( Node op : _bigCons.keySet() ) {
             Relo relo = _bigCons.get(op);
-            int align = relo._t.alignment();
             // non-constant structs in the r/w data, everything else in r/o data
             if( (relo._t instanceof TypeStruct ts && !ts.isConstant()) == ro )
                 continue;
+            int align = relo._t.alignment();
             Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>(Relo.class)) : raligns[align];
             relos.add(relo);
         }
@@ -453,7 +456,7 @@ public class Encoding {
         // Types can be used more than once; collapse the dups
         HashMap<Type,Integer> targets = new HashMap<>();
 
-        // By alignment for read-only
+        // By alignment
         for( int align = raligns.length-1; align >= 0; align-- ) {
             Ary<Relo> relos = raligns[align];
             if( relos == null ) continue;
@@ -470,12 +473,10 @@ public class Encoding {
                     default -> addN(align,relo._t,bits);
                     }
                 }
-                // Record target address and opcode start
+                // Record target address and opcode start.
+                // Target is relative to the cpool/sdata start.
                 relo._target = target;
                 relo._opStart= _opStart[relo._op._nid];
-                // Go ahead and locally patch in-memory
-                if( patch )
-                    ((RIPRelSize)relo._op).patch(this, relo._opStart, _opLen[relo._op._nid], relo._target - relo._opStart);
             }
         }
 
@@ -490,7 +491,7 @@ public class Encoding {
         : Float.floatToRawIntBits((float)tf.value());
         case TypeFunPtr tfp -> 0; // These need to be relocated
         case TypeMemPtr tmp -> 0; // These need to be relocated
-        default -> throw Utils.TODO();
+        default -> { if( t==Type.NIL ) yield 0; else throw Utils.TODO(); }
         };
         addN(log,x,bits);
     }
@@ -511,7 +512,7 @@ public class Encoding {
                 off += ((TypeConAry)f._t).len();
             } else {
                 int log = f._t.log_size();
-                addN(log,f._t,bits);
+                addN(log,f._t.isConstant() ? f._t : f._t.makeZero(),bits);
                 off += 1<<log;
             }
         }

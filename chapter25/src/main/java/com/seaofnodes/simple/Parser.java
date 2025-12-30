@@ -1020,8 +1020,9 @@ public class Parser {
                 else {
                     Node val = _returnScope.in(i);
                     Field fld = tself._fields[i-newVars-frefs];
+                    Node stmem = isClz ? con(TypeMem.make(fld._alias,fld._t.makeZero(),true)) : smem;
                     // Store value into extended struct
-                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(typeName,fld._fname), val, fld._final));
+                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, stmem, self, off(typeName,fld._fname), val, fld._final));
                     mmm.alias(fld._alias, st);
                 }
             }
@@ -1397,7 +1398,7 @@ public class Parser {
         // Pre-dec/pre-inc
         int old = pos();
         if( match("--") || match("++") ) {
-            int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
+            int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Inc vs Dec
             String name = _lexer.matchId();
             if( name!=null ) {
                 Var n = _scope.lookup(name);
@@ -1526,7 +1527,7 @@ public class Parser {
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return liftExpr(peep(op.widen()),t,true);
+        return liftExpr(peep(op.widen()),t.glb(false),true);
     }
 
 
