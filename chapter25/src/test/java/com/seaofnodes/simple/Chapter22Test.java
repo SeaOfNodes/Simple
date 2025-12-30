@@ -78,9 +78,8 @@ return 0;
     // Should not fold away
     @Test public void testSextFail2() throws IOException {
         String src = """
-
-                struct Person { i32 age;};
-                Person !p = new Person;
+                struct _Person { i32 age;};
+                _Person !p = new _Person;
                 p.age = (arg<<48)>>48;
                 return 0;
         """;
@@ -93,9 +92,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(46, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(60, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
-        assertEquals(56, testCPUSize(src, "arm","SystemV",4,"return 0;"));
+        assertEquals(58, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
+        assertEquals(72, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
+        assertEquals(68, testCPUSize(src, "arm","SystemV",4,"return 0;"));
 
     }
 
@@ -103,8 +102,8 @@ return 0;
     @Test public void testSextSuccess() throws IOException {
         String src = """
 // Should fold away sign extend
-struct Person { i8 age;};
-Person !p = new Person;
+struct _Person { i8 age;};
+_Person !p = new _Person;
 p.age = (arg<<48)>>48;
 return 0;
 """;
@@ -117,9 +116,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(41, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(56, testCPUSize(src, "riscv","SystemV",5,"return 0;"));
-        assertEquals(52, testCPUSize(src, "arm","SystemV",5,"return 0;"));
+        assertEquals(50, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
+        assertEquals(68, testCPUSize(src, "riscv","SystemV",5,"return 0;"));
+        assertEquals(64, testCPUSize(src, "arm","SystemV",5,"return 0;"));
         // do assertEquals here
     }
 

@@ -67,7 +67,7 @@ public abstract class ASMPrinter {
                     int log = 1<<align;
                     sz = (sz + (log -1)) & -log; // Round up final padding
                     for( int i=0; i<sz; i++ )
-                        sb.hex1(bits.read1(iadr+dadr++));
+                        sb.hex1(bits.read1(dadr++));
                 } else {
                     // Simple primitive (e.g. larger int, float)
                     pN(bits,sb,dadr,align).fix(9-(1<<align),"");
