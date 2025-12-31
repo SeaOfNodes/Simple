@@ -38,7 +38,7 @@ public abstract class TestC {
 
         // Compile and export Simple
         String src = Files.readString(Path.of(sfile));
-        run(src,CALL_CONVENTION,arg, "",standalone? null: cfile,efile,"S",expected,spills);
+        run(src,CALL_CONVENTION,arg, "",standalone ? null: cfile, efile,"S",expected,spills);
     }
 
     // link with c and also inline
@@ -75,7 +75,7 @@ public abstract class TestC {
         String obj = bin+".o";
         String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj);
+        CodeGen code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj, cfile==null );
 
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);

@@ -192,6 +192,10 @@ public class ElfWriter {
             }
         }
 
+        void symbolMain(int text_idx) {
+            symbol("main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, 0, 0);
+        }
+
         static void write2( BAOS bits, int op ) {
             bits.write(op    );
             bits.write(op>> 8);
@@ -242,7 +246,7 @@ public class ElfWriter {
 
     // ------------------------------------------------------------------------
 
-    public void export(String fname) {
+    public void export(String fname, boolean main) {
         // Sections are created in the order they are emitted.
 
         // Null section
@@ -268,8 +272,11 @@ public class ElfWriter {
 
         // populate function symbols
         symbols.encodeFunctions(text._index);
+        // The "main" symbol, starting code is always location 0
+        if( main )
+            symbols.symbolMain(text._index);
 
-        // create .text relocations
+        // create external .text relocations
         ReloSection relocations = new ReloSection(text._index);
 
         for( Node n : enc._externals.keySet()) {
