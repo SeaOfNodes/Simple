@@ -22,7 +22,7 @@ public class Chapter25Test {
     public void testSys() throws IOException {
         // Produce lib/sys.o
         CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
-            driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"lib/sys.o");
+            driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"lib/sys.o",false);
 
         TestC.run("sys.io.p(\"Hello, World!\"",TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
 
@@ -43,7 +43,7 @@ val a = { int z -> b(z) * b(z+5); };
 return a(3);
 """;
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LoopTree);
-        code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"build/objs/demoPrint.o");
+        code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"build/objs/demoPrint.o",false);
     }
 
 

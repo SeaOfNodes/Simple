@@ -95,13 +95,13 @@ public class CodeGen {
     // Run requested phases.
 
     // No code emission, just IR generation
-    public CodeGen driver( Phase phase ) { return driver(phase,null,null,null); }
+    public CodeGen driver( Phase phase ) { return driver(phase,null,null,null,false); }
     // No object file writing, but code generation for a specific cpu/os pair (allows emulation)
-    public CodeGen driver( Phase phase, String cpu, String callingConv  ) { return driver(phase,cpu,callingConv,null); }
+    public CodeGen driver( Phase phase, String cpu, String callingConv  ) { return driver(phase,cpu,callingConv,null,false); }
     // Write an object file for a specific cpu/os pair
-    public CodeGen driver( String cpu, String callingConv, String obj ) { return driver(Phase.Export,cpu,callingConv,obj); }
+    public CodeGen driver( String cpu, String callingConv, String obj, boolean main ) { return driver(Phase.Export,cpu,callingConv,obj,main); }
     // Generic driver
-    CodeGen driver( Phase phase, String cpu, String callingConv, String obj ) {
+    CodeGen driver( Phase phase, String cpu, String callingConv, String obj, boolean main ) {
         int p1 = phase.ordinal(), p2 = _phase==null ? -1 : _phase.ordinal();
         if( p2 < p1 && p2 <  Phase.Parse     .ordinal() ) { parse();     p2 = _phase.ordinal(); }
         if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = _phase.ordinal(); }
@@ -114,7 +114,7 @@ public class CodeGen {
         if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) { localSched();p2 = _phase.ordinal(); }
         if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) { regAlloc();  p2 = _phase.ordinal(); }
         if( p2 < p1 && p2 <  Phase.Encoding  .ordinal() ) { encode();    p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.Export    .ordinal() ) { exportELF(obj); p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.Export    .ordinal() ) { exportELF(obj,main); p2 = _phase.ordinal(); }
         return this;
     }
 
@@ -511,12 +511,12 @@ public class CodeGen {
 
     // ---------------------------
     // Exporting to external formats
-    public CodeGen exportELF(String fname) {
+    public CodeGen exportELF(String fname, boolean main) {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
         long t0 = System.currentTimeMillis();
         if( fname == null ) new LinkMem(this).link(); // In memory patching
-        else new ElfWriter(this).export(fname); // External ELF file
+        else new ElfWriter(this).export(fname,main); // External ELF file
         _times[Phase.Export.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }

@@ -311,7 +311,7 @@ Options:
             code.encode();
             dump(code, dump, DUMP_AFTER_ENCODE);
 
-            code.exportELF(out);
+            code.exportELF(out,do_run);
         }
 
         dump(code, dump, DUMP_FINAL);
