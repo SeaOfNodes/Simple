@@ -35,265 +35,203 @@ public class Chapter23Test {
 
     @Test
     public void testOr() throws IOException {
-        String src =
-                """
-                int a = 1;
-                int b = 0;
+        String src = """
+int a = 1;
+int b = 0;
+int rez = 2;
 
-                if(a++ || b++ ) {
-                    if(b == 0 && a == 2) {
-                        sys.io.p("Or");
-                    }
-                } else{
-                    sys.io.p("And");
-                }
-                return 0;
-                """;
+if( a++ || b++ ) {
+    if( b == 0 && a == 2 )
+        rez = 0; // Expected answer
+} else {
+    rez = 1;
+}
+return rez;
+""";
 
-        TestC.runSF("or1", src, null, "Or", 0);
+        TestC.runSF("or1", src, null, "", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "or1", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "or1", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Or",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("or1", src,0, 2, false);
+        EvalArm64 arm = TestArm64.build("or1", src,0, 0, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("Or",arm._stdout.toString());
     }
 
     @Test
     public void testAnd() throws IOException {
-        String src =
-                """
-                int a = 1;
-                int b = 1;
-
-                if(a && b) {
-                    sys.io.p("And");
-                } else {
-                    sys.io.p("Or");
-                }
-                return 0;
-                """;
-        TestC.runSF("and1", src, null, "And", 0);
+        String src = """
+int a = 1;
+int b = 1;
+return a && b ? 0 : 1;  // Expected answer 0
+""";
+        TestC.runSF("and1", src, null, "", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "and1", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and1", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("And",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("and1", src, 0, 2, false);
+        EvalArm64 arm = TestArm64.build("and1", src, 0, 0, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("And",arm._stdout.toString());
     }
 
     @Test
     public void testAndPtr() throws IOException {
         // Todo: have one src here
-        String src =
-                """
-                struct S { S? fld; };
-                val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
-                return ptr && ptr.fld ? "true" : "false";
-                """;
-        String src2 =
-                """
-                struct S { S? fld; };
-
-                val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
-                if( ptr && ptr.fld ) {
-                  sys.io.p("true");
-                } else {
-                  sys.io.p("false");
-                }
-
-                return 0;
-                """;
+        String src = """
+struct S { S? fld; };
+val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
+return ptr && ptr.fld ? "true" : "false";
+""";
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src2, "ptrand", 1, 8, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "ptrand", 1, 8, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("false",R5._stdout.toString());
+        int adr = (int)R5.regs[riscv.A0]; // Returns a Simple *u8[~] string
+        assertEquals(4,R5.ld4s(adr)); // String length
+        assertEquals(0x65757274,R5.ld4s(adr+4)); // "true"
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("ptrand", src2, 1, 8, false);
+        EvalArm64 arm = TestArm64.build("ptrand", src, 1, 8, false);
         trap = arm.step(100);
         assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("false",arm._stdout.toString());
+        int adr2 = (int)arm.regs[0]; // Returns a Simple *u8[~] string
+        assertEquals(4,arm.ld4s(adr2)); // String length
+        assertEquals(0x65757274,arm.ld4s(adr2+4)); // "true"
     }
 
     // conditional side effect
     @Test
     public void testCondSideEffAnd() throws IOException {
-        String src =
-                """
-                int a = 1;
-                int b = 1;
+        String src = """
+int x=1;
+int y=1;
+int z=0;
 
-                int x=1;
-                int y=1;
-                int z=0;
+int g = x++ && y++ && z++;
+return x == 2 && y == 2 && z == 1 && g == 0
+    ? 0  // Effected, Expected
+    : 1; // Error, not effected
+""";
 
-                int g = x++ && y++ && z++;
-
-                if(x == 2 && y == 2 && z == 1 && g == 0) {
-                    sys.io.p("Effected");
-                } else {
-                    sys.io.p("Not effected");
-                }
-                return 0;
-                """;
-
-        TestC.runSF("and2", src, null, "Effected", 0);
+        TestC.runSF("and2", src, null, "", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "and2", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and2", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Effected",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("and2", src, 0, 2, false);
+        EvalArm64 arm = TestArm64.build("and2", src, 0, 0, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("Effected",arm._stdout.toString());
     }
 
     @Test
     public void testCondSideEffOr() throws IOException {
-        String src =
-                """
-                int a = 1;
-                int b = 1;
-
-                int x = -1;
-                int y=1;
-                int z= -1;
-
-                int g = x++ || y++ || z++;
-
-                int switch = 0;
-                if(x == 4 || y == 4 || z == 4) {
-                    switch = -1;
-                } else {
-                    switch = 1;
-                }
-                int cd = 1;
-                if((x == 0 && y == 1 && z==-1) && switch && g) {
-                    sys.io.p("Effected");
-                } else {
-                    sys.io.p("Not effected");
-                }
-                return 0;
-                """;
-        TestC.runSF("or2", src, null, "Effected", 0);
+        String src = """
+int x = -1;
+int y =  1;
+int z = -1;
+int g = x++ || y++ || z++;
+int switch = (x == 4 || y == 4 || z == 4) ? -1 : 1;
+return (x == 0 && y == 1 && z==-1) && switch && g
+    ? 0   // Effected, expected
+    : 1;  // Error
+""";
+        TestC.runSF("or2", src, null, "", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "or2", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "or2", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Effected",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("or2", src, 0, 2, false);
+        EvalArm64 arm = TestArm64.build("or2", src, 0, 0, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("Effected",arm._stdout.toString());
     }
 
     // test it with function calls
     @Test
     public void testFuncCall() throws IOException {
-        String src =
-                """
-                // -*- mode: java;  -*-
-                int a = 1;
-                int b = 1;
-
-                var sq = { int x ->
-                    x*x;
-                };
-
-                if(a && sq(0)) {
-                    sys.io.p("And");
-                } else {
-                    sys.io.p("Or");
-                }
-                return 0;
-                """;
-        TestC.runSF("and3", src, null, "Or", 0);
+        String src = """
+int a = 1;
+int b = 1;
+var sq_noInline = { int x ->
+    x*x;
+};
+return (a && sq_noInline(0))
+    ? 1  // Error
+    : 0; // Expected
+""";
+        TestC.runSF("and3", src, null, "", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Or",R5._stdout.toString());
 
         // Evaluate on ARM emulator
         EvalArm64 arm = TestArm64.build("and3", src, 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("Or",arm._stdout.toString());
     }
 
 
     @Test
     public void testFRefFields() {
-        String src =
-"""
+        String src = """
 // A hypothetical scanner class
-struct Scan {
+struct _Scan {
     int !x;
     u8[~] buf;
     // Skip whitespace
-    val skip = { Scan s ->
-        while( s.buf[s.x] <= ' ' )
-            s.x++;
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
     };
     // Peek a character; if matched consume it, else false.
-    val peek = { Scan s, u8 c ->
-        skip(s);
-        if( s.buf[s.x] != c ) return false;
-        s.x++;
+    val peek = { u8 c ->
+        skip();
+        if( buf[x] != c ) return false;
+        x++;
         return true;
     };
 };
-Scan !s = new Scan{ buf = "  q"; };
-return Scan.peek(s,'q');
-        """;
+_Scan !_s = new _Scan{ buf = "  q"; };
+return _s.peek('q');
+""";
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return Phi(Region,0,1);", code._stop.toString());
+        assertEquals("Stop[ return 0; return Phi(Region,0,1); return #2; ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64"  ,17,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,20,null);
     };
 
     @Test
     public void testFRefFields2() {
-        String src =
-"""
+        String src ="""
 // A hypothetical scanner class
 struct Scan {
     int !x;
@@ -307,19 +245,21 @@ struct Scan {
 };
 val s = new Scan{ buf = "  q"; };
 return s.skip().x;
-        """;
+""";
 
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {1} skip; } #1} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
+        catch( Exception e ) {
+            // Bad error message, but basically requires a mutable 'x' field.
+            assertEquals("Argument #0 isa *Test.Scan {i64 x; *[]u8 buf; { *Test.Scan -> *Test.Scan {i64 !x; *[]u8 buf; {2} skip; } #2} skip; }, but must be a *Test.Scan {i64 !x; *[]u8 buf; { *Test.Scan -> *Test.Scan #2} skip; }",e.getMessage());
+        }
     };
 
 
     @Test
     public void testMethod() {
-        String src =
-"""
+        String src = """
 // A hypothetical scanner class
-struct Scan {
+struct _Scan {
     int !x;
     u8[~] buf;
     // Skip whitespace
@@ -332,12 +272,12 @@ struct Scan {
         buf[x++]==ch;
     };
 };
-Scan !s = new Scan{ buf = "  [1,2]"; };
-return s.require('[');
-        """;
+_Scan !_s = new _Scan{ buf = "  [1,2]"; };
+return _s.require('[');
+""";
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return (.[]==91);", code._stop.toString());
+        assertEquals("Stop[ return 0; return (Parm_ch(require,u8)==.[]); return (.[]==91); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "Win64"  ,16,null);
     };

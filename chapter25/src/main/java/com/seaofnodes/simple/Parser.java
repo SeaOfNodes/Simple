@@ -1476,16 +1476,22 @@ public class Parser {
                 return parsePostfix(rvalue); // No methods on FRefs right now
             else throw error("Cannot read uninitialized field '"+id+"'");
 
+        // Check for a instance field load
+        int kx = _scope.kindx(var); // Declaration scope
+        int fx = _scope.enclosingFunction(); // Enclosing function scope
+        Kind kk = _scope._kinds.at(kx);
+        Kind fk = _scope._kinds.at(fx);
+        // Access instance field from 'self'
+        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method )
+            return parsePostfixName(_scope.in(method._lexSize),var._name);
+
         // Check for a function-escaping variable; these require true
         // closures.  Final constants are OK; final vars require a hidden var
         // argument; not-final fields can just use an explicit struct arg.
-        if( !(var._final && rvalue._type.isConstant()) ) {
-            int kx = _scope.kindx(var); // Declaration scope
-            int fx = _scope.enclosingFunction(); // Enclosing function scope
-            if( kx > 0 && // Global scope is OK, only ever one of these (not one per function invoke)
-                kx < fx )
-                throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
-        }
+        if( !(var._final && rvalue._type.isConstant()) &&
+            kx > 0  && // Global scope is OK, only ever one of these (not one per function invoke)
+            kx < fx )  // Out of scope
+            throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
 
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();

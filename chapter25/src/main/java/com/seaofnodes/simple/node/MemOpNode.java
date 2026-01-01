@@ -70,9 +70,6 @@ public abstract class MemOpNode extends TypeNode {
              types[bais.packed2()],null,null,null);
     }
 
-    public Type declType() { return _con; }
-
-
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
         baos.packed2(_name==null ? 0 : strs.get(_name));
         baos.packed2(aliases.get(_alias));

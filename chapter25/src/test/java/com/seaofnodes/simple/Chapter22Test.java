@@ -48,8 +48,8 @@ return new s0.v1;
     }
 
 
-    static int testCPUSize( String src, String cpu, String os, int spills, String stop ) {
-        return testCPU(src,cpu,os,spills,stop)._encoding._bits.size();
+    static int testCPUSize( String src, String cpu, String os, int spills ) {
+        return testCPU(src,cpu,os,spills, "return 0;" )._encoding._bits.size();
     }
 
     // Should not fold away
@@ -60,9 +60,9 @@ _Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(59, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(72, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
-        assertEquals(68, testCPUSize(src, "arm","SystemV",4,"return 0;"));
+        assertEquals(59, testCPUSize(src, "x86_64_v2","Win64",2 ));
+        assertEquals(72, testCPUSize(src, "riscv","SystemV",4 ));
+        assertEquals(68, testCPUSize(src, "arm","SystemV",4 ));
 
         // do assertEquals here
         EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 4, false);
@@ -92,9 +92,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(59, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(72, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
-        assertEquals(68, testCPUSize(src, "arm","SystemV",4,"return 0;"));
+        assertEquals(59, testCPUSize(src, "x86_64_v2","Win64",2 ));
+        assertEquals(72, testCPUSize(src, "riscv","SystemV",4 ));
+        assertEquals(68, testCPUSize(src, "arm","SystemV",4 ));
 
     }
 
@@ -116,9 +116,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(51, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(68, testCPUSize(src, "riscv","SystemV",5,"return 0;"));
-        assertEquals(64, testCPUSize(src, "arm","SystemV",5,"return 0;"));
+        assertEquals(51, testCPUSize(src, "x86_64_v2","Win64",2 ));
+        assertEquals(68, testCPUSize(src, "riscv","SystemV",5 ));
+        assertEquals(64, testCPUSize(src, "arm","SystemV",5 ));
         // do assertEquals here
     }
 

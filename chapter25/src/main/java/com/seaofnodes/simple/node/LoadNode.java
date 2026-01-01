@@ -44,7 +44,7 @@ public class LoadNode extends MemOpNode {
         // No lifting if ptr might null-check
         Type tptr = ptr()._type;
         if( err() != null )
-            return declType();
+            return _con;
         if( !(tptr instanceof TypeMemPtr tmp) )
             return tptr.oob(); // No pointer yet?  Assume TOP/BOT
         // Load field from object
@@ -52,7 +52,7 @@ public class LoadNode extends MemOpNode {
         // No field?  Open objects might yet get the field when falling;
         // closed objects with missing field are an error.
         if( pfld == null )
-            return tmp.isHigh() ? Type.TOP : declType();
+            return tmp.isHigh() ? Type.TOP : _con;
         Type t = pfld._t;
         // Load member of constant array
         if( t instanceof TypeConAry ary )
@@ -68,7 +68,7 @@ public class LoadNode extends MemOpNode {
             return Type.TOP;
         }
 
-        Type decl = declType();
+        Type decl = _con;
         if( decl.isFinal() )
             t = t.makeRO(); // Deep final applied
         // Pinch between declared type
@@ -145,7 +145,7 @@ public class LoadNode extends MemOpNode {
                 case NewNode nnn1:
                     // Direct load from e.g. new array elements
                     assert _name=="[]";
-                    return new ConstantNode(declType().makeZero());
+                    return new ConstantNode(_con.makeZero());
                 case StartNode  start: break outer;
                 case CallEndNode cend: addDep(mproj); break outer; // TODO: Bypass no-alias call
                 default: throw Utils.TODO();
@@ -185,7 +185,7 @@ public class LoadNode extends MemOpNode {
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
                 Node ld1 = ld(1);
                 Node ld2 = ld(2);
-                return new PhiNode(_name,declType(),memphi.region(),ld1,ld2);
+                return new PhiNode(_name,_con,memphi.region(),ld1,ld2);
             }
         }
 
@@ -194,7 +194,7 @@ public class LoadNode extends MemOpNode {
 
     private Node ld( int idx ) {
         Node mem = mem(), ptr = ptr();
-        return new LoadNode(_loc,_name,_alias,declType(),mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
+        return new LoadNode(_loc,_name,_alias,_con,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
     }
 
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {
@@ -243,7 +243,7 @@ public class LoadNode extends MemOpNode {
     // When a load bypasses a store, the store might truncate bits - and the
     // load will need to zero/sign-extend.
     private Node extend(Node val) {
-        if( !(declType() instanceof TypeInteger ti) ) return val;
+        if( !(_con instanceof TypeInteger ti) ) return val;
         if( ti._min==0 )        // Unsigned
             return new AndNode(null,val,con(ti._max));
         // Signed extension

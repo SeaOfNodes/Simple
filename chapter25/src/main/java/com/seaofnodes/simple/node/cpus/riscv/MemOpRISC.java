@@ -17,7 +17,7 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
         _inputs.setX(3, null);  // Never an index
         _inputs.setX(4, val );
         _off = off;
-        _sz = (char)('0'+(1<<declType().log_size()));
+        _sz = (char)('0'+(1<<_con.log_size()));
     }
 
     @Override public String label() { return op(); }

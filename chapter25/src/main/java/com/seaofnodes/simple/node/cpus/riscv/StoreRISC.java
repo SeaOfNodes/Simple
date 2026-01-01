@@ -44,7 +44,7 @@ public class StoreRISC extends MemOpRISC {
     @Override int func3() {
         int func3 = -1;
         // no unsigned flavour for store, so both signed and unsigned trigger the same
-        Type declType = declType();
+        Type declType = _con;
         if( declType == TypeInteger. I8 || declType == TypeInteger.U8  || declType == TypeInteger.BOOL) func3=0; //   SB
         if( declType == TypeInteger.I16 || declType == TypeInteger.U16 ) func3=1; // SH
         if( declType == TypeInteger.I32 || declType == TypeInteger.U32 ) func3=2; //  SW

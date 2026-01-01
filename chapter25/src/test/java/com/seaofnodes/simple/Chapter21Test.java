@@ -174,7 +174,7 @@ val _hashCodeString = { String self ->
         TestC.run(src, "stringHash",null, "", 9);
     }
 
-    @Test public void testLoop2() throws IOException {
+    @Test public void testLoop2() {
         String src =
 """
 int i = 0;
@@ -393,7 +393,7 @@ val fib = { int n ->
     }
 
     @Test public void testArgCount() throws IOException {
-        // Test passes more args than registers in Sys5, which is far far more
+        // Test passes more args than registers in Sys5, which is far, far more
         // than what Win64 allows - so Win64 gets a lot more spills here.
         String src =
 """

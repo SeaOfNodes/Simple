@@ -64,7 +64,7 @@ public class StoreNode extends MemOpNode {
             return TypeMem.BOT;
         // Sharpen memory value; required for narrowing stores where the parser
         // inserts zero/sign masking and somebody reads the TypeMem type.
-        val = val.join(declType());
+        val = val.join(_con);
 
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
@@ -114,7 +114,7 @@ public class StoreNode extends MemOpNode {
             if( ptr() == esc.self() &&
                 // Multiple users of same alias, one of them must be (eventually) dead.
                 esc.nOuts() == 1 ) {
-                esc.setDef(2,new StoreNode( _loc, _name, _alias, declType(), esc.priv(), ptr(), off(), val(), false ).peephole());
+                esc.setDef(2,new StoreNode( _loc, _name, _alias, _con, esc.priv(), ptr(), off(), val(), false ).peephole());
                 return esc;
             } else {
                 for( Node use : esc._outputs )
@@ -126,7 +126,7 @@ public class StoreNode extends MemOpNode {
 
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
-            int log = declType().log_size();
+            int log = _con.log_size();
             if( log<3 ) {       // And-mask vs narrow store
                 long mask = ((TypeInteger)and.in(2)._type).value();
                 long bits = (1L<<(8<<log))-1;
