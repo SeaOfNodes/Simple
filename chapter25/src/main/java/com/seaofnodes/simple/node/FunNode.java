@@ -230,20 +230,31 @@ public class FunNode extends RegionNode {
         if( visit.get(n._nid) ) return body.get(n._nid);
         visit.set(n._nid);
 
-        if( n instanceof CFGNode && !cfgs.get(n._nid) )
+        if( n instanceof CFGNode && !cfgs.get(n._nid) && unfolded( n ) )
             return false;
-        if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) )
+        if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) && unfolded( n.in( 0 ) ) )
             return false;
         // Data-only cycles are broken by pre-setting the loop Phis in the body
         if( n instanceof RegionNode )
             for( Node phi : n._outputs )
                 if( phi instanceof PhiNode )
                     body.set(phi._nid); // Find data cycles
+        if( n instanceof PhiNode phi && cfgs.get(phi.in(0)._nid) )
+            body.set(phi._nid); // Find data cycles
         boolean in = n.in(0)!=null || n instanceof CFGNode;
         for( Node use : n._outputs )
             in |= walkDown(use,cfgs,body,visit);
         if( in ) body.set(n._nid);
         return in;
+    }
+
+    // A CFG is folding, and so is basically Data
+    private static boolean unfolded( Node cfg) {
+        if( cfg instanceof CallNode call && call.cend().folding() ) return false;
+        if( cfg instanceof CallEndNode cend && cend.folding() ) return false;
+        if( cfg instanceof FunNode fun && fun._folding ) return false;
+        if( cfg instanceof ReturnNode ret && ret._fun._folding ) return false;
+        return true;
     }
 
     // Clone function body.  Give function a new FIDX.
@@ -258,6 +269,7 @@ public class FunNode extends RegionNode {
         visit.clear();
         bodyEdge( visit, body, map, this );
         visit.clear();
+        assert map.size()==body.cardinality();
 
         // New function/return cross-link each other
         FunNode    fun2 = (FunNode   )map.get(this);

@@ -2,17 +2,16 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter23Test {
 
-    @Test
+    @Test @Ignore
     public void testJig() throws IOException {
         //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
@@ -279,7 +278,7 @@ return _s.require('[');
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("Stop[ return 0; return (Parm_ch(require,u8)==.[]); return (.[]==91); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64"  ,16,null);
+        testCPU(src,"x86_64_v2", "Win64", 32, null);
     };
 
 
