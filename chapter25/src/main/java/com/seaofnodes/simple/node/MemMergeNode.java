@@ -177,7 +177,11 @@ public class MemMergeNode extends Node {
                 // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                alias(i, new PhiNode(Parser.memName(i), lhs._type.meet(rhs._type).glb(true), r, lhs, rhs).peephole());
+                Type phit = lhs._type instanceof TypeMem lhst && rhs._type instanceof TypeMem rhst
+                    ? TypeMem.make(i,lhst._t.meet(rhst._t).glb(true), lhst._one & rhst._one)
+                    // Might have e.g. TOP or BOTTOM for error cases
+                    : lhs._type.meet(rhs._type).glb(true);
+                alias(i, new PhiNode(Parser.memName(i), phit, r, lhs, rhs).peephole());
             }
     }
 

@@ -394,10 +394,10 @@ public class x86_64_v2 extends Machine {
     private Node add(AddNode add) {
         Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld.declType().log_size() >= 3)
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._con.log_size() >= 3)
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, 0, rhs);
 
-//        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld.declType().log_size() >= 3) {
+//        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._con.log_size() >= 3) {
 //            throw Utils.TODO(); // Swap load sides
 //        }
 
@@ -483,11 +483,11 @@ public class x86_64_v2 extends Machine {
         // Since cmp does not record a BOP, SetX/Jmp need to know if the CMP is swapped.
 
         // Vs memory
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && rhs._type.isa(ld.declType()) )
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && rhs._type.isa(ld._con) )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
         // Operands swap in the encoding directly, no need for Set/Jmp to swap `bop`
-        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld.declType()) &&
+        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld._con) &&
             (val!=null || bool.op()=="==" || bool.op()=="!=") )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
 

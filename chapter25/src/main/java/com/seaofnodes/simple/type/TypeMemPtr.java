@@ -80,12 +80,12 @@ public class TypeMemPtr extends TypeNil {
     }
 
     @Override
-    TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), _one); }
+    TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), !_one); }
 
     @Override TypeMemPtr rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        TypeMemPtr d = malloc(dual0(), null, _one);
+        TypeMemPtr d = malloc(dual0(), null, !_one);
         (_dual = d)._dual = this; // Cross link duals
         d._obj = _obj._terned ? _obj.dual() : _obj.rdual();
         return d;
