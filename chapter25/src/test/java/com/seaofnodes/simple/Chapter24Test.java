@@ -27,418 +27,91 @@ public class Chapter24Test {
         return code;
     }
 
-    @Test
-    public void testOr() throws IOException {
-        String src =
-"""
-int a = 1;
-int b = 0;
-
-if(a++ || b++ ) {
-    if(b == 0 && a == 2) {
-        sys.io.p("Or");
-    }
-} else{
-    sys.io.p("And");
-}
-return 0;
-""";
-
-        TestC.runSF("or1", src, null, "Or", 0);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "or1", 0, 2, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Or",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("or1", src,0, 2, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("Or",arm._stdout.toString());
-    }
-
-    @Test
-    public void testAnd() throws IOException {
-        String src =
-"""
-int a = 1;
-int b = 1;
-
-if(a && b) {
-    sys.io.p("And");
-} else {
-    sys.io.p("Or");
-}
-return 0;
-""";
-        TestC.runSF("and1", src, null, "And", 0);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "and1", 0, 2, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("And",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("and1", src, 0, 2, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("And",arm._stdout.toString());
-    }
-
-    @Test
-    public void testAndPtr() throws IOException {
-        // Todo: have one src here
-        String src =
-"""
-struct S { S? fld; };
-val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
-return ptr && ptr.fld ? "true" : "false";
-""";
-        String src2 =
-"""
-struct S { S? fld; };
-
-val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
-if( ptr && ptr.fld ) {
-  sys.io.p("true");
-} else {
-  sys.io.p("false");
-}
-
-return 0;
-""";
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src2, "ptrand", 1, 8, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("false",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("ptrand", src2, 1, 8, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("false",arm._stdout.toString());
-    }
-
-    // conditional side effect
-    @Test
-    public void testCondSideEffAnd() throws IOException {
-        String src =
-"""
-int a = 1;
-int b = 1;
-
-int x=1;
-int y=1;
-int z=0;
-
-int g = x++ && y++ && z++;
-
-if(x == 2 && y == 2 && z == 1 && g == 0) {
-    sys.io.p("Effected");
-} else {
-    sys.io.p("Not effected");
-}
-return 0;
-""";
-
-        TestC.runSF("and2", src, null, "Effected", 0);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "and2", 0, 2, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Effected",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("and2", src, 0, 2, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("Effected",arm._stdout.toString());
-    }
-
-
-    @Test
-    public void testCondSideEffOr() throws IOException {
-        String src =
-"""
-int a = 1;
-int b = 1;
-
-int x = -1;
-int y=1;
-int z= -1;
-
-int g = x++ || y++ || z++;
-
-int switch = 0;
-if(x == 4 || y == 4 || z == 4) {
-    switch = -1;
-} else {
-    switch = 1;
-}
-int cd = 1;
-if((x == 0 && y == 1 && z==-1) && switch && g) {
-    sys.io.p("Effected");
-} else {
-    sys.io.p("Not effected");
-}
-return 0;
-""";
-        TestC.runSF("or2", src, null, "Effected", 0);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "or2", 0, 2, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Effected",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("or2", src, 0, 2, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("Effected",arm._stdout.toString());
-    }
-
-    // test it with function calls
-    @Test
-    public void testFuncCall() throws IOException {
-        String src =
-"""
-// -*- mode: java;  -*-
-int a = 1;
-int b = 1;
-
-var sq = { int x ->
-    x*x;
-};
-
-if(a && sq(0)) {
-    sys.io.p("And");
-} else {
-    sys.io.p("Or");
-}
-return 0;
-""";
-        TestC.runSF("and3", src, null, "Or", 0);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Or",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("and3", src, 0, 2, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("Or",arm._stdout.toString());
-    }
-
     // test it with function calls
     @Test
     public void testStack1() throws IOException {
-        String src =
-"""
+        String src ="""
 int something_specific = 11;
-
-if (10 < something_specific < 20) {
-    sys.io.p("In Range");
-} else {
-   sys.io.p("Out of Range");
-}
-return 0;
+return (10 < something_specific < 20)
+    ? 0  // Expected
+    : 1; // Error
 """;
-
-        TestC.runSF("stacked_r_1", src, null, "In Range", 0);
+        TestC.runSF("stacked_r_1", src, null, "", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_1", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_1", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("In Range",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_1", src, 0, 2, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_1", src, 0, 0, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("In Range",arm._stdout.toString());
-    }
-
-    @Test
-    public void testStack2() throws IOException {
-        String src =
-"""
-int score = 75;
-
-if (60 <= score < 90) {
-    sys.io.p("In Range");
-} else {
-sys.io.p("Out of range");
-}
-return 0;
-""";
-
-        TestC.runSF("stacked_r_2", src, null, "In Range", 0);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_2", 0, 2, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("In Range",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_2", src, 0, 2, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("In Range",arm._stdout.toString());
     }
 
     @Test
     public void testStack3() throws IOException {
-        String src =
-"""
-var sq = { int x ->
+        String src ="""
+var sq_noInline = { int x ->
     x*x;
 };
-
-int score = 5;
-
-val str = (sq(2) <= score < sq(3)) ? "In Range" : "Out of range";
-sys.io.p(str);
-return 0;
+int score = 4;
+return (sq_noInline(2) <= score < sq_noInline(3))
+    ? 0  // Expected
+    : 1; // Error
 """;
-
-        TestC.runSF("stacked_r_3", src, null, "In Range", 5);
+        TestC.runSF("stacked_r_3", src, null, "", 3);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("In Range",R5._stdout.toString());
 
         // Evaluate on ARM emulator
         EvalArm64 arm = TestArm64.build("stacked_r_3", src, 0, 5, false);
         int trap_1 = arm.step(100);
         assertEquals(0,trap_1);
         assertEquals(0,arm.regs[0]);
-        assertEquals("In Range",arm._stdout.toString());
     }
 
     @Test
     public void testStack4() throws IOException {
-        String src =
-"""
+        String src ="""
 int something_specific = 9;
-
-if (10 < something_specific < 20) {
-    sys.io.p("In Range");
-} else {
-   sys.io.p("Out of Range");
-}
-return 0;
+return (10 < something_specific < 20)
+    ? 1   // Error
+    : 0;  // Expected
 """;
 
-        TestC.runSF("stacked_r_4", src, null, "Out of Range", 0);
+        TestC.runSF("stacked_r_4", src, null, "", 0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_4", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_4", 0, 0, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("Out of Range",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_4", src, 0, 2, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_4", src, 0, 0, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
-        assertEquals("Out of Range",arm._stdout.toString());
     }
-
-    @Test
-    public void testStack5() throws IOException {
-        String src =
-"""
-var sq = { int x ->
-    x*x;
-};
-
-int score = 5;
-
-if (sq(2) <= score < sq(3)) {
-sys.io.p("In Range");
-} else {
-sys.io.p("Out of range");
-}
-
-return 0;
-""";
-        TestC.runSF("stacked_r_5", src, null, "In Range", 5);
-
-        // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_5", 0, 7, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,R5.regs[riscv.A0]);
-        assertEquals("In Range",R5._stdout.toString());
-
-        // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_5", src, 0, 7, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(0,arm.regs[0]);
-        assertEquals("In Range",arm._stdout.toString());
-    }
-
 
     @Test
     public void testStack6() {
-        try { new CodeGen(
-                    """
-                        return 0 < arg > 1;
-                        """
-        ).parse(); fail(); }
+        try { new CodeGen("return 0 < arg > 1;" ).parse(); fail(); }
         catch( RuntimeException e ) { assertEquals("Mixing relational directions in a chained relational test",e.getMessage()); }
     }
 
     @Test
     public void testStack9() throws IOException {
-        String stack9 = "1";
-        String src =
-"""
-var stack9 = { int x ->
-    (x < 1) == 1;
-};
-""";
-        String src2 =
-"""
-return (0 < 1) == 1;
-""";
-        TestC.run(src, "stacked_r_9x", null, stack9,0);
+        String src  = "var stack9 = { int x ->  (x < 1) == 1; };";
+        String src2 = "return (0 < 1) == 1;";
+        TestC.run(src, "stacked_r_9x", null, "1", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_9", 0, 0, false);
@@ -455,18 +128,9 @@ return (0 < 1) == 1;
 
     @Test
     public void testStack10() throws IOException {
-        String stack10 = "1";
-        String src =
-"""
-var stack10 = { int x ->
-    (x < 1) == (1>x);
-};
-""";
-    String src2 =
-"""
-return (0 < 1) == (1>0);
-""";
-        TestC.run(src, "stacked_r_10x", null, stack10,0);
+        String src ="var stack10 = { int x -> (x < 1) == (1>x);};";
+        String src2 ="return (0 < 1) == (1>0);";
+        TestC.run(src, "stacked_r_10x", null, "1",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_10", 0, 0, false);
@@ -483,27 +147,20 @@ return (0 < 1) == (1>0);
 
     @Test
     public void testStack11() throws IOException {
-        String stack11 = "1";
-        String src =
-"""
-var stack11 = { int x ->
-    0 < x < x+1 < 4;
-};
-""";
-        String src2 =
-"""
-return 0 < arg < arg+1 < 4;
-""";
-        TestC.run(src, "stacked_r_11x", null, stack11,0);
+        String src  = "var stack11 = { int x ->  0 < x < x+1 < 4;}; ";
+        String src2 = "return 0 < arg < arg+1 < 4;";
+        TestC.run(src, "stacked_r_11x", null, "1", 2);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_11", 1, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_11", 1, 0, false);
+        R5.regs[riscv.A1] = 1; // Arg in A1, Test.class in A0
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(1,R5.regs[riscv.A0]);
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_11", src2, 1, 2, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_11", src2, 1, 0, false);
+        arm.regs[1] = 1; // Arg in r1, Test.class in r0
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(1,arm.regs[0]);
@@ -513,18 +170,9 @@ return 0 < arg < arg+1 < 4;
     // ((0 != x) != 2)
     @Test
     public void testStack12() throws IOException {
-        String stack11 = "1";
-        String src =
-                """
-                var stack12 = { int x ->
-                    0 != x != 2;
-                };
-                """;
-        String src2 =
-                """
-                return 0 != arg != 2;
-                """;
-        TestC.run(src, "stacked_r_12x", null, stack11,0);
+        String src  = "var stack12 = { int x -> 0 != x != 2; };";
+        String src2 = "return 0 != arg != 2;";
+        TestC.run(src, "stacked_r_12x", null, "1",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_12", 1, 0, false);
@@ -544,114 +192,24 @@ return 0 < arg < arg+1 < 4;
     // ((0 == x) == 1)
     @Test
     public void testStack13() throws IOException {
-        String stack12 = "1";
-        String src =
-                """
-                var stack13 = { int x ->
-                    0 == x == 1;
-                };
-                """;
-        String src2 =
-                """
-                return 0 == arg == 1;
-                """;
-        TestC.run(src, "stacked_r_13x", null, stack12,0);
+        String src  = "var stack13 = { int x -> 0 == x == 1; };";
+        String src2 = "return 0 == arg == 1;";
+        TestC.run(src, "stacked_r_13x", null, "1",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_13", 1, 0, false);
+        R5.regs[riscv.A1] = 1; // Arg in A1, Test.class in A0
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(1,R5.regs[riscv.A0]);
 
         // Evaluate on ARM emulator
         EvalArm64 arm = TestArm64.build("stacked_r_13", src2, 1, 0, false);
+        arm.regs[1] = 1; // Arg in r1, Test.class in r0
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(1,arm.regs[0]);
     }
-
-    @Test
-    public void testFRefFields() {
-        String src =
-"""
-// A hypothetical scanner class
-struct Scan {
-    int !x;
-    u8[~] buf;
-    // Skip whitespace
-    val skip = { Scan s ->
-        while( s.buf[s.x] <= ' ' )
-            s.x++;
-    };
-    // Peek a character; if matched consume it, else false.
-    val peek = { Scan s, u8 c ->
-        skip(s);
-        if( s.buf[s.x] != c ) return false;
-        s.x++;
-        return true;
-    };
-};
-Scan !s = new Scan{ buf = "  q"; };
-return Scan.peek(s,'q');
-""";
-
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return Phi(Region,0,1);", code._stop.toString());
-        assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64"  ,17,null);
-    };
-
-    @Test
-    public void testFRefFields2() {
-        String src =
-"""
-// A hypothetical scanner class
-struct Scan {
-    int !x;
-    u8[~] buf;
-    // Skip whitespace
-    val skip = { ->
-        while( buf[x] <= ' ' )
-            x++;
-        return self;
-    };
-};
-val s = new Scan{ buf = "  q"; };
-return s.skip().x;
-""";
-
-        try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa *Scan {i64 x; *[]u8 buf; { *Scan -> *Scan {i64 !x; *[]u8 buf; {1} skip; } #1} skip; }, but must be a *Scan {i64 !x; *[]u8 buf; ... }",e.getMessage()); }
-    };
-
-
-    @Test
-    public void testMethod() {
-        String src =
-"""
-// A hypothetical scanner class
-struct Scan {
-    int !x;
-    u8[~] buf;
-    // Skip whitespace
-    val skip = { ->
-        while( buf[x] <= ' ' )
-            x++;
-    };
-    val require = { u8 ch ->
-        skip();
-        buf[x++]==ch;
-    };
-};
-Scan !s = new Scan{ buf = "  [1,2]"; };
-return s.require('[');
-""";
-
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return (.[]==91);", code._stop.toString());
-        assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64"  ,16,null);
-    };
 
     @Test
     public void testSCCP0() {

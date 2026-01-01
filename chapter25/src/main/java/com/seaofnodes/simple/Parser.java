@@ -1268,46 +1268,64 @@ public class Parser {
      */
     private Node parseComparison() {
         Node lhs = parseShift();
-        int dir = 0;
+        int dir = parseCompDir();
+        // No compare
+        if( dir==0 ) return lhs;
 
-        while( true ) {
-            int dir0;
-            if( false ) ;
-            else if( match("<=" ) ) dir0 = -1;
-            else if( match(">=" ) ) dir0 = -2;
-            else if( match("<"  ) ) dir0 =  1;
-            else if( match(">"  ) ) dir0 =  2;
-            else break;
-            lhs.keep();
-            // Check and record direction
-            if( dir==0 ) {
-                dir = Math.abs(dir0);
-                Node rhs = parseShift();
-                lhs = makeCompBool(dir0,lhs.unkeep(),rhs); // Convert to a bool
-            } else if( dir == Math.abs(dir0) ) {
-                // e0 < lhs < ???
-                Node ifNode = new IfNode(ctrl(), lhs).peephole();
-                Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole();
-                Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
-                // False side does nothing
-                ScopeNode fScope = _scope.dup();
-                fScope.ctrl(ifF);
-                // True side executes next part of range
-                ctrl(ifT);
-                _scope.addGuards(ifT,lhs,false);
-                Node rhs = parseShift();
-                _scope.removeGuards(ifT); // TODO: I think should remain true as long as possible
-                Node next = makeCompBool(dir0, lhs, rhs).keep();
-                // Merge result
-                RegionNode r = ctrl(_scope.mergeScopes(fScope, loc()));
-                assert next._type.meet(lhs._type).isa( TypeInteger.BOOL );
-                lhs = peep(new PhiNode("",TypeInteger.BOOL,r,next.unkeep(),lhs.unkeep()));
-                r.peephole();
-            } else {
-                throw error("Mixing relational directions in a chained relational test");
-            }
+        // Compare
+        Node rhs = parseShift().keep();
+        Node cmp = makeCompBool(dir,lhs,rhs); // Convert to a bool
+
+        // Stacked compares?
+        int dir0 = parseCompDir();
+        if( dir0 == 0 ) {
+            rhs.unkeep();
+            if( rhs != cmp ) rhs.isKill();
+            return cmp;
         }
-        return lhs;
+
+        // rhs is keeped() and becomes lhs
+        // cmp is NOT keeped() and is the last test
+        Node ifNode = new IfNode(ctrl(), cmp).peephole();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+        // False side does nothing but capture memory & side-effects
+        ScopeNode fail = _scope.dup();
+        fail.ctrl(ifF);
+
+        // Loop over stacked compares.  Each loop moves the old RHS to become
+        // the new LHS, so e.g. (a < b < c < d) compares (LHS:a < RHS:b) then
+        // compares (LHS:b < RHS:c) then (LHS:c < RHS:d), etc.
+        while( dir0 != 0 ) {
+            if( Math.abs(dir) != Math.abs(dir0) )
+                throw error("Mixing relational directions in a chained relational test");
+            // True side parses next arm of test
+            ctrl(ifT);
+            lhs = rhs;          // lhs is keeped() and is old RHS
+            rhs = parseShift().keep();
+            cmp = makeCompBool(dir,lhs.unkeep(),rhs); // Convert to a bool
+            ifNode = new IfNode(ctrl(), cmp).peephole();
+            ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole();
+            ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+            // Merge result into the fail case
+            ctrl(ifF);
+            fail.mergeScopes(_scope.dup(), loc()).peephole();
+            // Check next stacked compare
+            dir0 = parseCompDir();
+        }
+        rhs.unkill();
+        ctrl(ifT);
+        RegionNode r = fail.mergeScopes(_scope, loc()).init();
+        _scope = fail;
+        return new PhiNode("",TypeInteger.BOOL,r,ZERO,con(1)).peephole();
+    }
+
+    private int parseCompDir() {
+        if( match("<=") ) return -1; // Negative for "equals-or-less"
+        if( match(">=") ) return -2; // 1 for <, 2 for >
+        if( match("<" ) ) return  1; // Positive for just "less"
+        if( match(">" ) ) return  2;
+        return 0;
     }
 
     private Node makeCompBool( int dir0, Node lhs, Node rhs ) {
@@ -1317,7 +1335,6 @@ public class Parser {
         lhs = peep(dir0 < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs));
         return peep(lhs.widen());
     }
-
 
     /**
      * Parse an additive expression
