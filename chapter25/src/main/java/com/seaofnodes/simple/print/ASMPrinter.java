@@ -73,7 +73,7 @@ public abstract class ASMPrinter {
                     pN(bits,sb,dadr,align).fix(9-(1<<align),"");
                     dadr += (1<<align);
                 }
-                relo._t.print(sb).nl();
+                relo._t.print(sb.p('\t')).nl();
             }
         }
         return iadr+dadr;

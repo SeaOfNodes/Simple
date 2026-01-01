@@ -66,8 +66,8 @@ test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 # These tests do not rely on the stdlib
-test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20
-test_raw_nums1 := 21 22
+test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21
+test_raw_nums1 := 22 23
 test_raw0    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums0))
 test_raw1    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums1))
 test_cp0     := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))

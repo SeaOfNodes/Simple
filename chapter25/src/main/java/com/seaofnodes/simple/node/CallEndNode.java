@@ -36,6 +36,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     @Override public boolean blockHead() { return true; }
 
     public CallNode call() { return (CallNode)in(0); }
+    boolean folding() { return _folding; }
 
     @Override public CFGNode idom(Node dep) {
         // Folding the idom is the one inlining Return
