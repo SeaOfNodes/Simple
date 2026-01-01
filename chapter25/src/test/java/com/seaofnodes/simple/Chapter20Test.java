@@ -73,7 +73,7 @@ val _test_sqrt = { flt x ->
     flt guess = x;
     while( 1 ) {
         flt next = (x/guess + guess)/2;
-        if( guess-epsilon <= next <= guess+epsilon )
+        if( guess-epsilon <= next && next <= guess+epsilon )
             return guess;
         guess = next;
     }
@@ -81,8 +81,8 @@ val _test_sqrt = { flt x ->
 flt farg = arg; return _test_sqrt(farg) + _test_sqrt(farg+2.0);
 """;
         testCPU(src,"x86_64_v2", "SystemV",100,null);
-        testCPU(src,"riscv"    , "SystemV",34,null);
-        testCPU(src,"arm"      , "SystemV",36,null);
+        testCPU(src,"riscv"    , "SystemV",50,null);
+        testCPU(src,"arm"      , "SystemV",52,null);
     }
 
     @Test
