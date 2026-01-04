@@ -88,9 +88,7 @@ public class ReturnNode extends CFGNode {
     }
     // Correct Nodes outside the normal edges
     public void postSelect(CodeGen code) {
-        FunNode fun = (FunNode)rpc().in(0);
-        _fun = fun;
-        fun.setRet(this);
+        _fun.setRet(this);
     }
     public RegMask regmap(int i) {
         return i==2

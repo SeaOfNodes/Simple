@@ -57,11 +57,11 @@ public class StoreNode extends MemOpNode {
         Type mem0 = mem()._type;
         Type ptr0 = ptr()._type;
         // Validate argument types
-        if( mem0.isHigh() || ptr0.isHigh() )
+        if( ptr0.isHigh() )
             return TypeMem.TOP;
         if( !(mem0 instanceof TypeMem    mem) ||
             !(ptr0 instanceof TypeMemPtr ptr) )
-            return TypeMem.BOT;
+            return mem0.isHigh() ? TypeMem.TOP : TypeMem.BOT;
         // Sharpen memory value; required for narrowing stores where the parser
         // inserts zero/sign masking and somebody reads the TypeMem type.
         val = val.join(_con);
@@ -76,16 +76,13 @@ public class StoreNode extends MemOpNode {
         // Normal aliasing Store.
         assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
         // Same alias, meet into other fields
-        Type t = mem._alias == _alias ? val.meet(mem._t) : Type.BOTTOM;
+        Type t = val.meet(mem._t);
         return TypeMem.make(_alias,t,false);
     }
 
     @Override
     public Node idealize() {
-        if( mem() instanceof CastNode cast ) {
-            setDef(1,cast.in(1));
-            return this;
-        }
+        assert !(mem() instanceof CastNode);
 
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
@@ -154,6 +151,7 @@ public class StoreNode extends MemOpNode {
                 return this;
             }
         }
+
         return null;
     }
 

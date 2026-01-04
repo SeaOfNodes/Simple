@@ -18,7 +18,6 @@
 // libc bindings:
 //   https://www.man7.org/linux/man-pages/man2/<libc call>.2.html
 struct libc {
-    i32 errno = "C";
     // fd  buf len -> len
     {  i32 i64 u32 -> u32 } write = "C";
     // fd  buf len -> len
@@ -55,7 +54,7 @@ struct aryu8 {
         if( len+len2 < buf# ) return self;
         int newlen = buf# * 2;
         while( len+len2 >= newlen ) newlen *= 2;
-        u8[] buf2 = new u8[newlen];
+        u8[] !buf2 = new u8[newlen];
         Ary.copy(buf2,0,buf,0,buf#);
         buf = buf2;
         self;
@@ -145,7 +144,7 @@ struct aryi64 {
         if( len+len2 < buf# ) return self;
         int newlen = buf# * 2;
         while( len+len2 >= newlen ) newlen *= 2;
-        i64[] buf2 = new i64[newlen];
+        i64[] !buf2 = new i64[newlen];
         for( int i=0; i<buf#; i++ )
             buf2[i] = buf[i];
         buf = buf2;

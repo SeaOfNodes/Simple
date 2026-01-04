@@ -194,7 +194,6 @@ public class Parser {
         // closed-over types.
         _code._stop.walk( n -> n.upgradeType(TYPES) );
 
-
         // Gather top-level exported symbols
         for( Type t : TYPES.values() )
             if( t instanceof TypeStruct ts &&!ts.isAry() )
@@ -850,9 +849,12 @@ public class Parser {
         boolean fld_final = false; // Field is final, but not deeply final
         Node expr;
         if( match("=") ) {
-            expr = isExternDecl()
-                ? externDecl(name,t)
-                : parseAsgn();
+            if( isExternDecl() ) {
+                expr = externDecl(name,t);
+                t = expr._type; // Upgrade declared type to the exact extern decl type
+            } else {
+                expr = parseAsgn();
+            }
             // TOP means val and val is always final
             xfinal = (t==Type.TOP) ||
                 expr instanceof ExternNode ||
@@ -881,8 +883,9 @@ public class Parser {
 
             // expr is a constant function
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
-                if( expr instanceof ExternNode ) t = expr._type; // Upgrade declared type to exact function
-                else _code.link(tfp).setName(name); // Assign debug name to Simple function
+                FunNode fun = _code.link(tfp);
+                if( fun != null )
+                    fun.setName(name); // Assign debug name to Simple function
             }
 
         } else {
@@ -1954,10 +1957,13 @@ public class Parser {
         return false;
     }
     // External linked constant
-    private Node externDecl( String ex, Type t ) {
-        if( t instanceof TypeFunPtr tfp ) // Generic TFP from type parse
-            t  = _code.makeFun(tfp);      // Get a FIDX, becomes a constant
-        return new ExternNode(t,ex).peephole();
+    private ConstantNode externDecl( String ex, Type t ) {
+        if( t instanceof TypeFunPtr tfp ) { // Generic TFP from type parse
+            tfp = _code.makeFun(tfp);       // Get a FIDX, becomes a constant
+            _code.externFunc(tfp.fidx(),ex);  // Map fidx to extern name
+            return con(tfp);
+        }
+        return (ExternNode)(new ExternNode(t,ex).peephole());
     }
 
     /**

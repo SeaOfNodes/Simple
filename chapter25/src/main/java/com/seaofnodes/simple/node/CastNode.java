@@ -69,6 +69,8 @@ public class CastNode extends TypeNode {
         for( Node use : _outputs )
             if( (use instanceof StoreNode st && st._init && !((TypeMemPtr)st.ptr()._type)._obj._name.startsWith("class") ) )
                 init = st;
+            else if( (use instanceof StoreNode st && st.val() instanceof CastNode cast && cast.in(1)._type == Type.BOTTOM) )
+                /*bogus init store in constructor*/;
             else bad = true;
         if( !bad ) return null;
         // Expecting an init store
