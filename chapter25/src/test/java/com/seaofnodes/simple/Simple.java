@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -10,31 +11,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.stream.Collectors;
 
 public class Simple {
-    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
-
-    static final int DUMP_AFTER_PARSE        = 1<<0;
-    static final int DUMP_AFTER_OPTO         = 1<<1;
-    static final int DUMP_AFTER_TYPE_CHECK   = 1<<2;
-    static final int DUMP_AFTER_LOOP_TREE    = 1<<3;
-    static final int DUMP_AFTER_SELECT       = 1<<4;
-    static final int DUMP_AFTER_GCM          = 1<<5;
-    static final int DUMP_AFTER_LOCAL_SCHED  = 1<<6;
-    static final int DUMP_AFTER_REG_ALLOC    = 1<<7;
-    static final int DUMP_AFTER_ENCODE       = 1<<8;
-
-    static final int DUMP_FINAL              = 1<<16;
-
-    static final int DUMP_DOT                = 1<<29;
-    static final int DUMP_PASS_NAME          = 1<<30;
-    static final int DUMP_AFTER_ALL          = 0xff | DUMP_PASS_NAME;
-    static final int DUMP_DOT_AFTER_ALL      = 0xff | DUMP_DOT;
-
-    static final int DUMP_DISASSEMBLE        = 1<<31;
-
     static void usage() {
         System.out.println(
 """
@@ -47,10 +26,9 @@ Options:
          files are relative paths to this.  If missing, the one input
          file path is treated as its own root directory.
 
-  -o output - Project output directory; similar to --root, if this ends in a
-     '/', then all output files are relative paths to this using the input file
-     root-relative path.  If --root is missing, the one result file is placed
-     here, using this path as the output directory.
+  -o output - Project output directory; similar to --root, if 'output' ends in a
+     '/', then all result files use relative paths to 'output', using a input file
+     root-relative path.  If --root is missing, the one result file is named 'output'
 
   --eval                   - (slowly) evaluate the compiled code in emulator
   --run                    - run the compiled code natively; this is the default
@@ -61,7 +39,6 @@ Options:
   -S                       - dump generated assembler code
   --dump-size              - print the size of generated code
   --dump-time              - print compilation and execution times
-  --dump                   - dump final intermediate representation
   --dump-after-parse       - dump intermediate representation after parse
   --dump-after-opto        - dump intermediate representation after opto pass
   --dump-after-type-check  - dump intermediate representation after type check pass
@@ -71,13 +48,14 @@ Options:
   --dump-after-reg-alloc   - dump intermediate representation after register allocation pass
   --dump-after-encode      - dump intermediate representation after encoding pass
   --dump-after-all         - dump intermediate representation after all passes
+  --dump                   - dump final intermediate representation only
   --dot                    - dump grapical representation of intermediate code into *.dot file(s)
 """
 );
         System.exit(0);
     }
 
-    static void bad_usage() { bad("Invalid usage (use --help)"); }
+    static void bad_usage() { throw bad("Invalid usage (use --help)"); }
     static RuntimeException bad(String err) {
         System.err.println("ERROR: "+err);
         System.exit(1);
@@ -90,64 +68,10 @@ Options:
         System.out.println(TestC.CALL_CONVENTION);
     }
 
-    static void dump(CodeGen code, int dump, int pass) {
-        if ((dump & pass) != 0) {
-            if ((dump & DUMP_DOT) != 0) {
-                String fn = switch (pass) {
-                case DUMP_AFTER_PARSE        -> "01-parse.dot";
-                case DUMP_AFTER_OPTO         -> "02-opto.dot";
-                case DUMP_AFTER_TYPE_CHECK   -> "03-type_check.dot";
-                case DUMP_AFTER_LOOP_TREE    -> "04-loop_tree.dot";
-                case DUMP_AFTER_SELECT       -> "05-instr_select.dot";
-                case DUMP_AFTER_GCM          -> "06-gcm.dot";
-                case DUMP_AFTER_LOCAL_SCHED  -> "07-local_sched.dot";
-                case DUMP_AFTER_REG_ALLOC    -> "08-reg_allos.dot";
-                case DUMP_AFTER_ENCODE       -> "09-local_sched.dot";
-                case DUMP_FINAL              -> "10-final.dot";
-                default                      -> throw Utils.TODO();
-                };
-
-                try {
-                    Files.writeString(Path.of(fn),
-                                      new GraphVisualizer().generateDotOutput(code._stop, null, null));
-                } catch(IOException e) { throw bad("Cannot write DOT file"); }
-            } else {
-                if ((dump & DUMP_PASS_NAME) != 0) {
-                    System.err.println(switch (pass) {
-                        case DUMP_AFTER_PARSE        -> "After Parse:";
-                        case DUMP_AFTER_OPTO         -> "After OPTO:";
-                        case DUMP_AFTER_TYPE_CHECK   -> "After Type Check:";
-                        case DUMP_AFTER_LOOP_TREE    -> "After Loop Tree:";
-                        case DUMP_AFTER_SELECT       -> "After Code Selection:";
-                        case DUMP_AFTER_GCM          -> "After GCM:";
-                        case DUMP_AFTER_LOCAL_SCHED  -> "After Local Scheduling:";
-                        case DUMP_AFTER_REG_ALLOC    -> "After Register Allocation:";
-                        case DUMP_AFTER_ENCODE       -> "After Encoding:";
-                        case DUMP_FINAL              -> "Final:";
-                        default                      -> throw Utils.TODO();
-                    });
-                }
-
-                System.err.println(IRPrinter.prettyPrint(code._stop, 9999));
-            }
-        }
-    }
-
-    static void print_compilation_times(CodeGen code, long total) {
+    static void print_compilation_times(CodeGen code) {
         long[] times = code._times;
-
-        System.out.printf( "Parsing Time:             %.3f sec%n", times[CodeGen.Phase.Parse     .ordinal()]);
-        System.out.printf( "Optimization Time:        %.3f sec%n", times[CodeGen.Phase.Opto      .ordinal()]);
-        System.out.printf( "Type Checking Time:       %.3f sec%n", times[CodeGen.Phase.TypeCheck .ordinal()]);
-        System.out.printf( "Loop Tree Time:           %.3f sec%n", times[CodeGen.Phase.LoopTree  .ordinal()]);
-        System.out.printf( "Code Selection Time:      %.3f sec%n", times[CodeGen.Phase.Select    .ordinal()]);
-        System.out.printf( "Unlink Time:              %.3f sec%n", times[CodeGen.Phase.Unlink    .ordinal()]);
-        System.out.printf( "GCM Time:                 %.3f sec%n", times[CodeGen.Phase.Schedule  .ordinal()]);
-        System.out.printf( "Local Scheduling Time:    %.3f sec%n", times[CodeGen.Phase.LocalSched.ordinal()]);
-        System.out.printf( "Register Allocation Time: %.3f sec%n", times[CodeGen.Phase.RegAlloc  .ordinal()]);
-        System.out.printf( "Encoding Time:            %.3f sec%n", times[CodeGen.Phase.Encoding  .ordinal()]);
-        System.out.printf( "Export Time:              %.3f sec%n", times[CodeGen.Phase.Export    .ordinal()]);
-        System.out.printf( "TOTAL COMPILATION TIME:   %.3f sec%n", total);
+        for( int i=0; i<code._times.length; i++ )
+            System.out.printf("%20s %.3f sec%n", Phase.values()[i], times[i]);
     }
 
     static String getInput() {
@@ -156,15 +80,15 @@ Options:
     }
 
     public static void main(String[] args) throws Exception {
-        long t0 = System.currentTimeMillis();
-
         String root = null;
         String input_filename = null;
         boolean do_eval = false;
         boolean do_run = true;
         boolean do_codegen = false;
-        boolean do_print_size = false;
-        boolean do_print_time = false;
+        boolean dump_dot = false;
+        boolean print_time = false;
+        boolean print_size = false;
+        boolean print_asm = false;
         int dump = 0;
         int first_arg = 0;
         String src = null;
@@ -182,24 +106,25 @@ Options:
 
             switch (arg) {
             case "-":                         input_filename=""; break;
-            case "--dump":                    dump |= DUMP_FINAL; break;
-            case "--dump-after-parse":        dump |= DUMP_AFTER_PARSE; break;
-            case "--dump-after-opto":         dump |= DUMP_AFTER_OPTO; break;
-            case "--dump-after-type-check":   dump |= DUMP_AFTER_TYPE_CHECK; break;
-            case "--dump-after-loop-tree":    dump |= DUMP_AFTER_LOOP_TREE; break;
-            case "--dump-after-select":       dump |= DUMP_AFTER_SELECT; break;
-            case "--dump-after-gcm":          dump |= DUMP_AFTER_GCM; break;
-            case "--dump-after-local-sched":  dump |= DUMP_AFTER_LOCAL_SCHED; break;
-            case "--dump-after-reg-alloc":    dump |= DUMP_AFTER_REG_ALLOC; break;
-            case "--dump-after-encode":       dump |= DUMP_AFTER_ENCODE; break;
-            case "--dump-after-all":          dump |= DUMP_AFTER_ALL; break;
-            case "--dot":                     dump |= DUMP_DOT; break;
-            case "-S":                        dump |= DUMP_DISASSEMBLE; break;
+            case "--dump-after-parse":        dump |=  1<<Phase.Parse     .ordinal()   ; break;
+            case "--dump-after-opto":         dump |=  1<<Phase.Opto      .ordinal()   ; break;
+            case "--dump-after-type-check":   dump |=  1<<Phase.TypeCheck .ordinal()   ; break;
+            case "--dump-after-loop-tree":    dump |=  1<<Phase.LoopTree  .ordinal()   ; break;
+            case "--dump-after-select":       dump |=  1<<Phase.Select    .ordinal()   ; break;
+            case "--dump-after-gcm":          dump |=  1<<Phase.Schedule  .ordinal()   ; break;
+            case "--dump-after-local-sched":  dump |=  1<<Phase.LocalSched.ordinal()   ; break;
+            case "--dump-after-reg-alloc":    dump |=  1<<Phase.RegAlloc  .ordinal()   ; break;
+            case "--dump-after-encode":       dump |=  1<<Phase.Encoding  .ordinal()   ; break;
+            case "--dump-after-export":       dump |=  1<<Phase.Export    .ordinal()   ; break;
+            case "--dump":                    dump |=  1<<Phase.LastPhase .ordinal()   ; break;
+            case "--dump-after-all":          dump |= (2<<Phase.LastPhase .ordinal())-1; break;
+            case "--dot":                     dump_dot = true; break;
+            case "-S":                        print_asm = true; break;
             case "--eval":                    do_eval = true ; do_run = false; break;
             case "--run":                     do_run  = true ; break;
             case "--norun":                   do_run  = false; break;
-            case "--dump-size":               do_print_size = true; break;
-            case "--dump-time":               do_print_time = true; break;
+            case "--dump-size":               print_size = true; break;
+            case "--dump-time":               print_time = true; break;
             case "-o":                        if (out != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
                                               out = args[++i];  do_codegen=true;
                                               break;
@@ -262,7 +187,7 @@ Options:
             }
         }
 
-        if( do_run || (dump & DUMP_DISASSEMBLE) != 0 || do_print_size ) {
+        if( do_run || print_asm || print_size ) {
             if (cpu == null) cpu = TestC.CPU_PORT;
             if (abi == null) abi = TestC.CALL_CONVENTION;
             do_codegen = true;
@@ -276,70 +201,26 @@ Options:
         // Compilation pipeline
         Ary<String> externPaths = null;
         CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, TypeInteger.BOT );
+        code.driver(Phase.LastPhase,cpu,abi,out, do_run || do_eval, dump);
 
-        code.parse();
-        dump(code, dump, DUMP_AFTER_PARSE);
-
-        code.opto();
-        dump(code, dump, DUMP_AFTER_OPTO);
-
-        code.typeCheck();
-        dump(code, dump, DUMP_AFTER_TYPE_CHECK);
-
-        code.loopTree();
-        dump(code, dump, DUMP_AFTER_LOOP_TREE);
-
-        if (do_codegen) {
-            code.serialize();
-
-            code.instSelect(cpu, abi, PORTS);
-            dump(code, dump, DUMP_AFTER_SELECT);
-        }
-
-        code.unlink();
-
-        code.GCM();
-        dump(code, dump, DUMP_AFTER_GCM);
-
-        code.localSched();
-        dump(code, dump, DUMP_AFTER_LOCAL_SCHED);
-
-        if (do_codegen) {
-            code.regAlloc();
-            dump(code, dump, DUMP_AFTER_REG_ALLOC);
-
-            code.encode();
-            dump(code, dump, DUMP_AFTER_ENCODE);
-
-            code.exportELF(out,do_run);
-        }
-
-        dump(code, dump, DUMP_FINAL);
-
-        if (do_codegen && (dump & DUMP_DISASSEMBLE) != 0) {
+        if( do_codegen && print_asm )
             System.out.println(code.asm());
-        }
 
-        if (do_print_size) {
-             System.out.printf( "Code Size: %d%n", code._encoding._bits.size());
-        }
+        if( print_size )
+            System.out.printf( "Code Size: %d%n", code._encoding._bits.size());
 
-        long total = System.currentTimeMillis() - t0;
-        if (do_print_time) {
-            print_compilation_times(code,total);
-        }
+        if( print_time )
+            print_compilation_times(code);
 
-        if (do_eval) {
+        if( do_eval ) {
             // TODO: Support for evaluation of functions with different argument numbers and types
             long t = System.currentTimeMillis();
             long arg = (i+1 < args.length) ? Integer.parseInt(args[i+1]) : 0;
             System.out.println(Eval2.eval(code, arg, 100000));
-            if (do_print_time) {
-                System.out.printf( "EXECUTION TIME:             %.3f sec%n",
-                    (System.currentTimeMillis() - t) / 1e3);
-            }
+            if( print_time )
+                System.out.printf( "EXECUTION TIME:             %.3f sec%n", (System.currentTimeMillis() - t) / 1e3);
         }
-        if (do_run) {
+        if( do_run ) {
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
             String exe = TestC.OS.startsWith("Windows") ? out+".exe" : out;

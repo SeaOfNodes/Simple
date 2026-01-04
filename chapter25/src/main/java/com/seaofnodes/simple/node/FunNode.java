@@ -24,16 +24,26 @@ public class FunNode extends RegionNode {
     public String _name;        // Debug name
 
     public int _approxUIDs;     // Approximate function size, used as a inlining heuristic
+    public final boolean _extern; // External function; no code, name only
 
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, Node... nodes ) { super(loc,nodes); _name=name; _sig = sig; }
+    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, boolean ext ) {
+        super(loc,nodes);
+        _name   = name;
+        _sig    = sig;
+        _extern = ext;
+    }
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, Node... nodes ) { this(loc,nodes,sig,name,false); }
+    public FunNode( TypeFunPtr sig, String name, boolean ext ) { this(null,null,sig,name,ext); }
     public FunNode( FunNode fun ) {
         super( fun, fun==null ? null : fun._loc );
         if( fun!=null ) {
             _sig = fun.sig();
             _name = fun._name;
+            _extern = fun._extern;
         } else {
             _sig = TypeFunPtr.BOT;
             _name = "";
+            _extern = false;
         }
     }
     @Override public Tag serialTag() { return Tag.Fun; }
@@ -309,13 +319,18 @@ public class FunNode extends RegionNode {
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);
         Node m = map.get(n);
-        for( Node e : n._inputs ) {
-            Node x = e;
-            if( e != null ) {
-                x = map.get(e);
-                if( x == null ) x = e;
+        // The cloned Call should not clone any linked edges.
+        if( n instanceof CallEndNode cend ) {
+            m.addDef( map.get(cend.call()) );
+        } else {
+            for( Node e : n._inputs ) {
+                Node x = e;
+                if( e != null ) {
+                    x = map.get(e);
+                    if( x == null ) x = e;
+                }
+                m.addDef(x);
             }
-            m.addDef(x);
         }
         for( Node x : n._outputs )
             bodyEdge(visit,body,map,x);

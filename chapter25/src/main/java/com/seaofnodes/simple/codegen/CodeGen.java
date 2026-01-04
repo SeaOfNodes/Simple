@@ -6,8 +6,10 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
-
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 
@@ -35,6 +37,7 @@ public class CodeGen {
         RegAlloc,               // Register allocation
         Encoding,               // Encoding
         Export,                 // Export
+        LastPhase               // After last phase
     }
     public Phase _phase;
 
@@ -95,31 +98,51 @@ public class CodeGen {
     // Run requested phases.
 
     // No code emission, just IR generation
-    public CodeGen driver( Phase phase ) { return driver(phase,null,null,null,false); }
+    public CodeGen driver( Phase phase ) { return driver(phase,null,null,null,false,0); }
     // No object file writing, but code generation for a specific cpu/os pair (allows emulation)
-    public CodeGen driver( Phase phase, String cpu, String callingConv  ) { return driver(phase,cpu,callingConv,null,false); }
+    public CodeGen driver( Phase phase, String cpu, String callingConv  ) { return driver(phase,cpu,callingConv,null,false,0); }
     // Write an object file for a specific cpu/os pair
-    public CodeGen driver( String cpu, String callingConv, String obj, boolean main ) { return driver(Phase.Export,cpu,callingConv,obj,main); }
+    public CodeGen driver( String cpu, String callingConv, String obj, boolean main ) { return driver(Phase.Export,cpu,callingConv,obj,main,0); }
     // Generic driver
-    CodeGen driver( Phase phase, String cpu, String callingConv, String obj, boolean main ) {
+    public CodeGen driver( Phase phase, String cpu, String callingConv, String obj, boolean main, int dump ) {
         int p1 = phase.ordinal(), p2 = _phase==null ? -1 : _phase.ordinal();
-        if( p2 < p1 && p2 <  Phase.Parse     .ordinal() ) { parse();     p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = _phase.ordinal(); }
-        if( p2 < p1 && p1 >= Phase.Export    .ordinal() ) { serialize(); p2 = _phase.ordinal(); } // Include ideal graph in object file
-        if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) { instSelect(cpu,callingConv); p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) { unlink();    p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) { GCM();       p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) { localSched();p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) { regAlloc();  p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.Encoding  .ordinal() ) { encode();    p2 = _phase.ordinal(); }
-        if( p2 < p1 && p2 <  Phase.Export    .ordinal() ) { exportELF(obj,main); p2 = _phase.ordinal(); }
+        if( p2 < p1 && p2 <  Phase.Parse     .ordinal() ) { parse();     p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = dump(dump); }
+        if( p2 < p1 && p1 >= Phase.Export    .ordinal() ) { serialize(); p2 = dump(dump); } // Include ideal graph in object file
+        if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) { instSelect(cpu,callingConv); p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) { unlink();    p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) { GCM();       p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) { localSched();p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) { regAlloc();  p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Encoding  .ordinal() ) { encode();    p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Export    .ordinal() ) { exportELF(obj,main); p2 = dump(dump); }
         return this;
     }
 
+    // Verbose printing during compilation
+    private int dump(int dump) {
+        int p2 = _phase.ordinal();
+        if( (dump & (1<<p2)) == 0 ) return p2;
+        if( (dump & (1<<29)) != 0 ) {
+            String fn = ""+p2+"-"+_phase+".dot";
+            try {
+                Files.writeString(Path.of(fn),
+                                  new GraphVisualizer().generateDotOutput(_stop, null, null));
+            } catch(IOException e) { throw Utils.TODO("Cannot write DOT file"); }
+            return p2;
+        }
+
+        if( (dump & (1<<30)) != 0 )
+            System.err.println("After "+_phase+":");
+        System.err.println(IRPrinter.prettyPrint(_stop, 9999));
+        return p2;
+    }
+
+
     // Record times by phase
-    public final long[] _times = new long[Phase.Export.ordinal()+1];
+    public final long[] _times = new long[Phase.LastPhase.ordinal()];
 
     // ---------------------------
     /**
@@ -171,6 +194,7 @@ public class CodeGen {
     private int _fidx =0;
     public int nextFIDX() { return _fidx++; }
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
+        assert fun.nfcns() == Integer.MAX_VALUE; // Not assigned yet
         return fun.makeFrom(nextFIDX());
     }
 
@@ -197,6 +221,20 @@ public class CodeGen {
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
     // the return is not part of the match).
     final Ary<FunNode> _linker = new Ary<>(FunNode.class);
+
+    // Extern function declarations; input is the FIDX assigned to the name.
+    final HashMap<Integer,String> _externFunc = new HashMap<>();
+    public void externFunc(int fidx, String ex) {
+        assert !_externFunc.containsKey(fidx);
+        _externFunc.put(fidx,ex);
+    }
+    public String externFunc(int fidx) { return _externFunc.get(fidx); }
+
+    public String funcName(int fidx ) {
+        FunNode fun = link(fidx);
+        if( fun!=null ) return fun._name;
+        return externFunc(fidx);
+    }
 
 
     // ---------------------------
@@ -422,8 +460,12 @@ public class CodeGen {
         // Walk machine op and replace inputs with mapped inputs
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );
-        if( x instanceof MachNode mach )
+        // Post selection action
+        if( x instanceof MachNode mach ) {
+            if( n instanceof ReturnNode ret )
+                ((ReturnNode)mach)._fun = (FunNode)map.get(ret._fun);
             mach.postSelect(this);  // Post selection action
+        }
 
         return x;
     }
@@ -435,6 +477,9 @@ public class CodeGen {
         for( Node in : n._inputs )
             if( in!=null ) {
                 in._outputs.push(n);
+                // CallNode special: outputs are partially ordered; CallEnd in slot 0
+                if( in instanceof CallNode call && n instanceof CallEndNode cend && call.out(0) != cend )
+                    call._outputs.swap(0,call.nOuts()-1);
                 _instOuts(in,visit);
             }
     }

@@ -49,8 +49,8 @@ public class TypeMem extends Type {
     }
     public static TypeMem make(int alias, Type t) { return make(alias,t,false); }
 
-    public static final TypeMem TOP = make(1, Type.TOP   );
-    public static final TypeMem BOT = make(1, Type.BOTTOM);
+    public static final TypeMem TOP = make(1, Type.TOP   ,true );
+    public static final TypeMem BOT = make(1, Type.BOTTOM,false);
     public static final TypeMem SELF_MEM = make(1, TypeStruct.BOT);
 
     public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); ts.add(SELF_MEM); }
@@ -68,12 +68,12 @@ public class TypeMem extends Type {
     }
 
     @Override
-    Type xdual() { return _t._dual==_t ? this : malloc(_alias,_t.dual(),_one); }
+    Type xdual() { return _t._dual==_t ? this : malloc(_alias,_t.dual(),!_one); }
 
     @Override TypeMem rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        TypeMem d = malloc(_alias,null,_one);
+        TypeMem d = malloc(_alias,null,!_one);
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
         return d;

@@ -98,6 +98,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 // Encouraged inlining because small size and constructor.
                 int maxSize = fun._name!=null && fun.isInit() && !fun.isClz() ? 200 : 100;
                 if( isTrivial==1 && fun._approxUIDs < maxSize ) {
+                    assert fun.sig().isa(tfp);
                     assert !CodeGen.CODE._midAssert; // Triggered inlining
                     CodeGen.CODE.add(fun);
                     // Remove the existing function linkage
@@ -135,6 +136,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
         if( fun._name != null &&
             fun._name.endsWith("_noInline") )
             return -1;
+
+        if( !fun.sig().isa(fptr._type) )
+            return -1; // Stall until these align
 
         // Disallow self-recursive inlining (loop unrolling by another name).
         for( int i=1; i < fun.nIns(); i++ )
