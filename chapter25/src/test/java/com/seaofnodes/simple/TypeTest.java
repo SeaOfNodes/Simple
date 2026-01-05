@@ -42,7 +42,7 @@ public class TypeTest {
         Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
 
         Assert.assertEquals(TypeMem.make(2,Type.BOTTOM), m1.glb(false));
-        Assert.assertEquals(TypeMem.make(2,Type.XNIL), m1.dual());
+        Assert.assertEquals(TypeMem.make(2,Type.XNIL,true), m1.dual());
         Assert.assertEquals(m4.dual(), m4.glb(false).dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);

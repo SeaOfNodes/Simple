@@ -491,8 +491,13 @@ public class Type /*implements Cloneable*/ {
         BOTTOM.recurOpen();
         for( TypeStruct t : ts )
             t._close(null, TYPES);
-        for( int i=0; i<ts.length; i++ )
-            ts[i] = (TypeStruct)VISIT.get(ts[i]._name);
+        for( int i=0; i<ts.length; i++ ) {
+            // Parser only tracks the mutable name of arrays, so the closeOver
+            // returns that one.  However, internal types might have immutable
+            // versions.
+            String name = ts[i].isAry() ? (ts[i]._name+"!").intern() : ts[i]._name;
+            ts[i] = (TypeStruct)VISIT.get(name);
+        }
         BOTTOM.recurClose(ts);
         return ts;
     }

@@ -62,7 +62,11 @@ public class TypeMem extends Type {
         if( that==TOP ) return this;
         if( this==BOT ) return BOT;
         if( that==BOT ) return BOT;
-        int alias = _alias==that._alias ? _alias : 1;
+        // Treat a alias-1 has either very-high or very-low, according to "_t"
+        int alias = _alias==that._alias ? _alias // Same-same
+            : this._alias==1 && this._t.isHigh() ? that._alias // this is high-1 alias, so take that
+            : that._alias==1 && that._t.isHigh() ? this._alias // that is high-1 alias, so take this
+            : 1;
         Type mt = _t.meet(that._t);
         return make(alias,mt, _one & that._one);
     }
