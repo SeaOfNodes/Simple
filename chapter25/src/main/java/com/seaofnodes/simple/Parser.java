@@ -750,7 +750,6 @@ public class Parser {
     private Node parseAsgn() {
         int old = pos();
         String name = _lexer.matchId();
-        int old_pre_equals = pos();
         // Just a plain expression, no assignment.
         // Distinguish `var==expr` from `var=expr`
         if( name==null || KEYWORDS.contains(name) || !matchOpx('=','=') )
@@ -1147,17 +1146,20 @@ public class Parser {
         return t2;
     }
 
-    // Make an array type of t
+    // Make an array type of t.  Always record a mutable version,
+    // but return the requested version.
     private TypeStruct typeAry( Type t, boolean efinal ) {
         if( t instanceof TypeMemPtr tmp && tmp.notNull()  )
             throw error("Arrays of reference types must always be nullable");
         String tname = ("[]"+t.str()).intern();
         TypeStruct ta = (TypeStruct)TYPES.get(tname);
-        if( ta!=null ) return ta;
-        ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.nextALIAS(),t,_code.nextALIAS(),efinal );
-        // Remember final version
-        TYPES.put(tname, ta);
-        return ta;
+        if( ta==null ) {
+            ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.nextALIAS(),t,_code.nextALIAS(), false );
+            TYPES.put(tname,ta);
+        }
+        if( !efinal ) return ta;
+        // Already have the aliases, just efinal is wrong
+        return TypeStruct.makeAry(tname,TypeInteger.U32,ta._fields[0]._alias,t,ta._fields[1]._alias,true );
     }
 
     // A function type is `{ type... -> type }` or `{ type }`.

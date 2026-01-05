@@ -105,15 +105,32 @@ public class TypeStruct extends Type {
         return (TypeStruct)recurOpen()._close(_name, null).recurClose();
     }
     @Override TypeStruct _close( String name, HashMap<String, Type> TYPES ) {
-        TypeStruct ts = (TypeStruct)VISIT.get(_name);
-        if( ts!=null ) return ts;
-        TypeStruct base = TYPES==null ? this : (TypeStruct)TYPES.get(_name);
-        ts = base.recurPre(_name,_name, name != _name && name != null && _open );
+        assert (name==null) != (TYPES==null); // One or the other
+        if( name!=null || !isAry() ) {
+            TypeStruct ts = (TypeStruct)VISIT.get(_name);
+            if( ts!=null ) return ts;
+            TypeStruct base = TYPES==null ? this : (TypeStruct)TYPES.get(_name);
+            ts = base.recurPre(_name, _name, name != _name && name != null && _open );
+            Field[] flds = ts._fields;
+
+            // Now start the recursion
+            for( int i=0; i<flds.length; i++ )
+                flds[i].setType(base._fields[i]._t._close(name, TYPES ));
+
+            return ts;
+        }
+
+        // Closing over all types, including arrays, preserves array-finalness
+        String namePlusFinal = (_name+(_fields[1]._final ? "~" : "!")).intern();
+        TypeStruct ts = (TypeStruct)VISIT.get(namePlusFinal);
+        if( ts!=null )
+            return ts;
+        ts = recurPre(namePlusFinal, _name, false );
         Field[] flds = ts._fields;
 
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
-            flds[i].setType(base._fields[i]._t._close(name, TYPES ));
+            flds[i].setType(_fields[i]._t._close(null, TYPES ));
 
         return ts;
     }

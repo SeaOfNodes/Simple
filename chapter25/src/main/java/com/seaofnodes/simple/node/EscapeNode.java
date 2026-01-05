@@ -16,7 +16,15 @@ public class EscapeNode extends Node {
 
     public final int _alias;
     public EscapeNode(int alias, Node self, Node priv, Node pub ) { super(null,self,priv,pub); _alias=alias; }
-    public EscapeNode(EscapeNode esc ) { super(null,null,esc.priv(),esc.pub()); _alias=esc._alias; }
+    public EscapeNode(EscapeNode esc ) {
+        super(esc);             // Copy constructor
+        // Except we do not want/need self ptr past Opto.
+        // *NOTE* the weird direct stomp; this is correct because this
+        // constructor does NOT set the backedges, because it is used to
+        // copy-construct an entire graph and ALL edges will get rewritten.
+        _inputs.set(1,null);
+        _alias = esc._alias;
+    }
 
     // Pointer to some private (unescaped) memory from a NewNode
     public Node self() { return in(1); }
