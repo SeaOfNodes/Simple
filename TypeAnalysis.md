@@ -11,18 +11,17 @@ their type-checking via constant propagation:
 [Simple](https://github.com/SeaOfNodes/Simple) and [AA](https://github.com/cliffclick/aa).  Both languages are statically typed
 and type-safe; AA uses a blend of extended Hindley-Milner and constant propagation.
 
-[Simple](https://github.com/SeaOfNodes/Simple) uses constant propagation exclusively to do type analysis (and the
-generate any resulting semantic errors), and has a working implementation
-so you can view it in action!
+[Simple](https://github.com/SeaOfNodes/Simple) uses constant propagation
+exclusively to do type analysis (and the generate any resulting semantic
+errors), and has a working implementation so you can view it in action!
 
 In both languages, after the first round of *pessimistic* constant propagation
 (and extensive peephole optimizations) completes, every program point (node in
 the IR) has a type - and if there are no error types, then the program is
 type-safe.  No separate typing pass is needed, and this is typically done
-partially as the program parses,
-finishing shortly thereafter.  Optionally, an
-*optimistic* constant propagation (SCCP) can be run to type more
-programs than the *pessimistic* approach alone.
+partially as the program parses, finishing shortly thereafter.  Optionally, an
+*optimistic* constant propagation (SCCP) can be run to type more programs than
+the *pessimistic* approach alone.
 
 This discussion relies on the program being in SSA form, which I assume the
 reader is familiar with, and is commonly used in *constant propagation* because
@@ -62,8 +61,9 @@ IR graph* or sometimes simply *nodes*.
 ## The Basics
 
 Variations of constant propagation have a long history in compilers, and here I
-am referring to the well understood [Monotone Analysis
-Framework](http://janvitek.org/events/NEU/7580/papers/more-papers/1977-acta-kam-monotone.pdf); a quick google search finds plethora of courseworks on the topic.  I assume the
+am referring to the well understood
+[Monotone Analysis Framework](http://janvitek.org/events/NEU/7580/papers/more-papers/1977-acta-kam-monotone.pdf);
+a quick google search finds plethora of courseworks on the topic.  I assume the
 reader is familiar, and I give a very brief overview here.  Constant
 propagation has long been used to discover interesting facts about program
 points, generally to further optimize a program.  We are going to use it to
@@ -175,7 +175,6 @@ The general rule here is that the *optimistic* approach may find more
 constants, but never less; while the *pessimistic* approach starts from the
 lowest possible types and can be stopped any time yielding a correct analysis
 (but a possibly weaker final result).  Also the *pessimistic* approach can
-
 be interleaved with other optimizations as long as those optimizations do not lose
 any type information - and indeed this is the mode the C2 compiler has been
 running in since 1997.
@@ -273,9 +272,9 @@ keep our lattice *complete*.  In general there are two obvious ways forward:
 fall hard to ⊥, or try to preserve some knowledge.  Falling hard to ⊥ basically
 declares a type error and is probably correct in some situations.  However
 preserving knowledge is really helpful during type inference and is absolutely
-required in a few cases, so we the other plan: every tuple has some prefix of
-interesting values, and an infinite number of trailing ⊥ (or ⊤) fields,
-not printed for brevity.
+required in a few cases, so we use the other plan: every tuple has some prefix
+of interesting values, and an infinite number of trailing ⊥ (or ⊤) fields, not
+printed for brevity.
 
 `[Ctrl, 17]` is really: `[Ctrl, 17, ⊥, ⊥, ⊥, ....]`.
 
@@ -341,8 +340,7 @@ indicates a pointer which may be null.  We can make dereferencing a may-be-null 
 safe with a runtime check and an upcast:
 
 ```
-val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *?[name:"Whiskers", makeSound=#1{}]
-
+val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *?[name:"Whiskers", makeSound:#1{}]
 if( ptr ) // null-check
     // hidden upcast to drop the null 
     ptr.makeSound() // Legal, because ptr cannot be null
@@ -371,11 +369,11 @@ or another class; pointers in unrelated classes **never** alias, those in the
 same class **always** alias.
 
 This model works really well for strongly typed languages such as Java and
-Simple.  I believe it will work well for e.g. mojo as well, although I have not
-tried it.  Obviously other models work as well.  In this case it is easy to add
-aliasing support in the type system: all pointers have an *alias number*, a unique
-indicator of which *equivalence class* they belong too.  Set of aliases are
-possible, often as a using a bitvector.
+Simple.  I believe it will work well for other strongly typed languages as
+well, although I have not tried it.  Obviously other models work as well.  In
+this case it is easy to add aliasing support in the type system: all pointers
+have an *alias number*, a unique indicator of which *equivalence class* they
+belong too.  Set of aliases are possible, often as a using a bitvector.
 
 In the above example with a struct `[myPi: 3.14, result: 17, someFP8: ⊥:FP8]`
 memory is broken up into classes for the `myPi` fields, `result` fields and
@@ -390,9 +388,9 @@ uninitialized memory, or destructed memory.
 
 ## Functions
 
-Functions have argument types and some return types (often just 1).  We'll
-model them as an argument struct and a return struct (or type if the language
-only allows 1 return).
+Functions have argument types and some return types (often just one return
+type).  We'll model them as an argument struct and a return struct (or type if
+the language only allows 1 return).
 
 Because of co-variance/contra-variance, the two structs are treated slightly
 differently: the arguments will *joined* and the returns will be *meet*.
@@ -522,7 +520,7 @@ made-up syntax:
 
 ```java
 Pet = : [
-    name : String
+    name: String
     makeSound: { Self -> String } = 0;// function pointer is null; this class is *abstract*
 ];
 
@@ -643,7 +641,7 @@ StealthCow : Pet : [
 ];
 ```
 
-And now we need to constrain our `quackathon` to only allow `Ducks`:
+And now we need to constrain our `quackathon` to only allow `Duck`s:
 
 ```
 quackathon = { arg: Duck -> 
@@ -654,7 +652,7 @@ quackathon = { arg: Duck ->
 
 ### Nominative Typing Error Example
 
-This code works as expected (Donald enters does the quackathon):
+This code works as expected (Donald enters the quackathon):
 `quackathon(Duck("Donald"))`
 
 and this fails:
@@ -667,7 +665,7 @@ Let's expand on this fail to make it more explicit:
 
 There is a *type cast* that the arguments are correct; it does a *isa* check
 with the input and expected type, and if the the argument is not *isa*, will
-flag a type error at the of *type analysis* (i.e. constant propagation).
+flag a type error at the time of *type analysis* (i.e. constant propagation).
 Unlike *structural typing*, where we require a `quack` field from the argument
 via directly loading a `quack` field, here we introduce a *isa* check.
 
@@ -676,7 +674,7 @@ The argument type to the call is a `StealthCow` which expands to:
 ```java
 [
     $classPet: 0;          // StealthCow is also a Pet
-    $classDuck: ⊥;         // All other fields are ⊥
+    $classDuck: ⊥;        // All other fields are ⊥
     $classStealthCow: 0;
     name: "Betsy";         // StealthCows are Pets, which have a name
     makeSound = #3{ self -> "moo" }; // function index #3
@@ -690,7 +688,7 @@ The check is against a generic `Duck` which expands to:
 [
     $classPet: 0;          // Duck is also a Pet
     $classDuck: 0;         // 
-    $classStealthCow: ⊥;   // All other fields are ⊥
+    $classStealthCow: ⊥;  // All other fields are ⊥
     name: String;          // Ducks are Pets which have a name
     makeSound = #5{ self -> "quack" }; // function index #3
     quack = #5{ self -> "quack" };
@@ -703,8 +701,8 @@ StealthCow and Duck is:
 ```java
 [
     $classPet: 0;          // Since both are Pets, this field remains
-    $classDuck: ⊥;         // Not really a Duck, the meet lacks $classDuck
-    $classStealthCow: ⊥;   // Not really a StealthCow, the meet lacks $classStealthCow
+    $classDuck: ⊥;        // Not really a Duck, the meet lacks $classDuck
+    $classStealthCow: ⊥;  // Not really a StealthCow, the meet lacks $classStealthCow
     name: String;          // Generic name from the generic Pet
     makeSound = #[3,5]{ Pet -> String }; // function indices #3,5
     quack = #[4,5]{ Pet -> "quack" };    // function indices #4,5
@@ -791,7 +789,8 @@ printing as `[elem0,elem1,...]`.  Same for e.g. `Equatable` or `Hashable` or `Co
 
 The collection defines how to extend the base notion.  So e.g. a collection of
 `Comparable`s is itself comparable, and that comparison might either return an
-element-wise collection of `Bool`s, or might compare lexigraphically.
+element-wise collection of `Bool`s, or might compare lexigraphically and return a
+single `Bool` instead of a collection.
 
 However, the collection can also work with elements that are not `Comparable`,
 in which case the entire collection is not `Comparable`... but it still
