@@ -84,8 +84,8 @@ and of course the *meet* is commutative and associative.
 The lattice *join* is defined from the *meet* and *dual* in 
 the normal way: `~(~x meet ~y)`
 
-Also *isa* is defined as `(x meet y)==y`, e.g.  `17.isa(Int)` expands to `(17
-meet Int)==Int` which becomes `(Int)==Int`.
+Also *isa* is defined as `(x meet y)==x`, e.g.  `17.isa(Int)` expands to `(17
+meet Int)==17` which becomes `(17)==17`.
 
 
 ### The Constant Propagation Algorithm
