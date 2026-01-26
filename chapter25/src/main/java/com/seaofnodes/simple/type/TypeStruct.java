@@ -106,31 +106,21 @@ public class TypeStruct extends Type {
     }
     @Override TypeStruct _close( String name, HashMap<String, Type> TYPES ) {
         assert (name==null) != (TYPES==null); // One or the other
-        if( name!=null || !isAry() ) {
-            TypeStruct ts = (TypeStruct)VISIT.get(_name);
-            if( ts!=null ) return ts;
-            TypeStruct base = TYPES==null ? this : (TypeStruct)TYPES.get(_name);
-            ts = base.recurPre(_name, _name, name != _name && name != null && _open );
-            Field[] flds = ts._fields;
-
-            // Now start the recursion
-            for( int i=0; i<flds.length; i++ )
-                flds[i].setType(base._fields[i]._t._close(name, TYPES ));
-
-            return ts;
-        }
-
-        // Closing over all types, including arrays, preserves array-finalness
-        String namePlusFinal = (_name+(_fields[1]._final ? "~" : "!")).intern();
+        String namePlusFinal = isAry() ? (_name+(_fields[1]._final ? "~" : "!")).intern() : _name;
         TypeStruct ts = (TypeStruct)VISIT.get(namePlusFinal);
-        if( ts!=null )
-            return ts;
-        ts = recurPre(namePlusFinal, _name, false );
+        if( ts!=null ) return ts;
+        TypeStruct base = name==null ? (TypeStruct)TYPES.get(_name) : this;
+        ts = base.recurPre(namePlusFinal, _name, name != _name && name != null && _open );
         Field[] flds = ts._fields;
-
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
-            flds[i].setType(_fields[i]._t._close(null, TYPES ));
+            flds[i].setType(base._fields[i]._t._close(name, TYPES));
+
+        // Note: this whole complex shenanigans here is because there are
+        // actually two flavors of any array (non-/final contents) but I
+        // allow the parser to represent both with the same name string.
+        if( isAry() && _fields[1]._final && !flds[1]._final ) // This is a final array variant
+            flds[1] = flds[1].makeFrom(true); // Add final to the base TYPES non-final array
 
         return ts;
     }
