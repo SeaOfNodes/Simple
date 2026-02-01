@@ -336,7 +336,8 @@ val _test_sqrt = { flt x ->
         guess = next;
     }
 };
-flt farg = arg;  return _test_sqrt(farg);
+flt farg = arg;
+return _test_sqrt(farg);
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());

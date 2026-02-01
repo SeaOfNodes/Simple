@@ -249,7 +249,8 @@ abstract public class Serialize {
 
     // --------------------------------------------------
     public static Ary<Node> nodeOrder( CodeGen code ) {
-        if( code._start._ltree==null )
+        CFGNode.LoopTree old = code._start._ltree;
+        if( old==null )
             code._start.buildLoopTree(code._start,code._stop);
         Ary<Node> nodes = new Ary<>(Node.class);
         BitSet visit = code.visit();
@@ -277,6 +278,8 @@ abstract public class Serialize {
 
         nodes.add(code._stop);
         visit.clear();
+        if( old == null )
+            code._start._ltree = null;
         return nodes;
     }
 

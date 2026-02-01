@@ -13,67 +13,18 @@ import static org.junit.Assert.*;
 public class Chapter25Test {
 
     @Test
+    public void testSys() throws IOException {
+        //// Produce lib/sys.o
+        //CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
+        //    driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"lib/sys.o",false);
+
+        TestC.run("sys.io.p(\"Hello, World!\");",TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
+    }
+
+    @Test @Ignore
     public void testBubbles() throws IOException {
         String src = Files.readString( Path.of("docs/examples/BubbleSort.smp"));
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LoopTree);
     }
 
-    @Test @Ignore
-    public void testSys() throws IOException {
-        // Produce lib/sys.o
-        CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
-            driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"lib/sys.o",false);
-
-        TestC.run("sys.io.p(\"Hello, World!\"",TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
-
-
-    }
-
-    @Test
-    public void demoPrint() throws IOException {
-        String src =
-"""
-val c = { int x ->
-    int sum=0;
-    for( int i=0; i<x; i++ ) sum += i;
-    sum;
-};
-val b = { int y -> c(y) * c(y+1); };
-val a = { int z -> b(z) * b(z+5); };
-return a(3);
-""";
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LoopTree);
-        code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"build/objs/demoPrint.o",false);
-    }
-
-
-    @Test @Ignore
-    public void sieveOfEratosthenes() {
-        String src =
-"""
-var ary = new bool[arg], primes = new int[arg];
-var nprimes=0, p=0;
-// Find primes while p^2 < arg
-for( p=2; p*p < arg; p++ ) {
-    // skip marked non-primes
-    while( ary[p] ) p++;
-    // p is now a prime
-    primes[nprimes++] = p;
-    // Mark out the rest non-primes
-    for( int i = p + p; i < ary#; i += p )
-        ary[i] = true;
-}
-// Now just collect the remaining primes, no more marking
-for( ; p < arg; p++ )
-    if( !ary[p] )
-        primes[nprimes++] = p;
-// Copy/shrink the result array
-var !rez = new int[nprimes];
-for( int j=0; j<nprimes; j++ )
-    rez[j] = primes[j];
-return rez;
-""";
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LoopTree);
-        String rez = IRPrinter.prettyPrint(code._stop,99);
-    }
 }

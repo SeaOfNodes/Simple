@@ -69,21 +69,24 @@ test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_alone := com.seaofnodes.simple.BrainFuckTest com.seaofnodes.simple.MergeSortTest com.seaofnodes.simple.TypeTest
 test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21
 test_raw_nums1 := 22 23 24
+test_raw_sys   := 25
 test_raw0    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums0))
 test_raw1    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums1))
+test_sys     := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_sys)  )
 # All the 'src/test/java' files ending in 'Test'
 test_cp0     := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
 # Minus raw0, raw1, alone tests
-test_cp1     := $(filter-out $(test_raw0),$(test_cp0))
-test_cp2     := $(filter-out $(test_raw1),$(test_cp1))
-test_cp      := $(filter-out $(test_alone),$(test_cp2))
+test_cp1     := $(filter-out $(test_raw0) ,$(test_cp0))
+test_cp2     := $(filter-out $(test_raw1) ,$(test_cp1))
+test_cp3     := $(filter-out $(test_alone),$(test_cp2))
+test_cp      := $(filter-out $(test_sys)  ,$(test_cp3))
 classes = $(main_classes) $(test_classes)
 # All the libraries
 libs = $(wildcard lib/*jar)
 jars = $(subst $(space),$(SEP),$(libs))
 
 
-default_targets := $(CLZDIR)/.tag $(test_classes)
+default_targets := TAGS release tests
 # Optionally add ctags to the default target if a reasonable one was found.
 ifneq ($(CTAGS),)
 default_targets += tags
@@ -140,11 +143,12 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java
 
 #######################################################
 
-# Default Simple .o target is build/ which is where all the test .o's get
+# Default Simple .o target is build/obj which is where all the test .o's get
 # dumped.  The default sys search needs to NOT include all the dumped test
 # files; move it down into lib/
+OBJS:= build/obj
 
-lib_x86_64_v2_win64/sys.o:	$(CLZDIR)/main/.mtag
+$(OBJS)/lib_x86_64_v2_win64/sys.o:	$(CLZDIR)/main/.mtag
 	@echo "simping " $@
 	@$(JVM) com.seaofnodes.simple.Simple --cpu x86_64_v2 --abi Win64 --norun -o $@ src/main/smp/sys.smp
 
@@ -155,29 +159,35 @@ JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 # Tests that do NOT need sys.smp
 tests_raw0:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "testing " $(test_raw0)
-	@[ -d build/objs ] || mkdir -p build/objs
+	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_raw0)
 
 tests_raw1:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "testing " $(test_raw1)
-	@[ -d build/objs ] || mkdir -p build/objs
+	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_raw1)
 
+# Larger standalone tests, still JUnits, still no sys.smp
 tests_alone:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "testing " $(test_alone)
-	@[ -d build/objs ] || mkdir -p build/objs
+	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_alone)
 
 # Tests that DO need sys.smp
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag lib_x86_64_v2_win64/sys.o tests_raw0 tests_raw1
-	@echo "testing " $(test_cp)
-	@[ -d build/objs ] || mkdir -p build/objs
-	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
-	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
+tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(OBJS)/lib_x86_64_v2_win64/sys.o
+	@echo "testing " $(test_sys)
+	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
+	@$(JVM) org.junit.runner.JUnitCore $(test_sys)
 
 fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
-	@echo "fuzzing " $(test_cp)
+	@echo "fuzzing "
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
+
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(OBJS)/lib_x86_64_v2_win64/sys.o tests_raw0 tests_raw1 tests_alone tests_sys fuzzer
+	@echo "All tests"
+	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
+	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
+
 
 # Build a Simple jar
 release:	build/release/simple.jar
@@ -213,6 +223,6 @@ lib/hamcrest-core-1.3.jar:
 	@(cd lib; wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar)
 
 # Build emacs tags (part of a tasty emacs ide experience)
-tags:	$(main_javas) $(test_javas)
+TAGS:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --fields=+fksaiS $(SRC) $(TST)
