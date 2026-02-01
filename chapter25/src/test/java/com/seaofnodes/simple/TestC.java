@@ -5,8 +5,6 @@ import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
@@ -23,48 +21,53 @@ public abstract class TestC {
         default -> throw Utils.TODO("Map Yer CPU Port Here");
     };
 
-    public static void run( String file, int spills ) throws IOException { run(file,"",spills); }
+    public static final String C_DRIVERS_DIR = "src/test/java/com/seaofnodes/simple/progs/";
 
-    public static void run( String file, String expected, int spills ) throws IOException {
-        run("src/test/java/com/seaofnodes/simple/progs",file,expected,spills);
+    /**
+     * Compile, link and run
+     * - WITH a C driver
+     * - using the default OS/CPU calling convention.
+     */
+    public static void runC( String src, String base, TypeInteger arg, String expected, int spills) throws IOException {
+        String cfile = C_DRIVERS_DIR+base+".c";
+        run(src, base, arg, CALL_CONVENTION, "", cfile, expected, spills);
     }
 
-    // Compile and run a simple program
-    public static void run( String dir, String file, TypeInteger arg, String expected, int spills, boolean standalone) throws IOException {
-        // Files
-        String  cfile = dir+"/"+file+".c"  ;
-        String  sfile = dir+"/"+file+".smp";
-        String  efile = "build/objs/"+file;
-
-        // Compile and export Simple
-        String src = Files.readString(Path.of(sfile));
-        run(src,CALL_CONVENTION,arg, "",standalone ? null: cfile, efile,"S",expected,spills);
-    }
-
-    // link with c and also inline
-    public static void run(String src, String file, TypeInteger arg, String expected, int spills) throws IOException {
-            String dir = "src/test/java/com/seaofnodes/simple/progs";
-            String cfile = dir+"/"+file+".c";
-            String efile = "build/objs/"+file;
-            run(src, CALL_CONVENTION, arg, "", cfile, efile, "S", expected, spills);
-    }
-
-    public static void run(String dir, String file, String expected, int spills ) throws IOException {
-        run(dir, file,null, expected, spills, false);
+    /**
+     * Compile, link and run
+     * - withOUT a C driver
+     * - using the default OS/CPU calling convention.
+     */
+    public static void runSF( String src, String base, TypeInteger arg, String expected, int spills ) throws IOException {
+        run(src, base, arg, CALL_CONVENTION, null,null, expected,spills);
     }
 
 
-    // Do not link with c file - just inline with source.
-    public static void runSF(String name, String src, TypeInteger arg, String expected, int spills ) throws IOException {
-        String efile = "build/objs/"+name;
-        run(src,CALL_CONVENTION,arg, "",null,efile,"S",expected,spills);
-    }
-
-
-    public static void run( String src, String simple_conv, TypeInteger arg, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
-        String bin = efile+xtn;
-        String obj = bin+".o";
-        String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
+    /**
+     * Compile, link and run - general case
+     *
+     * @param src         Program source to compile
+     * @param base        Compiled binary final base name
+     * @param arg         A single integer argument to the compiled program; if this is
+     *                    a constant it will fold at compile time.
+     * @param simple_conv Argument convention when calling Simple code
+     * @param c_conv      Argument convention when calling C code, or null if not
+     *                    linking against a C driver program
+     * @param cfile       Associated C program which will drive the Simple program,
+     *                    or null if not linking against a C driver program
+     * @param expected    Expected stdout string
+     * @param spills      Expected limit on spill code, used to validate the
+     *                    register allocation is reasonable
+     */
+    public static void run( String src, String base, TypeInteger arg, String simple_conv, String c_conv, String cfile, String expected, int spills ) throws IOException {
+        // Simple file base-name example:
+        // foo.smp ->
+        //   build/objs/fooS.o   - object file
+        //   build/objs/fooS.exe - linked executable Windows
+        //   build/objs/fooS     - linked executable Linux
+        String pathBase = "build/objs/"+base;
+        String obj = pathBase+".o";
+        String exe = pathBase+(OS.startsWith("Windows") ? ".exe" : "");
         // Compile simple, emit ELF
         CodeGen code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj, cfile==null );
 
@@ -78,6 +81,10 @@ public abstract class TestC {
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
     }
 
+    // Link with gcc, and execute the resulting binary, returning stdout as a
+    // String.  Any errors *assert* instead of returning some error code; this
+    // utility is meant to execute inside a JUnit test which will catch the
+    // assert and flag the test as failed.
     public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {
 
         // Compile the C program.  Compiling code and constants in the low

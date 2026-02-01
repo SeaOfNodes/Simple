@@ -143,10 +143,10 @@ $(test_classes): $(CLZDIR)/test/%class: $(TST)/%java
 
 #######################################################
 
-# Default Simple .o target is build/obj which is where all the test .o's get
+# Default Simple .o target is build/objs which is where all the test .o's get
 # dumped.  The default sys search needs to NOT include all the dumped test
 # files; move it down into lib/
-OBJS:= build/obj
+OBJS:= build/objs
 
 $(OBJS)/lib_x86_64_v2_win64/sys.o:	$(CLZDIR)/main/.mtag
 	@echo "simping " $@

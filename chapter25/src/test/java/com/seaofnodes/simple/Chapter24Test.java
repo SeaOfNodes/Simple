@@ -36,7 +36,7 @@ return (10 < something_specific < 20)
     ? 0  // Expected
     : 1; // Error
 """;
-        TestC.runSF("stacked_r_1", src, null, "", 0);
+        TestC.runSF( src, "stacked_r_1", null, "", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_1", 0, 0, false);
@@ -62,7 +62,7 @@ return (sq_noInline(2) <= score < sq_noInline(3))
     ? 0  // Expected
     : 1; // Error
 """;
-        TestC.runSF("stacked_r_3", src, null, "", 3);
+        TestC.runSF( src, "stacked_r_3", null, "", 3);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 5, false);
@@ -86,7 +86,7 @@ return (10 < something_specific < 20)
     : 0;  // Expected
 """;
 
-        TestC.runSF("stacked_r_4", src, null, "", 0);
+        TestC.runSF( src, "stacked_r_4", null, "", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_4", 0, 0, false);
@@ -111,7 +111,7 @@ return (10 < something_specific < 20)
     public void testStack9() throws IOException {
         String src  = "var stack9 = { int x ->  (x < 1) == 1; };";
         String src2 = "return (0 < 1) == 1;";
-        TestC.run(src, "stacked_r_9x", null, "1", 0);
+        TestC.runC(src, "stacked_r_9x", null, "1", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_9", 0, 0, false);
@@ -130,7 +130,7 @@ return (10 < something_specific < 20)
     public void testStack10() throws IOException {
         String src ="var stack10 = { int x -> (x < 1) == (1>x);};";
         String src2 ="return (0 < 1) == (1>0);";
-        TestC.run(src, "stacked_r_10x", null, "1",0);
+        TestC.runC(src, "stacked_r_10x", null, "1",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_10", 0, 0, false);
@@ -149,7 +149,7 @@ return (10 < something_specific < 20)
     public void testStack11() throws IOException {
         String src  = "var stack11 = { int x ->  0 < x < x+1 < 4;}; ";
         String src2 = "return 0 < arg < arg+1 < 4;";
-        TestC.run(src, "stacked_r_11x", null, "1", 2);
+        TestC.runC(src, "stacked_r_11x", null, "1", 2);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_11", 1, 0, false);
@@ -172,7 +172,7 @@ return (10 < something_specific < 20)
     public void testStack12() throws IOException {
         String src  = "var stack12 = { int x -> 0 != x != 2; };";
         String src2 = "return 0 != arg != 2;";
-        TestC.run(src, "stacked_r_12x", null, "1",0);
+        TestC.runC(src, "stacked_r_12x", null, "1",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_12", 1, 0, false);
@@ -194,7 +194,7 @@ return (10 < something_specific < 20)
     public void testStack13() throws IOException {
         String src  = "var stack13 = { int x -> 0 == x == 1; };";
         String src2 = "return 0 == arg == 1;";
-        TestC.run(src, "stacked_r_13x", null, "1",0);
+        TestC.runC(src, "stacked_r_13x", null, "1",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src2, "stacked_r_13", 1, 0, false);

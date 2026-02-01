@@ -48,7 +48,7 @@ if( a++ || b++ ) {
 return rez;
 """;
 
-        TestC.runSF("or1", src, null, "", 0);
+        TestC.runSF( src, "or1", null, "", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "or1", 0, 0, false);
@@ -70,7 +70,7 @@ int a = 1;
 int b = 1;
 return a && b ? 0 : 1;  // Expected answer 0
 """;
-        TestC.runSF("and1", src, null, "", 0);
+        TestC.runSF( src, "and1", null, "", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "and1", 0, 0, false);
@@ -127,7 +127,7 @@ return x == 2 && y == 2 && z == 1 && g == 0
     : 1; // Error, not effected
 """;
 
-        TestC.runSF("and2", src, null, "", 0);
+        TestC.runSF( src, "and2", null, "", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "and2", 0, 0, false);
@@ -154,7 +154,7 @@ return (x == 0 && y == 1 && z==-1) && switch && g
     ? 0   // Effected, expected
     : 1;  // Error
 """;
-        TestC.runSF("or2", src, null, "", 0);
+        TestC.runSF( src, "or2", null, "", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "or2", 0, 0, false);
@@ -182,7 +182,7 @@ return (a && sq_noInline(0))
     ? 1  // Error
     : 0; // Expected
 """;
-        TestC.runSF("and3", src, null, "", 0);
+        TestC.runSF( src, "and3", null, "", 0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);

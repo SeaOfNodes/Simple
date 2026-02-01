@@ -171,7 +171,7 @@ val _hashCodeString = { String self ->
     return hash;
 };
 """;
-        TestC.run(src, "stringHash",null, "", 9);
+        TestC.runC(src, "stringHash",null, "", 9);
     }
 
     @Test public void testLoop2() {
@@ -218,7 +218,7 @@ val test_sqrt = { flt x ->
     }
 };
 """;
-        TestC.run(src, "newtonFloat", null, result, 34);
+        TestC.runC(src, "newtonFloat", null, result, 34);
 
         EvalRisc5 R5 = TestRisc5.build( src, "test_sqrt", 0, 10, false);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
@@ -278,7 +278,7 @@ val sieve = { int N ->
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run(src, "sieve", null, sprimes, 186);
+        TestC.runC(src, "sieve", null, sprimes, 186);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
@@ -319,7 +319,7 @@ val fib = { int n ->
 };
 """;
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
-        TestC.run(src, "fib", null, fib, 24);
+        TestC.runC(src, "fib", null, fib, 24);
 
         EvalRisc5 R5 = TestRisc5.build( src, "fib", 9, 17, false);
         int trap = R5.step(100);
@@ -348,7 +348,7 @@ val fib = { int n ->
                 };
                 """;
         String person = "6\n";
-        TestC.run(src, "person", null, person, 0);
+        TestC.runC(src, "person", null, person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
@@ -405,7 +405,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 """;
         String arg_count = "191.000000\n";
 
-        TestC.run(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
+        TestC.runC(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
 
         EvalRisc5 R5 = TestRisc5.build( src, "addAll", 0, 4, false);
 
