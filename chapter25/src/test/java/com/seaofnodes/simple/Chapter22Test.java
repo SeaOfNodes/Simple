@@ -137,7 +137,7 @@ val fcn = { Person?[] ps, int x ->
 };
 """;
         String person = "6\n";
-        TestC.run(src, "person", null, person, 0);
+        TestC.runC(src, "person", null, person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
@@ -214,7 +214,7 @@ val p = { u8[~] str ->
 p("Hello, World!");
 return 0;
 """;
-        TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",2);
+        TestC.runSF(src,"helloWorld",null, "Hello, World!",2);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "helloWorld", 0, 5, false);
@@ -259,7 +259,7 @@ return _sum(is);
 // Echo stdin to stdout.
 return sys.io.p( sys.io.stdin() );
 """;
-        TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/echo","","",0);
+        TestC.runSF(src,"echo",null, "",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "echo", 0, 2, false);

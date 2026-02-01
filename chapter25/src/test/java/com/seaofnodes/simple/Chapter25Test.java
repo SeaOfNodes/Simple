@@ -1,14 +1,11 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.GlobalCodeMotion;
-import com.seaofnodes.simple.print.IRPrinter;
 import org.junit.Ignore;
 import org.junit.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import static org.junit.Assert.*;
 
 public class Chapter25Test {
 
@@ -18,7 +15,7 @@ public class Chapter25Test {
         //CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
         //    driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"lib/sys.o",false);
 
-        TestC.run("sys.io.p(\"Hello, World!\");",TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
+        TestC.runSF("sys.io.p(\"Hello, World!\");","helloWorld",null, "Hello, World!",0);
     }
 
     @Test @Ignore
