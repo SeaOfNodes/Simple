@@ -28,9 +28,9 @@ public abstract class TestC {
      * - WITH a C driver
      * - using the default OS/CPU calling convention.
      */
-    public static void runC( String src, String base, TypeInteger arg, String expected, int spills) throws IOException {
+    public static void runC( String src, String base, String expected, int spills) throws IOException {
         String cfile = C_DRIVERS_DIR+base+".c";
-        run(src, base, arg, CALL_CONVENTION, "", cfile, expected, spills);
+        run(src, base, CALL_CONVENTION, "", cfile, expected, spills);
     }
 
     /**
@@ -38,8 +38,8 @@ public abstract class TestC {
      * - withOUT a C driver
      * - using the default OS/CPU calling convention.
      */
-    public static void runSF( String src, String base, TypeInteger arg, String expected, int spills ) throws IOException {
-        run(src, base, arg, CALL_CONVENTION, null,null, expected,spills);
+    public static void runSF( String src, String base, String expected, int spills ) throws IOException {
+        run(src, base, CALL_CONVENTION, null,null, expected,spills);
     }
 
 
@@ -48,8 +48,6 @@ public abstract class TestC {
      *
      * @param src         Program source to compile
      * @param base        Compiled binary final base name
-     * @param arg         A single integer argument to the compiled program; if this is
-     *                    a constant it will fold at compile time.
      * @param simple_conv Argument convention when calling Simple code
      * @param c_conv      Argument convention when calling C code, or null if not
      *                    linking against a C driver program
@@ -59,17 +57,18 @@ public abstract class TestC {
      * @param spills      Expected limit on spill code, used to validate the
      *                    register allocation is reasonable
      */
-    public static void run( String src, String base, TypeInteger arg, String simple_conv, String c_conv, String cfile, String expected, int spills ) throws IOException {
+    public static void run( String src, String base, String simple_conv, String c_conv, String cfile, String expected, int spills ) throws IOException {
         // Simple file base-name example:
         // foo.smp ->
-        //   build/objs/fooS.o   - object file
-        //   build/objs/fooS.exe - linked executable Windows
-        //   build/objs/fooS     - linked executable Linux
+        //   build/objs/foo.o   - object file
+        //   build/objs/foo.exe - linked executable Windows
+        //   build/objs/foo     - linked executable Linux
         String pathBase = "build/objs/"+base;
         String obj = pathBase+".o";
         String exe = pathBase+(OS.startsWith("Windows") ? ".exe" : "");
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj, cfile==null );
+        CodeGen code = new CodeGen(src);
+        code.driver( CPU_PORT, simple_conv, obj, cfile==null );
 
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);
