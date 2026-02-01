@@ -104,7 +104,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", 123L, TypeInteger.constant(2)).parse().opto();
+""", TypeInteger.constant(2)).parse().opto();
         assertEquals("return 5;", code.print());
     }
 
@@ -124,7 +124,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", 123L, TypeInteger.constant(1)).parse().opto();
+""", TypeInteger.constant(1)).parse().opto();
         assertEquals("return 3;", code.print());
     }
 
@@ -164,7 +164,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", 123L, TypeInteger.constant(1));
+""", TypeInteger.constant(1));
         code.parse().opto();
         assertEquals("return 3;", code.print());
     }
@@ -185,7 +185,7 @@ else if( arg==3 )
 else
     a=5;
 return a;
-""", 123L, TypeInteger.constant(3));
+""", TypeInteger.constant(3));
         code.parse().opto();
         assertEquals("return 4;", code.print());
     }
@@ -220,7 +220,7 @@ if( arg ) {
     else b = 3;
 }
 return a+b;
-""", 123L, TypeInteger.constant(1));
+""", TypeInteger.constant(1));
         code.parse().opto();
         assertEquals("return 4;", code.print());
     }
@@ -238,7 +238,7 @@ if( arg ) {
     else b = 3;
 }
 return a+b;
-""", 123L, TypeInteger.constant(0));
+""", TypeInteger.constant(0));
         code.parse().opto();
         assertEquals("return 1;", code.print());
     }
@@ -277,7 +277,7 @@ if( arg ) {
     else b = 3;
 }
 return a+b+c;
-""", 123L, TypeInteger.constant(1));
+""", TypeInteger.constant(1));
         code.parse().opto();
         assertEquals("return 6;", code.print());
     }
@@ -297,7 +297,7 @@ if( arg ) {
     else b = 3;
 }
 return a+b+c;
-""", 123L, TypeInteger.constant(2));
+""", TypeInteger.constant(2));
         code.parse().opto();
         assertEquals("return 5;", code.print());
     }

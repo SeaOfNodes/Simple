@@ -62,19 +62,20 @@ public class CodeGen {
 
 
     // ---------------------------
-    // Minimal test setup
-    public CodeGen( String src ) { this(src, TypeInteger.BOT ); }
     // Test setup; no module nor file with specific argument
-    public CodeGen( String src, TypeInteger arg) { this(src, 123L, arg==null ? TypeInteger.BOT : arg ); }
+    public CodeGen( String src ) { this(src, 123L ); }
 
     // Test setup; no module nor file; can alter seed & argument; can re-run same CodeGen
-    public CodeGen( String src, long workListSeed, TypeInteger arg ) {
-        this(null,null,null,"Test",
-             src, workListSeed, arg);
+    public CodeGen( String src, Type arg ) {
+        this(null,null,null,"Test", src, 123L, arg);
+    }
+    // Test setup; no module nor file; can alter seed & argument; can re-run same CodeGen
+    public CodeGen( String src, long workListSeed ) {
+        this(null,null,null,"Test", src, workListSeed, TypeInteger.BOT);
     }
     // Generic CodeGen, including full module setup
     public CodeGen( String modDir, String buildDir, Ary<String> externPaths, String srcName,
-                    String src, long workListSeed, TypeInteger arg ) {
+                    String src, long workListSeed, Type arg ) {
         // Public singleton to avoid passing about this state to a huge count
         // of places.  Probably becomes a TLS at some point.
         CODE = this;
