@@ -11,7 +11,7 @@ public class Chapter24Test {
     @Test
     public void testJig() throws IOException {
         String src = "int v0=0;  v0 = arg && 0== 0 !=0;";
-        testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
+        testCPU(src,"x86_64_v2", "win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
     }

@@ -194,7 +194,7 @@ public class x86_64_v2 extends Machine {
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
         return switch( CodeGen.CODE._callingConv ) {
         case "SystemV" -> callSys5 (tfp,idx,maxArgSlot);
-        case "Win64"   -> callWin64(tfp,idx,maxArgSlot);
+        case "win64"   -> callWin64(tfp,idx,maxArgSlot);
         default -> throw Utils.TODO();
         };
     }
@@ -203,7 +203,7 @@ public class x86_64_v2 extends Machine {
     @Override public short maxArgSlot( TypeFunPtr tfp ) {
         return switch( CodeGen.CODE._callingConv ) {
         case "SystemV" -> maxArgSlotSys5 (tfp);
-        case "Win64"   -> maxArgSlotWin64(tfp);
+        case "win64"   -> maxArgSlotWin64(tfp);
         default -> throw Utils.TODO();
         };
     }
@@ -316,7 +316,7 @@ public class x86_64_v2 extends Machine {
     @Override public long callerSave() {
         return switch (CodeGen.CODE._callingConv) {
         case "SystemV" -> SYSTEM5_CALLER_SAVE;
-        case "Win64"   ->   WIN64_CALLER_SAVE;
+        case "win64"   ->   WIN64_CALLER_SAVE;
         default -> throw new IllegalArgumentException("Unknown calling convention: " + CodeGen.CODE._callingConv);
         };
     }

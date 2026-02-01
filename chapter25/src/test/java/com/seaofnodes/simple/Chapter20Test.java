@@ -59,7 +59,7 @@ val _sqrt = { int x ->
 };
 return _sqrt(arg) + _sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "Win64"  ,38,null);
+        testCPU(src,"x86_64_v2", "win64"  ,38,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
         testCPU(src,"arm"      , "SystemV",19,null);
     }
