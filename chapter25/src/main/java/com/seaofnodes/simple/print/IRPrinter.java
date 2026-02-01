@@ -47,7 +47,7 @@ public abstract class IRPrinter {
                 sb.p("----------------------\n");
             }
             if( n instanceof MultiNode || n instanceof RegionNode || n instanceof CallNode ||
-                (multiChild(prior) && !multiChild(n)) )
+                (isMultiChild(prior) && !isMultiChild(n)) )
                 sb.nl();
             printLine(n,sb);
             if( n instanceof ReturnNode ret )
@@ -57,8 +57,12 @@ public abstract class IRPrinter {
         return sb.toString();
     }
 
-    private static boolean multiChild(Node n) {
-        return n instanceof Proj || n instanceof PhiNode;
+    private static boolean isMultiHead(Node n) {
+        return n instanceof RegionNode || n instanceof MultiNode;
+    }
+
+    private static boolean isMultiChild(Node n) {
+        return n!=null && n.in(0) != null && isMultiHead(n.in(0));
     }
 
 
@@ -67,16 +71,22 @@ public abstract class IRPrinter {
     public static String prettyPrint(Node node, int depth) {
         // Convert just that set to a post-order
         Ary<Node> post = new Ary<>(Node.class);
+        Ary<Node> rets = new Ary<>(Node.class);
         var visit = new IdentityHashMap<Node,Integer>();
         assert depth < 5000;
-        postOrd( node, 0, depth, visit, post);
+        postOrd( node, 0, depth, visit, post, rets);
+        // Function calls all print independent
+        while( rets.size()>0 )
+            postOrd( rets.pop(), 0, depth, visit, post, rets );
+
 
         // Reverse the post-order walk
         SB sb = new SB();
         for( int i=0; i<post._len; i++ ) {
             Node n = post.at(i);
+            // Split ahead of a Region/MultiNode
             if( n instanceof RegionNode || n instanceof MultiNode ||
-                (i>0 && multiChild(post.at(i-1)) && !multiChild(n)) )
+                (i>0 && isMultiChild(post.at(i-1)) && !isMultiChild(n)) )
                 sb.nl();
             if( n instanceof FunNode fun )
                 fun.sig().print(sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" ")).p("----------------------\n");
@@ -89,20 +99,67 @@ public abstract class IRPrinter {
         return sb.toString();
     }
 
+
     // keep the largest PO depth?; probably want *shortest*
-    private static void postOrd( Node n, int d, int cutoff, IdentityHashMap<Node,Integer> visit, Ary<Node> post ) {
+    private static void postOrd( Node n, int d, int cutoff, IdentityHashMap<Node,Integer> visit, Ary<Node> post, Ary<Node> rets ) {
+        if( n==null ) return;
+        if( d >= cutoff ) return; // Too deep
         Integer depth = visit.get(n);
         if( depth!=null ) return; // Been there, done that
-        if( d >= cutoff && !multiChild(n) )
-            return;               // Too deep, except get all the multi-childs
-        visit.put(n,d);
-        for( Node def : n._inputs ) {
-            if( def != null &&
-                // Do not walk across linked function boundaries
-                !(n instanceof CallEndNode && def instanceof ReturnNode) )
-                postOrd(def, d+1, cutoff, visit, post);
+
+        // Not a multi-child (Phi of a Region or Proj of a MultiNode)
+        if( !isMultiHead(n) && !isMultiChild(n) ) {
+            visit.put(n,d);             // Visit node N and depth D
+            for( Node def : n._inputs ) // Children before visit
+                postOrd(def, d+1, cutoff, visit, post, rets);
+            post.add(n);        // Post-order add
+            return;
         }
-        post.add(n);
+
+        // Multi-child; print the parent and all children together
+        Node multi = isMultiHead(n) ? n : n.in(0);
+        // Multi + children are visited all at once
+        visit.put(multi,d+1);
+        for( Node out : multi.outs() )
+            visit.put(out,d);
+
+        // Order to visit all the children
+        Node[] outs = multi.outs().asAry();
+        Arrays.sort(outs, Comparator.comparingInt( IRPrinter::sortOrder ) );
+
+        // Do not walk out of Functions, this makes functions stand-alone
+        // but otherwise unordered
+        if( !(multi instanceof FunNode fun && fun._folding) ) {
+            // Visit all children inputs all at once
+            for( Node out : outs ) {
+                // A FunNode is both a multi-head AND a multi-child from Start
+                if( !isMultiHead(out) ) {
+                    for( Node def : out._inputs ) {
+                        postOrd(def, d+1, cutoff, visit, post, rets);
+                    }
+                }
+            }
+            // Visit multi inputs
+            for( Node def : multi._inputs ) {
+                if( multi instanceof CallEndNode && def instanceof ReturnNode ret && !ret._fun._folding ) {
+                    rets.add(ret);  // But save the Return for a separate function print
+                } else {
+                    postOrd(def, d+2, cutoff, visit, post, rets);
+                }
+            }
+        }
+
+        // Post visit the multi and all children
+        post.add(multi);
+        for( Node out : outs )
+            if( !isMultiHead(out) )
+                post.add(out);
+    }
+
+    static int sortOrder( Node n ) {
+        if( n instanceof ProjNode proj ) return proj._idx;
+        if( n instanceof PhiNode phi ) return phi._nid;
+        return n._nid+1000000;
     }
 
 }

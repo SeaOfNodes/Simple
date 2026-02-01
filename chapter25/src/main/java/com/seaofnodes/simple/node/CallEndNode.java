@@ -149,9 +149,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // dependency checks carry long chains of half-folded calls.  Also the
         // idom may itself be in the process of dying, and no point in inlining
         // (and especially cloning) dead code.
-        CFGNode idom = call();
+        CFGNode idom = call(), prior=this;
         while( true ) {
             if( idom==null ) return -1; // Forced off, half-folded call
+            prior = idom;
             idom = idom.idom();
             if( idom instanceof FunNode ) break;
             if( idom instanceof CallEndNode ) break;
@@ -161,7 +162,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
         if( idom instanceof FunNode fun2 && (fun2._folding || fun2 == fun) )
             { addDep(fun2); return -1; }
         if( idom instanceof CallEndNode cend && cend._folding )
-            { addDep(cend); return -1; }
+            { addDep(cend); addDep(prior); return -1; }
         if( fun()==null ) return -1;
 
         // If the *inlined* function is mid-collapse, also do not inline (yet)

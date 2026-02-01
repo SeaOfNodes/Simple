@@ -16,7 +16,7 @@ import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 public class FunNode extends RegionNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
-    boolean _folding;
+    public boolean _folding;
 
     private TypeFunPtr _sig;    // Initial signature
     private ReturnNode _ret;    // Return pointer
