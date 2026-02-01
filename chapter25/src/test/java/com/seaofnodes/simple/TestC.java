@@ -15,7 +15,7 @@ public abstract class TestC {
     public static final String OS  = System.getProperty("os.name");
     public static final String CPU = System.getProperty("os.arch");
 
-    public static final String CALL_CONVENTION = OS.startsWith("Windows") ? "Win64" : "SystemV";
+    public static final String CALL_CONVENTION = OS.startsWith("Windows") ? "win64" : "SystemV";
     public static final String CPU_PORT = switch( CPU ) {
         case "amd64" -> "x86_64_v2";
         default -> throw Utils.TODO("Map Yer CPU Port Here");
@@ -27,19 +27,33 @@ public abstract class TestC {
      * Compile, link and run
      * - WITH a C driver
      * - using the default OS/CPU calling convention.
+     * - no lib sys
      */
     public static void runC( String src, String base, String expected, int spills) throws IOException {
         String cfile = C_DRIVERS_DIR+base+".c";
-        run(src, base, CALL_CONVENTION, "", cfile, expected, spills);
+        run(src, base, null, CALL_CONVENTION, "", cfile, expected, spills);
     }
 
     /**
      * Compile, link and run
      * - withOUT a C driver
      * - using the default OS/CPU calling convention.
+     * - no lib sys
      */
     public static void runSF( String src, String base, String expected, int spills ) throws IOException {
-        run(src, base, CALL_CONVENTION, null,null, expected,spills);
+        run(src, base, null, CALL_CONVENTION, null,null, expected,spills);
+    }
+
+    /**
+     * Compile, link and run
+     * - withOUT a C driver
+     * - using the default OS/CPU calling convention.
+     * - WITH a test lib sys
+     */
+    public static void runSYS( String src, String base, String expected, int spills ) throws IOException {
+        String libsysDir = "build/objs/" + "lib_"+CPU_PORT+"_"+CALL_CONVENTION;
+        Ary<String> externPaths = new Ary<>(new String[]{libsysDir});
+        run(src, base, externPaths, CALL_CONVENTION, null,null, expected,spills);
     }
 
 
@@ -57,7 +71,7 @@ public abstract class TestC {
      * @param spills      Expected limit on spill code, used to validate the
      *                    register allocation is reasonable
      */
-    public static void run( String src, String base, String simple_conv, String c_conv, String cfile, String expected, int spills ) throws IOException {
+    public static void run( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv, String cfile, String expected, int spills ) throws IOException {
         // Simple file base-name example:
         // foo.smp ->
         //   build/objs/foo.o   - object file
@@ -67,7 +81,7 @@ public abstract class TestC {
         String obj = pathBase+".o";
         String exe = pathBase+(OS.startsWith("Windows") ? ".exe" : "");
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src);
+        CodeGen code = new CodeGen(null,null,externPaths,"Test",src,123L,TypeInteger.BOT);
         code.driver( CPU_PORT, simple_conv, obj, cfile==null );
 
         String result = gcc(obj, c_conv, cfile, false, exe );

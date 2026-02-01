@@ -31,7 +31,7 @@ if(0) {
 }
 return new _s0.v1;
 """;
-        testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
+        testCPU(src,"x86_64_v2", "win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
     }
@@ -187,7 +187,7 @@ while(true) {
 }
 return i;
 """;
-        testCPU(src,"x86_64_v2", "Win64"  ,0,"return (inc,Phi(Loop,0,inc));");
+        testCPU(src,"x86_64_v2", "win64"  ,0,"return (inc,Phi(Loop,0,inc));");
         testCPU(src,"riscv"    , "SystemV",0,"return ( Phi(Loop,0,addi) + #1 );");
         testCPU(src,"arm"      , "SystemV",0,"return (inc,Phi(Loop,0,inc));");
     }
@@ -394,7 +394,7 @@ val fib = { int n ->
 
     @Test public void testArgCount() throws IOException {
         // Test passes more args than registers in Sys5, which is far, far more
-        // than what Win64 allows - so Win64 gets a lot more spills here.
+        // than what win64 allows - so win64 gets a lot more spills here.
         String src =
 """
 val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, int x8, flt f9, int i10, flt f11, int i12, flt f13, int i14, flt f15, int x16, flt f17 int x18, flt f19 ->
@@ -405,7 +405,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 """;
         String arg_count = "191.000000\n";
 
-        TestC.runC(src, "arg_count", arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
+        TestC.runC(src, "arg_count", arg_count, TestC.CALL_CONVENTION.equals("win64") ? 42 : 15);
 
         EvalRisc5 R5 = TestRisc5.build( src, "addAll", 0, 4, false);
 

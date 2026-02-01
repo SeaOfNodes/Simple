@@ -15,7 +15,7 @@ public class Chapter23Test {
     public void testJig() throws IOException {
         //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
-        testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
+        testCPU(src,"x86_64_v2", "win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
     }
@@ -225,7 +225,7 @@ return _s.peek('q');
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("Stop[ return 0; return Phi(Region,0,1); return #2; ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64"  ,20,null);
+        testCPU(src,"x86_64_v2", "win64"  ,20,null);
     };
 
     @Test
@@ -278,7 +278,7 @@ return _s.require('[');
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("Stop[ return 0; return (Parm_ch(require,u8)==.[]); return (.[]==91); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "Win64", 32, null);
+        testCPU(src,"x86_64_v2", "win64", 32, null);
     };
 
 

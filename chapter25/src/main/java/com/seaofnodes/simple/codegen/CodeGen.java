@@ -73,9 +73,10 @@ public class CodeGen {
     public CodeGen( String src, long workListSeed ) {
         this(null,null,null,"Test", src, workListSeed, TypeInteger.BOT);
     }
+
     // Generic CodeGen, including full module setup
-    public CodeGen( String modDir, String buildDir, Ary<String> externPaths, String srcName,
-                    String src, long workListSeed, Type arg ) {
+    public CodeGen( String modDir, String buildDir, Ary<String> externPaths,
+                    String srcName, String src, long workListSeed, Type arg ) {
         // Public singleton to avoid passing about this state to a huge count
         // of places.  Probably becomes a TLS at some point.
         CODE = this;

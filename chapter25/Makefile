@@ -150,7 +150,7 @@ OBJS:= build/objs
 
 $(OBJS)/lib_x86_64_v2_win64/sys.o:	$(CLZDIR)/main/.mtag
 	@echo "simping " $@
-	@$(JVM) com.seaofnodes.simple.Simple --cpu x86_64_v2 --abi Win64 --norun -o $@ src/main/smp/sys.smp
+	@$(JVM) com.seaofnodes.simple.Simple --cpu x86_64_v2 --abi win64 --norun -o $@ src/main/smp/sys.smp
 
 #######################################################
 # Base launch line for JVM tests

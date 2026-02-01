@@ -15,7 +15,7 @@ public class Chapter25Test {
         //CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
         //    driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"lib/sys.o",false);
 
-        TestC.runSF("sys.io.p(\"Hello, World!\");","helloWorld",null, "Hello, World!",0);
+        TestC.runSYS("sys.io.p(\"Hello, World!\");","helloWorld", "Hello, World!",0);
     }
 
     @Test @Ignore
