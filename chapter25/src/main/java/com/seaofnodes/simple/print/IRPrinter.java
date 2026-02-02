@@ -62,7 +62,7 @@ public abstract class IRPrinter {
     }
 
     private static boolean isMultiChild(Node n) {
-        return n!=null && n.in(0) != null && isMultiHead(n.in(0));
+        return n!=null && n.nIns() > 0 && n.in(0) != null && isMultiHead(n.in(0));
     }
 
 
