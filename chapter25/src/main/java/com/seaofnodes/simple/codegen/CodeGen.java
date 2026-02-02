@@ -592,8 +592,7 @@ public class CodeGen {
                 // Convert ElfReader
                 Ary<TypeStruct> published = elf.loadSimple();
                 for( TypeStruct ts : published )
-                    //_externSymbols.put(ts._name, new ExternNode(ts,ts._name));
-                    throw Utils.TODO();
+                    _externSymbols.put(ts._name, new ExternNode(ts,ts._name));
                 break;
 
             case null:

@@ -602,7 +602,7 @@ public class Type /*implements Cloneable*/ {
                 // Find matching local structs
                 TypeStruct ts2 = (TypeStruct)existingTypes.get( ts._name );
                 assert ts2==null || !ts2._open;
-                if( flen != ts2._fields.length )
+                if( ts2!=null && flen != ts2._fields.length )
                     throw Utils.TODO("link error: incompatible structs");
 
                 // For all fields, map aliases
@@ -616,8 +616,7 @@ public class Type /*implements Cloneable*/ {
                             throw Utils.TODO("link error: incompatible structs");
                         old_alias = tfld._alias; // Use existing alias
                     } else {
-                //        old_alias = nextAlias++; // Make a new alias
-                        throw Utils.TODO();
+                        old_alias = nextAlias++; // Make a new alias
                     }
                     // Collect the alias mapping
                     int deser_alias = aliases.atX(dfld._alias);
