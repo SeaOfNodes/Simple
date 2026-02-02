@@ -53,7 +53,7 @@ public class BAOS {
 
     // Read a u16 in 2 bytes
     public int read2(int idx) { return read1(idx) | (read1(idx+1)<<8);  }
-    public int read2() { return read2(_len+=2); }
+    public int read2() { int rez = read2(_len); _len+=2; return rez; }
 
     // write 4 bytes
     public BAOS write4( int x ) {
@@ -66,8 +66,8 @@ public class BAOS {
     }
 
     // Read a i32 in 4 bytes
-    public int read4(int idx) { return read2(idx) | (read2(idx+2)<<8);  }
-    public int read4() { return read2(_len+=4); }
+    public int read4(int idx) { return read2(idx) | (read2(idx+2)<<16);  }
+    public int read4() { int rez = read4(_len); _len+=4; return rez; }
 
     // write 8 bytes
     public BAOS write8( long x ) {
@@ -78,7 +78,7 @@ public class BAOS {
 
     // Read a i64 in 8 bytes
     public long read8(int idx) { return ((long)read4(idx) & 0xFFFFFFFFL) | ((long)read4(idx+4)<<32); }
-    public long read8() { return read8(_len+=8); }
+    public long read8() { long rez = read8(_len); _len+=8; return rez; }
 
     // Write byte array
     public void write( byte[] bs ) {
