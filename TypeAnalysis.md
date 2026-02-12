@@ -20,15 +20,18 @@ In both languages, after the first round of *pessimistic* constant propagation
 the IR) has a type - and if there are no error types, then the program is
 type-safe.  No separate typing pass is needed, and this is typically done
 partially as the program parses, finishing shortly thereafter.  Optionally, an
-*optimistic* constant propagation (SCCP) can be run to type more programs than
-the *pessimistic* approach alone.
+*optimistic* constant propagation 
+([SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)) 
+can be run to type more programs than the *pessimistic* approach alone.
 
-This discussion relies on the program being in SSA form, which I assume the
-reader is familiar with, and is commonly used in *constant propagation* because
-it allows the algorithm to be *sparse* without effort.  Also, all three
-compilers use the Sea-of-Nodes representation which is only relevant here
-because the same algorithm is now also *conditional* without any other changes;
-SCCP does not require the Sea-of-Nodes, although the presentation is simpler.
+This discussion relies on the program being in 
+[SSA](https://en.wikipedia.org/wiki/Static_single-assignment_form)
+form, which I assume the reader is familiar with, and is commonly used in
+constant propagation because it allows the algorithm to be *sparse* without
+effort.  Also, all three compilers use the Sea-of-Nodes representation which is
+only relevant here because the same SCCP algorithm is now also *conditional* without
+any other changes; SCCP does not require the Sea-of-Nodes, although the
+presentation is simpler.
 
 More jargon: I use *program points* interchangeably with *nodes in an SSA-based
 IR graph* or sometimes simply *nodes*. 
@@ -64,7 +67,7 @@ Variations of constant propagation have a long history in compilers, and here I
 am referring to the well understood
 [Monotone Analysis Framework](http://janvitek.org/events/NEU/7580/papers/more-papers/1977-acta-kam-monotone.pdf);
 a quick google search finds plethora of courseworks on the topic.  I assume the
-reader is familiar, and I give a very brief overview here.  Constant
+reader is familiar and I only give a very brief overview here.  Constant
 propagation has long been used to discover interesting facts about program
 points, generally to further optimize a program.  We are going to use it to
 *type* our programs.
@@ -72,7 +75,7 @@ points, generally to further optimize a program.  We are going to use it to
 At the core of the problem is a
 [lattice](https://en.wikipedia.org/wiki/Lattice_(order)) used to track what values a program point can take on.  Here is a common example for tracking integer constants:
 
-[Lattice1](./docs/lattice_i.svg) <img src = ./docs/lattice_i.svg>
+[Lattice1](./docs/lattice_i.svg) <img src="./docs/lattice_i.svg"/>
 
 The lattices being used here are:
 * Symmetric - every lattice element has a *dual*
@@ -85,15 +88,15 @@ The lattice *join* is defined from the *meet* and *dual* in
 the normal way: `~(~x meet ~y)`
 
 Also *isa* is defined as `(x meet y)==y`, e.g.  `17.isa(Int)` expands to `(17
-meet Int)==Int` which becomes `(Int)==Int`.
+meet Int)==Int` which becomes `(Int)==Int` which is `true`.
 
 
 ### The Constant Propagation Algorithm
 
 All nodes are initialized to either *top* ⊤ (SCCP) or *bottom* ⊥ (during
 Parsing), and also put on a worklist.  We pull work off the worklist until it
-runs dry, evaluating the node's *transfer function* to partially evaluate wrt
-the lattice.  If the evaluation produces a new lattice element, we put
+runs dry, evaluating the node's *transfer function* to partially evaluate
+w.r.t.  the lattice.  If the evaluation produces a new lattice element, we put
 dependent nodes' back on the worklist (using e.g. use-def edges).
 
 ```java
@@ -340,8 +343,11 @@ indicates a pointer which may be null.  We can make dereferencing a may-be-null 
 safe with a runtime check and an upcast:
 
 ```
-val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *?[name:"Whiskers", makeSound:#1{}]
-if( ptr ) // null-check
+// Inferred type: *?[name:"Whiskers", makeSound:#1{}]
+// Pronounced: pointer-to-a-nullable-Cat
+val ptr = rand() ? null : Cat("Whiskers"); 
+// null-check
+if( ptr ) 
     // hidden upcast to drop the null 
     ptr.makeSound() // Legal, because ptr cannot be null
 ```
@@ -349,8 +355,12 @@ if( ptr ) // null-check
 The same code with a "possibly null pointer" error:
 
 ```
-val ptr = rand() ? null : Cat("Whiskers"); // Inferred type: *?[name:"Whiskers", makeSound=#1{}]
-ptr.makeSound() // Illegal, because ptr might be null
+// Same as above:
+// Inferred type: *?[name:"Whiskers", makeSound:#1{}]
+// Pronounced: pointer-to-a-nullable-Cat
+val ptr = rand() ? null : Cat("Whiskers");
+// Illegal, because ptr might be null
+ptr.makeSound() // TYPE ERROR!
 ```
 
 Here the load to fetch the `makeSound` method fails during error reporting; in
@@ -371,9 +381,9 @@ same class **always** alias.
 This model works really well for strongly typed languages such as Java and
 Simple.  I believe it will work well for other strongly typed languages as
 well, although I have not tried it.  Obviously other models work as well.  In
-this case it is easy to add aliasing support in the type system: all pointers
+this case it is easy to add aliasing support in the type system: all fields
 have an *alias number*, a unique indicator of which *equivalence class* they
-belong too.  Set of aliases are possible, often as a using a bitvector.
+belong too.  Set of aliases are possible, often implemented with a bitvector.
 
 In the above example with a struct `[myPi: 3.14, result: 17, someFP8: ⊥:FP8]`
 memory is broken up into classes for the `myPi` fields, `result` fields and
@@ -383,7 +393,7 @@ different (also, the core types are different).
 
 Pointer types may also carry information like `raw` or `unsafe`, or pointers
 into e.g. GPU memory (probably as another alias class), or pointers to
-uninitialized memory, or destructed memory.
+uninitialized memory, or destructed memory or singletons.
 
 
 ## Functions
@@ -397,7 +407,9 @@ differently: the arguments will *joined* and the returns will be *meet*.
 Example:
 
 ```java
-fcn = rand() ? fcn_widen_ascii_char:{u8 -> u16} : fcn_narrow_wide_char:{u16 -> u8};
+var fcn = rand() 
+  ? fcn_widen_ascii_char:{u8 -> u16} 
+  : fcn_narrow_wide_char:{u16 -> u8};
 var some_ary = map(get_u8_ary(), fcn);
 ```
 
@@ -483,11 +495,11 @@ From the typing systems point-of-view, the field is a full-fledged
 member of the `String` type.  E.g. some pseudo-definition of `String`:
 
 ```java
-String = : [                    // String is a struct type...
+String = : {                    // String is a struct type...
   toUpperCase                   // with a field called toUpperCase...
     : [#1]{ String -> String }, // typed as a function from String to String
   ...                           // And probably has many more fields, elided here
-];
+};
 ```
 
 Here is a method call `"abc".toUpperCase()` from the type systems'
@@ -497,13 +509,15 @@ function which will be called.
 
 ```
 Code           Type
-"abc"        : [toUpperCase:[#1]{String->String}, ...other fields]
-.toUpperCase : [#1]{String->String}  // Just the field contents
+"abc"        : {toUpperCase:[#1]{String->String}, ...other fields}
+.toUpperCase : [#1]{String->String}  // Just the field contents, which is a function
  ("abc")       String                // Call fcn#1 with self
 ```
 
 
-When is some type e.g. UTF8String *isa* String?  Exactly when the *isa* call returns `True`;  when UTF8String has all the same fields as a `String` (and probably has more).
+When is a special String type e.g. UTF8String *isa* String?  Exactly when the *isa* call
+returns `True`; when UTF8String has all the same fields as a `String` (and
+probably has more).
 
 This is the general way *methods* are handled: they are reduced to function-
 typed fields in a struct, and then the existing *meet* and *join* operations
@@ -519,20 +533,23 @@ sugar* over the existing struct types.  Here is a generic example with totally
 made-up syntax:
 
 ```java
-Pet = : [
+// An abstract Pet class
+Pet = : {
     name: String
     makeSound: { Self -> String } = 0;// function pointer is null; this class is *abstract*
-];
+};
 
-Cat = : Pet : [
+// Cat is a sub-class of Pet, and concretely defines `makeSound`
+Cat = : Pet : {
     makeSound = { self -> "meow" };
-];
+};
 
 cat = Cat("Whiskers");
 
-Dog = : Pet : [
+// Another sub-class of Pet
+Dog = : Pet : {
     makeSound = { self -> "bark" };
-];
+};
 
 dog = Dog("Spot");
 ```
@@ -541,7 +558,7 @@ dog = Dog("Spot");
 `makeSound` field is typed with a null function pointer, shown as `[#0]`.
 
 `Cat` is a name for a type `[name:String, makeSound:[#1]{Pet->String}]`,
-i.e. its a `Pet` except the `makeSound` field is now typed as a concrete 
+i.e. it is a `Pet` except the `makeSound` field is now typed as a concrete 
 function `[#1]`.  Similarly, for `Dog` and concrete function `[#2]`
 
 The instance variable `cat` is typed as `[name:"Whiskers",
@@ -584,18 +601,18 @@ when checking on fields.
 
 We already have structural typing (e.g. static duck-typing) with no further
 ado.  Here we make a struct type with a single field `quack`, and an infinite
-number of `⊤` fields, meaning we don't care what the other fields are.
+number of `⊤` fields, meaning we don't care what the other fields are.  This
+type is more-or-less an *interface* or *trait* without a name.
 
 ```
-[quack : { self -> String }, ⊤, ⊤, ⊤,,,  ]
+{quack : { self -> String }, ⊤, ⊤, ⊤,,,  }
 ```
-
 
 The `quackathon` function checks that the caller passes in a struct with the
-`quack` field; this is more-or-less a *interface* or *trait* without a name:
+`quack` field:
 
 ```
-quackathon = { arg: [quack : { self -> String }, ⊤, ⊤, ⊤,,, ] -> 
+quackathon = { arg: {quack : { self -> String }, ⊤, ⊤, ⊤,,, } -> 
     arg.quack(); 
 }
 ```
@@ -606,19 +623,25 @@ incoming argument lacks a `quack` field, it will take the default `⊥` from the
 argument, and will lack a `quack` field... which will type error at the field load.
 
 ```
-Duck : Pet : [
+Duck : Pet : {
     makeSound = { self -> "quack" }
     quack = makeSound();
-];
-StealthCow : Pet : [
+};
+
+StealthCow : Pet : {
     makeSound = { self -> "moo" }
     quack = { self -> "quack" }
-];
+};
 ```
 
 Both of these types have a `quack` function-typed field, so both are legal
 here.  The requirement is strictly that the passed-in argument has the needed
 signature (needs a function-typed `quack` field).
+
+However if we try to call `dog.quack()`, we will attempt to lookup the `quack`
+field in the `Dog` type.  `Dog` does not explicity have such a field, and so we
+get the default field type: `quack:⊥` which we then try to treat as a
+function... and since `⊥` is not a function type we get a type error.
 
 
 ## Nominative Typing and Traits and Interfaces
@@ -629,16 +652,17 @@ nominative typing, but not vice-versa.  We add a little type sugar to force a
 failure if the type names do not match, a hidden field with a funny name:
 
 ```java
-Duck : Pet : [
+Duck : Pet : {
     $classDuck : 0; // hidden field with mangled class name
     makeSound = { self -> "quack" }
     quack = makeSound();
-];
-StealthCow : Pet : [
+};
+
+StealthCow : Pet : {
     $classStealthCow : 0; // hidden field with mangled class name
     makeSound = { self -> "moo" }
     quack = { self -> "quack" }
-];
+};
 ```
 
 And now we need to constrain our `quackathon` to only allow `Duck`s:
@@ -667,62 +691,69 @@ There is a *type cast* that the arguments are correct; it does a *isa* check
 with the input and expected type, and if the the argument is not *isa*, will
 flag a type error at the time of *type analysis* (i.e. constant propagation).
 Unlike *structural typing*, where we require a `quack` field from the argument
-via directly loading a `quack` field, here we introduce a *isa* check.
+via directly loading a `quack` field, here we require the `$classDuck` field.
 
-The argument type to the call is a `StealthCow` which expands to:
+The argument type to the second `quackathon` call is a `StealthCow` which
+expands to:
 
 ```java
-[
+{
     $classPet: 0;          // StealthCow is also a Pet
     $classDuck: ⊥;        // All other fields are ⊥
     $classStealthCow: 0;
     name: "Betsy";         // StealthCows are Pets, which have a name
     makeSound = #3{ self -> "moo" }; // function index #3
     quack = #4{ self -> "quack" };
-]
+    // all other fields are ⊥
+    ...
+}
 ```
 
 The check is against a generic `Duck` which expands to:
 
 ```java
-[
+{
     $classPet: 0;          // Duck is also a Pet
     $classDuck: 0;         // 
     $classStealthCow: ⊥;  // All other fields are ⊥
     name: String;          // Ducks are Pets which have a name
     makeSound = #5{ self -> "quack" }; // function index #3
     quack = #5{ self -> "quack" };
-]
+    // all other fields are ⊥
+    ...
+}
 ```
 
 The *isa* check is `(StealthCow meet Duck) == Duck`.  The *meet* of
-StealthCow and Duck is:
+StealthCow and Duck is done field by field and results in:
 
 ```java
-[
-    $classPet: 0;          // Since both are Pets, this field remains
+{
+    $classPet: 0;         // Since both are Pets, this field remains
     $classDuck: ⊥;        // Not really a Duck, the meet lacks $classDuck
     $classStealthCow: ⊥;  // Not really a StealthCow, the meet lacks $classStealthCow
-    name: String;          // Generic name from the generic Pet
+    name: String;         // Generic name from the generic Pet
     makeSound = #[3,5]{ Pet -> String }; // function indices #3,5
     quack = #[4,5]{ Pet -> "quack" };    // function indices #4,5
-]
+}
     
 ```
 
-And since this is not equal to a `Duck`, the `isa` fails, the *type cast* will
+And since this is not equal to a `Duck` (the `$classDuck` field is
+missing/default and not `0`) , the `isa` returns false, the *type cast* will
 report an error.
 
-### An Equatable Trait Example
+
+### A Trait Example
 
 Let's make a concrete working example with a trait `Equals`; here is the
 type for `Equals`:
 
 ```java
-Equals = : [                    // Equals is a struct (trait) with...
+Equals = : {                    // Equals is a struct (trait) with...
   eq = { Self Self -> bool };   // With a field 'eq' typed as a function taking 2 selfs
   ⊤, ⊤, ⊤,,,  // And the infinite unknown fields are ⊤ ... allowing anything
-];
+};
 ```
 
 From the above example with `Duck`s and `Cow`s, we can see they are not `Equals` (will fail
@@ -753,7 +784,7 @@ And if we reverse the calling arguments:
 
 ```java
 isHappy = { pet : Pet -> "Happy".eq(pet) }
-ERROR: function String.eq argument#1 must be a String
+ERROR: function String.eq argument#1 must be a String and not a Pet
 ```
 
 
@@ -782,12 +813,12 @@ Call Graph)
 ## Conditional Conformance
 
 "Conditional Conformance" is a fancy name for a fairly simple idea: if an
-Element has a property, then a collection of such Elements also has that
+Element has a property, then a Collection of such Elements also has that
 property, and if not then not.  An example might be something that is
 `Stringable`, then a collection of them is also `Stringable`, perhaps as
 printing as `[elem0,elem1,...]`.  Same for e.g. `Equatable` or `Hashable` or `Comparable`.
 
-The collection defines how to extend the base notion.  So e.g. a collection of
+The Collection defines how to extend the base notion.  So e.g. a collection of
 `Comparable`s is itself comparable, and that comparison might either return an
 element-wise collection of `Bool`s, or might compare lexigraphically and return a
 single `Bool` instead of a collection.
@@ -805,4 +836,3 @@ So how does that work here?
 Expand to remove polymorphism (above)
 Structual typing gives the answer.
 Can refine further.
-
