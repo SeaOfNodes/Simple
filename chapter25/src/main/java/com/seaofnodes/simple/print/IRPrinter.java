@@ -133,7 +133,7 @@ public abstract class IRPrinter {
             // Visit all children inputs all at once
             for( Node out : outs ) {
                 // A FunNode is both a multi-head AND a multi-child from Start
-                if( !isMultiHead(out) ) {
+                if( !isMultiHead(out) && out != null ) {
                     for( Node def : out._inputs ) {
                         postOrd(def, d+1, cutoff, visit, post, rets);
                     }
@@ -159,6 +159,7 @@ public abstract class IRPrinter {
     static int sortOrder( Node n ) {
         if( n instanceof ProjNode proj ) return proj._idx;
         if( n instanceof PhiNode phi ) return phi._nid;
+        if( n == null ) return 0;
         return n._nid+1000000;
     }
 

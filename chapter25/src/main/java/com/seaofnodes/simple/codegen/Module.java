@@ -1,204 +1,96 @@
 package com.seaofnodes.simple.codegen;
 
 
-
-
 /***
-Modules can refer to other modules, in a DAG, no cycles.
-Module is also a class; a class comes from a file (or textually nested in another class, same as a file)
-Class has a <clinit>, run once before any class instances can be made.
-No fref's in a <clinit>, run top-to-bottom, can run any code there.
-TODO: Need the java stall-if-wrong-thread for a multi-threaded <clinit> where several threads can ask for the same class
+    Modules!?!?!?
 
-Each module has its *own* Global Table of Modules.
-Will get some repeat modules (e.g. %smp)
-But linker should pick the most recent, so everybody agrees on the same <clinit>
+    Goal: under no circumstances can you load from an uninitialized variable
+    (although you can see default inits for fields that have defaults).
+    Goal: nested tree-structured name spaces, to control complexity.
+    Goal: field decl order within a file is fairly flexible.
 
-Global table of modules
-  class:foo? %foo = null; // Module vars are just *classes*, set to null if not yet init'd; 3rd state for in-progress
-  class:smp? %smp = null;
-  ... more modules...
+    A Module a root-level SMP file, and the full file path must be provided on
+    the command line.  All other Simple structs are relative to this file.
 
-Entry point:
-  %foo = new struct %foo;
-  return %foo.<clinit>();  // in progress, will e.g. call %smp.<clinit>
+    Example: "simple /user/Dave/hello.smp"
 
---- File: foo.smp ----
-1;
-----------------------
+    Defines a module "hello" in directory "/user/Dave", compiles and produces
+    a `hello` or `hello.exe` output file, and runs it.
 
-struct foo {}; // no fields
+    A SMP file has some <finit> file-init code which is static-global.
+    This code is executed on "first touch" of the file (defined below).
 
+    Example: hello.smp contains:
+        sys.io.p("Hello World!");
+    On first-touch, will print "Hello World!".
 
-class:foo { // class same as object/struct
-  // Empty list of not-init'd sub-modules
+    A SMP file is a lexical scope, and code inside it can reference those names.
 
-  //
-  val <clinit> = { self -> 1; }
-}
+    Example: hello.smp contains:
+        val greet = "Hello World!"; // Declare file-scoped variable
+        sys.io.p(greet);            // Reference file-scoped variable
 
+    Static code is NOT allowed to have forward-references AND be executed
+    before the <finit> finishes initializing all variables.  After var
+    initialization, a singleton instance of the implied file struct is made,
+    and then <finit> code can call anything.
 
+    Example:
+        sys.io.p(greet); // Illegal forward reference
+        val greet = "Oops!";
 
+    Example:
+        val delay = { -> greet };    // Legal forward ref, but cannot execute (yet)
+        val greet = "Hello World!";  // Ref is resolved
+        sys.io.p(delay());           // Allowed to call delay()
+        val nprimes = { N ->
+          // compute number of primes < N
+        }
+        // Can otherwise execute any code in a <finit>
+        sys.io.p(nprimes(100));
 
-During a <clinit>, if reference another module, check & recursive init:
+    Inside a directory, you can have sibling SMP files:
+    File hello.smp contains:
+        sys.io.p(I9A.GREETING);  // File hello references sibling file I9A static globals
+    File I9A.smp contains:
+        val GREETING = translate("Hello World!");
+        val translate = { str msg -> ... };
 
---- File: helloWorld.smp ----
-sys.io.p("hello");
-----------------------
+    <finit> code cannot reference sibling files (nor child files, see below)
+    until all static variables are initialized.  This prevents cyclic
+    initialization bugs, where file A uses vars from file B and vice-versa.
 
-class:helloWorld { // class
-  val <clinit> = { self ->
-    // Lazy clinit for MODULE/class sys
-    if( !%sys ) %sys = new class:sys().<clinit>()
-    // Lazy clinit for class sys.io
-    if( !%sys.%io ) %sys.%io = new class:sys.io.<clinit>();
-    // Call print
-    %sys.io.p("hello");
-    // NOTICE MISSING ALL OTHER SYS NESTED CLASSES (e.g. ary, Scan, etc)
-  }
-};
+    File Chicken.smp contains:
+        val lay = Egg.hatch; // Illegal, defining var 'lay' after calling sibling Egg
+    File Egg.smp contains:
+        val hatch = Chicken.lay; // Illegal
 
-class:sys { // class sys
-  class:Scan? %Scan;
-  class:ary?  %ary ;
-  class:io?   %io  ;
-  class:libc? %libc;
+    You can make cross references, if they get delayed until after all fields
+    are declared.
 
-  class:io { // class sys.io
-    val p = { str -> ... }
-    val other_fcns=...;
-    // <clinit> for io; since io.p refers to `libc` and `ary` must init here.
-    if( !%sys.%libc ) %sys.%libc = new class:sys.libc.<clinit>();
-    if( !%sys.%ary  ) %sys.%ary  = new class:sys.ary .<clinit>();
-  }
+    File Chicken.smp contains:
+        int lay = 2;
+        lay = Egg.egg;
 
-  // No code in sys.<clinit>
-  // So no sub-class init.
-};
+    File Egg.smp contains:
+        int egg = 3;
+        egg = Chicken.lay;
 
-// FORWARD REFS
-// auto-promote out of inner-most containing fcn;
-// may promote out to top-level, and if so do extern lookup
-
---- File: test.smp
-
-val fact = { x ->
-  x ? 1 :
-    fact // <<-- FRef promotes to test.<clinit>
-};
-// Assign fact, finds FREF, defs FREF
-
-val foo = { ->
-  int qux = bar+1;  // bar FREF, promotes to test.<clinit>
-  int bar = qux+1;  // defines local 'bar'
-  return bar;       // local bar scope ends
-}
-int bar=99; // defs FREF bar in test.<clinit>
-
-=======================================================
+    The problem here, of course, is that you need to touch one of Chicken or
+    Egg first.
 
 
-Get a no-arg constructor if all fields can be init without args.
-Does not have to be zero-init, if you can init from outside.
+    Inside a SMP file, you can define structs; structs are also a lexical
+    scope.  Bare code in the struct is part of the struct's <init> and only
+    runs when an instance is created.  Structs do not have static <clinit> (nor
+    <finit>).  Structs <init> cannot have any forward references, and locally
+    declared functions cannot have both forward references and be executed (or
+    passed along to a possibly-executing function).
 
-You can write an arg constructor
-... no back to what i have...
-if you need a not-null fill, write it inline.
-If you want to force the fill in the struct, e.g. for extra checking, force a privaet final field.
+    In the same directory as a SMP file, Simple allows other directories with
+    names matching SMP files.  Inside these dirs can be more SMP files that are
+    lexically nested, similar to embedded structs.
 
-struct ERRORHasPrivateFinal {
-  int _x; // has private final needs init
-  int _y=0; // has private final, and has init
-}
-
-var x = new ERRORHasPrivateFinal{}; // Error private final field _x not initialized
-var x = new ERRORHasPrivateFinal{_x=99}; // Error cannot init private field _x
-
-struct OKHasPrivateFinal {
-  int _x; // has private final needs init
-  val make { int x -> new OKHasPrivateFinal{ _x=x; } }
-}
-var x = new OKHasPrivateFinal{ _x=99; } // Error cannot init private field _x
-var x = OKHasPrivateFinal.make(99)
-
-
-=======================================================
-
-Allocation:
-
---- File: Foo.smp --------------
-struct Foo {
-  int !x;     // Default init of 0
-  String str; // Not-null, final
-};
-Foo GOLD = new Foo{str="GOLD"};
-GOLD.x++;
---------------------------------
-
-fcn <init>(Foo self) {
-  mem = st(ctrl,mem,self,"x",0);
-  return(ctrl,mem,self);
-}
-
-fcn <clinit> {
-
-  // Set ts to final type post alloc: Foo:{ !x=0; str="str"; }
-  (nnn,mem) = NewNode(ctrl,size,mem,ts);
-  // returns merged memory
-
-  (ctrl,mem,nnn) = Call Foo.<init>(nnn);
-
-  mem = st(ctrl,mem[Foo.str],nnn,"str",con("GOLD"), sets_final=true);
-  // Parser checks all fields set
-  // Upcast nnn, why bother?
-  assert/cast(nnn, Foo:{ !x=0, str="GOLD" });
-
-  mem = st(ctrl,mem[class:Foo.GOLD],CLZ,"GOLD",nnn);
-
-  i = ld(ctrl,mem[Foo.x],nnn,"x");
-  i2 = add(i,1)
-  mem = st(ctrl,mem[Foo.x],nnn,"x",i2);
-
-}
-
------------------------------------------------
-Allocation: this time using private "self_mem"
-
-The <init> call:
-Fun(callers)
-- phi_RPC
-- phi_public_mem
-- phi_self
-- phi_self_mem [ts{x:TOP, str:TOP}]
-
-self_mem = st(null,self_mem,phi_self_mem, "x", con(0))  [ts:{x:0, str:TOP}]
-Return(Fun,public_mem, self_mem, phi_RPC)
-
-
-
-Usage of init call:
-
-NewNode[ts](ctrl, size)
-- proj_ptr
-- proj_self_mem [ts{x:TOP, str:TOP}]
-
-Call(ctrl, public_mem, proj_ptr, proj_self_mem, tfp:<init>)
-CallEnd
-- ctrl
-- proj_public_mem
-- proj_self_mem [ts:{x:0, str:TOP}]
-
-self_mem =
-  st(null, proj_self_mem, self, "str", con("GOLD")) [ts:{x:0, str:"GOLD"}]
-
-Parser checks no TOP,BOT fields in self_mem
-Escape(public_mem, self_mem, ptr)
-
---------------------------------------------
-EscapeNode:
-Load/Store vs escape:
-- if can tell ld/st ptr == Escape ptr, then move "into"  escape
-- if can tell ld/st ptr != Escape ptr, then move "aside" escape
 
 */
 
