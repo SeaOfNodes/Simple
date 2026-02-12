@@ -135,15 +135,15 @@ Example#2:
 ```python
 x0 = 1              # Note the SSA renaming
 while( rand() ):
-    x1 = phi(x0,x2)
-    x2 = 2-x1       # can we discover x2 = 1 here?
+    x1 = φ(x0,x2)
+    x2 = 2 - x1     # can we discover x2 = 1 here?
 print(x1)
 ```
 
-While evaluating this program top-down, we can see that `x0=1` when we reach
+While evaluating this program top-down, we can see that `x0 = 1` when we reach
 the loop entry, but what happens to `x` around the backedge?  Since we start at
-`⊥`, the `phi(x0,x2)` becomes `phi(1,⊥)` which does a *meet* to yield `⊥`.  Then
-`x2 = 2-x1` becomes `x2 = 2-⊥` which is `⊥` which is what we started with.  We
+`⊥`, the `φ(x0,x2)` becomes `φ(1,⊥)` which does a *meet* to yield `⊥`.  Then
+`x2 = 2 - x1` becomes `x2 = 2 - ⊥` which is `⊥` which is what we started with.  We
 have then hit a fixed point with no values further changing: `x0 = 1; x1 = ⊥;
 x2 = ⊥`.
 
@@ -156,9 +156,9 @@ Following down the worklist, and by the loop end we know so-far:
           x0 = 1              # Note the SSA renaming
           while( rand() ):
 # x0=1, x1=⊤, x2=⊤
-              x1 = phi(x0,x2)
+              x1 = φ(x0,x2)
 # x0=1, x1=1, x2=⊤
-              x2 = 2-x1       # can we discover x2 = 1 here?
+              x2 = 2 - x1     # can we discover x2 = 1 here?
 # x0=1, x1=1, x2=1
 ```
 
@@ -166,11 +166,11 @@ Since x2 changed from `⊤` to `1`, we need to repeat uses of x2:
 
 ```python
 # x0=1, x1=1, x2=1
-              x1 = phi(x0,x2)
+              x1 = φ(x0,x2)
 # x0=1, x1=1, x2=1
 ```
 
-With no change from before and after the `phi(x0,x2)` we hit our fixed point -
+With no change from before and after the `φ(x0,x2)` we hit our fixed point -
 and discover that `print(x)` is really `print(1)` and all the `x` math (and the
 loop) can be dropped.
 
