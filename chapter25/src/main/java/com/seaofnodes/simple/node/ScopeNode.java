@@ -557,6 +557,5 @@ public class ScopeNode extends MemMergeNode {
         assert olds.length<=nIns();
         for( int i=0; i<olds.length; i++ )
             setDef(i,olds[i]==null ? null : olds[i].unkeep());
-
     }
 }
