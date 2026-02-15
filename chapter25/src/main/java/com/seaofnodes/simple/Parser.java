@@ -138,8 +138,20 @@ public class Parser {
     // Debugging utility to find a Node by index
     public Node f(int nid) { return _code.f(nid); }
 
+    // Read and set CTRL
     private Node ctrl() { return _scope.ctrl(); }
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
+    // Read and set Memory
+    private MemMergeNode mem() { return _scope.mem(); }
+    private void mem(Node mem) { _scope.mem(mem); }
+    // We set up memory aliases by inserting special vars in the scope these
+    // variables are prefixed by $ so they cannot be referenced in Simple code.
+    // Using vars has the benefit that all the existing machinery of scoping
+    // and phis work as expected
+    private Node memAlias(int alias         ) { return mem(alias    ); }
+    private void memAlias(int alias, Node st) {        mem(alias, st); }
+    public static String memName(int alias) { return ("$"+alias).intern(); }
+
 
     public void parse() {
         _lexer = new Lexer(_code._src);
@@ -152,7 +164,7 @@ public class Parser {
 
         //
         ctrl(XCTRL);
-        _scope.mem(new MemMergeNode(false));
+        mem(new MemMergeNode(false));
 
         // File-level struct declaration
         _nestedType = _code._srcName;
@@ -248,7 +260,7 @@ public class Parser {
         // Private mem alias tracking per function
         Node privMem = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole();
         MemMergeNode mem = new MemMergeNode(true,null,privMem);
-        _scope.mem(mem);
+        mem(mem);
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
@@ -689,7 +701,7 @@ public class Parser {
       expr.keep();
         // Need default memory, since it can be lazy, need to force
         // a non-lazy Phi
-        _scope.mem().removeLazyAll();
+        mem().removeLazyAll();
         // For <init> and <clinit> - all fields in scope will be live-on-exit
         // and stored into `self` and need to have lazy-phi's inserted.
         int lexN = _scope.enclosingFuncOrDecl();
@@ -725,7 +737,7 @@ public class Parser {
             // ANd fields might not match.... will need matching Var/define with default values
             int rlen = _returnScope.nIns()-1;
             RegionNode r = ctrl(new RegionNode(null, null,_returnScope.ctrl(), _scope.ctrl()).init().keep());
-            _returnScope.mem()._merge(_scope.mem(),r);
+            _returnScope.mem()._merge(mem(),r);
             _returnScope      ._merge(_scope,      r, rlen);
             Node oldExpr = _returnScope.in(rlen);
             _returnScope.setDef(rlen,new PhiNode("$expr", oldExpr._type.meet(expr._type), r, oldExpr, expr).peephole());
@@ -1598,7 +1610,7 @@ public class Parser {
 
         // Call construct <init>($ctrl,$mem,NewNode.self,NewNode.#selfMem) and
         // encourage inlining
-        Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(_scope.mem().merge()); add(self); add(smem); add(con(init)); }};
+        Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(mem().merge()); add(self); add(smem); add(con(init)); }};
         Node selfMem = functionCall( args ).keep();
         // The returned value is a merge of private *Memory* and NOT some Scalar
 
@@ -1707,14 +1719,6 @@ public class Parser {
         assert str.isConstant();
         return con(str);
     }
-
-    // We set up memory aliases by inserting special vars in the scope these
-    // variables are prefixed by $ so they cannot be referenced in Simple code.
-    // Using vars has the benefit that all the existing machinery of scoping
-    // and phis work as expected
-    private Node memAlias(int alias         ) { return _scope.mem(alias    ); }
-    private void memAlias(int alias, Node st) {        _scope.mem(alias, st); }
-    public static String memName(int alias) { return ("$"+alias).intern(); }
 
     /**
      * Parse postfix expression; this can be a field expression, an array
@@ -1918,7 +1922,7 @@ public class Parser {
         }
         // Control & memory after parsing args
         args.set(0,ctrl().keep());
-        args.set(1,_scope.mem().merge().keep());
+        args.set(1,mem().merge().keep());
         args.push(fcn);        // Function pointer
         // Unkeep them all
         for( Node arg : args )
@@ -1945,7 +1949,7 @@ public class Parser {
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
         // Memory from CallEnd
         Node mem = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
-        _scope.mem(new MemMergeNode(true,null,mem));
+        mem(new MemMergeNode(true,null,mem));
         // Call result
         return new ProjNode(cend.unkeep(),2,"#2").peephole();
     }
