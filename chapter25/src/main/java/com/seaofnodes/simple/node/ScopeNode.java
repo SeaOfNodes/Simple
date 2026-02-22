@@ -41,7 +41,7 @@ public class ScopeNode extends MemMergeNode {
     public int depth() { return _kinds._len; }
     public Kind klast() { return _kinds.last(); }
 
-    // Extra guards; tested predicates and casted results
+    // Extra guards; tested predicates and cast results
     private final Ary<Node> _guards;
 
     // A new ScopeNode

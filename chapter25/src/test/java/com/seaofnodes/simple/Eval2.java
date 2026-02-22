@@ -134,6 +134,14 @@ public abstract class Eval2 {
         CFGNode BB = code._start, prior = null;
         // Return from main hits Stop
         F.put(BB,new Closure(code._stop,F));
+        // For all <clinit> / Clazzes, install their uninitialized memory
+        for( FunNode fun : code._linker )
+            if( fun!=null && fun.isClz() ) {
+                TypeStruct clz = ((TypeMemPtr)fun.sig().arg(0))._obj;
+                // Map from the <clinit> self parameter to the
+                // singleton class structure.
+                F.put(fun.parm(2),alloc(clz));
+            }
 
 
         // ------------

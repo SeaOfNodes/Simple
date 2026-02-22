@@ -148,8 +148,8 @@ public class Parser {
     // variables are prefixed by $ so they cannot be referenced in Simple code.
     // Using vars has the benefit that all the existing machinery of scoping
     // and phis work as expected
-    private Node memAlias(int alias         ) { return mem(alias    ); }
-    private void memAlias(int alias, Node st) {        mem(alias, st); }
+    private Node memAlias(int alias         ) { return _scope.mem(alias    ); }
+    private void memAlias(int alias, Node st) {        _scope.mem(alias, st); }
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
 
@@ -222,28 +222,42 @@ public class Parser {
         // update fields, so when the parse is done reset back to the pre-parse
         // state.
         Node[] preParse = _scope.save();
-        ScopeNode returnScope = _returnScope;
-        _returnScope = null;
 
         // Parse function body normally
         ReturnNode ret = _parseFunctionBody(null, sig,loc,ids);
 
         // Reset all fields to pre-parse days
-        if( _returnScope != null ) _returnScope.kill();
-        _returnScope = returnScope;
-        _scope.pop();           // Must pop function scope
         _scope.restore(preParse);
         return ret;
     }
-    // Parse a function body; leaves function scope around because constructor
-    // parse needs it (and normal function parse just pops the scope)
-    private ReturnNode _parseFunctionBody( String name, TypeFunPtr sig, Lexer loc, String[] ids) {
+
+
+    // Parse a function body
+
+    // Stack the {break,continue,return} scopes and a new lexical scope.
+    // Build a FunNode and parameters, extending scope by parm names.
+    // Parse the function body
+    // - while( not end-of-function )
+    // - - parseStatement
+    // - - If isInit, also incrementally extend the self-type.
+    // If isInit
+    // - upgrade and close the self-type
+    // - Gather fields and store values
+    // - <init> returns self, not last
+    // Unstack the {break,continue,return} scopes.
+
+    private ReturnNode _parseFunctionBody( String funName, TypeFunPtr sig, Lexer loc, String[] ids) {
+        boolean isInit = FunNode.isInit(funName);
+        String typeName = isInit ? ((TypeMemPtr)sig._sig[0])._obj._name : null;
+
         // Stack parser state on the local Java stack, and unstack it later
+        _scope.push(new Kind.Func(funName));
         ScopeNode    breakScope =    _breakScope;    _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
-        int oldUID = _code.UID(); // Used to approximate function size
+        ScopeNode   returnScope =   _returnScope;   _returnScope = null;
 
-        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, name, null,_code._start));
+        int oldUID = _code.UID(); // Used to approximate function size
+        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, funName, null,_code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -255,7 +269,6 @@ public class Parser {
         // Pre-call the function from Start, with worse-case arguments.  This
         // represents all the future, yet-to-be-parsed functions calls and
         // external calls.
-        _scope.push(new Kind.Func(name));
         _scope.ctrl(fun);              // Scope control from function
         // Private mem alias tracking per function
         Node privMem = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole();
@@ -268,66 +281,30 @@ public class Parser {
         }
 
         // Parse the function body.
-        ScopeNode.Kind klast = _scope.klast(); // Current lexical scope
-        int nvars = 2;          // Skip "self" and "#selfMem" in current scope
         Node last=ZERO;         // Last statement as the default result
         while (!peek('}') && !_lexer.isEOF()) {
             // Parse a statement; record last statement as default return
             last = parseStatement();
-
             // For <init> and <clinit>, local vars are really struct fields and
             // get exposed as discovered.  This allows late local functions to
             // use early declared fields.
-
-            // TODO: Ponder another strategy here; the Actual Problem is later
-            // parsing field loads/stores from pointers which will (eventually)
-            // become the final Type of 'self' - they get an early version of
-            // 'self' missing fields, and the parser wants to complain right
-            // now instead of allowing unknown field loads against unknown
-            // types - and letting everything resolve out later in SCCP.
-            if( fun.isInit() ) {
-                // Load self type in and out of the TYPES hashtable.
-                TypeStruct tself = (TypeStruct)TYPES.get(((TypeMemPtr)sig._sig[0])._obj._name);
-                assert _scope.var(klast._lexSize)._name=="self";
-                while( klast._lexSize+nvars < _scope.nIns() ) {
-                    Var v = _scope.var(klast._lexSize+(nvars++));
-                    tself = tself.add(Field.make(v._name,v.type(),_code.nextALIAS(),v._final));
-                }
-                TYPES.put(tself._name,tself);
-            }
+            if( isInit )
+                updateSelfAsFieldsDiscovered( typeName );
         }
 
-        //
-        if( fun.isInit() ) {        // <init>  or  <clinit>
-            // For init functions, upgrade any forward ref fields.
-            TypeStruct tself = (TypeStruct)TYPES.get(((TypeMemPtr)sig._sig[0])._obj._name);
-            for( int i=0; i<tself.nkids(); i++ ) {
-                Var v = _scope.var(klast._lexSize+2+i);
-                Field tfld = tself._fields[i];
-                if( v.type() != tfld._t ) {
-                    assert v.type().isa(tfld._t);
-                    tself = tself.replace(tfld.makeFrom(v.type()));
-                }
-            }
-            TYPES.put(tself._name,tself);
-
-            if( !fun.isClz() ) {    // <init>, not <clinit>
-                last = fun.parm(2); // Init returns self, not last expression
-            } else if( last._type instanceof TypeFunPtr tfp && tfp.nfcns()==1 ) {
-                // Do not return a private function from a <clinit>, as these
-                // might entirely inline and the TFP would otherwise be dead.
-                // The <clinit> exit is only usable as the OS system exit result
-                // or in simple tests.
-                FunNode lastFun = _code.link(tfp);
-                if( lastFun._name==null || lastFun._name.charAt(0)=='_' )
-                    last = ZERO;
-            }
-        }
+        ParmNode self = fun.parm(2);
         assert last!=null;
+        if( isInit )
+            last = initSpecialLastExpr(last, fun.isClz(), self);
 
         // Last expression is the return
         if( ctrl()._type==Type.CONTROL )
             addReturn(last);
+
+        if( isInit )            // <init>  or  <clinit>
+            upgradeSelfTypeAndStoreFields( typeName, fun.isClz(),
+                                           self,
+                                           fun.parm(3) );
 
         // Build a return from the _returnScope.
         // Can be no returns for never-exit functions
@@ -337,14 +314,120 @@ public class Parser {
         ReturnNode ret = (ReturnNode)peep(new ReturnNode(rctl, rmem, expr, rpc, fun));
         fun.setRet(ret);
         _code._stop.addDef(ret);
-
-        // Function scope ends, but caller must pop scope
-        _breakScope    =    breakScope;
-        _continueScope = continueScope;
         // Approximate function size, for inlining heuristics
         fun._approxUIDs = _code.UID() - oldUID;
 
+        // Unstack parser state
+        if( _returnScope != null ) _returnScope.kill();
+        _returnScope   =   returnScope;
+        _continueScope = continueScope;
+        _breakScope    =    breakScope;
+        _scope.pop();
+
         return ret;
+    }
+
+    // TODO: Ponder another strategy here; the Actual Problem is later parsing
+    // field loads/stores from pointers which will (eventually) become the
+    // final Type of 'self' - they get an early version of 'self' missing
+    // fields, and the parser wants to complain right now instead of allowing
+    // unknown field loads against unknown types - and letting everything
+    // resolve out later in SCCP.
+    private void updateSelfAsFieldsDiscovered( String typeName ) {
+        int lex = _scope.klast()._lexSize;
+        assert _scope.var(lex)._name=="self";
+        // Load self type in and out of the TYPES hashtable.
+        TypeStruct tself = (TypeStruct)TYPES.get(typeName);
+        // Start looking for newly declared vars at the lexical scope start,
+        // skipping two ("self" and "selfmem") and fields seen already.
+        for( int nvar = lex+2+tself._fields.length; nvar < _scope.nIns(); nvar++ ) {
+            Var v = _scope.var(nvar);
+            tself = tself.add(Field.make(v._name,v.type(),_code.nextALIAS(),v._final));
+        }
+        TYPES.put(typeName,tself);
+    }
+
+
+    Node initSpecialLastExpr( Node last, boolean isClz, Node self ) {
+        if( !isClz ) {          // <init>, not <clinit>
+            last = self;        // Init returns self, not last expression
+        } else if( last._type instanceof TypeFunPtr tfp && tfp.nfcns()==1 ) {
+            // Do not return a private function from a <clinit>, as these
+            // might entirely inline and the TFP would otherwise be dead.
+            // The <clinit> exit is only usable as the OS system exit result
+            // or in simple tests.
+            FunNode lastFun = _code.link(tfp);
+            if( lastFun._name==null || lastFun._name.charAt(0)=='_' )
+                last = ZERO;
+        }
+        return last;
+    }
+
+    void upgradeSelfTypeAndStoreFields( String typeName, boolean isClz, ParmNode self, ParmNode smem ) {
+        int lex = _scope.klast()._lexSize;
+        assert _scope.var(lex)._name=="self";
+        // For init functions, upgrade any forward ref fields.
+        TypeStruct tself = (TypeStruct)TYPES.get(typeName);
+        int base = lex+2;       // Skip ctrl, mem
+        assert base + tself.nkids() == _scope.nIns();
+        for( int i=0; i<tself.nkids(); i++ ) {
+            Var v = _scope.var(base +i);
+            Field tfld = tself._fields[i];
+            if( v._fref )
+                tself = tself.remove(i);
+            else if( v.type() != tfld._t )
+                tself = tself.replace(tfld.makeFrom(v.type()));
+        }
+
+        // Close Struct type after parsing struct body.  Forward-ref fields
+        // where placed in tself but will get promoted to an outer scope - and
+        // should not be in tself.
+        TYPES.put( tself._name, tself = tself.close() );
+
+        // Improve self, selfMem types in scope.
+        // Class self-type is a singleton pointer.
+        self._con = self._type = TypeMemPtr.make((byte)2,tself,isClz);
+        if( isClz ) {           // Upgrade class function signature
+            FunNode fun = self.fun();
+            fun.setSig(fun.sig().makeFrom(self._type,0));
+        } else {                // <init> returns a upgraded private memory
+            smem._con = smem._type = TypeMem.make(1,tself,true);
+        }
+
+        // When can _returnScope be null here? A never-exit constructor will
+        // not have any returns, and thus no need to gather values and store
+        // them into the (never) constructed object
+        if( _returnScope==null )
+            return;
+
+        // A MemMerge to gather field updates as stores.  Classes update the
+        // normal public memory.  <init> updates the private memory that got
+        // passed in - is treated like a normal argument and not like memory.
+        MemMergeNode mmm = isClz
+            ? _returnScope.mem()                 // Public  memory update
+            : new MemMergeNode(false,null,smem); // Private memory update
+
+
+        // Store constructor results into fields
+        int frefs=0;
+        for( int i=0; i<tself.nkids(); i++ ) {
+            Var v = _scope.var(base +i+frefs);
+            if( v._fref )   // Forward refs not declared here
+                frefs++;
+            else {
+                Node val = _returnScope.in(base + i);
+                Field fld = tself._fields[i];
+                //Node stmem = isClz ? con(TypeMem.make(fld._alias,fld._t.makeZero(),true)) : smem;
+                Node stmem = mmm.alias(fld._alias);
+                // Store value into extended struct
+                Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, stmem, self, off(typeName,fld._fname), val, fld._final));
+                mmm.alias(fld._alias, st);
+            }
+        }
+
+        if( !isClz )
+            // Stuff private mem into normal expression return value.
+            _returnScope.setDef(_returnScope.nIns()-1,mmm.peephole());
     }
 
 
@@ -965,19 +1048,14 @@ public class Parser {
         TYPES.put(ts._name,ts);
 
         require("}");
-        // CNC - TODO, Optionally return a default builder (new XXX{}).
-        // Only works if no late finals.
         return require(ZERO,";");
     }
 
     // Parse a struct declaration (not an allocation); file-level is a class-init, and scope structs are normal
     private ReturnNode parseStruct( boolean isClz, String typeName ) {
-        // Record & restore the existing scope vars.  The function parse might
-        // update fields, so when the parse is done reset back to the pre-parse
-        // state.
-        Node[] preParse = _scope.save();
-        ScopeNode returnScope = _returnScope;
-        _returnScope = null;
+        // Record & restore global state set during parsing the <init> code
+        Node oldCtrl= _scope.ctrl().keep();
+        Node oldMem = _scope.mem ().keep();
 
         // Make the future clazz/instance struct.
         TypeStruct tself = TypeStruct.make(typeName,true);
@@ -996,67 +1074,9 @@ public class Parser {
 
         // Struct decls look like function bodies.  Parse function body normally.
         ReturnNode ret = _parseFunctionBody(fname,sig,loc(),ids);
-
-        int lastLexSize = _scope.klast()._lexSize; // Lexical scope is now all fields
-        assert _scope.var(lastLexSize)._name=="self";
-        int newVars = lastLexSize + 2;
-
-        // Close Struct type after parsing struct body.  Forward-ref fields
-        // where placed in tself but will get promoted to an outer scope - and
-        // should not be in tself.
-        tself = (TypeStruct)TYPES.get(typeName);
-        for( int i=newVars; i<_scope.nIns(); i++ )
-            if( _scope.var(i)._fref )
-                tself = tself.remove(i-newVars);
-        TYPES.put( tself._name, tself = tself.close() );
-
-        // Improve self, selfMem types in scope
-        ParmNode self = ret.fun().parm(2);
-        self._con = self._type = TypeMemPtr.make(tself);
-        ParmNode smem = ret.fun().parm(3);
-        if( !isClz )            //
-            smem._con = smem._type = TypeMem.make(1,tself,true);
-        Node selfMem = isClz ? (_returnScope==null ? con(TypeMem.TOP) : _returnScope.mem()) : smem;
-
-        // A MemMerge to gather field updates as stores
-        MemMergeNode mmm = new MemMergeNode(false,null,selfMem);
-
-        // When can _returnScope be null here? A never-exit constructor will
-        // not have any returns, and thus no need to gather values and store
-        // them into the (never) constructed object
-        if( _returnScope!=null ) {
-            // Store constructor results into fields
-            int frefs=0;
-            for( int i=newVars; i<_scope._vars._len; i++ ) {
-                Var v = _scope.var(i);
-                if( v._fref )   // Forward refs not declared here
-                    frefs++;
-                else {
-                    Node val = _returnScope.in(i);
-                    Field fld = tself._fields[i-newVars-frefs];
-                    Node stmem = isClz ? con(TypeMem.make(fld._alias,fld._t.makeZero(),true)) : smem;
-                    // Store value into extended struct
-                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, stmem, self, off(typeName,fld._fname), val, fld._final));
-                    mmm.alias(fld._alias, st);
-                }
-            }
-        }
-        Node mmm0 = mmm.peephole();
-        // <clinit> sets public memory.
-        //   <init> sets private memory...which is the usual return
-        ret.setDef(isClz ? 1 : 2, mmm0);
-        _code.add(ret.init());
-
-        // Upgrade <clinit> self Node to the known constant
-        if( isClz )
-            self.subsume(con(TypeMemPtr.make((byte)2,tself,true)));
-
-        // Reset all fields to pre-parse days
-        if( _returnScope != null ) _returnScope.kill();
-        _returnScope = returnScope;
-        _scope.pop();           // Must pop function scope
-        _scope.restore(preParse);
-
+        // Unwind global state.
+        ctrl(oldCtrl.unkeep());
+        mem (oldMem .unkeep());
         return ret;
     }
 

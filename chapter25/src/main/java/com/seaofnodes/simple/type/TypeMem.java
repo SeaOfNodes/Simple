@@ -49,6 +49,8 @@ public class TypeMem extends Type {
     }
     public static TypeMem make(int alias, Type t) { return make(alias,t,false); }
 
+    public TypeMem makeFrom(Type t) { return make(_alias,t,_one); }
+
     public static final TypeMem TOP = make(1, Type.TOP   ,true );
     public static final TypeMem BOT = make(1, Type.BOTTOM,false);
     public static final TypeMem SELF_MEM = make(1, TypeStruct.BOT);

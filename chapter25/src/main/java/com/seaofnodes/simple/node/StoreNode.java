@@ -61,7 +61,7 @@ public class StoreNode extends MemOpNode {
             return TypeMem.TOP;
         if( !(mem0 instanceof TypeMem    mem) ||
             !(ptr0 instanceof TypeMemPtr ptr) )
-            return mem0.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+            return mem0.isHigh() || ptr0==Type.NIL ? TypeMem.TOP : TypeMem.BOT;
         // Sharpen memory value; required for narrowing stores where the parser
         // inserts zero/sign masking and somebody reads the TypeMem type.
         val = val.join(_con);
@@ -71,7 +71,7 @@ public class StoreNode extends MemOpNode {
         // which is never does in a constructor.
         if( !_name.equals("[]") && (mem._one || ptr._one) && err()==null )
             // Just track the stored value
-            return TypeMem.make(_alias,val,mem._one);
+            return TypeMem.make(_alias,val,true);
 
         // Normal aliasing Store.
         assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
