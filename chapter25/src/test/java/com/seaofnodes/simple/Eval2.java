@@ -416,11 +416,6 @@ public abstract class Eval2 {
         Object f = val(ld.ptr());
         // Check for dense constant array
         if( f instanceof TypeMemPtr tmp ) {
-            //assert tmp._obj._con != TypeConAry.BOT;
-            //if( ld._name.equals("#") )
-            //    return (long)tmp._obj._con.len();
-            //int idx = offToIdx(x(ld.off()),tmp._obj);
-            //return tmp._obj._con.at(idx);
             throw Utils.TODO();
         }
         Object[] fs = (Object[])f;
