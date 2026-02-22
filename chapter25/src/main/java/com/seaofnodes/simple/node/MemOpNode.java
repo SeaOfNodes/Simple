@@ -36,7 +36,7 @@ public abstract class MemOpNode extends TypeNode {
     // opportunistically hoisted.
     public final boolean _isLoad;
 
-    // A debug name, no semantic meaning
+    // Field name.
     public final String _name;
     // Source location for late reported errors
     public final Parser.Lexer _loc;
@@ -54,13 +54,10 @@ public abstract class MemOpNode extends TypeNode {
     }
     public MemOpNode( Node ideal, MemOpNode mop ) {
         super(ideal,mop._con);
-        _con = mop._con;
-        _name  = mop==null ? null : mop._name;
-        _alias = mop==null ? 0    : mop._alias;
-        _loc   = mop==null ? null : mop._loc;
-        _isLoad= mop==null ? true : mop._isLoad;
-        if( mop==null )
-            throw Utils.TODO("Load or not");
+        _name  = mop._name;
+        _alias = mop._alias;
+        _loc   = mop._loc;
+        _isLoad= mop._isLoad;
     }
 
     MemOpNode( BAOS bais, String[] strs, Type[] types, AryInt aliases, boolean isLoad ) {

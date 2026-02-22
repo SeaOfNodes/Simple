@@ -175,8 +175,7 @@ abstract public class Opto {
         for( int i=0; i<code._start.nOuts(); i++ ) {
             Node use = code._start.out(i);
             if( use instanceof ConFldOffNode off ) {
-                TypeStruct ts = (TypeStruct) Parser.TYPES.get(off._name);
-                off.subsume( off.asOffset(ts) );
+                off.subsume( off.asOffset() );
                 i--;
             }
         }
