@@ -71,6 +71,12 @@ public class TypeFunPtr extends TypeNil {
     @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil ? this : make(  nil,_open,_sig,_ret, _fidxs); }
     public    TypeFunPtr makeFrom( Type ret ) { return  ret ==_ret ? this : make( _nil,_open,_sig, ret, _fidxs); }
     public    TypeFunPtr makeFrom( int fidx ) { return make1((byte)2,_open,_sig,_ret,fidx); }
+    public    TypeFunPtr makeFrom( Type arg, int idx ) {
+        // Alter named arg
+        Type[] sig = _sig.clone();
+        sig[idx] = arg;
+        return make(_nil,_open,sig,_ret,_fidxs);
+    }
 
     public static final Type[] TEMPTY = new Type[0];
     static final Type[] TINT    = new Type[]{TypeInteger.BOT};

@@ -222,7 +222,7 @@ public class CodeGen {
     // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
     // the return is not part of the match).
-    final Ary<FunNode> _linker = new Ary<>(FunNode.class);
+    public final Ary<FunNode> _linker = new Ary<>(FunNode.class);
 
     // Extern function declarations; input is the FIDX assigned to the name.
     final HashMap<Integer,String> _externFunc = new HashMap<>();

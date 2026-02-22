@@ -111,7 +111,7 @@ struct Scan {
 
     // Skip whitespace
     val skip = { ->
-        while( buf[x] <= ' ' )
+        while( x < buf# && buf[x] <= ' ' )
             x++;
         return self;
     };

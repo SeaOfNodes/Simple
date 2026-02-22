@@ -212,7 +212,7 @@ for(;;) {
 """);
         code.driver(Phase.LocalSched);
         assertEquals("Stop[ return Parm_i(x,i64); return Top; ]", code._stop.toString());
-        assertEquals("null", Eval2.eval(code,  0));
+        assertNull( Eval2.eval( code, 0 ) ); // Infinite loop, <clinit> never exits
     }
 
 
