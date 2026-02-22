@@ -19,7 +19,7 @@ public class Field extends Type {
     public Type _t;
     // Unique memory alias, not sensibly part of a "type" but very convenient here.
     public int _alias;
-    // Field must be written to exactly once, no more, no less
+    // Field is only written in the constructor
     public boolean _final;
 
     private static final Ary<Field> FREE = new Ary<>(Field.class);
@@ -66,7 +66,7 @@ public class Field extends Type {
     // Cycle-making-breaking
     void setType(Type t) { assert _t ==null; _t = t; }
 
-    public static final Field BOT   = make(" ",Type.BOTTOM,-999,true);
+    public static final Field BOT   = make(" ",Type.BOTTOM,-999,false);
     public static final Field TEST  = make("test",Type.NIL,-2,false);
     public static final Field TEST2 = make("test",Type.NIL,-2,true);
     public static final Field FLT   = make("flt ",TypeFloat.F32,-2,false);
@@ -79,7 +79,7 @@ public class Field extends Type {
         if( fld ==BOT.dual() ) return this;
         if( _fname!=fld._fname ) { assert !_fname.equals(fld._fname); return BOT; }
         assert _alias==fld._alias;
-        return make(_fname, _t.meet(fld._t ),_alias,_final | fld._final);
+        return make(_fname, _t.meet(fld._t ), _alias, _final & fld._final);
     }
 
     @Override
