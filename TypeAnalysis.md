@@ -80,9 +80,9 @@ At the core of the problem is a
 The lattices being used here are:
 * Symmetric - every lattice element has a *dual*
 * Complete - the *meet* of any two elements is another element
-* Bounded (ranked) - the lattice has finite height
+* Bounded (ranked) - the lattice has finite height, which also means there are maximum and minimum elements
 
-and of course the *meet* is commutative and associative.
+and of course the *meet* is idempotent, commutative and associative.
 
 The lattice *join* is defined from the *meet* and *dual* in 
 the normal way: `~(~x meet ~y)`
