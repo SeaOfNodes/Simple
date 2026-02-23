@@ -119,7 +119,9 @@ direction.
 The *pessimistic* direction starts with all program points at the least
 element, here ⊥, and applies the program points' *transfer function* to
 partially evaluate wrt the lattice, potientially discovering new facts or
-constants.
+constants.  Another way to think about *bottom* ⊥ is that it represents that
+the compiler does not know anything about this value, and that it must emit
+code to compute the result the hard way - no shortcuts, no optimizations.
 
 Trivial Example#1:
 ```python
@@ -134,28 +136,36 @@ Here we see `x=2` at the `print(x)` and this program can be simplified to
 Example#2:
 ```python
 x0 = 1              # Note the SSA renaming
-while( rand() ):
+while( rand() ):    # Loop an unknown number of times
     x1 = φ(x0,x2)
     x2 = 2 - x1     # can we discover x2 = 1 here?
 print(x1)
 ```
 
-While evaluating this program top-down, we can see that `x0 = 1` when we reach
-the loop entry, but what happens to `x` around the backedge?  Since we start at
-`⊥`, the `φ(x0,x2)` becomes `φ(1,⊥)` which does a *meet* to yield `⊥`.  Then
-`x2 = 2 - x1` becomes `x2 = 2 - ⊥` which is `⊥` which is what we started with.  We
-have then hit a fixed point with no values further changing: `x0 = 1; x1 = ⊥;
-x2 = ⊥`.
+While evaluating this program from the start, we can see that `x0 = 1` when we
+reach the loop entry, but what happens to `x` around the backedge?  Since we
+start at `⊥` (know nothing), the `φ(x0,x2)` becomes `φ(1,⊥)` which does a
+*meet* to yield `⊥` (because the we know nothing about what comes around the
+backedge).  Then in the loop body `x2 = 2 - x1` becomes `x2 = 2 - ⊥` which is
+`⊥` which is what we started with.  We have then hit a fixed point with no
+values further changing: `x0 = 1; x1 = ⊥; x2 = ⊥`.
 
 Let's repeat Example#2 using the *optimistic* starting point: all values at
-`⊤`.  The example interleaves the current known values for the `x` variables.
-Following down the worklist, and by the loop end we know so-far:
+`⊤`.  An intuition for *top* ⊤ might be "the compiler can pick any convenient
+value (as long as the ⊤ is removed before trying to emit code)".  Another
+intuition might be "top is all possible constants, all at once - an impossible
+situation - so later we'll have to pick one (and only one)".
 
+The example is structured a little differently; it interleaves the current
+known values for the `x` variables between the lines of code, and follows down
+the worklist, and by the loop end shows what we know so-far:
+
+Example#3:
 ```python
 # x0=⊤, x1=⊤, x2=⊤
           x0 = 1              # Note the SSA renaming
-          while( rand() ):
-# x0=1, x1=⊤, x2=⊤
+          while( rand() ):    # Loop an unknown number of times
+# x0=1, x1=⊤, x2=⊤            # x2 is ⊤ around the backedge, instead of ⊥
               x1 = φ(x0,x2)
 # x0=1, x1=1, x2=⊤
               x2 = 2 - x1     # can we discover x2 = 1 here?
@@ -436,9 +446,9 @@ so e.g. `fcn: [fcn_widen_ascii_char,fcn_narrow_wide_char]{u8 -> u16}`.
 
 Collections of possible functions are easy to track as e.g. a simple bitvector,
 with one bit for each function in the program.  Other choices also work, such
-as a sparse bitvector when only a few functions are possible from a
-large program with many 1000's of functions.  The most common case is a single
-function, i.e., just calling a function by name.
+as a sparse bitvector when only a few functions are possible from a large
+program with many 1000's of functions.  The most common function type is that
+of a single function, i.e., just calling a function by name.
 
 A *function index* is simply a unique small integer that refers to a function
 (perhaps via array lookup), and can be efficiently tracked.  We print them as
@@ -480,7 +490,7 @@ struct String {
 }
 ```
 
-In this typing formulation, methods will be struct **fields** that happen to be
+In this typing formulation, methods will be **fields** that happen to be
 function-typed, or basically as type sugar over the existing types already
 mentioned above.
 
@@ -762,10 +772,10 @@ the *isa* test) because they lack an `eq` function.  No two Ducks are the same.
 Lets make our `String`s equatable:
 
 ```java
-String = : [
+String = : {
    eq = { String String -> bool }; 
    ... // plus all the other String stuff
-];
+};
 
 ```
 
