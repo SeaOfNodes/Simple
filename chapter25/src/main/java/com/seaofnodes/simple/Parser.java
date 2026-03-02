@@ -179,15 +179,17 @@ public class Parser {
         // slight possibility that stalling this error message will allow the
         // FRef to die after iter(), and thus avoid the error.
         for( int i=2; i<_scope._vars._len; i++ ) {
+            Var v = _scope.var(i);
             FRefNode fref = (FRefNode)_scope._inputs.at(i); // Assert FRef
-            assert fref._n==_scope._vars.at(i);
+            assert v._fref && v._idx==i && fref._n==v;
             // Attempt to find external name, assuming it is a class name
-            String x = fref._n._name;
-            ExternNode ext = _code.findExternal(addClzPrefix(x));
+            String xname = addClzPrefix(v._name);
+            ExternNode ext = _code.findExternal(xname);
             if( ext == null )
-                throw error("Undefined name '" + fref._n._name + "'");
-            // Insert as-if declared from the get-go
-            throw TODO("Insert var at top-scope");
+                throw error("Undefined name '" + v._name + "'");
+            // Define the FRef
+            v.defFRef(ext._con,true,null);
+            _scope.setDef(i,fref.addDef(ext));
         }
 
         // Clean up and reset
