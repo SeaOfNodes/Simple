@@ -1,6 +1,8 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.node.ConFldOffNode;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
@@ -21,7 +23,7 @@ import java.util.HashMap;
 public abstract class MemOpNode extends TypeNode {
 
     // The equivalence alias class
-    public final int _alias;
+    public int _alias;
 
     // True if load-like, false if store-like.
     // Used on CPU-specific combined memory+arithmetic ops.
@@ -41,15 +43,15 @@ public abstract class MemOpNode extends TypeNode {
     // Source location for late reported errors
     public final Parser.Lexer _loc;
 
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node mem, Node ptr, Node off) {
-        super(glb, null, mem, ptr, off);
+    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node ctrl, Node mem, Node ptr, Node off) {
+        super(glb, ctrl, mem, ptr, off);
         _name  = name;
         _alias = alias;
         _loc = loc;
         _isLoad = isLoad;
     }
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node mem, Node ptr, Node off, Node value) {
-        this(loc, name, alias, isLoad, glb, mem, ptr, off);
+    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node ctrl, Node mem, Node ptr, Node off, Node value) {
+        this(loc, name, alias, isLoad, glb, ctrl, mem, ptr, off);
         addDef(value);
     }
     public MemOpNode( Node ideal, MemOpNode mop ) {
@@ -64,7 +66,7 @@ public abstract class MemOpNode extends TypeNode {
         this(null,
              strs[bais.packed2()],
              aliases.at(bais.packed2()),isLoad,
-             types[bais.packed2()],null,null,null);
+             types[bais.packed2()],null,null,null,null);
     }
 
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
@@ -101,8 +103,12 @@ public abstract class MemOpNode extends TypeNode {
         if( ptr == Type.BOTTOM ) return null;
         if( ptr.isHigh() ) return null; // Assume it will fall to not-null
         // Better be a not-nil TMP
-        if( ptr instanceof TypeMemPtr tmp && tmp.notNull() )
-            return null;
-        return Parser.error( "Might be null accessing '" + _name + "'",_loc);
+        if( !(ptr instanceof TypeMemPtr tmp && tmp.notNull()) )
+            return Parser.error( "Might be null accessing '" + _name + "'",_loc);
+        // Sane field
+        if( off() instanceof ConFldOffNode && CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
+            return Parser.error("Accessing unknown field '"+_name+"' from '*"+tmp._obj._name+"'",_loc);
+        return null;
+
     }
 }

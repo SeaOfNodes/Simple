@@ -145,25 +145,19 @@ public class CallEndNode extends CFGNode implements MultiNode {
             if( fun.cfg(i).fun()==fun ) // Check for linked call input inside "fun"
                 { addDep(fun); return -1; }
 
-        // Disallow if still folding adjacent things, as it makes other
-        // dependency checks carry long chains of half-folded calls.  Also the
-        // idom may itself be in the process of dying, and no point in inlining
-        // (and especially cloning) dead code.
-        CFGNode idom = call(), prior=this;
-        while( true ) {
-            if( idom==null ) return -1; // Forced off, half-folded call
+        CFGNode idom = call(), prior = this;
+        while( !(idom instanceof FunNode fun3) ) {
+            if( idom==null ) {
+                addDep(prior);
+                if( prior instanceof RegionNode && !(prior instanceof StartNode) )
+                    for( int i=1; i<prior.nIns(); i++ )
+                        addDep(prior.in(i));
+                return -1;
+            }
             prior = idom;
             idom = idom.idom();
-            if( idom instanceof FunNode ) break;
-            if( idom instanceof CallEndNode ) break;
         }
 
-        // No recursive or mid-folding function
-        if( idom instanceof FunNode fun2 && (fun2._folding || fun2 == fun) )
-            { addDep(fun2); return -1; }
-        if( idom instanceof CallEndNode cend && cend._folding )
-            { addDep(cend); addDep(prior); return -1; }
-        if( fun()==null ) return -1;
 
         // If the *inlined* function is mid-collapse, also do not inline (yet)
         idom = fun.ret();

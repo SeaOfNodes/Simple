@@ -22,8 +22,8 @@ public class LoadNode extends MemOpNode {
      * @param ptr   The ptr to the struct base from where we load a field
      * @param off   The offset inside the struct base
      */
-    public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off) {
-        super(loc, name, alias, true, glb, mem, ptr, off);
+    public LoadNode(Parser.Lexer loc, String name, int alias, Type glb, Node ctrl, Node mem, Node ptr, Node off) {
+        super(loc, name, alias, true, glb, ctrl, mem, ptr, off);
     }
     LoadNode( BAOS bais, String[] strs, Type[] types, AryInt aliases ) { super(bais,strs,types,aliases,true); }
     @Override public Tag serialTag() { return Tag.Load; }
@@ -41,10 +41,10 @@ public class LoadNode extends MemOpNode {
         Type tmem = mem()._type;
         if( !(tmem instanceof TypeMem mem) )
             return tmem; // No memory yet?  Assume TOP/BOT
-        // No lifting if ptr might null-check
-        Type tptr = ptr()._type;
         if( err() != null )
             return _con;
+        // No lifting if ptr might null-check
+        Type tptr = ptr()._type;
         if( !(tptr instanceof TypeMemPtr tmp) )
             return tptr.oob(); // No pointer yet?  Assume TOP/BOT
         // Load field from object
@@ -53,6 +53,7 @@ public class LoadNode extends MemOpNode {
         // closed objects with missing field are an error.
         if( pfld == null )
             return tmp.isHigh() ? Type.TOP : _con;
+
         Type t = pfld._t;
         // Load member of constant array
         if( t instanceof TypeConAry ary )
@@ -81,10 +82,28 @@ public class LoadNode extends MemOpNode {
         Node ptr = ptr();
         Node mem = mem();
 
-        if( mem instanceof CastNode cast ) {
-            setDef(1,cast.in(1));
+        // Loads into structs do not need a ctrl edge, as null-ptr checking is
+        // baked into the type system.  Loads into arrays DO need the ctrl
+        // edge, at least until proper range-checking is in place.
+        if( in(0)!=null && ptr()._type instanceof TypeMemPtr tmp &&
+            !tmp._obj.isAry() &&
+            // Never can be an array
+            (!tmp._obj._open || (tmp._obj._fields.length > 1 && tmp._obj._fields[0]._fname != "#")) ) {
+            setDef(0,null);
             return this;
         }
+
+        // Forward-ref loads eventually sharpen to a declared type
+        Field fld;
+        if( _con == Type.BOTTOM && ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null ) {
+            assert _alias==1;
+            _con = fld._t;
+            _alias = fld._alias;
+            return this;
+        }
+        // Must sharpen alias first
+        if( _alias == 1 )
+            return null;
 
         // Simple Load-after-Store on same address.
         if( mem instanceof StoreNode st &&
@@ -194,7 +213,8 @@ public class LoadNode extends MemOpNode {
 
     private Node ld( int idx ) {
         Node mem = mem(), ptr = ptr();
-        return new LoadNode(_loc,_name,_alias,_con,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
+        assert in(0)==null;
+        return new LoadNode(_loc,_name,_alias,_con,null,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
     }
 
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {

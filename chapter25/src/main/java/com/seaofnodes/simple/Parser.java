@@ -7,6 +7,7 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
+import static com.seaofnodes.simple.util.Utils.TODO;
 
 import java.util.*;
 
@@ -180,12 +181,13 @@ public class Parser {
         for( int i=2; i<_scope._vars._len; i++ ) {
             FRefNode fref = (FRefNode)_scope._inputs.at(i); // Assert FRef
             assert fref._n==_scope._vars.at(i);
-            // Attempt to find external name
-            ExternNode ext = _code.findExternal(fref._n._name);
+            // Attempt to find external name, assuming it is a class name
+            String x = fref._n._name;
+            ExternNode ext = _code.findExternal(addClzPrefix(x));
             if( ext == null )
                 throw error("Undefined name '" + fref._n._name + "'");
             // Insert as-if declared from the get-go
-            throw Utils.TODO("Insert var at top-scope");
+            throw TODO("Insert var at top-scope");
         }
 
         // Clean up and reset
@@ -391,7 +393,7 @@ public class Parser {
             FunNode fun = self.fun();
             fun.setSig(fun.sig().makeFrom(self._type,0));
         } else {                // <init> returns a upgraded private memory
-            smem._con = smem._type = TypeMem.make(1,tself,true);
+            smem._con = smem._type = TypeMem.make(1,tself,true,false);
         }
 
         // When can _returnScope be null here? A never-exit constructor will
@@ -417,10 +419,9 @@ public class Parser {
             else {
                 Node val = _returnScope.in(base + i);
                 Field fld = tself._fields[i];
-                //Node stmem = isClz ? con(TypeMem.make(fld._alias,fld._t.makeZero(),true)) : smem;
                 Node stmem = mmm.alias(fld._alias);
                 // Store value into extended struct
-                Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, stmem, self, off(typeName,fld._fname), val, fld._final));
+                Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, stmem, self, off(tself,fld._fname), val, fld._final));
                 mmm.alias(fld._alias, st);
             }
         }
@@ -661,7 +662,7 @@ public class Parser {
             // Next X char handles skipping complex comments
             switch( _lexer.nextXChar() ) {
             case Character.MAX_VALUE:
-                throw Utils.TODO();
+                throw TODO();
             case ')':
                 if( --paren<0 ) {
                     posT( pos() - 1 );
@@ -711,7 +712,7 @@ public class Parser {
         case ":"    -> parseAsgn();      //     pred ?  asgn;
         case "&&"   -> parseLogical();   //     pred && expr
         case "||"   -> pred;             //     pred || expr_is_ignored
-        default     -> throw Utils.TODO();
+        default     -> throw TODO();
         };
         lhs.keep();
         _scope.removeGuards(ifT);
@@ -736,7 +737,7 @@ public class Parser {
         case ":"    -> (doRHS=match(fside)) ? parseAsgn()      : con(lhs._type.makeZero());
         case "&&"   -> rhs = pred;
         case "||"   -> rhs = parseLogical();
-        default     -> throw Utils.TODO();
+        default     -> throw TODO();
         };
         rhs.keep();
         _scope.removeGuards(ifF);
@@ -762,7 +763,7 @@ public class Parser {
         Node ret = peep(new PhiNode("",lhs._type.meet(rhs._type).glb(false),r,lhs.unkeep(),rhs.unkeep()));
         // Immediately fail e.g. `arg ? 7 : ptr`
         ParseException err;
-        if( !fside.equals("else") && (err=ret.err()) !=null )  throw err;
+        if( !fside.equals("else") && (err=ret.err()) !=null ) throw err;
         r.peephole();
         return ret;
     }
@@ -1063,7 +1064,7 @@ public class Parser {
 
         // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
         // Self-memory is the rare *private* (never aliased) memory for the new object.
-        TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true );
+        TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true, false );
         Type targ = isClz ? TypeInteger.BOT : privMem;
         Type tret = isClz ? Type.BOTTOM     : privMem;
         Type[] targs = new Type[]{ TypeMemPtr.make(tself), targ };
@@ -1583,7 +1584,7 @@ public class Parser {
         case '-' -> new SubNode(lhs,rhs);
         case '*' -> new MulNode(lhs,rhs);
         case '/' -> new DivNode(lhs,rhs);
-        default  -> throw Utils.TODO();
+        default  -> throw TODO();
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
@@ -1614,7 +1615,7 @@ public class Parser {
     }
 
     private Node allocStruct(TypeStruct ts) {
-        Node size = off(ts._name, " len");
+        Node size = off(ts, " len");
 
         // Build a NewNode; takes in ctrl and size.
         // Produces a ptr and a private mem.
@@ -1647,7 +1648,7 @@ public class Parser {
                 if( selfMem instanceof MemMergeNode mmm && mmm.alias(fld._alias) instanceof StoreNode st )
                     finit = st.val();
                 else
-                    finit = peep(new LoadNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(ts._name, fld._fname)));
+                    finit = peep(new LoadNode(null, fld._fname, fld._alias, fld._t, null, selfMem, self, off(ts, fld._fname)));
                 _scope.define(fld._fname, fld._t, fld._final, finit, loc);
             }
 
@@ -1662,7 +1663,7 @@ public class Parser {
                 Node newval = _scope.in(idx++);
                 // Speed optimization: skip store-of-same
                 if( !(selfMem instanceof MemMergeNode mmm && mmm.alias(fld._alias) instanceof StoreNode st && st.val() == newval) ) {
-                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, selfMem, self, off(ts._name,fld._fname), newval, true));
+                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, selfMem, self, off(ts, fld._fname), newval, true));
                     updatedPrivMem.alias(fld._alias,st);
                 }
             }
@@ -1692,17 +1693,17 @@ public class Parser {
         // output is all the newly merged public aliases - but not actually
         // bulk memory.
         for( Field fld : postinit._fields ) {
-            Node esc = peep(new EscapeNode(fld._alias,self,selfMem,memAlias(fld._alias)));
+            Node esc = peep(new EscapeNode((Field)fld.glb(true),self,selfMem,memAlias(fld._alias)));
             memAlias(fld._alias,esc);
         }
 
-        selfMem.unkeep();
+        selfMem.unkill();
         return self.unkeep();
     }
 
     private Node allocArray(TypeStruct ts, Node len) {
-        int  lenAlias = ts.field("#" )._alias;
-        int bodyAlias = ts.field("[]")._alias;
+        Field  lenFld = ts.field("#" );
+        Field bodyFld = ts.field("[]");
 
         ConFldOffNode base = off(ts, "[]");
         int scale = ts.aryScale();
@@ -1716,12 +1717,12 @@ public class Parser {
         // Store length.  Rest of array is zero'd via CALLOC during CodeGen.
         // Length is casted to sanity.
         // TODO: Needs runtime check.
-        Node st = peep(new StoreNode(null, "#", lenAlias, TypeInteger.U32, smem, self, off(ts._name,"#"), len.unkeep(), true));
+        Node st = peep(new StoreNode(null, "#", lenFld._alias, TypeInteger.U32, null, smem, self, off(ts,"#"), len.unkeep(), true));
 
         // TODO: Allow add-on "constructor" to init the array elements
 
-        memAlias( lenAlias,peep(new EscapeNode( lenAlias,self,st  ,memAlias( lenAlias))));
-        memAlias(bodyAlias,peep(new EscapeNode(bodyAlias,self,smem,memAlias(bodyAlias))));
+        memAlias( lenFld._alias,peep(new EscapeNode( lenFld,self,st  ,memAlias( lenFld._alias))));
+        memAlias(bodyFld._alias,peep(new EscapeNode(bodyFld,self,smem,memAlias(bodyFld._alias))));
         smem.unkeep();
         return self.unkeep();
     }
@@ -1790,68 +1791,67 @@ public class Parser {
      *     expr ('[' expr ']')* [ [op]= expr ] // Array reference
      * </pre>
      */
+
     private Node parsePostfixName(Node expr, String name) {
-        Type etype = expr._type;
-        if( etype==Type.NIL )
-            throw error("Accessing unknown field '" + name + "' from 'null'");
+        // Keep expr across possible updates
+        expr.keep();
 
-        // Sanity check expr for being a reference
-        if( !(etype instanceof TypeMemPtr ptr) )
-            throw error( "Expected "+(name=="#" || name=="[]" ? "array" : "reference")+" but found " + etype.str() );
-
-        // Find the field from the Type.  Lookup in the base object field names.
-        TypeStruct base = (TypeStruct)TYPES.get(ptr._obj._name);
-        int fidx = base.find(name);
-        if( fidx == -1 )
-            throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
-
-        // Get field type and layout offset from base type and field index fidx
-        Field f = base._fields[fidx];  // Field from field index
-        Type tf = f._t;
-        if( base.isAry() && tf instanceof TypeConAry con )
-            tf = con.elem();
+        // TODO: optimize a mix of known and unknown mem stores
+        // Do we know the field type already?
+        Field fld = expr._type instanceof TypeMemPtr tmp ? tmp._obj.field(name) : null;
+        // With no field, we will update the bulk memory
+        int alias = fld==null ?  1            : fld._alias;
+        Type decl = fld==null ? Type.BOTTOM   : fld._t;
 
         // Field offset; fixed for structs, computed for arrays
-        Node off = (name.equals("[]")       // If field is an array body
-            // Array index math
-            ? peep(new AddNode(off(base,"[]"),peep(new ShlNode(null,require(parseAsgn(),"]"),con(base.aryScale())))))
-            // Struct field offsets are hardwired
-            : off(base,name)).keep();
+        Node off = (name=="[]"
+            // Array element math, with unknown base offset and shift amount.
+            ? peep(new AddNode(fldoff(expr,"[]"),peep(new ShlNode(null,require(parseAsgn(),"]"),fldoff(expr,"<<")))))
+            // Named field offset on an unknown struct type
+            : fldoff(expr,name)).keep();
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
+            // Field assignment
             Node val = parseAsgn().keep();
-            Node lift = liftExpr( val, tf, false );
-            Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr, off.unkeep(), lift, false);
-            // Arrays include control, as a proxy for a safety range check.
-            // Structs don't need this; they only need a NPE check which is
-            // done via the type system.
-            if( base.isAry() )  st.setDef(0,ctrl());
-            memAlias(f._alias, st.peephole());
+            // Lift value for store
+            Node lift = new LiftNode(expr,name,val,false).peephole();
+            // Memory for store, post assignment expression
+            Node mem = fld==null ? mem().merge() : memAlias(fld._alias);
+            // Store to field
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), lift, false).peephole();
+
+            // For well known types, we can use sharp alias updates right now
+            if( fld != null )  memAlias(fld._alias, st);
+            // For unknown / forward-ref types, we default to the conservative
+            // alias#1, but this should clean up later as types are discovered.
+            else mem(new MemMergeNode(true,null,st));
+
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
-        // Keep expr for possible store update
-        expr.keep();
+        // Memory for load
+        Node mem = fld==null ? mem().merge() : memAlias(fld._alias);
+        // Loading from a constant array, the declared type is the
+        // meet-over-elements and not the array itself.
+        if( name=="[]" && decl instanceof TypeConAry conary )
+            decl = conary.elem();
 
         // Load field
-        Node load = new LoadNode(loc(),name, f._alias, tf, memAlias(f._alias), expr, off);
-        // Arrays include control, as a proxy for a safety range check
-        // Structs don't need this; they only need a NPE check which is
-        // done via the type system.
-        if( base.isAry() && !name.equals("#") ) load.setDef(0,ctrl());
-        load = peep(load);
+        Node load = peep(new LoadNode(loc(),name, alias, decl, ctrl(), mem, expr, off));
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
         char ch = _lexer.matchOperAssign();
         if( ch!=0 ) {
-            Node op = opAssign(ch,load, tf );
-            Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr.unkeep(), off.unkeep(), op, false);
-            // Arrays include control, as a proxy for a safety range check.
-            // Structs don't need this; they only need a NPE check which is
-            // done via the type system.
-            if( base.isAry() )  st.setDef(0,ctrl());
-            memAlias(f._alias, peep(st));
+            if( decl == Type.BOTTOM ) throw TODO("Need LiftNode after opAssign");
+            Node op = opAssign(ch,load, decl );
+            Node st = new StoreNode(loc(), name, alias, decl.glb(true), ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole();
+            // For well known types, we can use sharp alias updates right now
+            if( fld != null )  memAlias(fld._alias, st);
+            // For unknown / forward-ref types, we default to the conservative
+            // alias#1, but this should clean up later as types are discovered.
+            else mem(new MemMergeNode(true,null,st));
+
             load = postfix(ch) ? load.unkeep() : op;
             // And use the original loaded value as the result
             return load;
@@ -1925,8 +1925,6 @@ public class Parser {
     private Node functionCall(Node fcn, Node self) {
         if( fcn._type == Type.NIL )
             throw error("Calling a null function pointer");
-        if( !(fcn instanceof FRefNode) && !fcn._type.isa(TypeFunPtr.BOT) )
-            throw error("Expected a function but got "+fcn._type.glb(false).str());
         fcn.keep();            // Keep while parsing args
 
         Ary<Node> args = new Ary<>( Node.class );
@@ -2003,11 +2001,13 @@ public class Parser {
     private ConstantNode parseLiteral() { return con(_lexer.parseNumber()); }
     public static Node con( long con ) { return con==0 ? ZERO : con(TypeInteger.constant(con));  }
     public static ConstantNode con( Type t ) { return (ConstantNode)new ConstantNode(t).peephole();  }
-    public static ConFldOffNode off( TypeStruct base, String fname ) {
-        return off(base._name,fname);
+    // Field offset for a known type (but unknown offset)
+    public static ConFldOffNode off( TypeStruct ts, String fname ) {
+        return (ConFldOffNode)(new ConFldOffNode(ts,fname).peephole());
     }
-    public static ConFldOffNode off( String typeName, String fname ) {
-        return (ConFldOffNode)(new ConFldOffNode(typeName,fname).peephole());
+    // Field offset for an unknown type
+    public Node fldoff( Node n, String name ) {
+        return new FldOffNode(n,name,loc()).peephole();
     }
     public Node peep( Node n ) {
         // Peephole, then improve with lexically scoped guards

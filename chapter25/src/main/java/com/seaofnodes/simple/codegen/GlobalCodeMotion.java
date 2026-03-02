@@ -287,7 +287,7 @@ public abstract class GlobalCodeMotion {
                 }
                 break; // Loads do not cause anti-deps on other loads
             case EscapeNode esc:
-                if( load._alias == esc._alias ) {
+                if( load._alias == esc.fld()._alias ) {
                     assert late[mem._nid] != null;
                     lca = anti_dep( load, late[mem._nid], mem.cfg0(), lca, mem );
                 }

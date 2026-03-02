@@ -128,7 +128,7 @@ public abstract class Node implements Cloneable {
             case Cast  ->      CastNode.make(bais     ,types);
             case CProj ->     CProjNode.make(bais,strs);
             case Con   ->  ConstantNode.make(bais     ,types);
-            case Escape->    EscapeNode.make(bais           ,aliases);
+            case Escape->    EscapeNode.make(bais     ,types);
             case Extern->    ExternNode.make(bais,strs,types);
             case Fun   ->       FunNode.make(bais,strs,types);
             case Load  ->       new LoadNode(bais,strs,types,aliases);

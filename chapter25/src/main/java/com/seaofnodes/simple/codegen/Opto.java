@@ -175,8 +175,11 @@ abstract public class Opto {
         for( int i=0; i<code._start.nOuts(); i++ ) {
             Node use = code._start.out(i);
             if( use instanceof ConFldOffNode off ) {
-                off.subsume( off.asOffset() );
-                i--;
+                Node con = off.asOffset();
+                if( con != null ) { // Can be null for trying to reference missing field
+                    off.subsume( con );
+                    i--;
+                }
             }
         }
     }

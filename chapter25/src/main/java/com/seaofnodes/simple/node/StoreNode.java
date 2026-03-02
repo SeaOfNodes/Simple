@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
@@ -23,8 +24,8 @@ public class StoreNode extends MemOpNode {
      * @param off   The offset inside the struct base
      * @param value Value to be stored
      */
-    public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node mem, Node ptr, Node off, Node value, boolean init) {
-        super(loc, name, alias, false, glb, mem, ptr, off, value);
+    public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
+        super(loc, name, alias, false, glb, ctrl, mem, ptr, off, value);
         _init = init;
     }
     StoreNode( BAOS bais, String[] strs, Type[] types, AryInt aliases ) {
@@ -71,18 +72,75 @@ public class StoreNode extends MemOpNode {
         // which is never does in a constructor.
         if( !_name.equals("[]") && (mem._one || ptr._one) && err()==null )
             // Just track the stored value
-            return TypeMem.make(_alias,val,true);
+            return TypeMem.make(_alias,val,true,_init);
 
         // Normal aliasing Store.
         assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
         // Same alias, meet into other fields
         Type t = val.meet(mem._t);
-        return TypeMem.make(_alias,t,false);
+        return TypeMem.make(_alias,t,false,false);
     }
 
     @Override
     public Node idealize() {
         assert !(mem() instanceof CastNode);
+
+        // Stores into structs do not need a ctrl edge, as null-ptr checking is
+        // baked into the type system.  Stores into arrays DO need the ctrl
+        // edge, at least until proper range-checking is in place.
+        if( in(0)!=null && ptr()._type instanceof TypeMemPtr tmp &&
+            !tmp._obj.isAry() &&
+            // Never can be an array
+            (!tmp._obj._open || (tmp._obj._fields.length > 1 && tmp._obj._fields[0]._fname != "#")) ) {
+            setDef(0,null);     // Remove control edge
+            return this;
+        }
+
+        // Forward-ref loads eventually sharpen to a declared type
+        Field fld;
+        if( _con == Type.BOTTOM && _alias==1 ) {
+            if(  ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null ) {
+                // All memory uses of self must now sharpen, as we are about to
+                // no longer be a bulk memory.  Also find bulk
+                for( int i=0; i<nOuts(); i++ ) {
+                    Node use = out(i);
+                    if( use.nIns()>1 && use.in(1)==this ) {
+                        switch( use ) {
+                        case MemOpNode mem:
+                            if( mem._alias != 1 && mem._alias!=_alias ) {
+                                // Unaliased mem user moves to my bulk mem input
+                                mem.setDef(1,mem());
+                                CodeGen.CODE.add(mem);
+                                i--;
+                                break;
+                            } else
+                                throw Utils.TODO("sharpen bulk user");
+                        case MemMergeNode mem: {
+                            // Assert we are the source of bulk memory, then move self
+                            // to the precision alias.  Keeps self alive, in case
+                            // setting the bulk user memory is the last use of self.
+                            assert mem.alias(fld._alias)==this;
+                            mem.alias(fld._alias,this);
+                            // Merge bulk moves to my bulk mem input
+                            mem.alias(1,mem());
+                            CodeGen.CODE.add(mem);
+                            i--;
+                            break;
+                        }
+                        default:
+                            throw Utils.TODO("should not reach here");
+                        }
+                    }
+                }
+
+                _con = fld._t;
+                _alias = fld._alias;
+                return this;
+            }
+            // No further optimizations until alias sharpens
+            return null;
+        }
+        assert _alias!=1;
 
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
@@ -111,7 +169,8 @@ public class StoreNode extends MemOpNode {
             if( ptr() == esc.self() &&
                 // Multiple users of same alias, one of them must be (eventually) dead.
                 esc.nOuts() == 1 ) {
-                esc.setDef(2,new StoreNode( _loc, _name, _alias, _con, esc.priv(), ptr(), off(), val(), false ).peephole());
+                if( _con==Type.BOTTOM ) throw Utils.TODO("sharpen first");
+                esc.setDef(2,new StoreNode( _loc, _name, _alias, _con, in(0), esc.priv(), ptr(), off(), val(), false ).peephole());
                 return esc;
             } else {
                 for( Node use : esc._outputs )
@@ -123,6 +182,7 @@ public class StoreNode extends MemOpNode {
 
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
+            if( _con==Type.BOTTOM ) throw Utils.TODO("sharpen first");
             int log = _con.log_size();
             if( log<3 ) {       // And-mask vs narrow store
                 long mask = ((TypeInteger)and.in(2)._type).value();
@@ -170,6 +230,8 @@ public class StoreNode extends MemOpNode {
     public Parser.ParseException err() {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
+        if( _con==Type.BOTTOM && CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
+            throw Utils.TODO("Failed to lift");
         if( ptr()._type == Type.TOP )
             return null; // This means we have an error input, report elsewhere
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
