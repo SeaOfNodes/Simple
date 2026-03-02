@@ -583,20 +583,31 @@ public class CodeGen {
     private int _extFileIdx;    // Index into _files
     public ExternNode findExternal( String name ) {
 
+        // State Machine!
+
         while( true ) {
             // Check for an immediate hit
             switch( _externSymbols.get(name) ) {
+
             case ExternNode extern:
+                // Name maps to an ExternNode
                 return extern;
+
             case ElfReader elf:
-                // Convert ElfReader
+                // Name maps to an unparsed ElfReader.  Pull out all the
+                // published symbols from the ELF and map them.
                 Ary<TypeStruct> published = elf.loadSimple();
                 for( TypeStruct ts : published )
-                    _externSymbols.put(ts._name, new ExternNode(ts,ts._name));
+                    _externSymbols.put(ts._name, new ExternNode(TypeMemPtr.make(ts),ts._name));
                 break;
 
             case null:
-                // If a miss, attempt to load and search the next ELF file.
+                // Name is unknown.  Advance the file-system search, pulling
+                // out new ELF files from the search directory list and loading
+                // their published symbols.
+
+                // The last directory was mined out, so get the next search
+                // directory and find all ELF-like files.
                 if( _extFileIdx >= _files._len ) {
                     if( _externPaths==null || _extPathIdx >= _externPaths._len )
                         return null; // A true miss in the whole search path
