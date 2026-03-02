@@ -353,7 +353,7 @@ public abstract class Eval2 {
             TypeMem mem = (TypeMem)con._type;
             Object val = con(mem._t);
             TypeMemPtr tmp = (TypeMemPtr)esc.self()._type;
-            int idx = tmp._obj.findAlias(esc._alias);
+            int idx = tmp._obj.findAlias(esc.fld()._alias);
             Object[] fs = (Object[])val(esc.self());
             if( tmp._obj.isAry() ) {
                 assert idx==0; // length field

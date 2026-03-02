@@ -42,7 +42,7 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override public TypeTuple compute() {
-        return TypeTuple.make(TypeMemPtr.make(_ts), TypeMem.make(1,_ts,true));
+        return TypeTuple.make(TypeMemPtr.make(_ts), TypeMem.make(1,_ts,true,false));
     }
 
     @Override public Node idealize() { return null; }

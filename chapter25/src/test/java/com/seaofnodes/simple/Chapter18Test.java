@@ -295,10 +295,8 @@ struct S {
     {int} f = { -> x(); return 0; }; // Do not let fref x be a field
 };
 val x = { -> return 1; };
-S? s = null;
-for(;;) {
-    if (s) return s.x;
-}
+S? s = new S;
+return s.x;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*Test.S'",e.getMessage()); }

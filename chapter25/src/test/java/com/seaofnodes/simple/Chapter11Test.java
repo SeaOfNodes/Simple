@@ -221,7 +221,7 @@ if (arg) {
 return v.f;
 """);
         code.parse().opto();
-        assertEquals("return .f;", code.print());
+        assertEquals("return 0;", code.print());
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -19,7 +20,7 @@ public class ConFldOffNode extends ConstantNode {
     public TypeStruct _ts;      // Struct holding field
     public final String _fname; // Field name
     public ConFldOffNode( TypeStruct ts, String fname ) { super(TypeInteger.BOT); _ts = ts; _fname = fname; }
-    @Override public Tag serialTag() { return Tag.ConFldOff; }
+    @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
 
     @Override public String label() {
         return _fname == " len" ? "sizeof("+_ts._name+")" : "#"+_fname;
@@ -32,9 +33,26 @@ public class ConFldOffNode extends ConstantNode {
         return sb.append(label());
     }
 
+    @Override public Node idealize() {
+        // Some array offsets are known early
+        if( _ts.isAry() ) {
+            // Length always at offset zero
+            if( _fname==" len" )
+                return Parser.ZERO;
+            // The shift depends on the element
+            if( _fname=="<<" )
+                return Node.con(_ts.aryScale());
+            // The base depends on the layout (alignment for large elements may
+            // involve padding) and MAY depend on the length if I go for
+            // smaller array lengths.
+        }
+        return null;
+    }
+
     // Convert field offset to an integer
     public Node asOffset() {
         int fldx = _fname==" len" ? _ts._fields.length : _ts.find(_fname);
+        if( fldx == -1 ) return null;
         return new ConstantNode(TypeInteger.constant(_ts.offset(fldx))).peephole();
     }
 
@@ -42,7 +60,7 @@ public class ConFldOffNode extends ConstantNode {
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
         boolean progress = super._upgradeType(TYPES);
         TypeStruct ts = (TypeStruct)_ts.upgradeType(TYPES);
-        if( ts != _ts ) return progress;
+        if( ts == _ts ) return progress;
         _ts = ts;
         return true;
     }

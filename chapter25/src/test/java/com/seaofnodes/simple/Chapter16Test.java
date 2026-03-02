@@ -156,7 +156,7 @@ return p;
     @Test
     public void testStructFinal4() {
         CodeGen code = new CodeGen("""
-struct _Point { val x=3; val y=4; };
+struct _Point { val x=2; val y=4; };
 _Point p = new _Point;
 p.x++;
 return p;

@@ -84,7 +84,7 @@ public class MemMergeNode extends Node {
                     ts = ts.replace(fld);
                 }
             }
-            return TypeMem.make(1,(ts==null ? TypeStruct.TOP : ts),true);
+            return TypeMem.make(1,(ts==null ? TypeStruct.TOP : ts),true,false);
 
         } else {
             // Default mixed mem is just BOT
@@ -178,7 +178,7 @@ public class MemMergeNode extends Node {
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
                 Type phit = lhs._type instanceof TypeMem lhst && rhs._type instanceof TypeMem rhst
-                    ? TypeMem.make(i,lhst._t.meet(rhst._t).glb(true), lhst._one & rhst._one)
+                    ? TypeMem.make(i,lhst._t.meet(rhst._t).glb(true), lhst._one & rhst._one, lhst._final & rhst._final)
                     // Might have e.g. TOP or BOTTOM for error cases
                     : lhs._type.meet(rhs._type).glb(true);
                 alias(i, new PhiNode(Parser.memName(i), phit, r, lhs, rhs).peephole());

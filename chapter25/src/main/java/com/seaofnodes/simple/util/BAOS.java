@@ -37,7 +37,7 @@ public class BAOS {
         return this;
     }
 
-    // Read an UNSIGNBED bytes at INDEX, AIOOBE if off end
+    // Read an UNSIGNED bytes at INDEX, AIOOBE if off end
     public int read1(int idx) { return _buf[idx] & 0xFF; }
 
     // Read an UNSIGNED byte, AIOOBE if off end
