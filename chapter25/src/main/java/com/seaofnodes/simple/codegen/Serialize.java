@@ -57,8 +57,8 @@ abstract public class Serialize {
         // Gather types from all sources
         for( Node n : nodes ) {
             n._type.gather(types);
-            if( n instanceof      FunNode fun ) fun.sig().gather(types);
-            if( n instanceof ConstantNode con ) con._con .gather(types);
+            if( n instanceof  FunNode fun ) fun.sig().gather(types);
+            if( n instanceof TypeNode con ) con._con .gather(types);
         }
         // Radix sort by Type ID#
         Type[] atypes = new Type[types.size()];
@@ -134,8 +134,8 @@ abstract public class Serialize {
 
         // First cut: 1 byte opcode, optional per-node info, includes variable nIns
         for( Node n : nodes ) {
-            baos.write(n.serialTag().ordinal());
-            baos.write(types.get(n._type));
+            baos.packed1(n.serialTag().ordinal());
+            baos.packed2(types.get(n._type));
             n.packed(baos,strs,types,aliases);
         }
         // Write out the input indices packed
@@ -213,7 +213,7 @@ abstract public class Serialize {
         // Packed array of nodes
         Ary<Node> nodes = new Ary<>(Node.class);
         for( int i=0; i<num; i++ ) {
-            Node.Tag tag = Node.Tag.VALS[bais.read()];
+            Node.Tag tag = Node.Tag.VALS[bais.packed1()];
             Type t = types[bais.packed2()];
             Node n = tag.make(bais,strs,types,aliases);
             n._type = t;

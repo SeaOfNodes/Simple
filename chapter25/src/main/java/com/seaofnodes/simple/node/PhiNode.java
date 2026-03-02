@@ -32,7 +32,7 @@ public class PhiNode extends TypeNode {
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
         baos.packed1(nIns());
         baos.packed2(_label==null ? 0 : strs.get(_label));
-        baos.packed2(types.get(_type)); // Write _type not _minType, which can be higher
+        baos.packed2(types.get(_con));
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
