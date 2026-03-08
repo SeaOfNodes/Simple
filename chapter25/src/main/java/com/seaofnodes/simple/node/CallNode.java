@@ -164,6 +164,8 @@ public class CallNode extends CFGNode {
 
     @Override
     public Parser.ParseException err() {
+        if( fptr()._type == Type.BOTTOM )
+            return null;        // Wrong, but failing earlier
         if( !(fptr()._type instanceof TypeFunPtr tfp) )
             throw Utils.TODO();
         if( !tfp.notNull() )

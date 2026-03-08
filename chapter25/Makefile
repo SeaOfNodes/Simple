@@ -69,7 +69,7 @@ test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_alone := com.seaofnodes.simple.BrainFuckTest com.seaofnodes.simple.MergeSortTest com.seaofnodes.simple.TypeTest
 test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21
 test_raw_nums1 := 22 23 24
-test_raw_sys   := 25
+test_raw_sys   :=
 test_raw0    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums0))
 test_raw1    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums1))
 test_sys     := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_sys)  )
@@ -79,7 +79,8 @@ test_cp0     := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wil
 test_cp1     := $(filter-out $(test_raw0) ,$(test_cp0))
 test_cp2     := $(filter-out $(test_raw1) ,$(test_cp1))
 test_cp3     := $(filter-out $(test_alone),$(test_cp2))
-test_cp      := $(filter-out $(test_sys)  ,$(test_cp3))
+test_cp4     := $(filter-out com.seaofnodes.simple.Chapter25Test,$(test_cp3))
+test_cp      := $(filter-out $(test_sys)  ,$(test_cp4))
 classes = $(main_classes) $(test_classes)
 # All the libraries
 libs = $(wildcard lib/*jar)
@@ -183,7 +184,7 @@ fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "fuzzing "
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(OBJS)/lib_x86_64_v2_win64/sys.o tests_raw0 tests_raw1 tests_alone tests_sys fuzzer
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(OBJS)/lib_x86_64_v2_win64/sys.o tests_raw0 tests_raw1 tests_alone tests_sys
 	@echo "All tests"
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)

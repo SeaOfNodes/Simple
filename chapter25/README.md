@@ -7,8 +7,8 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 ## Modules
 
 Goal: A Module plan (not yet a "system")
-No syntax for the start 1-file helloWorld.smp "module"
-External symbols are in ".o" files, like Java ".class" - not an source file #include like C/C++
+Goal: No syntax for the starter 1-file-1-line helloWorld.smp "module"
+Goal: External symbols are in ".o" files, like Java ".class" - not an source file #include like C/C++
 
 Needs a search strategy for ".o" files, so they mirror the source code directory structure.
 Means there is a "build" root for .o files.
@@ -16,6 +16,9 @@ Means the CLI has a --flag for the build root, or some sensible default ($cwd/bu
 
 Projects with subdirectories pick up all symbols qualified names from the path-to-project-root
 
+Goal: under no circumstances can you load from an uninitialized variable  (although you can see default inits for fields that have defaults).
+Goal: nested tree-structured name spaces, to control complexity.
+Goal: field decl order within a file is fairly flexible.
 
 
 ## more
