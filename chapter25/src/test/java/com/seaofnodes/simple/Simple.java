@@ -201,7 +201,7 @@ Options:
         // Compilation pipeline
         Ary<String> externPaths = null;
         CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, TypeInteger.BOT );
-        code.driver(Phase.LastPhase,cpu,abi,out, do_run || do_eval, dump);
+        code.driver(Phase.LastPhase,cpu,abi, out, do_run || do_eval, dump);
 
         if( do_codegen && print_asm )
             System.out.println(code.asm());
