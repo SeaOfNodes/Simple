@@ -131,7 +131,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     // Check for trivial inlining: call only calls fun; fun only called by
     // call.  Returns 0 for trivial, +1 for not-trivial because fptr/fun, and
     // -1 for not-trivial because idoms.
-    private int trivialInlining( Node fptr, FunNode fun ) {
+    public int trivialInlining( Node fptr, FunNode fun ) {
         // Heuristic forced inlining off via name
         if( fun._name != null &&
             fun._name.endsWith("_noInline") )
