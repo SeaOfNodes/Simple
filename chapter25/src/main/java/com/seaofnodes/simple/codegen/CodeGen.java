@@ -251,7 +251,7 @@ public class CodeGen {
         _phase = Phase.Parse;
         long t0 = System.currentTimeMillis();
 
-        P.parse();
+        ParseAll.parseAll(this);
 
         _times[Phase.Parse.ordinal()] = System.currentTimeMillis() - t0;
         JSViewer.show();

@@ -154,7 +154,7 @@ public class Parser {
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
 
-    public void parse() {
+    public Ary<FRefNode> parse() {
         _lexer = new Lexer(_code._src);
         // Starting Scope has control, memory, initial arguments
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
@@ -175,45 +175,16 @@ public class Parser {
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
-        // Should be at the top scope and every new var should be a FRef.  CNC:
-        // slight possibility that stalling this error message will allow the
-        // FRef to die after iter(), and thus avoid the error.
-        for( int i=2; i<_scope._vars._len; i++ ) {
-            Var v = _scope.var(i);
-            FRefNode fref = (FRefNode)_scope._inputs.at(i); // Assert FRef
-            assert v._fref && v._idx==i && fref._n==v;
-            // Attempt to find external name, assuming it is a class name
-            String xname = addClzPrefix(v._name);
-            ExternNode ext = _code.findExternal(xname);
-            if( ext == null )
-                throw error("Undefined name '" + v._name + "'");
-            // Define the FRef
-            v.defFRef(ext._con,true,null);
-            _scope.setDef(i,fref.addDef(ext));
-        }
+
+        // Should be at the top scope and every new var should be a FRef.
+        Ary<FRefNode> frefs = new Ary<FRefNode>(FRefNode.class);
+        for( int i=2; i<_scope._vars._len; i++ )
+            frefs.push((FRefNode)_scope._inputs.at(i));
 
         // Clean up and reset
         _xScopes.pop();
         _scope.kill();
-        _code._stop.peephole();
-
-        // Close over all recursive types, and upgrade TYPES
-        Ary<TypeStruct> ary = new Ary<>(TypeStruct.class);
-        for( Type t : TYPES.values() )
-            if( t instanceof TypeStruct ts )
-                ary.add(ts);
-        TypeStruct[] tss = Type.closeOver(ary.asAry(),TYPES);
-        for( TypeStruct ts : tss )
-            TYPES.put(ts._name,ts);
-
-        // Walk over all Nodes, and upgrade the internal constants to the
-        // closed-over types.
-        _code._stop.walk( n -> n.upgradeType(TYPES) );
-
-        // Gather top-level exported symbols
-        for( Type t : TYPES.values() )
-            if( t instanceof TypeStruct ts &&!ts.isAry() )
-                _code._publishSymbols.add(ts);
+        return frefs;
     }
 
 

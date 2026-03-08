@@ -8,6 +8,9 @@ changing.
 AI is allowed access to all files recursively in "C:/Users/cliffc/Desktop/Simple"
 directory.
 
+Meta-info: all the tests run with `make tests` currently run, and should again
+run before we accept any changes.
+
 
 The overall project is rooted in the `Simple/` directory,
 and is a compiler tutorial broken up into chapters.
