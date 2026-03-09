@@ -6,6 +6,8 @@ import com.seaofnodes.simple.util.Ary;
 
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,7 +20,7 @@ public class Chapter25Test {
         String MODDIR = "src/test/java/com/seaofnodes/simple/modtest";
 
         // Remove any prior failed compiles
-        // DEL modtest .o recursively
+        delELFiles(new File(MODDIR));
 
         // Compile modtest/par.o
         String src = Files.readString( Path.of(MODDIR+"/par.smp"));
@@ -34,6 +36,15 @@ public class Chapter25Test {
         // Child3 depends on existance parent.
 
 
+    }
+
+    // Recursive search (TODO: gzip, archives) and delete all .o files
+    private void delELFiles( File dir) {
+        if( dir.isDirectory() )
+            for( File f : dir.listFiles() )
+                delELFiles(f);
+        else if( dir.getName().endsWith(".o") )
+            dir.delete();
     }
 
 

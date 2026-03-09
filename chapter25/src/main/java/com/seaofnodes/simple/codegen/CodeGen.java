@@ -651,6 +651,13 @@ public class CodeGen {
             _files.add(dir);
     }
 
+    // Find a source file as an immediate child of the current source
+    public String findSource( String name ) {
+        String nested = _srcName+"/"+name+".smp";
+        File f = new File(_modDir+"/"+nested);
+        return f.exists() && f.isFile() ? nested : null;
+    }
+
 
     // ---------------------------
     public boolean _asmLittle=true;

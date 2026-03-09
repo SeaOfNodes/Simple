@@ -35,7 +35,7 @@ need to be loaded, and find an ELF file in the search path (very similar to
 what `-classpath` does for Java) and load & link against the symbols.
 
 Several pieces are missing and need to happen:
-
+    
 - The Parser's "find missing symbols and link" needs to move out of the parser
   (and probably into CodeGen or a Phase thereof)
 - Once a symbol is loaded and linked, this will allow the next symbol to be

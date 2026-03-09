@@ -12,15 +12,17 @@ import java.util.BitSet;
  */
 public class FRefNode extends ConstantNode {
     public static final Type FREF_TYPE = Type.BOTTOM;
-    public final Var _n;
-    public FRefNode( Var n ) { super(FREF_TYPE); _n = n; }
+    public final String _name, _src;
+    public final Parser.Lexer _loc;    // Source location
 
-    @Override public String label() { return "FRef"+_n; }
+    public FRefNode( String srcName, String src, Parser.Lexer loc ) { super(FREF_TYPE); _name = name; _src = src; _loc = loc; }
+
+    @Override public String label() { return "FRef"+_name; }
 
     @Override public String uniqueName() { return "FRef_" + _nid; }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb.append("FRef_").append(_n);
+        return sb.append("FRef_").append(_name);
     }
 
     @Override public Node idealize() {
@@ -28,8 +30,8 @@ public class FRefNode extends ConstantNode {
         return nIns()==1 ? null : in(1);
     }
 
-    public Parser.ParseException err() { return Parser.error("Undefined name '"+_n._name+"'",_n._loc); }
+    public Parser.ParseException err() { return Parser.error("Undefined name '"+_name+"'",_loc); }
 
     @Override public boolean eq(Node n) { return this==n; }
-    @Override int hash() { return _n._idx; }
+    @Override int hash() { return _name.hashCode(); }
 }
