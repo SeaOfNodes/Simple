@@ -154,8 +154,8 @@ public class Parser {
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
 
-    public Ary<FRefNode> parse() {
-        _lexer = new Lexer(_code._src);
+    public void parse(String srcName, String src, Ary<FRefNode> frefs) {
+        _lexer = new Lexer(src);
         // Starting Scope has control, memory, initial arguments
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
@@ -168,8 +168,8 @@ public class Parser {
         mem(new MemMergeNode(false));
 
         // File-level struct declaration
-        _nestedType = _code._srcName;
-        String typeName = addClzPrefix(_code._srcName);
+        _nestedType = srcName;
+        String typeName = addClzPrefix(srcName);
 
         ReturnNode clzret = parseStruct( true, typeName );
 
@@ -184,7 +184,6 @@ public class Parser {
         // Clean up and reset
         _xScopes.pop();
         _scope.kill();
-        return frefs;
     }
 
 

@@ -242,7 +242,7 @@ public class ScopeNode extends MemMergeNode {
         int kidx = enclosingFunction();
         int idx = _kinds.at(kidx)._lexSize;
         Var var = new Var(idx,name,FRefNode.FREF_TYPE,false,loc,true);
-        FRefNode fref = new FRefNode(var).init();
+        FRefNode fref = new FRefNode(name,loc).init();
         // Insert in the lex scope just prior to kidx
         insert(var,fref,kidx);
         return var;
