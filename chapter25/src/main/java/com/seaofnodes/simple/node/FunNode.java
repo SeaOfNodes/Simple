@@ -24,26 +24,34 @@ public class FunNode extends RegionNode {
     public String _name;        // Debug name
 
     public int _approxUIDs;     // Approximate function size, used as a inlining heuristic
+    public final String _srcName; // Defined in source file
     public final boolean _extern; // External function; no code, name only
 
-    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, boolean ext ) {
+    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, String clzName, boolean ext ) {
         super(loc,nodes);
         _name   = name;
         _sig    = sig;
+        _srcName = clzName;
         _extern = ext;
     }
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, Node... nodes ) { this(loc,nodes,sig,name,false); }
-    public FunNode( TypeFunPtr sig, String name, boolean ext ) { this(null,null,sig,name,ext); }
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, String clzName, Node... nodes ) { this(loc,nodes,sig,name,clzName,false); }
+    public FunNode( TypeFunPtr sig, String name, boolean ext ) {
+        this(null,null,sig,name,null,ext);
+        assert ext;             // No need for ext
+        throw Utils.TODO();
+    }
     public FunNode( FunNode fun ) {
         super( fun, fun==null ? null : fun._loc );
         if( fun!=null ) {
             _sig = fun.sig();
             _name = fun._name;
+            _srcName = fun._srcName;
             _extern = fun._extern;
         } else {
             _sig = TypeFunPtr.BOT;
             _name = "";
             _extern = false;
+            throw Utils.TODO(); // Where does clzName come from?
         }
     }
     @Override public Tag serialTag() { return Tag.Fun; }
@@ -52,12 +60,14 @@ public class FunNode extends RegionNode {
         baos.packed1(nIns());          // Number of linked calls
         baos.packed2(types.get(_sig)); // NPE if fails lookup
         baos.packed2(_name==null ? 0 : strs.get(_name));
+        baos.packed2(strs.get( _srcName ));
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
         TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
         String name = strs[bais.packed2()];
-        return new FunNode(null,sig,name,ins);
+        String clzName = strs[bais.packed2()];
+        return new FunNode(null,sig,clzName,name,ins);
     }
 
     @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
@@ -239,21 +249,24 @@ public class FunNode extends RegionNode {
         if( n==null ) return false;
         if( visit.get(n._nid) ) return body.get(n._nid);
         visit.set(n._nid);
-
+        // Visit self as CFG outside of the function
         if( n instanceof CFGNode && !cfgs.get(n._nid) && unfolded( n ) )
             return false;
+        // Visit n.cfg() outside of function
         if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) && unfolded( n.in( 0 ) ) )
             return false;
-        // Data-only cycles are broken by pre-setting the loop Phis in the body
-        if( n instanceof RegionNode )
-            for( Node phi : n._outputs )
-                if( phi instanceof PhiNode )
-                    body.set(phi._nid); // Find data cycles
+        // Phis inside the function must have their body flag set BEFORE
+        // recursion walks around a loop and finds them again.
         if( n instanceof PhiNode phi && cfgs.get(phi.in(0)._nid) )
             body.set(phi._nid); // Find data cycles
         boolean in = n.in(0)!=null || n instanceof CFGNode;
-        for( Node use : n._outputs )
+        for( Node use : n._outputs ) {
+            // Will hit a backedge, so 'n' MUST be in the function, and must be
+            // set before the cyclic walk finds 'n' again.
+            if( use instanceof PhiNode puse && puse.in(0) instanceof LoopNode loop && puse.in(2)==n )
+                body.set(n._nid); // Set before walk
             in |= walkDown(use,cfgs,body,visit);
+        }
         if( in ) body.set(n._nid);
         return in;
     }
@@ -395,5 +408,6 @@ public class FunNode extends RegionNode {
 
     @Override public void gather( HashMap<String,Integer> strs ) {
         Serialize.gather(strs,_name);
+        Serialize.gather(strs, _srcName );
     }
 }

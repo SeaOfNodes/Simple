@@ -80,7 +80,7 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append(doCtrl ? "\tsubgraph cluster_Controls {\n" : "\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for (Node n : all) {
-            if (n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode || n==Parser.XCTRL)
+            if( n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode || n instanceof XCtrlNode )
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             if( _separateControlCluster &&  doCtrl && !(n instanceof CFGNode) ) continue;
             if( _separateControlCluster && !doCtrl &&  (n instanceof CFGNode) ) continue;
@@ -195,7 +195,7 @@ public class GraphVisualizer {
             // Do not display the Constant->Start edge;
             // ProjNodes handled by Multi;
             // ScopeNodes are done separately
-            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeNode || n==Parser.XCTRL )
+            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeNode || n instanceof XCtrlNode )
                 continue;
             for( int i=0; i<n.nIns(); i++ ) {
                 Node def = n.in(i);

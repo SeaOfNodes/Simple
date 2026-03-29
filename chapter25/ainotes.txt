@@ -34,51 +34,5 @@ invocation of `CodeGen.driver`, and in `Parser` recoginize missing symbols that
 need to be loaded, and find an ELF file in the search path (very similar to
 what `-classpath` does for Java) and load & link against the symbols.
 
-Several pieces are missing and need to happen:
-    
-- The Parser's "find missing symbols and link" needs to move out of the parser
-  (and probably into CodeGen or a Phase thereof)
-- Once a symbol is loaded and linked, this will allow the next symbol to be
-  found.  I.e., in `sys.io.p`, once `sys` is found from the matching ELF file,
-  NOW we can find `io`.  Before then `io` is just an unknown field load.
-  So the whole "find & link missing symbols, run Iter in a loop until stable" needs
-  itself to be a loop.
-- The ELF searching exists & works; we also need to walk the source tree at the
-  same time, and check time stamps.  Files that are out-of-date will need to 
-  be compiled also.
-  - This means the Parser will need to be restarted (or a new Parser made).  It
-    has a few static symbols, some of which are immutable or can be reused, but
-    need to check all of them.
-  - Also, any external symbols found and used in one Parse will need to be
-    recorded as a dependency (probably even in the ELF file in the ".simple"
-    section"), so that a later edit/compile cycle can re-compile dependent
-    parts directly.
-  - I think the plan here will be to do all the multiple-file-parsing, symbol
-    searching, linking,etc will happen before the `TypeCheck` phase.  After
-    that the compiler backend can be the same for all parsed files.  Once
-    we get down to writing ELF files, we'll write one ELF file for every
-    source file parsed.
-    
-    
-Please come up with a high level plan for all the parts that need fixing,
-and lets review it before we move into building individual parts.
-
-Moving ahead with Phase 1 -
-- Drop the "Linker" phase, I think we'll do this in inside of the `Phase.Parse`
-- instead of `CodeGen.parse` calling `P.parse` once, we'll put it into a loop.
-
-- Outer loop will be driven by a worklist of "to do" parses, and be fed with
-  the initial file.
-  
-- Outer loop will pull off a file from worklist and call Parse
-
-- Then enter an inner loop
-  - inner loop runs `code._iter.iterate()` until worklist is empty.  This may
-    kill some FRefs as dead code.
-  - Inner loop will scan the FRefs for ELFs on the search path, and load those ELFs.
-  - repeat inner loop for the newly discovered symbols, in case more get found
-  
-- If symbol can't be found, we'll error out
-- Adding more files to the outer worklist happens in a later phase.
 
 

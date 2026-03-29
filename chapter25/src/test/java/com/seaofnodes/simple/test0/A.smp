@@ -1,0 +1,6 @@
+// -*- mode: java;  -*-
+
+val _fcn = { -> arg ? { int x -> x+1; } : { int x -> x-1; }; };
+
+// Refer to child B
+_fcn()(B.x);

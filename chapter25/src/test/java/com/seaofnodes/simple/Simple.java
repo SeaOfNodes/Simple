@@ -17,7 +17,7 @@ public class Simple {
     static void usage() {
         System.out.println(
 """
-simple [options] <input-file> ...args...
+simple [options] input-file.smp ...program args...
 Options are applied in-order.
 Options:
   --help - This text
@@ -172,10 +172,10 @@ Options:
         // Compute the build path.
         Path outPath;
         if( out == null ) {
-            // If no output given, the build dir is the modPath plus "build"
-            outPath = Path.of(modPath.toString(),"build");
+            // If no output given, the build dir is the modPath
+            outPath = modPath;
         } else {
-            // If the output is a directory, thats our out path
+            // If the output is a directory, that is our out path
             outPath = Path.of(out);
             if( !out.endsWith("/") ) {
                 // If the output is a file, the directory is our outPath
@@ -201,7 +201,7 @@ Options:
         // Compilation pipeline
         Ary<String> externPaths = null;
         CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, TypeInteger.BOT );
-        code.driver(Phase.LastPhase,cpu,abi, out, do_run || do_eval, dump);
+        code.driver(Phase.LastPhase,cpu,abi, false, do_run || do_eval, dump);
 
         if( do_codegen && print_asm )
             System.out.println(code.asm());

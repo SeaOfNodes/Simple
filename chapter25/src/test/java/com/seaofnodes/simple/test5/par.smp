@@ -1,0 +1,20 @@
+// -*- mode: java;  -*-
+
+// Parent module
+val par0 = 3; // Some final field
+
+// Nested class in parent.
+// Makes a field: "val child0 = ..."
+struct child0 {
+    val kid0 = 5;
+};
+
+// Nested class in parent, comes from disk.
+// These are defined in-order
+val child1 = child1;
+
+// Nested class in parent, comes from disk
+val child2 = child2;
+
+// Nested class in parent, comes from disk
+val child3 = child3;

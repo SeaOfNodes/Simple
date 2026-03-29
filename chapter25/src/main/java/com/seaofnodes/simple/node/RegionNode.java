@@ -76,7 +76,7 @@ public class RegionNode extends CFGNode {
                     // Fold Region
                     for( int j=1; j<region.nIns(); j++ )
                         addDef(region.in(j));
-                    setDef(i,Parser.XCTRL);
+                    setDef(i,CodeGen.CODE.XCTRL);
                     return this;
                 }
         }
@@ -112,7 +112,7 @@ public class RegionNode extends CFGNode {
                     CodeGen.CODE.addAll(phi.delDef(path)._outputs);
                 }
         }
-        return isDead() ? Parser.XCTRL : delDef(path);
+        return isDead() ? CodeGen.CODE.XCTRL : delDef(path);
     }
 
     private int findDeadInput(int startIdx) {

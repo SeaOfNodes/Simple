@@ -223,10 +223,10 @@ public class ScopeNode extends MemMergeNode {
                     return true;
                 }
             }
-        Var v = new Var(nIns(),name,declaredType,xfinal,loc,init==Parser.XCTRL);
+        Var v = new Var(nIns(),name,declaredType,xfinal,loc,init==CodeGen.CODE.XCTRL);
         _vars.add(v);
         // Creating a forward reference
-        if( init==Parser.XCTRL )
+        if( init==CodeGen.CODE.XCTRL )
             //init = new FRefNode(v).init();
             throw Utils.TODO();
         addDef(init);

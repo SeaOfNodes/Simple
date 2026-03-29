@@ -200,7 +200,7 @@ public class TypeFunPtr extends TypeNil {
     @Override int TAGOFF() { return 8; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
         assert !_open;
-        if( _nil==2 && nargs()<6 ) {
+        if( _nil==2 && nargs()<6 && nfcns() == 1 ) {
             baos.write(TAGOFFS[_type] + nargs());
             baos.packed2(fidx());
         } else {
