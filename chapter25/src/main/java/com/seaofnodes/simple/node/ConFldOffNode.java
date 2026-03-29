@@ -38,7 +38,7 @@ public class ConFldOffNode extends ConstantNode {
         if( _ts.isAry() ) {
             // Length always at offset zero
             if( _fname==" len" )
-                return Parser.ZERO;
+                return CodeGen.CODE.ZERO;
             // The shift depends on the element
             if( _fname=="<<" )
                 return Node.con(_ts.aryScale());

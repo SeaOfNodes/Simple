@@ -7,7 +7,7 @@ val kid1 = 11;
 
 // Can read parent directly.
 // Can read defined-in-parent fields.
-val kid2 = par.child0.kid0;
+val kid2 = child0.kid0;
 
-// OK to reference a past siblinb
-val kid3 = par.child1.kid1;
+// OK to reference a past sibling
+val kid3 = child1.kid1;

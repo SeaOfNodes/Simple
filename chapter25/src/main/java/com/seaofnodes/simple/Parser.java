@@ -20,16 +20,11 @@ import java.util.*;
  */
 public class Parser {
 
-    public static ConstantNode ZERO; // Very common node, cached here
-    public static ConstantNode NIL;  // Very common node, cached here
-    public static XCtrlNode XCTRL;   // Very common node, cached here
-
     // Compile driver
     public final CodeGen _code;
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private Lexer _lexer;
-
 
     // Class prefix string; TODO: use something short: "%"
     private static final String clzPrefix = "class:";
@@ -37,10 +32,19 @@ public class Parser {
         assert !x.startsWith(clzPrefix);
         return (clzPrefix+x).intern();
     }
+    public static String fromClzPrefix( String x ) {
+        assert x.startsWith(clzPrefix);
+        return x.substring(clzPrefix.length());
+    }
     public static boolean startsClzPrefix( String s ) {
         return s.startsWith(clzPrefix);
     }
 
+    // Source file name for compilation
+    private String _srcName;
+
+    // Current classname being parsed
+    private String _nestedType;
 
     /**
      * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
@@ -99,24 +103,9 @@ public class Parser {
 
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.
-    public static HashMap<String, Type> TYPES;
-
-
-    public Parser(CodeGen code ) {
-        _code = code;
-        _scope = new ScopeNode();
-        _continueScope = _breakScope = null;
-        ZERO  = con(TypeInteger.ZERO).keep();
-        NIL  = con(Type.NIL).keep();
-        XCTRL= new XCtrlNode().peephole().keep();
-        TYPES = defaultTypes();
-    }
-
-    @Override
-    public String toString() { return _lexer.toString(); }
-
-    public static HashMap<String, Type> defaultTypes() {
-        return new HashMap<>() {{
+    public static final HashMap<String, Type> TYPES = new HashMap<>();
+    public static final HashMap<String, Type> INIT_TYPES =
+        new HashMap<>() {{
             put("bool",TypeInteger.U1 );
             put("byte",TypeInteger.U8 );
             put("f32" ,TypeFloat  .F32);
@@ -134,7 +123,14 @@ public class Parser {
             put("val" ,Type.TOP);    // Marker type, indicates type inference
             put("var" ,Type.BOTTOM); // Marker type, indicates type inference
         }};
+
+
+    public Parser(CodeGen code ) {
+        _code = code;
     }
+
+    @Override
+    public String toString() { return _lexer==null ? "" : _lexer.toString(); }
 
     // Debugging utility to find a Node by index
     public Node f(int nid) { return _code.f(nid); }
@@ -154,9 +150,11 @@ public class Parser {
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
 
-    public void parse(String srcName, String src, Ary<FRefNode> frefs) {
+    public Ary<FRefNode> parse(String srcName, String src ) {
+        assert _scope == null && _breakScope == null && _continueScope == null && _returnScope == null;
         _lexer = new Lexer(src);
         // Starting Scope has control, memory, initial arguments
+        _scope = new ScopeNode();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
         //_scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
@@ -164,10 +162,11 @@ public class Parser {
         _xScopes.push(_scope);
 
         //
-        ctrl(XCTRL);
+        ctrl(_code.XCTRL);
         mem(new MemMergeNode(false));
 
         // File-level struct declaration
+        _srcName = srcName;
         _nestedType = srcName;
         String typeName = addClzPrefix(srcName);
 
@@ -177,13 +176,16 @@ public class Parser {
 
 
         // Should be at the top scope and every new var should be a FRef.
-        Ary<FRefNode> frefs = new Ary<FRefNode>(FRefNode.class);
+        Ary<FRefNode> frefs = new Ary<>(FRefNode.class);
         for( int i=2; i<_scope._vars._len; i++ )
             frefs.push((FRefNode)_scope._inputs.at(i));
 
         // Clean up and reset
         _xScopes.pop();
         _scope.kill();
+        _scope = null;
+
+        return frefs;
     }
 
 
@@ -231,7 +233,7 @@ public class Parser {
         ScopeNode   returnScope =   _returnScope;   _returnScope = null;
 
         int oldUID = _code.UID(); // Used to approximate function size
-        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, funName, null,_code._start));
+        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, funName, _srcName, null, _code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -255,7 +257,7 @@ public class Parser {
         }
 
         // Parse the function body.
-        Node last=ZERO;         // Last statement as the default result
+        Node last=_code.ZERO;   // Last statement as the default result
         while (!peek('}') && !_lexer.isEOF()) {
             // Parse a statement; record last statement as default return
             last = parseStatement();
@@ -282,9 +284,9 @@ public class Parser {
 
         // Build a return from the _returnScope.
         // Can be no returns for never-exit functions
-        Node rctl = _returnScope==null ? XCTRL            : _returnScope.ctrl().peephole();
-        Node rmem = rctl==XCTRL        ? con(TypeMem.TOP) : _returnScope.mem ().merge().peephole();
-        Node expr = rctl==XCTRL        ? con(Type.TOP)    : _returnScope._inputs.last().peephole();
+        Node rctl = _returnScope==null ? _code.XCTRL      : _returnScope.ctrl().peephole();
+        Node rmem = rctl==_code.XCTRL  ? con(TypeMem.TOP) : _returnScope.mem ().merge().peephole();
+        Node expr = rctl==_code.XCTRL  ? con(Type.TOP)    : _returnScope._inputs.last().peephole();
         ReturnNode ret = (ReturnNode)peep(new ReturnNode(rctl, rmem, expr, rpc, fun));
         fun.setRet(ret);
         _code._stop.addDef(ret);
@@ -332,7 +334,7 @@ public class Parser {
             // or in simple tests.
             FunNode lastFun = _code.link(tfp);
             if( lastFun._name==null || lastFun._name.charAt(0)=='_' )
-                last = ZERO;
+                last = _code.ZERO;
         }
         return last;
     }
@@ -416,7 +418,7 @@ public class Parser {
     private Node parseBlock(Kind kind) {
         // Enter a new scope
         _scope.push(kind);
-        Node last = ZERO;
+        Node last = _code.ZERO;
         while (!peek('}') && !_lexer.isEOF())
             last = parseStatement();
         // Exit scope
@@ -592,12 +594,12 @@ public class Parser {
             _xScopes.push( exit );
         }
         _scope = exit;
-        return ZERO;
+        return _code.ZERO;
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
         ScopeNode cur = _scope.dup();
-        ctrl(XCTRL); // Kill current scope
+        ctrl(_code.XCTRL); // Kill current scope
         // Prune nested lexical scopes that have depth > than the loop head
         // We use _breakScope as a proxy for the loop head scope to obtain the depth
         while( cur.depth() > _breakScope.depth() )
@@ -615,7 +617,7 @@ public class Parser {
 
     private void checkLoopActive() { if (_breakScope == null) throw error("No active loop for a break or continue"); }
 
-    private Node parseContinue() { checkLoopActive(); _continueScope = require(jumpTo( _continueScope ),";"); return ZERO; }
+    private Node parseContinue() { checkLoopActive(); _continueScope = require(jumpTo( _continueScope ),";"); return _code.ZERO; }
     private Node parseBreak   () {
         checkLoopActive();
         // At the time of the break, and loop-exit conditions are only valid if
@@ -624,7 +626,7 @@ public class Parser {
         _breakScope.removeGuards(_breakScope.ctrl());
         _breakScope = require(jumpTo(_breakScope ),";");
         _breakScope.addGuards(_breakScope.ctrl(), null, false);
-        return ZERO;
+        return _code.ZERO;
     }
 
     // Look for an unbalanced `)`, skipping balanced
@@ -772,7 +774,7 @@ public class Parser {
                 int rlen = _returnScope.nIns();
                 while( rlen  < nestedLexSize ) {
                     _returnScope._vars.add(_scope.var(rlen));
-                    _returnScope.addDef(Parser.con(_scope.var(rlen++).type().makeZero()));
+                    _returnScope.addDef(con(_scope.var(rlen++).type().makeZero()));
                 }
                 _returnScope._vars.add(vexpr);
                 _returnScope.addDef(oldX);
@@ -800,7 +802,7 @@ public class Parser {
             _code.add(r);
             _returnScope.ctrl(r.unkeep());
         }
-        ctrl(XCTRL);            // Kill control
+        ctrl(_code.XCTRL);      // Kill control
         return expr.unkeep();
     }
 
@@ -967,8 +969,8 @@ public class Parser {
             expr = switch( t ) {
                 // Nullable pointers get a NIL; not-null get a BOTTOM which
                 // signals that they *must* be initialized in the constructor.
-            case TypeNil tn -> tn.nullable() ? NIL : con(Type.BOTTOM);
-            case TypeInteger ti -> ZERO;
+            case TypeNil tn -> tn.nullable() ? con(Type.NIL) : con(Type.BOTTOM);
+            case TypeInteger ti -> _code.ZERO;
             case TypeFloat tf -> con(TypeFloat.FZERO);
             // Bottom signals type inference: they must be initialized in
             // the constructor and that's when we'll discover the type.
@@ -997,7 +999,6 @@ public class Parser {
      *
      * @return zero
      */
-    private String _nestedType;
     private Node parseStruct( ) {
         // keyword "struct" already parsed, so expect the struct name next.
         String typeName = requireId();
@@ -1021,7 +1022,7 @@ public class Parser {
         TYPES.put(ts._name,ts);
 
         require("}");
-        return require(ZERO,";");
+        return require(_code.ZERO,";");
     }
 
     // Parse a struct declaration (not an allocation); file-level is a class-init, and scope structs are normal
@@ -1327,7 +1328,7 @@ public class Parser {
         ctrl(ifT);
         RegionNode r = fail.mergeScopes(_scope, loc()).init();
         _scope = fail;
-        return new PhiNode("",TypeInteger.BOOL,r,ZERO,con(1)).peephole();
+        return new PhiNode("",TypeInteger.BOOL,r,_code.ZERO,con(1)).peephole();
     }
 
     private int parseCompDir() {
@@ -1462,8 +1463,8 @@ public class Parser {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
         if( _lexer.peek('"') ) return newString(parseString());
         if( matchx("true" ) ) return con(1);
-        if( matchx("false") ) return ZERO;
-        if( matchx("null" ) ) return NIL;
+        if( matchx("false") ) return _code.ZERO;
+        if( matchx("null" ) ) return con(Type.NIL);
         if( match ("'"    ) ) return parseChar();
         if( match ("("    ) ) return parsePostfix(require(parseAsgn(), ")"));
         if( matchx("new"  ) ) return parsePostfix(alloc());
@@ -1971,8 +1972,8 @@ public class Parser {
      * </pre>
      */
     private ConstantNode parseLiteral() { return con(_lexer.parseNumber()); }
-    public static Node con( long con ) { return con==0 ? ZERO : con(TypeInteger.constant(con));  }
-    public static ConstantNode con( Type t ) { return (ConstantNode)new ConstantNode(t).peephole();  }
+    ConstantNode con( long con ) { return _code.con(con); }
+    ConstantNode con( Type t   ) { return _code.con(t  ); }
     // Field offset for a known type (but unknown offset)
     public static ConFldOffNode off( TypeStruct ts, String fname ) {
         return (ConFldOffNode)(new ConFldOffNode(ts,fname).peephole());

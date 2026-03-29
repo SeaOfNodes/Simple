@@ -4,6 +4,8 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
+
+import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
@@ -62,6 +64,7 @@ public abstract class TestC {
      *
      * @param src         Program source to compile
      * @param base        Compiled binary final base name
+     * @param externPaths External symbol search path
      * @param simple_conv Argument convention when calling Simple code
      * @param c_conv      Argument convention when calling C code, or null if not
      *                    linking against a C driver program
@@ -81,8 +84,10 @@ public abstract class TestC {
         String obj = pathBase+".o";
         String exe = pathBase+(OS.startsWith("Windows") ? ".exe" : "");
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(null,null,externPaths,"Test",src,123L,TypeInteger.BOT);
-        code.driver( CPU_PORT, simple_conv, obj, cfile==null );
+        CodeGen code = new CodeGen(null,"build/objs",externPaths,null,src,123L,TypeInteger.BOT);
+        code.driver( CPU_PORT, simple_conv, false, cfile==null );
+        // Since no source file, class is assumed "Test" and output is always "Test.o".
+        new File("build/objs/Test.o").renameTo(new File(obj));
 
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);

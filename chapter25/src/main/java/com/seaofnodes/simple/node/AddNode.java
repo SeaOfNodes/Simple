@@ -1,8 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
-
-import static com.seaofnodes.simple.Parser.con;
 
 public class AddNode extends ArithNode {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
@@ -35,7 +34,7 @@ public class AddNode extends ArithNode {
 
         // Add of same to a multiply by 2
         if( lhs==rhs )
-            return new ShlNode(null,lhs,con(1));
+            return new ShlNode(null,lhs,CodeGen.CODE.con(1));
 
         // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
 

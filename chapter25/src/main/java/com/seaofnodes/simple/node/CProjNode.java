@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
@@ -51,7 +51,7 @@ public class CProjNode extends CFGNode implements Proj {
     public Node idealize() {
         if( ctrl()._type instanceof TypeTuple tt ) {
             if( tt._types[_idx]==Type.XCONTROL )
-                return Parser.XCTRL; // We are dead
+                return CodeGen.CODE.XCTRL; // We are dead
             if( ctrl() instanceof IfNode && tt._types[1-_idx]==Type.XCONTROL ) // Only true for IfNodes
                 return ctrl().in(0);               // We become our input control
         }

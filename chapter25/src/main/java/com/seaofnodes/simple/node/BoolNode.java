@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -53,7 +53,7 @@ abstract public class BoolNode extends Node {
     public Node idealize() {
         // Compare of same
         if( in(1)==in(2) )
-            return this instanceof LT ? Parser.ZERO : new ConstantNode(TRUE);
+            return this instanceof LT ? CodeGen.CODE.ZERO : new ConstantNode(TRUE);
 
         // Equals pushes constant to the right; 5==X becomes X==5.
         if( this instanceof EQ ) {

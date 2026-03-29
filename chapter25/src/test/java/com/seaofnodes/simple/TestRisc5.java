@@ -15,7 +15,7 @@ public abstract class TestRisc5 {
 
     public static EvalRisc5 build( String src, String main, int arg, int spills, boolean print ) throws IOException {
         // Compile and export Simple
-        CodeGen code = new CodeGen(src).driver("riscv", "SystemV",null,false);
+        CodeGen code = new CodeGen(src).driver("riscv", "SystemV",true,false);
         if( print ) { code.print_as_hex(); System.out.print(code.asm()); }
 
         // Allocation quality not degraded

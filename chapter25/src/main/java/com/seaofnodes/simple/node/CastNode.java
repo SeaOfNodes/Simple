@@ -73,6 +73,7 @@ public class CastNode extends TypeNode {
                 /*bogus init store in constructor*/;
             else bad = true;
         if( !bad ) return null;
+        if( init==null ) return null; // Error somewhere else
         // Expecting an init store
         TypeMemPtr ptr = (TypeMemPtr)init.ptr()._type;
         throw Parser.error("'"+ptr._obj._name+"' is not fully initialized, field '" + init._name + "' is only partially set in the constructor", init._loc);

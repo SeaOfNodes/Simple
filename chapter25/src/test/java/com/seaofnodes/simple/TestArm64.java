@@ -15,7 +15,7 @@ public class TestArm64 {
 
     public static EvalArm64 build( String main, String src, int arg, int spills, boolean print ) throws IOException {
         // Compile and export Simple
-        CodeGen code = new CodeGen(src).driver("arm", "SystemV",null,false);
+        CodeGen code = new CodeGen(src).driver("arm", "SystemV",true,false);
         if( print ) { code.print_as_hex(); System.out.print(code.asm()); }
 
         // Allocation quality not degraded

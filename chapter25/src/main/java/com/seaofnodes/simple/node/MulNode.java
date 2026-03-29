@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
@@ -33,7 +33,7 @@ public class MulNode extends ArithNode {
             // canonicalize to (x*1)
             long c = i.value();
             if( c==1 )  return lhs;
-            if( c==0 )  return Parser.ZERO;
+            if( c==0 )  return CodeGen.CODE.ZERO;
             // Mul by a power of 2, +/-1.  Bit patterns more complex than this
             // are unlikely to win on an X86 vs the normal "imul", and so
             // become machine-specific.

@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
@@ -13,12 +12,11 @@ import java.util.HashMap;
 public class ElfWriter {
 
     final CodeGen _code;
-    final Ary<Section> _sections;
+    Ary<Section> _sections;
     StringSection _strtab;
 
     ElfWriter( CodeGen code ) {
         _code = code;
-        _sections = new Ary<>(Section.class);
     }
 
     // ------------------------------------------------------------------------
@@ -117,6 +115,7 @@ public class ElfWriter {
         }
 
         public int writeCString(String name) {
+            if( name==null ) return 0; // Anonymous functions have no name
             Integer ii = _dedup.get(name);
             if( ii != null ) return ii;
             // place name in the string table
@@ -181,11 +180,11 @@ public class ElfWriter {
             return symbol(name,shndx,bind,type,0,0);
         }
 
-        // creates function and stores where it starts
-        void encodeFunctions(int text_idx) {
-            for( Node ret : _code._stop._inputs ) {
-                FunNode fun = ((ReturnNode)ret).fun();
-                int end = _code._encoding._opStart[ret._nid] + _code._encoding._opLen[ret._nid];
+        // creates function and stores where it starts.
+        // Filters to just this class.obj file.
+        void encodeFunctions(Ary<FunNode> funs, int text_idx) {
+            for( FunNode fun : funs ) {
+                int end = _code._encoding._opStart[fun.ret()._nid] + _code._encoding._opLen[fun.ret()._nid];
                 long value = _code._encoding._opStart[fun._nid];
                 long size = end - value;
                 symbol(fun._name, text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, value, size);
@@ -246,8 +245,9 @@ public class ElfWriter {
 
     // ------------------------------------------------------------------------
 
-    public void export(String fname, boolean main) {
+    public void export(Ary<FunNode> funs, String objName, boolean main) {
         // Sections are created in the order they are emitted.
+        _sections = new Ary<>(Section.class);
 
         // Null section
         Section nullSection = new DataSection("",Section.SHT_NULL,0,0);
@@ -271,7 +271,7 @@ public class ElfWriter {
 
 
         // populate function symbols
-        symbols.encodeFunctions(text._index);
+        symbols.encodeFunctions(funs, text._index);
         // The "main" symbol, starting code is always location 0
         if( main )
             symbols.symbolMain(text._index);
@@ -341,7 +341,8 @@ public class ElfWriter {
 
         assert out.position() == size;
 
-        File file = new File(fname);
+        String clzName = funs.at(0)._srcName;
+        File file = new File(objName);
         if( file.getParentFile()!=null )
             file.getParentFile().mkdirs();
         try {
@@ -352,6 +353,9 @@ public class ElfWriter {
             // Caller does not want to deal, but it is a failed compilation in any case
             throw new RuntimeException(ioe);
         }
+        // Reset for next ELF
+        _sections = null;
+        _strtab = null;
     }
 
 }

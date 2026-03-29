@@ -129,20 +129,7 @@ public abstract class CFGNode extends Node {
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start is a LoopNode which contains all at depth 1.
     public void buildLoopTree(StartNode start, StopNode stop) {
-        //// Unlink all linked calls.  This can remove RPC constants which
-        //// shuffled the StartNode outputs so requires a while loop.
-        //boolean done=false;
-        //while(!done) {
-        //    done = true;
-        //    for( Node use : start._outputs )
-        //        if( use instanceof FunNode fun )
-        //            for( Node c : fun._inputs )
-        //                if( c instanceof CallNode call )
-        //                    { call.unlink_all(); done=false; }
-        //}
-
-
-        _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
+        _ltree = stop._ltree = CodeGen.CODE.XCTRL._ltree = new LoopTree((StartNode)this);
         Ary<FunNode> work = new Ary<>(FunNode.class);
         for( Node use : _outputs )
             if( use instanceof FunNode fun )
