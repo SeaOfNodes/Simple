@@ -24,35 +24,28 @@ public class FunNode extends RegionNode {
     public String _name;        // Debug name
 
     public int _approxUIDs;     // Approximate function size, used as a inlining heuristic
-    public final String _srcName; // Defined in source file
+    public final ParseAll.ExtRef _ref; // Defined in source file
     public final boolean _extern; // External function; no code, name only
 
-    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, String clzName, boolean ext ) {
+    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, ParseAll.ExtRef ref, boolean ext ) {
         super(loc,nodes);
         _name   = name;
         _sig    = sig;
-        _srcName = clzName;
+        _ref    = ref;
         _extern = ext;
     }
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, String clzName, Node... nodes ) { this(loc,nodes,sig,name,clzName,false); }
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, ParseAll.ExtRef ref, Node... nodes ) { this(loc,nodes,sig,name,ref,false); }
     public FunNode( TypeFunPtr sig, String name, boolean ext ) {
         this(null,null,sig,name,null,ext);
         assert ext;             // No need for ext
         throw Utils.TODO();
     }
     public FunNode( FunNode fun ) {
-        super( fun, fun==null ? null : fun._loc );
-        if( fun!=null ) {
-            _sig = fun.sig();
-            _name = fun._name;
-            _srcName = fun._srcName;
-            _extern = fun._extern;
-        } else {
-            _sig = TypeFunPtr.BOT;
-            _name = "";
-            _extern = false;
-            throw Utils.TODO(); // Where does clzName come from?
-        }
+        super( fun, fun._loc );
+        _sig = fun.sig();
+        _name = fun._name;
+        _ref = fun._ref;
+        _extern = fun._extern;
     }
     @Override public Tag serialTag() { return Tag.Fun; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
@@ -60,14 +53,12 @@ public class FunNode extends RegionNode {
         baos.packed1(nIns());          // Number of linked calls
         baos.packed2(types.get(_sig)); // NPE if fails lookup
         baos.packed2(_name==null ? 0 : strs.get(_name));
-        baos.packed2(strs.get( _srcName ));
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
         TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
         String name = strs[bais.packed2()];
-        String clzName = strs[bais.packed2()];
-        return new FunNode(null,sig,clzName,name,ins);
+        return new FunNode(null,sig,name,null,ins);
     }
 
     @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
@@ -408,6 +399,5 @@ public class FunNode extends RegionNode {
 
     @Override public void gather( HashMap<String,Integer> strs ) {
         Serialize.gather(strs,_name);
-        Serialize.gather(strs, _srcName );
     }
 }

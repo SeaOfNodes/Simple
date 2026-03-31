@@ -8,26 +8,35 @@ import java.util.*;
 
 abstract public class Serialize {
 
-    static BAOS serialize( CodeGen code ) {
-        // Get all Nodes in a sane order
-        Ary<Node> nodes = nodeOrder(code);
+    static void serialize( CodeGen code ) {
 
-        // Compress into bytes
-        BAOS baos = write(nodes, code._publishSymbols);
+        for( ParseAll.ExtRef ref : code._refs ) {
+            // Get all Nodes in a sane order
+            Ary<Node> nodes = nodeOrder(code,ref._funs);
 
-        //// --- Expensive bijection assert
-        //// Inflate into POJOs; renumbers everything
-        //Results r = readAll(new BAOS(baos.toByteArray()));
-        //BAOS baos2 = write(r.nodes(), r.published());
-        //
-        //// Bi-jection
-        //for( int i=0; i<baos.size(); i++ )
-        //    assert baos.buf()[i]==baos2.buf()[i];
-        //assert baos.size()==baos2.size();
-        //assert Arrays.equals(baos.buf(),baos2.buf());
-        //// --- Expensive bijection assert
+            // Compress into bytes
+            BAOS baos = write(nodes, ref._clzs);
 
-        return baos;
+            //// --- Expensive bijection assert
+            //if( true ) {
+            //    // Inflate into POJOs; renumbers everything
+            //    Results r = readAll(new BAOS(baos.toByteArray()));
+            //    BAOS baos2 = write(r.nodes(), r.published());
+            //
+            //    // Bi-jection
+            //    for( int i=0; i<baos.size(); i++ )
+            //        assert baos.buf()[i]==baos2.buf()[i];
+            //    assert baos.size()==baos2.size();
+            //    assert Arrays.equals(baos.buf(),baos2.buf());
+            //}
+            //// --- Expensive bijection assert
+
+            // Record serialized IR for later ELF writing
+            ref._serial = baos;
+
+            Node stop = nodes.pop();
+            stop.kill();
+        }
     }
 
     // --------------------------------------------------
@@ -248,10 +257,52 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
+    public static Ary<Node> nodeOrder( CodeGen code, Ary<FunNode> funs ) {
+        assert code._start._ltree != null; // Uses loop tree
+        BitSet visit = code.visit();
+        // Listed functions
+        Ary<Node> nodes = new Ary<>(Node.class);
+        for( FunNode fun : funs )
+            _funWalk(fun,nodes,visit,funs);
+
+        // Just constants used by the listed functions
+        Ary<Node> cons = new Ary<>(Node.class);
+        cons.add(code._start);
+        for( Node n : code._start._outputs ) {
+            if( n instanceof ConstantNode con && !visit.get(con._nid) ) {
+                for( Node use : con.outs() ) {
+                    // Special case for Cast:BOT which is basically a double-indirect constant
+                    if( use instanceof CastNode cast && cast.in(0)==null )
+                        for( Node useuse : cast.outs() )
+                            conUsed(cast,useuse,visit,cons);
+                    // Constant used by somebody, so flag for output
+                    if( conUsed(con,use,visit,cons) )
+                        break;
+                }
+            }
+        }
+        cons.addAll(nodes);
+
+        // Make a custom StopNode only listing functions in this function set
+        StopNode stop = new StopNode(code._stop._src);
+        for( Node ret : code._stop._inputs )
+            if( visit.get(ret._nid) )
+                stop.addDef(ret);
+        cons.add(stop);
+        visit.clear();
+        return cons;
+    }
+
+    private static boolean conUsed( Node con, Node use, BitSet visit, Ary<Node> cons ) {
+        if( use == null || !visit.get(use._nid) ) return false;
+        cons.add(con);
+        visit.set(con._nid);
+        return true;
+    }
+
+    // --------------------------------------------------
     public static Ary<Node> nodeOrder( CodeGen code ) {
-        CFGNode.LoopTree old = code._start._ltree;
-        if( old==null )
-            code._start.buildLoopTree(code._start,code._stop);
+        assert code._start._ltree != null; // Uses loop tree
         Ary<Node> nodes = new Ary<>(Node.class);
         BitSet visit = code.visit();
         nodes.add(code._start);
@@ -278,8 +329,6 @@ abstract public class Serialize {
 
         nodes.add(code._stop);
         visit.clear();
-        if( old == null )
-            code._start._ltree = null;
         return nodes;
     }
 
