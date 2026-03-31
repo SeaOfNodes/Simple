@@ -29,9 +29,9 @@ public class CodeGen {
         Opto,                   // Run ideal optimizations
         TypeCheck,              // Last check for bad programs
         LoopTree,               // Build a loop tree; break infinite loops
-        Unlink,                 // Unlink call sites; this point keeps moving backwards
         Serialize,              // Serialize public IR for future compiles to link
         Select,                 // Convert to target hardware nodes
+        Unlink,                 // Unlink call sites; this point keeps moving backwards
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
         RegAlloc,               // Register allocation
@@ -105,7 +105,6 @@ public class CodeGen {
         ZERO  = con(TypeInteger.ZERO).keep();
         XCTRL = new XCtrlNode().peephole().keep();
         P = new Parser(this);
-        _publishSymbols = new Ary<>(TypeStruct.class);
     }
 
 
@@ -134,9 +133,9 @@ public class CodeGen {
         if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = dump(dump); }
-        if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) { unlink();    p2 = dump(dump); }
         if( p2 < p1 && p1 >= Phase.Export    .ordinal() ) { serialize(); p2 = dump(dump); } // Include ideal graph in object file
         if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) { instSelect(cpu,callingConv); p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) { unlink();    p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) { GCM();       p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) { localSched();p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) { regAlloc();  p2 = dump(dump); }
@@ -264,8 +263,6 @@ public class CodeGen {
     // ---------------------------
     // Parser object
     public final Parser P;
-    // Public exposed names; TODO: only ever publish the file-as-struct symbol
-    public final Ary<TypeStruct> _publishSymbols;
 
     // Parse ASCII text into Sea-of-Nodes IR
     public CodeGen parse() {
@@ -339,67 +336,33 @@ public class CodeGen {
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
         _start.buildLoopTree(_start,_stop);
+
+        // Sort functions by object file; for simple test cases there is
+        // generally only one function in one class.
+        // In general, there can be many .obj files being emitted, one for each
+        // source file parsed.
+        _refs = new HashSet<>();
+        for( Node ret : _stop._inputs ) {
+            FunNode fun = ((ReturnNode)ret).fun();
+            _refs.add(fun._ref);
+            fun._ref.addFunction(fun);
+        }
+
+        for( ParseAll.ExtRef ref : _refs )
+            ref.replaceAllClzs();
+
+
         _times[Phase.LoopTree.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
 
     // ---------------------------
-    public void unlink() {
-        assert _phase.ordinal() <= Phase.LoopTree.ordinal();
-        _phase = Phase.Unlink;
-        long t0 = System.currentTimeMillis();
-
-    	// The remaining passes assume all calls are unlinked; i.e. we are throwing
-    	// away the Call Graph here.  Functions only reachable from internal calls
-    	// need to be re-hooked to stop/start less they go dead.
-        _start.walk( x -> {
-                // Unlink all existing (conservative) linkages.
-                if( x instanceof CallNode call ) {
-                    for( Node y : call._outputs ) {
-                        // Keep function alive and hooked to Start so it gets
-                        // codegen'd.  Function is callable by this call via
-                        // TFP, although perhaps not by any other means.
-                        if( y instanceof FunNode fun && !(fun.in(1) instanceof StartNode) ) {
-                            if( fun.rpc()==null ) // Ensure valid RPC
-                                makeRPC(fun);
-                            // Insert a hook to Start and Stop
-                            fun.insertDef(1,_start);
-                            for( Node use : fun._outputs )
-                                if( use instanceof ParmNode parm )
-                                    parm.insertDef(1,ConstantNode.make(parm._type).peephole());
-                            _stop.addDef(fun.ret());
-    	                    }
-                    }
-                    call.unlink_all();
-                }
-                return null;
-            } );
-
-        _times[Phase.Unlink.ordinal()] = System.currentTimeMillis() - t0;
-    }
-    // Make a valid Parm RPC.
-    // First make sure a valid RPC; single-call into multi-fun will have each
-    // function having a single call site, so the RPC becomes a constant and
-    // folds - but since multiple targets, the Call never inlines.  Recreate a
-    // valid RPC so codegen (and Eval2) understands the calling convention.
-    private static void makeRPC( FunNode fun ) {
-        ParmNode rpc = new ParmNode("$rpc",0,fun.ret().rpc()._type,fun);
-        for( int i=1; i<fun.nIns(); i++ ) {
-            CallEndNode cend = ((CallNode)fun.in(i)).cend();
-            rpc.addDef(ConstantNode.make(cend._rpc).peephole());
-        }
-        fun.ret().setDef(3,rpc.init());
-    }
-
-
-    // ---------------------------
-    BAOS _serial;
     public void serialize() {
-        assert _phase.ordinal() <= Phase.Unlink.ordinal();
+        assert _phase.ordinal() <= Phase.LoopTree.ordinal();
         _phase = Phase.Serialize;
         long t0 = System.currentTimeMillis();
         // Does not change compiler phase; just records IR
-        _serial = Serialize.serialize(this);
+        Serialize.serialize(this);
         _times[Phase.Serialize.ordinal()] = System.currentTimeMillis() - t0;
     }
 
@@ -461,11 +424,15 @@ public class CodeGen {
         _uid = 1;               // All new machine nodes reset numbering
         var map = new IdentityHashMap<Node,Node>();
         _instSelect( _stop, map );
-        _stop  = ( StopNode)map.get(_stop );
+        _stop  = (StopNode)map.get(_stop );
         StartNode start = (StartNode)map.get(_start);
         _start = start==null ? new StartNode(_start) : start;
         _instOuts(_stop,visit());
         _visit.clear();
+
+        // Walk and replace the list of functions
+        for( ParseAll.ExtRef ref : _refs )
+            ref.replaceAllFuns(map);
 
         _times[Phase.Select.ordinal()] = System.currentTimeMillis() - t0;
         return this;
@@ -516,6 +483,56 @@ public class CodeGen {
             }
     }
 
+    // ---------------------------
+    public HashSet<ParseAll.ExtRef> _refs;
+    public void unlink() {
+        assert _phase.ordinal() <= Phase.Select.ordinal();
+        _phase = Phase.Unlink;
+        long t0 = System.currentTimeMillis();
+
+    	// The remaining passes assume all calls are unlinked; i.e. we are throwing
+    	// away the Call Graph here.  Functions only reachable from internal calls
+    	// need to be re-hooked to stop/start less they go dead - which means we
+        // have to hunt the whole graph, and not just the public functions hooked
+        // to Stop.
+        _start.walk( x -> {
+                // Unlink all existing (conservative) linkages.
+                if( x instanceof CallNode call ) {
+                    for( Node y : call._outputs ) {
+                        // Keep function alive and hooked to Start so it gets
+                        // codegen'd.  Function is callable by this call via
+                        // TFP, although perhaps not by any other means.
+                        if( y instanceof FunNode fun && !(fun.in(1) instanceof StartNode) ) {
+                            if( fun.rpc()==null ) // Ensure valid RPC
+                                makeRPC(fun);
+                            // Insert a hook to Start and Stop
+                            fun.insertDef(1,_start);
+                            for( Node use : fun._outputs )
+                                if( use instanceof ParmNode parm )
+                                    parm.insertDef(1,ConstantNode.make(parm._type).peephole());
+                            _stop.addDef(fun.ret());
+    	                    }
+                    }
+                    call.unlink_all();
+                }
+                return null;
+            } );
+
+        _times[Phase.Unlink.ordinal()] = System.currentTimeMillis() - t0;
+    }
+    // Make a valid Parm RPC.
+    // First make sure a valid RPC; single-call into multi-fun will have each
+    // function having a single call site, so the RPC becomes a constant and
+    // folds - but since multiple targets, the Call never inlines.  Recreate a
+    // valid RPC so codegen (and Eval2) understands the calling convention.
+    private static void makeRPC( FunNode fun ) {
+        ParmNode rpc = new ParmNode("$rpc",0,fun.ret().rpc()._type,fun);
+        for( int i=1; i<fun.nIns(); i++ ) {
+            CallEndNode cend = ((CallNode)fun.in(i)).cend();
+            rpc.addDef(ConstantNode.make(cend._rpc).peephole());
+        }
+        fun.ret().setDef(3,rpc.init());
+    }
 
     // ---------------------------
     // Control Flow Graph in Reverse Post Order.
@@ -524,7 +541,7 @@ public class CodeGen {
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
     public CodeGen GCM( boolean show) {
-        assert _phase.ordinal() <= Phase.Select.ordinal();
+        assert _phase.ordinal() <= Phase.Unlink.ordinal();
         _phase = Phase.Schedule;
         long t0 = System.currentTimeMillis();
 
@@ -560,7 +577,7 @@ public class CodeGen {
         return this;
     }
 
-    // Human readable register name
+    // Human-readable register name
     public String reg(Node n) { return reg(n,null); }
     public String reg(Node n, FunNode fun) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
@@ -595,28 +612,10 @@ public class CodeGen {
         if( inMemory ) {
             new LinkMem(this).link(); // In memory patching
         } else {
-            // Sort functions by object file; for simple test cases
-            // there is generally only one function in one class.
-            // In general, there can be many .obj files being emitted,
-            // one for each source file parsed.
-            HashMap<String,Ary<FunNode>> funss = new HashMap<>();
-            for( Node ret : _stop._inputs ) {
-                FunNode fun = ((ReturnNode)ret).fun();
-                Ary<FunNode> funs = funss.get(fun._srcName );
-                if( funs==null ) funss.put(fun._srcName,funs=new Ary<>(FunNode.class));
-                funs.add(fun);
-            }
-            if( funss.size() > 1 ) {
-                throw Utils.TODO("ElfWriter fails because it writes ALL of the _encoding and _serial - for all functions.  Really need to split _serial and _encoding per-classfile object.  Could split reg-alloc by function.");
-            }
             ElfWriter elf = new ElfWriter(this);
-            for( Ary<FunNode> funs : funss.values() ) {
-                String srcName = funs.at(0)._srcName;
-                // Convert e.g. class:A.B.C into BLDDIR/A/B/C.o
-                String slash = srcName.replace(".","/");
-                if( _buildDir != null ) slash = _buildDir + "/" + slash;
-                String objName = slash + ".o";
-                elf.export(funs,objName,main); // External ELF file
+            for( ParseAll.ExtRef ref : _refs ) {
+                String objName = _buildDir + "/" + ref._fname + ".o";
+                elf.export(ref._funs, ref._serial, objName, main); // External ELF file
             }
         }
         _times[Phase.Export.ordinal()] = System.currentTimeMillis() - t0;

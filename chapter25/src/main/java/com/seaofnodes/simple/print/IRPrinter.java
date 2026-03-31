@@ -37,7 +37,13 @@ public abstract class IRPrinter {
 
     // Bulk whole program pretty print
     public static String prettyPrint( CodeGen code ) {
+        // Loop-tree for nodeOrder
+        CFGNode.LoopTree old = code._start._ltree;
+        if( old==null )
+            code._start.buildLoopTree(code._start,code._stop);
         Ary<Node> nodes = Serialize.nodeOrder(code);
+        if( old == null )
+            code._start._ltree = null;
         SB sb = new SB();
         Node prior=null;
         for( Node n : nodes ) {

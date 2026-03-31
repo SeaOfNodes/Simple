@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.ParseAll;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
@@ -32,16 +33,12 @@ public class Parser {
         assert !x.startsWith(clzPrefix);
         return (clzPrefix+x).intern();
     }
-    public static String fromClzPrefix( String x ) {
-        assert x.startsWith(clzPrefix);
-        return x.substring(clzPrefix.length());
-    }
     public static boolean startsClzPrefix( String s ) {
         return s.startsWith(clzPrefix);
     }
 
-    // Source file name for compilation
-    private String _srcName;
+    // Source file for compilation
+    private ParseAll.ExtRef _ref;
 
     // Current classname being parsed
     private String _nestedType;
@@ -150,9 +147,9 @@ public class Parser {
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
 
-    public Ary<FRefNode> parse(String srcName, String src ) {
+    public Ary<FRefNode> parse( ParseAll.ExtRef ref ) {
         assert _scope == null && _breakScope == null && _continueScope == null && _returnScope == null;
-        _lexer = new Lexer(src);
+        _lexer = new Lexer(ref._src);
         // Starting Scope has control, memory, initial arguments
         _scope = new ScopeNode();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
@@ -166,9 +163,9 @@ public class Parser {
         mem(new MemMergeNode(false));
 
         // File-level struct declaration
-        _srcName = srcName;
-        _nestedType = srcName;
-        String typeName = addClzPrefix(srcName);
+        _ref = ref;
+        _nestedType = ref._cname;
+        String typeName = addClzPrefix(ref._cname);
 
         ReturnNode clzret = parseStruct( true, typeName );
 
@@ -233,7 +230,7 @@ public class Parser {
         ScopeNode   returnScope =   _returnScope;   _returnScope = null;
 
         int oldUID = _code.UID(); // Used to approximate function size
-        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, funName, _srcName, null, _code._start));
+        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, funName, _ref, null, _code._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -1034,6 +1031,9 @@ public class Parser {
         // Make the future clazz/instance struct.
         TypeStruct tself = TypeStruct.make(typeName,true);
         TYPES.put(typeName, tself);
+        // Record exported symbols.  Do not publish private symbols.
+        if( !typeName.startsWith("_") && !typeName.contains("._") )
+            _ref.addClass(tself);
 
         // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
         // Self-memory is the rare *private* (never aliased) memory for the new object.

@@ -245,7 +245,7 @@ public class ElfWriter {
 
     // ------------------------------------------------------------------------
 
-    public void export(Ary<FunNode> funs, String objName, boolean main) {
+    public void export(Ary<FunNode> funs, BAOS serial, String objName, boolean main) {
         // Sections are created in the order they are emitted.
         _sections = new Ary<>(Section.class);
 
@@ -293,7 +293,7 @@ public class ElfWriter {
         }
 
         // Create a "Simple" section for Simple types and ir
-        SimpleSection simple = new SimpleSection(_code._serial);
+        SimpleSection simple = new SimpleSection(serial);
 
         // Write the local section header symbols
         assert nlocals == 1+_sections._len;
@@ -341,7 +341,6 @@ public class ElfWriter {
 
         assert out.position() == size;
 
-        String clzName = funs.at(0)._srcName;
         File file = new File(objName);
         if( file.getParentFile()!=null )
             file.getParentFile().mkdirs();

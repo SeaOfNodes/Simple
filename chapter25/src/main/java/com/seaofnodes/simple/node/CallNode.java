@@ -138,7 +138,7 @@ public class CallNode extends CFGNode {
     }
 
     // Unlink a single function
-    void unlink( FunNode fun, int path ) {
+    public void unlink( FunNode fun, int path ) {
         assert linked(fun);
         for( Node use : fun._outputs )
             if( use instanceof ParmNode )

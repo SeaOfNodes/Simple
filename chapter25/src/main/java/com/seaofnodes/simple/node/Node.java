@@ -101,7 +101,7 @@ public abstract class Node implements Cloneable {
             case MulF   -> new  MulFNode(null,null);
             case Not    -> new   NotNode(null);
             case Or     -> new    OrNode(null,null,null);
-            case ReadOnly-> new ReadOnlyNode(null);
+            case ReadOnly-> new ReadOnlyNode((Node)null);
             case Return ->new ReturnNode(null,null,null,null,null);
             case RoundF32-> new RoundF32Node(null);
             case Sar    -> new   SarNode(null,null,null);

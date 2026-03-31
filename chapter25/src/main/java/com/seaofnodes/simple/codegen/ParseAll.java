@@ -53,12 +53,16 @@ public abstract class ParseAll {
     public static class ExtRef {
         final ExtRef _par;          // Parent, e.g. A/B
         final String _fname;        // Full slashed file name starting from module root, e.g. A/B/C
-        final String _cname;        // Full dotted class name starting from module root, e.g. A.B.C
+        final public String _cname; // Full dotted class name starting from module root, e.g. A.B.C
         final String _name;         // Base name, e.g. C
         final ExternNode _ext;      // Found in external libs; e.g. libc
         final File _smp;            // Simple source file, e.g. module_root/A/B/C.smp
         final File _obj;            // ELF output file, e.g. build/A/B/C.o
-        final String _src;          // Source code, from file or test case
+        final public String _src;   // Source code, from file or test case
+
+        Ary<TypeStruct> _clzs;  // List of classes exported into the ELF output
+        Ary<FunNode   > _funs;  // List of function entry points exported
+        BAOS _serial;           // Serialized IR for this ELF file
 
         // Discovered source file.  Source is loaded if required to parse, and null
         // otherwise.
@@ -100,6 +104,26 @@ public abstract class ParseAll {
             _src  = null;
         }
 
+        // Add a public class name.  You always get the self-name.  If the
+        // source code has a nested class, you can get more.
+        public void addClass( TypeStruct clz ) {
+            if( _clzs==null ) _clzs = new Ary<>(TypeStruct.class);
+            _clzs.add(clz);
+        }
+        public void addFunction( FunNode fun ) {
+            if( _funs==null ) _funs = new Ary<>(FunNode.class);
+            _funs.add(fun);
+        }
+
+        public void replaceAllFuns( IdentityHashMap<Node,Node> map ) {
+            for( int i=0; i<_funs._len; i++ )
+                _funs._es[i] = (FunNode)map.get(_funs._es[i]);
+        }
+        public void replaceAllClzs() {
+            for( int i=0; i<_clzs._len; i++ )
+                _clzs.set(i, (TypeStruct)Parser.TYPES.get(_clzs.at(i)._name));
+        }
+
         @Override public String toString() {
             String x = "{"+_cname;
             if( _smp!=null && _smp.exists()) x += ",hasSMP";
@@ -113,7 +137,9 @@ public abstract class ParseAll {
 
     // Parse a top-level string, used for e.g. testing
     static void parseSource( String src ) {
-        parseAll(new ExtRef(src));
+        ExtRef ref = new ExtRef(src);
+        REFMAP.put(ref._fname,ref);
+        parseAll(ref);
     }
 
     // module_root/.../src.smp is source file name.
@@ -164,11 +190,6 @@ public abstract class ParseAll {
                 }
                 return null;
             } );
-
-        // Gather top-level exported symbols
-        for( Type t : Parser.TYPES.values() )
-            if( t instanceof TypeStruct ts &&!ts.isAry() )
-                CODE._publishSymbols.add(ts);
     }
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
@@ -178,7 +199,7 @@ public abstract class ParseAll {
             return;
 
         // Parse a source file, return missing external references.
-        Ary<FRefNode> frefs = CODE.P.parse(ref._cname, ref._src);
+        Ary<FRefNode> frefs = CODE.P.parse(ref);
 
         // Iteratively run peepholes.  Besides doing needed optimization
         // this might also kill some FRefs.
