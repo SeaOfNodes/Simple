@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.ParseAll;
+import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
@@ -38,7 +39,7 @@ public class Parser {
     }
 
     // Source file for compilation
-    private ParseAll.ExtRef _ref;
+    private CompUnit _ref;
 
     // Current classname being parsed
     private String _nestedType;
@@ -147,7 +148,7 @@ public class Parser {
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
 
-    public Ary<FRefNode> parse( ParseAll.ExtRef ref ) {
+    public Ary<FRefNode> parse( CompUnit ref ) {
         assert _scope == null && _breakScope == null && _continueScope == null && _returnScope == null;
         _lexer = new Lexer(ref._src);
         // Starting Scope has control, memory, initial arguments

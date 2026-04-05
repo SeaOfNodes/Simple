@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeStruct;
+import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 // In-memory linking
@@ -9,9 +10,7 @@ public class LinkMem {
     final CodeGen _code;
     LinkMem( CodeGen code ) { _code = code; }
 
-    public CodeGen link() {
-        Encoding enc = _code._encoding;
-
+    public CodeGen link(Encoding enc) {
         // Patch external calls internally
         enc.patchGlobalRelocations();
 
@@ -26,7 +25,7 @@ public class LinkMem {
             Encoding.Relo relo = enc._bigCons.get(op);
             boolean ro = !(relo._t instanceof TypeStruct ts) || ts.isConstant();
             int target = relo._target+(ro ? cpool : sdata);
-            ((RIPRelSize)relo._op).patch(enc, relo._opStart, enc._opLen[relo._op._nid], target - relo._opStart);
+            ((RIPRelSize)relo._op).patch(enc, relo._opStart, enc.opLen(relo._op), target - relo._opStart);
         }
 
         return _code;

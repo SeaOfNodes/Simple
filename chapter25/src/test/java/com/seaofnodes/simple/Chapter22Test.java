@@ -1,10 +1,10 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import java.io.IOException;
-
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import java.io.IOException;
 import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -49,7 +49,7 @@ return new s0.v1;
 
 
     static int testCPUSize( String src, String cpu, String os, int spills ) {
-        return testCPU(src,cpu,os,spills, "return 0;" )._encoding._bits.size();
+        return testCPU(src,cpu,os,spills, "return 0;" ).compunit()._encoding._bits.size();
     }
 
     // Should not fold away

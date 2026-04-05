@@ -59,6 +59,14 @@ public class CodeGen {
     // Current Working Directory; default module base
     private final String _cwd;
 
+    // Compilation Units in this compile; one per source/object file
+    public HashSet<CompUnit> _compunits;
+    // Test shortcut for only one compilation unit
+    public CompUnit compunit() {
+        assert _compunits.size()==1;
+        return _compunits.iterator().next();
+    }
+
     // ---------------------------
 
     // Very common nodes, cached here
@@ -133,7 +141,7 @@ public class CodeGen {
         if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = dump(dump); }
-        if( p2 < p1 && p1 >= Phase.Export    .ordinal() ) { serialize(); p2 = dump(dump); } // Include ideal graph in object file
+        if( p2 < p1 && p1 >= Phase.Encoding    .ordinal() ) { serialize(); p2 = dump(dump); } // Include ideal graph in object file
         if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) { instSelect(cpu,callingConv); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) { unlink();    p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) { GCM();       p2 = dump(dump); }
@@ -341,15 +349,16 @@ public class CodeGen {
         // generally only one function in one class.
         // In general, there can be many .obj files being emitted, one for each
         // source file parsed.
-        _refs = new HashSet<>();
-        for( Node ret : _stop._inputs ) {
-            FunNode fun = ((ReturnNode)ret).fun();
-            _refs.add(fun._ref);
-            fun._ref.addFunction(fun);
+        _compunits = new HashSet<>();
+        for( FunNode fun : _linker ) {
+            if( fun!=null && !fun.isDead() ) {
+                _compunits.add(fun._compunit);
+                fun._compunit.addFunction(fun);
+            }
         }
 
-        for( ParseAll.ExtRef ref : _refs )
-            ref.replaceAllClzs();
+        for( CompUnit cu : _compunits )
+            cu.replaceAllClzs();
 
 
         _times[Phase.LoopTree.ordinal()] = System.currentTimeMillis() - t0;
@@ -431,7 +440,7 @@ public class CodeGen {
         _visit.clear();
 
         // Walk and replace the list of functions
-        for( ParseAll.ExtRef ref : _refs )
+        for( CompUnit ref : _compunits )
             ref.replaceAllFuns(map);
 
         _times[Phase.Select.ordinal()] = System.currentTimeMillis() - t0;
@@ -484,7 +493,6 @@ public class CodeGen {
     }
 
     // ---------------------------
-    public HashSet<ParseAll.ExtRef> _refs;
     public void unlink() {
         assert _phase.ordinal() <= Phase.Select.ordinal();
         _phase = Phase.Unlink;
@@ -578,10 +586,9 @@ public class CodeGen {
     }
 
     // Human-readable register name
-    public String reg(Node n) { return reg(n,null); }
-    public String reg(Node n, FunNode fun) {
+    public String reg(Node n) {
         if( _phase.ordinal() >= Phase.RegAlloc.ordinal() ) {
-            String s = _regAlloc.reg(n,fun);
+            String s = _regAlloc.reg(n);
             if( s!=null ) return s;
         }
         return "N"+ n._nid;
@@ -590,15 +597,12 @@ public class CodeGen {
 
     // ---------------------------
     // Encoding
-    public Encoding _encoding;   // Encoding object
-    public void preEncode() {  } // overridden by alternative ports
     public CodeGen encode() {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
-        _encoding = new Encoding(this);
-        preEncode();            // Override hook for alternative ports
-        _encoding.encode();
+        for( CompUnit ref : _compunits )
+            (ref._encoding = new Encoding(this)).encode(ref);
         _times[Phase.Encoding.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
@@ -610,13 +614,11 @@ public class CodeGen {
         _phase = Phase.Export;
         long t0 = System.currentTimeMillis();
         if( inMemory ) {
-            new LinkMem(this).link(); // In memory patching
+            new LinkMem(this).link(compunit()._encoding); // In memory patching
         } else {
             ElfWriter elf = new ElfWriter(this);
-            for( ParseAll.ExtRef ref : _refs ) {
-                String objName = _buildDir + "/" + ref._fname + ".o";
-                elf.export(ref._funs, ref._serial, objName, main); // External ELF file
-            }
+            for( CompUnit ref : _compunits )
+                elf.export(ref, main); // External ELF file
         }
         _times[Phase.Export.ordinal()] = System.currentTimeMillis() - t0;
         return this;
@@ -715,8 +717,12 @@ public class CodeGen {
 
     // ---------------------------
     public boolean _asmLittle=true;
-    SB asm(SB sb) { return ASMPrinter.print(sb,this); }
     public String asm() { return asm(new SB()).toString(); }
+    SB asm(SB sb) {
+        for( CompUnit ref : _compunits )
+            ASMPrinter.print(sb,this,ref);
+        return sb;
+    }
 
 
     // Testing shortcuts
@@ -747,13 +753,6 @@ public class CodeGen {
 
     public static void print_as_hex(Encoding enc) {
         for (byte b : enc._bits.toByteArray()) {
-            System.out.print(String.format("%02X", b));
-        }
-        System.out.println();
-    }
-
-    public void print_as_hex() {
-        for (byte b : _encoding._bits.toByteArray()) {
             System.out.print(String.format("%02X", b));
         }
         System.out.println();

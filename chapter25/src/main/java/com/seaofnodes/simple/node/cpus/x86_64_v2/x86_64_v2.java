@@ -328,8 +328,8 @@ public class x86_64_v2 extends Machine {
 
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round, LRG lrg) {
-        return new SplitX86(kind, round);
+    @Override public SplitNode split(LRG lrg, String kind, byte round ) {
+        return new SplitX86(lrg,kind, round);
     }
 
     // Return a MachNode unconditional branch

@@ -21,6 +21,7 @@ public class BAOS {
     public byte[] buf() { return _buf; }
     public int size() { return _len; }
     public void set( byte[] buf, int len ) { _buf=buf; _len=len; }
+    public void clear() { _len=0; }
 
     // -----------------------------------------------------------------------
     // Basic read, write (expand)

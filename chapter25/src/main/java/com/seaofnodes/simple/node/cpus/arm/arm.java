@@ -652,7 +652,7 @@ public class arm extends Machine {
     @Override public int rpc() { return X30; }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }
+    @Override public SplitNode split(LRG lrg, String kind, byte round) {  return new SplitARM(lrg,kind,round);  }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {

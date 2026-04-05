@@ -22,6 +22,9 @@ public class Encoding {
     // Top-level program graph structure
     public final CodeGen _code;
 
+    // CFG Nodes in RPO order, per-encoding.
+    public Ary<CFGNode> _cfg;
+
     // Instruction bytes.  The registers are encoded already.  Relocatable data
     // is in a fixed format depending on the kind of relocation.
 
@@ -34,12 +37,10 @@ public class Encoding {
     // - RIP-relative to external chunks have a zero offset; the matching
     //   relocation info will be used to patch the correct value.
 
-    final public BAOS _bits  = new BAOS(); // Instructions / encodings
-    final public BAOS _cpool = new BAOS(); // Constant r/o pool
-    final public BAOS _sdata = new BAOS(); // Static   r/w pool
-
-    public int [] _opStart;     // Start  of opcodes, by _nid
-    public byte[] _opLen;       // Length of opcodes, by _nid
+    public final BAOS _bits  = new BAOS(); // Instructions / encodings
+    public final BAOS _cpool = new BAOS(); // Constant r/o pool
+    public final BAOS _sdata = new BAOS(); // Static   r/w pool
+    public final HashMap<Node,Relo> _bigCons = new HashMap<>();
 
     // Big Constant relocation info.
     public static class Relo {
@@ -53,9 +54,10 @@ public class Encoding {
             _op=op;  _t=t;  _off=off; _elf=elf;
         }
     }
-    public final HashMap<Node,Relo> _bigCons = new HashMap<>();
 
-    Encoding( CodeGen code ) { _code = code; }
+    Encoding( CodeGen code ) {
+        _code = code;
+    }
 
     // Shortcut to the defining register
     public short reg(Node n) {
@@ -108,6 +110,35 @@ public class Encoding {
     public Encoding add4( int op ) { addN(2,op,_bits); return this; }
     public Encoding add8(long op ) { addN(3,op,_bits); return this; }
 
+    private final static int SENTINEL = -1;
+    private final IntHashMap _opStart = new IntHashMap(SENTINEL);
+    private final IntHashMap _opLen   = new IntHashMap(SENTINEL);
+
+
+    // Read op start for n
+    public int opStart(Node n) { return _opStart.get(n._nid); }
+    // Read op length for n
+    public byte opLen (Node n) { return (byte)_opLen.get(n._nid); }
+
+    // Set op start for n
+    public void opStart(Node n, int off) {
+        assert off != SENTINEL;
+        _opStart.put(n._nid,off);
+    }
+
+    // Set op start for n
+    public void opStartAdd(Node n, int off) {
+        if( off==0 ) return;
+        int old = _opStart.get(n._nid);
+        assert old != SENTINEL && old+off != SENTINEL;
+        _opStart.put(n._nid,old+off);
+    }
+
+    // Set op length for n
+    public void opLen(Node n, byte len) {
+        assert len != SENTINEL;
+        _opLen.put(n._nid,len);
+    }
 
     // Nodes need "relocation" patching; things done after code is placed.
     // Record src and dst Nodes.
@@ -146,13 +177,13 @@ public class Encoding {
     }
 
     // --------------------------------------------------
-    void encode() {
+    void encode( CompUnit ref ) {
         // Basic block layout: negate branches to keep blocks in-order; insert
         // unconditional jumps.  Attempt to keep backwards branches taken,
         // forwards not-taken (this is the default prediction on most
         // hardware).  Layout is still Reverse Post Order but with more
         // restrictions.
-        basicBlockLayout();
+        basicBlockLayout( ref._funs );
 
         // Write encoding bits in order into a big byte array.
         // Record opcode start and length.
@@ -176,29 +207,25 @@ public class Encoding {
     // unconditional jumps.  Attempt to keep backwards branches taken, forwards
     // not-taken (this is the default prediction on most hardware).  Layout is
     // still Reverse Post Order but with more restrictions.
-    private void basicBlockLayout() {
+    private void basicBlockLayout( Ary<FunNode> funs ) {
         IdentityHashMap<LoopNode,Ary<CFGNode>> rpos = new IdentityHashMap<>();
-        Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
-        rpos.put(_code._start.loop(),rpo);
+        _cfg = new Ary<>(CFGNode.class);
+        rpos.put(_code._start.loop(),_cfg);
         BitSet visit = _code.visit();
-        rpo.add(_code._stop);
-        // Do the <clinit> function last... so it lands at offset 0 in the RPO
-        FunNode clinit = _code._linker.at(0);
-        assert clinit.isClz();
-        for( Node n : _code._start._outputs )
-            if( n instanceof FunNode fun && fun != clinit ) {
-                int x = rpo._len;
-                _rpo_cfg(fun, visit, rpos );
-                assert rpo.at(x) instanceof ReturnNode;
-            }
-        _rpo_cfg(clinit, visit, rpos );
-        rpo.add(_code._start);
+
+        // Do them in reverse order, so the <clinit> lands last...
+        // which is first and offset 0 in the RPO.
+        for( int i=0; i<funs._len; i++ ) {
+            FunNode fun = funs.at(funs._len-1-i);
+            int x = _cfg._len;
+            _rpo_cfg(fun,visit,rpos);
+            assert _cfg.at(x) instanceof ReturnNode;
+        }
 
         // Reverse in-place
-        for( int i=0; i< rpo.size()>>1; i++ )
-            rpo.swap(i,rpo.size()-1-i);
+        for( int i=0; i< _cfg.size()>>1; i++ )
+            _cfg.swap(i,_cfg.size()-1-i);
         visit.clear();
-        _code._cfg = rpo;       // Save the new ordering
     }
 
 
@@ -317,24 +344,23 @@ public class Encoding {
     // --------------------------------------------------
     // Write encoding bits in order into a big byte array.
     // Record opcode start and length.
-    public FunNode _fun;        // Currently encoding function
+
+    // Current function is used by the spill-op encodings to query the stack
+    // frame layout and get the spill offsets.
     private void writeEncodings() {
-        _opStart= new int [_code.UID()];
-        _opLen  = new byte[_code.UID()];
-        for( CFGNode bb : _code._cfg ) {
+        for( CFGNode bb : _cfg ) {
             if( !(bb instanceof MachNode mach0) )
-                _opStart[bb._nid] = _bits.size();
+                opStart(bb, _bits.size());
             else if( bb instanceof FunNode fun ) {
-                _fun = fun;     // Currently encoding function
-                _opStart[bb._nid] = _bits.size();
+                opStart(bb, _bits.size());
                 mach0.encoding( this );
-                _opLen[bb._nid] = (byte) (_bits.size() - _opStart[bb._nid]);
+                opLen(bb, (byte) (_bits.size() - opStart(bb)));
             }
             for( Node n : bb._outputs ) {
                 if( n instanceof MachNode mach && !(n instanceof FunNode) ) {
-                    _opStart[n._nid] = _bits.size();
+                    opStart(n, _bits.size());
                     mach.encoding( this );
-                    _opLen[n._nid] = (byte) (_bits.size() - _opStart[n._nid]);
+                    opLen(n, (byte) (_bits.size() - opStart(n)));
                 }
             }
         }
@@ -344,10 +370,10 @@ public class Encoding {
     // Short-form RIP-relative support: replace short encodings with long
     // encodings and expand the code, changing all the offsets.
     private void compactShortForm() {
-        int len = _code._cfg._len;
+        int len = _cfg._len;
         int[] oldStarts = new int[len];
         for( int i=0; i<len; i++ )
-            oldStarts[i] = _opStart[_code._cfg.at(i)._nid];
+            oldStarts[i] = opStart(_cfg.at(i));
 
         // TODO: Rewrite this algo to use the small "_jmps" list of just the
         // jumps instead of walking all blocks.
@@ -361,24 +387,24 @@ public class Encoding {
         while( slide != 0) {    // While no fails
             slide = 0;
             for( int i=0; i<len; i++ ) {
-                CFGNode bb = _code._cfg.at(i);
-                _opStart[bb._nid] += slide;
+                CFGNode bb = _cfg.at(i);
+                opStartAdd(bb, slide);
                 // Slide down all other (non-CFG) ops in the block
                 for( Node n : bb._outputs )
                     if( n instanceof MachNode && !(n instanceof CFGNode) )
-                        _opStart[n._nid] += slide;
+                        opStartAdd(n, slide);
                 if( bb instanceof RIPRelSize riprel ) {
                     CFGNode target = (bb instanceof IfNode iff ? iff.cproj(0) : (CFGNode)bb.out(0)).uctrlSkipEmpty();
                     // Delta is from opStart to opStart.  X86 at least counts
                     // the delta from the opEnd, but we don't have the end until
                     // we decide the size - so the encSize has to deal
-                    int delta = _opStart[target._nid] - _opStart[bb._nid];
+                    int delta = opStart(target) - opStart(bb);
                     byte opLen = riprel.encSize(delta);
                     // Recorded size is smaller than the current size?
-                    if( _opLen[bb._nid] < opLen ) {
+                    if( opLen(bb) < opLen ) {
                         // Start sliding the code down; record slide amount and new size
-                        slide += opLen - _opLen[bb._nid];
-                        _opLen[bb._nid] = opLen;
+                        slide += opLen - opLen(bb);
+                        opLen(bb, opLen);
                     }
                 }
             }
@@ -389,20 +415,20 @@ public class Encoding {
         // short-jumps span function headers, the padding will not make any
         // short jumps fail.
         for( int i=0; i<len; i++ ) {
-            CFGNode bb = _code._cfg.at(i);
+            CFGNode bb = _cfg.at(i);
             // Functions pad to align 16
             if( bb instanceof FunNode ) {
-                int newStart = _opStart[bb._nid]+slide;
+                int newStart = opStart(bb)+slide;
                 slide += (newStart+15 & -16)-newStart;
             }
-            _opStart[bb._nid] += slide;
+            opStartAdd(bb, slide);
             for( Node n : bb._outputs )
                 if( n instanceof MachNode && !(n instanceof CFGNode) )
-                    _opStart[n._nid] += slide;
+                    opStartAdd(n, slide);
         }
 
         // Copy/slide the bits to make space for all the longer branches
-        int grow = _opStart[_code._cfg.at(len-1)._nid] - oldStarts[len-1];
+        int grow = opStart(_cfg.at(len-1)) - oldStarts[len-1];
         if( grow > 0 ) {        // If no short-form ops, nothing to do here
             int end = _bits.size();
             byte[] bits = new byte[end+grow];
@@ -410,7 +436,7 @@ public class Encoding {
                 int start = oldStarts[i];
                 if( start==0 && i>1 ) continue;
                 int oldStart = oldStarts[i];
-                int newStart = _opStart[_code._cfg.at(i)._nid];
+                int newStart = opStart(_cfg.at(i));
                 System.arraycopy(_bits.buf(),oldStart,bits,newStart,end-start);
                 end = start;
             }
@@ -425,13 +451,13 @@ public class Encoding {
     void patchLocalRelocations() {
         // Walk the local code-address relocations
         for( Node src : _internals.keySet() ) {
-            int start = _opStart[src._nid];
+            int start = opStart(src);
             Node dst =  _internals.get(src);
             // If function is entirely dead, only the function pointer remains
             // and, it can only be used to test against zero or equals to
             // another function pointer... i.e., there Is No Code Here.
-            int target = dst == null ? start : _opStart[dst._nid];
-            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
+            int target = dst == null ? start : opStart(dst);
+            ((RIPRelSize)src).patch(this, start, opLen(src), target - start);
         }
     }
 
@@ -476,7 +502,7 @@ public class Encoding {
                 // Record target address and opcode start.
                 // Target is relative to the cpool/sdata start.
                 relo._target = target;
-                relo._opStart= _opStart[relo._op._nid];
+                relo._opStart= opStart(relo._op);
             }
         }
 
@@ -527,14 +553,14 @@ public class Encoding {
 
     void patchGlobalRelocations() {
         for( Node src : _externals.keySet() ) {
-            int start  = _opStart[src._nid];
+            int start  = opStart(src);
             String dst =  _externals.get(src);
             int target = switch( dst ) {
             case "calloc" -> SENTINEL_CALLOC;
             case "write"  -> SENTINEL_WRITE ;
             default -> throw Utils.TODO();
             };
-            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
+            ((RIPRelSize)src).patch(this, start, opLen(src), target - start);
         }
     }
 }

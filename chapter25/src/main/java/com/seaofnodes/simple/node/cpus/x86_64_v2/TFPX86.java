@@ -66,20 +66,7 @@ public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
         if( _con == Type.NIL )
             sb.p(reg).p(",").p(reg);
         else {
-            sb.p(reg);
-            if( code._encoding!=null ) {
-                sb.p(" = ");
-                FunNode fun = code.link(((TypeFunPtr)_con).fidx());
-                String s = code._encoding._externals.get(this);
-                if( fun==null ) {
-                    sb.p("#").p(s);
-                } else {
-                    assert s==null;
-                    int adr = code._encoding._opStart[fun._nid];
-                    sb.p("0x").hex2(adr);
-                }
-            }
-            _con.print(sb.p(" #"));
+            _con.print(sb.p(code.reg(this)).p(" #"));
         }
     }
     @Override public boolean eq(Node n) { return this==n; }

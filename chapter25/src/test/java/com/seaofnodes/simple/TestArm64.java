@@ -16,7 +16,6 @@ public class TestArm64 {
     public static EvalArm64 build( String main, String src, int arg, int spills, boolean print ) throws IOException {
         // Compile and export Simple
         CodeGen code = new CodeGen(src).driver("arm", "SystemV",true,false);
-        if( print ) { code.print_as_hex(); System.out.print(code.asm()); }
 
         // Allocation quality not degraded
         int delta = spills>>3;
@@ -27,9 +26,9 @@ public class TestArm64 {
         byte[] image = new byte[1<<20]; // A megabyte (1024*1024 bytes)
         EvalArm64 ARM = new EvalArm64(image, 1<<16);
         int start = 0;          // Code at offset 0
-        int cpool = fill(code._encoding._bits ,image,start);
-        int sdata = fill(code._encoding._cpool,image,cpool);
-        int end   = fill(code._encoding._sdata,image,sdata);
+        int cpool = fill(code.compunit()._encoding._bits ,image,start);
+        int sdata = fill(code.compunit()._encoding._cpool,image,cpool);
+        int end   = fill(code.compunit()._encoding._sdata,image,sdata);
 
         // Initial incoming int arg
         ARM.regs[arm.X0] = arg;
@@ -39,7 +38,7 @@ public class TestArm64 {
         if( main!=null )
             for( Node use : code._start._outputs )
                 if( use instanceof FunNode fun && main.equals(fun._name) )
-                    ARM._pc = code._encoding._opStart[fun._nid];
+                    ARM._pc = code.compunit()._encoding.opStart(fun);
 
         return ARM;
     }

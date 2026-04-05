@@ -24,17 +24,17 @@ public class FunNode extends RegionNode {
     public String _name;        // Debug name
 
     public int _approxUIDs;     // Approximate function size, used as a inlining heuristic
-    public final ParseAll.ExtRef _ref; // Defined in source file
+    public final CompUnit _compunit; // Defined in source file
     public final boolean _extern; // External function; no code, name only
 
-    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, ParseAll.ExtRef ref, boolean ext ) {
+    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, CompUnit compunit, boolean ext ) {
         super(loc,nodes);
         _name   = name;
         _sig    = sig;
-        _ref    = ref;
         _extern = ext;
+        _compunit = compunit;
     }
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, ParseAll.ExtRef ref, Node... nodes ) { this(loc,nodes,sig,name,ref,false); }
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, CompUnit compunit, Node... nodes ) { this(loc,nodes,sig,name,compunit,false); }
     public FunNode( TypeFunPtr sig, String name, boolean ext ) {
         this(null,null,sig,name,null,ext);
         assert ext;             // No need for ext
@@ -44,7 +44,7 @@ public class FunNode extends RegionNode {
         super( fun, fun._loc );
         _sig = fun.sig();
         _name = fun._name;
-        _ref = fun._ref;
+        _compunit = fun._compunit;
         _extern = fun._extern;
     }
     @Override public Tag serialTag() { return Tag.Fun; }

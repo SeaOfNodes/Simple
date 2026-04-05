@@ -6,6 +6,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 
 public class OrNode extends ArithNode {
     public OrNode( Parser.Lexer loc, Node lhs, Node rhs) { super(loc,lhs, rhs); }
+    @Override public Tag serialTag() { return Tag.Or; }
 
     @Override public String label() { return "Or"; }
     @Override public String op() { return "|"; }
