@@ -182,10 +182,10 @@ public class ElfWriter {
 
         // creates function and stores where it starts.
         // Filters to just this class.obj file.
-        void encodeFunctions(Ary<FunNode> funs, int text_idx) {
+        void encodeFunctions(Ary<FunNode> funs, Encoding enc, int text_idx) {
             for( FunNode fun : funs ) {
-                int end = _code._encoding._opStart[fun.ret()._nid] + _code._encoding._opLen[fun.ret()._nid];
-                long value = _code._encoding._opStart[fun._nid];
+                int end = enc.opStart(fun.ret()) + enc.opLen(fun.ret());
+                long value = enc.opStart(fun);
                 long size = end - value;
                 symbol(fun._name, text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, value, size);
             }
@@ -245,7 +245,7 @@ public class ElfWriter {
 
     // ------------------------------------------------------------------------
 
-    public void export(Ary<FunNode> funs, BAOS serial, String objName, boolean main) {
+    public void export(CompUnit ref, boolean main) {
         // Sections are created in the order they are emitted.
         _sections = new Ary<>(Section.class);
 
@@ -261,7 +261,7 @@ public class ElfWriter {
         SymbolSection symbols = new SymbolSection(nlocals);
 
         // we've already constructed these entire sections in the encoding phase
-        Encoding enc = _code._encoding;
+        Encoding enc = ref._encoding;
         DataSection text   = new DataSection(".text"  , Section.SHT_PROGBITS, enc._bits , DataSection.SHF_ALLOC | DataSection.SHF_WRITE | DataSection.SHF_EXECINSTR );
         // Constant pool
         DataSection rodata = new DataSection(".rodata", Section.SHT_PROGBITS, enc._cpool, DataSection.SHF_ALLOC );
@@ -271,7 +271,7 @@ public class ElfWriter {
 
 
         // populate function symbols
-        symbols.encodeFunctions(funs, text._index);
+        symbols.encodeFunctions(ref._funs, ref._encoding, text._index);
         // The "main" symbol, starting code is always location 0
         if( main )
             symbols.symbolMain(text._index);
@@ -282,7 +282,7 @@ public class ElfWriter {
         for( Node n : enc._externals.keySet()) {
             String extern = enc._externals.get(n);
             int symidx = symbols.symbol(extern, 0, SYM_BIND_GLOBAL, SYM_TYPE_NOTYPE);
-            int offset = enc._opStart[n._nid] + enc._opLen[n._nid] - 4;
+            int offset = enc.opStart(n) + enc.opLen(n) - 4;
             relocations.writeReloOffPlus(offset, symidx, (byte)4/*PLT32*/);
         }
 
@@ -293,7 +293,7 @@ public class ElfWriter {
         }
 
         // Create a "Simple" section for Simple types and ir
-        SimpleSection simple = new SimpleSection(serial);
+        SimpleSection simple = new SimpleSection(ref._serial);
 
         // Write the local section header symbols
         assert nlocals == 1+_sections._len;
@@ -341,6 +341,7 @@ public class ElfWriter {
 
         assert out.position() == size;
 
+        String objName = _code._buildDir + "/" + ref._fname + ".o";
         File file = new File(objName);
         if( file.getParentFile()!=null )
             file.getParentFile().mkdirs();

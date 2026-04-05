@@ -75,16 +75,16 @@ public class RegAlloc {
     short _lrg_num;
 
     // Define a new LRG, and assign n
-    LRG newLRG( Node n ) {
+    LRG newLRG( Node n, FunNode fun ) {
         LRG lrg = lrg(n);
         if( lrg!=null ) return lrg;
-        lrg = new LRG(_lrg_num++);
+        lrg = new LRG(_lrg_num++, fun);
         LRG old = _lrgs.put(n,lrg); assert old==null;
         return lrg;
     }
 
     // LRG for n
-    LRG lrg( Node n ) {
+    public LRG lrg( Node n ) {
         LRG lrg = _lrgs.get(n);
         if( lrg==null ) return null;
         LRG lrg2 = lrg.find();
@@ -133,18 +133,19 @@ public class RegAlloc {
     }
 
     // Printable register number for node n
-    String reg( Node n ) { return reg(n,null); }
-    String reg( Node n, FunNode fun ) {
+    String reg( Node n ) {
         LRG lrg = lrg(n);
-        if( lrg==null ) return null;
+        return lrg==null ? null : reg(lrg);
+    }
+    String reg( LRG lrg ) {
         // No register yet, use LRG
         if( lrg._reg == -1 ) return "V"+lrg._lrg;
         // Chosen machine register unless stack-slot and past RA
         String[] regs = _code._mach.regs();
-        if( lrg._reg < regs.length || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || fun==null )
+        if( lrg._reg < regs.length || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || lrg._fun==null )
             return RegMask.reg(regs,lrg._reg);
         // Stack-slot past RA uses the frame layout logic
-        return "[rsp+"+fun.computeStackOffset(_code,lrg._reg)+"]";
+        return "[rsp+"+lrg._fun.computeStackOffset(_code,lrg._reg)+"]";
     }
 
     // -----------------------
@@ -549,12 +550,12 @@ public class RegAlloc {
         // Clone simple constants if possible
         Node split = def instanceof MachNode mach && mach.isClone() && (umask==null || mach.outregmap().overlap(umask))
             ? mach.copy()
-            : _code._mach.split(kind,round,lrg);
+            : _code._mach.split(lrg,kind,round);
         _lrgs.put(split,lrg);
         return split;
     }
     private SplitNode makeSplit( String kind, byte round, LRG lrg ) {
-        SplitNode split = _code._mach.split(kind,round,lrg);
+        SplitNode split = _code._mach.split(lrg,kind,round);
         _lrgs.put(split,lrg);
         return split;
     }

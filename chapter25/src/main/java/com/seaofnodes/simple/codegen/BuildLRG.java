@@ -14,7 +14,10 @@ abstract public class BuildLRG {
     // since it will not color, just split the conflicted ranges now).  Returns
     // true if no hard-conflicts, although we still might not color.
     public static boolean run(int round, RegAlloc alloc) {
-        for( Node bb : alloc._code._cfg )
+        FunNode fun = null;
+        for( Node bb : alloc._code._cfg ) {
+            if( bb instanceof FunNode fun2 )
+                fun = fun2;
             for( Node n : bb.outs() ) {
                 if( n instanceof PhiNode phi && !(phi._type instanceof TypeMem) ) {
                     // All Phi inputs end up with the same LRG.
@@ -25,8 +28,8 @@ abstract public class BuildLRG {
                             if( (lrg = alloc.lrg(phi.in(i))) != null )
                                 break;
                     // If none, make one.
-                    if( lrg==null ) lrg = alloc.newLRG(n);
-                    if( phi instanceof MachNode ) defLRG(alloc,n);
+                    if( lrg==null ) lrg = alloc.newLRG(n,fun);
+                    if( phi instanceof MachNode ) defLRG(alloc,n,fun);
                     // Pass 2: everybody uses the same LRG
                     lrg=alloc.union(lrg,phi);
                     for( int i=phi instanceof ParmNode ? 2 : 1; i<n.nIns(); i++ )
@@ -46,7 +49,7 @@ abstract public class BuildLRG {
                     }
 
                     // Define live range
-                    defLRG(alloc,n);
+                    defLRG(alloc,n,fun);
 
                     // Now, look in the opposite direction. How are incoming
                     // LRGs affected by this node: For all uses, make live lrgs
@@ -66,8 +69,9 @@ abstract public class BuildLRG {
                 if( n instanceof MultiNode && !(n instanceof CFGNode) )
                     for( Node proj : n.outs() )
                         if( proj instanceof MachNode )
-                            defLRG(alloc,proj);
+                            defLRG(alloc,proj,fun);
             }
+        }
 
         // Collect live ranges
         alloc.unify();
@@ -75,12 +79,12 @@ abstract public class BuildLRG {
         return alloc.success();
     }
 
-    private static void defLRG( RegAlloc alloc, Node n ) {
+    private static void defLRG( RegAlloc alloc, Node n, FunNode fun ) {
         MachNode mach = (MachNode)n;
         RegMask def_mask = mach.outregmap();
         if( def_mask == null ) return;
         LRG lrg = mach.twoAddress() == 0
-            ? alloc.newLRG(n)                  // Define a new LRG for N
+            ? alloc.newLRG(n,fun)              // Define a new LRG for N
             : alloc.lrg2(n,mach.twoAddress()); // Use the matching 2-adr input
         // Record mask and mach
         if( !lrg.machDef(mach,def_mask.size1()).and(def_mask) )

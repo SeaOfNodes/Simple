@@ -106,7 +106,7 @@ public class ReturnNode extends CFGNode {
             // Prints return reg (either RAX or XMM0), RPC and then the
             // callee-save registers.
             for( int i=2; i<nIns(); i++ )
-                sb.p(code.reg(in(i),fun())).p("  ");
+                sb.p(code.reg(in(i))).p("  ");
         // If we did not get the expected rpc, print which one we got
         else if( code._regAlloc.regnum(rpc()) != code._mach.rpc() )
             sb.p("[").p(code.reg(rpc())).p("]");

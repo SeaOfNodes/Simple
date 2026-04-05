@@ -97,7 +97,7 @@ return ptr && ptr.fld ? "true" : "false";
         assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "ptrand", 1, 10, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "class:Test.<clinit>", 1, 10, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         int adr = (int)R5.regs[riscv.A0]; // Returns a Simple *u8[~] string
@@ -105,7 +105,7 @@ return ptr && ptr.fld ? "true" : "false";
         assertEquals(0x65757274,R5.ld4s(adr+4)); // "true"
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("ptrand", src, 1, 10, false);
+        EvalArm64 arm = TestArm64.build("class:Test.<clinit>", src, 1, 10, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         int adr2 = (int)arm.regs[0]; // Returns a Simple *u8[~] string

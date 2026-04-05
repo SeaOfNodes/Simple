@@ -55,6 +55,6 @@ public interface MachNode {
     // General form: "dst=src+src".
     default void asm(CodeGen code, SB sb) { throw Utils.TODO(); }
 
-    // Human readable opcode; e.g. "ld4" or "call".
+    // Human-readable opcode; e.g. "ld4" or "call".
     default String op() { throw Utils.TODO(); }
 }

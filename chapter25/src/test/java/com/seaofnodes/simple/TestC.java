@@ -87,7 +87,9 @@ public abstract class TestC {
         CodeGen code = new CodeGen(null,"build/objs",externPaths,null,src,123L,TypeInteger.BOT);
         code.driver( CPU_PORT, simple_conv, false, cfile==null );
         // Since no source file, class is assumed "Test" and output is always "Test.o".
-        new File("build/objs/Test.o").renameTo(new File(obj));
+        File testobj = new File(obj);
+        testobj.delete();
+        boolean rez = new File("build/objs/Test.o").renameTo(testobj);
 
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);

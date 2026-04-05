@@ -10,7 +10,7 @@ abstract public class Serialize {
 
     static void serialize( CodeGen code ) {
 
-        for( ParseAll.ExtRef ref : code._refs ) {
+        for( CompUnit ref : code._compunits ) {
             // Get all Nodes in a sane order
             Ary<Node> nodes = nodeOrder(code,ref._funs);
 
@@ -361,8 +361,8 @@ abstract public class Serialize {
                 for( Node use : n._outputs )
                     if( use instanceof CFGNode usecfg ) {
                         if( ncfg.skip(usecfg) ) { // Do not walk from Call to Fun
-                            if( usecfg instanceof FunNode fun )
-                                funs.add(fun);
+                            //if( usecfg instanceof FunNode fun )
+                            //    funs.add(fun);
                         } else {
                             _funRPO(use,rpo,visit,funs);
                         }

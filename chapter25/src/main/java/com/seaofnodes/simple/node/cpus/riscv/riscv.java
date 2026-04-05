@@ -305,7 +305,7 @@ public class riscv extends Machine {
     @Override public CFGNode jump() { return new UJmpRISC(); }
 
     // Create a split op; any register to any register, including stack slots
-    @Override  public SplitNode split(String kind, byte round, LRG lrg) { return new SplitRISC(kind,round);  }
+    @Override public SplitNode split(LRG lrg, String kind, byte round ) { return new SplitRISC(lrg, kind,round);  }
 
     // True if signed 12-bit immediate
     public static boolean imm12(TypeInteger ti) {
