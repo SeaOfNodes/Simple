@@ -105,6 +105,16 @@ public abstract class TestC {
     // String.  Any errors *assert* instead of returning some error code; this
     // utility is meant to execute inside a JUnit test which will catch the
     // assert and flag the test as failed.
+    public static String gcc( String main, double ignore, String... objs ) throws IOException {
+        String BLDDIR = "build/objs/test0/";
+        String exe = BLDDIR+main+(OS.startsWith("Windows") ? ".exe" : "");
+        return gcc(objs[0],null,null,false,exe);
+    }
+
+    // Link with gcc, and execute the resulting binary, returning stdout as a
+    // String.  Any errors *assert* instead of returning some error code; this
+    // utility is meant to execute inside a JUnit test which will catch the
+    // assert and flag the test as failed.
     public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {
 
         // Compile the C program.  Compiling code and constants in the low
@@ -151,7 +161,7 @@ public abstract class TestC {
         try { exit = (byte)p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         result = new String(p.getInputStream().readAllBytes());
         if( exit!=0 )
-            System.err.println("exec exit code: "+exit);
+            return "exec exit code: "+exit;
         return result;
     }
 }

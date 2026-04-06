@@ -187,7 +187,8 @@ public class ElfWriter {
                 int end = enc.opStart(fun.ret()) + enc.opLen(fun.ret());
                 long value = enc.opStart(fun);
                 long size = end - value;
-                symbol(fun._name, text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, value, size);
+                if( fun._name != null ) // Anonymous functions have no name
+                    symbol(fun._name, text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, value, size);
             }
         }
 

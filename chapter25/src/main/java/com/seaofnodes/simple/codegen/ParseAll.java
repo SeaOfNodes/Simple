@@ -25,6 +25,7 @@ public abstract class ParseAll {
     // Worklist of symbols to search and files to parse
     private static final Ary<CompUnit> WORK = new Ary<>(CompUnit.class);
 
+    public static void reset() { CUNITMAP.clear(); WORK.clear(); }
 
     // Return a compilation unit (cached or new).  If new, it does not neccesarily
     // need to be compiled.
