@@ -44,7 +44,7 @@ public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
             enc.external(this,_ext); // ELF-file external patch
         // 0 or 1 for REX depending on the dst.
         // Zero/sign extend should be fine, so not wide.
-        _opLen = (byte)(6+ x86_64_v2.rexF(dst, 0, 0, false, enc));
+        _opLen = (byte)(6+ x86_64_v2.rexF(dst, 0, 0, true, enc));
         enc.add1(0x8D); // opcode
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0b101));
         enc.add4(0);

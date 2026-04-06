@@ -70,7 +70,7 @@ public class x86_64_v2 extends Machine {
     public static int REX_WB = 0x49;
 
     public enum MOD {
-        INDIRECT,               //  [mem]
+        INDIRECT,               // [mem]
         INDIRECT_disp8,         // [mem + 0x12]
         INDIRECT_disp32,        // [mem + 0x12345678]
         DIRECT,                 // mem
