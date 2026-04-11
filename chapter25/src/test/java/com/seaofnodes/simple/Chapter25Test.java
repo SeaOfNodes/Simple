@@ -6,6 +6,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,6 +26,7 @@ public class Chapter25Test {
         String ab_obj = BLDDIR+"/A/B.o";
         // Remove any prior results so the test runs from scratch.
         delELFiles(new File(BLDDIR));
+        writeB(MODDIR,5);
 
         // Compile MODDIR/A.smp into MODDIR/A.o
         // Since A refers to B also:
@@ -43,8 +45,8 @@ public class Chapter25Test {
         long ab_msec1 = ab_file.lastModified();
 
         // Link and execute: arg is true, so compute "5+1" as the exit code
-        String rez = TestC.gcc("A", 1.2, a_obj, ab_obj);
-        Assert.assertEquals("exec exit code: 6",rez);
+        String rez1 = TestC.gcc("A", 1.2, a_obj, ab_obj);
+        Assert.assertEquals("exec exit code: 6",rez1);
 
         // Compile again A, expecting both A.o and A/B.o to be up-to-date and not compiled
         ParseAll.reset();
@@ -67,19 +69,55 @@ public class Chapter25Test {
                                    "A",null,123L,TypeInteger.BOT);
         code3.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
 
-        Assert.assertTrue(  a_file.exists() );
-        Assert.assertTrue( ab_file.exists() );
         long  a_msec3 =  a_file.lastModified();
         long ab_msec3 = ab_file.lastModified();
-
-        Assert.assertTrue(  a_msec1 < a_msec3 );
+        Assert.assertTrue  (  a_msec1 < a_msec3 );
         Assert.assertEquals( ab_msec1, ab_msec3 );
 
+        // Link and execute: arg is true, so compute "5+1" as the exit code
+        String rez3 = TestC.gcc("A", 1.2, a_obj, ab_obj);
+        Assert.assertEquals("exec exit code: 6",rez3);
 
 
+        // Modify B.smp and recompile A/B.o; it should recompile and A.o should not.
+        writeB(MODDIR,7);
+        ParseAll.reset();
+        CodeGen code4 = new CodeGen(MODDIR, BLDDIR,null,
+                                   "A/B",null,123L,TypeInteger.BOT);
+        code4.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
 
-        throw Utils.TODO();
+        long  a_msec4 =  a_file.lastModified();
+        long ab_msec4 = ab_file.lastModified();
+        Assert.assertEquals(  a_msec3,   a_msec4 );
+        Assert.assertTrue  ( ab_msec3 < ab_msec4 );
 
+        // Link and execute: uses stale A.o, so remains '6' not '7+1' == 8
+        String rez4 = TestC.gcc("A", 1.2, a_obj, ab_obj);
+        Assert.assertEquals("exec exit code: 6",rez4);
+
+        // Recompile A.o, it should recompile despite not being touched because
+        // it depends on A/B.o which recompiled in the prior step.
+        ParseAll.reset();
+        CodeGen code5 = new CodeGen(MODDIR, BLDDIR,null,
+                                   "A",null,123L,TypeInteger.BOT);
+        code5.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
+
+        long  a_msec5 =  a_file.lastModified();
+        long ab_msec5 = ab_file.lastModified();
+        Assert.assertTrue  (  a_msec4 < a_msec5 );
+        Assert.assertEquals( ab_msec4, ab_msec5 );
+
+        // Link and execute: updates A.o from B.o inlining, without compiling B.o
+        String rez5 = TestC.gcc("A", 1.2, a_obj, ab_obj);
+        Assert.assertEquals("exec exit code: 8",rez5);
+        // Reset for next time
+        writeB(MODDIR,5);
+    }
+
+    private void writeB(String MODDIR, int x) throws IOException {
+        var bsmp = new FileWriter(MODDIR+"/A/B.smp");
+        bsmp.write("val x="+x+";\n");
+        bsmp.close();
     }
 
 

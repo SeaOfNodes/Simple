@@ -128,7 +128,6 @@ public class CodeGen {
         if( _srcName == null )
             throw new RuntimeException("No source filename provided, so do not know how to name the obj file");
         boolean main = !_srcName.contains(".");
-        //String obj = _buildDir + "/"+ (_srcName.replace(".","/")) + ".o";
         return driver( phase, cpu, callingConv, false, main, 0 );
     }
     // Write an object file for a specific cpu/os pair
@@ -617,12 +616,26 @@ public class CodeGen {
             new LinkMem(this).link(compunit()._encoding); // In memory patching
         } else {
             ElfWriter elf = new ElfWriter(this);
-            for( CompUnit ref : _compunits )
-                elf.export(ref, main); // External ELF file
+            for( CompUnit cu : _compunits )
+                exportElf(cu,elf,main);
         }
         _times[Phase.Export.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
+
+    private void exportElf(CompUnit cu, ElfWriter elf, boolean main) {
+        // Not being written, or already written out?
+        if( cu._encoding==null || cu._didWrite ) return;
+        cu._didWrite = true;    // Flag as will-be-written
+        // Write dependent obj files before users of it, to force correct time
+        // stamps.
+        if( cu._deps != null )
+            for( CompUnit dep : cu._deps )
+                exportElf(dep,elf,false);
+        elf.export(cu,main);
+    }
+
+
 
     // ---------------------------
 
@@ -634,9 +647,12 @@ public class CodeGen {
 
     // Map from external Strings to either partially read ElfFile or ExternNode
     public final HashMap<String,Object> _externSymbols = new HashMap<>();
+
+    // State machine elements; the outermost element is _externPaths
     private int _extPathIdx;    // Search index into the extern path list
     private final Ary<File> _files = new Ary<>(File.class);   // Files in the current extern path being searched
     private int _extFileIdx;    // Index into _files
+
     public ExternNode findExternal( String name ) {
 
         // State Machine!
@@ -671,7 +687,7 @@ public class CodeGen {
                     break;
                 }
                 // Load and parse an ELF header
-                ElfReader elf = ElfReader.load(_files.at(_extFileIdx++));
+                ElfReader elf = getElf(_files.at(_extFileIdx++));
                 if( elf == null ) break; // Not an ELF
                 // Load public symbols from the ELF
                 elf.loadPublicSymbols();
@@ -707,13 +723,15 @@ public class CodeGen {
             _files.add(dir);
     }
 
-    // Find a source file as an immediate child of the current source
-    public String findSource( String name ) {
-        String nested = _srcName+"/"+name+".smp";
-        File f = new File(_modDir+"/"+nested);
-        return f.exists() && f.isFile() ? nested : null;
+    // Map from object file names to ElfReaders
+    public final HashMap<String,ElfReader> _elfs = new HashMap<>();
+    ElfReader getElf(File f) {
+        ElfReader elf = _elfs.get(f.getPath());
+        if( elf != null )
+            return elf;
+        _elfs.put(f.getPath(), elf = ElfReader.load(f));
+        return elf;
     }
-
 
     // ---------------------------
     public boolean _asmLittle=true;
