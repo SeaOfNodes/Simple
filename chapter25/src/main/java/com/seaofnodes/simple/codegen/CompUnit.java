@@ -17,7 +17,7 @@ import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 // files.  These are mirrored over a file system tree (so form a tree), both
 // the source tree and build/object tree.
 public class CompUnit {
-    final CompUnit _par;          // Parent, e.g. A/B
+    final CompUnit _par;        // Parent, e.g. A/B
     final String _fname;        // Full slashed file name starting from module root, e.g. A/B/C
     final public String _cname; // Full dotted class name starting from module root, e.g. A.B.C
     final String _name;         // Base name, e.g. C
@@ -30,6 +30,8 @@ public class CompUnit {
     Ary<TypeStruct> _clzs;  // List of classes exported into the ELF output
     Ary<FunNode   > _funs;  // List of function entry points exported
     BAOS _serial;           // Serialized IR for this ELF file
+    Ary<CompUnit> _deps;    // CompUnits that this CompUnit depends on
+    boolean _didWrite;      // Used to topo-sort a collection of CompUnits to write all at once
 
     // Discovered source file.  Source is loaded if required to parse, and null
     // otherwise.
@@ -41,7 +43,9 @@ public class CompUnit {
         _ext  = null;
         _smp  = new File( CODE.  _modDir + "/" + fname + ".smp");
         _obj  = new File( CODE._buildDir + "/" + fname + ".o"  );
-        _src  = !_obj.exists() || _smp.lastModified() > _obj.lastModified()
+        _src  = !_obj.exists() || // No object file?
+            _smp.lastModified() > _obj.lastModified() || // Out-of-date with source?
+            checkDependentObjs()                         // Out-of-date with other objs?
             ? new String(Files.readAllBytes(_smp.toPath()))
             : null;
     }
@@ -90,6 +94,25 @@ public class CompUnit {
         for( int i=0; i<_clzs._len; i++ )
             _clzs.set(i, (TypeStruct)Parser.TYPES.get(_clzs.at(i)._name));
     }
+
+    // Return true if _obj is out-of-date relative to dependents.
+    private boolean checkDependentObjs() {
+        ElfReader elf = CODE.getElf(_obj);
+        elf.loadPublicSymbols();
+        for( String dep : elf._deps ) {
+            File obj = new File(CODE._buildDir+"/"+dep+".o");
+            if( obj.lastModified() > _obj.lastModified() ) // Out-of-date with deps?
+                return true;
+        }
+        return false;
+    }
+
+    // Add a discovered dependency, for later writing out in an ELF file, ".simple" section
+    void addDep(CompUnit dep) {
+        if( _deps == null ) _deps = new Ary<>(CompUnit.class);
+        _deps.add(dep);
+    }
+
 
     @Override public String toString() {
         String x = "{"+_cname;

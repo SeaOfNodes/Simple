@@ -21,8 +21,13 @@ public class ElfReader {
     public final Section[] _sections;
     // Simple section, if available
     public final Section _simple;
+    // Byte array in/out stream - used as a reader
+    public final BAOS _bais;
+
     // Strings from the Simple section, either small public set or whole set
     public String[] _strs;
+    // Dependent file names
+    public String[] _deps;
     // First N published symbols this file
     public Ary<TypeStruct> _published;
 
@@ -31,6 +36,8 @@ public class ElfReader {
         try { return new ElfReader(f); }
         catch( IOException ioe ) { return null; }
     }
+
+    // Load the Simple section from the ELF file
     private ElfReader( File f ) throws IOException {
         _file = f;
         _buf = Files.readAllBytes(f.toPath());
@@ -51,29 +58,26 @@ public class ElfReader {
             if( ".simple".equals(sec._name) )
                 simple = sec;
         _simple = simple;
+        _bais = new BAOS(_buf, (int)_simple._offset);
     }
 
-    // Load the public symbols only
-    String[] loadPublicSymbols() {
-        if( _strs != null ) return _strs;  // Public or all symbols
-        if( _simple == null ) return null; // No .simple section
-
-        // Read only the published public strings, for speed purposes when
-        // scanning a large count of ELF files, but getting hits in only a few
-        // of them.  i.e. optimizing (prematurely?) for the traditional case of
-        // linking against a large code base.
-        BAOS baos = new BAOS(_buf, (int)_simple._offset);
-        _strs = Serialize.read_public_strs(baos);
-        return _strs;
+    // Load the public symbols and dependent objs, but not the whole IR
+    void loadPublicSymbols() {
+        // Check already loaded and cached
+        if( _strs == null && _simple != null )
+            // Read only the published public strings, for speed purposes when
+            // scanning a large count of ELF files but getting hits in only a
+            // few of them.  i.e. optimizing (prematurely?) for the traditional
+            // case of linking a small file against a large library
+            Serialize.read_public_strs(this);
     }
 
+    // Loads the entire IR
     Ary<TypeStruct> loadSimple() {
         assert _published == null;
-        BAOS baos = new BAOS(_buf, (int)_simple._offset);
-        Serialize.Results r = Serialize.readAll(baos);
-        return (_published = r.published());
+        Serialize.readAll(this);
+        return _published;
     }
-
 
     int u1() { return _buf[_x++]&0xFF; }
     int magic() {                         // Big endian
@@ -185,7 +189,9 @@ public class ElfReader {
         }
     }
 
-    private static void bad(String msg, int val) throws IOException { throw new IOException("Bad "+msg+": "+val); }
+    private static void bad(String msg, int val) throws IOException {
+        throw new IOException("Bad "+msg+": "+val);
+    }
 
 
 

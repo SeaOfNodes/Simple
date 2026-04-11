@@ -15,7 +15,7 @@ abstract public class Serialize {
             Ary<Node> nodes = nodeOrder(code,ref._funs);
 
             // Compress into bytes
-            BAOS baos = write(nodes, ref._clzs);
+            BAOS baos = write(nodes, ref._clzs, ref._deps);
 
             //// --- Expensive bijection assert
             //if( true ) {
@@ -40,7 +40,7 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static BAOS write(Ary<Node> nodes, Ary<TypeStruct> published /*other CodeGen inputs, #aliases, #fidxs*/) {
+    static BAOS write(Ary<Node> nodes, Ary<TypeStruct> published, Ary<CompUnit> depobjs /*other CodeGen inputs, #aliases, #fidxs*/) {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -89,9 +89,13 @@ abstract public class Serialize {
         // Count all unique Strings
         var strs = new HashMap<String,Integer>();
         strs.put("",0);         // Null string is always 0
-        // Count *published* Strings first
+        // Find and count *published* Strings first
         for( TypeStruct ts : published )
             gather(strs,ts._name);
+        // Find and count dependent object file string names
+        if( depobjs != null )
+            for( CompUnit cu : depobjs )
+                gather(strs,cu._fname);
         // Count strings from all types
         for( Type t : atypes ) {
             if( t instanceof Field fld     ) gather(strs,fld._fname);
@@ -108,10 +112,14 @@ abstract public class Serialize {
         // Check that published strings and types align
         for( int i=0; i<published.size(); i++ )
             assert astrs[i+1] == ((TypeStruct)atypes[i+1])._name;
+        if( depobjs != null )
+            for( int i=0; i<depobjs.size(); i++ )
+                assert astrs[published.size()+i+1] == depobjs.at(i)._fname;
 
 
         // B - Write unique strings
         baos.packed4(published.size());
+        baos.packed4(depobjs==null ? 0 : depobjs.size());
         baos.packed4(strs.size());
         // Write in ID# order
         for( String s : astrs )
@@ -163,7 +171,8 @@ abstract public class Serialize {
     }
 
     // Returned array of *public* strings only.
-    static String[] read_public_strs(BAOS bais) {
+    static void read_public_strs(ElfReader elf) {
+        BAOS bais = elf._bais;
         Type.TAGOFFS();
 
         // A - Read a header
@@ -171,20 +180,23 @@ abstract public class Serialize {
             throw new IllegalArgumentException("Missing magic word");
 
         // B - Packed read number of public strings, then the strings
-        int npublished = bais.read();
+        int npublished = bais.packed4();
+        int ndependents = bais.packed4();
         int nstrs = bais.packed4(); // Ignore total strings
-        String[] strs = new String[npublished];
+        bais.packedS(); // Read and ignore the null string
+        elf._strs = new String[npublished];
         for( int i=0; i<npublished; i++ )
-            strs[i] = bais.packedS();
-        return strs;
+            elf._strs[i] = bais.packedS();
+        elf._deps = new String[ndependents];
+        for( int i=0; i<ndependents; i++ )
+            elf._deps[i] = bais.packedS();
     }
 
 
     // --------------------------------------------------
 
-    public static record Results( Ary<Node> nodes, Ary<TypeStruct> published ) {}
-
-    static Results readAll( BAOS bais ) {
+    static void readAll( ElfReader elf ) {
+        BAOS bais = elf._bais;
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -193,8 +205,9 @@ abstract public class Serialize {
             throw new IllegalArgumentException("Missing magic word");
 
         // B - Packed read of #strings, then strings
-        int npublish = bais.packed4();
-        int nstrs = bais.packed4();
+        int npublish = bais.packed4();    // Number of published symbols
+        int ndependents = bais.packed4(); // Number of dependent object files
+        int nstrs = bais.packed4();       // Total number of strings
         String[] strs = new String[nstrs];
         for( int i=0; i<nstrs; i++ )
             strs[i] = bais.packedS();
@@ -208,11 +221,11 @@ abstract public class Serialize {
         CodeGen.CODE._alias = aliases.at(0);
         aliases.set(0,0);
         // Check and collect first published symbols map to TypeStructs
-        Ary<TypeStruct> published = new Ary<>(TypeStruct.class);
+        elf._published = new Ary<>(TypeStruct.class);
         for( int i=0; i<npublish; i++ ) {
             TypeStruct ts = (TypeStruct)types[i+1];
             assert ts._name==strs[i+1];
-            published.add(ts);
+            elf._published.add(ts);
         }
 
         // D - Read the nodes
@@ -244,9 +257,6 @@ abstract public class Serialize {
         }
 
         assert check(nodes);
-
-        // TODO: also get back #of fidxs, any other global constants
-        return new Results(nodes,published);
     }
 
     private static boolean check( Ary<Node> nodes ) {

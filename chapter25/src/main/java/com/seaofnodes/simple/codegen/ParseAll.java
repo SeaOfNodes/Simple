@@ -58,29 +58,28 @@ public abstract class ParseAll {
 
     // module_root/.../src.smp is source file name.
     static void parsePath(String fname) {
-        // Initial split of top-level file name
-        int lastSlash = fname.lastIndexOf('/');
-        String fpath = lastSlash == -1 ? null  : fname.substring(0, lastSlash);
-        String name  = lastSlash == -1 ? fname : fname.substring(lastSlash + 1);
-
-        if( fpath!=null )
-            throw new RuntimeException("need to build up a compilation-unit-path");
-        CompUnit cunit;
         try {
-            cunit = makeCUnit(null,name);
+            // Split and build the parent-path down to the source file.
+            String[] ss = fname.split("/");
+            CompUnit cu = null;
+            for( String s : ss )
+                cu = makeCUnit( cu, s );
+            // Compile this CompUnit
+            parseAll(cu);
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
         }
-
-        // A first compilation unit to prime the pump
-        parseAll(cunit);
     }
 
     private static void parseAll(CompUnit cunit) {
+        // Prime the pump with the first CompUnit
         WORK.add(cunit);
         // Work through all unparsed compilation units
         while( !WORK.isEmpty() )
             parseOne( WORK.pop() );
+
+        // Many types will have been declared cyclically either internally or
+        // across multiple compilation units.
 
         // Close over all recursive types, and upgrade TYPES
         Ary<TypeStruct> ary = new Ary<>(TypeStruct.class);
@@ -95,6 +94,8 @@ public abstract class ParseAll {
         // closed-over types.
         CODE._stop.walk( (Node n) -> {
                 n.upgradeType(Parser.TYPES);
+                // If function types have sharpened, we need to revisit inline
+                // decisions.
                 if( n instanceof FunNode fun ) {
                     CODE.add(n); // Recheck after parse stops making new function calls
                     // Linked call sites might now inline, need to recheck
@@ -108,9 +109,20 @@ public abstract class ParseAll {
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
     private static void parseOne( CompUnit cunit ) {
-        // Nothing to do
-        if( cunit._src==null || cunit._src.isEmpty() )
+        // No source code?  Means we do not need to compile, but instead need to load the symbols as-if we compiled
+        if( cunit._src==null || cunit._src.isEmpty() ) {
+            // Expecting a previously compiled object file
+            assert cunit._obj != null;
+            // Extract published symbols and put them in the internal tables;
+            // cross-references will pick them up there.
+            ElfReader elf = ElfReader.load(cunit._obj);
+            Ary<TypeStruct> published = elf.loadSimple();
+            for( TypeStruct ts : published ) {
+                Parser.TYPES.put(ts._name,ts);
+                CODE.con( TypeMemPtr.make( ts ) );
+            }
             return;
+        }
 
         // Parse a source file, return missing external references
         Ary<FRefNode> frefs = CODE.P.parse(cunit);
@@ -131,13 +143,16 @@ public abstract class ParseAll {
                     // Replace the FRef with the discovered class pointer.
                     // Class name:
                     String clzName = Parser.addClzPrefix(xcunit._cname);
+                    // Class struct:
+                    TypeStruct clz = TypeStruct.make(clzName,true);
                     // Class pointer:
-                    TypeMemPtr clz = TypeMemPtr.make(TypeStruct.make(clzName,true));
+                    TypeMemPtr clzptr = TypeMemPtr.make(clz);
                     // Class pointer constant:
-                    ConstantNode clzCon = CODE.con(clz);
+                    ConstantNode clzCon = CODE.con(clzptr);
                     // Replace and optimize
                     fref.addDef(clzCon);
                     CODE.add(fref);
+                    cunit.addDep(xcunit);
 
                     // Module search failed, now try external paths
                 } else if( (xcunit = findCUnitExternal( fref._name ) ) != null ) {
@@ -163,7 +178,7 @@ public abstract class ParseAll {
     // However if A/B contains "Y", the search would be for B.Y then A.Y both of
     // which do not exist.
     private static CompUnit findCUnitModule( CompUnit cunit, String symbol ) throws IOException {
-        if( cunit == null )       // Ran off top of module scope?
+        if( cunit == null )     // Ran off top of module scope?
             return null;        // Failed search
 
         // Check self
