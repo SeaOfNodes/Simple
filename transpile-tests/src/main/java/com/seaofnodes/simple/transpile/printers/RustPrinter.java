@@ -77,6 +77,9 @@ public class RustPrinter {
         if (tests.stream().anyMatch(t -> !t.evaluations.isEmpty())) {
             out.println("use crate::sea_of_nodes::tests::evaluator::evaluate;");
         }
+        if (tests.stream().anyMatch(t -> !t.evaluations2.isEmpty())) {
+            out.println("use crate::sea_of_nodes::tests::evaluator::evaluate2;");
+        }
         if (tests.stream().flatMap(t -> t.evaluations.stream()).anyMatch(e -> !e.stringify())) {
             out.println("use crate::sea_of_nodes::tests::evaluator::Object;");
         }
@@ -137,6 +140,9 @@ public class RustPrinter {
             if (test.assertStopRetCtrlIsRegion) {
                 out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Op::Region{..}));");
             }
+            if (test.assertCtrlIsFun) {
+                out.println("assert!(matches!(parser.nodes.ret_ctrl(stop), Op::Fun{..}));");
+            }
             for (var evaluation : test.evaluations) {
                 var result = switch (evaluation.result()) {
                     case null -> "Object::Null";
@@ -151,6 +157,14 @@ public class RustPrinter {
                 var parameter = evaluation.parameter() != null ? "Some(" + evaluation.parameter() + ")" : "None";
                 var x = evaluation.stringify() ? ".to_string()" : ".object";
                 out.println("assert_eq!(" + result + ", evaluate(&parser.nodes, stop, " + parameter + ", None)" + x + ");");
+            }
+            for (var evaluation : test.evaluations2) {
+                var result = switch (evaluation.result()) {
+                    case null -> "None";
+                    case String s -> "Some(" + string(s) + ")";
+                };
+                var timeout = evaluation.timeout() != null ? "Some(" + evaluation.timeout() + ")" : "None";
+                out.println("assert_eq!(" + result + ", evaluate2(&parser.nodes, stop, " + evaluation.arg() + ", " + timeout + "));");
             }
         } else {
             out.println("todo!();");

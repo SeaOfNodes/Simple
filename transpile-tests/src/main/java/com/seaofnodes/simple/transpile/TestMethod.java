@@ -10,7 +10,7 @@ public class TestMethod {
     public String parseErrorMessage;
     public boolean disablePeephole;
     public boolean showAfterParse;
-    public boolean iterate;
+    public boolean iterate; // "opto"
     public boolean showAfterIterate;
     public boolean irPrinter;
     public boolean irPrinterLLVM;
@@ -19,6 +19,13 @@ public class TestMethod {
     public boolean assertStopRetCtrlIsCProj;
     public boolean assertStopRetCtrlIsRegion;
     public final ArrayList<Evaluation> evaluations = new ArrayList<>();
+
+    // chapter18
+    public boolean assertCtrlIsFun;
+    public final ArrayList<Eval2> evaluations2 = new ArrayList<>();
+    public boolean typeCheck;
+    public boolean gcm;
+    public boolean localSched;
 
     public sealed interface Arg {
         record IntBot() implements Arg {
@@ -35,5 +42,8 @@ public class TestMethod {
      * result is a literal value
      **/
     public record Evaluation(Object result, Long parameter, boolean stringify) {
+    }
+
+    public record Eval2(String result, long arg, Integer timeout) {
     }
 }

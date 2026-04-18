@@ -56,7 +56,7 @@ class AstVisitor extends TreeScanner<Void, Void> {
                     default -> throw new RuntimeException("unexpected parse arguments" + node);
                 };
             }
-            if (methodSelect.endsWith(".iterate")) {
+            if (methodSelect.endsWith(".iterate") || methodSelect.endsWith(".opto")) {
                 current.iterate = true;
                 current.showAfterIterate = switch (args.size()) {
                     case 0 -> false;
@@ -64,8 +64,17 @@ class AstVisitor extends TreeScanner<Void, Void> {
                     default -> throw new RuntimeException("unexpected parse arguments" + node);
                 };
             }
+            if (methodSelect.endsWith(".typeCheck")) {
+                current.typeCheck = true;
+            }
+            if (methodSelect.endsWith(".GCM")) {
+                current.gcm = true;
+            }
+            if (methodSelect.endsWith(".localSched")) {
+                current.localSched = true;
+            }
             if (methodSelect.endsWith("assertEquals")) {
-                if (inCatch ) {
+                if (inCatch) {
                     // chapter15.testBad3 used catch for the evaluator, not the parse error
                     if (current.assertStopEquals == null) {
                         if (args.size() != 2)
@@ -102,6 +111,20 @@ class AstVisitor extends TreeScanner<Void, Void> {
                             throw new IllegalArgumentException("Unexpected eval arguments " + node);
                         Long parameter = evalArgs.size() > 1 ? Long.parseLong(literal(evalArgs.get(1)).toString()) : null;
                         current.evaluations.add(new TestMethod.Evaluation(result, parameter, stringify.get()));
+                    } else if (args.get(1).toString().startsWith("Eval2.eval(code, ")) {
+                        var invocation = args.get(1).accept(new TreeScanner<MethodInvocationTree, Void>() {
+                            @Override
+                            public MethodInvocationTree visitMethodInvocation(MethodInvocationTree node, Void unused) {
+                                return node;
+                            }
+                        }, null);
+                        String result = (String) literal(args.get(0));
+                        var evalArgs = invocation.getArguments();
+                        if (evalArgs.size() != 2 && evalArgs.size() != 3)
+                            throw new IllegalArgumentException("Unexpected Eval2 arguments " + node);
+                        long arg = Long.parseLong(literal(evalArgs.get(1)).toString());
+                        Integer timeout = evalArgs.size() > 2 ? Integer.parseInt(evalArgs.get(2).toString()) : null;
+                        current.evaluations2.add(new TestMethod.Eval2(result, arg, timeout));
                     } else if (args.get(1).toString().endsWith(".toString()") || args.get(1).toString().endsWith(".print()")) {
                         if (current.assertStopEquals == null) {
                             // Assume the first one prints the stop node. Ignore assertions from evaluator:
@@ -113,9 +136,13 @@ class AstVisitor extends TreeScanner<Void, Void> {
             }
             if (methodSelect.endsWith("assertTrue")) {
                 var arg = args.getFirst().toString();
-                current.assertStopRetCtrlIsProj = arg.contains("stop.ret().ctrl() instanceof ProjNode");
-                current.assertStopRetCtrlIsCProj = arg.contains("stop.ret().ctrl() instanceof CProjNode");
-                current.assertStopRetCtrlIsRegion = arg.contains("stop.ret().ctrl() instanceof RegionNode");
+                current.assertStopRetCtrlIsProj = arg.contains("stop.ret().ctrl() instanceof ProjNode")
+                        || arg.contains("code.ctrl() instanceof ProjNode");
+                current.assertStopRetCtrlIsCProj = arg.contains("stop.ret().ctrl() instanceof CProjNode")
+                        || arg.contains("code.ctrl() instanceof CProjNode");
+                current.assertStopRetCtrlIsRegion = arg.contains("stop.ret().ctrl() instanceof RegionNode")
+                        || arg.contains("code.ctrl() instanceof RegionNode");
+                current.assertCtrlIsFun = arg.contains("code.ctrl() instanceof FunNode");
             }
             if (methodSelect.endsWith("prettyPrint")) {
                 if (args.size() < 2 || args.size() > 3 || !args.get(0).toString().equals("stop") || !args.get(1).toString().equals("99"))
