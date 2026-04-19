@@ -48,7 +48,7 @@ public class LoopNode extends RegionNode {
             x = x.idom();
         }
         // Found a no-exit loop.  Insert an exit
-        NeverNode iff = (NeverNode)new NeverNode(back()).peephole(); // Ideal never-branch
+        NeverNode iff = (NeverNode)new NeverNode(1.2f,back()).peephole(); // Ideal never-branch
         CProjNode t = new CProjNode(iff,0,"True" ).init();
         CProjNode f = new CProjNode(iff,1,"False").init();
         setDef(2,t);            // True continues loop, False (never) exits loop

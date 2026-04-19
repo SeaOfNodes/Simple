@@ -39,7 +39,7 @@ public class Parser {
     }
 
     // Source file for compilation
-    private CompUnit _ref;
+    public CompUnit _ref;
 
     // Current classname being parsed
     private String _nestedType;
@@ -172,11 +172,19 @@ public class Parser {
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
-
-        // Should be at the top scope and every new var should be a FRef.
+        // At the top scope and every new var should be a FRef, and these
+        // should immediately resolve to a file-based name which is a Simple
+        // class type.
         Ary<FRefNode> frefs = new Ary<>(FRefNode.class);
-        for( int i=2; i<_scope._vars._len; i++ )
-            frefs.push((FRefNode)_scope._inputs.at(i));
+        for( int i=2; i<_scope._vars._len; i++ ) {
+            FRefNode fref = (FRefNode)_scope._inputs.at(i);
+            CompUnit cu = ParseAll.findCompUnit(_code,_ref,fref._name);
+            fref._con = TypeMemPtr.make((byte)2,TypeStruct.make(addClzPrefix(cu._cname),true),true);
+            frefs.push(fref);
+        }
+
+        // The class being published
+        ref._clz = (TypeStruct)TYPES.get(typeName);
 
         // Clean up and reset
         _xScopes.pop();
@@ -287,9 +295,11 @@ public class Parser {
         Node expr = rctl==_code.XCTRL  ? con(Type.TOP)    : _returnScope._inputs.last().peephole();
         ReturnNode ret = (ReturnNode)peep(new ReturnNode(rctl, rmem, expr, rpc, fun));
         fun.setRet(ret);
-        _code._stop.addDef(ret);
         // Approximate function size, for inlining heuristics
         fun._approxUIDs = _code.UID() - oldUID;
+
+        // Export (and keep-alive) functions until prove dead
+        _ref.addFun(_code,fun);
 
         // Unstack parser state
         if( _returnScope != null ) _returnScope.kill();
@@ -347,15 +357,15 @@ public class Parser {
         for( int i=0; i<tself.nkids(); i++ ) {
             Var v = _scope.var(base +i);
             Field tfld = tself._fields[i];
+            // Forward-ref fields where placed in tself but will get promoted
+            // to an outer scope - and should not be in tself.
             if( v._fref )
                 tself = tself.remove(i);
             else if( v.type() != tfld._t )
                 tself = tself.replace(tfld.makeFrom(v.type()));
         }
 
-        // Close Struct type after parsing struct body.  Forward-ref fields
-        // where placed in tself but will get promoted to an outer scope - and
-        // should not be in tself.
+        // Close Struct type after parsing struct body.
         TYPES.put( tself._name, tself = tself.close() );
 
         // Improve self, selfMem types in scope.
@@ -809,7 +819,7 @@ public class Parser {
      * @return {@code null}
      */
     Node showGraph() {
-        System.out.println(new GraphVisualizer().generateDotOutput(_code._stop,_scope,_xScopes));
+        System.out.println(new GraphVisualizer().generateDotOutput(_ref,_scope,_xScopes));
         return null;
     }
 
@@ -1005,10 +1015,10 @@ public class Parser {
         // create type class:NESTED.typeName; no fields.
 
         String old = _nestedType;
-        typeName = (old+"."+typeName).intern();
-        _nestedType = typeName; // Recursive structs start with this as their basename
+        String fullName = (old+"."+typeName).intern();
+        _nestedType = fullName; // Recursive structs start with this as their basename
 
-        ReturnNode ret = parseStruct( false, typeName );
+        ReturnNode ret = parseStruct( false, fullName );
 
         _nestedType = old;
 
@@ -1016,8 +1026,14 @@ public class Parser {
         // Function does malloc internally.
         // Future self: means subtyping has to deal with "who does the malloc"
         TypeFunPtr tfp = ret.fun().sig();
-        TypeStruct ts = TypeStruct.make(addClzPrefix(typeName),false,Field.make(typeName,tfp,_code.nextALIAS(),true));
+        TypeStruct ts = TypeStruct.make(addClzPrefix(fullName),false,Field.make(fullName,tfp,_code.nextALIAS(),true));
         TYPES.put(ts._name,ts);
+
+        // Insert a field in the containing class with the nested class type.
+        // This is basically sugar for "val CLZNAME = <class>"
+        // and is a nicer version of updateSelfAsFieldsDiscovered.
+        TypeMemPtr tmp = TypeMemPtr.make((byte)2,ts,true);
+        _scope.define(typeName, tmp, true, con(tmp), loc());
 
         require("}");
         return require(_code.ZERO,";");
@@ -1032,16 +1048,13 @@ public class Parser {
         // Make the future clazz/instance struct.
         TypeStruct tself = TypeStruct.make(typeName,true);
         TYPES.put(typeName, tself);
-        // Record exported symbols.  Do not publish private symbols.
-        if( !typeName.startsWith("_") && !typeName.contains("._") )
-            _ref.addClass(tself);
 
         // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
         // Self-memory is the rare *private* (never aliased) memory for the new object.
         TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true, false );
         Type targ = isClz ? TypeInteger.BOT : privMem;
         Type tret = isClz ? Type.BOTTOM     : privMem;
-        Type[] targs = new Type[]{ TypeMemPtr.make(tself), targ };
+        Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
         TypeFunPtr sig = TypeFunPtr.make1((byte)2, false, targs, tret, _code.nextFIDX());
 
         String fname = (typeName + (isClz ? ".<clinit>" : ".<init>")).intern();
@@ -1501,7 +1514,7 @@ public class Parser {
         // Load local value
         Node rvalue = _scope.in(var);
         if( rvalue._type == Type.BOTTOM )
-            if( rvalue instanceof FRefNode )
+            if( var._fref )
                 return parsePostfix(rvalue); // No methods on FRefs right now
             else throw error("Cannot read uninitialized field '"+id+"'");
 
@@ -1517,10 +1530,23 @@ public class Parser {
         // Check for a function-escaping variable; these require true
         // closures.  Final constants are OK; final vars require a hidden var
         // argument; not-final fields can just use an explicit struct arg.
-        if( !(var._final && rvalue._type.isConstant()) &&
-            kx > 0  && // Global scope is OK, only ever one of these (not one per function invoke)
-            kx < fx )  // Out of scope
-            throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
+        if( kx < fx &&          // Out of scope
+            !(var._final && rvalue._type.isConstant()) ) { // Not a final constant
+            if( kx > 0  ) // Global scope is OK, only ever one of these (not one per function invoke)
+                throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
+
+            // var.idx==2 is self argument, 3 is args, 4 or more are now static globals
+            if( var._idx >= 4 ) {
+                // Read from global scope.
+                // Surely a nicer way to get the top-level scope compile name?
+                Var clzptr = _scope.var( 2 );
+                // Get the most recent sharpen global
+                TypeStruct clz = (TypeStruct) TYPES.get( ((TypeMemPtr) clzptr.type())._obj._name );
+                TypeMemPtr clztmp = TypeMemPtr.make( (byte) 2, clz, true );
+                return parsePostfixName( con( clztmp ), id );
+                //return parsePostfixName(_scope.in(2),id);
+            }
+        }
 
         // Check for assign-update, x += e0;
         char ch = _lexer.matchOperAssign();

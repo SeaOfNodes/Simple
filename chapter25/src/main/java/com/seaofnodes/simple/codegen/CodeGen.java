@@ -53,18 +53,21 @@ public class CodeGen {
     // Dotted path from module root to file containing the source, sans ".smp".
     // e.g. module root: "sys", nested source name "sys.io".
     public final String _srcName;
-    // Compilation source code
-    public final String _src;
+
+    // Only available for tests, otherwise source comes from the CompUnit
+    private final String _src;
 
     // Current Working Directory; default module base
     private final String _cwd;
 
     // Compilation Units in this compile; one per source/object file
-    public HashSet<CompUnit> _compunits;
+    public HashMap<String,CompUnit> _compunits;
     // Test shortcut for only one compilation unit
     public CompUnit compunit() {
         assert _compunits.size()==1;
-        return _compunits.iterator().next();
+        for( CompUnit cu : _compunits.values() )
+            return cu;
+        throw Utils.TODO();
     }
 
     // ---------------------------
@@ -102,14 +105,18 @@ public class CodeGen {
         _buildDir = buildDir == null ? _cwd : buildDir;
         _externPaths = externPaths;
         _srcName = srcName;
+        _callingConv = null;       // Calling convention
+        // Source code from test strings, not files
         _src = src;
+        // All the compilation units
+        _compunits = new HashMap<>();
         _phase = null;
-        _callingConv = null;
         // Start GVN table
         _gvn = new HashMap<>();
         _iter = new IterPeeps(workListSeed);
+        // End points of graph
         _start = new StartNode(arg);
-        _stop = new StopNode(src);
+        _stop = new StopNode();
         ZERO  = con(TypeInteger.ZERO).keep();
         XCTRL = new XCtrlNode().peephole().keep();
         P = new Parser(this);
@@ -159,14 +166,14 @@ public class CodeGen {
             String fn = ""+p2+"-"+_phase+".dot";
             try {
                 Files.writeString(Path.of(fn),
-                                  new GraphVisualizer().generateDotOutput(_stop, null, null));
+                                  new GraphVisualizer().generateDotOutput(compunit(), null, null));
             } catch(IOException e) { throw Utils.TODO("Cannot write DOT file"); }
             return p2;
         }
 
         if( (dump & (1<<30)) != 0 )
             System.err.println("After "+_phase+":");
-        System.err.println(IRPrinter.prettyPrint(_stop, 9999));
+        System.err.println(IRPrinter.prettyPrint(this));
         return p2;
     }
 
@@ -212,7 +219,7 @@ public class CodeGen {
     public final BitSet _visit = new BitSet();
     public BitSet visit() { assert _visit.isEmpty(); return _visit; }
 
-    // Start and stop; end points of the generated IR
+    // Start and Stop; end points of the generated IR
     public StartNode _start;
     public StopNode  _stop;
 
@@ -281,10 +288,10 @@ public class CodeGen {
         Parser.TYPES.putAll(Parser.INIT_TYPES);
         if( _srcName == null ) {
             // No source file, just the source itself
-            ParseAll.parseSource(_src);
+            ParseAll.parseSource(this,_src);
         } else {
             // Path from module root to source file
-            ParseAll.parsePath(_srcName);
+            ParseAll.parsePath(this,_srcName);
         }
 
         _times[Phase.Parse.ordinal()] = System.currentTimeMillis() - t0;
@@ -342,24 +349,7 @@ public class CodeGen {
         _phase = Phase.LoopTree;
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
-        _start.buildLoopTree(_start,_stop);
-
-        // Sort functions by object file; for simple test cases there is
-        // generally only one function in one class.
-        // In general, there can be many .obj files being emitted, one for each
-        // source file parsed.
-        _compunits = new HashSet<>();
-        for( FunNode fun : _linker ) {
-            if( fun!=null && !fun.isDead() ) {
-                _compunits.add(fun._compunit);
-                fun._compunit.addFunction(fun);
-            }
-        }
-
-        for( CompUnit cu : _compunits )
-            cu.replaceAllClzs();
-
-
+        _start.buildLoopTree( _linker, _stop);
         _times[Phase.LoopTree.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
@@ -438,9 +428,10 @@ public class CodeGen {
         _instOuts(_stop,visit());
         _visit.clear();
 
-        // Walk and replace the list of functions
-        for( CompUnit ref : _compunits )
-            ref.replaceAllFuns(map);
+        // Replace the CompUnit stop (and list of functions)
+        // with hardware-specific ones
+        for( CompUnit cu : _compunits.values() )
+            cu._stop = (StopNode)map.get(cu._stop);
 
         _times[Phase.Select.ordinal()] = System.currentTimeMillis() - t0;
         return this;
@@ -555,7 +546,7 @@ public class CodeGen {
         GlobalCodeMotion.buildCFG(this);
         _times[Phase.Schedule.ordinal()] = System.currentTimeMillis() - t0;
         if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null));
+            System.out.println(new GraphVisualizer().generateDotOutput(compunit(),null,null));
         return this;
     }
 
@@ -600,7 +591,7 @@ public class CodeGen {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
-        for( CompUnit ref : _compunits )
+        for( CompUnit ref : _compunits.values() )
             (ref._encoding = new Encoding(this)).encode(ref);
         _times[Phase.Encoding.ordinal()] = System.currentTimeMillis() - t0;
         return this;
@@ -616,7 +607,7 @@ public class CodeGen {
             new LinkMem(this).link(compunit()._encoding); // In memory patching
         } else {
             ElfWriter elf = new ElfWriter(this);
-            for( CompUnit cu : _compunits )
+            for( CompUnit cu : _compunits.values() )
                 exportElf(cu,elf,main);
         }
         _times[Phase.Export.ordinal()] = System.currentTimeMillis() - t0;
@@ -668,9 +659,8 @@ public class CodeGen {
             case ElfReader elf:
                 // Name maps to an unparsed ElfReader.  Pull out all the
                 // published symbols from the ELF and map them.
-                Ary<TypeStruct> published = elf.loadSimple();
-                for( TypeStruct ts : published )
-                    _externSymbols.put(ts._name, new ExternNode(TypeMemPtr.make(ts),ts._name));
+                TypeStruct clz = elf.loadSimple();
+                _externSymbols.put(clz._name, new ExternNode(TypeMemPtr.make(clz),clz._name));
                 break;
 
             case null:
@@ -737,26 +727,40 @@ public class CodeGen {
     public boolean _asmLittle=true;
     public String asm() { return asm(new SB()).toString(); }
     SB asm(SB sb) {
-        for( CompUnit ref : _compunits )
+        for( CompUnit ref : _compunits.values() )
             ASMPrinter.print(sb,this,ref);
         return sb;
     }
 
 
     // Testing shortcuts
-    public Node ctrl() { return _stop.ret(this).ctrl(); }
-    public Node expr() { return _stop.ret(this).expr(); }
-    public String print() { return _stop.print(); }
+    public Node ctrl() { return compunit()._stop.ret().ctrl(); }
+    public Node expr() { return compunit()._stop.ret().expr(); }
+    public String print() { return compunit()._stop.print(); }
 
     // Debugging helper
     @Override public String toString() {
-        return _phase!=null && _phase.ordinal() > Phase.Schedule.ordinal()
-            ? IRPrinter.prettyPrint( this )
-            : (_stop==null ? ""  : _stop.p(4999));
+        if( _phase!=null && _phase.ordinal() > Phase.Schedule.ordinal() )
+            return IRPrinter.prettyPrint( this );
+        StopNode stop = null;
+        for( CompUnit cu : _compunits.values() ) {
+            if( cu._stop != null && stop != null )
+                return "TODO: Handle multiple CUs";
+            stop = cu._stop;
+        }
+        if( stop == null )
+            return "No StopNode";
+        return stop.p(4999);
     }
 
     // Debugging helper
-    public Node f(int idx) { return _stop.find(idx); }
+    public Node f(int idx) {
+        for( CompUnit cu : _compunits.values() ) {
+            Node n = cu._stop.find(idx);
+            if( n != null ) return n;
+        }
+        return null;
+    }
 
 
     String printCFG() {

@@ -1,0 +1,33 @@
+// -*- mode: java;  -*-
+
+// Ary/Vector of i64s
+struct aryi64 {
+    u32 !len = 0;
+    i64[] !buf;
+    // Grow as needed
+    val _grow = { int len2 ->
+        if( len+len2 < buf# ) return self;
+        int newlen = buf# * 2;
+        while( len+len2 >= newlen ) newlen *= 2;
+        i64[] !buf2 = new i64[newlen];
+        for( int i=0; i<buf#; i++ )
+            buf2[i] = buf[i];
+        buf = buf2;
+        self;
+    };
+
+    // Add a i64 to aryu8
+    val add = { i64 c ->
+        _grow(1).buf[len++] = c;
+        self;
+    };
+
+    // Write to aryu8
+    val str = { ->
+        // TODO: clunky default constructor syntax
+        var str = new aryu8 { buf = new u8[1]; }.add('[');
+        for( int i=0; i<len; i++ )
+            str.num(buf[i]).add(',').add(' ');
+        str.undo(2).add(']');
+    };
+};

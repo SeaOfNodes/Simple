@@ -28,8 +28,10 @@ public class ElfReader {
     public String[] _strs;
     // Dependent file names
     public String[] _deps;
-    // First N published symbols this file
-    public Ary<TypeStruct> _published;
+    // Only published symbol this file
+    public TypeStruct _clz;
+    // Nodes read in this Elf
+    public Ary<Node> _nodes;
 
     // Load an Elf file (mostly lazily)
     public static ElfReader load( File f ) {
@@ -61,6 +63,16 @@ public class ElfReader {
         _bais = new BAOS(_buf, (int)_simple._offset);
     }
 
+    // For Serialize self-test
+    ElfReader( BAOS bais ) {
+        _file = null;
+        _buf = bais.buf();
+        _header = null;
+        _sections = null;
+        _simple = null;
+        _bais = bais;
+    }
+
     // Load the public symbols and dependent objs, but not the whole IR
     void loadPublicSymbols() {
         // Check already loaded and cached
@@ -73,10 +85,9 @@ public class ElfReader {
     }
 
     // Loads the entire IR
-    Ary<TypeStruct> loadSimple() {
-        assert _published == null;
+    public TypeStruct loadSimple() {
         Serialize.readAll(this);
-        return _published;
+        return _clz;
     }
 
     int u1() { return _buf[_x++]&0xFF; }

@@ -28,7 +28,7 @@ public class Chapter23Test {
         if( spills != -1 )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
-            assertEquals(stop, code._stop.toString());
+            assertEquals(stop, code.print());
         return code;
     }
 
@@ -223,7 +223,7 @@ return _s.peek('q');
 """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("Stop[ return 0; return Phi(Region,0,1); return #2; ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return 0; return Phi(Region,0,1); ]", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "win64",22,null);
     };
@@ -276,7 +276,7 @@ return _s.require('[');
 """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("Stop[ return 0; return (Parm_ch(require,u8)==.[]); return (.[]==91); ]", code._stop.toString());
+        assertEquals("Stop[ return (.[]==91); return 0; return (Parm_ch(require,u8)==.[]); ]", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "win64", 32, null);
     };

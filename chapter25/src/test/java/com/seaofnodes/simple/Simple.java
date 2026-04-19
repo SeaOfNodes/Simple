@@ -209,7 +209,7 @@ Options:
 
         if( print_size ) {
             int sum = 0;
-            for( CompUnit cu : code._compunits )
+            for( CompUnit cu : code._compunits.values() )
                 sum += cu._encoding._bits.size();
             System.out.printf( "Code Size: %d%n", sum);
         }

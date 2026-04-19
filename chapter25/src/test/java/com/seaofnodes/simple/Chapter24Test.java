@@ -23,7 +23,7 @@ public class Chapter24Test {
         if( spills != -1 )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
-            assertEquals(stop, code._stop.toString());
+            assertEquals(stop, code.print());
         return code;
     }
 
@@ -226,7 +226,7 @@ while (cnt) {
 return x;
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
     }
 
     @Test
@@ -241,7 +241,7 @@ while( cnt-- )
 return x;
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
     }
 
 }

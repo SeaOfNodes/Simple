@@ -10,7 +10,7 @@ public class Chapter20Test {
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");
         code.parse().opto().typeCheck();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  2));
     }
 
@@ -22,7 +22,7 @@ public class Chapter20Test {
         if( spills != -1 )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
-            assertEquals(stop, code._stop.toString());
+            assertEquals(stop, code.print());
     }
 
     private static void testAllCPUs( String src, int spills, String stop ) {
@@ -108,7 +108,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testCPU(src,"x86_64_v2", "SystemV",-1,"return mov(.[]);");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
         testCPU(src,"riscv"    , "SystemV", 8,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
     }
@@ -156,9 +156,9 @@ val _hashCodeString = { String self ->
     @Test
     public void testCast() {
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
-        testCPU(src,"x86_64_v2", "SystemV",2,null);
-        testCPU(src,"riscv"    , "SystemV",4,null);
-        testCPU(src,"arm"      , "SystemV",4,null);
+        testCPU(src,"x86_64_v2", "SystemV",4,null);
+        testCPU(src,"riscv"    , "SystemV",6,null);
+        testCPU(src,"arm"      , "SystemV",6,null);
     }
 
     @Test

@@ -1,0 +1,59 @@
+// -*- mode: java;  -*-
+
+// Ary/Vector of u8s - a resizable array of bytes.
+struct aryu8 {
+    u32 !len = 0;
+    u8[] !buf;
+    // Grow as needed
+    val _grow = { int len2 ->
+        if( len+len2 < buf# ) return self;
+        int newlen = buf# * 2;
+        while( len+len2 >= newlen ) newlen *= 2;
+        u8[] !buf2 = new u8[newlen];
+        Ary.copy(buf2,0,buf,0,buf#);
+        buf = buf2;
+        self;
+    };
+
+    // Add a character to aryu8
+    val add = { u8 c ->
+        _grow(1).buf[len++] = c;
+        self;
+    };
+
+    // Add all of a plain array to the aryu8
+    val addAry = { u8[~] ary ->
+        _grow(ary#);
+        Ary.copy(buf,len,ary,0,ary#);
+        len += ary#;
+        self;
+    };
+
+    // Remove x bytes from the tail.
+    val undo = { int x ->
+        len = len >= x ? len-x : 0;
+        self;
+    };
+
+    // Print ASCII number into aryu8
+    val num = { i64 x ->
+        if( !x ) { add('0'); return self; }
+        if( x < 0 ) { add('-'); x = -x; }
+        i64 ten = 1, log = 0;
+        while( ten <= x ) { ten *= 10; log++; }
+        for( int i=0; i<log; i++ ) {
+            ten /= 10;
+            i64 q = x/ten;
+            u8 digit = q+'0';
+            add(digit);
+            x -= q*ten;
+        }
+        self;
+    };
+
+    // Write to fd, returns the number of bytes written (len).
+    val write = { i32 fd ->
+        i64 ptr = buf; // Cast buffer pointer to i64 for native C call
+        libc.write(fd,ptr,len);
+    };
+};

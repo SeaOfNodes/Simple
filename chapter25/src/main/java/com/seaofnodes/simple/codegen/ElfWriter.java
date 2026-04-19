@@ -182,8 +182,9 @@ public class ElfWriter {
 
         // creates function and stores where it starts.
         // Filters to just this class.obj file.
-        void encodeFunctions(Ary<FunNode> funs, Encoding enc, int text_idx) {
-            for( FunNode fun : funs ) {
+        void encodeFunctions(StopNode stop, Encoding enc, int text_idx) {
+            for( Node ret : stop._inputs ) {
+                FunNode fun = ((ReturnNode)ret).fun();
                 int end = enc.opStart(fun.ret()) + enc.opLen(fun.ret());
                 long value = enc.opStart(fun);
                 long size = end - value;
@@ -272,7 +273,7 @@ public class ElfWriter {
 
 
         // populate function symbols
-        symbols.encodeFunctions(ref._funs, ref._encoding, text._index);
+        symbols.encodeFunctions(ref._stop, ref._encoding, text._index);
         // The "main" symbol, starting code is always location 0
         if( main )
             symbols.symbolMain(text._index);

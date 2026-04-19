@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
+
 import java.util.Arrays;
 
 // Optimistic Algorithm
@@ -55,7 +56,10 @@ abstract public class Opto {
         code._iter.iterate(code);
 
         // To help with testing, sort StopNode Returns by NID
-        Arrays.sort(code._stop._inputs._es,0,code._stop.nIns(),(x,y) -> x._nid - y._nid );
+        for( Node stop : code._stop._inputs )
+            Arrays.sort(stop._inputs._es,0,stop.nIns(),
+                        (x,y) -> ((((ReturnNode)x).fun().isClz() ? -1 : x._nid) -
+                                  (((ReturnNode)y).fun().isClz() ? -1 : y._nid) ));
     }
 
     // Reset Types before running the worklist algorithm
@@ -73,21 +77,26 @@ abstract public class Opto {
     // called unless they get linked (hence go dead and can be removed).  If
     // not wholeWorld, keep only public methods (and not the std lib).
     private static void unlinkStart(CodeGen code) {
-        for( FunNode fun : code._linker ) {
-            if( fun != null && !fun.isDead() ) {
-                if( !fun.isPublic(code) ) {
+        // Iterate the Stop-of-Stops
+        for( Node stop : code._stop._inputs ) {
+            for( int i=0; i<stop.nIns(); i++ ) {
+                ReturnNode ret = (ReturnNode)stop.in(i);
+                FunNode fun = ret.fun();
+                // Non-public functions unhook completely from Start.
+                // They only can be reached if directly called.
+                if( !fun.isPublic() ) {
                     assert fun.in(1)==code._start; // Start always in slot 1
                     fun.removeDeadPath(1);
-                    // By same logic, remove stop->return linkage, without
-                    // remove the (now dead) ReturnNode; it awaits in limbo
-                    // for the opto phase to link to some valid call
-                    code._stop._inputs.del(code._stop._inputs.find(fun.ret()));
-                    fun.ret().delUse(code._stop);
+                    // Unhook from Stop without treating the ReturnNode as
+                    // DEAD.  It stays in limbo until Opto links when a caller
+                    // is discovered (or not, and the function is really dead).
+                    stop._inputs.del(i--);
+                    ret.delUse(stop);
                 }
                 // Unlink the existing conservative call linkages.
-                for( int i=1; i<fun.nIns(); i++ )
-                    if( fun.in(i) instanceof CallNode call )
-                        call.unlink(fun,i--);
+                for( int j=1; j<fun.nIns(); j++ )
+                    if( fun.in(j) instanceof CallNode call )
+                        call.unlink(fun,j--);
             }
         }
     }
@@ -96,7 +105,7 @@ abstract public class Opto {
     // into a Call, link the Call and Fun.
     private static void linkCG(CodeGen code, TypeFunPtr tfp, CallNode call) {
         if( tfp.nargs() != call.nargs() ) return; // Error calls hit this
-        for( long fidxs=tfp.fidxs(); fidxs!=0; fidxs=TypeFunPtr.nextFIDX(fidxs) ) {
+        for( long fidxs = tfp.fidxs(); fidxs != 0; fidxs = TypeFunPtr.nextFIDX(fidxs) ) {
             int fidx = Long.numberOfTrailingZeros(fidxs);
             FunNode fun = code.link(fidx);
             // null here means an external function; i.e. this Call
@@ -125,6 +134,16 @@ abstract public class Opto {
             assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
             n._type = nval;
 
+            // Now we have a series of stanzas where we lazily create the Call
+            // Graph - adding graph edges between every call site and called
+            // function, including external (unknown) callers.  These edges are
+            // not in from the start because they are *too many*; we would get
+            // O(n^2) edges.  So all along we have been treating them as
+            // "virtual" CFG edges - a FunNode taking a Start input is treated
+            // as if every call on the planet might call it.  Now we make these
+            // CG edges *concrete*, adding them back as we discover that a call
+            // calls a particular function.
+
             // If a TFP adds a new function input to a call, link to the new
             // Fun.  This adds new edges to the graph allowing argument values
             // to flow from calls into functions.  The added edges are
@@ -139,6 +158,34 @@ abstract public class Opto {
             // Graph edges to the graph.
             if( n instanceof CallNode call && oval.isHigh() && !nval.isHigh() && call.fptr()._type instanceof TypeFunPtr )
                 linkCG(code,call.tfp(),call);
+
+            // If a otherwise-dead function pointer escapes, any future linked
+            // caller might find and call it.  Force the function to be alive
+            // and called by Start.
+            if( n != code._stop && n instanceof StopNode ) {
+                for( Node def : n._inputs ) {
+                    ReturnNode ret = (ReturnNode)def;
+                    // TODO: Check for function ptrs escaping through memory
+                    if( ret._type instanceof TypeTuple tt && tt._types[2] instanceof TypeFunPtr tfp ) {
+                        // If an anonymous function has its address taken, it needs to
+                        // be available in some compilation unit with a name that
+                        // *other* CUs can link against.
+                        for( long fidxs=tfp.fidxs(); fidxs!=0; fidxs=TypeFunPtr.nextFIDX(fidxs) ) {
+                            int fidx = Long.numberOfTrailingZeros(fidxs);
+                            FunNode fun = code._linker.at(fidx);
+                            if( !fun.isDead() && (fun.nIns() < 2 || fun.in(1) != code._start ) ) {
+                                // Function is added back to its original CompUnit
+                                fun._compunit._stop.addDef(fun.ret());
+                                // Function is reachable by any *remote* caller who gets the pointer!
+                                fun.insertDef(1,code._start);
+                                for( Node p : fun._outputs )
+                                    if( p instanceof ParmNode parm )
+                                        parm.insertDef(1,code.con(parm._con));
+                            }
+                        }
+                    }
+                }
+            }
 
             // Since n._type changed, visit all output neighbors
             code._iter.addAll(n._outputs);

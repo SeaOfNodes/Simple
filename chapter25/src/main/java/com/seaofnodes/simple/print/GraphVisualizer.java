@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.print;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.node.*;
 import java.util.*;
 import static com.seaofnodes.simple.util.Utils.TODO;
@@ -21,16 +22,16 @@ public class GraphVisualizer {
     public GraphVisualizer(boolean separateControlCluster) { this._separateControlCluster = separateControlCluster; }
     public GraphVisualizer() { this(false); }
 
-    public String generateDotOutput(Parser parse) { return generateDotOutput(parse._code._stop,parse._scope,parse._xScopes); }
-    public String generateDotOutput(StopNode stop, Node scope, Stack<ScopeNode> xScopes) {
+    public String generateDotOutput(Parser parse) { return generateDotOutput(parse._ref,parse._scope,parse._xScopes); }
+    public String generateDotOutput(CompUnit cu, Node scope, Stack<ScopeNode> xScopes) {
 
         // Since the graph has cycles, we need to create a flat list of all the
         // nodes in the graph.
-        Collection<Node> all = findAll(xScopes, stop, scope);
+        Collection<Node> all = findAll(xScopes, cu._stop, scope);
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter18 {\n");
         sb.append("/*\n");
-        sb.append(stop._src);
+        sb.append(cu._src);
         sb.append("\n*/\n");
 
         // To keep the Scopes below the graph and pointing up into the graph we
