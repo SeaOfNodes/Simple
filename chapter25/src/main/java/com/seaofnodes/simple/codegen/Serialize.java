@@ -215,9 +215,11 @@ abstract public class Serialize {
         int ntypes = bais.packed4();
         // Map deserialized aliases to local aliases
         AryInt aliases = new AryInt();
-        Type[] types = Type.packed(bais,strs,aliases,ntypes, Parser.TYPES, CodeGen.CODE._alias);
+        AryInt fidxs = new AryInt();
+        Type[] types = Type.packed(bais,strs,aliases,fidxs,ntypes, Parser.TYPES, CodeGen.CODE._alias, CodeGen.CODE._fidx);
         // Also passed aliases used in aliases.at(0)
         CodeGen.CODE._alias = aliases.at(0);
+        CodeGen.CODE._fidx  = fidxs  .at(0);
         aliases.set(0,0);
         // Check and collect first published symbols map to TypeStructs
         elf._clz = (TypeStruct)types[1/*skip zero*/];
@@ -252,6 +254,9 @@ abstract public class Serialize {
                 ReturnNode ret = (ReturnNode)nodes.at(bais.packed2()-1);
                 fun.setRet(ret);
                 ret._fun = fun;
+                int fidx = fun.sig().fidx();
+                assert CodeGen.CODE._linker.atX(fidx)==null;
+                CodeGen.CODE._linker.setX(fidx,fun);
             }
         }
 
@@ -292,6 +297,7 @@ abstract public class Serialize {
             }
         }
         cons.addAll(nodes);
+        cons.add(cu._stop);
         visit.clear();
         return cons;
     }

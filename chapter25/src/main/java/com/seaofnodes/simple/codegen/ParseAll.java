@@ -106,6 +106,7 @@ public abstract class ParseAll {
             // cross-references will pick them up there.
             ElfReader elf = ElfReader.load(cunit._obj);
             cunit._clz = elf.loadSimple();
+            cunit._stop = (StopNode)elf._nodes.last();
             assert !Parser.TYPES.containsKey(cunit._clz._name);
             Parser.TYPES.put(cunit._clz._name,cunit._clz);
             return;
