@@ -747,10 +747,12 @@ public class arm extends Machine {
     }
 
     private Node con( ConstantNode con ) {
-        if( !con._con.isConstant() &&
-            // Singleton pointers (to non-constant memory) are still constants here.
-            !(con._con instanceof TypeMemPtr tmp && tmp._one) )
-            return new ConstantNode(con); // Default unknown caller inputs
+        if( !con._con.isConstant() )
+            throw Utils.TODO();
+        //if( !con._con.isConstant() &&
+        //    // Singleton pointers (to non-constant memory) are still constants here.
+        //    !(con._con instanceof TypeMemPtr tmp && tmp._one) )
+        //    return new ConstantNode(con); // Default unknown caller inputs
         String ext = con instanceof ExternNode ext0 ? ext0._extern : null;
         return switch( con._con ) {
         case TypeInteger ti -> new IntARM(con,ext);
