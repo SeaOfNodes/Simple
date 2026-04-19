@@ -5,7 +5,7 @@ import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.*;
 
 public abstract class IRPrinter {
@@ -40,7 +40,7 @@ public abstract class IRPrinter {
         // Loop-tree for nodeOrder
         CFGNode.LoopTree old = code._start._ltree;
         if( old==null )
-            code._start.buildLoopTree(code._start,code._stop);
+            code._start.buildLoopTree( code._linker, code._stop);
         Ary<Node> nodes = Serialize.nodeOrder(code);
         if( old == null )
             code._start._ltree = null;

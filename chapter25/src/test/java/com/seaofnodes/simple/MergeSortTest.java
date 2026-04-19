@@ -55,7 +55,7 @@ val _copy_array = { int[] a, int begin, int end, int[] b ->
         for( int prime : primes )
             sb.p(prime).p(", ");
         String sprimes = sb.p("]").toString();
-        TestC.runC(src, "sort", sprimes, 40);
+        TestC.runC(src, "sort", sprimes, 34);
 
 
         EvalRisc5 R5 = TestRisc5.build( src, "merge_sort", 0, 36, false);

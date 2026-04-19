@@ -1,9 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.node.ExternNode;
-import com.seaofnodes.simple.node.FunNode;
-import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.*;
 import java.io.File;
@@ -27,11 +25,16 @@ public class CompUnit {
     final public String _src;   // Source code, from file or test case
     public Encoding _encoding;  // Encoding for output
 
-    Ary<TypeStruct> _clzs;  // List of classes exported into the ELF output
-    Ary<FunNode   > _funs;  // List of function entry points exported
+    public TypeStruct _clz; // The one TypeStruct being published
     BAOS _serial;           // Serialized IR for this ELF file
     Ary<CompUnit> _deps;    // CompUnits that this CompUnit depends on
     boolean _didWrite;      // Used to topo-sort a collection of CompUnits to write all at once
+
+    // List of symbols exported by this compilation unit, and their Node
+    // definitions.
+    public HashMap<String,Node> _exported;
+    // Per-Compilation-Unit StopNode, keeping alive all exported Nodes.
+    public StopNode _stop;
 
     // Discovered source file.  Source is loaded if required to parse, and null
     // otherwise.
@@ -75,26 +78,6 @@ public class CompUnit {
         _src  = null;
     }
 
-    // Add a public class name.  You always get the self-name.  If the
-    // source code has a nested class, you can get more.
-    public void addClass( TypeStruct clz ) {
-        if( _clzs==null ) _clzs = new Ary<>(TypeStruct.class);
-        _clzs.add(clz);
-    }
-    public void addFunction( FunNode fun ) {
-        if( _funs==null ) _funs = new Ary<>(FunNode.class);
-        _funs.add(fun);
-    }
-
-    public void replaceAllFuns( IdentityHashMap<Node,Node> map ) {
-        for( int i=0; i<_funs._len; i++ )
-            _funs._es[i] = (FunNode)map.get(_funs._es[i]);
-    }
-    public void replaceAllClzs() {
-        for( int i=0; i<_clzs._len; i++ )
-            _clzs.set(i, (TypeStruct)Parser.TYPES.get(_clzs.at(i)._name));
-    }
-
     // Return true if _obj is out-of-date relative to dependents.
     private boolean checkDependentObjs() {
         ElfReader elf = CODE.getElf(_obj);
@@ -113,6 +96,14 @@ public class CompUnit {
         _deps.add(dep);
     }
 
+    // Add a function which might be exported later; need to keep it alive
+    // right now but can kill it if later we find no live FIDXs refer to it.
+    public void addFun(CodeGen code, FunNode fun) {
+        if( _stop == null )
+            code._stop.addDef(_stop = new StopNode());
+        _stop.addDep(fun);
+        _stop.addDef(fun.ret());
+    }
 
     @Override public String toString() {
         String x = "{"+_cname;

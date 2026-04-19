@@ -124,12 +124,6 @@ public class ScopeNode extends MemMergeNode {
             Var v = var(i);
             Node vn = in(i);
             if( !v.isFRef() ) continue;
-            if( depth()==1 ) {
-            //    ExternNode ext = code==null ? null : code.findExternal(v._name);
-            //    if( ext == null )
-            //        throw Parser.error("Undefined name '" + v._name + "'",v._loc);
-                throw Utils.TODO(); // External linkage def
-            }
             // Shuffle vars and inputs to move the forward reference to
             // *before* the start of the using scope ("as if" it was not
             // actually a forward reference).

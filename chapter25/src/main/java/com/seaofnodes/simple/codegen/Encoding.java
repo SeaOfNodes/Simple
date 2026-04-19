@@ -183,7 +183,7 @@ public class Encoding {
         // forwards not-taken (this is the default prediction on most
         // hardware).  Layout is still Reverse Post Order but with more
         // restrictions.
-        basicBlockLayout( ref._funs );
+        basicBlockLayout( ref );
 
         // Write encoding bits in order into a big byte array.
         // Record opcode start and length.
@@ -207,20 +207,30 @@ public class Encoding {
     // unconditional jumps.  Attempt to keep backwards branches taken, forwards
     // not-taken (this is the default prediction on most hardware).  Layout is
     // still Reverse Post Order but with more restrictions.
-    private void basicBlockLayout( Ary<FunNode> funs ) {
+    private void basicBlockLayout( CompUnit cu ) {
         IdentityHashMap<LoopNode,Ary<CFGNode>> rpos = new IdentityHashMap<>();
         _cfg = new Ary<>(CFGNode.class);
         rpos.put(_code._start.loop(),_cfg);
         BitSet visit = _code.visit();
 
-        // Do them in reverse order, so the <clinit> lands last...
-        // which is first and offset 0 in the RPO.
-        for( int i=0; i<funs._len; i++ ) {
-            FunNode fun = funs.at(funs._len-1-i);
-            int x = _cfg._len;
-            _rpo_cfg(fun,visit,rpos);
-            assert _cfg.at(x) instanceof ReturnNode;
+        // Do them all except the <clinit>
+        FunNode clinit=null;
+        for( FunNode fun : _code._linker ) {
+            if( fun != null && !fun.isDead() && fun._compunit == cu ) {
+                if( fun.isClz() ) {
+                    clinit = fun;
+                } else {
+                    int x = _cfg._len;
+                    _rpo_cfg(fun,visit,rpos);
+                    assert _cfg.at(x) instanceof ReturnNode;
+                }
+            }
         }
+        // Now the <clinit> last, so when reversed it becomes first
+        int x = _cfg._len;
+        _rpo_cfg(clinit,visit,rpos);
+        assert _cfg.at(x) instanceof ReturnNode;
+
 
         // Reverse in-place
         for( int i=0; i< _cfg.size()>>1; i++ )

@@ -53,7 +53,7 @@ public class Chapter01Test {
     @Test
     public void testNotBad3() {
         // this test used to fail in chapter 1
-        assertEquals("return 12;", new CodeGen("return - -12;").parse()._stop.print());
+        assertEquals("return 12;", new CodeGen("return - -12;").parse().print());
     }
 
     @Test
@@ -69,7 +69,7 @@ public class Chapter01Test {
     @Test
     public void testNotBad5() {
         // this test used to fail in chapter 1
-        assertEquals("return -100;", new CodeGen("return -100;").parse()._stop.print());
+        assertEquals("return -100;", new CodeGen("return -100;").parse().print());
     }
 
     @Test

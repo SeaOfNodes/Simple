@@ -197,11 +197,11 @@ public class FunNode extends RegionNode {
     public boolean isInit( ) { return isInit(_name); }
     public boolean isClz ( ) { return isClz (_name); }
     public static boolean isClz (String name ) { return name!=null && name.endsWith(".<clinit>"); }
-    public static boolean isInit(String name ) { return name!=null && name.endsWith("init>"); }
     public static boolean isInstance(String name ) { return name!=null && name.endsWith(".<init>"); }
+    public static boolean isInit(String name ) { return name!=null && name.endsWith("init>"); }
 
     // Function is public (callable from Start directly).
-    public boolean isPublic( CodeGen code ) {
+    public boolean isPublic( ) {
         // Never true for anonymous functions
         if( _name == null ) return false;
         // False if name starts with underscore, skipping any leading struct names.

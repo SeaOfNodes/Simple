@@ -81,7 +81,7 @@ public abstract class Node implements Cloneable {
         CallEnd,Call,Cast,ConFldOff,Con,CProj,
         DivF,Div,Escape,Extern,Fun,If,Load,Loop,
         MemMerge,MinusF,Minus,Mul,MulF,
-        New,Not,Or,Parm,Phi,Proj,
+        New,Never,Not,Or,Parm,Phi,Proj,
         ReadOnly,Return,Region,RoundF32,
         Sar,Shl,Shr,Start,Stop,Store,Struct,Sub,SubF,ToFloat,
         XCtrl,Xor;
@@ -99,6 +99,7 @@ public abstract class Node implements Cloneable {
             case MinusF ->new MinusFNode(null);
             case Mul    -> new   MulNode(null,null);
             case MulF   -> new  MulFNode(null,null);
+            case Never  -> new NeverNode(1.2f, null);
             case Not    -> new   NotNode(null);
             case Or     -> new    OrNode(null,null,null);
             case ReadOnly-> new ReadOnlyNode((Node)null);
@@ -637,7 +638,7 @@ public abstract class Node implements Cloneable {
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */
-    <N extends Node> N addDep( N dep ) {
+    public <N extends Node> N addDep( N dep ) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( CODE._midAssert ) return dep;

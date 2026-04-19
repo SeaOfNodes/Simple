@@ -1,0 +1,32 @@
+// -*- mode: java;  -*-
+
+// Scanner; a simple string parser.
+struct Scan {
+    int !x;                     // Cursor
+    u8[~] buf;                  // Immutable byte array, must be set in 2nd constructor
+
+    // Skip whitespace
+    val skip = { ->
+        while( x < buf# && buf[x] <= ' ' )
+            x++;
+        return self;
+    };
+
+    // True if find required character, and skip it; else False.
+    val match = { u8 c ->
+        skip();
+        if( buf[x] != c ) return false;
+        x++;
+        return true;
+    };
+
+    // Parse a simple number
+    val number = { ->
+        skip();
+        bool neg = match('-');
+        i64 n = 0;
+        while( '0' <= buf[x] & buf[x] <= '9' )
+            n = n*10 + (buf[x++] - '0');
+        return neg ? -n : n;
+    };
+};

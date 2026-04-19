@@ -1,0 +1,10 @@
+// -*- mode: java;  -*-
+
+// Array utilities
+
+// Copy byte array contents
+val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
+    for( int i=0; i<len; i++ )
+        dst[i+doff] = src[i+soff];
+    return dst;
+};

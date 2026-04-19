@@ -1,12 +1,10 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
-import java.util.HashMap;
 
 /** Control Flow Graph Nodes
  * <p>
@@ -128,11 +126,11 @@ public abstract class CFGNode extends Node {
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start is a LoopNode which contains all at depth 1.
-    public void buildLoopTree(StartNode start, StopNode stop) {
+    public void buildLoopTree( Ary<FunNode> funs, StopNode stop) {
         _ltree = stop._ltree = CodeGen.CODE.XCTRL._ltree = new LoopTree((StartNode)this);
         Ary<FunNode> work = new Ary<>(FunNode.class);
-        for( Node use : _outputs )
-            if( use instanceof FunNode fun )
+        for( FunNode fun : funs )
+            if( fun!=null && !fun.isDead() )
                 work.push(fun);
         BitSet post = new BitSet();
         int pre = 1;

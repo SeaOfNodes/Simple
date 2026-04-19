@@ -10,37 +10,43 @@ abstract public class Serialize {
 
     static void serialize( CodeGen code ) {
 
-        for( CompUnit ref : code._compunits ) {
+        for( CompUnit ref : code._compunits.values() ) {
             // Get all Nodes in a sane order
-            Ary<Node> nodes = nodeOrder(code,ref._funs);
+            Ary<Node> nodes = nodeOrder(code,ref);
+
+            // Array of dependent file names
+            String[] deps = null;
+            if( ref._deps != null && ref._deps._len>0 ) {
+                deps = new String[ref._deps._len];
+                for( int i=0; i<deps.length; i++ )
+                    deps[i] = ref._deps.at(i)._fname;
+            }
 
             // Compress into bytes
-            BAOS baos = write(nodes, ref._clzs, ref._deps);
+            BAOS baos = write(nodes, ref._clz, deps);
 
-            //// --- Expensive bijection assert
-            //if( true ) {
-            //    // Inflate into POJOs; renumbers everything
-            //    Results r = readAll(new BAOS(baos.toByteArray()));
-            //    BAOS baos2 = write(r.nodes(), r.published());
-            //
-            //    // Bi-jection
-            //    for( int i=0; i<baos.size(); i++ )
-            //        assert baos.buf()[i]==baos2.buf()[i];
-            //    assert baos.size()==baos2.size();
-            //    assert Arrays.equals(baos.buf(),baos2.buf());
-            //}
-            //// --- Expensive bijection assert
+            // --- Expensive bijection assert
+            if( false ) {
+                // Inflate into POJOs; renumbers everything
+                ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
+                readAll(elf);
+                BAOS baos2 = write(elf._nodes,elf._clz,elf._deps);
+
+                // Bi-jection
+                for( int i=0; i<baos.size(); i++ )
+                    assert baos.buf()[i]==baos2.buf()[i];
+                assert baos.size()==baos2.size();
+                assert Arrays.equals(baos.buf(),baos2.buf());
+            }
+            // --- Expensive bijection assert
 
             // Record serialized IR for later ELF writing
             ref._serial = baos;
-
-            Node stop = nodes.pop();
-            stop.kill();
         }
     }
 
     // --------------------------------------------------
-    static BAOS write(Ary<Node> nodes, Ary<TypeStruct> published, Ary<CompUnit> depobjs /*other CodeGen inputs, #aliases, #fidxs*/) {
+    static BAOS write(Ary<Node> nodes, TypeStruct clz, String[] depobjs /*other CodeGen inputs, #aliases, #fidxs*/) {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -52,17 +58,13 @@ abstract public class Serialize {
         var types = new HashMap<Type,Integer>();
         // Count published types *first*, so can align with published strings
         types.put(Type.TOP,0);
-        for( TypeStruct ts : published )
-            types.put( ts, types.size() );
+        types.put( clz, types.size() );
         // Have to visit the innards specially, since they did not get the
         // normal recursive visit when first touching a type, because the
         // published types are packed early to align with their string names so
         // lookup in ElfReader can be fast.
-        for( TypeStruct ts : published ) {
-            int nkids = ts.nkids();
-            for( int i=0; i<nkids; i++ )
-                ts.at(i).gather(types);
-        }
+        for( int i=0; i<clz.nkids(); i++ )
+            clz.at(i).gather(types);
         // Gather types from all sources
         for( Node n : nodes ) {
             n._type.gather(types);
@@ -90,12 +92,11 @@ abstract public class Serialize {
         var strs = new HashMap<String,Integer>();
         strs.put("",0);         // Null string is always 0
         // Find and count *published* Strings first
-        for( TypeStruct ts : published )
-            gather(strs,ts._name);
+        gather(strs,clz._name);
         // Find and count dependent object file string names
         if( depobjs != null )
-            for( CompUnit cu : depobjs )
-                gather(strs,cu._fname);
+            for( String fname : depobjs )
+                gather(strs,fname);
         // Count strings from all types
         for( Type t : atypes ) {
             if( t instanceof Field fld     ) gather(strs,fld._fname);
@@ -110,16 +111,14 @@ abstract public class Serialize {
             astrs[strs.get(s)] = s;
 
         // Check that published strings and types align
-        for( int i=0; i<published.size(); i++ )
-            assert astrs[i+1] == ((TypeStruct)atypes[i+1])._name;
+        assert astrs[1] == ((TypeStruct)atypes[1])._name;
         if( depobjs != null )
-            for( int i=0; i<depobjs.size(); i++ )
-                assert astrs[published.size()+i+1] == depobjs.at(i)._fname;
+            for( int i=0; i<depobjs.length; i++ )
+                assert astrs[1+i+1] == depobjs[i];
 
 
         // B - Write unique strings
-        baos.packed4(published.size());
-        baos.packed4(depobjs==null ? 0 : depobjs.size());
+        baos.packed4(depobjs==null ? 0 : depobjs.length);
         baos.packed4(strs.size());
         // Write in ID# order
         for( String s : astrs )
@@ -205,12 +204,12 @@ abstract public class Serialize {
             throw new IllegalArgumentException("Missing magic word");
 
         // B - Packed read of #strings, then strings
-        int npublish = bais.packed4();    // Number of published symbols
         int ndependents = bais.packed4(); // Number of dependent object files
         int nstrs = bais.packed4();       // Total number of strings
         String[] strs = new String[nstrs];
         for( int i=0; i<nstrs; i++ )
             strs[i] = bais.packedS();
+        elf._strs = strs;
 
         // C - Packed read of #types, then types
         int ntypes = bais.packed4();
@@ -221,12 +220,12 @@ abstract public class Serialize {
         CodeGen.CODE._alias = aliases.at(0);
         aliases.set(0,0);
         // Check and collect first published symbols map to TypeStructs
-        elf._published = new Ary<>(TypeStruct.class);
-        for( int i=0; i<npublish; i++ ) {
-            TypeStruct ts = (TypeStruct)types[i+1];
-            assert ts._name==strs[i+1];
-            elf._published.add(ts);
-        }
+        elf._clz = (TypeStruct)types[1/*skip zero*/];
+        assert elf._clz._name==strs[1/*skip null ptr*/];
+        // Collect dependent file names
+        elf._deps = new String[ndependents];
+        for( int i=0; i<ndependents; i++ )
+            elf._deps[i] = strs[1+i+1];
 
         // D - Read the nodes
 
@@ -257,6 +256,7 @@ abstract public class Serialize {
         }
 
         assert check(nodes);
+        elf._nodes = nodes;
     }
 
     private static boolean check( Ary<Node> nodes ) {
@@ -267,13 +267,14 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    public static Ary<Node> nodeOrder( CodeGen code, Ary<FunNode> funs ) {
+    public static Ary<Node> nodeOrder( CodeGen code, CompUnit cu ) {
         assert code._start._ltree != null; // Uses loop tree
         BitSet visit = code.visit();
-        // Listed functions
         Ary<Node> nodes = new Ary<>(Node.class);
-        for( FunNode fun : funs )
-            _funWalk(fun,nodes,visit,funs);
+        // Walk all listed functions, in this single compilation unit
+        for( FunNode fun : code._linker )
+            if( fun!=null && !fun.isDead() && fun._compunit == cu )
+                _funWalk(fun,nodes,visit);
 
         // Just constants used by the listed functions
         Ary<Node> cons = new Ary<>(Node.class);
@@ -286,28 +287,19 @@ abstract public class Serialize {
                         for( Node useuse : cast.outs() )
                             conUsed(cast,useuse,visit,cons);
                     // Constant used by somebody, so flag for output
-                    if( conUsed(con,use,visit,cons) )
-                        break;
+                    conUsed(con,use,visit,cons);
                 }
             }
         }
         cons.addAll(nodes);
-
-        // Make a custom StopNode only listing functions in this function set
-        StopNode stop = new StopNode(code._stop._src);
-        for( Node ret : code._stop._inputs )
-            if( visit.get(ret._nid) )
-                stop.addDef(ret);
-        cons.add(stop);
         visit.clear();
         return cons;
     }
 
-    private static boolean conUsed( Node con, Node use, BitSet visit, Ary<Node> cons ) {
-        if( use == null || !visit.get(use._nid) ) return false;
+    private static void conUsed( Node con, Node use, BitSet visit, Ary<Node> cons ) {
+        if( use == null || !visit.get(use._nid) || visit.get(con._nid) ) return;
         cons.add(con);
         visit.set(con._nid);
-        return true;
     }
 
     // --------------------------------------------------
@@ -327,15 +319,10 @@ abstract public class Serialize {
                         { visit.set(cast._nid); nodes.add(cast); }
             }
 
-        // Collect starting functions
-        Ary<FunNode> funs = new Ary<>(FunNode.class);
-        for( Node n : code._start._outputs )
-            if( n instanceof FunNode fun )
-                funs.add(fun);
-
         // All the functions, including internal ones
-        for( int i=0; i<funs._len; i++ )
-            _funWalk(funs.at(i),nodes,visit,funs);
+        for( FunNode fun : code._linker )
+            if( fun!=null && !fun.isDead() )
+                _funWalk(fun,nodes,visit);
 
         nodes.add(code._stop);
         visit.clear();
@@ -343,16 +330,16 @@ abstract public class Serialize {
     }
 
     // Walk and print whole functions at a time, in CG order
-    private static void _funWalk( FunNode fun, Ary<Node> rpo, BitSet visit, Ary<FunNode> funs ) {
+    private static void _funWalk( FunNode fun, Ary<Node> rpo, BitSet visit ) {
         int start = rpo._len;
-        _funRPO(fun,rpo,visit, funs);
+        _funRPO(fun,rpo,visit);
         int len = rpo._len - start;
         for( int i=0; i< len>>1; i++ )
             rpo.swap(start+i,start+len-1-i);
     }
 
     // Walk and gather RPO nodes.
-    private static void _funRPO(Node n, Ary<Node> rpo, BitSet visit, Ary<FunNode> funs) {
+    private static void _funRPO(Node n, Ary<Node> rpo, BitSet visit ) {
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);              // Stop recursion
         // Walk outputs ordered
@@ -364,24 +351,18 @@ abstract public class Serialize {
                 CProjNode c1 = iff.cproj(1);
                 if( c0._ltree.depth() > c1._ltree.depth() )
                     { c0 = c1; c1 = iff.cproj(0); }
-                _funRPO(c0,rpo,visit,funs);
-                _funRPO(c1,rpo,visit,funs);
+                _funRPO(c0,rpo,visit);
+                _funRPO(c1,rpo,visit);
             } else {
                 // CFG to CFG before CFG to data
                 for( Node use : n._outputs )
-                    if( use instanceof CFGNode usecfg ) {
-                        if( ncfg.skip(usecfg) ) { // Do not walk from Call to Fun
-                            //if( usecfg instanceof FunNode fun )
-                            //    funs.add(fun);
-                        } else {
-                            _funRPO(use,rpo,visit,funs);
-                        }
-                    }
+                    if( use instanceof CFGNode usecfg && !ncfg.skip(usecfg) ) // Do not walk from Call to Fun
+                        _funRPO(use,rpo,visit);
             }
             // Walk CFG to data eventually
             for( Node use : n._outputs )
                 if( !(use instanceof CFGNode) )
-                    _funRPO(use,rpo,visit,funs);
+                    _funRPO(use,rpo,visit);
         } else {
             // Do not walk from a non-CFG to a CFG; CFGs walk to CFGs to
             // preserve CFG order.  Do not walk *into* Phis; wait for the
@@ -389,7 +370,7 @@ abstract public class Serialize {
             // Phis ahead of others forcing the Phis to be spread around).
             for( Node use : n._outputs ) {
                 if( use!=null && !(use instanceof CFGNode) && !(use instanceof PhiNode) )
-                    _funRPO(use,rpo,visit,funs);
+                    _funRPO(use,rpo,visit);
             }
         }
 

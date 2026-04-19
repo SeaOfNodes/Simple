@@ -16,7 +16,7 @@ public class Chapter18Test {
 return 0;
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  2));
     }
 
@@ -34,7 +34,7 @@ while(arg--) {
 return a;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return Phi(Loop,1,Phi(Loop,2,Phi_a));", code._stop.toString());
+        assertEquals("return Phi(Loop,1,Phi(Loop,2,Phi_a));", code.print());
         assertEquals("1", Eval2.eval(code,  0));
         assertEquals("2", Eval2.eval(code,  1));
         assertEquals("1", Eval2.eval(code,  2));
@@ -51,7 +51,7 @@ return a;
 return x2;
 """);
         code.parse().opto();
-        assertEquals("return null;", code._stop.toString());
+        assertEquals("return null;", code.print());
         assertEquals("null", Eval2.eval(code, 0 ) );
     }
 
@@ -64,7 +64,7 @@ return x2;
 };
 """);
         code.parse().opto();
-        assertEquals("Stop[ return (Parm_x(sq,i64)*x); return { sq}; ]", code._stop.toString());
+        assertEquals("Stop[ return { sq}; return (Parm_x(sq,i64)*x); ]", code.print());
         assertEquals("{ i64 -> i64 #1}", Eval2.eval(code, 3));
     }
 
@@ -78,7 +78,7 @@ var _sq = { int x ->
 return _sq(arg)+_sq(3);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return ((arg*arg)+9);", code._stop.toString());
+        assertEquals("return ((arg*arg)+9);", code.print());
         assertEquals("13", Eval2.eval(code, 2));
     }
 
@@ -91,8 +91,8 @@ int cnt=1;                      // Global scope; exactly one of these
 return { -> cnt++; };           // Escape global-scope variable is OK
 """);
         code.parse().opto();
-        assertEquals("return { -> 1 #1};", code._stop.toString());
-        assertEquals("{ -> 1 #1}", Eval2.eval(code, 0));
+        assertEquals("return { -> i64 #1};", code.print());
+        assertEquals("{ -> i64 #1}", Eval2.eval(code, 0));
     }
 
     // Function scope test
@@ -122,7 +122,7 @@ val cnt=2;
 return { -> cnt; }();
 """);
         code.parse().opto();
-        assertEquals("return 2;", code._stop.toString());
+        assertEquals("return 2;", code.print());
         assertEquals("2", Eval2.eval(code, 0));
     }
 
@@ -135,7 +135,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("return #2;", code._stop.toString());
+        assertEquals("return #2;", code.print());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -145,7 +145,7 @@ return fcn(3);
     public void testFcn5() {
         CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1 : x*_fact(x-1); }; return _fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("return Phi(Region,1,(arg*#2));", code._stop.toString());
+        assertEquals("return Phi(Region,1,(arg*#2));", code.print());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -162,7 +162,7 @@ val _newS = { int x -> return new _S { i=x; }; };
 return _newS(1).i;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
@@ -177,7 +177,7 @@ if( arg ? _f : _g ) return 1;
 return 2;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
@@ -195,7 +195,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return Phi(Loop,arg,3);", code._stop.toString());
+        assertEquals("return Phi(Loop,arg,3);", code.print());
         assertEquals("3", Eval2.eval(code,  0));
     }
 
@@ -211,7 +211,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Parm_i(x,i64); return Top; ]", code._stop.toString());
+        assertEquals("Stop[ return Top; return Parm_i(x,i64); ]", code.print());
         assertNull( Eval2.eval( code, 0 ) ); // Infinite loop, <clinit> never exits
     }
 
@@ -236,7 +236,7 @@ ps[1] = new _Person;
 return fcn(ps,1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,.age,0); return 0; ]", code._stop.toString());
+        assertEquals("Stop[ return 0; return Phi(Region,.age,0); ]", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
 
@@ -326,7 +326,7 @@ val is_odd  = { int x -> x ? is_even(x-1) : false; };
 return is_even(arg);
 """);
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return #2; return Phi(Region,0,1,#2); ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return Phi(Region,0,1,#2); ]", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         assertEquals("0", Eval2.eval(code, 1));
         assertEquals("1", Eval2.eval(code, 2));
@@ -348,7 +348,7 @@ for(;;) {
 }
 """);
         code.parse().opto().typeCheck().GCM();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
 
@@ -365,7 +365,7 @@ if (_i2i_noInline) return _i2i_noInline(arg);
 return _f2f(_o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return Phi(Region,#2,#2);", code._stop.toString());
+        assertEquals("return Phi(Region,#2,#2);", code.print());
         assertEquals("1", Eval2.eval(code,  2));
     }
 
@@ -381,7 +381,7 @@ p.coffee_count += 1;
 return p.coffee_count;
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

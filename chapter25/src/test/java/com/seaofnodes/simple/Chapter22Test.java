@@ -43,7 +43,7 @@ return new s0.v1;
         if( spills != -1 )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
-            assertEquals(stop, code._stop.toString());
+            assertEquals(stop, code.print());
         return code;
     }
 
@@ -60,7 +60,7 @@ _Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(65, testCPUSize(src, "x86_64_v2","win64", 6 ));
+        assertEquals(66, testCPUSize(src, "x86_64_v2","win64", 6 ));
         assertEquals(76, testCPUSize(src, "riscv",  "SystemV", 7 ));
         assertEquals(72, testCPUSize(src, "arm"  ,  "SystemV", 7 ));
 
@@ -92,7 +92,7 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(65, testCPUSize(src, "x86_64_v2","win64",6 ));
+        assertEquals(66, testCPUSize(src, "x86_64_v2","win64",6 ));
         assertEquals(76, testCPUSize(src, "riscv",  "SystemV",7 ));
         assertEquals(72, testCPUSize(src, "arm",    "SystemV",7 ));
 
@@ -116,7 +116,7 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(58, testCPUSize(src, "x86_64_v2","win64",6 ));
+        assertEquals(59, testCPUSize(src, "x86_64_v2","win64",6 ));
         assertEquals(72, testCPUSize(src, "riscv",  "SystemV",8 ));
         assertEquals(68, testCPUSize(src, "arm",    "SystemV",8 ));
         // do assertEquals here
@@ -127,11 +127,11 @@ return 0;
     @Test public void testPerson() throws IOException {
         String src =
 """
-struct Person {
+struct Person { // Exports a field typed singleton+final *class:Person{age:i32}
     i32 age;
 };
 
-val fcn = { Person?[] ps, int x ->
+val fcn = { Person?[] ps, int x -> // exports a field with a constant fcn ptr; exports the fcn also
     if( ps[x] )
         ps[x].age++;
 };
@@ -197,7 +197,7 @@ bb.c = cc;
 return cc.cz;
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return 25;", code._stop.toString());
+        assertEquals("return 25;", code.print());
         assertEquals("25", Eval2.eval(code, 0));
     }
 
@@ -247,7 +247,7 @@ val _sum = { i32[~] is ->  // final array
 return _sum(is);
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code._stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code.print());
         assertEquals("14", Eval2.eval(code, 0));
     }
 

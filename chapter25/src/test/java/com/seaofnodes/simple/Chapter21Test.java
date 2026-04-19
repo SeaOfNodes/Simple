@@ -43,7 +43,7 @@ return new _s0.v1;
         if( spills != -1 )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
-            assertEquals(stop, code._stop.toString());
+            assertEquals(stop, code.print());
     }
 
 
@@ -74,7 +74,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testCPU(src,"x86_64_v2", "SystemV",-1,"return mov(.[]);");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
         testCPU(src,"riscv"    , "SystemV", 9,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
     }
@@ -134,7 +134,7 @@ val _hashCodeString = { String self ->
 };
 """;
         testCPU(src,"x86_64_v2", "SystemV", 9,null);
-        testCPU(src,"riscv"    , "SystemV", 3,null);
+        testCPU(src,"riscv"    , "SystemV", 5,null);
         testCPU(src,"arm"      , "SystemV", 3,null);
     }
 

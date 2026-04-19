@@ -99,7 +99,7 @@ N n = new N { next = new M; };
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return MEM[ 2:#!-2:0]; return MEM[ 2:___ 3:___ 4:.next=(*Test.M)Bot; 5:#!-5:0]; return (const)Test.M; ]", code.print());
+        assertEquals("Stop[ return (const)Test.M; return MEM[ 2:#!-2:0]; return MEM[ 2:___ 3:___ 4:___ 5:.next=(*Test.M)Bot; 6:#!-6:0]; ]", code.print());
     }
 
     @Test
@@ -209,7 +209,7 @@ return a.f0.f1.f0.f1.f0;
 
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return Test._B;", code._stop.toString());
+        assertEquals("return Test._B;", code.print());
         assertEquals("Test._B{f0=Test._C{f0=Test._A{f0=$cyclic,f1=$cyclic},f1=$cyclic},f1=$cyclic}", Eval2.eval(code,  0));
     }
 
@@ -275,7 +275,7 @@ return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
 
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return Test._R;", code._stop.toString());
+        assertEquals("return Test._R;", code.print());
         assertEquals("Test._R{a=Test._C{a=Test._N{a=Test._Y{a=Test._J{a=Test._U{a=Test._F{a=Test._Q{a=Test._B{a=Test._M{a=Test._X{a=Test._I{a=Test._T{a=Test._E{a=Test._P{a=Test._A{a=Test._L{a=Test._W{a=Test._H{a=Test._S{a=Test._D{a=Test._O{a=Test._Z{a=Test._K{a=Test._V{a=Test._G{a=$cyclic,b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic}", Eval2.eval(code,  0));
     }
 }
