@@ -228,7 +228,7 @@ public class CodeGen {
     public final HashMap<Node,Node> _gvn;
 
     // Source of unique function indices
-    private int _fidx =0;
+    int _fidx = 1;
     public int nextFIDX() { return _fidx++; }
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
         assert fun.nfcns() == Integer.MAX_VALUE; // Not assigned yet

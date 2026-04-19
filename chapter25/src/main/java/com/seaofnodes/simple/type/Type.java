@@ -575,7 +575,7 @@ public class Type /*implements Cloneable*/ {
     }
 
     // Read a packed Type array
-    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, int ntypes, HashMap<String,Type> existingTypes, int nextAlias ) {
+    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, AryInt fidxs, int ntypes, HashMap<String,Type> existingTypes, int nextAlias, int nextFIDX ) {
         Type[] types = new Type[ntypes];
         // Read Types in ID# order, no children
         for( int i=0; i<ntypes; i++ )
@@ -596,6 +596,9 @@ public class Type /*implements Cloneable*/ {
         // make a mapping from the serialized aliases to the local aliases.
         // For structs with *no* mapping, create a new local alias.
         aliases.setX(1,1); // Bottom maps to bottom alias always
+
+        // Same-same for fidxs; remap the packed fidxs into the local fidxs.
+
         for( int i=0; i<ntypes; i++ ) {
             if( types[i] instanceof TypeStruct ts ) {
                 int flen = ts._fields.length;
@@ -624,6 +627,20 @@ public class Type /*implements Cloneable*/ {
                     else assert ts2==null || deser_alias==old_alias;
                 }
             }
+            // Remap foreign fidx to local fidx
+            if( types[i] instanceof TypeFunPtr tfp ) {
+                long lfidxs = 0;
+                for( long tfidxs = tfp.fidxs(); tfidxs != 0; tfidxs = TypeFunPtr.nextFIDX(tfidxs) ) {
+                    int fidx = Long.numberOfTrailingZeros(tfidxs);
+                    // Remap foreign fidxes to local fidxs
+                    int lfidx = fidxs.atX(fidx);
+                    if( lfidx==0 )  // Unmapped yet
+                        fidxs.setX(fidx,lfidx=nextFIDX++);
+                    assert lfidx <= 63;
+                    lfidxs |= (1L<<lfidx);
+                }
+                tfp._fidxs = lfidxs;
+            }
         }
         // Walk all type aliases, and map to local aliases
         for( int i=0; i<ntypes; i++ ) {
@@ -634,6 +651,7 @@ public class Type /*implements Cloneable*/ {
         // Intern them all at once
         BOTTOM.recurClose(types);
         aliases.set(0,nextAlias); // Also return used up aliases
+        fidxs  .set(0,nextFIDX ); // Also return used up fidxs
         return types;
     }
 
