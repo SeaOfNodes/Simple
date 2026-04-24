@@ -104,11 +104,14 @@ public abstract class ParseAll {
             assert cunit._obj != null;
             // Extract published symbols and put them in the internal tables;
             // cross-references will pick them up there.
-            ElfReader elf = ElfReader.load(cunit._obj);
+            ElfReader elf = ElfReader.load(cunit._obj,cunit);
             cunit._clz = elf.loadSimple();
             cunit._stop = (StopNode)elf._nodes.last();
+            code._stop.addDef(cunit._stop);
             assert !Parser.TYPES.containsKey(cunit._clz._name);
             Parser.TYPES.put(cunit._clz._name,cunit._clz);
+            code.addAll(elf._nodes);
+            code._iter.iterate(code);
             return;
         }
 

@@ -48,7 +48,7 @@ public class Chapter25Test {
         assertEquals("exec exit code: 6",rez1);
 
         // Compile again A, expecting both A.o and A/B.o to be up-to-date and not compiled
-        CodeGen code2 = new CodeGen(MODDIR, BLDDIR,null,
+        CodeGen code2 = new CodeGen(MODDIR, BLDDIR, null,
                                    "A",null,123L,TypeInteger.BOT);
         code2.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
 
@@ -149,10 +149,10 @@ public class Chapter25Test {
         assertTrue(libc_file.exists() );
 
         // Can read the ELF files
-        ElfReader  sys_elf = ElfReader.load( sys_file);
-        ElfReader   io_elf = ElfReader.load(  io_file);
-        ElfReader  ary_elf = ElfReader.load( ary_file);
-        ElfReader libc_elf = ElfReader.load(libc_file);
+        ElfReader  sys_elf = ElfReader.load( sys_file, null);
+        ElfReader   io_elf = ElfReader.load(  io_file, null);
+        ElfReader  ary_elf = ElfReader.load( ary_file, null);
+        ElfReader libc_elf = ElfReader.load(libc_file, null);
         sys_elf .loadSimple();
         io_elf  .loadSimple();
         ary_elf .loadSimple();

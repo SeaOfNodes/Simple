@@ -23,6 +23,8 @@ public class ElfReader {
     public final Section _simple;
     // Byte array in/out stream - used as a reader
     public final BAOS _bais;
+    // Compilation unit; written into FunNodes
+    public final CompUnit _compunit;
 
     // Strings from the Simple section, either small public set or whole set
     public String[] _strs;
@@ -34,14 +36,15 @@ public class ElfReader {
     public Ary<Node> _nodes;
 
     // Load an Elf file (mostly lazily)
-    public static ElfReader load( File f ) {
-        try { return new ElfReader(f); }
+    public static ElfReader load( File f, CompUnit cu ) {
+        try { return new ElfReader(f,cu); }
         catch( IOException ioe ) { return null; }
     }
 
     // Load the Simple section from the ELF file
-    private ElfReader( File f ) throws IOException {
+    private ElfReader( File f, CompUnit cu ) throws IOException {
         _file = f;
+        _compunit = cu;
         _buf = Files.readAllBytes(f.toPath());
         _header = new ElfHeader();
         // No attempt is made to parse the program header table.
@@ -66,6 +69,7 @@ public class ElfReader {
     // For Serialize self-test
     ElfReader( BAOS bais ) {
         _file = null;
+        _compunit = null;
         _buf = bais.buf();
         _header = null;
         _sections = null;
@@ -86,7 +90,7 @@ public class ElfReader {
 
     // Loads the entire IR
     public TypeStruct loadSimple() {
-        Serialize.readAll(this);
+        Serialize.readAll(this,_compunit, true);
         return _clz;
     }
 

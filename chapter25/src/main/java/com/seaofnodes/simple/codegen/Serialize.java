@@ -11,6 +11,7 @@ abstract public class Serialize {
     static void serialize( CodeGen code ) {
 
         for( CompUnit ref : code._compunits.values() ) {
+            if( ref._clz==null ) continue; // Not writing this one
             // Get all Nodes in a sane order
             Ary<Node> nodes = nodeOrder(code,ref);
 
@@ -29,14 +30,13 @@ abstract public class Serialize {
             if( false ) {
                 // Inflate into POJOs; renumbers everything
                 ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
-                readAll(elf);
+                readAll(elf,ref, false);
                 BAOS baos2 = write(elf._nodes,elf._clz,elf._deps);
 
                 // Bi-jection
                 for( int i=0; i<baos.size(); i++ )
                     assert baos.buf()[i]==baos2.buf()[i];
                 assert baos.size()==baos2.size();
-                assert Arrays.equals(baos.buf(),baos2.buf());
             }
             // --- Expensive bijection assert
 
@@ -73,8 +73,9 @@ abstract public class Serialize {
         }
         // Radix sort by Type ID#
         Type[] atypes = new Type[types.size()];
-        for( Type t : types.keySet() )
+        for( Type t : types.keySet() ) {
             atypes[types.get(t)] = t;
+        }
 
         // Count unique aliases; they should all be in Types
         var aliases = new HashMap<Integer,Integer>();
@@ -84,9 +85,6 @@ abstract public class Serialize {
             if( t instanceof Field fld   ) gather(aliases,fld._alias);
             if( t instanceof TypeMem mem ) gather(aliases,mem._alias);
         }
-
-        // TODO: Count unique fidxs & fold
-
 
         // Count all unique Strings
         var strs = new HashMap<String,Integer>();
@@ -178,23 +176,22 @@ abstract public class Serialize {
         if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='E' )
             throw new IllegalArgumentException("Missing magic word");
 
-        // B - Packed read number of public strings, then the strings
-        int npublished = bais.packed4();
-        int ndependents = bais.packed4();
-        int nstrs = bais.packed4(); // Ignore total strings
-        bais.packedS(); // Read and ignore the null string
-        elf._strs = new String[npublished];
-        for( int i=0; i<npublished; i++ )
-            elf._strs[i] = bais.packedS();
+        // B - Packed read of #strings, then strings
+        int ndependents = bais.packed4(); // Number of dependent object files
+        int nstrs = bais.packed4();       // Total number of strings
+        String[] strs = new String[nstrs];
+        for( int i=0; i<nstrs; i++ )
+            strs[i] = bais.packedS();
+        elf._strs = strs;
+        
+        // Collect dependent file names
         elf._deps = new String[ndependents];
         for( int i=0; i<ndependents; i++ )
-            elf._deps[i] = bais.packedS();
+            elf._deps[i] = strs[1+i+1];
     }
 
-
     // --------------------------------------------------
-
-    static void readAll( ElfReader elf ) {
+    static void readAll( ElfReader elf, CompUnit cu, boolean remapFIDXs ) {
         BAOS bais = elf._bais;
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
@@ -211,12 +208,17 @@ abstract public class Serialize {
             strs[i] = bais.packedS();
         elf._strs = strs;
 
+        // Collect dependent file names
+        elf._deps = new String[ndependents];
+        for( int i=0; i<ndependents; i++ )
+            elf._deps[i] = strs[1+i+1];
+
         // C - Packed read of #types, then types
         int ntypes = bais.packed4();
         // Map deserialized aliases to local aliases
         AryInt aliases = new AryInt();
         AryInt fidxs = new AryInt();
-        Type[] types = Type.packed(bais,strs,aliases,fidxs,ntypes, Parser.TYPES, CodeGen.CODE._alias, CodeGen.CODE._fidx);
+        Type[] types = Type.packed(bais,strs,aliases,fidxs,ntypes, Parser.TYPES, CodeGen.CODE._alias, CodeGen.CODE._fidx, remapFIDXs);
         // Also passed aliases used in aliases.at(0)
         CodeGen.CODE._alias = aliases.at(0);
         CodeGen.CODE._fidx  = fidxs  .at(0);
@@ -224,10 +226,6 @@ abstract public class Serialize {
         // Check and collect first published symbols map to TypeStructs
         elf._clz = (TypeStruct)types[1/*skip zero*/];
         assert elf._clz._name==strs[1/*skip null ptr*/];
-        // Collect dependent file names
-        elf._deps = new String[ndependents];
-        for( int i=0; i<ndependents; i++ )
-            elf._deps[i] = strs[1+i+1];
 
         // D - Read the nodes
 
@@ -250,13 +248,19 @@ abstract public class Serialize {
                 int idx = bais.packed2();
                 n.setDef(i,idx==0 ? null : nodes.at(idx-1));
             }
+            // A little extra for FunNodes
             if( n instanceof FunNode fun ) {
+                // Return is hooked like an edge
                 ReturnNode ret = (ReturnNode)nodes.at(bais.packed2()-1);
                 fun.setRet(ret);
                 ret._fun = fun;
-                int fidx = fun.sig().fidx();
-                assert CodeGen.CODE._linker.atX(fidx)==null;
-                CodeGen.CODE._linker.setX(fidx,fun);
+                fun._compunit = cu;
+                if( remapFIDXs ) {
+                    // Set the code._linker and compunit fields
+                    int fidx = fun.sig().fidx();
+                    assert CodeGen.CODE._linker.atX(fidx)==null;
+                    CodeGen.CODE._linker.setX(fidx,fun);
+                }
             }
         }
 

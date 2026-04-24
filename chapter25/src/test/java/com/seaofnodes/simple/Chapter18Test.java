@@ -65,7 +65,7 @@ return x2;
 """);
         code.parse().opto();
         assertEquals("Stop[ return { sq}; return (Parm_x(sq,i64)*x); ]", code.print());
-        assertEquals("{ i64 -> i64 #1}", Eval2.eval(code, 3));
+        assertEquals("{ i64 -> i64 #2}", Eval2.eval(code, 3));
     }
 
     @Test
@@ -91,8 +91,8 @@ int cnt=1;                      // Global scope; exactly one of these
 return { -> cnt++; };           // Escape global-scope variable is OK
 """);
         code.parse().opto();
-        assertEquals("return { -> i64 #1};", code.print());
-        assertEquals("{ -> i64 #1}", Eval2.eval(code, 0));
+        assertEquals("return { -> i64 #2};", code.print());
+        assertEquals("{ -> i64 #2}", Eval2.eval(code, 0));
     }
 
     // Function scope test
@@ -271,7 +271,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #1}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #2}?",e.getMessage()); }
     }
 
 

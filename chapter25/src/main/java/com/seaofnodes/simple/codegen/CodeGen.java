@@ -147,7 +147,7 @@ public class CodeGen {
         if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = dump(dump); }
-        if( p2 < p1 && p1 >= Phase.Encoding    .ordinal() ) { serialize(); p2 = dump(dump); } // Include ideal graph in object file
+        if( p2 < p1 && p1 >= Phase.Encoding  .ordinal() ) { serialize(); p2 = dump(dump); } // Include ideal graph in object file
         if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) { instSelect(cpu,callingConv); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) { unlink();    p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) { GCM();       p2 = dump(dump); }
@@ -592,7 +592,8 @@ public class CodeGen {
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
         for( CompUnit ref : _compunits.values() )
-            (ref._encoding = new Encoding(this)).encode(ref);
+            if( ref._src != null )
+                (ref._encoding = new Encoding(this)).encode(ref);
         _times[Phase.Encoding.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
@@ -719,7 +720,7 @@ public class CodeGen {
         ElfReader elf = _elfs.get(f.getPath());
         if( elf != null )
             return elf;
-        _elfs.put(f.getPath(), elf = ElfReader.load(f));
+        _elfs.put(f.getPath(), elf = ElfReader.load(f,null));
         return elf;
     }
 
@@ -742,15 +743,9 @@ public class CodeGen {
     @Override public String toString() {
         if( _phase!=null && _phase.ordinal() > Phase.Schedule.ordinal() )
             return IRPrinter.prettyPrint( this );
-        StopNode stop = null;
-        for( CompUnit cu : _compunits.values() ) {
-            if( cu._stop != null && stop != null )
-                return "TODO: Handle multiple CUs";
-            stop = cu._stop;
-        }
-        if( stop == null )
+        if( _stop == null )
             return "No StopNode";
-        return stop.p(4999);
+        return _stop.p(4999);
     }
 
     // Debugging helper

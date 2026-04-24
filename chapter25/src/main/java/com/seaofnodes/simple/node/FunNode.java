@@ -24,7 +24,7 @@ public class FunNode extends RegionNode {
     public String _name;        // Debug name
 
     public int _approxUIDs;     // Approximate function size, used as a inlining heuristic
-    public final CompUnit _compunit; // Defined in source file
+    public CompUnit _compunit;  // Defined in source file
     public final boolean _extern; // External function; no code, name only
 
     private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, CompUnit compunit, boolean ext ) {

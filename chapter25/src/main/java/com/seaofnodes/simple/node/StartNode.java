@@ -53,4 +53,5 @@ public class StartNode extends LoopNode implements MultiNode {
     @Override public int idepth() { return CodeGen.CODE.iDepthAt(0); }
     @Override public CFGNode idom(Node dep) { return null; }
 
+    @Override public boolean eq( Node n ) { return true; }
 }
