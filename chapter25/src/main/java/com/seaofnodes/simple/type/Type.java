@@ -575,7 +575,7 @@ public class Type /*implements Cloneable*/ {
     }
 
     // Read a packed Type array
-    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, AryInt fidxs, int ntypes, HashMap<String,Type> existingTypes, int nextAlias, int nextFIDX ) {
+    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, AryInt fidxs, int ntypes, HashMap<String,Type> existingTypes, int nextAlias, int nextFIDX, boolean remapFIDXs ) {
         Type[] types = new Type[ntypes];
         // Read Types in ID# order, no children
         for( int i=0; i<ntypes; i++ )
@@ -628,7 +628,7 @@ public class Type /*implements Cloneable*/ {
                 }
             }
             // Remap foreign fidx to local fidx
-            if( types[i] instanceof TypeFunPtr tfp ) {
+            if( remapFIDXs && types[i] instanceof TypeFunPtr tfp ) {
                 long lfidxs = 0;
                 for( long tfidxs = tfp.fidxs(); tfidxs != 0; tfidxs = TypeFunPtr.nextFIDX(tfidxs) ) {
                     int fidx = Long.numberOfTrailingZeros(tfidxs);
@@ -650,8 +650,8 @@ public class Type /*implements Cloneable*/ {
 
         // Intern them all at once
         BOTTOM.recurClose(types);
-        aliases.set(0,nextAlias); // Also return used up aliases
-        fidxs  .set(0,nextFIDX ); // Also return used up fidxs
+        aliases.setX(0,nextAlias); // Also return used up aliases
+        fidxs  .setX(0,nextFIDX ); // Also return used up fidxs
         return types;
     }
 
