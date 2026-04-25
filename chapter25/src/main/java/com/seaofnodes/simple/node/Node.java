@@ -79,7 +79,7 @@ public abstract class Node implements Cloneable {
     public enum Tag {
         AddF,Add,And,EQ,NE,LT,LE,EQF,LTF,LEF,ULT,
         CallEnd,Call,Cast,ConFldOff,Con,CProj,
-        DivF,Div,Escape,Extern,Fun,If,Load,Loop,
+        DivF,Div,Escape,Extern,Fun,FunPtr,If,Load,Loop,
         MemMerge,MinusF,Minus,Mul,MulF,
         New,Never,Not,Or,Parm,Phi,Proj,
         ReadOnly,Return,Region,RoundF32,
@@ -93,6 +93,7 @@ public abstract class Node implements Cloneable {
             case And    -> new   AndNode(null,null,null);
             case Div    -> new   DivNode(null,null);
             case DivF   -> new  DivFNode(null,null);
+            case FunPtr ->new FunPtrNode((FunNode)null);
             case If     -> new    IfNode(null,null);
             case Loop   -> new  LoopNode(null,null);
             case Minus  -> new MinusNode(null);
@@ -142,7 +143,6 @@ public abstract class Node implements Cloneable {
             case Stop ->       StopNode.make(bais);
             case Struct->    StructNode.make(bais,     types);
             case Region->    RegionNode.make(bais);
-
 
             default -> throw Utils.TODO();
             };

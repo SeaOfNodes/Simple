@@ -1913,7 +1913,7 @@ public class Parser {
         // Make a concrete function type, with a fidx
         TypeFunPtr tfp = _code.makeFun(TypeFunPtr.make(false,false,ts.asAry(),Type.BOTTOM));
         ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
-        return con(ret._fun.sig());
+        return new FunPtrNode(ret.fun()).peephole();
     }
 
     /**
