@@ -1,7 +1,5 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
@@ -9,8 +7,6 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
 // Parse a given file, and all its dependencies
@@ -19,16 +15,12 @@ public abstract class ParseAll {
     // Worklist of symbols to search and files to parse
     private static final HashSet<CompUnit> WORK = new HashSet<>();
 
-    // Return a compilation unit (cached or new).  If new, it does not neccesarily
+    // Return a compilation unit (cached or new).  If new, it does not necessarily
     // need to be compiled.
     public static CompUnit makeCUnit( CodeGen code, CompUnit par, String name ) throws IOException {
-        return makeCUnit(code,par,name,false);
-    }
-
-    private static CompUnit makeCUnit( CodeGen code, CompUnit par, String name, boolean absent ) throws IOException {
         String fname = par==null ? name : par._fname + "/" + name;
         CompUnit cunit = code._compunits.get(fname);
-        if( cunit != null ) return absent ? null : cunit;
+        if( cunit != null ) return cunit;
         String cname = par==null ? name : (par._cname + "." + name).intern();
         code._compunits.put(fname, cunit = new CompUnit(par,fname,cname,name));
         return cunit;
@@ -92,6 +84,16 @@ public abstract class ParseAll {
                         if( cend instanceof CallEndNode )
                             code.add(cend);
                 }
+                if( n instanceof FRefNode fref ) {
+                    TypeStruct clz = (TypeStruct)Parser.TYPES.get(fref._name);
+                    // Class pointer:
+                    TypeMemPtr clzptr = TypeMemPtr.make((byte)2,clz,true);
+                    // Class pointer constant:
+                    ConstantNode clzCon = code.con(clzptr);
+                    // Replace and optimize
+                    fref.addDef(clzCon);
+                    code.add(fref);
+                }
                 return null;
             } );
     }
@@ -131,18 +133,8 @@ public abstract class ParseAll {
             try {
                 CompUnit xcunit = findCUnitModule(code,cunit,fref._name);
                 if( xcunit != null ) {
-                    // Replace the FRef with the discovered class pointer.
-                    // Class name:
-                    String clzName = Parser.addClzPrefix(xcunit._cname);
-                    // Class struct:
-                    TypeStruct clz = TypeStruct.make(clzName,true);
-                    // Class pointer:
-                    TypeMemPtr clzptr = TypeMemPtr.make((byte)2,clz,true);
-                    // Class pointer constant:
-                    ConstantNode clzCon = code.con(clzptr);
-                    // Replace and optimize
-                    fref.addDef(clzCon);
-                    code.add(fref);
+                    // Replace the FRef with the discovered class name.
+                    fref._name = Parser.addClzPrefix(xcunit._cname);
                     cunit.addDep(xcunit);
 
                     // Module search failed, now try external paths
