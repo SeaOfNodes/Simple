@@ -93,7 +93,6 @@ public abstract class Node implements Cloneable {
             case And    -> new   AndNode(null,null,null);
             case Div    -> new   DivNode(null,null);
             case DivF   -> new  DivFNode(null,null);
-            case FunPtr ->new FunPtrNode((FunNode)null);
             case If     -> new    IfNode(null,null);
             case Loop   -> new  LoopNode(null,null);
             case Minus  -> new MinusNode(null);
@@ -133,6 +132,7 @@ public abstract class Node implements Cloneable {
             case Escape->    EscapeNode.make(bais     ,types);
             case Extern->    ExternNode.make(bais,strs,types);
             case Fun   ->       FunNode.make(bais,strs,types);
+            case FunPtr->    FunPtrNode.make(bais);
             case Load  ->       new LoadNode(bais,strs,types,aliases);
             case MemMerge->MemMergeNode.make(bais);
             case New   ->       NewNode.make(bais     ,types);
@@ -189,7 +189,7 @@ public abstract class Node implements Cloneable {
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
     public final StringBuilder _print0(StringBuilder sb, BitSet visited) {
-        if (visited.get(_nid) && !(this instanceof ConstantNode) )
+        if( visited.get(_nid) && !(this instanceof ConstantNode) )
             return sb.append(label());
         visited.set(_nid);
         return isDead()

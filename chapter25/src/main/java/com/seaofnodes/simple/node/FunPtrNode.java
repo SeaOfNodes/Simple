@@ -3,28 +3,46 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import java.util.BitSet;
+import java.util.HashMap;
 
-// Upcast (join) the input to a t.  Used after guard test to lift an input.
-// Can also be used to make a type-assertion if ctrl is null.
+// Function Pointer
 public class FunPtrNode extends Node {
-    public FunPtrNode(FunNode fun) { super(new Node[]{fun}); }
+    int _fidx;
+    public FunPtrNode(ReturnNode ret, int fidx) { super(new Node[]{null,ret});  _fidx=fidx; }
 
     public FunPtrNode(FunPtrNode c) {
         super(c);               // Call parent copy constructor
+        _fidx = c._fidx;
     }
     @Override public Tag serialTag() { return Tag.FunPtr; }
-    static Node make( BAOS bais)  { return new FunPtrNode((FunNode)null); }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+        baos.packed2(_fidx);
+    }
+    static Node make( BAOS bais)  {
+        return new FunPtrNode(null,bais.packed2());
+    }
+
+    public ReturnNode ret() {
+        return in(1) instanceof ReturnNode ret ? ret : null;
+    }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb.append("FunPtr of ");
+        ReturnNode ret = ret();
+        if( ret!=null )
+            return sb.append(ret.fun()._name == null ? ret.fun().sig().toString() : "{ "+ret.fun()._name+"}" );
+        return sb.append( "*$fun" ).append( _fidx );
     }
 
 
     @Override
     public Type compute() {
-        FunNode fun = (FunNode)in(0);
-        return fun.sig();
+        ReturnNode ret = ret();
+        if( ret==null )
+            return TypeFunPtr.TOP;
+        if( ret.fun().sig().fidx() != _fidx )
+            return TypeFunPtr.TOP;
+        return ret.fun().sig();
     }
 
     @Override
@@ -32,7 +50,17 @@ public class FunPtrNode extends Node {
         return null;
     }
 
+    void setNewFIDX( ) {
+        unlock();
+        TypeFunPtr sig = ret().fun().sig();
+        _type = sig;
+        _fidx = sig.fidx();
+    }
+
+
     // Acts like a constant, sometimes.
     @Override public boolean isConst() { return true; }
 
+    @Override public boolean eq(Node n) { return _fidx==((FunPtrNode)n)._fidx; }
+    @Override int hash() { return _fidx; }
 }

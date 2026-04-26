@@ -48,7 +48,12 @@ public class ReturnNode extends CFGNode {
 
     @Override
     public Type compute() {
-        return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
+        Type e = expr()._type;
+        Type m = mem ()._type;
+        TypeFunPtr tfp = e instanceof TypeFunPtr tfp2 ? tfp2 : TypeFunPtr.BOT.dual();
+        if( m instanceof TypeMem tm && tm._t instanceof TypeFunPtr tfp2 )
+            { tfp = (TypeFunPtr)tfp.meet(tfp2); throw Utils.TODO("test"); }
+        return TypeTuple.make(ctrl()._type,m,e,tfp);
     }
 
     @Override public Node idealize() {

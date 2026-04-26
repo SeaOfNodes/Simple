@@ -82,7 +82,7 @@ public class TypeFunPtr extends TypeNil {
     static final Type[] TINT    = new Type[]{TypeInteger.BOT};
     static final Type[] TINTMEM = new Type[]{TypeInteger.BOT,TypeFloat.F32};
     static final Type[] TINTINT = new Type[]{TypeInteger.BOT,TypeInteger.BOT};
-    public static TypeFunPtr BOT   = make((byte)3,true ,TEMPTY,Type.BOTTOM,-1);
+    public static TypeFunPtr BOT   = make((byte)3,false,TEMPTY,Type.BOTTOM,-1);
     public static TypeFunPtr TEST  = make((byte)2,false,TINTMEM,TypeInteger.BOT, 1);
     public static TypeFunPtr TEST0 = make((byte)3,false,TINTMEM,TypeInteger.BOT, 3);
     public static TypeFunPtr MAIN  = make((byte)3,false,TINT   ,Type.BOTTOM,-1); // Main can return anything
@@ -95,18 +95,77 @@ public class TypeFunPtr extends TypeNil {
         // if equal, no matters.
         // if short is BOT, chop     ; recurPre on short.
         // if short is TOP, copy long; recurPre on long.
-        TypeFunPtr min = _sig.length < that._sig.length ? this : that;
-        if( _sig.length != that._sig.length && (min._open ^ min==this) )
-            return that.xmeet(this);
+        boolean b0 = !this.isHigh();
+        boolean b1 = !that.isHigh();
+        int min = Math.min(_sig.length,that._sig.length);
+        int max = Math.max(_sig.length,that._sig.length);
+
+        // nargs:
+        int len1 = this.isHigh() ? 1000-this._sig.length : this._sig.length;
+        int len2 = that.isHigh() ? 1000-that._sig.length : that._sig.length;
+        int nargs = Math.max(len1,len2);
+        if( isHigh() & that.isHigh() )
+            nargs = 1000-nargs;
+
         // Recurse all common fields
-        Type[] args = new Type[_sig.length];
-        for( int i=0; i<min._sig.length; i++ )
-            args[i] = _sig[i].meet(that._sig[i]);
-        // Handle extra args
-        for( int i=min._sig.length; i<_sig.length; i++ )
-            args[i] = _sig[i];
-        return make(xmeet0(that),_open | that._open, args, _ret.meet(that._ret), _fidxs | that._fidxs);
+        Type[] args = new Type[max];
+        for( int i=0; i<min; i++ )
+            args[i] = _sig[i].join(that._sig[i]);
+        // Handle extra args.
+        // If you are high, extra args are TOP
+        // If you are low , extra args are BOT
+        // If the result is high, extra TOPs are dropped.
+        // If the result is low , extra BOTs are dropped.
+
+        // If both are high, the result is high, the extras are TOP.
+        // If we are JOIN'ing args, the extras are all TOP, the JOINs
+        // are all TOP and we can drop the extra TOPs and be short.
+
+        // If we are MEET'ing args, the extras are all TOP, the JOINS
+        // are real and we keep the extras and be long.
+
+
+        // If both are low, the result is low, the extras are BOT.
+        // If we are JOIN'ing args, tne extras are all BOT, the JOINS
+        // are real and we keep the extras and be long.
+
+        // If we are MEET'ing args, tne extras are all BOT, the MEETS
+        // are all BOT and we can drop the extra BOTs and be short.
+
+
+        // If we are mixed, the result is low, and the extras are mixed.
+
+
+        // TOP/BOTTOM missing args are tied to JOIN vs MEET
+        for( int i = min; i<max; i++ ) {
+            Type t0 = i < this._sig.length ? this._sig[i] : (b0 ? TOP : BOTTOM);
+            Type t1 = i < that._sig.length ? that._sig[i] : (b1 ? TOP : BOTTOM);
+            args[i] = t0.join(t1);
+        }
+
+        byte xmeet0 = xmeet0(that);
+        if( min < max ) {
+            if( b0 | b1 ) {
+                // result is open, trim trailing BOT
+                if( args[max-1] == TOP ) {
+                    //assert min==nargs;
+                    assert args[min]==TOP;
+                    args = Arrays.copyOfRange(args,0,min);
+                } //else assert max==nargs;
+
+            } else {
+                // result is closed, trim trailing TOP
+                if( args[max-1] == BOTTOM ) {
+                    //assert min==nargs;
+                    assert args[min]==BOTTOM;
+                    args = Arrays.copyOfRange(args,0,min);
+                } //else assert max==nargs;
+            }
+        }
+
+        return make(xmeet0, _open | that._open, args, _ret.meet(that._ret), _fidxs | that._fidxs);
     }
+
     static Type[] xmeet( Type[] ts0, Type[] ts1) {
         if( ts0==ts1 ) return ts0;
         assert ts0.length==ts1.length;
@@ -138,8 +197,19 @@ public class TypeFunPtr extends TypeNil {
         return d;
     }
 
-    // RHS is NIL; do not deep-dual when crossing the centerline
-    @Override public Type meet0() { return _nil==3 ? this : make((byte)3,_open,_sig,_ret,_fidxs); }
+    // RHS is NIL; deep-dual when crossing the centerline
+    @Override public Type meet0() {
+        if( _nil==3 ) return this;
+        if( _nil==2 ) return make((byte)3,_open,_sig,_ret,_fidxs);
+
+        //Type[] sig = new Type[_sig.length];
+        //for( int i=0; i<_sig.length; i++ )
+        //    sig[i] = _sig[i].isHigh() ? _sig[i].dual() : _sig[i];
+        //
+        //Type ret = _ret.isHigh() ? _ret.dual() : _ret;
+        //return make((byte)3,_open,sig,ret,_fidxs);
+        return make((byte)3,_open,_sig,_ret,_fidxs);
+    }
 
     @Override public boolean isHigh() { return _nil <= 1 || (_nil==2 && _fidxs==0); }
 

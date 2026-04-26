@@ -151,6 +151,7 @@ public abstract class GlobalCodeMotion {
             if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
             else if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
             else if( n instanceof ProjNode && n.in(0) instanceof CFGNode cfg ) late[n._nid] = cfg;
+            else if( n instanceof FunPtrNode fptr ) late[n._nid] = fptr.cfg0();
             else {
 
                 // All uses done?

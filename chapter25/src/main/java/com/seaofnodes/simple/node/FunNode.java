@@ -87,6 +87,17 @@ public class FunNode extends RegionNode {
     public void setRet(ReturnNode ret) { _ret=ret; }
     public ReturnNode ret() { assert _ret!=null; return _ret; }
 
+    public FunPtrNode fptr() {
+        FunPtrNode fptr = null;
+        for( Node use : _outputs ) {
+            if( use instanceof FunPtrNode fptr2 ) {
+                assert fptr==null;
+                fptr = fptr2;
+            }
+        }
+        return fptr;
+    }
+
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
     public void setSig( TypeFunPtr sig ) {
@@ -145,19 +156,18 @@ public class FunNode extends RegionNode {
 
         // Attempt to get rid of the unknown caller.
         // - Must be past Parser, which invents new calls "from whole cloth".
-        // - Must have a private name
-        // - Function pointer constant cannot have escaped
-        if( CODE._phase.ordinal() > CodeGen.Phase.Parse.ordinal() && in(1) instanceof StartNode ) {
-            if( _name==null || _name.contains( "._" ) ) {
-                // TODO: REALLY EXPENSIVE WAY TO FIND USES
-                Node con = new ConstantNode(_sig).peephole();
-                boolean escapes = false;
-                for( Node use : con._outputs )
-                    // TODO: no escape for Call-FP uses or if-tests
-                    { escapes = true; break; }
-                // If the function pointer does not escape, remove the unknown caller
+        // - FIDX is in the escape set
+        if( in(1) instanceof StartNode ) {
+            Type tstop = CODE._stop._type;
+            if( tstop instanceof TypeTuple tt ) {
+                // Is this FIDX in the escape set?
+                TypeFunPtr escapeSet = (TypeFunPtr)tt._types[3];
+                TypeFunPtr sig = sig();
+                boolean escapes = (escapeSet.fidxs() & sig.fidxs()) != 0;
                 if( !escapes )
                     return removeDeadPath(1);
+            } else {
+                assert tstop==Type.TOP || tstop==Type.BOTTOM;
             }
         }
 
@@ -243,6 +253,9 @@ public class FunNode extends RegionNode {
         // Visit self as CFG outside of the function
         if( n instanceof CFGNode && !cfgs.get(n._nid) && unfolded( n ) )
             return false;
+        //
+        if( n instanceof FunPtrNode )
+            return false;
         // Visit n.cfg() outside of function
         if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) && unfolded( n.in( 0 ) ) )
             return false;
@@ -297,10 +310,10 @@ public class FunNode extends RegionNode {
                 call.unlink(fun2,1); // Recursive calls unlink
             else  fun2.removeDeadPath(1); // Start and external calls can just be removed
 
-        // Flip to a new FIDX to avoid confusion with the old one
-        TypeFunPtr sig2 = _sig.makeFrom(CodeGen.CODE.nextFIDX());
-        fun2._sig = sig2;
-
+        // Flip to a new FIDX to avoid confusion with the old one.
+        // This is a non-monotonic (sideways) type move, only applicable
+        // because fun2 is new.
+        fun2._sig = _sig.makeFrom(CodeGen.CODE.nextFIDX());
         return fun2;
     }
 

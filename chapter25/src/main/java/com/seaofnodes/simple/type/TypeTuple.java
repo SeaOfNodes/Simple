@@ -29,6 +29,13 @@ public class TypeTuple extends Type {
     }
     @Override boolean isFree() { return _types==null; }
 
+    public TypeTuple meetFrom(int idx, Type t ) {
+        Type tx = _types[idx].meet(t);
+        if( _types[idx]==tx ) return this;
+        Type[] types = _types.clone();
+        types[idx] = tx;
+        return make(types);
+    }
 
     public static final TypeTuple BOT = malloc(new Type[0]).intern();
     public static final TypeTuple TOP = BOT.dual();
@@ -102,7 +109,7 @@ public class TypeTuple extends Type {
         return align;
     }
 
-    public Type ret() { assert _types.length==3; return _types[2]; }
+    public Type ret() { assert _types.length>=3; return _types[2]; }
 
     @Override public int nkids() { return _types.length; }
     @Override public Type at( int idx ) { return _types[idx]; }
