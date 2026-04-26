@@ -162,26 +162,24 @@ abstract public class Opto {
             // If a otherwise-dead function pointer escapes, any future linked
             // caller might find and call it.  Force the function to be alive
             // and called by Start.
-            if( n != code._stop && n instanceof StopNode ) {
-                for( Node def : n._inputs ) {
-                    ReturnNode ret = (ReturnNode)def;
-                    // TODO: Check for function ptrs escaping through memory
-                    if( ret._type instanceof TypeTuple tt && tt._types[2] instanceof TypeFunPtr tfp ) {
-                        // If an anonymous function has its address taken, it needs to
-                        // be available in some compilation unit with a name that
-                        // *other* CUs can link against.
-                        for( long fidxs=tfp.fidxs(); fidxs!=0; fidxs=TypeFunPtr.nextFIDX(fidxs) ) {
-                            int fidx = Long.numberOfTrailingZeros(fidxs);
-                            FunNode fun = code._linker.at(fidx);
-                            if( !fun.isDead() && (fun.nIns() < 2 || fun.in(1) != code._start ) ) {
-                                // Function is added back to its original CompUnit
-                                fun._compunit._stop.addDef(fun.ret());
-                                // Function is reachable by any *remote* caller who gets the pointer!
-                                fun.insertDef(1,code._start);
-                                for( Node p : fun._outputs )
-                                    if( p instanceof ParmNode parm )
-                                        parm.insertDef(1,code.con(parm._con));
-                            }
+            if( n instanceof ReturnNode ret ) {
+                // TODO: Check for function ptrs escaping through memory
+                if( ret._type instanceof TypeTuple tt && tt._types[2] instanceof TypeFunPtr tfp ) {
+                    // If an anonymous function has its address taken, it needs to
+                    // be available in some compilation unit with a name that
+                    // *other* CUs can link against.
+                    for( long fidxs=tfp.fidxs(); fidxs!=0; fidxs=TypeFunPtr.nextFIDX(fidxs) ) {
+                        int fidx = Long.numberOfTrailingZeros(fidxs);
+                        FunNode fun = code._linker.at(fidx);
+                        if( !fun.isDead() && (fun.nIns() < 2 || fun.in(1) != code._start ) ) {
+                            // Function is added back to its original CompUnit
+                            fun._compunit._stop.addDef(fun.ret());
+                            // Function is reachable by any *remote* caller who gets the pointer!
+                            fun.insertDef(1,code._start);
+                            code._iter.add(fun);
+                            for( Node p : fun._outputs )
+                                if( p instanceof ParmNode parm )
+                                    parm.insertDef(1,code.con(parm._con));
                         }
                     }
                 }

@@ -86,7 +86,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // multiple targets or no CallNode (malformed because dying).
         if( !_folding && nIns()==2 && in(0) instanceof CallNode call ) {
             Node fptr = call.fptr();
-            if( fptr instanceof ConstantNode && // We have an immediate call
+            if( fptr.isConst() && // We have an immediate call
                 // Function is being called, and its not-null
                 fptr._type instanceof TypeFunPtr tfp && tfp.notNull() &&
                 // Arguments are correct
@@ -106,12 +106,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     // Clone the function body
                     FunNode fun2 = fun.copyBody();
                     // Call uses the unique new function
-                    Node fptr2= new ConstantNode(fun2.sig()).peephole();
+                    FunPtrNode fptr2 = new FunPtrNode(fun2.ret(),fun2.sig().fidx()).init();
                     call.setDef(call.nIns()-1,fptr2);
                     // Link to the new function
                     call.link(fun2);
-                    fun = fun2;
                     assert trivialInlining( fptr2, fun2 )==0;
+                    fun = fun2;
                     isTrivial = 0;
                 }
 

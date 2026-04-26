@@ -1,7 +1,9 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 
 import java.util.BitSet;
 import java.util.HashMap;
@@ -55,7 +57,20 @@ public class StopNode extends CFGNode {
 
     @Override
     public Type compute() {
-        return Type.BOTTOM;
+        // During Parsing, new Stops and Returns are being added.  This Stop
+        // cannot know if more are coming, so must assume the worst.
+        if( CodeGen.CODE._phase ==null || CodeGen.CODE._phase == CodeGen.Phase.Parse )
+            return TypeTuple.make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM,TypeFunPtr.BOT);
+        // Just meet-over-inputs
+        Type tt = Type.TOP;
+        for( Node def : _inputs ) {
+            tt = tt.meet(def._type);
+            // Returns for <clinit> are always alive because program semantics, so
+            // force their FIDX to escape
+            if( def instanceof ReturnNode ret && ret.fun().isClz() )
+                tt = ((TypeTuple)tt).meetFrom(3,ret.fun().sig());
+        }
+        return tt;
     }
 
     @Override
