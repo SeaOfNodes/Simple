@@ -180,6 +180,8 @@ public class PhiNode extends TypeNode {
             }
             if( in(1) instanceof EscapeNode )
                 return false;
+            if( op instanceof FunPtrNode )
+                return false; // Different FunPtrs are ... different (fidxs)
             if( op.nOuts() > 1 ) {
                 if( busy==null ) busy = op;
                 else {         // Too many users, but addDep in case lose users

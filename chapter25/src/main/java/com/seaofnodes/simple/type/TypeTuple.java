@@ -43,6 +43,7 @@ public class TypeTuple extends Type {
     public static final TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
     public static final TypeTuple START= make(Type.CONTROL,TypeMem.TOP,TypeInteger.BOT);
     public static final TypeTuple RET  = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM);
+    public static final TypeTuple STOP = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM, TypeFunPtr.BOT);
 
     public static final TypeTuple IF_BOTH    = make(Type. CONTROL,Type. CONTROL);
     public static final TypeTuple IF_NEITHER = make(Type.XCONTROL,Type.XCONTROL);

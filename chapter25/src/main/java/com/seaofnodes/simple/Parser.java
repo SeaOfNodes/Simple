@@ -1055,7 +1055,7 @@ public class Parser {
         Type targ = isClz ? TypeInteger.BOT : privMem;
         Type tret = isClz ? Type.BOTTOM     : privMem;
         Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
-        TypeFunPtr sig = TypeFunPtr.make1((byte)2, false, targs, tret, _code.nextFIDX());
+        TypeFunPtr sig = TypeFunPtr.make1((byte)2, true, targs, tret, _code.nextFIDX());
 
         String fname = (typeName + (isClz ? ".<clinit>" : ".<init>")).intern();
         String[] ids = new String[]{"self", isClz ? "arg" : "#selfMem"};
@@ -1193,14 +1193,14 @@ public class Parser {
         if( _scope.inConstructor() )
             ts.push(TypeMemPtr.make((TypeStruct)TYPES.get(_nestedType)));
         if( match("}") )                 // No-arg function { -> type }
-            return TypeFunPtr.make(match("?"),false,ts.asAry(),t0);
+            return TypeFunPtr.make(match("?"),ts.asAry(),t0);
         ts.push(t0);            // First argument
         while( true ) {
             if( match("->") ) { // End of arguments, parse return
                 Type ret = type();
                 if( ret==null || !match("}") )
                     return posT(old); // Not a function
-                return TypeFunPtr.make(match("?"),false,ts.asAry(),ret);
+                return TypeFunPtr.make(match("?"),ts.asAry(),ret);
             }
             Type t1 = type();
             if( t1==null ) return posT(old); // Not a function
@@ -1911,7 +1911,7 @@ public class Parser {
         }
         require("->");
         // Make a concrete function type, with a fidx
-        TypeFunPtr tfp = _code.makeFun(TypeFunPtr.make(false,false,ts.asAry(),Type.BOTTOM));
+        TypeFunPtr tfp = _code.makeFun(TypeFunPtr.make(false,ts.asAry(),Type.BOTTOM));
         ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
         return new FunPtrNode(ret,tfp.fidx()).peephole();
     }

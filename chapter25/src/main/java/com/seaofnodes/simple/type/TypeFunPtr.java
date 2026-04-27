@@ -19,7 +19,6 @@ public class TypeFunPtr extends TypeNil {
     // A TypeFunPtr is Signature and a set of functions.
     public Type[] _sig;
     public Type _ret;
-    // TODO:
     boolean _open;              // Extra args are true:BOTTOM, false:TOP
     // Cheesy easy implementation for a small set; 1 bit per unique function
     // within the same Type[].  Can be upgraded to a BitSet for larger classes
@@ -60,7 +59,7 @@ public class TypeFunPtr extends TypeNil {
         if( f2==fun ) return fun;
         return VISIT.isEmpty() ? f2.free(fun) : f2.delayFree(fun);
     }
-    public static TypeFunPtr make( boolean nil, boolean open, Type[] sig, Type ret ) { return make((byte)(nil ? 3 : 2),open,sig,ret,-1); }
+    public static TypeFunPtr make( boolean nil, Type[] sig, Type ret ) { return make((byte)(nil ? 3 : 2),true,sig,ret,-1); }
     public static TypeFunPtr make1( byte nil, boolean open, Type[] sig, Type ret, int fidx ) {
         assert fidx < 64;       // Need a larger fidx space
         return make(nil,open,sig,ret,1L<<fidx);
@@ -82,88 +81,40 @@ public class TypeFunPtr extends TypeNil {
     static final Type[] TINT    = new Type[]{TypeInteger.BOT};
     static final Type[] TINTMEM = new Type[]{TypeInteger.BOT,TypeFloat.F32};
     static final Type[] TINTINT = new Type[]{TypeInteger.BOT,TypeInteger.BOT};
-    public static TypeFunPtr BOT   = make((byte)3,false,TEMPTY,Type.BOTTOM,-1);
-    public static TypeFunPtr TEST  = make((byte)2,false,TINTMEM,TypeInteger.BOT, 1);
-    public static TypeFunPtr TEST0 = make((byte)3,false,TINTMEM,TypeInteger.BOT, 3);
-    public static TypeFunPtr MAIN  = make((byte)3,false,TINT   ,Type.BOTTOM,-1); // Main can return anything
-    public static TypeFunPtr CALLOC= make((byte)3,false,TINTINT,TypeMemPtr .BOT,-1);
+    public static TypeFunPtr BOT   = make((byte)3,true,TEMPTY,Type.BOTTOM,-1);
+    public static TypeFunPtr TEST  = make((byte)2,true,TINTMEM,TypeInteger.BOT, 1);
+    public static TypeFunPtr TEST0 = make((byte)3,true,TINTMEM,TypeInteger.BOT, 3);
+    public static TypeFunPtr MAIN  = make((byte)3,true,TINT   ,Type.BOTTOM,-1); // Main can return anything
+    public static TypeFunPtr CALLOC= make((byte)3,true,TINTINT,TypeMemPtr .BOT,-1);
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT);  ts.add(MAIN);ts.add(CALLOC); }
 
+    private static final Type[] ARG_EMPTY = new Type[0];
     @Override
     Type xmeet(Type t) {
         TypeFunPtr that = (TypeFunPtr) t;
-        // if equal, no matters.
-        // if short is BOT, chop     ; recurPre on short.
-        // if short is TOP, copy long; recurPre on long.
-        boolean b0 = !this.isHigh();
-        boolean b1 = !that.isHigh();
-        int min = Math.min(_sig.length,that._sig.length);
-        int max = Math.max(_sig.length,that._sig.length);
+        boolean open = _open | that._open;
+        Type def0 = this._open ? BOTTOM : TOP;
+        Type def1 = that._open ? BOTTOM : TOP;
+        Type def  =       open ? BOTTOM : TOP;
 
-        // nargs:
-        int len1 = this.isHigh() ? 1000-this._sig.length : this._sig.length;
-        int len2 = that.isHigh() ? 1000-that._sig.length : that._sig.length;
-        int nargs = Math.max(len1,len2);
-        if( isHigh() & that.isHigh() )
-            nargs = 1000-nargs;
-
-        // Recurse all common fields
-        Type[] args = new Type[max];
-        for( int i=0; i<min; i++ )
-            args[i] = _sig[i].join(that._sig[i]);
-        // Handle extra args.
-        // If you are high, extra args are TOP
-        // If you are low , extra args are BOT
-        // If the result is high, extra TOPs are dropped.
-        // If the result is low , extra BOTs are dropped.
-
-        // If both are high, the result is high, the extras are TOP.
-        // If we are JOIN'ing args, the extras are all TOP, the JOINs
-        // are all TOP and we can drop the extra TOPs and be short.
-
-        // If we are MEET'ing args, the extras are all TOP, the JOINS
-        // are real and we keep the extras and be long.
-
-
-        // If both are low, the result is low, the extras are BOT.
-        // If we are JOIN'ing args, tne extras are all BOT, the JOINS
-        // are real and we keep the extras and be long.
-
-        // If we are MEET'ing args, tne extras are all BOT, the MEETS
-        // are all BOT and we can drop the extra BOTs and be short.
-
-
-        // If we are mixed, the result is low, and the extras are mixed.
-
-
-        // TOP/BOTTOM missing args are tied to JOIN vs MEET
-        for( int i = min; i<max; i++ ) {
-            Type t0 = i < this._sig.length ? this._sig[i] : (b0 ? TOP : BOTTOM);
-            Type t1 = i < that._sig.length ? that._sig[i] : (b1 ? TOP : BOTTOM);
-            args[i] = t0.join(t1);
+        // Going to pre-trim args, so do not need to over-allocate.
+        // Roll backwards over args.
+        int nargs; for( nargs=Math.max(_sig.length,that._sig.length); nargs>0; nargs-- ) {
+            Type t0 = nargs <= this._sig.length ? this._sig[nargs-1] : def0;
+            Type t1 = nargs <= that._sig.length ? that._sig[nargs-1] : def1;
+            if( t0.meet(t1) != def )
+                break;
         }
 
-        byte xmeet0 = xmeet0(that);
-        if( min < max ) {
-            if( b0 | b1 ) {
-                // result is open, trim trailing BOT
-                if( args[max-1] == TOP ) {
-                    //assert min==nargs;
-                    assert args[min]==TOP;
-                    args = Arrays.copyOfRange(args,0,min);
-                } //else assert max==nargs;
+        Type[] args = nargs==0 ? ARG_EMPTY : new Type[nargs];
 
-            } else {
-                // result is closed, trim trailing TOP
-                if( args[max-1] == BOTTOM ) {
-                    //assert min==nargs;
-                    assert args[min]==BOTTOM;
-                    args = Arrays.copyOfRange(args,0,min);
-                } //else assert max==nargs;
-            }
+        for( int i=0; i<nargs; i++ ) {
+            Type t0 = i < this._sig.length ? this._sig[i] : def0;
+            Type t1 = i < that._sig.length ? that._sig[i] : def1;
+            args[i] = t0.meet(t1);
         }
 
-        return make(xmeet0, _open | that._open, args, _ret.meet(that._ret), _fidxs | that._fidxs);
+        return make(xmeet0(that), open, args, _ret.meet(that._ret), _fidxs | that._fidxs);
     }
 
     static Type[] xmeet( Type[] ts0, Type[] ts1) {
@@ -221,7 +172,7 @@ public class TypeFunPtr extends TypeNil {
 
     @Override TypeFunPtr _close( String name, HashMap<String, Type> TYPES ) {
         Type[] sig = new Type[_sig.length];
-        TypeFunPtr fun = malloc(_nil,false,sig,null,_fidxs);
+        TypeFunPtr fun = malloc(_nil,true,sig,null,_fidxs);
         // Now start the recursion
         fun._ret = _ret._close(name, TYPES );
         for( int i=0; i<sig.length; i++ )
@@ -232,7 +183,7 @@ public class TypeFunPtr extends TypeNil {
     // Replace recursively all TypeBuilders with cyclic TypeStructs
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
         Type[] sig = new Type[_sig.length];
-        TypeFunPtr fun = malloc(_nil,false,sig,null,_fidxs);
+        TypeFunPtr fun = malloc(_nil,true,sig,null,_fidxs);
         // Now start the recursion
         fun._ret = _ret._upgradeType(TYPES);
         for( int i=0; i<sig.length; i++ )
@@ -283,12 +234,12 @@ public class TypeFunPtr extends TypeNil {
         if( tag < 6 ) {
             int fidx = bais.read();
             assert fidx < 64; // Need a larger fidx space
-            return malloc((byte)2,false,new Type[tag],null,1L<<fidx);
+            return malloc((byte)2,true,new Type[tag],null,1L<<fidx);
         }
         byte nil = (byte)(tag==6 ? 2 : 3);
         int nargs = bais.packed1();
         long fidxs = bais.packed8();
-        return malloc(nil,false,new Type[nargs],null,fidxs);
+        return malloc(nil,true,new Type[nargs],null,fidxs);
     }
 
     @Override

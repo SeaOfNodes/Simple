@@ -101,6 +101,7 @@ public class CompUnit {
     public void addFun(CodeGen code, FunNode fun) {
         if( _stop == null )
             code._stop.addDef(_stop = new StopNode());
+        code.add(_stop);
         _stop.addDep(fun);
         _stop.addDef(fun.ret());
     }

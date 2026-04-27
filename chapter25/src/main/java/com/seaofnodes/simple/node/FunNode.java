@@ -166,6 +166,7 @@ public class FunNode extends RegionNode {
                 boolean escapes = (escapeSet.fidxs() & sig.fidxs()) != 0;
                 if( !escapes )
                     return removeDeadPath(1);
+                addDep(CODE._stop);
             } else {
                 assert tstop==Type.TOP || tstop==Type.BOTTOM;
             }
@@ -194,7 +195,10 @@ public class FunNode extends RegionNode {
         return _folding ? super.idepth() : CodeGen.CODE.iDepthAt(1);
     }
     // Bypass Region idom, always assume idom is Start
-    @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : (nIns()>1 ? cfg(1) : null); }
+    @Override public CFGNode idom(Node dep) {
+        if( _folding && nIns()==3 ) return cfg(2);
+        return null;
+    }
 
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
@@ -217,6 +221,13 @@ public class FunNode extends RegionNode {
         // False if name starts with underscore, skipping any leading struct names.
         int idx = _name.lastIndexOf('.')+1;
         if( _name.charAt(idx)=='_' ) return false;
+        // False for <init> on private classes
+        // TODO: define privacy recursively...
+        if( isInit() ) {
+            idx = _name.lastIndexOf('.',_name.length()-8)+1;
+            return _name.charAt( idx ) != '_';
+        }
+
         return true;
     }
 
