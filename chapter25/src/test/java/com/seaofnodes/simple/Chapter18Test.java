@@ -236,7 +236,7 @@ ps[1] = new _Person;
 return fcn(ps,1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return 0; return Phi(Region,.age,0); ]", code.print());
+        assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
 
@@ -271,7 +271,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #2}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { i64 -> 2 #2}?",e.getMessage()); }
     }
 
 

@@ -47,6 +47,7 @@ public class StopNode extends CFGNode {
     public ReturnNode ret() {
         ReturnNode ret1 = null;
         for( Node n : _inputs ) {
+            // TODO: remove isPublic
             if( n instanceof ReturnNode ret && ret.fun().isPublic() ) {
                 if( ret1 != null ) return null; // Ambiguous
                 ret1 = ret;
@@ -56,19 +57,39 @@ public class StopNode extends CFGNode {
     }
 
     @Override
-    public Type compute() {
+    public TypeTuple compute() {
         // During Parsing, new Stops and Returns are being added.  This Stop
         // cannot know if more are coming, so must assume the worst.
         if( CodeGen.CODE._phase ==null || CodeGen.CODE._phase == CodeGen.Phase.Parse )
-            return TypeTuple.make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM,TypeFunPtr.BOT);
+            return TypeTuple.STOP;
         // Just meet-over-inputs
-        Type tt = Type.TOP;
+        TypeTuple tt = TypeTuple.STOP.dual();
         for( Node def : _inputs ) {
-            tt = tt.meet(def._type);
-            // Returns for <clinit> are always alive because program semantics, so
-            // force their FIDX to escape
-            if( def instanceof ReturnNode ret && ret.fun().isClz() )
-                tt = ((TypeTuple)tt).meetFrom(3,ret.fun().sig());
+            if( def instanceof ReturnNode ret ) {
+                if( ret._type == Type.TOP ) continue;
+                if( !(ret._type instanceof TypeTuple tret) )
+                    return TypeTuple.STOP; // Some broken thing
+                // Tuple meet the first 3 elements
+                tt = tt.meetFrom(0,tret._types[0]);
+                tt = tt.meetFrom(1,tret._types[1]);
+                tt = tt.meetFrom(2,tret._types[2]);
+                // Gather all TFPs for the last element
+                if( tret._types[2] instanceof TypeFunPtr tfp )
+                    tt = tt.meetFrom(3,tfp);
+                if( tret._types[1] instanceof TypeMem tmem && tmem._t instanceof TypeFunPtr tfp )
+                    tt = tt.meetFrom(3,tfp);
+
+                // Returns for <clinit> are always alive because program
+                // semantics, so force their FIDX to escape
+                if( ret.fun().isClz() )
+                    tt = tt.meetFrom(3,ret.fun().sig());
+                // Returns for <init> are alive if the class is public
+                if( ret.fun().isInit() && ret.fun().isPublic() )
+                    tt = tt.meetFrom(3,ret.fun().sig());
+
+            } else
+                // Stacked StopNodes just MEET
+                tt = (TypeTuple)tt.meet(def._type);
         }
         return tt;
     }

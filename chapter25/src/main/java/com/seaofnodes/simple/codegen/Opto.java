@@ -26,6 +26,10 @@ abstract public class Opto {
     // FunNodes.
     public static void opto(CodeGen code) {
 
+        // On the phase-shift to Opto, no more "unknown callers" can happen -
+        // so at least all StopNodes can improve.
+        code.addAll(code._stop._inputs);
+
         // Pessimistic peephole optimization on a worklist - this completes
         // whatever peepholes can run after parsing.
         code._iter.iterate(code);
@@ -84,8 +88,7 @@ abstract public class Opto {
                 FunNode fun = ret.fun();
                 // Non-public functions unhook completely from Start.
                 // They only can be reached if directly called.
-                if( !fun.isPublic() ) {
-                    assert fun.in(1)==code._start; // Start always in slot 1
+                if( !fun.isPublic() && fun.in(1)==code._start ) {
                     fun.removeDeadPath(1);
                     // Unhook from Stop without treating the ReturnNode as
                     // DEAD.  It stays in limbo until Opto links when a caller

@@ -19,6 +19,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     public CallEndNode(CallNode call) { super(new Node[]{call}); _rpc = TypeRPC.constant(_nid); }
     public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
+    public CallEndNode(double ignore) { super(new Node[0]); _rpc = TypeRPC.constant(_nid); }
     @Override public Tag serialTag() { return Tag.CallEnd; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
         baos.packed1(nIns());
@@ -217,4 +218,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
     @Override public Node pcopy(int idx) {
         return _folding ? in(1).in(idx) : null;
     }
+
+    @Override public Node copy() {
+        return new CallEndNode(1.2);
+    }
+
 }
