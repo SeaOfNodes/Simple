@@ -1,0 +1,46 @@
+A Simple Compiler Tutorial
+
+
+-- intro
+https://github.com/SeaOfNodes
+https://github.com/SeaOfNodes/Simple
+
+A compiler Book written as a series of Chapters, each chapter adds a new feature and builds on the prior.
+The end result produces ELF files for x86, Arm, Risc5.
+
+-- Poll the audience, what level are we at?
+
+"weak SSA knowledge"
+
+- Walk & Talk chapters 1-4
+- - ReadMe's.  Visit lattice.
+- EasySSA, do first half
+(10mins)
+
+
+- Walk & Talk chapters 5-7
+- EasySSA, 2nd half
+(10mins)
+
+
+- Walk & Talk chapters 8-9
+- Sea-of-Nodes, 1st half
+(10mins)
+
+- Memory, Chapter 10
+- Sea-of-Nodes, 2nd half
+(10 mins)
+
+
+Global Code Motion
+- 1 or 2 slides
+
+"Sugar"
+- Floats, narrow ints, refs, constructors, mutability, var/val,
+  update-operators
+- 1 or 2 slides
+
+
+
+
+--- Q&A Directed
