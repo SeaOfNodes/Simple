@@ -212,9 +212,14 @@ abstract public class Opto {
         code._start.walk( x -> {
                 assert x.compute() == x._type;      // Hit the fixed point
                 assert x._nid >= oldTypes._len || x._type.isa(oldTypes.at(x._nid)); // Hit at least the bottom-up type
-                code._iter.add(x);
+                code.add(x);
                 return null;
             });
+
+        // Also all function headers, just trying to get the dead ones
+        for( FunNode fun : code._linker )
+            if( fun != null && !fun.isDead() && fun._type.isHigh() )
+                code.add(fun);
     }
 
     // Freeze field sizes; do struct layouts; convert field offsets into

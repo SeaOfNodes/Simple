@@ -17,7 +17,11 @@ public abstract class TypeNode extends Node {
 
     // Upgrade the internal type
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
-        Type t = _con.upgradeType(TYPES);
+        return liftType(_con.upgradeType(TYPES));
+    }
+
+    // Lift type
+    public boolean liftType( Type t ) {
         if( t == _con ) return false;
         unlock();               // Unlock before changing _con
         _con = t;

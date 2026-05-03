@@ -354,6 +354,7 @@ public class x86_64_v2 extends Machine {
         case DivNode      div -> new DivX86(div);
         case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunX86(fun);
+        case FunPtrNode   fptr-> fptr(fptr);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
@@ -457,7 +458,7 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node call(CallNode call) {
-        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
+        return call.fptr() instanceof FunPtrNode con && con._type instanceof TypeFunPtr tfp
             ? new CallX86(call, tfp)
             : new CallRX86(call);
     }
@@ -510,12 +511,18 @@ public class x86_64_v2 extends Machine {
         return switch (con._con) {
         case TypeInteger ti -> new IntX86(con,ext);
         case TypeFloat   tf -> new FltX86(con,ext);
-        case TypeFunPtr tfp -> new TFPX86(con,ext);
+        case TypeFunPtr tfp -> throw Utils.TODO("Use FunPtr instead of Constant");
         case TypeMemPtr tmp -> new TMPX86(con,ext);
         case TypeNil tn -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t == Type.NIL ? new IntX86(con,null) : new ConstantNode(con);
         };
+    }
+    private Node fptr( FunPtrNode fptr ) {
+        FunNode fun = fptr.ret().fun();
+        // External TFPs are name-only, linker will fill in details.
+        // Internal TFPs use the FIDX internally
+        return new TFPX86(fptr,fun._extern ? fun._name : null);
     }
 
     private Node i2f8(ToFloatNode tfn) {

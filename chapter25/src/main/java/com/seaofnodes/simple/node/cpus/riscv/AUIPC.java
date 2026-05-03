@@ -1,19 +1,19 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.codegen.*;
-import com.seaofnodes.simple.node.ConstantNode;
+import com.seaofnodes.simple.node.FunPtrNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 // Add upper 20bits to PC.  Immediate comes from the relocation info.
-public class AUIPC extends ConstantNode implements MachNode, RIPRelSize {
-    AUIPC( Type tfp ) { super(tfp); }
+public class AUIPC extends FunPtrNode implements MachNode, RIPRelSize {
+    AUIPC( FunPtrNode fptr ) { super(fptr); }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public AUIPC copy() { return new AUIPC(_con); }
+    @Override public AUIPC copy() { return new AUIPC(this); }
     @Override public String op() { return "auipc"; }
     @Override public void encoding( Encoding enc ) {
         enc.relo(this);
@@ -36,7 +36,6 @@ public class AUIPC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void asm(CodeGen code, SB sb) {
         String reg = code.reg(this);
         sb.p(reg).p(" = PC+#");
-        if( _con == null ) sb.p("---");
-        else _con.print(sb);
+        _type.print(sb);
     }
 }

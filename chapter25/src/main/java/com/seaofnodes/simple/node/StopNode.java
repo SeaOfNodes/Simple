@@ -69,6 +69,11 @@ public class StopNode extends CFGNode {
                 if( ret._type == Type.TOP ) continue;
                 if( !(ret._type instanceof TypeTuple tret) )
                     return TypeTuple.STOP; // Some broken thing
+
+                // Capture (precisely?) all escaping pointer aliases and fidxs.
+                // Escaped fidxs means the linked world can call that function;
+                // escaped aliases means the linked world can R/W those aliases.
+
                 // Tuple meet the first 3 elements
                 tt = tt.meetFrom(0,tret._types[0]);
                 tt = tt.meetFrom(1,tret._types[1]);
@@ -76,8 +81,14 @@ public class StopNode extends CFGNode {
                 // Gather all TFPs for the last element
                 if( tret._types[2] instanceof TypeFunPtr tfp )
                     tt = tt.meetFrom(3,tfp);
-                if( tret._types[1] instanceof TypeMem tmem && tmem._t instanceof TypeFunPtr tfp )
-                    tt = tt.meetFrom(3,tfp);
+                if( tret._types[1] instanceof TypeMem tmem ) {
+                    //if( tmem._t instanceof TypeFunPtr tfp )
+                    //    tt = tt.meetFrom(3,tfp);
+                    if( tmem._t == Type.TOP ) /*nothing*/;
+                    else if( tmem._t == Type.BOTTOM )
+                        tt = tt.meetFrom(3,TypeFunPtr.BOT);
+                    else throw Utils.TODO();
+                }
 
                 // Returns for <clinit> are always alive because program
                 // semantics, so force their FIDX to escape

@@ -164,8 +164,10 @@ public class FunNode extends RegionNode {
                 TypeFunPtr escapeSet = (TypeFunPtr)tt._types[3];
                 TypeFunPtr sig = sig();
                 boolean escapes = (escapeSet.fidxs() & sig.fidxs()) != 0;
-                if( !escapes )
+                if( !escapes ) {
+                    _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
                     return removeDeadPath(1);
+                }
                 addDep(CODE._stop);
             } else {
                 assert tstop==Type.TOP || tstop==Type.BOTTOM;
@@ -208,26 +210,28 @@ public class FunNode extends RegionNode {
         // "sys.<clinit>" is a module, but "sys.io.<clinit>" is not.
         return isClz() && _name.indexOf('.')==_name.lastIndexOf('.');
     }
-    public boolean isInit( ) { return isInit(_name); }
     public boolean isClz ( ) { return isClz (_name); }
+    public boolean isInit( ) { return isInit(_name); }
+    public boolean isInstance() { return isInstance(_name); }
     public static boolean isClz (String name ) { return name!=null && name.endsWith(".<clinit>"); }
-    public static boolean isInstance(String name ) { return name!=null && name.endsWith(".<init>"); }
     public static boolean isInit(String name ) { return name!=null && name.endsWith("init>"); }
+    public static boolean isInstance(String name ) { return name!=null && name.endsWith(".<init>"); }
 
     // Function is public (callable from Start directly).
     public boolean isPublic( ) {
         // Never true for anonymous functions
         if( _name == null ) return false;
-        // False if name starts with underscore, skipping any leading struct names.
-        int idx = _name.lastIndexOf('.')+1;
-        if( _name.charAt(idx)=='_' ) return false;
-        // False for <init> on private classes
-        // TODO: define privacy recursively...
-        if( isInit() ) {
-            idx = _name.lastIndexOf('.',_name.length()-8)+1;
-            return _name.charAt( idx ) != '_';
-        }
+        // Only public for <clinit> and <init>, all others
+        // are found field field loads.
+        if( !isInit() ) return false;
+        // Private class, has to be found via program text, not linker
+        if( _name.charAt(0)=='_' ) return false;
 
+        // No instances of "...clz1._clz2..." where the class name path
+        // includes a private class.
+        if( _name.indexOf("._") != -1 ) return false;
+
+        // Public class <cl/init>
         return true;
     }
 

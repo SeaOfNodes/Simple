@@ -42,6 +42,8 @@ public class NewNode extends Node implements MultiNode {
     }
 
     @Override public TypeTuple compute() {
+        if( ctrl()._type.isHigh() )
+            return TypeTuple.DEAD_NEW;
         return TypeTuple.make(TypeMemPtr.make(_ts), TypeMem.make(1,_ts,true,false));
     }
 

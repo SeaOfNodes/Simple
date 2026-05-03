@@ -675,6 +675,7 @@ public class arm extends Machine {
         case DivNode div     -> new DivARM(div);
         case EscapeNode esc  -> new EscapeNode(esc);
         case FunNode fun     -> new FunARM(fun);
+        case FunPtrNode fptr -> fptr(fptr);
         case IfNode iff      -> jmp(iff);
         case LoadNode ld     -> ld(ld);
         case MemMergeNode mem-> new MemMergeNode(mem);
@@ -753,16 +754,22 @@ public class arm extends Machine {
         return switch( con._con ) {
         case TypeInteger ti -> new IntARM(con,ext);
         case TypeFloat   tf -> new FltARM(con,ext);
-        case TypeFunPtr tfp -> new TFPARM(con,ext);
+        case TypeFunPtr tfp -> throw Utils.TODO("Use FunPtr instead of Constant");
         case TypeMemPtr tmp -> new TMPARM(con,ext);
         case TypeNil tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntARM(con,ext) : new ConstantNode(con);
         };
     }
+    private Node fptr( FunPtrNode fptr ) {
+        FunNode fun = fptr.ret().fun();
+        // External TFPs are name-only, linker will fill in details.
+        // Internal TFPs use the FIDX internally
+        return new TFPARM(fptr,fun._extern ? fun._name : null);
+    }
 
     private Node call(CallNode call){
-        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
+        return call.fptr() instanceof FunPtrNode con && con._type instanceof TypeFunPtr tfp
                 ? new CallARM(call, tfp)
                 : new CallRRARM(call);
     }

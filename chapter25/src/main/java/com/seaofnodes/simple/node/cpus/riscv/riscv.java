@@ -335,6 +335,7 @@ public class riscv extends Machine {
         case DivNode      div -> new DivRISC(div);
         case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunRISC(fun);
+        case FunPtrNode   fptr-> fptr(fptr);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
@@ -388,7 +389,7 @@ public class riscv extends Machine {
     }
 
     private Node call(CallNode call) {
-        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
+        return call.fptr() instanceof FunPtrNode con && con._type instanceof TypeFunPtr tfp
             ? new CallRISC(call, tfp)
             : new CallRRISC(call);
     }
@@ -451,12 +452,18 @@ public class riscv extends Machine {
         }
         // Load from constant pool
         case TypeFloat   tf  -> new FltRISC(con,ext);
-        case TypeFunPtr  tfp -> new TFPRISC(con,ext);
+        case TypeFunPtr  tfp -> throw Utils.TODO("Use FunPtr instead of Constant");
         case TypeMemPtr  tmp -> new TMPRISC(con,ext);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);
         };
+    }
+    private Node fptr( FunPtrNode fptr ) {
+        FunNode fun = fptr.ret().fun();
+        // External TFPs are name-only, linker will fill in details.
+        // Internal TFPs use the FIDX internally
+        return new TFPRISC(fptr,fun._extern ? fun._name : null);
     }
 
     private Node jmp( IfNode iff ) {
