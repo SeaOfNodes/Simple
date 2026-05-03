@@ -490,46 +490,32 @@ public class CodeGen {
 
     	// The remaining passes assume all calls are unlinked; i.e. we are throwing
     	// away the Call Graph here.  Functions only reachable from internal calls
-    	// need to be re-hooked to stop/start less they go dead - which means we
-        // have to hunt the whole graph, and not just the public functions hooked
-        // to Stop.
-        _start.walk( x -> {
-                // Unlink all existing (conservative) linkages.
-                if( x instanceof CallNode call ) {
-                    for( Node y : call._outputs ) {
-                        // Keep function alive and hooked to Start so it gets
-                        // codegen'd.  Function is callable by this call via
-                        // TFP, although perhaps not by any other means.
-                        if( y instanceof FunNode fun && !(fun.in(1) instanceof StartNode) ) {
-                            if( fun.rpc()==null ) // Ensure valid RPC
-                                makeRPC(fun);
-                            // Insert a hook to Start and Stop
-                            fun.insertDef(1,_start);
-                            for( Node use : fun._outputs )
-                                if( use instanceof ParmNode parm )
-                                    parm.insertDef(1,ConstantNode.make(parm._type).peephole());
-                            _stop.addDef(fun.ret());
-    	                    }
-                    }
-                    call.unlink_all();
-                }
-                return null;
-            } );
+    	// need to be re-hooked to stop/start less they go dead.
+        for( FunNode fun : _linker ) {
+            // Already linked to start, not going dead
+            if( fun==null || fun.isDead() || fun.in(1) == _start )
+                continue;
+            // Insert a hook to Start and Stop
+            fun.insertDef(1,_start);
+            for( Node use : fun._outputs )
+                if( use instanceof ParmNode parm )
+                    parm.insertDef(1,ConstantNode.make(parm._type).peephole());
+            ReturnNode ret = fun.ret();
+            fun._compunit._stop.addDef(ret);
+            // Unlink from Call
+            for( int i=2; i<fun.nIns(); i++ )
+                ((CallNode)fun.in(i)).unlink(fun,i--);
+            if( fun.rpc()==null ) { // Ensure valid RPC
+                // First make sure a valid RPC; single-call into multi-fun will have each
+                // function having a single call site, so the RPC becomes a constant and
+                // folds - but since multiple targets, the Call never inlines.  Recreate a
+                // valid RPC so codegen (and Eval2) understands the calling convention.
+                ParmNode rpc = new ParmNode( "$rpc", 0, ret.rpc()._type, fun );
+                ret.setDef( 3, rpc.init() );
+            }
+        }
 
         _times[Phase.Unlink.ordinal()] = System.currentTimeMillis() - t0;
-    }
-    // Make a valid Parm RPC.
-    // First make sure a valid RPC; single-call into multi-fun will have each
-    // function having a single call site, so the RPC becomes a constant and
-    // folds - but since multiple targets, the Call never inlines.  Recreate a
-    // valid RPC so codegen (and Eval2) understands the calling convention.
-    private static void makeRPC( FunNode fun ) {
-        ParmNode rpc = new ParmNode("$rpc",0,fun.ret().rpc()._type,fun);
-        for( int i=1; i<fun.nIns(); i++ ) {
-            CallEndNode cend = ((CallNode)fun.in(i)).cend();
-            rpc.addDef(ConstantNode.make(cend._rpc).peephole());
-        }
-        fun.ret().setDef(3,rpc.init());
     }
 
     // ---------------------------

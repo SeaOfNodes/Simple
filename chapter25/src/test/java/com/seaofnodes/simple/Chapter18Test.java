@@ -211,7 +211,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Top; return Parm_i(x,i64); ]", code.print());
+        assertEquals("return Top;", code.print());
         assertNull( Eval2.eval( code, 0 ) ); // Infinite loop, <clinit> never exits
     }
 
@@ -224,7 +224,7 @@ struct _Person {
   int age;
 };
 
-val fcn = { _Person?[] ps, int x ->
+val _fcn = { _Person?[] ps, int x ->
   val tmp = ps[x];
   if( ps[x] )
     ps[x].age++;
@@ -233,7 +233,7 @@ val fcn = { _Person?[] ps, int x ->
 var ps = new _Person?[2];
 ps[0] = new _Person;
 ps[1] = new _Person;
-return fcn(ps,1);
+return _fcn(ps,1);
 """);
         code.driver(Phase.LocalSched);
         assertEquals("return 0;", code.print());
@@ -271,7 +271,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> 2 #2}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #2}?",e.getMessage()); }
     }
 
 

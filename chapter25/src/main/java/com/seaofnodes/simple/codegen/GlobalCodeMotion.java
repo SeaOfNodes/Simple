@@ -24,7 +24,7 @@ public abstract class GlobalCodeMotion {
         schedEarly(code);
 
         // Break up shared global constants by functions
-        breakUpGlobalConstants(code._start);
+        breakUpGlobalConstants(code._start, code._linker);
 
         code._visit.clear();
         schedLate (code);
@@ -44,45 +44,64 @@ public abstract class GlobalCodeMotion {
     }
 
     // Break up shared global constants by functions
-    private static void breakUpGlobalConstants( Node start ) {
+    private static void breakUpGlobalConstants( Node start, Ary<FunNode> linker ) {
+
         // For all global constants
         for( int i=0; i< start.nOuts(); i++ ) {
             Node con = start.out(i);
-            if( con instanceof MachNode mach && mach.isClone() ) {
-                breakUpGlobalConstants(con);
-                // While constant has users in different functions
-                while( true ) {
-                    // Find a function user, and another function
-                    FunNode fun = null;
-                    boolean done=true;
-                    for( Node use : con.outs() ) {
-                        FunNode fun2 = use instanceof ReturnNode ret ? ret.fun() : use.cfg0().fun();
-                        if( fun==null || fun==fun2 ) fun=fun2;
-                        else { done=false; break; }
-                    }
-                    // Single function user, so this constant is not shared
-                    if( done ) {
-                        if( con.in(0)==start ) i--;
-                        con.setDef(0,fun);
-                        break;
-                    }
-                    // Move function users to a private constant
-                    Node con2 = mach.copy();  // Private constant clone
-                    con2._inputs.set(0,null); // Preserve edge invariants from clone
-                    con2.setDef(0,fun);
-                    // Move function users to this private constant
-                    for( int j=0; j<con._outputs._len; j++ ) {
-                        Node use = con.out(j);
-                        FunNode fun2 = use.cfg0().fun();
-                        if( fun2==fun ) {
-                            use.setDef(use._inputs.find(con),con2);
-                            j--;
-                        }
-                    }
+            if( con instanceof ConstantNode conx && conx._type.isConstant() ) {
+                if( breakUpGlobalConstantSingle(start,con) )
+                    i--;        // Removed a global constant, re-run same index
+            }
+        }
+
+        // For all FunPtrs
+        for( FunNode fun : linker ) {
+            // Already linked to start, not going dead
+            if( fun==null || fun.isDead() )
+                continue;
+            for( Node use : fun.ret()._outputs )
+                if( use instanceof FunPtrNode fptr )
+                    breakUpGlobalConstantSingle( null, fptr );
+        }
+    }
+
+
+    private static boolean breakUpGlobalConstantSingle( Node start, Node con) {
+        // While constant has users in different functions
+        while( true ) {
+            // Find a function user, and another function
+            FunNode fun = null;
+            boolean done=true;
+            for( Node use : con.outs() ) {
+                if( use == null ) continue;
+                FunNode fun2 = use instanceof ReturnNode ret ? ret.fun() : use.cfg0().fun();
+                if( fun==null || fun==fun2 ) fun=fun2;
+                else { done=false; break; }
+            }
+            // Single function user, so this constant is not shared
+            if( done ) {
+                boolean shared = con.in(0)!=start;
+                con.setDef(0,fun);
+                return shared;
+            }
+            // Move function users to a private constant
+            Node con2 = con.copy();   // Private constant clone
+            con2._inputs.set(0,null); // Preserve edge invariants from clone
+            con2.setDef(0,fun);
+            // Move function users to this private constant
+            for( int j=0; j<con._outputs._len; j++ ) {
+                Node use = con.out(j);
+                if( use == null ) continue;
+                FunNode fun2 = use.cfg0().fun();
+                if( fun2==fun ) {
+                    use.setDef(use._inputs.find(con),con2);
+                    j--;
                 }
             }
         }
     }
+
 
     // ------------------------------------------------------------------------
     // Visit all nodes in CFG Reverse Post-Order, essentially defs before uses

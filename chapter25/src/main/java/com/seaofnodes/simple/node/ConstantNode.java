@@ -39,6 +39,8 @@ public class ConstantNode extends TypeNode {
     @Override public String  label() { return "#"+_con; }
     @Override public String glabel() { return "#"+_con.gprint(); }
     @Override public String uniqueName() { return "Con_" + _nid; }
+    @Override public Node copy() { return new ConstantNode(this); }
+
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

@@ -69,14 +69,19 @@ public class EscapeNode extends TypeNode {
     }
 
     @Override public Node idealize() {
+        // Sharpen private memory input
         if( priv() instanceof MemMergeNode mmm ) {
             setDef(2,mmm.alias(fld()._alias));
             return this;
         }
+        // Sharpen public memory input
         if( pub() instanceof MemMergeNode mmm ) {
             setDef(3,mmm.alias(fld()._alias));
             return this;
         }
+        // New allocation is dead
+        if( self()._type.isHigh() )
+            return pub();
         return null;
     }
 

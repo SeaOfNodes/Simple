@@ -1678,11 +1678,12 @@ public class Parser {
         }
 
         // Check that all fields are initialized
-        TypeStruct postinit = (TypeStruct)(tmem._t);
-        for( Field fld : postinit._fields ) {
-            assert fld._t != Type.TOP;
-            if( fld._t == Type.BOTTOM )
-                throw error("'"+postinit._name+"' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor");
+        if( tmem._t instanceof TypeStruct postinit ) {
+            for( Field fld : postinit._fields ) {
+                assert fld._t != Type.TOP;
+                if( fld._t == Type.BOTTOM )
+                    throw error( "'" + postinit._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
+            }
         }
         // Pop constructor scope
         if( hasConstructor )
@@ -1692,9 +1693,11 @@ public class Parser {
         // merged private memory, then all the named public aliases.  The
         // output is all the newly merged public aliases - but not actually
         // bulk memory.
-        for( Field fld : postinit._fields ) {
-            Node esc = peep(new EscapeNode((Field)fld.glb(true),self,selfMem,memAlias(fld._alias)));
-            memAlias(fld._alias,esc);
+        if( tmem._t instanceof TypeStruct postinit ) {
+            for( Field fld : postinit._fields ) {
+                Node esc = peep( new EscapeNode( (Field) fld.glb( true ), self, selfMem, memAlias( fld._alias ) ) );
+                memAlias( fld._alias, esc );
+            }
         }
 
         selfMem.unkill();

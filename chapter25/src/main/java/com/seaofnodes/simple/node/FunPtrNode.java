@@ -8,7 +8,7 @@ import java.util.HashMap;
 // Function Pointer
 public class FunPtrNode extends Node {
     int _fidx;
-    public FunPtrNode(ReturnNode ret, int fidx) { super(new Node[]{null,ret});  _fidx=fidx; }
+    public FunPtrNode(ReturnNode ret, int fidx) { super( null,ret );  _fidx=fidx; }
 
     public FunPtrNode(FunPtrNode c) {
         super(c);               // Call parent copy constructor
@@ -63,4 +63,5 @@ public class FunPtrNode extends Node {
 
     @Override public boolean eq(Node n) { return _fidx==((FunPtrNode)n)._fidx; }
     @Override int hash() { return _fidx; }
+    @Override public Node copy() { return new FunPtrNode(this); }
 }

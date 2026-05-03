@@ -149,9 +149,9 @@ public class Encoding {
         return this;
     }
     // Code address as a constant
-    public Encoding relo( ConstantNode con ) {
-        TypeFunPtr tfp = (TypeFunPtr)con._con;
-        _internals.put(con,_code.link(tfp));
+    public Encoding relo( FunPtrNode fptr ) {
+        TypeFunPtr tfp = (TypeFunPtr)fptr._type;
+        _internals.put(fptr,_code.link(tfp));
         return this;
     }
     // Local jump
