@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Utils;
 import org.junit.Assert;
 import org.junit.Test;
 import static org.junit.Assert.assertSame;
@@ -37,12 +36,12 @@ public class TypeTest {
         Assert.assertNotEquals(m3, m4);
 
         Assert.assertEquals(TypeStruct.BOT, s1.meet(s2));
-        Assert.assertEquals(TypeMem   .BOT, m1.meet(m2));
+        Assert.assertEquals(TypeMem   .BOT, ((TypeMem)m1.meet(m2)).makeFrom( XInt.FULL, XInt.FULL));
         Assert.assertEquals(TypeMem.make(1,Type.BOTTOM), m1.meet(m3));
-        Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
+        Assert.assertEquals(TypeMem   .BOT, ((TypeMem)m3.meet(m4)).makeFrom( XInt.FULL, XInt.FULL));
 
         Assert.assertEquals(TypeMem.make(2,Type.BOTTOM), m1.glb(false));
-        Assert.assertEquals(TypeMem.make(2,Type.XNIL,true,true), m1.dual());
+        Assert.assertEquals(TypeMem.make(2,Type.XNIL,true,true, XInt.FULL, XInt.FULL), m1.dual());
         Assert.assertEquals(m4.dual(), m4.glb(false).dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);

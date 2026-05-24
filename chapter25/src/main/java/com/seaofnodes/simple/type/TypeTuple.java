@@ -39,11 +39,13 @@ public class TypeTuple extends Type {
 
     public static final TypeTuple BOT = malloc(new Type[0]).intern();
     public static final TypeTuple TOP = BOT.dual();
+    // The default state, a triple of CONTROL, Memory, and Value, with bottoms
+    // for all.  This is the default StopNode type, when new functions are
+    // being created and we cannot tell what the future holds.  This is the
+    // default ReturnNode type, returning what the worst a function can do.
+    public static final TypeTuple STATE = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM);
 
     public static final TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
-    public static final TypeTuple START= make(Type.CONTROL,TypeMem.TOP,TypeInteger.BOT);
-    public static final TypeTuple RET  = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM);
-    public static final TypeTuple STOP = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM, TypeFunPtr.BOT);
     public static final TypeTuple DEAD_NEW = make(TypeMemPtr.TOP,TypeMem.TOP);
 
     public static final TypeTuple IF_BOTH    = make(Type. CONTROL,Type. CONTROL);
@@ -51,7 +53,7 @@ public class TypeTuple extends Type {
     public static final TypeTuple IF_TRUE    = make(Type. CONTROL,Type.XCONTROL);
     public static final TypeTuple IF_FALSE   = make(Type.XCONTROL,Type. CONTROL);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(BOT); ts.add(TEST); ts.add(START); ts.add(IF_TRUE); }
+    public static void gather(ArrayList<Type> ts) { ts.add(BOT); ts.add(TEST); ts.add(STATE); ts.add(IF_TRUE); }
 
     @Override
     Type xmeet(Type other) {

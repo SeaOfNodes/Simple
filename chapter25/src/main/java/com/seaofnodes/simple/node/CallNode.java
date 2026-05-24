@@ -5,6 +5,7 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.XInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -100,14 +101,11 @@ public class CallNode extends CFGNode {
         Node progress = null;
         if( fptr()._type instanceof TypeFunPtr tfp && tfp.nargs() == nargs() ) {
             // If fidxs is negative, then infinite unknown functions
-            long fidxs = tfp.fidxs();
-            if( fidxs > 0 ) {
-                // Wipe out the return which matching in the linker table
-                // Walk the (63 max) bits and link
-                for( ; fidxs!=0; fidxs = TypeFunPtr.nextFIDX(fidxs) ) {
-                    int fidx = Long.numberOfTrailingZeros(fidxs);
-                    TypeFunPtr tfp0 = tfp.makeFrom(fidx);
-                    FunNode fun = CodeGen.CODE.link(tfp0);
+            int[] fidxs = tfp.fidxs();
+            if( !XInt.isHigh(fidxs) ) {
+                // Walk the bits and link
+                for( int fidx = XInt.next(fidxs,0); fidx > 0; fidx = XInt.next(fidxs,fidx) ) {
+                    FunNode fun = CodeGen.CODE._linker.atX(fidx);
                     if( fun!=null && !fun._folding && !linked(fun) )
                         progress = link(fun);
                 }
@@ -178,7 +176,7 @@ public class CallNode extends CFGNode {
             if( !arg(i+2)._type.isa(tfp.arg(i)) )
                 return Parser.error( "Argument #" + i + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
 
-        if( tfp.fidxs() < 0 )
+        if( tfp.isHigh() )
             throw Utils.TODO(); // Infinite unknown TFPs?  Should be fairly precise CG
 
         return null;

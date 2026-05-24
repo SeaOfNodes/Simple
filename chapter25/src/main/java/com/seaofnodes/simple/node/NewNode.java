@@ -44,7 +44,10 @@ public class NewNode extends Node implements MultiNode {
     @Override public TypeTuple compute() {
         if( ctrl()._type.isHigh() )
             return TypeTuple.DEAD_NEW;
-        return TypeTuple.make(TypeMemPtr.make(_ts), TypeMem.make(1,_ts,true,false));
+        return TypeTuple.make(TypeMemPtr.make(_ts),
+                              // Arrays get pre-zeroed by constructor.
+                              // Objects start with uninit memory and must stomp all fields
+                              _ts.isAry() ? TypeMem.makePrivate(_ts) : TypeMem.TOP);
     }
 
     @Override public Node idealize() { return null; }

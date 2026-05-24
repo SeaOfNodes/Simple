@@ -630,16 +630,17 @@ public class Type /*implements Cloneable*/ {
             // Remap foreign fidx to local fidx
             if( remapFIDXs && types[i] instanceof TypeFunPtr tfp ) {
                 long lfidxs = 0;
-                for( long tfidxs = tfp.fidxs(); tfidxs != 0; tfidxs = TypeFunPtr.nextFIDX(tfidxs) ) {
-                    int fidx = Long.numberOfTrailingZeros(tfidxs);
-                    // Remap foreign fidxes to local fidxs
-                    int lfidx = fidxs.atX(fidx);
-                    if( lfidx==0 )  // Unmapped yet
-                        fidxs.setX(fidx,lfidx=nextFIDX++);
-                    assert lfidx <= 63;
-                    lfidxs |= (1L<<lfidx);
-                }
-                tfp._fidxs = lfidxs;
+                //for( long tfidxs = tfp.fidxs(); tfidxs != 0; tfidxs = TypeFunPtr.nextFIDX(tfidxs) ) {
+                //    int fidx = Long.numberOfTrailingZeros(tfidxs);
+                //    // Remap foreign fidxes to local fidxs
+                //    int lfidx = fidxs.atX(fidx);
+                //    if( lfidx==0 )  // Unmapped yet
+                //        fidxs.setX(fidx,lfidx=nextFIDX++);
+                //    assert lfidx <= 63;
+                //    lfidxs |= (1L<<lfidx);
+                //}
+                //tfp._fidxs = lfidxs;
+                throw Utils.TODO();
             }
         }
         // Walk all type aliases, and map to local aliases

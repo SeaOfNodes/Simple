@@ -289,6 +289,7 @@ abstract public class Serialize {
         Ary<Node> cons = new Ary<>(Node.class);
         cons.add(code._start);
         for( Node n : code._start._outputs ) {
+            if( n instanceof ProjNode ) cons.add(n);
             if( n instanceof ConstantNode con && !visit.get(con._nid) ) {
                 for( Node use : con.outs() ) {
                     // Special case for Cast:BOT which is basically a double-indirect constant
@@ -302,6 +303,7 @@ abstract public class Serialize {
         }
         cons.addAll(nodes);
         cons.add(cu._stop);
+        cons.add(code._stop);
         visit.clear();
         return cons;
     }
@@ -363,6 +365,8 @@ abstract public class Serialize {
                     { c0 = c1; c1 = iff.cproj(0); }
                 _funRPO(c0,rpo,visit);
                 _funRPO(c1,rpo,visit);
+            } else if( n instanceof StopNode ) {
+                // nothing
             } else {
                 // CFG to CFG before CFG to data
                 for( Node use : n._outputs )
@@ -419,7 +423,8 @@ abstract public class Serialize {
         for( Node use : n._outputs )
             rpo.add(use);
         // Sort by projection order
-        Arrays.sort( rpo._es,rpo._len-n.nOuts(),rpo._len, (x,y) -> ((Proj)y).idx() - ((Proj)x).idx() );
+        if( !(n instanceof StartNode) )
+            Arrays.sort( rpo._es,rpo._len-n.nOuts(),rpo._len, (x,y) -> ((Proj)y).idx() - ((Proj)x).idx() );
         rpo.add(n);
     }
 

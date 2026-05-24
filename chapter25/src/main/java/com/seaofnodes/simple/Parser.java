@@ -7,7 +7,6 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
 import static com.seaofnodes.simple.util.Utils.TODO;
 
@@ -253,13 +252,16 @@ public class Parser {
         // external calls.
         _scope.ctrl(fun);              // Scope control from function
         // Private mem alias tracking per function
-        Node privMem = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole();
+        Node defaultMem = new ProjNode(_code._start,1,ScopeNode.MEM0).peephole();
+        Node privMem = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,defaultMem).peephole();
         MemMergeNode mem = new MemMergeNode(true,null,privMem);
         mem(mem);
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
-            _scope.define(ids[i], t, i==0 && ids[0]=="self", new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
+            // Default input if called from Start/external-world
+            Node defalt = t instanceof TypeMem ? new ProjNode(_code._start,1,ScopeNode.MEM0).peephole() : con(t);
+            _scope.define(ids[i], t, i==0 && ids[0]=="self", new ParmNode(ids[i],i+2,t,fun,defalt).peephole(), loc);
         }
 
         // Parse the function body.
@@ -375,7 +377,7 @@ public class Parser {
             FunNode fun = self.fun();
             fun.setSig(fun.sig().makeFrom(self._type,0));
         } else {                // <init> returns a upgraded private memory
-            smem._con = smem._type = TypeMem.make(1,tself,true,false);
+            smem._con = smem._type = TypeMem.makePrivate(tself);
         }
 
         // When can _returnScope be null here? A never-exit constructor will
@@ -800,7 +802,7 @@ public class Parser {
             // For <init> and <clinit> - ALL FIELDS IN LAST SCOPE are live
             // and need to have lazy-phi's inserted.
 
-            // ANd fields might not match.... will need matching Var/define with default values
+            // And fields might not match.... will need matching Var/define with default values
             int rlen = _returnScope.nIns()-1;
             RegionNode r = ctrl(new RegionNode(null, null,_returnScope.ctrl(), _scope.ctrl()).init().keep());
             _returnScope.mem()._merge(mem(),r);
@@ -1051,7 +1053,7 @@ public class Parser {
 
         // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
         // Self-memory is the rare *private* (never aliased) memory for the new object.
-        TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true, false );
+        TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true, false, XInt.FULL, XInt.FULL );
         Type targ = isClz ? TypeInteger.BOT : privMem;
         Type tret = isClz ? Type.BOTTOM     : privMem;
         Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
@@ -1700,7 +1702,8 @@ public class Parser {
             }
         }
 
-        selfMem.unkill();
+        if( selfMem.unkeep().isUnused() ) selfMem.kill();
+        else _code.add(smem);
         return self.unkeep();
     }
 
@@ -1988,7 +1991,7 @@ public class Parser {
         if( t instanceof TypeFunPtr tfp ) { // Generic TFP from type parse
             tfp = _code.makeFun(tfp);       // Get a FIDX, becomes a constant
             _code.externFunc(tfp.fidx(),ex);  // Map fidx to extern name
-            return con(tfp);
+            t = tfp;
         }
         return (ExternNode)(new ExternNode(t,ex).peephole());
     }

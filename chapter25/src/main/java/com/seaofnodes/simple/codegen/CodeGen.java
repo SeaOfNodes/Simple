@@ -115,8 +115,8 @@ public class CodeGen {
         _gvn = new HashMap<>();
         _iter = new IterPeeps(workListSeed);
         // End points of graph
-        _start = new StartNode(arg);
         _stop = new StopNode();
+        _start = new StartNode(_stop,arg);
         ZERO  = con(TypeInteger.ZERO).keep();
         XCTRL = new XCtrlNode().peephole().keep();
         P = new Parser(this);
@@ -228,7 +228,7 @@ public class CodeGen {
     public final HashMap<Node,Node> _gvn;
 
     // Source of unique function indices
-    int _fidx = 1;
+    int _fidx = 2;              // Start at 2, avoid error-prone 0, and not the global #1
     public int nextFIDX() { return _fidx++; }
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
         assert fun.nfcns() == Integer.MAX_VALUE; // Not assigned yet
@@ -335,10 +335,23 @@ public class CodeGen {
         _phase = Phase.TypeCheck;
         long t0 = System.currentTimeMillis();
 
-        Parser.ParseException err = _stop.walk( Node::err );
+        final Ary<Node> errs = new Ary<>(Node.class);
+        _stop.walk( n -> {
+                    if( n.err() != null )
+                        errs.add(n);
+                    return null;
+            });
         _times[Phase.TypeCheck.ordinal()] = System.currentTimeMillis() - t0;
-        if( err != null )
-            throw err;
+        if( !errs.isEmpty() ) {
+            Node min = errs.at(0);
+            for( Node n : errs )
+                if( n!=min &&
+                    n   instanceof CFGNode ncfg &&
+                    min instanceof CFGNode mincfg &&
+                    ncfg.idepth() < mincfg.idepth() )
+                    min = n;
+            throw min.err();
+        }
         return this;
     }
 
@@ -493,15 +506,17 @@ public class CodeGen {
     	// need to be re-hooked to stop/start less they go dead.
         for( FunNode fun : _linker ) {
             // Already linked to start, not going dead
-            if( fun==null || fun.isDead() || fun.in(1) == _start )
+            if( fun==null || fun.isDead() )
                 continue;
             // Insert a hook to Start and Stop
-            fun.insertDef(1,_start);
-            for( Node use : fun._outputs )
-                if( use instanceof ParmNode parm )
-                    parm.insertDef(1,ConstantNode.make(parm._type).peephole());
             ReturnNode ret = fun.ret();
-            fun._compunit._stop.addDef(ret);
+            if( fun.in(1) != _start ) {
+                fun.insertDef(1,_start);
+                for( Node use : fun._outputs )
+                    if( use instanceof ParmNode parm )
+                        parm.insertDef(1,ConstantNode.make(parm._type).peephole());
+                fun._compunit._stop.addDef(ret);
+            }
             // Unlink from Call
             for( int i=2; i<fun.nIns(); i++ )
                 ((CallNode)fun.in(i)).unlink(fun,i--);

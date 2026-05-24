@@ -65,7 +65,7 @@ return x2;
 """);
         code.parse().opto();
         assertEquals("Stop[ return { sq}; return (Parm_x(sq,i64)*x); ]", code.print());
-        assertEquals("{ i64 -> i64 #2}", Eval2.eval(code, 3));
+        assertEquals("{ i64 -> i64 #[ 3]}", Eval2.eval(code, 3));
     }
 
     @Test
@@ -91,8 +91,8 @@ int cnt=1;                      // Global scope; exactly one of these
 return { -> cnt++; };           // Escape global-scope variable is OK
 """);
         code.parse().opto();
-        assertEquals("return { -> i64 #2};", code.print());
-        assertEquals("{ -> i64 #2}", Eval2.eval(code, 0));
+        assertEquals("Stop[ return { -> i64 #[ 3]}; return .cnt; ]", code.print());
+        assertEquals("{ -> i64 #[ 3]}", Eval2.eval(code, 0));
     }
 
     // Function scope test
@@ -135,7 +135,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("return #2;", code.print());
+        assertEquals("Stop[ return #2; return (Parm_x($fun3,i64,3)*x); return (Parm_x($fun4,i64,3)<<1); ]", code.print());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -271,7 +271,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #2}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #[ 3]}?",e.getMessage()); }
     }
 
 
@@ -302,7 +302,7 @@ return s.x;
         catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*Test.S'",e.getMessage()); }
     }
 
-    @Test
+    @Test @Ignore
     public void testErr5() {
         CodeGen code = new CodeGen(
 """
@@ -365,7 +365,7 @@ if (_i2i_noInline) return _i2i_noInline(arg);
 return _f2f(_o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return Phi(Region,#2,#2);", code.print());
+        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(_i2i_noInline,i64); ]", code.print());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

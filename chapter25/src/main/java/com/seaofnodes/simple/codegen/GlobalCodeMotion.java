@@ -50,8 +50,8 @@ public abstract class GlobalCodeMotion {
         for( int i=0; i< start.nOuts(); i++ ) {
             Node con = start.out(i);
             if( con instanceof ConstantNode conx && conx._type.isConstant() ) {
-                if( breakUpGlobalConstantSingle(start,con) )
-                    i--;        // Removed a global constant, re-run same index
+                breakUpGlobalConstantSingle(start,con);
+                i--;        // Removed a global constant, re-run same index
             }
         }
 
@@ -67,7 +67,7 @@ public abstract class GlobalCodeMotion {
     }
 
 
-    private static boolean breakUpGlobalConstantSingle( Node start, Node con) {
+    private static void breakUpGlobalConstantSingle( Node start, Node con) {
         // While constant has users in different functions
         while( true ) {
             // Find a function user, and another function
@@ -76,14 +76,20 @@ public abstract class GlobalCodeMotion {
             for( Node use : con.outs() ) {
                 if( use == null ) continue;
                 FunNode fun2 = use instanceof ReturnNode ret ? ret.fun() : use.cfg0().fun();
+                // Use itself is not in a function... which makes it a 2-part
+                // constant such as happens on some chips where large constants
+                // have to be built up in parts.
+                if( fun2==null ) {
+                    fun2 = use.out(0).cfg0().fun();
+                    assert fun2 != null;
+                }
                 if( fun==null || fun==fun2 ) fun=fun2;
                 else { done=false; break; }
             }
             // Single function user, so this constant is not shared
             if( done ) {
-                boolean shared = con.in(0)!=start;
                 con.setDef(0,fun);
-                return shared;
+                return;
             }
             // Move function users to a private constant
             Node con2 = con.copy();   // Private constant clone

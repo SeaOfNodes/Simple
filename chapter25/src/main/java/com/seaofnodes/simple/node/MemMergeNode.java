@@ -81,17 +81,32 @@ public class MemMergeNode extends Node {
                 if( in(i) instanceof StoreNode st ) {
                     Type val = ((TypeMem)st._type)._t;
                     Field fld = ts.field(st._name).makeFrom(val);
+                    // TODO: val leaks into perfect singleton memory, along with its fidxs and aliases
                     ts = ts.replace(fld);
                 }
             }
-            return TypeMem.make(1,(ts==null ? TypeStruct.TOP : ts),true,false);
+            return TypeMem.makePrivate(ts);
 
         } else {
             // Default mixed mem is just BOT
-            for( Node n : _inputs )
-                if( n != null && !n._type.isHigh() )
-                    return TypeMem.BOT;
-            return TypeMem.TOP;
+            TypeMem mem = defmem;
+            boolean progress = true;
+            while( progress ) {
+                progress = false;
+                for( int i=2; i<nIns(); i++ ) {
+                    // Has this alias escaped already?
+                    if( XInt.bit(mem._escAs,i) ) {
+                        Node n = in(i);
+                        if( n != null && !n._type.isHigh() ) {
+                            TypeMem mem2 = (TypeMem)mem.meet(n._type);
+                            // More escape aliases
+                            if( mem2 != mem )
+                                { mem = mem2; progress = true; }
+                        }
+                    }
+                }
+            }
+            return mem;
         }
     }
 
@@ -155,7 +170,7 @@ public class MemMergeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loopmem.alias(alias, new PhiNode(Parser.memName(alias), TypeMem.make(alias,Type.BOTTOM),loop.ctrl(),loopmem._mem(alias,null),null).peephole() );
+                : loopmem.alias(alias, new PhiNode(Parser.memName(alias), TypeMem.make(alias,Type.BOTTOM,false,false,XInt.FULL,XInt.FULL),loop.ctrl(),loopmem._mem(alias,null),null).peephole() );
             alias(alias,old);
         }
         // Memory projections are made lazily; expand as needed
@@ -177,10 +192,7 @@ public class MemMergeNode extends Node {
                 // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                Type phit = lhs._type instanceof TypeMem lhst && rhs._type instanceof TypeMem rhst
-                    ? TypeMem.make(i,lhst._t.meet(rhst._t).glb(true), lhst._one & rhst._one, lhst._final & rhst._final)
-                    // Might have e.g. TOP or BOTTOM for error cases
-                    : lhs._type.meet(rhs._type).glb(true);
+                Type phit = lhs._type.meet(rhs._type).glb(true);
                 alias(i, new PhiNode(Parser.memName(i), phit, r, lhs, rhs).peephole());
             }
     }

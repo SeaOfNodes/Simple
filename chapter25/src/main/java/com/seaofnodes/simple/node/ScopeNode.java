@@ -204,7 +204,7 @@ public class ScopeNode extends MemMergeNode {
      * Create a new variable name in the current scope
      */
     public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
-        assert _kinds.isEmpty() || name!="$mem" ; // Later scopes do not define memory
+        assert _kinds.isEmpty() || name!=MEM0 ; // Later scopes do not define memory
         if( depth() > 0 )
             for( int i=_vars.size()-1; i>=klast()._lexSize; i-- ) {
                 Var n = var(i);
