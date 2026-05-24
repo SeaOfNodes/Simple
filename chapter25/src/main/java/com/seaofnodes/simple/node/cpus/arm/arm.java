@@ -687,7 +687,7 @@ public class arm extends Machine {
         case OrNode or       -> or(or);
         case ParmNode parm   -> new ParmARM(parm);
         case PhiNode phi     -> new PhiNode(phi);
-        case ProjNode prj    -> new ProjARM(prj);
+        case ProjNode prj    -> prj(prj);
         case ReadOnlyNode read -> new ReadOnlyMach(read);
         case ReturnNode ret  -> new RetARM(ret,ret.fun());
         case SarNode sar     -> asr(sar);
@@ -754,7 +754,7 @@ public class arm extends Machine {
         return switch( con._con ) {
         case TypeInteger ti -> new IntARM(con,ext);
         case TypeFloat   tf -> new FltARM(con,ext);
-        case TypeFunPtr tfp -> throw Utils.TODO("Use FunPtr instead of Constant");
+        case TypeFunPtr tfp -> throw Utils.TODO("Use FunPtr instead of Constant");// new TFPARM(con,ext);
         case TypeMemPtr tmp -> new TMPARM(con,ext);
         case TypeNil tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
@@ -811,6 +811,10 @@ public class arm extends Machine {
         return lsr.in(2)  instanceof ConstantNode off && off._con instanceof TypeInteger ti && ti.value() >= 0 && ti.value() < 63
                 ? new LsrIARM(lsr, (int)ti.value())
                 : new LsrARM(lsr);
+    }
+
+    private Node prj(ProjNode prj) {
+        return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjARM(prj);
     }
 
 

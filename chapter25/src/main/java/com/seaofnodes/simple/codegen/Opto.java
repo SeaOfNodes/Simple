@@ -108,8 +108,8 @@ abstract public class Opto {
     // into a Call, link the Call and Fun.
     private static void linkCG(CodeGen code, TypeFunPtr tfp, CallNode call) {
         if( tfp.nargs() != call.nargs() ) return; // Error calls hit this
-        for( long fidxs = tfp.fidxs(); fidxs != 0; fidxs = TypeFunPtr.nextFIDX(fidxs) ) {
-            int fidx = Long.numberOfTrailingZeros(fidxs);
+        int[] fidxs = tfp.fidxs();
+        for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
             FunNode fun = code.link(fidx);
             // null here means an external function; i.e. this Call
             // calls to an outside library and all its arguments escape.
@@ -120,6 +120,33 @@ abstract public class Opto {
             }
         }
     }
+
+    private static void linkStart( CodeGen code, TypeTuple tt ) {
+        TypeMem tmem = (TypeMem)tt._types[1];
+        int[] fidxs = tmem._escFs;
+        assert !XInt.isHigh(fidxs);
+        for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
+            FunNode fun = code._linker.at(fidx);
+            if( fun==null ) {
+                assert code._externFunc.containsKey(fidx);
+                continue;
+            }
+            assert !fun.isDead();
+            if( fun.nIns() < 2 || fun.in(1) != code._start ) {
+                // Function is added back to its original CompUnit
+                fun._compunit._stop.addDef(fun.ret());
+                // Function is reachable by any *remote* caller who gets the pointer!
+                fun.insertDef(1,code._start);
+                code._iter.add(fun);
+                for( Node p : fun._outputs )
+                    if( p instanceof ParmNode parm ) {
+                        parm.insertDef(1,parm._idx==1 ? new ProjNode(code._start,1,ScopeNode.MEM0).peephole() : code.con(parm._con));
+                        code._iter.add(parm);
+                    }
+            }
+        }
+    }
+
 
     // The core SCCP algorithm
     private static void sccp( CodeGen code, Ary<Type> oldTypes ) {
@@ -135,6 +162,10 @@ abstract public class Opto {
             assert oval.isa(nval);    // Types start high and always fall
             Type pesiVal = oldTypes.at(n._nid);
             assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
+            Type tmem0 = nval instanceof TypeTuple tt && tt._types.length==3 ? tt.at(1) : nval;
+            if( tmem0 instanceof TypeMem tmem1 ) {
+                assert !XInt.isHigh(tmem1._escFs);
+            }
             n._type = nval;
 
             // Now we have a series of stanzas where we lazily create the Call
@@ -165,34 +196,15 @@ abstract public class Opto {
             // If a otherwise-dead function pointer escapes, any future linked
             // caller might find and call it.  Force the function to be alive
             // and called by Start.
-            if( n instanceof ReturnNode ret ) {
-                // TODO: Check for function ptrs escaping through memory
-                if( ret._type instanceof TypeTuple tt && tt._types[2] instanceof TypeFunPtr tfp ) {
-                    // If an anonymous function has its address taken, it needs to
-                    // be available in some compilation unit with a name that
-                    // *other* CUs can link against.
-                    for( long fidxs=tfp.fidxs(); fidxs!=0; fidxs=TypeFunPtr.nextFIDX(fidxs) ) {
-                        int fidx = Long.numberOfTrailingZeros(fidxs);
-                        FunNode fun = code._linker.at(fidx);
-                        if( !fun.isDead() && (fun.nIns() < 2 || fun.in(1) != code._start ) ) {
-                            // Function is added back to its original CompUnit
-                            fun._compunit._stop.addDef(fun.ret());
-                            // Function is reachable by any *remote* caller who gets the pointer!
-                            fun.insertDef(1,code._start);
-                            code._iter.add(fun);
-                            for( Node p : fun._outputs )
-                                if( p instanceof ParmNode parm )
-                                    parm.insertDef(1,code.con(parm._con));
-                        }
-                    }
-                }
-            }
+            if( n instanceof StartNode && n._type instanceof TypeTuple tt )
+                linkStart(code,tt);
+
 
             // Since n._type changed, visit all output neighbors
             code._iter.addAll(n._outputs);
             n.moveDepsToWorklist(code._iter);
             // Quadratic (expensive) small-step assert
-            //assert check(code);
+            assert check(code);
         }
     }
 

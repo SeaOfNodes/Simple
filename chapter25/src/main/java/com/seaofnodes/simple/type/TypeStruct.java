@@ -44,6 +44,7 @@ public class TypeStruct extends Type {
         ts._offs = null;
         ts._dual = null;
         ts._hash = 0;
+        ts._aliases = null;
         FREE.push(ts);
         return this;
     }
@@ -57,6 +58,24 @@ public class TypeStruct extends Type {
         if( t2==ts ) return ts;
         return VISIT.isEmpty() ? t2.free(ts) : ts.delayFree(ts);
     }
+
+    // Summary aliases, after interning.  Skips private
+    // fields which need to be explicitly loaded.
+    private int[] _aliases;
+    int[] aliases() {
+        if( _aliases != null ) return _aliases;
+        if( _fields.length==0 ) return (_aliases=XInt.EMPTY);
+        assert _terned;
+        int maxAlias = _fields[_fields.length-1]._alias;
+        int len = XInt.idx(maxAlias)+1;
+        if( (maxAlias&31)==31 ) len++;
+        int[] xs = XInt.free(len);
+        for( Field f : _fields )
+            if( f._fname.charAt(0) != '_' ) // Skip private fields.
+                xs[XInt.idx(f._alias)] |= XInt.mask(f._alias);
+        return (_aliases=XInt.intern(xs));
+    }
+
     // New open struct with no fields
     public static TypeStruct open( String name ) { return make(name,true); }
 
@@ -331,6 +350,7 @@ public class TypeStruct extends Type {
         for( int i=0; i<flds.length; i++ )
             flds[i] = _fields[i].malloc(); // Blank copy, but can be hashed
         TypeStruct ts = malloc(name, open, flds );
+        ts._aliases = aliases();
         VISIT.put(key,ts);
         return ts;
     }
@@ -459,6 +479,7 @@ public class TypeStruct extends Type {
         if( _fields.length >= 5 )
             baos.packed2(_fields.length);
         baos.packed2(strs.get(_name));
+        // TODO: Write aliases summary
     }
     static TypeStruct packed( int tag, BAOS bais, String[] strs ) {
         int ntag = tag >= 6 ? tag-6 : tag;

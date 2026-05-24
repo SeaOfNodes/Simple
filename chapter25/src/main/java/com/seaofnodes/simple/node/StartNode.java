@@ -9,17 +9,24 @@ import java.util.BitSet;
 import java.util.HashSet;
 
 /**
- * The Start node represents the start of the function.
+ * The Start node represents the external world calling, be it calling main or
+ * just some linked caller calling.
  * <p>
  * Start initially has 1 input (arg) from outside and the initial control.
  * In ch10 we also add mem aliases as structs get defined; each field in struct
  * adds a distinct alias to Start's tuple.
+ * <p>
+ * By ch25, Start is the external world (or linker) calling with everything
+ * that has escaped.  Start is NOT the FunNode called *main* (which can assume
+ * no memory nor fidxs exist nor escaped).  Start gets escaped things from
+ * Stop; together these close the Grand Cycle between the code we know and the
+ * code we don't.
  */
 public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
 
-    public StartNode(Type arg) { super(null,null); _arg = arg; _type = compute(); }
+    public StartNode(StopNode stop, Type arg) { super(null,stop); _arg = arg; _type = compute(); }
     public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
     @Override public Tag serialTag() { return Tag.Start; }
 
@@ -42,9 +49,25 @@ public class StartNode extends LoopNode implements MultiNode {
         return C;
     }
 
+    boolean escapedFIDX(int fidx) {
+        if( !(_type instanceof TypeTuple tt) )
+            return !_type.isHigh(); // TOP never escapes, BOTTOM always escapes
+        TypeMem tmem = (TypeMem)tt._types[1];
+        if( tmem == TypeMem.BOT ) return true;
+        if( tmem == TypeMem.TOP ) return false;
+        return XInt.bit(tmem._escFs,fidx);
+    }
 
     @Override public TypeTuple compute() {
-        return TypeTuple.make(Type.CONTROL,TypeMem.TOP,_arg);
+        TypeMem tmem;
+        if( !(in(1)._type instanceof TypeTuple tt) )
+            tmem = in(1)._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+        else {
+            tmem = (TypeMem)tt._types[1];
+            if( tmem.isHigh() )
+                tmem = TypeMem.make(1,Type.BOTTOM,false,false,tmem._escFs,tmem._escAs);
+        }
+        return TypeTuple.make(Type.CONTROL,tmem,_arg);
     }
 
     @Override public Node idealize() { return null; }

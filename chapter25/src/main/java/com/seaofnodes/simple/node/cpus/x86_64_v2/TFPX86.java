@@ -13,6 +13,7 @@ public class TFPX86 extends FunPtrNode implements MachNode, RIPRelSize {
     final String _ext;          // External name
     TFPX86( FunPtrNode fptr, String ext ) { super(fptr); _ext = ext; }
     @Override public String op() { return "ldx"; }
+    @Override public String label() { return op(); }
     @Override public boolean isClone() { return true; }
     @Override public Node copy() { return new TFPX86(this,_ext); }
     @Override public RegMask regmap(int i) { return null; }
@@ -22,11 +23,9 @@ public class TFPX86 extends FunPtrNode implements MachNode, RIPRelSize {
 
         // lea to load function pointer address
         // lea rax, [rip+disp32]
-        if( _ext==null ) {
-            //enc.relo(this);     // Internal patch
-            // internal patch
-            throw Utils.TODO();
-        } else
+        if( _ext==null )
+            enc.relo(this);     // Internal patch
+        else
             enc.external(this,_ext); // ELF-file external patch
         // 0 or 1 for REX depending on the dst.
         // Zero/sign extend should be fine, so not wide.
@@ -48,9 +47,8 @@ public class TFPX86 extends FunPtrNode implements MachNode, RIPRelSize {
     // Just something like "ld4\tR17=[R18+12] // Load array base".
     // General form: "op\tdst=src+src"
     @Override public void asm(CodeGen code, SB sb) {
-        String reg = code.reg(this);
         sb.p(code.reg(this));
-        if( _ext == null ) _type.print(sb);
+        if( _ext == null ) _type.print(sb.p(" #"));
         else sb.p(_ext);
     }
     @Override public boolean eq(Node n) { return this==n; }

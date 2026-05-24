@@ -452,7 +452,7 @@ public class riscv extends Machine {
         }
         // Load from constant pool
         case TypeFloat   tf  -> new FltRISC(con,ext);
-        case TypeFunPtr  tfp -> throw Utils.TODO("Use FunPtr instead of Constant");
+        case TypeFunPtr  tfp -> throw Utils.TODO("Use FunPtr instead of Constant");// new TFPRISC(con,ext);
         case TypeMemPtr  tmp -> new TMPRISC(con,ext);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
@@ -520,7 +520,7 @@ public class riscv extends Machine {
     }
 
     private Node prj(ProjNode prj) {
-        return new ProjRISC(prj);
+        return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjRISC(prj);
     }
 
     private Node ld(LoadNode ld) {

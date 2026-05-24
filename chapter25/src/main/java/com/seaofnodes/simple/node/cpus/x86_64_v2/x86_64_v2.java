@@ -558,7 +558,7 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node prj( ProjNode prj ) {
-        return new ProjX86(prj);
+        return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjX86(prj);
     }
 
     private Node sar(SarNode sar) {

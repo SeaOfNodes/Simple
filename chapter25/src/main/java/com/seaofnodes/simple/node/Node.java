@@ -108,7 +108,7 @@ public abstract class Node implements Cloneable {
             case Sar    -> new   SarNode(null,null,null);
             case Shl    -> new   ShlNode(null,null,null);
             case Shr    -> new   ShrNode(null,null,null);
-            case Start  -> new StartNode(TypeInteger.BOT);
+            case Start  -> new StartNode(null,TypeInteger.BOT);
             case Sub    -> new   SubNode(null,null);
             case SubF   -> new  SubFNode(null,null);
             case ToFloat-> new ToFloatNode(null);
@@ -809,7 +809,7 @@ public abstract class Node implements Cloneable {
 
     // If a Type upgrade happens, put on worklist
     boolean _upgradeType( HashMap<String,Type> TYPES ) { return false; }
-    public final Node upgradeType( HashMap<String,Type> TYPES ) {
+    public final void upgradeType( HashMap<String,Type> TYPES ) {
         boolean progress = _upgradeType(TYPES);
         Type old = _type;  _type = _type.upgradeType(TYPES);
         if( progress || old != _type ) {
@@ -817,7 +817,6 @@ public abstract class Node implements Cloneable {
             CODE.addAll(_outputs);
             if( _deps!=null ) CODE.addAll(_deps);
         }
-        return null;
     }
 
     /**

@@ -156,21 +156,13 @@ public class FunNode extends RegionNode {
 
         // Attempt to get rid of the unknown caller.
         // - Must be past Parser, which invents new calls "from whole cloth".
-        // - FIDX is in the escape set
-        if( in(1) instanceof StartNode ) {
-            Type tstop = CODE._stop._type;
-            if( tstop instanceof TypeTuple tt ) {
-                // Is this FIDX in the escape set?
-                TypeFunPtr escapeSet = (TypeFunPtr)tt._types[3];
-                TypeFunPtr sig = sig();
-                boolean escapes = (escapeSet.fidxs() & sig.fidxs()) != 0;
-                if( !escapes ) {
-                    _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
-                    return removeDeadPath(1);
-                }
-                addDep(CODE._stop);
+        // - FIDX is not in the escape set
+        if( in(1) instanceof StartNode start ) {
+            if( !start.escapedFIDX(_sig.fidx()) ) {
+                _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
+                return removeDeadPath(1);
             } else {
-                assert tstop==Type.TOP || tstop==Type.BOTTOM;
+                addDep(start);
             }
         }
 
@@ -222,7 +214,7 @@ public class FunNode extends RegionNode {
         // Never true for anonymous functions
         if( _name == null ) return false;
         // Only public for <clinit> and <init>, all others
-        // are found field field loads.
+        // are found via field loads.
         if( !isInit() ) return false;
         // Private class, has to be found via program text, not linker
         if( _name.charAt(0)=='_' ) return false;
@@ -235,7 +227,9 @@ public class FunNode extends RegionNode {
         return true;
     }
 
-    @Override public boolean inProgress() { return unknownCallers(); }
+    @Override public boolean inProgress() {
+        return unknownCallers() && CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
+    }
 
     // Build the function body set
     public BitSet body() {

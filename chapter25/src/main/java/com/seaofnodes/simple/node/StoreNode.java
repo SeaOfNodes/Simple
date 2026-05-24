@@ -72,13 +72,15 @@ public class StoreNode extends MemOpNode {
         // which is never does in a constructor.
         if( !_name.equals("[]") && (mem._one || ptr._one) && err()==null )
             // Just track the stored value
-            return TypeMem.make(_alias,val,true,_init);
+            return TypeMem.make(_alias,val,true,_init,null,null);
 
         // Normal aliasing Store.
         assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
+        if( mem._t.isHigh() )
+            return TypeMem.TOP;
         // Same alias, meet into other fields
         Type t = val.meet(mem._t);
-        return TypeMem.make(_alias,t,false,false);
+        return mem.makeFrom(t);
     }
 
     @Override

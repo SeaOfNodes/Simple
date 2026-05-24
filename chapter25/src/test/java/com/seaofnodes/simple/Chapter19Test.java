@@ -57,7 +57,7 @@ val hashCode = { String self ->
 hashCode(new String{cs="Hello, World!";});
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return MEM[ 2:___ 3:___ 4:.cs=(*[]u8)Bot; 5:#!-5:0]; ]", code.print());
+        assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return MEM[ 2:___ 3:___ 4:.cs=(*[]u8)Bot; 5:#!-5:[0,[],[]]]; return Phi(Region,1,1,0,0); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code.print());
         assertEquals("4029215624828139541", Eval2.eval(code,  2));
     }
 
@@ -389,11 +389,11 @@ val sieve = { int N ->
     public void testFcn1() {
         CodeGen code = new CodeGen(
 """
-val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
-return fcn(2)*10 + fcn(3);
+val _fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
+return _fcn(2)*10 + _fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (add,#2,(muli,#2));", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun3,i64),x); return (shli,Parm_x($fun4,i64)); ]", code.print());
     }
 
     @Test

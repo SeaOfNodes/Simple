@@ -57,27 +57,37 @@ public class CallEndNode extends CFGNode implements MultiNode {
     @Override
     public Type compute() {
         if( !(in(0) instanceof CallNode call) || call._type != Type.CONTROL )
-            return TypeTuple.RET.dual();
+            return TypeTuple.STATE.dual();
         // Mid-fold, just take the one single callers' return type
         if( _folding ) return in(1)._type;
         // Grab the TFP and use the functions declared return type.
         // If the call.fptr() is a FRef, return will be BOTTOM.
         Type ftype = addDep(call.fptr())._type;
-        Type ret = ftype.isHigh() ? Type.TOP : Type.BOTTOM;
-        if( ftype instanceof TypeFunPtr tfp ) {
-            ret = tfp.ret();
-            // Here, if I can figure out I've found *all* callers, then I can meet
-            // across the linked returns and join with the function return type.
-            if( 1+tfp.nfcns() == nIns() ) { // A linked function for every concrete function
-                ret = Type.TOP;
-                for( int i=1; i<nIns(); i++ ) {
-                    Type tret = in(i)._type instanceof TypeTuple rtt ? rtt.ret() : in(i)._type;
-                    ret = ret.meet(tret);
-                }
-                ret = ret.join(tfp.ret());
-            }
+        if( !(ftype instanceof TypeFunPtr tfp) )
+            return ftype.isHigh() ? TypeTuple.STATE.dual() : TypeTuple.STATE;
+
+        // Here, if I can figure out I've linked *all* callers, then I can meet
+        // across the linked returns and join with the function return type.
+
+        // If we have an error-call, e.g. wrong args, then we never link.
+        // Pre-Opto this looks like a missing target fcn, and we assume it will
+        // appear later - meanwhile, we use a conservative approx of memory
+        // effects.
+        if( (nIns()-1) < tfp.nfcns() ) {
+            // If before SCCP, we might call extras or also the unknown target.
+            StartNode start = CodeGen.CODE._start;
+            addDep(start);
+            Type tmem = start._type instanceof TypeTuple tt ? tt._types[1] : (start._type.isHigh() ? TypeMem.TOP : TypeMem.BOT);
+            return TypeTuple.make(Type.CONTROL,tmem,tfp.ret());
         }
-        return TypeTuple.make(call._type,TypeMem.BOT,ret);
+
+        // A linked function for every concrete function
+        Type state = TypeTuple.STATE.dual();
+        for( int i=1; i<nIns(); i++ )
+            state = state.meet(in(i)._type);
+        //ret = ret.join(tfp.ret());
+        //return TypeTuple.make(call._type,mem,ret);
+        return state;
     }
 
     @Override

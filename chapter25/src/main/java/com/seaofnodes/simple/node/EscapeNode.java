@@ -65,7 +65,9 @@ public class EscapeNode extends TypeNode {
         assert !(mpub._t instanceof TypeStruct); // Never expect this, but if it starts to happen, need to optimize
         Type tpub = mpub._t;
 
-        return TypeMem.make(fld()._alias, tpriv.meet(tpub).join(fld()._t), false, fld()._final );
+        int[] fidxes  = XInt.meet(mpriv._escFs, mpub._escFs);
+        int[] aliases = XInt.meet(mpriv._escAs, mpub._escAs);
+        return TypeMem.make(fld()._alias, tpriv.meet(tpub).join(fld()._t), false, fld()._final, fidxes, aliases );
     }
 
     @Override public Node idealize() {
