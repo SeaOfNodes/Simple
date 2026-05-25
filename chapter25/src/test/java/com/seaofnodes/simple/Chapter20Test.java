@@ -148,7 +148,7 @@ val _hashCodeString = { String self ->
     return hash;
 };
 """;
-        //testCPU(src,"x86_64_v2", "SystemV", 9,null);
+        testCPU(src,"x86_64_v2", "SystemV", 9,null);
         testCPU(src,"riscv"    , "SystemV", 5,null);
         testCPU(src,"arm"      , "SystemV", 3,null);
     }

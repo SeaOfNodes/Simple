@@ -167,7 +167,7 @@ public class TypeStruct extends Type {
         // Main work: replace open with closed
         if( _open )
             return base;
-        // Biuld recursive version
+        // Build recursive version
         ts = recurPre(_uid,_name,false);
         Field[] flds = ts._fields;
         // Now start the recursion

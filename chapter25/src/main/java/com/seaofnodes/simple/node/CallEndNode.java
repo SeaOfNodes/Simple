@@ -82,12 +82,11 @@ public class CallEndNode extends CFGNode implements MultiNode {
         }
 
         // A linked function for every concrete function
-        Type state = TypeTuple.STATE.dual();
+        TypeTuple state = TypeTuple.STATE.dual();
         for( int i=1; i<nIns(); i++ )
-            state = state.meet(in(i)._type);
-        //ret = ret.join(tfp.ret());
-        //return TypeTuple.make(call._type,mem,ret);
-        return state;
+            state = (TypeTuple)state.meet(in(i)._type);
+        // At least as good as the TFP
+        return state.makeFrom(2,state.ret().join(tfp.ret()));
     }
 
     @Override
@@ -117,7 +116,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     // Clone the function body
                     FunNode fun2 = fun.copyBody();
                     // Call uses the unique new function
-                    FunPtrNode fptr2 = new FunPtrNode(fun2.ret(),fun2.sig().fidx()).init();
+                    ConstantNode fptr2 = CodeGen.CODE.con(fun2.sig());
                     call.setDef(call.nIns()-1,fptr2);
                     // Link to the new function
                     call.link(fun2);

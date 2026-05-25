@@ -454,7 +454,7 @@ public class Parser {
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
         else if (matchx("#showGraph")) return require(showGraph(),";");
-        else if (matchx(";")       ) return null; // Empty statement
+        else if (matchx(";")       ) return _code.ZERO; // Empty statement
         // Break ambiguity around leading function types and starting a block
         else if (peek('{') && !isTypeFun() ) {
             match("{");
@@ -1919,7 +1919,7 @@ public class Parser {
         // Make a concrete function type, with a fidx
         TypeFunPtr tfp = _code.makeFun(TypeFunPtr.make(false,ts.asAry(),Type.BOTTOM));
         ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
-        return new FunPtrNode(ret,tfp.fidx()).peephole();
+        return con(tfp.makeFrom(ret.expr()._type));
     }
 
     /**

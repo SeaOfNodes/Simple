@@ -223,7 +223,7 @@ return _s.peek('q');
 """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("Stop[ return #2; return 0; return Phi(Region,0,1); ]", code.print());
+        assertEquals("Stop[ return #2; return Phi(Region,0,1); ]", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "win64",22,null);
     };
@@ -249,7 +249,7 @@ return s.skip().x;
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
         catch( Exception e ) {
             // Bad error message, but basically requires a mutable 'x' field.
-            assertEquals("Argument #0 isa *Test.Scan {i64 x; *[]u8 buf; { *Test.Scan -> *Test.Scan {i64 !x; *[]u8 buf; {3} skip; } #3} skip; }, but must be a *Test.Scan {i64 !x; *[]u8 buf; { *Test.Scan -> *Test.Scan #3} skip; }",e.getMessage());
+            assertEquals("Argument #0 isa *Test.Scan {i64 x; *[]u8 buf; { *Test.Scan -> *Test.Scan {i64 !x; *[]u8 buf; {[ 4]} skip; } #[ 4]} skip; }, but must be a *Test.Scan {i64 !x; *[]u8 buf; { *Test.Scan -> *Test.Scan #[ 4]} skip; }",e.getMessage());
         }
     };
 
@@ -276,9 +276,9 @@ return _s.require('[');
 """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("Stop[ return (.[]==91); return 0; return (Parm_ch(require,u8)==.[]); ]", code.print());
+        assertEquals("return (.[]==91);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "win64", 32, null);
+        testCPU(src,"x86_64_v2", "win64", 18, null);
     };
 
 

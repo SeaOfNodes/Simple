@@ -526,6 +526,7 @@ public class CodeGen {
                 // folds - but since multiple targets, the Call never inlines.  Recreate a
                 // valid RPC so codegen (and Eval2) understands the calling convention.
                 ParmNode rpc = new ParmNode( "$rpc", 0, ret.rpc()._type, fun );
+                rpc.addDef(ret.rpc());
                 ret.setDef( 3, rpc.init() );
             }
         }

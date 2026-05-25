@@ -121,29 +121,39 @@ abstract public class Opto {
         }
     }
 
+    // Start added some FIDXs, the same functions now can be reached from start
+    // and called by anybody.  Add the CG edges.
     private static void linkStart( CodeGen code, TypeTuple tt ) {
         TypeMem tmem = (TypeMem)tt._types[1];
         int[] fidxs = tmem._escFs;
         assert !XInt.isHigh(fidxs);
         for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
             FunNode fun = code._linker.at(fidx);
-            if( fun==null ) {
-                assert code._externFunc.containsKey(fidx);
-                continue;
-            }
-            assert !fun.isDead();
-            if( fun.nIns() < 2 || fun.in(1) != code._start ) {
-                // Function is added back to its original CompUnit
-                fun._compunit._stop.addDef(fun.ret());
-                // Function is reachable by any *remote* caller who gets the pointer!
-                fun.insertDef(1,code._start);
-                code._iter.add(fun);
-                for( Node p : fun._outputs )
-                    if( p instanceof ParmNode parm ) {
-                        parm.insertDef(1,parm._idx==1 ? new ProjNode(code._start,1,ScopeNode.MEM0).peephole() : code.con(parm._con));
-                        code._iter.add(parm);
-                    }
-            }
+            if( fun==null )  assert code._externFunc.containsKey(fidx);
+            else             linkStart(code,fun,true);
+        }
+    }
+
+    // Function is now reached from Start, both for escaped functions and after
+    // Opto for reachable-not-escaped and not-inlined functions.  This is
+    // because after Opto, the Start/Stop pair hooks every function we need to
+    // code-gen for, whether it escapes or not.
+    private static void linkStart( CodeGen code, FunNode fun, boolean funEscaped ) {
+        assert !fun.isDead();
+        if( fun.nIns() < 2 || fun.in(1) != code._start ) {
+            // Function is added back to its original CompUnit
+            fun._compunit._stop.addDef(fun.ret());
+            // Function is reachable by any *remote* caller who gets the pointer!
+            fun.insertDef(1,code._start);
+            code._iter.add(fun);
+            for( Node p : fun._outputs )
+                if( p instanceof ParmNode parm ) {
+                    Node defalt = !funEscaped ? code.con(Type.TOP)
+                        : parm._idx==1 ? new ProjNode(code._start,1,ScopeNode.MEM0).peephole()
+                        : code.con(parm._con);
+                    parm.insertDef(1,defalt);
+                    code._iter.add(parm);
+                }
         }
     }
 
@@ -230,8 +240,10 @@ abstract public class Opto {
 
         // Also all function headers, just trying to get the dead ones
         for( FunNode fun : code._linker )
-            if( fun != null && !fun.isDead() && fun._type.isHigh() )
-                code.add(fun);
+            if( fun != null && !fun.isDead() ) {
+                if( fun._type.isHigh() )  code.add(fun);
+                else                      linkStart(code,fun,false);
+            }
     }
 
     // Freeze field sizes; do struct layouts; convert field offsets into
