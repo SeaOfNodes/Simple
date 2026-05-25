@@ -54,16 +54,6 @@ public abstract class GlobalCodeMotion {
                 i--;        // Removed a global constant, re-run same index
             }
         }
-
-        // For all FunPtrs
-        for( FunNode fun : linker ) {
-            // Already linked to start, not going dead
-            if( fun==null || fun.isDead() )
-                continue;
-            for( Node use : fun.ret()._outputs )
-                if( use instanceof FunPtrNode fptr )
-                    breakUpGlobalConstantSingle( null, fptr );
-        }
     }
 
 

@@ -6,9 +6,9 @@ import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
-public class TFPRISC extends FunPtrNode implements MachNode, RIPRelSize {
+public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
     final String _ext;
-    TFPRISC( FunPtrNode fptr, String ext ) { super(fptr); _ext = ext; }
+    TFPRISC( ConstantNode fptr, String ext ) { super(fptr); _ext = ext; }
     @Override public String op() { return "ldx"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }

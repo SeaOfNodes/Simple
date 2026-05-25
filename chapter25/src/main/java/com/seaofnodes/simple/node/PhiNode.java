@@ -82,7 +82,7 @@ public class PhiNode extends TypeNode {
             Type ctrl = addDep(r.in(i))._type;
             if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
-                    return Type.BOTTOM;
+                    return _con;
                 t = t.meet(in(i)._type);
             }
         }
@@ -180,8 +180,6 @@ public class PhiNode extends TypeNode {
             }
             if( in(1) instanceof EscapeNode )
                 return false;
-            if( op instanceof FunPtrNode )
-                return false; // Different FunPtrs are ... different (fidxs)
             if( op.nOuts() > 1 ) {
                 if( busy==null ) busy = op;
                 else {         // Too many users, but addDep in case lose users

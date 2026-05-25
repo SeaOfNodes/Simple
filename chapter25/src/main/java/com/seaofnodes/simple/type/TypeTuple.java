@@ -29,13 +29,13 @@ public class TypeTuple extends Type {
     }
     @Override boolean isFree() { return _types==null; }
 
-    public TypeTuple meetFrom(int idx, Type t ) {
-        Type tx = _types[idx].meet(t);
+    public TypeTuple makeFrom(int idx, Type tx ) {
         if( _types[idx]==tx ) return this;
         Type[] types = _types.clone();
         types[idx] = tx;
         return make(types);
     }
+    public TypeTuple meetFrom(int idx, Type t ) { return makeFrom(idx,_types[idx].meet(t)); }
 
     public static final TypeTuple BOT = malloc(new Type[0]).intern();
     public static final TypeTuple TOP = BOT.dual();

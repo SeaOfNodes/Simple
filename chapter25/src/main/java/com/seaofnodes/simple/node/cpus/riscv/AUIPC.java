@@ -1,15 +1,15 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
 import com.seaofnodes.simple.codegen.*;
-import com.seaofnodes.simple.node.FunPtrNode;
 import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 // Add upper 20bits to PC.  Immediate comes from the relocation info.
-public class AUIPC extends FunPtrNode implements MachNode, RIPRelSize {
-    AUIPC( FunPtrNode fptr ) { super(fptr); }
+public class AUIPC extends ConstantNode implements MachNode, RIPRelSize {
+    AUIPC( ConstantNode fptr ) { super(fptr); }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
     @Override public boolean isClone() { return true; }

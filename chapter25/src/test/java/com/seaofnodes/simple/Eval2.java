@@ -283,7 +283,6 @@ public abstract class Eval2 {
         case DivFNode     dvf  -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
         case DivNode      div  -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));
         case EscapeNode   esc  -> esc(esc);
-        case FunPtrNode   fptr -> fptr._type;
         case LoadNode     ld   -> load(ld);
         case MemMergeNode merge-> "$mem";
         case MinusFNode   mnf  -> - d(mnf.in(1));
@@ -315,8 +314,6 @@ public abstract class Eval2 {
     static double d( Node n ) { Object d = F.get(n); return d==null ? 0 : (Double)d;  }
     // Fetch and unbox a function constant
     static TypeFunPtr tfp(Node n) {
-        if( n instanceof FunPtrNode fptr )
-            return fptr.ret().fun().sig();
         return (TypeFunPtr)F.get(n);
     }
     // Fetch and unbox a closure

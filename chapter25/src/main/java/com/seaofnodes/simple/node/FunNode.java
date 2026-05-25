@@ -87,17 +87,6 @@ public class FunNode extends RegionNode {
     public void setRet(ReturnNode ret) { _ret=ret; }
     public ReturnNode ret() { assert _ret!=null; return _ret; }
 
-    public FunPtrNode fptr() {
-        FunPtrNode fptr = null;
-        for( Node use : _outputs ) {
-            if( use instanceof FunPtrNode fptr2 ) {
-                assert fptr==null;
-                fptr = fptr2;
-            }
-        }
-        return fptr;
-    }
-
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
     public void setSig( TypeFunPtr sig ) {
@@ -157,8 +146,9 @@ public class FunNode extends RegionNode {
         // Attempt to get rid of the unknown caller.
         // - Must be past Parser, which invents new calls "from whole cloth".
         // - FIDX is not in the escape set
+        // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
         if( in(1) instanceof StartNode start ) {
-            if( !start.escapedFIDX(_sig.fidx()) ) {
+            if( !start.escapedFIDX(_sig.fidx()) && nIns()<=2 ) {
                 _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
                 return removeDeadPath(1);
             } else {
@@ -261,9 +251,6 @@ public class FunNode extends RegionNode {
         visit.set(n._nid);
         // Visit self as CFG outside of the function
         if( n instanceof CFGNode && !cfgs.get(n._nid) && unfolded( n ) )
-            return false;
-        //
-        if( n instanceof FunPtrNode )
             return false;
         // Visit n.cfg() outside of function
         if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) && unfolded( n.in( 0 ) ) )

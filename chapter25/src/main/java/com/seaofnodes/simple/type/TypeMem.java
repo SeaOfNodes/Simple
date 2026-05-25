@@ -37,12 +37,6 @@ public class TypeMem extends Type {
         _one = one;
         _final = xfinal;
 
-        // Short sanity check
-        if( t instanceof TypeFunPtr tfp && !tfp.isHigh() )
-            assert XInt.subset(fidxs,tfp.fidxs()); // Has all the fidxs
-        if( t instanceof TypeMemPtr tmp && !tmp.isHigh() )
-            assert XInt.subset(aliases,tmp._obj.aliases()); // Has all the aliases
-
         assert _escFs == null && _escAs == null;
         _escFs = XInt.intern(fidxs);
         _escAs = XInt.intern(aliases);
@@ -67,14 +61,14 @@ public class TypeMem extends Type {
     public static TypeMem make(int alias, Type t, boolean one, boolean xfinal, int[] fidxs, int[] aliases) {
         if( fidxs  ==null ) fidxs  = XInt.EMPTY;
         if( aliases==null ) aliases= XInt.EMPTY;
-        TypeMem f = malloc(alias,t,one,xfinal, escapeFIDX(fidxs,t), escapeAlias(aliases,t));
+        TypeMem f = malloc(alias,t,one,xfinal, fidxs, aliases);
         TypeMem f2 = f.intern();
         if( f2==f ) return f;
         return VISIT.isEmpty() ? f2.free(f) : f2.delayFree(f);
     }
     public static TypeMem make(int alias, Type t) { return make(alias,t,false,false,null,null); }
     // Make a private memory
-    public static TypeMem makePrivate(Type t) { return make(1,t,true,false,null,null); }
+    public static TypeMem makePrivate(Type t) { return make(1,t,true,false,escapeFIDX(XInt.EMPTY,t), escapeAlias(XInt.EMPTY,t)); }
 
     public TypeMem makeFrom(Type t) { return make(_alias,t,_one,_final,_escFs,_escAs); }
     public TypeMem makeFrom(int[] fidxes, int[] aliases) {
@@ -83,6 +77,10 @@ public class TypeMem extends Type {
     // Existing escapes plus `t` escapes
     public TypeMem escapes(Type t) {
         return make(_alias,_t,_one,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
+    }
+    // Existing escapes plus `t` escapes
+    public TypeMem escapesFrom(Type t) {
+        return make(_alias,t,_one,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
     }
 
     public static final TypeMem TOP = make(1, Type.TOP   ,true ,true , XInt.EMPTY, XInt.EMPTY);

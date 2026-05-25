@@ -145,7 +145,7 @@ return fcn(3);
     public void testFcn5() {
         CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1 : x*_fact(x-1); }; return _fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("return Phi(Region,1,(arg*#2));", code.print());
+        assertEquals("Stop[ return Phi(Region,1,(arg*#2)); return Phi(Region,1,(Parm_x(_fact,Top,(arg-1),(x-1))*#2)); ]", code.print());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -365,7 +365,7 @@ if (_i2i_noInline) return _i2i_noInline(arg);
 return _f2f(_o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(_i2i_noInline,i64); ]", code.print());
+        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(_i2i_noInline,Top); ]", code.print());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

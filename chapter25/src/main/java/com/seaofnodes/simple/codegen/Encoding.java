@@ -149,7 +149,7 @@ public class Encoding {
         return this;
     }
     // Code address as a constant
-    public Encoding relo( FunPtrNode fptr ) {
+    public Encoding relo( ConstantNode fptr ) {
         TypeFunPtr tfp = (TypeFunPtr)fptr._type;
         _internals.put(fptr,_code.link(tfp));
         return this;
@@ -367,10 +367,7 @@ public class Encoding {
                 opLen(bb, (byte) (_bits.size() - opStart(bb)));
             }
             for( Node n : bb._outputs ) {
-                if( n instanceof MachNode mach && !(n instanceof FunNode) &&
-                    // TFPs point to the Return of their function, but it is
-                    // not a concrete (value carrying) input
-                    !(bb instanceof ReturnNode && n instanceof FunPtrNode) ) {
+                if( n instanceof MachNode mach && !(n instanceof FunNode) ) {
                     opStart(n, _bits.size());
                     mach.encoding( this );
                     opLen(n, (byte) (_bits.size() - opStart(n)));
@@ -436,10 +433,7 @@ public class Encoding {
             }
             opStartAdd(bb, slide);
             for( Node n : bb._outputs )
-                if( n instanceof MachNode && !(n instanceof CFGNode) &&
-                    // TFPs point to the Return of their function, but it is
-                    // not a concrete (value carrying) input
-                    !(bb instanceof ReturnNode && n instanceof FunPtrNode) )
+                if( n instanceof MachNode && !(n instanceof CFGNode) )
                     opStartAdd(n, slide);
         }
 
