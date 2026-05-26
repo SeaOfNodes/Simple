@@ -150,23 +150,26 @@ public class TypeMem extends Type {
     // one tag for alias#1, one tag for generic alias.
     // tag bit for _one, another bit for _final.
     @Override int TAGOFF() { return 8; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         baos.write(TAGOFFS[_type]
                    + (_alias==1 ? 0 : 1)
                    + (!_one     ? 0 : 2)
                    + (!_final   ? 0 : 4) );
-        if( _alias==1 ) return;
-        // generic alias
-        assert _alias <= 255;
-        baos.packed1(aliases.get(_alias));
-        // TODO: Write aliases & fidxs summary
+        if( _alias!=1 ) {
+            // generic alias
+            assert _alias <= 255;
+            baos.packed1( aliases.at( _alias ) );
+        }
+        XInt.packed(baos,           _escFs         );
+        XInt.packed(baos,XInt.remap(_escAs,aliases));
     }
     static TypeMem packed( int tag, BAOS bais ) {
         int alias = (tag&1)==0 ? 1 : bais.packed1();
         boolean one   = (tag&2)==2;
         boolean xfinal= (tag&4)==4;
-        throw Utils.TODO();
-        //return malloc(alias,null,one,xfinal,0,0);
+        int[] escFs = XInt.packed(bais);
+        int[] escAs = XInt.packed(bais);
+        return malloc(alias,null,one,xfinal,escFs,escAs);
     }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {

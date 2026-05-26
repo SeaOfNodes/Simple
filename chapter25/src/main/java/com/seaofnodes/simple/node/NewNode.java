@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
@@ -23,7 +24,7 @@ public class NewNode extends Node implements MultiNode {
     // --- Serialization
     public NewNode(NewNode nnn) { super(nnn); _ts = nnn._ts; }
     @Override public Tag serialTag() { return Tag.New; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
         baos.packed2(types.get(_ts));
     }
     static Node make( BAOS bais, Type[] types)  {

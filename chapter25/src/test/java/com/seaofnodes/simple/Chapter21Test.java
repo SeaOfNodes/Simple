@@ -57,8 +57,8 @@ return new _s0.v1;
     @Test public void testInfinite() {
         String src = "struct _S { int i; }; _S !s = new _S; while(1) s.i++; return s.i;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
-        testCPU(src,"riscv"    , "SystemV",2,"return Top;");
-        testCPU(src,"arm"      , "SystemV",2,"return Top;");
+        testCPU(src,"riscv"    , "SystemV",0,"return Top;");
+        testCPU(src,"arm"      , "SystemV",0,"return Top;");
     }
 
     @Test

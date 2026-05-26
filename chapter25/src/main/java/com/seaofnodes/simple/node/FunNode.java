@@ -5,6 +5,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeTuple;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
@@ -48,7 +49,7 @@ public class FunNode extends RegionNode {
         _extern = fun._extern;
     }
     @Override public Tag serialTag() { return Tag.Fun; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
         assert !_folding;
         baos.packed1(nIns());          // Number of linked calls
         baos.packed2(types.get(_sig)); // NPE if fails lookup

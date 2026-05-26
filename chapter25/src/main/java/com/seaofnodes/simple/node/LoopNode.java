@@ -5,6 +5,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -14,7 +15,7 @@ public class LoopNode extends RegionNode {
     public LoopNode( Parser.Lexer loc, Node entry ) { super(loc,null,entry,null); }
     public LoopNode( LoopNode loop ) { super(loop); }
     @Override public Tag serialTag() { return Tag.Loop; }
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) { }
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) { }
 
     public CFGNode entry() { return cfg(1); }
     public CFGNode back () { return cfg(2); }
@@ -61,9 +62,11 @@ public class LoopNode extends RegionNode {
         Node top = new ConstantNode(Type.TOP).peephole();
         Node memout = new MemMergeNode(false);
         memout.addDef(f); // placeholder for control
+        memout.addDef(top);
         for( Node u : _outputs )
             if( u instanceof PhiNode phi && phi._type.isa(TypeMem.BOT) )
                 memout.addDef(phi);
+        memout.init();
 
         Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
         if( ctrl!=null && ctrl._type != Type.XCONTROL ) {
@@ -89,8 +92,12 @@ public class LoopNode extends RegionNode {
         ret.setDef(0,ctrl.unkeep());
         ret.setDef(1,mem .unkeep());
         ret.setDef(2,expr.unkeep());
-        ret._type = null; // This may LIFT the Return type, from [XCtrl,mem,expr] to [Ctrl,mem,expr]
-        ret.setType(ret.compute());
+        // Force sane types to exit; might locally break monotonicity
+        ret.init();
+        ret.out(0).init();
+        stop.init();
+        CodeGen.CODE.add(CodeGen.CODE._start);
+        CodeGen.CODE.add(mem);
 
         return stop;
     }

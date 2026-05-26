@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.type.*;
@@ -24,7 +25,7 @@ public class MemMergeNode extends Node {
     public MemMergeNode( boolean inProgress, Node ...nodes) { super(nodes); _type = TypeMem.BOT; _inProgress = inProgress; }
     public MemMergeNode(MemMergeNode mem) { super(mem); _inProgress = false; }
     @Override public Tag serialTag() { return Tag.MemMerge; }
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) { baos.packed1(nIns()); }
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) { baos.packed1(nIns()); }
     static Node make( BAOS bais )  { Node mem = new MemMergeNode(false); mem.setDefX(bais.packed1()-1,null); return mem; }
 
 

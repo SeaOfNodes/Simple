@@ -115,8 +115,8 @@ public class CodeGen {
         _gvn = new HashMap<>();
         _iter = new IterPeeps(workListSeed);
         // End points of graph
-        _stop = new StopNode();
-        _start = new StartNode(_stop,arg);
+        _stop = new StopNode().init();;
+        _start = new StartNode(_stop,arg).init();
         ZERO  = con(TypeInteger.ZERO).keep();
         XCTRL = new XCtrlNode().peephole().keep();
         P = new Parser(this);
@@ -363,6 +363,7 @@ public class CodeGen {
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
         _start.buildLoopTree( _linker, _stop);
+        _iter.iterate(this);
         _times[Phase.LoopTree.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }

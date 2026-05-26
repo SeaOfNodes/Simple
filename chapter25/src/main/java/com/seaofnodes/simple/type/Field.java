@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import java.util.*;
@@ -131,10 +132,10 @@ public class Field extends Type {
     @Override public void set( int idx, Type t ) { _t = t; }
     // Tags: final/!final; +alias+name
     @Override int TAGOFF() { return 2; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         baos.write(TAGOFFS[_type] + (_final ? 1 : 0));
-        baos.packed2(aliases.get(_alias));
-        baos.packed2(strs   .get(_fname));
+        baos.packed2(aliases.at(_alias));
+        baos.packed2(strs  .get(_fname));
     }
     static Field packed( int tag, BAOS bais, String[] strs ) {
         int alias = bais.packed2();

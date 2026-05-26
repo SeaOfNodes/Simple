@@ -34,7 +34,7 @@ public class StoreNode extends MemOpNode {
         _init = bais.read() != 0;
     }
     @Override public Tag serialTag() { return Tag.Store; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
         super.packed(baos,strs,types,aliases);
         baos.write(_init ? 1 : 0);
     }
@@ -237,7 +237,8 @@ public class StoreNode extends MemOpNode {
         if( ptr()._type == Type.TOP )
             return null; // This means we have an error input, report elsewhere
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
-        if( tmp._obj.field(_name)._final && !_init )
+        Field f = tmp._obj.field(_name);
+        if( f!=null && f._final && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         return null;
     }

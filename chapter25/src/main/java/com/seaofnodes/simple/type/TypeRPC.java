@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.*;
@@ -100,7 +101,7 @@ public class TypeRPC extends Type {
 
     // Reserve tags for ALL, singleton, generic
     @Override int TAGOFF() { return 3; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         if( this==BOT ) {
             baos.write( TAGOFFS[_type] + 0 );
         } else if( _rpcs.size()==1 ) { // Singleton

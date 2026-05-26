@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
@@ -125,7 +126,7 @@ public class TypeMemPtr extends TypeNil {
 
     // Reserve tags for null/not and one/general
     @Override int TAGOFF() { return 4; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         assert _nil>=2;
         baos.write(TAGOFFS[_type]
                    + (_nil==2 ? 0 : 1)

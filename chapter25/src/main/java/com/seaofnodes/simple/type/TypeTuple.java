@@ -121,7 +121,7 @@ public class TypeTuple extends Type {
 
     // Reserve tags for tuples with 2,3,generic
     @Override int TAGOFF() { return 4; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         if( _types.length==2 ) baos.write(TAGOFFS[_type] + 0);
         else if( _types.length==3 ) baos.write(TAGOFFS[_type] + 1);
         else if( _types.length==4 ) baos.write(TAGOFFS[_type] + 2);

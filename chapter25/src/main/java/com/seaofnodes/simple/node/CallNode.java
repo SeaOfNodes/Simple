@@ -6,6 +6,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.XInt;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -22,7 +23,7 @@ public class CallNode extends CFGNode {
     public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
     @Override public Tag serialTag() { return Tag.Call; }
-    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) { baos.packed1(nIns()); }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) { baos.packed1(nIns()); }
     static Node make( BAOS bais )  { return new CallNode(null,new Node[bais.packed1()]); }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {

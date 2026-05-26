@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -21,7 +22,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
     public CallEndNode(double ignore) { super(new Node[0]); _rpc = TypeRPC.constant(_nid); }
     @Override public Tag serialTag() { return Tag.CallEnd; }
-    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
         baos.packed1(nIns());
         // Linked CallEnds depend on Return types which depend on CallEnds;
         // break the cycle
