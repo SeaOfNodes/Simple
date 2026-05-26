@@ -537,7 +537,7 @@ public class Type /*implements Cloneable*/ {
     // Reserve 6 tags, 0-5, for plain Types
     int TAGOFF() { assert is_simple(); return 6; }
 
-    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         assert is_simple();
         baos.write(_type);
     }
@@ -560,6 +560,7 @@ public class Type /*implements Cloneable*/ {
         int off = x - TAGOFFS[type];
         return switch( type ) {
         case 0, 1, 2, 3, 4, 5 -> Type.packed( off );
+        case TPTR    ->   TypePtr    .packed( off );
         case TINT    ->   TypeInteger.packed( off, bais );
         case TFLT    ->   TypeFloat  .packed( off, bais );
         case TCONARY ->   TypeConAry .packed( off, bais );
@@ -629,24 +630,37 @@ public class Type /*implements Cloneable*/ {
             }
             // Remap foreign fidx to local fidx
             if( remapFIDXs && types[i] instanceof TypeFunPtr tfp ) {
-                long lfidxs = 0;
-                //for( long tfidxs = tfp.fidxs(); tfidxs != 0; tfidxs = TypeFunPtr.nextFIDX(tfidxs) ) {
-                //    int fidx = Long.numberOfTrailingZeros(tfidxs);
-                //    // Remap foreign fidxes to local fidxs
-                //    int lfidx = fidxs.atX(fidx);
-                //    if( lfidx==0 )  // Unmapped yet
-                //        fidxs.setX(fidx,lfidx=nextFIDX++);
-                //    assert lfidx <= 63;
-                //    lfidxs |= (1L<<lfidx);
-                //}
-                //tfp._fidxs = lfidxs;
-                throw Utils.TODO();
+                int[] lfidxs = XInt.EMPTY;  // Local fidx collection
+                int[] ffidxs = tfp.fidxs(); // Foreign fidx collection
+                for( int fidx = XInt.next(ffidxs,0); fidx >=0; fidx = XInt.next(ffidxs,fidx) ) {
+                    // Remap foreign fidxes to local fidxs
+                    int lfidx = fidxs.atX(fidx);
+                    if( lfidx==0 )  // Unmapped yet
+                        fidxs.setX(fidx,lfidx=nextFIDX++);
+                    lfidxs = XInt.make(lfidxs,lfidx);
+                }
+                tfp._fidxs = lfidxs;
             }
         }
+
+        // Need to remap aliases?
+        boolean remapAlias = false;
+        for( int i=1; i<aliases._len; i++ )
+            if( aliases.at(i)!=i )
+                { remapAlias = true; break; }
+
         // Walk all type aliases, and map to local aliases
-        for( int i=0; i<ntypes; i++ ) {
-            if( types[i] instanceof Field   fld ) fld._alias = aliases.at(fld._alias);
-            if( types[i] instanceof TypeMem mem ) mem._alias = aliases.at(mem._alias);
+        if( remapAlias || remapFIDXs ) {
+            for( int i=0; i<ntypes; i++ ) {
+                if( types[i] instanceof Field   fld && remapAlias ) fld._alias = aliases.at(fld._alias);
+                if( types[i] instanceof TypeMem mem && remapAlias ) mem._alias = aliases.at(mem._alias);
+                if( types[i] instanceof TypeMem mem ) {
+                    if( remapAlias && mem._escAs != XInt.EMPTY && mem._escAs != XInt.FULL )
+                        mem._escAs = XInt.remap(mem._escAs,aliases);
+                    if( remapFIDXs && mem._escFs != XInt.EMPTY )
+                        throw Utils.TODO();
+                }
+            }
         }
 
         // Intern them all at once

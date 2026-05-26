@@ -218,7 +218,7 @@ public class TypeFunPtr extends TypeNil {
     // Tag 6 - not ,close+fidxs+nargs
     // Tag 7 - null,close+fidxs+nargs
     @Override int TAGOFF() { return 8; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         assert _open;
         if( _nil==2 && nargs()<6 && nfcns() == 1 ) {
             baos.write(TAGOFFS[_type] + nargs());

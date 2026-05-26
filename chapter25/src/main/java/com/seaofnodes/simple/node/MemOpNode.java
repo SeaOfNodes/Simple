@@ -69,9 +69,9 @@ public abstract class MemOpNode extends TypeNode {
              types[bais.packed2()],null,null,null,null);
     }
 
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
         baos.packed2(_name==null ? 0 : strs.get(_name));
-        baos.packed2(aliases.get(_alias));
+        baos.packed2(aliases.at(_alias));
         baos.packed2(types.get(_con));                // NPE if fails lookup
         assert _isLoad == this instanceof LoadNode; // No machine ops
     }

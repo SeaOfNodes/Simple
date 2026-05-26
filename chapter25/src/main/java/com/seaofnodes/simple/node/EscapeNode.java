@@ -32,7 +32,7 @@ public class EscapeNode extends TypeNode {
     public Field fld() { return (Field)_con; }
 
     @Override public Tag serialTag() { return Tag.Escape; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
         baos.packed2(types.get(_con));
     }
     static Node make( BAOS bais, Type[] types)  {

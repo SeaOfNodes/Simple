@@ -26,7 +26,7 @@ public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
 
-    public StartNode(StopNode stop, Type arg) { super(null,stop); _arg = arg; _type = compute(); }
+    public StartNode(StopNode stop, Type arg) { super(null,stop); _arg = arg;  }
     public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
     @Override public Tag serialTag() { return Tag.Start; }
 
@@ -60,8 +60,9 @@ public class StartNode extends LoopNode implements MultiNode {
 
     @Override public TypeTuple compute() {
         TypeMem tmem;
-        if( !(in(1)._type instanceof TypeTuple tt) )
-            tmem = in(1)._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+        StopNode stop = (StopNode)in(1);
+        if( !(stop._type instanceof TypeTuple tt) )
+            tmem = stop._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
         else {
             tmem = (TypeMem)tt._types[1];
             if( tmem.isHigh() )

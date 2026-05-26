@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
@@ -179,7 +180,7 @@ public class TypeInteger extends Type {
 
     // Reserve tags for I64,I32,U32,0,constant,generic
     @Override int TAGOFF() { return 7; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         if(      this==BOT ) baos.write(TAGOFFS[_type] + 0);
         else if( this==I32 ) baos.write(TAGOFFS[_type] + 1);
         else if( this==U32 ) baos.write(TAGOFFS[_type] + 2);

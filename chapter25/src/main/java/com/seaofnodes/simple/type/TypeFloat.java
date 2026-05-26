@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
@@ -102,7 +103,7 @@ public class TypeFloat extends Type {
 
     // Reserve tags for F64,F32,constant
     @Override int TAGOFF() { return 3; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Integer,Integer> aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
         if(      this==F64 ) baos.write(TAGOFFS[_type] + 0);
         else if( this==F32 ) baos.write(TAGOFFS[_type] + 1);
         else {

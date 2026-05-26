@@ -78,12 +78,15 @@ abstract public class Serialize {
         }
 
         // Count unique aliases; they should all be in Types
-        var aliases = new HashMap<Integer,Integer>();
-        aliases.put(0,0);       // There is no alias 0, just a placeholder
-        aliases.put(1,1);       // Always alias#1 maps to #1 for ALL MEM
+        var aliases = new AryInt();
+        aliases.setX(0,0);       // There is no alias 0, just a placeholder
+        aliases.setX(1,1);       // Always alias#1 maps to #1 for ALL MEM
         for( Type t : atypes ) {
             if( t instanceof Field fld   ) gather(aliases,fld._alias);
             if( t instanceof TypeMem mem ) gather(aliases,mem._alias);
+            if( t instanceof TypeMem mem && mem._escAs != XInt.FULL )
+                for( int bit = XInt.next(mem._escAs,0); bit >=0; bit = XInt.next(mem._escAs,bit) )
+                    gather(aliases,bit);
         }
 
         // Count all unique Strings
@@ -166,6 +169,15 @@ abstract public class Serialize {
         if( s!=null && !strs.containsKey(s) )
             strs.put(s,strs.size());
     }
+    public static void gather( AryInt is, int s) {
+        if( is.atX(s)==0 ) {
+            int cnt=0;
+            for( int i=1; i<is._len; i++ )
+                if( is._es[i] != 0 )
+                    cnt++;
+            is.setX(s,cnt+1);
+        }
+    }
 
     // Returned array of *public* strings only.
     static void read_public_strs(ElfReader elf) {
@@ -183,7 +195,7 @@ abstract public class Serialize {
         for( int i=0; i<nstrs; i++ )
             strs[i] = bais.packedS();
         elf._strs = strs;
-        
+
         // Collect dependent file names
         elf._deps = new String[ndependents];
         for( int i=0; i<ndependents; i++ )
@@ -280,6 +292,7 @@ abstract public class Serialize {
         assert code._start._ltree != null; // Uses loop tree
         BitSet visit = code.visit();
         Ary<Node> nodes = new Ary<>(Node.class);
+        visit.set(code._stop._nid);
         // Walk all listed functions, in this single compilation unit
         for( FunNode fun : code._linker )
             if( fun!=null && !fun.isDead() && fun._compunit == cu )

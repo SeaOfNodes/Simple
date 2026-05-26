@@ -149,7 +149,7 @@ public abstract class Node implements Cloneable {
     };
     public Tag serialTag() { throw Utils.TODO(); }
     // Serialize extra data, including input counts
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, HashMap<Integer,Integer> aliases) {}
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {}
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public String label() { return serialTag().toString(); }
