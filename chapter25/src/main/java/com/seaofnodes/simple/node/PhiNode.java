@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 
@@ -30,7 +29,7 @@ public class PhiNode extends TypeNode {
             addDef(sample);
     }
     @Override public Tag serialTag() { return Tag.Phi; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
         baos.packed1(nIns());
         baos.packed2(_label==null ? 0 : strs.get(_label));
         baos.packed2(types.get(_con));

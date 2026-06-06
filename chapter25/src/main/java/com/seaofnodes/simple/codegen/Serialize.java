@@ -24,19 +24,19 @@ abstract public class Serialize {
             }
 
             // Compress into bytes
-            BAOS baos = write(nodes, ref._clz, deps);
+            BAOS baos = write(nodes, ref._clz, deps, code._aliases, code._fidxs, code._rpcs);
 
             // --- Expensive bijection assert
-            if( false ) {
+            if( true ) {
                 // Inflate into POJOs; renumbers everything
                 ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
-                readAll(elf,ref, false);
-                BAOS baos2 = write(elf._nodes,elf._clz,elf._deps);
+                readAll(code,elf,ref, code._aliases, code._fidxs, code._rpcs);
+                BAOS baos2 = write(elf._nodes,elf._clz,elf._deps, code._aliases, code._fidxs, code._rpcs);
 
                 // Bi-jection
                 for( int i=0; i<baos.size(); i++ )
-                    assert baos.buf()[i]==baos2.buf()[i];
-                assert baos.size()==baos2.size();
+                    assert baos.buf()[i]==baos2.buf()[i] : "bijection mismatch at "+i+": "+(baos.buf()[i]&0xFF)+" != "+(baos2.buf()[i]&0xFF);
+                assert baos.size()==baos2.size() : "bijection size mismatch: "+baos.size()+" != "+baos2.size();
             }
             // --- Expensive bijection assert
 
@@ -46,7 +46,7 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static BAOS write(Ary<Node> nodes, TypeStruct clz, String[] depobjs /*other CodeGen inputs, #aliases, #fidxs*/) {
+    static BAOS write(Ary<Node> nodes, TypeStruct clz, String[] depobjs, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs) {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -68,26 +68,14 @@ abstract public class Serialize {
         // Gather types from all sources
         for( Node n : nodes ) {
             n._type.gather(types);
+            if( n instanceof CallEndNode cend ) cend._rpc.gather(types);
             if( n instanceof  FunNode fun ) fun.sig().gather(types);
             if( n instanceof TypeNode con ) con._con .gather(types);
         }
         // Radix sort by Type ID#
         Type[] atypes = new Type[types.size()];
-        for( Type t : types.keySet() ) {
+        for( Type t : types.keySet() )
             atypes[types.get(t)] = t;
-        }
-
-        // Count unique aliases; they should all be in Types
-        var aliases = new AryInt();
-        aliases.setX(0,0);       // There is no alias 0, just a placeholder
-        aliases.setX(1,1);       // Always alias#1 maps to #1 for ALL MEM
-        for( Type t : atypes ) {
-            if( t instanceof Field fld   ) gather(aliases,fld._alias);
-            if( t instanceof TypeMem mem ) gather(aliases,mem._alias);
-            if( t instanceof TypeMem mem && mem._escAs != XInt.FULL )
-                for( int bit = XInt.next(mem._escAs,0); bit >=0; bit = XInt.next(mem._escAs,bit) )
-                    gather(aliases,bit);
-        }
 
         // Count all unique Strings
         var strs = new HashMap<String,Integer>();
@@ -103,6 +91,10 @@ abstract public class Serialize {
             if( t instanceof Field fld     ) gather(strs,fld._fname);
             if( t instanceof TypeStruct ts ) gather(strs,ts . _name);
         }
+        // Count strings used by local->global bit mappings.
+        aliases.gather(strs,2);
+        fidxs  .gather(strs,0);
+        rpcs   .gather(strs,0);
         // Count strings from nodes
         for( Node n : nodes )
             n.gather(strs);
@@ -121,15 +113,20 @@ abstract public class Serialize {
         // B - Write unique strings
         baos.packed4(depobjs==null ? 0 : depobjs.length);
         baos.packed4(strs.size());
-        // Write in ID# order
+        // Write in ID# order; the first depobjs.length of these are dependent strings
         for( String s : astrs )
             baos.packedS(s);
+
+        // B.2 - Write the local->global mappings
+        aliases.packed(baos,strs,2);
+        fidxs  .packed(baos,strs,0);
+        rpcs   .packed(baos,strs,0);
 
         // C - Write unique Types
         baos.packed4(atypes.length);
         // Write Types in ID# order, no children
         for( Type t : atypes )
-            t.packed(baos,strs,aliases);
+            t.packed(baos,strs);
         // Write Types in ID# order, only child IDs
         for( Type t : atypes ) {
             int nkids = t.nkids();
@@ -153,10 +150,11 @@ abstract public class Serialize {
         for( Node n : nodes ) {
             baos.packed1(n.serialTag().ordinal());
             baos.packed2(types.get(n._type));
-            n.packed(baos,strs,types,aliases);
+            n.packed(baos,strs,types);
         }
         // Write out the input indices packed
-        for( Node n : nodes ) {
+        for( int j=1; j<nodes._len; j++ ) {
+            Node n = nodes._es[j];
             for( int i=0; i<n.nIns(); i++ )
                 baos.packed2(n.in(i)==null ? 0 : anodes.get(n.in(i)));
             if( n instanceof FunNode fun )
@@ -203,7 +201,7 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static void readAll( ElfReader elf, CompUnit cu, boolean remapFIDXs ) {
+    static void readAll( CodeGen code, ElfReader elf, CompUnit cu, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {
         BAOS bais = elf._bais;
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
@@ -225,16 +223,22 @@ abstract public class Serialize {
         for( int i=0; i<ndependents; i++ )
             elf._deps[i] = strs[1+i+1];
 
+
+        // B.2 - Read the local->global mappings.  Further down we will map
+        // Elf file-local -> global, then global -> CodeGen.CODE local
+        GlobalBits fileAliases = GlobalBits.packed(bais,strs,2);
+        GlobalBits fileFidxs   = GlobalBits.packed(bais,strs,0);
+        GlobalBits fileRpcs    = GlobalBits.packed(bais,strs,0);
+
+
         // C - Packed read of #types, then types
         int ntypes = bais.packed4();
-        // Map deserialized aliases to local aliases
-        AryInt aliases = new AryInt();
-        AryInt fidxs = new AryInt();
-        Type[] types = Type.packed(bais,strs,aliases,fidxs,ntypes, Parser.TYPES, CodeGen.CODE._alias, CodeGen.CODE._fidx, remapFIDXs);
-        // Also passed aliases used in aliases.at(0)
-        CodeGen.CODE._alias = aliases.at(0);
-        CodeGen.CODE._fidx  = fidxs  .at(0);
-        aliases.set(0,0);
+        Type[] types = Type.packed(bais,strs,ntypes, Parser.TYPES,
+                                   fileAliases,aliases,
+                                   fileFidxs  ,fidxs,
+                                   fileRpcs   ,rpcs);
+
+        // aliases.set(0,0);
         // Check and collect first published symbols map to TypeStructs
         elf._clz = (TypeStruct)types[1/*skip zero*/];
         assert elf._clz._name==strs[1/*skip null ptr*/];
@@ -248,13 +252,14 @@ abstract public class Serialize {
         for( int i=0; i<num; i++ ) {
             Node.Tag tag = Node.Tag.VALS[bais.packed1()];
             Type t = types[bais.packed2()];
-            Node n = tag.make(bais,strs,types,aliases);
+            Node n = tag.make(bais,strs,types,fileAliases,aliases);
             n._type = t;
             nodes.push(n);
         }
 
         // Node edges
-        for( Node n : nodes ) {
+        for( int j=1; j<nodes._len; j++ ) {
+            Node n = nodes._es[j];
             int len = n.nIns();
             for( int i=0; i<len; i++ ) {
                 int idx = bais.packed2();
@@ -267,23 +272,34 @@ abstract public class Serialize {
                 fun.setRet(ret);
                 ret._fun = fun;
                 fun._compunit = cu;
-                if( remapFIDXs ) {
-                    // Set the code._linker and compunit fields
-                    int fidx = fun.sig().fidx();
-                    assert CodeGen.CODE._linker.atX(fidx)==null;
-                    CodeGen.CODE._linker.setX(fidx,fun);
-                }
+                //if( remapFIDXs ) {
+                //    // Set the code._linker and compunit fields
+                //    int fidx = fun.sig().fidx();
+                //    assert code._linker.atX(fidx)==null;
+                //    code._linker.setX(fidx,fun);
+                //}
             }
         }
+        // Add edge from Start to Stop
+        StartNode start = (StartNode)nodes.at(0);
+        StopNode stop = (StopNode)nodes.last();
+        start.setDef(1,stop);
 
-        assert check(nodes);
+        assert check(code,nodes);
         elf._nodes = nodes;
     }
 
-    private static boolean check( Ary<Node> nodes ) {
+    // Check loaded types and nodes are consistent
+    private static boolean check( CodeGen code, Ary<Node> nodes ) {
+        // If loading code instead of parsing, the types will be valid
+        // post-parse - e.g. nodes are not "in progress" so Regions and Phis
+        // can just do meet-over-inputs.
+        CodeGen.Phase phase = code._phase;
+        code._phase = CodeGen.Phase.Opto;
         for( Node n : nodes )
             if( n._type != n.compute() )
                 return false;
+        code._phase = phase;
         return true;
     }
 
@@ -316,7 +332,7 @@ abstract public class Serialize {
         }
         cons.addAll(nodes);
         cons.add(cu._stop);
-        cons.add(code._stop);
+        //cons.add(code._stop);
         visit.clear();
         return cons;
     }

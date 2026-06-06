@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.util.*;
 import java.util.*;
 
@@ -537,7 +538,7 @@ public class Type /*implements Cloneable*/ {
     // Reserve 6 tags, 0-5, for plain Types
     int TAGOFF() { assert is_simple(); return 6; }
 
-    public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
+    public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         assert is_simple();
         baos.write(_type);
     }
@@ -576,7 +577,10 @@ public class Type /*implements Cloneable*/ {
     }
 
     // Read a packed Type array
-    public static Type[] packed( BAOS bais, String[] strs, AryInt aliases, AryInt fidxs, int ntypes, HashMap<String,Type> existingTypes, int nextAlias, int nextFIDX, boolean remapFIDXs ) {
+    public static Type[] packed( BAOS bais, String[] strs, int ntypes, HashMap<String,Type> existingTypes,
+                                 GlobalBits fileAliases, GlobalBits aliases,
+                                 GlobalBits fileFidxs  , GlobalBits fidxs  ,
+                                 GlobalBits fileRpcs   , GlobalBits rpcs   ) {
         Type[] types = new Type[ntypes];
         // Read Types in ID# order, no children
         for( int i=0; i<ntypes; i++ )
@@ -590,84 +594,42 @@ public class Type /*implements Cloneable*/ {
             for( int j=0; j<nkids; j++ )
                 types[i].set(j,types[bais.packed4()]);
         }
-        // Update aliases to local aliases.  Walk the new structs, look for an
-        // existing struct with the same name.  Either find a closed one (all
-        // fields) or error if only open structs.  Walk fields for both, assert
-        // they are the same order (and the meet does not go to bottom), then
-        // make a mapping from the serialized aliases to the local aliases.
-        // For structs with *no* mapping, create a new local alias.
-        aliases.setX(1,1); // Bottom maps to bottom alias always
-
-        // Same-same for fidxs; remap the packed fidxs into the local fidxs.
-
+        // Remap file-local aliases/fidxs/rpcs into this compilation unit's
+        // local dense indexes via their global identities.
         for( int i=0; i<ntypes; i++ ) {
-            if( types[i] instanceof TypeStruct ts ) {
-                int flen = ts._fields.length;
-                // Find matching local structs
-                TypeStruct ts2 = (TypeStruct)existingTypes.get( ts._name );
-                assert ts2==null || !ts2._open;
-                if( ts2!=null && flen != ts2._fields.length )
-                    throw Utils.TODO("link error: incompatible structs");
-
-                // For all fields, map aliases
-                for( int j=0; j<flen; j++ ) {
-                    Field dfld = ts._fields[j]; // Deserialize field
-                    int old_alias;
-                    if( ts2!=null ) {
-                        // Fields in structs must exactly align
-                        Field tfld = ts2._fields[j]; // Existing field
-                        if( !tfld._fname.equals(dfld._fname) )
-                            throw Utils.TODO("link error: incompatible structs");
-                        old_alias = tfld._alias; // Use existing alias
-                    } else {
-                        old_alias = nextAlias++; // Make a new alias
-                    }
-                    // Collect the alias mapping
-                    int deser_alias = aliases.atX(dfld._alias);
-                    if( deser_alias==0 ) aliases.setX(dfld._alias,old_alias);
-                    else assert ts2==null || deser_alias==old_alias;
-                }
+            if( types[i] instanceof Field fld ) {
+                if( fld._alias >= 2 )
+                    fld._alias = aliases.map(fileAliases,fld._alias);
             }
-            // Remap foreign fidx to local fidx
-            if( remapFIDXs && types[i] instanceof TypeFunPtr tfp ) {
-                int[] lfidxs = XInt.EMPTY;  // Local fidx collection
-                int[] ffidxs = tfp.fidxs(); // Foreign fidx collection
-                for( int fidx = XInt.next(ffidxs,0); fidx >=0; fidx = XInt.next(ffidxs,fidx) ) {
-                    // Remap foreign fidxes to local fidxs
-                    int lfidx = fidxs.atX(fidx);
-                    if( lfidx==0 )  // Unmapped yet
-                        fidxs.setX(fidx,lfidx=nextFIDX++);
-                    lfidxs = XInt.make(lfidxs,lfidx);
-                }
-                tfp._fidxs = lfidxs;
+            if( types[i] instanceof TypeFunPtr tfp )
+                tfp._fidxs = remapBits(fileFidxs,fidxs,tfp._fidxs,0);
+            if( types[i] instanceof TypeRPC rpc && !rpc._rpcs.isEmpty() ) {
+                HashSet<Integer> rpcs2 = new HashSet<>();
+                for( Integer rpcx : rpc._rpcs )
+                    rpcs2.add(rpcs.map(fileRpcs,rpcx));
+                rpc._rpcs = rpcs2;
             }
-        }
-
-        // Need to remap aliases?
-        boolean remapAlias = false;
-        for( int i=1; i<aliases._len; i++ )
-            if( aliases.at(i)!=i )
-                { remapAlias = true; break; }
-
-        // Walk all type aliases, and map to local aliases
-        if( remapAlias || remapFIDXs ) {
-            for( int i=0; i<ntypes; i++ ) {
-                if( types[i] instanceof Field   fld && remapAlias ) fld._alias = aliases.at(fld._alias);
-                if( types[i] instanceof TypeMem mem && remapAlias ) mem._alias = aliases.at(mem._alias);
-                if( types[i] instanceof TypeMem mem ) {
-                    if( remapAlias && mem._escAs != XInt.EMPTY && mem._escAs != XInt.FULL )
-                        mem._escAs = XInt.remap(mem._escAs,aliases);
-                    if( remapFIDXs && mem._escFs != XInt.EMPTY )
-                        throw Utils.TODO();
-                }
+            if( types[i] instanceof TypeMem mem ) {
+                if( mem._alias >= 2 )
+                    mem._alias = aliases.map(fileAliases,mem._alias);
+                mem._escFs = remapBits(fileFidxs  ,fidxs  ,mem._escFs,0);
+                mem._escAs = remapBits(fileAliases,aliases,mem._escAs,2);
             }
         }
 
         // Intern them all at once
         BOTTOM.recurClose(types);
-        aliases.setX(0,nextAlias); // Also return used up aliases
-        fidxs  .setX(0,nextFIDX ); // Also return used up fidxs
         return types;
+    }
+
+    private static int[] remapBits(GlobalBits fileBits, GlobalBits bits, int[] fileLocals, int firstMapped ) {
+        if( fileLocals == XInt.EMPTY || fileLocals == XInt.FULL )
+            return fileLocals;
+        assert !XInt.isHigh(fileLocals);
+        int[] locals = XInt.EMPTY;
+        for( int fileLocal = XInt.next(fileLocals,-1); fileLocal >=0; fileLocal = XInt.next(fileLocals,fileLocal) )
+            locals = XInt.make(locals,fileLocal < firstMapped ? fileLocal : bits.map(fileBits,fileLocal));
+        return locals;
     }
 
 

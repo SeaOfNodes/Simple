@@ -15,6 +15,8 @@ public abstract class ParseAll {
     // Worklist of symbols to search and files to parse
     private static final HashSet<CompUnit> WORK = new HashSet<>();
 
+    private static final HashSet<CompUnit> NEEDS_LOAD = new HashSet<>();
+
     // Return a compilation unit (cached or new).  If new, it does not necessarily
     // need to be compiled.
     public static CompUnit makeCUnit( CodeGen code, CompUnit par, String name ) throws IOException {
@@ -50,14 +52,23 @@ public abstract class ParseAll {
 
     private static void parseAll(CodeGen code, CompUnit cunit) {
         WORK.clear();           // Cleanup from prior tests
+        NEEDS_LOAD.clear();
         // Prime the pump with the first CompUnit
         WORK.add(cunit);
-        // Work through all unparsed compilation units
+        // Work through all unparsed compilation units and parse
         while( !WORK.isEmpty() ) {
             CompUnit cu = WORK.iterator().next();
             WORK.remove(cu);
-            parseOne( code, cu );
+            // No source code?  Means we do not need to parse, but instead need to load the symbols as-if we parsed
+            if( cu._src==null || cu._src.isEmpty() )
+                loadDeps(code,cu); // Load recursive dependents
+            else
+                parseOne( code, cu ); // Parse
         }
+
+        // Load all pre-compiled CompUnits
+        for( CompUnit cu : NEEDS_LOAD )
+            loadCompUnit(code,cu);
 
         // Many types will have been declared cyclically either internally or
         // across multiple compilation units.
@@ -100,23 +111,6 @@ public abstract class ParseAll {
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
     private static void parseOne( CodeGen code, CompUnit cunit ) {
-        // No source code?  Means we do not need to compile, but instead need to load the symbols as-if we compiled
-        if( cunit._src==null || cunit._src.isEmpty() ) {
-            // Expecting a previously compiled object file
-            assert cunit._obj != null;
-            // Extract published symbols and put them in the internal tables;
-            // cross-references will pick them up there.
-            ElfReader elf = ElfReader.load(cunit._obj,cunit);
-            cunit._clz = elf.loadSimple();
-            cunit._stop = (StopNode)elf._nodes.last();
-            code._stop.addDef(cunit._stop);
-            assert !Parser.TYPES.containsKey(cunit._clz._name);
-            Parser.TYPES.put(cunit._clz._name,cunit._clz);
-            code.addAll(elf._nodes);
-            code._iter.iterate(code);
-            return;
-        }
-
         // Parse a source file, return missing external references
         Ary<FRefNode> frefs = code.P.parse(cunit);
 
@@ -150,6 +144,59 @@ public abstract class ParseAll {
         }
     }
 
+    private static void loadDeps(CodeGen code, CompUnit cunit) {
+        // Load IR after parsing
+        if( !NEEDS_LOAD.add(cunit) )
+            return;             // Already on the to-be-loaded list?
+        try {
+            // Load dependent classes
+            ElfReader elf = ElfReader.load(cunit._obj,cunit);
+            elf.loadPublicSymbols();
+            for( String symbol : elf._deps ) {
+                // Check CompUnit for being up to date
+                CompUnit sub = makeCUnit(code,null,symbol);
+                // If not seen before or out of date, parse the new nested cunit
+                if( sub._clz == null )
+                    WORK.add(sub);
+            }
+        } catch( IOException ioe ) {
+            throw new RuntimeException(ioe);
+        }
+    }
+
+    private static void loadCompUnit(CodeGen code, CompUnit cunit) {
+        // Expecting a previously compiled object file
+        assert cunit._obj != null;
+        // Extract published symbols and put them in the internal tables;
+        // cross-references will pick them up there.
+        ElfReader elf = ElfReader.load(cunit._obj,cunit);
+        cunit._clz = elf.loadSimple(code);
+        StartNode lStart = (StartNode)elf._nodes.at(0);
+        StopNode  lStop  = ( StopNode)elf._nodes.last();
+
+// CNC - Need to load DEPS earlier and recycle outer loop same as FRefs
+
+        // global Stop points to local stop
+        cunit._stop = lStop;
+        code._stop.addDef(cunit._stop);
+        code.add(code._stop);
+
+        // local Start subsumes into global start
+        //code._stop._type = code._start._type = code._start._type.join(lStart._type);
+        lStart.subsume(code._start);
+        code.add(code._start);
+
+        // Add the new top-level loaded class
+        assert !Parser.TYPES.containsKey(cunit._clz._name);
+        Parser.TYPES.put(cunit._clz._name,cunit._clz);
+        // Pre-compiled CompUnits are post-Opto types internally and pre-Opto
+        // at the borders.  Go straight to Opto with them.
+
+        //code.addAll(elf._nodes);
+        //code._iter.iterate(code);
+    }
+
+
     public static CompUnit findCompUnit(CodeGen code, CompUnit cu, String symbol) {
         // Symbol not found in source code (or we would not be here).
         // Search the module for the fref
@@ -175,7 +222,7 @@ public abstract class ParseAll {
     //   A/X/Y exists.
     //   A/B contains X.Y, which is a shortcut for A.X.Y
 
-    // However if A/B contains "Y", the search would be for B.Y then A.Y both of
+    // However if A/B contains "Y", the search would be for A.B.Y then A.Y both of
     // which do not exist.
     private static CompUnit findCUnitModule( CodeGen code, CompUnit cunit, String symbol ) throws IOException {
         if( cunit == null )     // Ran off top of module scope?
@@ -220,6 +267,11 @@ public abstract class ParseAll {
         // Look up the scope
         return findCUnitModule( code, cunit._par, symbol );
     }
+
+
+
+
+
 
     // Search external references only.  This should go deep on well known
     // container classes (tar, zip) and needs check for all the symbols in the

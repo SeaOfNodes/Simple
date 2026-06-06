@@ -126,7 +126,7 @@ public class TypeMemPtr extends TypeNil {
 
     // Reserve tags for null/not and one/general
     @Override int TAGOFF() { return 4; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         assert _nil>=2;
         baos.write(TAGOFFS[_type]
                    + (_nil==2 ? 0 : 1)

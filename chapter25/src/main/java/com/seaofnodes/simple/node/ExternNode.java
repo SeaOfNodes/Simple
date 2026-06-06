@@ -1,17 +1,11 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.ElfReader;
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMemPtr;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
-import java.io.File;
 import java.util.HashMap;
 
 /**
@@ -22,7 +16,7 @@ public class ExternNode extends ConstantNode {
     public final String _extern;
     public ExternNode(Type t, String ex) { super(t); _extern = ex; }
     @Override public Tag serialTag() { return Tag.Extern; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
         baos.packed2(types.get(_con   ));
         baos.packed2( strs.get(_extern));
     }

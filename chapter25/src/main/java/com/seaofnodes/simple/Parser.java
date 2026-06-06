@@ -328,7 +328,7 @@ public class Parser {
         // skipping two ("self" and "selfmem") and fields seen already.
         for( int nvar = lex+2+tself._fields.length; nvar < _scope.nIns(); nvar++ ) {
             Var v = _scope.var(nvar);
-            tself = tself.add(Field.make(v._name,v.type(),_code.nextALIAS(),v._final));
+            tself = tself.add(Field.make(v._name,v.type(),_code.alias(),v._final));
         }
         TYPES.put(typeName,tself);
     }
@@ -1028,7 +1028,7 @@ public class Parser {
         // Function does malloc internally.
         // Future self: means subtyping has to deal with "who does the malloc"
         TypeFunPtr tfp = ret.fun().sig();
-        TypeStruct ts = TypeStruct.make(addClzPrefix(fullName),false,Field.make(fullName,tfp,_code.nextALIAS(),true));
+        TypeStruct ts = TypeStruct.make(addClzPrefix(fullName),false,Field.make(fullName,tfp,_code.alias(),true));
         TYPES.put(ts._name,ts);
 
         // Insert a field in the containing class with the nested class type.
@@ -1057,7 +1057,7 @@ public class Parser {
         Type targ = isClz ? TypeInteger.BOT : privMem;
         Type tret = isClz ? Type.BOTTOM     : privMem;
         Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
-        TypeFunPtr sig = TypeFunPtr.make1((byte)2, true, targs, tret, _code.nextFIDX());
+        TypeFunPtr sig = TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx());
 
         String fname = (typeName + (isClz ? ".<clinit>" : ".<init>")).intern();
         String[] ids = new String[]{"self", isClz ? "arg" : "#selfMem"};
@@ -1176,7 +1176,7 @@ public class Parser {
         String tname = ("[]"+t.str()).intern();
         TypeStruct ta = (TypeStruct)TYPES.get(tname);
         if( ta==null ) {
-            ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.nextALIAS(),t,_code.nextALIAS(), false );
+            ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.alias(),t,_code.alias(), false );
             TYPES.put(tname,ta);
         }
         if( !efinal ) return ta;
@@ -1988,9 +1988,9 @@ public class Parser {
     }
     // External linked constant
     private ConstantNode externDecl( String ex, Type t ) {
-        if( t instanceof TypeFunPtr tfp ) { // Generic TFP from type parse
-            tfp = _code.makeFun(tfp);       // Get a FIDX, becomes a constant
-            _code.externFunc(tfp.fidx(),ex);  // Map fidx to extern name
+        if( t instanceof TypeFunPtr tfp ) {  // Generic TFP from type parse
+            tfp = _code.makeFun(tfp);        // Get a FIDX, becomes a constant
+            _code.externFunc(tfp.fidx(),ex); // Map fidx to extern name
             t = tfp;
         }
         return (ExternNode)(new ExternNode(t,ex).peephole());

@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.print.JSViewer;
 import com.seaofnodes.simple.type.*;
@@ -86,7 +87,7 @@ public abstract class Node implements Cloneable {
         Sar,Shl,Shr,Start,Stop,Store,Struct,Sub,SubF,ToFloat,
         XCtrl,Xor;
         public static final Tag[] VALS = values();
-        public Node make( BAOS bais, String[] strs, Type[] types, AryInt aliases ) {
+        public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
             return switch(this) {
             case Add    -> new   AddNode(null,null);
             case AddF   -> new  AddFNode(null,null);
@@ -132,13 +133,13 @@ public abstract class Node implements Cloneable {
             case Escape->    EscapeNode.make(bais     ,types);
             case Extern->    ExternNode.make(bais,strs,types);
             case Fun   ->       FunNode.make(bais,strs,types);
-            case Load  ->       new LoadNode(bais,strs,types,aliases);
+            case Load  ->       new LoadNode(bais,strs,types,fileAliases,aliases);
             case MemMerge->MemMergeNode.make(bais);
             case New   ->       NewNode.make(bais     ,types);
             case Parm  ->      ParmNode.make(bais,strs,types);
             case Phi   ->       PhiNode.make(bais,strs,types);
             case Proj  ->      ProjNode.make(bais,strs);
-            case Store ->      new StoreNode(bais,strs,types,aliases);
+            case Store ->      new StoreNode(bais,strs,types,fileAliases,aliases);
             case Stop ->       StopNode.make(bais);
             case Struct->    StructNode.make(bais,     types);
             case Region->    RegionNode.make(bais);
@@ -149,7 +150,7 @@ public abstract class Node implements Cloneable {
     };
     public Tag serialTag() { throw Utils.TODO(); }
     // Serialize extra data, including input counts
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {}
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {}
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public String label() { return serialTag().toString(); }
