@@ -311,6 +311,8 @@ public class CodeGen {
 
         Parser.TYPES.clear();
         Parser.TYPES.putAll(Parser.INIT_TYPES);
+        Parser.UNRESOLVED_TYPES.clear();
+        Parser.REQUIRED_TYPES.clear();
         if( _src != null ) {
             // No source file, just the source itself.
             ParseAll.parseSource(this,_srcName==null ? "Test" : _srcName,_src);
@@ -366,6 +368,7 @@ public class CodeGen {
                         errs.add(n);
                     return null;
             });
+        String unresolved = unresolvedTypeName();
         _times[Phase.TypeCheck.ordinal()] = System.currentTimeMillis() - t0;
         if( !errs.isEmpty() ) {
             Node min = errs.at(0);
@@ -377,7 +380,18 @@ public class CodeGen {
                     min = n;
             throw min.err();
         }
+        if( unresolved != null )
+            throw Parser.error("Unknown struct type '"+unresolved+"'",null);
         return this;
+    }
+
+    // Forward-ref structs are open while parsing.  They must all be resolved
+    // to closed structs before leaving type checking.
+    private String unresolvedTypeName() {
+        for( String typeName : Parser.REQUIRED_TYPES )
+            if( Parser.UNRESOLVED_TYPES.contains(typeName) )
+                return typeName;
+        return null;
     }
 
     // ---------------------------

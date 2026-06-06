@@ -160,7 +160,7 @@ return 0;
 struct S1 { S2? s; };
 return new S2;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Unknown struct type 'Test.S2'",e.getMessage()); }
     }
 

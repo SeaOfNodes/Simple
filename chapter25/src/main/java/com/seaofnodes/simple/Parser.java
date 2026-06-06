@@ -101,6 +101,8 @@ public class Parser {
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.
     public static final HashMap<String, Type> TYPES = new HashMap<>();
+    public static final LinkedHashSet<String> UNRESOLVED_TYPES = new LinkedHashSet<>();
+    public static final LinkedHashSet<String> REQUIRED_TYPES = new LinkedHashSet<>();
     public static final HashMap<String, Type> INIT_TYPES =
         new HashMap<>() {{
             put("bool",TypeInteger.U1 );
@@ -124,6 +126,10 @@ public class Parser {
 
     public Parser(CodeGen code ) {
         _code = code;
+    }
+
+    public static void resolveType( String name ) {
+        UNRESOLVED_TYPES.remove(startsClzPrefix(name) ? name.substring(clzPrefix.length()) : name);
     }
 
     @Override
@@ -369,6 +375,7 @@ public class Parser {
 
         // Close Struct type after parsing struct body.
         TYPES.put( tself._name, tself = tself.close() );
+        resolveType(tself._name);
 
         // Improve self, selfMem types in scope.
         // Class self-type is a singleton pointer.
@@ -1027,8 +1034,7 @@ public class Parser {
         // Insert a field into class:NESTED.typeName of "val typeName = fcn-ptr-to-init"
         // Function does malloc internally.
         // Future self: means subtyping has to deal with "who does the malloc"
-        TypeFunPtr tfp = ret.fun().sig();
-        TypeStruct ts = TypeStruct.make(addClzPrefix(fullName),false,Field.make(fullName,tfp,_code.alias(),true));
+        TypeStruct ts = classStruct(fullName,ret.fun().sig(),false);
         TYPES.put(ts._name,ts);
 
         // Insert a field in the containing class with the nested class type.
@@ -1051,13 +1057,7 @@ public class Parser {
         TypeStruct tself = TypeStruct.make(typeName,true);
         TYPES.put(typeName, tself);
 
-        // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
-        // Self-memory is the rare *private* (never aliased) memory for the new object.
-        TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true, false, XInt.FULL, XInt.FULL );
-        Type targ = isClz ? TypeInteger.BOT : privMem;
-        Type tret = isClz ? Type.BOTTOM     : privMem;
-        Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
-        TypeFunPtr sig = TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx());
+        TypeFunPtr sig = structInitSig(isClz,tself);
 
         String fname = (typeName + (isClz ? ".<clinit>" : ".<init>")).intern();
         String[] ids = new String[]{"self", isClz ? "arg" : "#selfMem"};
@@ -1068,6 +1068,21 @@ public class Parser {
         ctrl(oldCtrl.unkeep());
         mem (oldMem .unkeep());
         return ret;
+    }
+
+    // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
+    // Self-memory is the rare *private* (never aliased) memory for the new object.
+    private TypeFunPtr structInitSig( boolean isClz, TypeStruct tself ) {
+        TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true, false, XInt.FULL, XInt.FULL );
+        Type targ = isClz ? TypeInteger.BOT : privMem;
+        Type tret = isClz ? Type.BOTTOM     : privMem;
+        Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
+        return TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx());
+    }
+
+    // A class type carries the constructor function as a required final field.
+    private TypeStruct classStruct( String typeName, TypeFunPtr init, boolean open ) {
+        return TypeStruct.make(addClzPrefix(typeName),open,Field.make(typeName,init,_code.alias(),true));
     }
 
 
@@ -1163,7 +1178,11 @@ public class Parser {
             return posT(old1);  // Reset lexer to reparse
         pos(old2);              // Reset lexer to reparse
         // Yes a forward ref, so declare it
-        TYPES.put(tname,((TypeMemPtr)t1)._obj);
+        TypeStruct tself = ((TypeMemPtr)t1)._obj;
+        TYPES.put(tname,tself);
+        UNRESOLVED_TYPES.add(tname);
+        String clzName = addClzPrefix( tname );
+        TYPES.put(clzName, classStruct(tname,structInitSig(false,tself),true));
         // Return the (array, final) type
         return t2;
     }
@@ -1617,6 +1636,8 @@ public class Parser {
     }
 
     private Node allocStruct(TypeStruct ts) {
+        if( UNRESOLVED_TYPES.contains(ts._name) )
+            REQUIRED_TYPES.add(ts._name);
         Node size = off(ts, " len");
 
         // Build a NewNode; takes in ctrl and size.

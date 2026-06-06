@@ -203,6 +203,7 @@ public abstract class ParseAll {
         // Add the new top-level loaded class
         assert !Parser.TYPES.containsKey(cunit._clz._name);
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
+        Parser.resolveType(cunit._clz._name);
     }
 
     // With great sadness, we through away the loaded optimistic types so we
