@@ -192,9 +192,36 @@ public class CodeGen {
         return _uid++;
     }
 
-    // Next available memory alias number
-    int _alias = 2; // 0 is for control, 1 for memory
-    public int nextALIAS() { return _alias++; }
+
+    // These next fields all 2-way map some *global* program feature to a
+    // local dense index, suitable for packing in BitSets.  The mapping takes a
+    // global value - always a {source file/class} name, and an order number
+    // counting up per feature in the same file.  The dense local index can be
+    // different in different compilations.
+
+    // The global info allows loading the same remote class info from different
+    // paths and aligning them.  Example: Compiling A loads pre-compiled B and
+    // C, both of which load pre-compiled D.  The 2 different D loads unify via
+    // this global info.
+
+    // These mappings are all trivial identities when compiling one file; they
+    // only become complex when loading seperately compiled code.
+
+    // Compute local function index (FIDX) from global function info.  This is
+    // called *in order* during parsing, and that order is part of the global
+    // unique mapping
+    public final GlobalBits _aliases = new GlobalBits(2);
+    public int alias() { return _aliases.next(_srcName); }
+
+    // Compute local function index (FIDX) from global function info.  This is
+    // called *in order* during parsing, and that order is part of the global
+    // unique mapping
+    public final GlobalBits _fidxs = new GlobalBits(0);
+    public int fidx( ) { return _fidxs.next(_srcName); }
+
+    // Compute local RPC index from global RPC info, one per call
+    public final GlobalBits _rpcs = new GlobalBits(0);
+    public int rpc( ) { return _rpcs.next(_srcName); }
 
 
     // idepths are cached and valid until *inserting* CFG edges (deleting is
@@ -227,12 +254,10 @@ public class CodeGen {
     // are structurally equal.
     public final HashMap<Node,Node> _gvn;
 
-    // Source of unique function indices
-    int _fidx = 2;              // Start at 2, avoid error-prone 0, and not the global #1
-    public int nextFIDX() { return _fidx++; }
+    // Source of unique function indices for the current compilation
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
         assert fun.nfcns() == Integer.MAX_VALUE; // Not assigned yet
-        return fun.makeFrom(nextFIDX());
+        return fun.makeFrom(fidx());
     }
 
 
@@ -663,7 +688,7 @@ public class CodeGen {
             case ElfReader elf:
                 // Name maps to an unparsed ElfReader.  Pull out all the
                 // published symbols from the ELF and map them.
-                TypeStruct clz = elf.loadSimple();
+                TypeStruct clz = elf.loadSimple(this);
                 _externSymbols.put(clz._name, new ExternNode(TypeMemPtr.make(clz),clz._name));
                 break;
 

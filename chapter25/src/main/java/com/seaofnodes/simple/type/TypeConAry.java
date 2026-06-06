@@ -73,7 +73,7 @@ public abstract class TypeConAry<A> extends Type {
 
     // Reserve tags for u8 array
     @Override int TAGOFF() { return 1; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         assert log_size()==0 && !_any;
         baos.write(TAGOFFS[TCONARY]+0);
         baos.packed4(len());

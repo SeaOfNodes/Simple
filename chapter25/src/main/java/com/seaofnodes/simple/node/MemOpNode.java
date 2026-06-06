@@ -2,9 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.node.ConFldOffNode;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
@@ -62,16 +61,21 @@ public abstract class MemOpNode extends TypeNode {
         _isLoad= mop._isLoad;
     }
 
-    MemOpNode( BAOS bais, String[] strs, Type[] types, AryInt aliases, boolean isLoad ) {
+    MemOpNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases, boolean isLoad ) {
         this(null,
              strs[bais.packed2()],
-             aliases.at(bais.packed2()),isLoad,
+             mapAlias(bais,fileAliases,aliases),isLoad,
              types[bais.packed2()],null,null,null,null);
     }
 
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
+    private static int mapAlias( BAOS bais, GlobalBits fileAliases, GlobalBits aliases ) {
+        int alias = bais.packed2();
+        return alias < 2 ? alias : aliases.map(fileAliases,alias);
+    }
+
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
         baos.packed2(_name==null ? 0 : strs.get(_name));
-        baos.packed2(aliases.at(_alias));
+        baos.packed2(_alias);
         baos.packed2(types.get(_con));                // NPE if fails lookup
         assert _isLoad == this instanceof LoadNode; // No machine ops
     }

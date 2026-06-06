@@ -2,8 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
@@ -28,14 +28,14 @@ public class StoreNode extends MemOpNode {
         super(loc, name, alias, false, glb, ctrl, mem, ptr, off, value);
         _init = init;
     }
-    StoreNode( BAOS bais, String[] strs, Type[] types, AryInt aliases ) {
-        super(bais,strs,types,aliases,false);
+    StoreNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
+        super(bais,strs,types,fileAliases,aliases,false);
         addDef(null);
         _init = bais.read() != 0;
     }
     @Override public Tag serialTag() { return Tag.Store; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
-        super.packed(baos,strs,types,aliases);
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+        super.packed(baos,strs,types );
         baos.write(_init ? 1 : 0);
     }
 

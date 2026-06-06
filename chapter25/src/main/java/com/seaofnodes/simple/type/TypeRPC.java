@@ -45,6 +45,14 @@ public class TypeRPC extends Type {
         return make(false,rpcs);
     }
 
+    public int rpc() {
+        assert _rpcs.size()==1;
+        for( Integer rpc : _rpcs )
+            return rpc;
+        throw Utils.TODO();
+    }
+
+
     public  static final TypeRPC BOT = make(true,new HashSet<>());
     private static final TypeRPC TEST2 = constant(2);
     private static final TypeRPC TEST3 = constant(2);
@@ -101,7 +109,7 @@ public class TypeRPC extends Type {
 
     // Reserve tags for ALL, singleton, generic
     @Override int TAGOFF() { return 3; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         if( this==BOT ) {
             baos.write( TAGOFFS[_type] + 0 );
         } else if( _rpcs.size()==1 ) { // Singleton
@@ -117,12 +125,16 @@ public class TypeRPC extends Type {
     }
     static TypeRPC packed( int tag, BAOS bais ) {
         if( tag==0 ) return BOT;
-        if( tag==1 ) return constant(bais.packed2());
+        if( tag==1 ) {
+            HashSet<Integer> rpcs = new HashSet<>();
+            rpcs.add(bais.packed2());
+            return malloc(false,rpcs);
+        }
         int sz = bais.packed2();
         HashSet<Integer> rpcs = new HashSet<>();
         for( int i=0; i<sz; i++ )
             rpcs.add(bais.packed2());
-        return make(false,rpcs);
+        return malloc(false,rpcs);
     }
 
     @Override

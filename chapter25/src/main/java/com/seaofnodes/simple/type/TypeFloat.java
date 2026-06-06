@@ -103,7 +103,7 @@ public class TypeFloat extends Type {
 
     // Reserve tags for F64,F32,constant
     @Override int TAGOFF() { return 3; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         if(      this==F64 ) baos.write(TAGOFFS[_type] + 0);
         else if( this==F32 ) baos.write(TAGOFFS[_type] + 1);
         else {

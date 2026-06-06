@@ -1,10 +1,8 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
 import java.util.HashMap;
 
@@ -19,7 +17,7 @@ public class ParmNode extends PhiNode {
     }
     public ParmNode(ParmNode parm) { super(parm, parm._label, parm._con ); _idx = parm._idx; }
     @Override public Tag serialTag() { return Tag.Parm; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
         baos.packed1(nIns());
         baos.packed2(_label==null ? 0 : strs.get(_label));
         baos.packed2(types.get(_con)); // NPE if fails lookup

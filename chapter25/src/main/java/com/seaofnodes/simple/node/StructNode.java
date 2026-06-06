@@ -1,9 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -16,7 +14,7 @@ public class StructNode extends Node {
     public final TypeStruct _ts;
     public StructNode(TypeStruct ts) { _ts=ts; assert !ts._open; }
     @Override public Tag serialTag() { return Tag.Struct; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
         //baos.packed1(nIns());
         //baos.packed2(_label==null ? 0 : strs.get(_label));
         //baos.packed2(types.get(_type)); // Write _type not _minType, which can be higher

@@ -474,7 +474,7 @@ public class TypeStruct extends Type {
     // Tags 6-10- open   +#nflds (+name)
     // Tags 11  - open  (+ nflds  +name)
     @Override int TAGOFF() { return 12; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         baos.write(TAGOFFS[_type]+ (_open ? 6 : 0) + Math.min(5,_fields.length));
         if( _fields.length >= 5 )
             baos.packed2(_fields.length);

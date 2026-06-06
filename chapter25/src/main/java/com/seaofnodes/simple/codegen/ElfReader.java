@@ -89,8 +89,8 @@ public class ElfReader {
     }
 
     // Loads the entire IR
-    public TypeStruct loadSimple() {
-        Serialize.readAll(this,_compunit, true);
+    public TypeStruct loadSimple(CodeGen code) {
+        Serialize.readAll(code,this,_compunit, code._aliases, code._fidxs, code._rpcs);
         return _clz;
     }
 

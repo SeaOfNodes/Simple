@@ -35,7 +35,7 @@ public class StartNode extends LoopNode implements MultiNode {
       return sb.append(label());
     }
 
-  @Override public CFGNode cfg0() { return null; }
+    @Override public CFGNode cfg0() { return null; }
 
     // Get the one control following; error to call with more than one e.g. an
     // IfNode or other multi-way branch.  For Start, it's the class init for

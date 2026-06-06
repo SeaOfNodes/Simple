@@ -55,7 +55,7 @@ public class TypePtr extends TypeNil {
 
     // Reserve 2 tags, PTR and NPTR
     @Override int TAGOFF() { return 2; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         assert _nil>=2;
         baos.write(TAGOFFS[_type] + (_nil==2 ? 0 : 1));
     }

@@ -153,10 +153,10 @@ public class Chapter25Test {
         ElfReader   io_elf = ElfReader.load(  io_file, null);
         ElfReader  ary_elf = ElfReader.load( ary_file, null);
         ElfReader libc_elf = ElfReader.load(libc_file, null);
-        sys_elf .loadSimple();
-        io_elf  .loadSimple();
-        ary_elf .loadSimple();
-        libc_elf.loadSimple();
+        sys_elf .loadSimple(code1);
+        io_elf  .loadSimple(code1);
+        ary_elf .loadSimple(code1);
+        libc_elf.loadSimple(code1);
 
         // Elf files are sane
 

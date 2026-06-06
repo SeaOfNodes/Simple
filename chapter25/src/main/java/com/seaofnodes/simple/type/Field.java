@@ -132,10 +132,10 @@ public class Field extends Type {
     @Override public void set( int idx, Type t ) { _t = t; }
     // Tags: final/!final; +alias+name
     @Override int TAGOFF() { return 2; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, AryInt aliases ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         baos.write(TAGOFFS[_type] + (_final ? 1 : 0));
-        baos.packed2(aliases.at(_alias));
-        baos.packed2(strs  .get(_fname));
+        baos.packed2(_alias);
+        baos.packed2(strs.get(_fname));
     }
     static Field packed( int tag, BAOS bais, String[] strs ) {
         int alias = bais.packed2();

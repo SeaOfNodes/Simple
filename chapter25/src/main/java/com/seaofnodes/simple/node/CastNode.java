@@ -2,9 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
 import java.util.HashMap;
 
@@ -18,7 +17,7 @@ public class CastNode extends TypeNode {
         setType(compute());     // Ensure type is recomputed
     }
     @Override public Tag serialTag() { return Tag.Cast; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, AryInt aliases) {
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
         baos.packed2(types.get(_con)); // NPE if fails lookup
     }
     static Node make( BAOS bais, Type[] types)  { return new CastNode(types[bais.packed2()], null, null); }
