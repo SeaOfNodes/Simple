@@ -153,8 +153,9 @@ Options:
     }
 
     static String getInput() {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        return reader.lines().collect(Collectors.joining("\n"));
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
+            return reader.lines().collect(Collectors.joining("\n"));
+        }
     }
 
     public static void main(String[] args) throws Exception {
