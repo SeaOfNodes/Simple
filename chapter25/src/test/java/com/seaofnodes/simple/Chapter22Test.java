@@ -137,7 +137,7 @@ val fcn = { Person?[] ps, int x -> // exports a field with a constant fcn ptr; e
 };
 """;
         String person = "6\n";
-        TestC.runC(src, "person", person, 0);
+        TestC.run(src, "person2", null, TestC.CALL_CONVENTION, "", TestC.C_DRIVERS_DIR+"person.c", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start

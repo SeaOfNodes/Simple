@@ -21,13 +21,26 @@ import java.util.Objects;
 // only become complex when loading seperately compiled code.
 
 public class GlobalBits {
+    public static final int RESERVED = 2;
     private final HashMap<String,int[]> _clzOrder2Local = new HashMap<>();
     private final Ary<String> _local2Clz = new Ary<>(String.class);
     private final AryInt _local2Order = new AryInt();
     // Local dense index
     private int _local;
 
-    GlobalBits( int init ) { _local = init; }
+    GlobalBits() {
+        _local = RESERVED;
+        // Reserved null-class bits are global identities and are never
+        // remapped.
+        int[] xs = new int[RESERVED];
+        xs[0] = RESERVED;       // Per-class next order counter
+        for( int i=0; i<RESERVED; i++ ) {
+            if( i > 0 ) xs[i] = i;
+            _local2Clz  .setX(i,null);
+            _local2Order.setX(i,i);
+        }
+        _clzOrder2Local.put(null,xs);
+    }
 
     // Get a next local index for this clz
     int next( String clz ) { return next(clz,-1); }
@@ -44,7 +57,7 @@ public class GlobalBits {
         // Grow as needed
         while( xs.length <= order )
             xs = Arrays.copyOf(xs,xs.length*2);
-        // Exterd mapping {clz,Order} -> Local
+        // Extend mapping {clz,Order} -> Local
         _clzOrder2Local.put(clz,xs);
         xs[order] = _local;
         // Save reverse mapping
@@ -67,6 +80,10 @@ public class GlobalBits {
     // Map a global {clz,order} to a local one; keep any existing mapping or
     // make a new one as needed.
     private int findOrNext(String clz, int order ) {
+        // Reserved null-class identities are not represented in xs[order],
+        // because xs[0] is the next-order counter.
+        if( clz==null && order < _local2Clz.size() && _local2Order.at(order)==order && _local2Clz.at(order)==null )
+            return order;
         int[] xs = _clzOrder2Local.get(clz);
         if( xs != null && order < xs.length ) {
             int local = xs[order];
@@ -77,26 +94,26 @@ public class GlobalBits {
     }
 
     // Write out to BAOS enough bits to unwind the local back to global index
-    void packed( BAOS baos, HashMap<String,Integer> strs, int i ) {
+    void packed( BAOS baos, HashMap<String,Integer> strs ) {
         // Unwind a local index to the clz.
         baos.packed2(_local2Clz.size());
-        for( ; i<_local2Clz.size(); i++ ) {
+        for( int i=RESERVED; i<_local2Clz.size(); i++ ) {
             String clz = _local2Clz.at(i);
             baos.packed2(clz==null ? 0 : strs.get(clz));
             baos.packed2( _local2Order.at(i) );
         }
     }
 
-    void gather( HashMap<String,Integer> strs, int i ) {
-        for( ; i<_local2Clz.size(); i++ )
+    void gather( HashMap<String,Integer> strs ) {
+        for( int i=RESERVED; i<_local2Clz.size(); i++ )
             Serialize.gather(strs,_local2Clz.at(i));
     }
 
     // Read in the BAIS bits needed to make a file-local -> global mapping
-    static GlobalBits packed( BAOS bais, String[] strs, int i) {
-        var gb = new GlobalBits(i);
+    static GlobalBits packed( BAOS bais, String[] strs ) {
+        var gb = new GlobalBits();
         int n = bais.packed2();
-        for( ; i<n; i++ ) {
+        for( int i=RESERVED; i<n; i++ ) {
             int sx = bais.packed2();
             String clz = strs[sx];
             if( clz.isEmpty() ) clz = null;

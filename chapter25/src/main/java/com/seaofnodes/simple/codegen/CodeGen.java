@@ -210,17 +210,17 @@ public class CodeGen {
     // Compute local function index (FIDX) from global function info.  This is
     // called *in order* during parsing, and that order is part of the global
     // unique mapping
-    public final GlobalBits _aliases = new GlobalBits(2);
+    public final GlobalBits _aliases = new GlobalBits();
     public int alias() { return _aliases.next(_srcName); }
 
     // Compute local function index (FIDX) from global function info.  This is
     // called *in order* during parsing, and that order is part of the global
     // unique mapping
-    public final GlobalBits _fidxs = new GlobalBits(0);
+    public final GlobalBits _fidxs = new GlobalBits();
     public int fidx( ) { return _fidxs.next(_srcName); }
 
     // Compute local RPC index from global RPC info, one per call
-    public final GlobalBits _rpcs = new GlobalBits(0);
+    public final GlobalBits _rpcs = new GlobalBits();
     public int rpc( ) { return _rpcs.next(_srcName); }
 
 
@@ -311,9 +311,9 @@ public class CodeGen {
 
         Parser.TYPES.clear();
         Parser.TYPES.putAll(Parser.INIT_TYPES);
-        if( _srcName == null ) {
-            // No source file, just the source itself
-            ParseAll.parseSource(this,_src);
+        if( _src != null ) {
+            // No source file, just the source itself.
+            ParseAll.parseSource(this,_srcName==null ? "Test" : _srcName,_src);
         } else {
             // Path from module root to source file
             ParseAll.parsePath(this,_srcName);
