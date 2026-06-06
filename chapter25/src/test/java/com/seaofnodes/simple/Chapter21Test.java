@@ -348,7 +348,7 @@ val fib = { int n ->
                 };
                 """;
         String person = "6\n";
-        TestC.runC(src, "person", person, 0);
+        TestC.run(src, "person1", null, TestC.CALL_CONVENTION, "", TestC.C_DRIVERS_DIR+"person.c", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start

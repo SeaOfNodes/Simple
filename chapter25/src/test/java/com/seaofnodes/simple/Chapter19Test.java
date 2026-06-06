@@ -393,7 +393,7 @@ val _fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return _fcn(2)*10 + _fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun1,Top),x); return (shli,Parm_x($fun2,Top)); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun3,Top),x); return (shli,Parm_x($fun4,Top)); ]", code.print());
     }
 
     @Test

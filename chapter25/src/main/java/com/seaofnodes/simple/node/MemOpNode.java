@@ -70,7 +70,7 @@ public abstract class MemOpNode extends TypeNode {
 
     private static int mapAlias( BAOS bais, GlobalBits fileAliases, GlobalBits aliases ) {
         int alias = bais.packed2();
-        return alias < 2 ? alias : aliases.map(fileAliases,alias);
+        return alias < GlobalBits.RESERVED ? alias : aliases.map(fileAliases,alias);
     }
 
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {

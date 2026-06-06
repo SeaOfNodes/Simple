@@ -55,11 +55,11 @@ public class CompUnit {
 
     // Test case.  No source file.  Source code passed in as a String.  Fake
     // class name.
-    CompUnit( String src ) {
+    CompUnit( String fname, String src ) {
         _par  = null;
-        _name = "Test";
-        _fname= _name;
-        _cname= _name;
+        _name = fname;
+        _fname= fname;
+        _cname= fname;
         _ext  = null;
         _smp  = null;
         _obj  = null;

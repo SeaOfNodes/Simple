@@ -5,7 +5,6 @@ import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
@@ -84,12 +83,8 @@ public abstract class TestC {
         String obj = pathBase+".o";
         String exe = pathBase+(OS.startsWith("Windows") ? ".exe" : "");
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(null,"build/objs",externPaths,null,src,123L,TypeInteger.BOT);
+        CodeGen code = new CodeGen(null,"build/objs",externPaths,base,src,123L,TypeInteger.BOT);
         code.driver( CPU_PORT, simple_conv, false, cfile==null );
-        // Since no source file, class is assumed "Test" and output is always "Test.o".
-        File testobj = new File(obj);
-        testobj.delete();
-        boolean rez = new File("build/objs/Test.o").renameTo(testobj);
 
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);

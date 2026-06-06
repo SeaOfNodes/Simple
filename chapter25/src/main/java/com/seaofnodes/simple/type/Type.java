@@ -598,22 +598,22 @@ public class Type /*implements Cloneable*/ {
         // local dense indexes via their global identities.
         for( int i=0; i<ntypes; i++ ) {
             if( types[i] instanceof Field fld ) {
-                if( fld._alias >= 2 )
+                if( fld._alias >= GlobalBits.RESERVED )
                     fld._alias = aliases.map(fileAliases,fld._alias);
             }
             if( types[i] instanceof TypeFunPtr tfp )
-                tfp._fidxs = remapBits(fileFidxs,fidxs,tfp._fidxs,0);
+                tfp._fidxs = remapBits(fileFidxs,fidxs,tfp._fidxs,GlobalBits.RESERVED);
             if( types[i] instanceof TypeRPC rpc && !rpc._rpcs.isEmpty() ) {
                 HashSet<Integer> rpcs2 = new HashSet<>();
                 for( Integer rpcx : rpc._rpcs )
-                    rpcs2.add(rpcs.map(fileRpcs,rpcx));
+                    rpcs2.add(rpcx < GlobalBits.RESERVED ? rpcx : rpcs.map(fileRpcs,rpcx));
                 rpc._rpcs = rpcs2;
             }
             if( types[i] instanceof TypeMem mem ) {
-                if( mem._alias >= 2 )
+                if( mem._alias >= GlobalBits.RESERVED )
                     mem._alias = aliases.map(fileAliases,mem._alias);
-                mem._escFs = remapBits(fileFidxs  ,fidxs  ,mem._escFs,0);
-                mem._escAs = remapBits(fileAliases,aliases,mem._escAs,2);
+                mem._escFs = remapBits(fileFidxs  ,fidxs  ,mem._escFs,GlobalBits.RESERVED);
+                mem._escAs = remapBits(fileAliases,aliases,mem._escAs,GlobalBits.RESERVED);
             }
         }
 

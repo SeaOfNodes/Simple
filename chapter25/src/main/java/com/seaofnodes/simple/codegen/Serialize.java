@@ -92,9 +92,9 @@ abstract public class Serialize {
             if( t instanceof TypeStruct ts ) gather(strs,ts . _name);
         }
         // Count strings used by local->global bit mappings.
-        aliases.gather(strs,2);
-        fidxs  .gather(strs,0);
-        rpcs   .gather(strs,0);
+        aliases.gather(strs);
+        fidxs  .gather(strs);
+        rpcs   .gather(strs);
         // Count strings from nodes
         for( Node n : nodes )
             n.gather(strs);
@@ -118,9 +118,9 @@ abstract public class Serialize {
             baos.packedS(s);
 
         // B.2 - Write the local->global mappings
-        aliases.packed(baos,strs,2);
-        fidxs  .packed(baos,strs,0);
-        rpcs   .packed(baos,strs,0);
+        aliases.packed(baos,strs);
+        fidxs  .packed(baos,strs);
+        rpcs   .packed(baos,strs);
 
         // C - Write unique Types
         baos.packed4(atypes.length);
@@ -226,9 +226,9 @@ abstract public class Serialize {
 
         // B.2 - Read the local->global mappings.  Further down we will map
         // Elf file-local -> global, then global -> CodeGen.CODE local
-        GlobalBits fileAliases = GlobalBits.packed(bais,strs,2);
-        GlobalBits fileFidxs   = GlobalBits.packed(bais,strs,0);
-        GlobalBits fileRpcs    = GlobalBits.packed(bais,strs,0);
+        GlobalBits fileAliases = GlobalBits.packed(bais,strs);
+        GlobalBits fileFidxs   = GlobalBits.packed(bais,strs);
+        GlobalBits fileRpcs    = GlobalBits.packed(bais,strs);
 
 
         // C - Packed read of #types, then types

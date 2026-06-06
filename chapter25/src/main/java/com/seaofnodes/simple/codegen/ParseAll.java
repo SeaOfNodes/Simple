@@ -30,7 +30,12 @@ public abstract class ParseAll {
 
     // Parse a top-level string, used for e.g. testing
     static void parseSource( CodeGen code, String src ) {
-        CompUnit cunit = new CompUnit(src);
+        parseSource(code,"Test",src);
+    }
+
+    // Parse a top-level string with an explicit compilation-unit name.
+    static void parseSource( CodeGen code, String fname, String src ) {
+        CompUnit cunit = new CompUnit(fname,src);
         code._compunits.put(cunit._fname,cunit);
         parseAll(code,cunit);
     }

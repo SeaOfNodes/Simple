@@ -1159,7 +1159,7 @@ public class Parser {
         int old2 = pos();
         match("!");
         String id = _lexer.matchId();
-        if( !(peek(',') || peek(';') || match("->")) || id==null )
+        if( !(peek(',') || peek(';') || peek('=') || match("->")) || id==null )
             return posT(old1);  // Reset lexer to reparse
         pos(old2);              // Reset lexer to reparse
         // Yes a forward ref, so declare it
