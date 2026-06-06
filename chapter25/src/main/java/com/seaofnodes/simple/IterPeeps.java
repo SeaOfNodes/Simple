@@ -126,7 +126,7 @@ public class IterPeeps {
                 m = n.peepholeOpt();
                 if( m==null ) return null;
             }
-            System.err.println("BREAK HERE FOR BUG");
+            System.err.println("BREAK HERE FOR BUG: "+n+" old="+n._type+" new="+nval+" peep="+m);
             return m;
         });
         code._midAssert = false;
