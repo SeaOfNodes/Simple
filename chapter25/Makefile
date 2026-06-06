@@ -96,51 +96,38 @@ endif
 default: $(default_targets)
 
 #######################################################
-# Compile just the out-of-date files
-
-OODM :=
-$(CLZDIR)/main/.mtag: $(main_classes) $(main_javas)
+# Compile Java as a whole source set.  javac tracks Java dependencies
+# internally, so compiling only the directly out-of-date .java files can leave
+# stale dependent .class files behind.
+$(CLZDIR)/main/.mtag: $(main_javas)
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
 	@# This crap is really just "javac", but with a beautiful error message.
 	@# The very very long list of java files is suppressed and counted.
 	@# The required output "Note: blah blah deprecated blah" is suppressed.
-	$(file > .argsM.txt, $(OODM))
-	@if [ ! -z "$(OODM)" ] ; then \
-	  echo "compiling main because " $< " and " `wc -w < .argsM.txt` " more files" ; \
-	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(OODM) >& .out.txt ; then \
+	$(file > .argsM.txt, $(main_javas))
+	@echo "compiling main " `wc -w < .argsM.txt` " files"
+	@if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main @.argsM.txt >& .out.txt ; then \
             cat .out.txt ; \
             exit 1; \
-          fi ; \
-          rm -rf .out.txt ; \
 	fi
+	@rm -rf .out.txt
 	@touch $(CLZDIR)/main/.mtag
 	@rm -f .argsM.txt
-
-# Collect just the out-of-date files
-$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java
-	$(eval OODM += $$<)
 
 
 #######################################################
 
-OODT :=
-$(CLZDIR)/test/.ttag: $(test_classes) $(test_javas) $(CLZDIR)/main/.mtag
+$(CLZDIR)/test/.ttag: $(test_javas) $(CLZDIR)/main/.mtag
 	@[ -d $(CLZDIR)/test ] || mkdir -p $(CLZDIR)/test
-	$(file > .argsT.txt, $(OODT))
-	@if [ ! -z "$(OODT)" ] ; then \
-	  echo "compiling test because " $< " and " `wc -w < .argsT.txt` " more files" ; \
-	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(OODT) >& .out.txt ; then \
+	$(file > .argsT.txt, $(test_javas))
+	@echo "compiling test " `wc -w < .argsT.txt` " files"
+	@if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test @.argsT.txt >& .out.txt ; then \
             cat .out.txt ; \
             exit 1; \
-          fi ; \
-          rm -rf .out.txt ; \
 	fi
+	@rm -rf .out.txt
 	@touch $(CLZDIR)/test/.ttag
 	@rm -f .argsT.txt
-
-# Collect just the out-of-date files
-$(test_classes): $(CLZDIR)/test/%class: $(TST)/%java
-	$(eval OODT += $$<)
 
 #######################################################
 
