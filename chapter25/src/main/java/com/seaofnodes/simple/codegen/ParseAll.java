@@ -174,26 +174,62 @@ public abstract class ParseAll {
         StartNode lStart = (StartNode)elf._nodes.at(0);
         StopNode  lStop  = ( StopNode)elf._nodes.last();
 
-// CNC - Need to load DEPS earlier and recycle outer loop same as FRefs
+        // Loaded fidxs have already been remapped into this CodeGen's local
+        // namespace.  Publish the function heads so Opto can resolve escaped
+        // function pointers without scanning the whole loaded graph.
+        for( Node use : lStart._outputs )
+            if( use instanceof FunNode fun )
+                code.link(fun);
 
-        // global Stop points to local stop
+        // The global Stop owns each loaded CompUnit Stop; the global Start
+        // replaces the loaded Start as the single external-world boundary.
         cunit._stop = lStop;
         code._stop.addDef(cunit._stop);
         code.add(code._stop);
 
-        // local Start subsumes into global start
-        //code._stop._type = code._start._type = code._start._type.join(lStart._type);
         lStart.subsume(code._start);
         code.add(code._start);
+
+        // Loaded CompUnits carry post-Opto types, but ParseAll is still
+        // running the pessimistic solver.  Hide the optimistic facts until
+        // Opto resets and recomputes them.
+        pessimizeLoaded(code,code._start);
 
         // Add the new top-level loaded class
         assert !Parser.TYPES.containsKey(cunit._clz._name);
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
-        // Pre-compiled CompUnits are post-Opto types internally and pre-Opto
-        // at the borders.  Go straight to Opto with them.
+    }
 
-        //code.addAll(elf._nodes);
-        //code._iter.iterate(code);
+    // With great sadness, we through away the loaded optimistic types so we
+    // can link into the existing pessimistic types without blowing the
+    // monotone invariant.
+    private static void pessimizeLoaded(CodeGen code, Node seed) {
+        Ary<Node> work = new Ary<>(Node.class);
+        BitSet on = new BitSet();
+        // Seed the boundary neighborhood even if Start itself is already
+        // stable; its loaded users can still carry optimistic serialized types.
+        pessPush(work,on,seed);
+        for( Node def : seed._inputs  ) pessPush(work,on,def);
+        for( Node use : seed._outputs ) pessPush(work,on,use);
+        Node n;
+        while( (n=work.pop()) != null ) {
+            on.clear(n._nid);
+            assert !n.isDead();
+            Type old = n._type;
+            Type type = n.compute();
+            if( old == type ) continue;
+            n._type = type;
+            code.add(n);
+            for( Node def : n._inputs  ) pessPush(work,on,def);
+            for( Node use : n._outputs ) pessPush(work,on,use);
+        }
+    }
+
+    private static void pessPush(Ary<Node> work, BitSet on, Node n) {
+        if( n != null && !on.get(n._nid) ) {
+            on.set(n._nid);
+            work.push(n);
+        }
     }
 
 

@@ -14,6 +14,7 @@ public abstract class ASMPrinter {
 
     public static SB print(SB sb, CodeGen code, CompUnit ref ) {
         Encoding enc = ref._encoding;
+        if( enc == null ) return sb.p("No encoding for ").p(ref.toString());
 
         // instruction address
         int iadr = 0;
@@ -22,15 +23,14 @@ public abstract class ASMPrinter {
             if( enc._cfg.at(i) instanceof FunNode fun )
                 iadr = print(iadr,sb,code,enc,fun,i);
 
-        if( enc!=null ) {       // constant pools
-            iadr = (iadr+15)&-16; // pad to 16
-            if( enc._cpool.size()>0 )
-                iadr = printConstantPool(iadr, sb, enc._cpool,enc._bigCons,true ,"Constant Pool");
+        // constant pools
+        iadr = (iadr+15)&-16; // pad to 16
+        if( enc._cpool.size()>0 )
+            iadr = printConstantPool(iadr, sb, enc._cpool,enc._bigCons,true ,"Constant Pool");
 
-            iadr = (iadr+15)&-16; // pad to 16
-            if( enc._sdata.size()>0 )
-                iadr = printConstantPool(iadr, sb,enc._sdata,enc._bigCons,false, "Static Data"  );
-        }
+        iadr = (iadr+15)&-16; // pad to 16
+        if( enc._sdata.size()>0 )
+            iadr = printConstantPool(iadr, sb,enc._sdata,enc._bigCons,false, "Static Data"  );
 
         return sb;
     }
