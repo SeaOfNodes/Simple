@@ -98,7 +98,7 @@ public class TypeMemPtr extends TypeNil {
     @Override boolean _isConstant() { return _one && _obj._isConstant(); }
     @Override boolean _isFinal() { return _obj._isFinal(); }
     @Override TypeMemPtr _makeRO() { return makeFrom(_obj._makeRO()); }
-    @Override boolean _isGLB(boolean mem) { return _obj.isGLB2(); }
+    @Override boolean _isGLB(boolean mem) { return _obj._isGLB(true); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
     @Override TypeMemPtr _close( String name, HashMap<String, Type> TYPES ) { return malloc(_nil,_obj._close(name, TYPES ),_one); }
 

@@ -26,6 +26,7 @@ public class CodeGen {
     // Compile phases
     public enum Phase {
         Parse,                  // Parse ASCII text into Sea-of-Nodes IR
+        Iter,                   // Pessimistic peepholes after parse
         Opto,                   // Run ideal optimizations
         TypeCheck,              // Last check for bad programs
         LoopTree,               // Build a loop tree; break infinite loops
@@ -144,6 +145,7 @@ public class CodeGen {
     public CodeGen driver( Phase phase, String cpu, String callingConv, boolean inMemory, boolean main, int dump ) {
         int p1 = phase.ordinal(), p2 = _phase==null ? -1 : _phase.ordinal();
         if( p2 < p1 && p2 <  Phase.Parse     .ordinal() ) { parse();     p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Iter      .ordinal() ) { iter();      p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = dump(dump); }
@@ -338,9 +340,28 @@ public class CodeGen {
     public void iterCnt() { if( !_midAssert ) _iter_cnt++; }
     public void iterNop() { if( !_midAssert ) _iter_nop_cnt++; }
 
+    // Pessimistic peepholes after parsing.  This lifts loaded and parsed
+    // types before the optimistic Opto pass resets types and lets them fall.
+    public CodeGen iter() {
+        assert _phase == Phase.Parse;
+        _phase = Phase.Iter;
+        long t0 = System.currentTimeMillis();
+
+        // On the phase-shift out of Parse, no more "unknown callers" can
+        // happen, so at least all StopNodes can improve.
+        addAll(_stop._inputs);
+        _iter.iterate(this);
+        assert Opto.fixedPointCheck(this);
+
+        _times[Phase.Iter.ordinal()] = System.currentTimeMillis() - t0;
+        return this;
+    }
+
     // Run ideal optimizations
     public CodeGen opto() {
-        assert _phase == Phase.Parse;
+        if( _phase == Phase.Parse )
+            iter();
+        assert _phase == Phase.Iter;
         _phase = Phase.Opto;
         long t0 = System.currentTimeMillis();
 

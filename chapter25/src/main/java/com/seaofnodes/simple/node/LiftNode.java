@@ -7,8 +7,8 @@ import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import static com.seaofnodes.simple.util.Utils.TODO;
 
-// Lift a value that is about to be loaded or stored, indexed by field name and
-// a dynamic base value.
+// Lift a value that is about to be stored, indexed by field name and a dynamic
+// base value.
 //
 // - ptrs can be converted to ints for FFI calls (but not vice-versa)
 // - ints can be converted to flts
@@ -16,14 +16,16 @@ import static com.seaofnodes.simple.util.Utils.TODO;
 //
 public class LiftNode extends Node {
     public final String _fld;   // Field name
-    public final boolean _isLoad;
-    public LiftNode(Node base, String fld, Node val, boolean isLoad) { super(base,val); _fld = fld; _isLoad = isLoad; }
+    public LiftNode(Node base, String fld, Node val) { super(base,val); _fld = fld; }
 
     @Override public String label() { return "Lift"; }
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append("Lift"); }
     Node base() { return in(0); }
     Node val () { return in(1); }
-    @Override public Type compute() { return Type.BOTTOM; }
+    @Override public Type compute() {
+        if( val()._type.isHigh() ) return Type.TOP;
+        return val()._type.glb(false);
+    }
 
     // Do All The Things that need to be done when mixing
     // things of different types in memory.
@@ -51,32 +53,12 @@ public class LiftNode extends Node {
             return new ToFloatNode(val);
 
 
-        // Auto-widen narrow ints
-        if( _isLoad ) {
-            // For loads, emit code to force the loaded value to match the
-            // declared sign/zero bits.
-            if( val._type instanceof TypeInteger tval && t instanceof TypeInteger t0 && !tval.isa(t0) ) {
-                // Example: loading a i32 into a u8.  Semantics are to simply
-                // truncate the sign bits.
-                if( t0._min==0 )        // Unsigned
-                    throw TODO("AND Mask test");
-                //return peep(new AndNode(null,val,con(t0._max)));
-                // Signed extension; e.g. loading a i32 into a i64
-                int shift = Long.numberOfLeadingZeros(t0._max)-1;
-                assert (1L<<shift) == t0._max; // Expect one of the well-defined integer result types
-                Node shf = con(shift);
-                assert shf._type!=TypeInteger.ZERO;
-                //return peep(new SarNode(null,peep(new ShlNode(null,val,shf.keep())),shf.unkeep()));
-                throw TODO("sign-extend test");
-            }
-        } else {
-            // For integer stores, just silently truncate.
-            if( val._type instanceof TypeInteger && t instanceof TypeInteger )
-                // Silently truncate.  I.e., just "as if" store the whole value
-                // but the hardware op will only store the indicated bits
-                // (e.g. storing a large value 12345 into a byte field).
-                return val;
-        }
+        // For integer stores, just silently truncate.
+        if( val._type instanceof TypeInteger && t instanceof TypeInteger )
+            // Silently truncate.  I.e., just "as if" store the whole value
+            // but the hardware op will only store the indicated bits
+            // (e.g. storing a large value 12345 into a byte field).
+            return val;
 
         if( val._type instanceof TypeFloat tval && t instanceof TypeFloat t0 && !tval.isa(t0) )
             // Float rounding

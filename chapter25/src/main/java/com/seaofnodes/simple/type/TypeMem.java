@@ -191,16 +191,22 @@ public class TypeMem extends Type {
     // Escape all FIDXs from t
     private static int[] escapeFIDX( int[] xs, Type t ) {
         return switch(t) {
+        case TypeMemPtr tmp -> escapeFIDX(xs,tmp._obj);
+        case TypeStruct ts  -> ts._open
+                ? XInt.FULL         // Open structs can have any fields
+                : xs;
         case TypeFunPtr tfp -> XInt.meet(xs,tfp.fidxs());
         case TypeMem    mem -> XInt.meet(xs,mem._escFs);
-        default -> xs;
+        case Type tt -> tt == BOTTOM ? XInt.FULL : xs;
         };
     }
 
     private static int[] escapeAlias( int[] xs, Type t ) {
         return switch(t) {
         case TypeMemPtr tmp -> escapeAlias(xs,tmp._obj);
-        case TypeStruct ts  -> XInt.meet(xs,ts.aliases());
+        case TypeStruct ts  -> ts._open
+            ? XInt.FULL         // Open structs can have any fields
+            : XInt.meet(xs,ts.aliases());
         case TypeMem    mem -> XInt.meet(xs,mem._escAs);
         default -> xs;
         };

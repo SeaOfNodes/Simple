@@ -97,6 +97,7 @@ public class Parser {
     ScopeNode _breakScope;      // Merge all the while-breaks    here
     ScopeNode _continueScope;   // Merge all the while-continues here
     ScopeNode _returnScope;     // Merge all the function exits  here
+    TypeStruct _ctorOpenStruct; // Open struct being initialized by an allocation constructor block.
 
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.
@@ -845,6 +846,8 @@ public class Parser {
         // Find variable to update
         Var def = _scope.lookup(name);
         if( def==null )
+            def = defineOpenConstructorField(name);
+        if( def==null )
             throw error("Undefined name '" + name + "'");
 
         // TOP fields are for late-initialized fields; these have never
@@ -1073,7 +1076,7 @@ public class Parser {
     // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
     // Self-memory is the rare *private* (never aliased) memory for the new object.
     private TypeFunPtr structInitSig( boolean isClz, TypeStruct tself ) {
-        TypeMem privMem = isClz ? null : TypeMem.make( 1, tself, true, false, XInt.FULL, XInt.FULL );
+        TypeMem privMem = isClz ? null : TypeMem.makePrivate(tself);
         Type targ = isClz ? TypeInteger.BOT : privMem;
         Type tret = isClz ? Type.BOTTOM     : privMem;
         Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
@@ -1083,6 +1086,32 @@ public class Parser {
     // A class type carries the constructor function as a required final field.
     private TypeStruct classStruct( String typeName, TypeFunPtr init, boolean open ) {
         return TypeStruct.make(addClzPrefix(typeName),open,Field.make(typeName,init,_code.alias(),true));
+    }
+
+    private TypeStruct latestStruct( TypeStruct ts ) {
+        Type t = TYPES.get(ts._name);
+        return t instanceof TypeStruct ts2 ? ts2 : ts;
+    }
+
+    private Field fieldOrOpen( TypeStruct ts, String name, boolean xfinal ) {
+        ts = latestStruct(ts);
+        Field fld = ts.field(name);
+        if( fld != null ) return fld;
+        if( !ts._open || !UNRESOLVED_TYPES.contains(ts._name) ) return null;
+        REQUIRED_TYPES.add(ts._name);
+        fld = Field.make(name,Type.BOTTOM,_code.alias(),xfinal);
+        TYPES.put(ts._name,ts = ts.add(fld));
+        if( _ctorOpenStruct != null && _ctorOpenStruct._name == ts._name )
+            _ctorOpenStruct = ts;
+        return fld;
+    }
+
+    private Var defineOpenConstructorField( String name ) {
+        if( _ctorOpenStruct==null ) return null;
+        Field fld = fieldOrOpen(_ctorOpenStruct,name,true);
+        if( fld == null ) return null;
+        _scope.define(name,fld._t,fld._final,con(Type.TOP),loc());
+        return _scope.lookup(name);
     }
 
 
@@ -1178,13 +1207,34 @@ public class Parser {
             return posT(old1);  // Reset lexer to reparse
         pos(old2);              // Reset lexer to reparse
         // Yes a forward ref, so declare it
-        TypeStruct tself = ((TypeMemPtr)t1)._obj;
+        forwardRefType(tname,(TypeStruct)((TypeMemPtr)t1)._obj);
+        // Return the (array, final) type
+        return t2;
+    }
+
+    private TypeMemPtr forwardRefType( String tname, TypeStruct tself ) {
         TYPES.put(tname,tself);
         UNRESOLVED_TYPES.add(tname);
         String clzName = addClzPrefix( tname );
         TYPES.put(clzName, classStruct(tname,structInitSig(false,tself),true));
-        // Return the (array, final) type
-        return t2;
+        return TypeMemPtr.make(tself);
+    }
+
+    private TypeMemPtr forwardRefType( String tname ) {
+        tname = fullTypeName(tname);
+        return forwardRefType(tname,TypeStruct.make(tname,true));
+    }
+
+    private String fullTypeName( String tname ) {
+        String nest = _nestedType, fullq;
+        while( true ) {
+            fullq = nest+"."+tname;
+            if( TYPES.get(fullq) != null )
+                return fullq.intern();
+            int idx = nest.lastIndexOf('.');
+            if( idx== -1 ) return fullq.intern();
+            nest = nest.substring(0,idx);
+        }
     }
 
     // Make an array type of t.  Always record a mutable version,
@@ -1618,7 +1668,12 @@ public class Parser {
      */
     private Node alloc() {
         Type t = type();
-        if( t==null ) throw error("Expected a type");
+        if( t==null ) {
+            String tname = _lexer.matchId();
+            if( tname==null || KEYWORDS.contains(tname) )
+                throw error("Expected a type");
+            t = forwardRefType(tname);
+        }
         // Parse ary[ length_expr ]
         if( match("[") ) {
             if( !t.makeZero().isa(t) )
@@ -1664,6 +1719,8 @@ public class Parser {
             int idx = _scope.nIns();
             // Push a scope, and pre-assign all struct fields.
             _scope.push(new Kind.Func((ts._name+".<init>").intern()));
+            TypeStruct oldCtorOpenStruct = _ctorOpenStruct;
+            _ctorOpenStruct = latestStruct(ts)._open && UNRESOLVED_TYPES.contains(ts._name) ? latestStruct(ts) : null;
             Lexer loc = loc();
             for( Field fld : ts._fields ) {
                 Node finit;
@@ -1679,6 +1736,8 @@ public class Parser {
             while( !peek('}') && !_lexer.isEOF() )
                 parseStatement();
             require("}");
+            ts = latestStruct(ts);
+            _ctorOpenStruct = oldCtorOpenStruct;
 
             // Store updated fields
             MemMergeNode updatedPrivMem = new MemMergeNode(false);
@@ -1825,7 +1884,10 @@ public class Parser {
 
         // TODO: optimize a mix of known and unknown mem stores
         // Do we know the field type already?
-        Field fld = expr._type instanceof TypeMemPtr tmp ? tmp._obj.field(name) : null;
+        TypeStruct ts = expr._type instanceof TypeMemPtr tmp ? tmp._obj : null;
+        Field fld = ts==null ? null : ts.field(name);
+        if( fld==null && ts!=null )
+            fld = fieldOrOpen(ts,name,false);
         // With no field, we will update the bulk memory
         int alias = fld==null ?  1            : fld._alias;
         Type decl = fld==null ? Type.BOTTOM   : fld._t;
@@ -1842,7 +1904,7 @@ public class Parser {
             // Field assignment
             Node val = parseAsgn().keep();
             // Lift value for store
-            Node lift = new LiftNode(expr,name,val,false).peephole();
+            Node lift = new LiftNode(expr,name,val).peephole();
             // Memory for store, post assignment expression
             Node mem = fld==null ? mem().merge() : memAlias(fld._alias);
             // Store to field

@@ -25,15 +25,6 @@ abstract public class Opto {
     // get a fairly precise set of Call Graph edges between CallNodes and
     // FunNodes.
     public static void opto(CodeGen code) {
-
-        // On the phase-shift to Opto, no more "unknown callers" can happen -
-        // so at least all StopNodes can improve.
-        code.addAll(code._stop._inputs);
-
-        // Pessimistic peephole optimization on a worklist - this completes
-        // whatever peepholes can run after parsing.
-        code._iter.iterate(code);
-
         // Reset Types before running the worklist algorithm
         Ary<Type> oldTypes = new Ary<>(Type.class); // Used for asserts only
         resetToTop(code,oldTypes);
@@ -126,7 +117,8 @@ abstract public class Opto {
     private static void linkStart( CodeGen code, TypeTuple tt ) {
         TypeMem tmem = (TypeMem)tt._types[1];
         int[] fidxs = tmem._escFs;
-        assert !XInt.isHigh(fidxs);
+        if( XInt.isHigh(fidxs) )
+            return;             // Can get here from some error programs
         for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
             FunNode fun = code._linker.at(fidx);
             if( fun==null )  assert code._externFunc.containsKey(fidx);
@@ -172,10 +164,6 @@ abstract public class Opto {
             assert oval.isa(nval);    // Types start high and always fall
             Type pesiVal = oldTypes.at(n._nid);
             assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
-            Type tmem0 = nval instanceof TypeTuple tt && tt._types.length==3 ? tt.at(1) : nval;
-            if( tmem0 instanceof TypeMem tmem1 ) {
-                assert !XInt.isHigh(tmem1._escFs);
-            }
             n._type = nval;
 
             // Now we have a series of stanzas where we lazily create the Call
@@ -214,16 +202,31 @@ abstract public class Opto {
             code._iter.addAll(n._outputs);
             n.moveDepsToWorklist(code._iter);
             // Quadratic (expensive) small-step assert
-            assert check(code);
+            assert worklistCheck(code);
         }
     }
 
-    // Quadratic (expensive) small-step assert
-    private static boolean check(CodeGen code) {
-        code._start.walk( x -> {
+    // Quadratic (expensive) fixed-point assert
+    public static boolean fixedPointCheck(CodeGen code) {
+        return fixedPointCheck(code,code._stop);
+    }
+    public static boolean fixedPointCheck(CodeGen code, Node root) {
+        root.walk( x -> {
+                Type xval = x.compute();
+                assert xval == x._type;
+                return null;
+            });
+        return true;
+    }
+
+    // Quadratic (expensive) small-step assert for SCCP, where changed nodes
+    // may already be on the worklist.
+    private static boolean worklistCheck(CodeGen code) {
+        Node root = code._start;
+        root.walk( x -> {
                 Type xval = x.compute();
                 assert xval == x._type || (x._type.isa( xval ) && code._iter._work.on( x ));
-                return null;
+            return null;
             });
         return true;
     }

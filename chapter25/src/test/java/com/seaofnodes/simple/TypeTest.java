@@ -21,7 +21,8 @@ public class TypeTest {
                 Field.make("b", TypeInteger.BOT,-4, false) );
         TypeStruct x1ro = (TypeStruct)s1.makeRO();
         TypeMemPtr p1 = TypeMemPtr.make(s1);
-        Assert.assertEquals(x1ro, ((TypeMemPtr)p1.glb(false))._obj);
+        // GLB no longer forces RO
+        //Assert.assertEquals(x1ro, ((TypeMemPtr)p1.glb(false))._obj);
         Assert.assertNotEquals(s1, s1.dual());
         TypeStruct s1dglb = ((TypeMemPtr)p1.dual().glb(false))._obj;
         Assert.assertTrue(x1ro.isa(s1dglb));
@@ -58,14 +59,17 @@ public class TypeTest {
 
         Assert.assertNotEquals(ptr1, ptr2);
         Type p1glb = ptr1.glb(false);
-        Assert.assertNotEquals(ptr1, p1glb );
+        // GLB no longer forces RO
+        //Assert.assertNotEquals(ptr1, p1glb );
         Type p1nro = ptr1nil.makeRO();
-        Assert.assertEquals(p1nro, p1glb);
+        // GLB no longer forces RO
+        //Assert.assertEquals(p1nro, p1glb);
 
         Assert.assertEquals(ptr1, ptr1.dual().dual());
         Assert.assertTrue(p1glb.makeRO().isa( ptr1.dual().glb(false)));
         Assert.assertEquals(TypeMemPtr.makeNullable(TypeStruct.BOT), ptr1.meet(ptr2nil));
-        Assert.assertEquals(p1glb, ptr1.meet(TypeNil.NIL).makeRO());
+        // GLB no longer forces RO
+        //Assert.assertEquals(p1glb, ptr1.meet(TypeNil.NIL).makeRO());
 
         TypeMemPtr TOP = TypeMemPtr.TOP;
         TypeMemPtr BOT = TypeMemPtr.makeNullable(TypeStruct.BOT);

@@ -63,23 +63,24 @@ public class StoreNode extends MemOpNode {
         if( !(mem0 instanceof TypeMem    mem) ||
             !(ptr0 instanceof TypeMemPtr ptr) )
             return mem0.isHigh() || ptr0==Type.NIL ? TypeMem.TOP : TypeMem.BOT;
-        // Sharpen memory value; required for narrowing stores where the parser
-        // inserts zero/sign masking and somebody reads the TypeMem type.
-        val = val.join(_con);
 
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
         // which is never does in a constructor.
-        if( !_name.equals("[]") && (mem._one || ptr._one) && err()==null )
+        if( !_name.equals("[]") && (mem._one || ptr._one) && err()==null ) {
+            val = val.join(_con);
             // Just track the stored value
             return TypeMem.make(_alias,val,true,_init,null,null).escapesFrom(val);
+        }
 
         // Normal aliasing Store.
         assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
         if( mem._t.isHigh() )
             return TypeMem.TOP;
-        // Same alias, meet into other fields
-        Type t = val.meet(mem._t);
+        // Same alias, meet into other fields.
+        // Sharpen memory value; required for narrowing stores where the parser
+        // inserts zero/sign masking and somebody reads the TypeMem type.
+        Type t = val.meet(mem._t).join(_con);
         return mem.escapesFrom(t);
     }
 

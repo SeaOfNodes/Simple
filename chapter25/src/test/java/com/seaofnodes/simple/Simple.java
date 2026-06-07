@@ -41,6 +41,7 @@ Options:
   --dump-size              - print the size of generated code
   --dump-time              - print compilation and execution times
   --dump-after-parse       - dump intermediate representation after parse
+  --dump-after-iter        - dump intermediate representation after pessimistic iter pass
   --dump-after-opto        - dump intermediate representation after opto pass
   --dump-after-type-check  - dump intermediate representation after type check pass
   --dump-after-select      - dump intermediate representation after instruction selection pass
@@ -108,6 +109,7 @@ Options:
             switch (arg) {
             case "-":                         input_filename=""; break;
             case "--dump-after-parse":        dump |=  1<<Phase.Parse     .ordinal()   ; break;
+            case "--dump-after-iter":         dump |=  1<<Phase.Iter      .ordinal()   ; break;
             case "--dump-after-opto":         dump |=  1<<Phase.Opto      .ordinal()   ; break;
             case "--dump-after-type-check":   dump |=  1<<Phase.TypeCheck .ordinal()   ; break;
             case "--dump-after-loop-tree":    dump |=  1<<Phase.LoopTree  .ordinal()   ; break;
