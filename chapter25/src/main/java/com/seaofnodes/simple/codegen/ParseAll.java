@@ -204,6 +204,7 @@ public abstract class ParseAll {
         assert !Parser.TYPES.containsKey(cunit._clz._name);
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
         Parser.resolveType(cunit._clz._name);
+        assert Opto.fixedPointCheck(code);
     }
 
     // With great sadness, we through away the loaded optimistic types so we

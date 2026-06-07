@@ -355,49 +355,36 @@ public class TypeStruct extends Type {
         return ts;
     }
 
-    // Make a read-only version
-    @Override TypeStruct _makeRO() {
-        // Check for already visited
-        TypeStruct ts = (TypeStruct)VISIT.get(_name);
+    private interface FieldTransform { Type apply(Type t); }
+
+    private TypeStruct recurTransform(Object key, String name, boolean open, boolean xfinal, FieldTransform transform) {
+        TypeStruct ts = (TypeStruct)VISIT.get(key);
         if( ts!=null ) return ts;   // Already visited
-        ts = recurPre(_name,_name,_open); // Make a new type with blank fields
+        ts = recurPre(key,name,open);
         Field[] flds = ts._fields;
-        for( Field fld : flds ) fld._final = true;
+        for( Field fld : flds )
+            fld._final |= xfinal;
 
         // Now start the recursion
         for( int i=0; i<flds.length; i++ )
-            flds[i].setType(_fields[i]._t._makeRO());
+            flds[i].setType(transform.apply(_fields[i]._t));
 
         return ts;
     }
 
-
-    // All fields are at GLB already
-    boolean isGLB2() {
-        if( VISIT.containsKey(_uid) ) return true; // Cycles assume GLB
-        VISIT.put(_uid,this);
-        for( Field fld : _fields )
-            if( !fld.isGLB2() )
-                return false;
-        return true;
+    // Make a read-only version
+    @Override TypeStruct _makeRO() {
+        return recurTransform(_name,_name,_open,true,Type::_makeRO);
     }
 
     // Keeps the same struct, but lower-bounds all fields.
     public TypeStruct glb2() {
-        TypeStruct ts = (TypeStruct)VISIT.get(_name);
-        if( ts!=null ) return ts;
-        ts = recurPre(_name,_name,_open);
-        Field[] flds = ts._fields;
-        for( Field fld : flds ) fld._final = true;
-
-        // Now start the recursion
-        for( int i=0; i<flds.length; i++ )
-            flds[i].setType(_fields[i]._t._glb(true));
-
-        return ts;
+        return recurTransform(_uid,_name,_open,false,t -> t._glb(true));
     }
 
     @Override boolean _isGLB(boolean mem) {
+        if( VISIT.containsKey(_uid) ) return true; // Cycles assume GLB
+        VISIT.put(_uid,this);
         for( Field f : _fields )
             if( !f._t._isGLB(mem) )
                 return false;

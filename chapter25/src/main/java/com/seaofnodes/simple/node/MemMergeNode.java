@@ -66,10 +66,11 @@ public class MemMergeNode extends Node {
 
 
     @Override public Type compute() {
-        // Is this a single private instance memory?
-        if( in(1)._type.isHigh() )
-            return TypeMem.TOP;
+        // Default memory
         TypeMem defmem = (TypeMem)in(1)._type;
+        if( defmem.isHigh() )
+            return TypeMem.TOP;
+        // Is this a single private instance memory?
         if( defmem._one ) {
             // Perfect singleton memory, so all updates are parallel and
             // independent and stack.
@@ -79,7 +80,13 @@ public class MemMergeNode extends Node {
                     return TypeMem.TOP;
                 if( in(i) instanceof StoreNode st ) {
                     Type val = ((TypeMem)st._type)._t;
-                    Field fld = ts.field(st._name).makeFrom(val);
+                    Field old = ts.field(st._name);
+                    // Lazy add an expected field for open structs.
+                    if( old == null && ts._open ) {
+                        old = Field.make(st._name,Type.BOTTOM,st._alias,st._init);
+                        ts = ts.add(old);
+                    }
+                    Field fld = old.makeFrom(val);
                     // TODO: val leaks into perfect singleton memory, along with its fidxs and aliases
                     ts = ts.replace(fld);
                 }
