@@ -94,8 +94,10 @@ public class LoadNode extends MemOpNode {
 
         // Forward-ref loads eventually sharpen to a declared type
         Field fld;
-        if( _con == Type.BOTTOM && ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null ) {
-            assert _alias==1;
+        if( _con == Type.BOTTOM && ptr()._type instanceof TypeMemPtr tmp &&
+            (fld=tmp._obj.field(_name)) != null &&
+            (_con != fld._t || _alias != fld._alias)) {
+            assert _alias==1 || _alias == fld._alias;
             _con = fld._t;
             _alias = fld._alias;
             return this;

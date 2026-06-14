@@ -208,7 +208,7 @@ public class TypeMem extends Type {
             ? XInt.FULL         // Open structs can have any fields
             : XInt.meet(xs,ts.aliases());
         case TypeMem    mem -> XInt.meet(xs,mem._escAs);
-        default -> xs;
+        case Type tt -> tt == BOTTOM ? XInt.FULL : xs;
         };
     }
 }

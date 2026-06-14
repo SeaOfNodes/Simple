@@ -81,6 +81,8 @@ public class StoreNode extends MemOpNode {
         // Sharpen memory value; required for narrowing stores where the parser
         // inserts zero/sign masking and somebody reads the TypeMem type.
         Type t = val.meet(mem._t).join(_con);
+        if( _alias==1 )
+            return TypeMem.make(1,t,mem._one,mem._final,mem._escFs,XInt.FULL);
         return mem.escapesFrom(t);
     }
 
@@ -138,6 +140,7 @@ public class StoreNode extends MemOpNode {
 
                 _con = fld._t;
                 _alias = fld._alias;
+                setType(compute());
                 return this;
             }
             // No further optimizations until alias sharpens

@@ -304,12 +304,13 @@ public class FunNode extends RegionNode {
         while( fun2.nIns() > 1 )
             if( fun2.in(1) instanceof CallNode call && body.get(call._nid) )
                 call.unlink(fun2,1); // Recursive calls unlink
-            else  fun2.removeDeadPath(1); // Start and external calls can just be removed
+            else fun2.removeDeadPath(1); // Start and external calls can just be removed
 
         // Flip to a new FIDX to avoid confusion with the old one.
         // This is a non-monotonic (sideways) type move, only applicable
-        // because fun2 is new.
-        fun2._sig = _sig.makeFrom(CodeGen.CODE._fidxs.next(_sig.fidx()));
+        // because fun2 is new.  The fidx is also a purely local fiction,
+        // since this body will inline and the fidx goes dead.
+        fun2._sig = _sig.makeFrom(CodeGen.CODE._fidxs.nextInline());
         return fun2;
     }
 

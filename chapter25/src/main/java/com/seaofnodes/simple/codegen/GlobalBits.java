@@ -49,7 +49,8 @@ public class GlobalBits {
     private int next(String clz, int order ) {
         // Get the per-clz Order->Local mapping
         int[] xs = _clzOrder2Local.get(clz);
-        if( xs == null ) xs = new int[]{1}; // Make, if it does not exist
+        if( xs == null )
+            xs = new int[]{RESERVED,1}; // Make, if it does not exist
         // Caller does not have an order in mind, just take the next one stored
         // in xs[0]
         if( order == -1 )
@@ -66,7 +67,8 @@ public class GlobalBits {
         return _local++;        // The dense local index
     }
 
-
+    // A file-local function that will inline, and never write to disk
+    public int nextInline( ) { return _local++; }
     // Get a next local index for the same clz as this old index
     public int next( int old ) { return next(_local2Clz.at(old));  }
 

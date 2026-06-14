@@ -14,7 +14,9 @@ import java.util.HashMap;
  */
 public class EscapeNode extends TypeNode {
 
-    public EscapeNode(Field fld, Node self, Node priv, Node pub ) { super(fld,null,self,priv,pub); }
+    public EscapeNode(Field fld, Node self, Node priv, Node pub ) {
+        super(fld,null,self,priv,pub);
+    }
     public EscapeNode(EscapeNode esc ) {
         super(esc);             // Copy constructor
         // Except we do not want/need self ptr past Opto.
@@ -65,9 +67,10 @@ public class EscapeNode extends TypeNode {
         assert !(mpub._t instanceof TypeStruct); // Never expect this, but if it starts to happen, need to optimize
         Type tpub = mpub._t;
 
+        Type t = tpriv.meet(tpub).join(fld()._t);
         int[] fidxes  = XInt.meet(mpriv._escFs, mpub._escFs);
         int[] aliases = XInt.meet(mpriv._escAs, mpub._escAs);
-        return TypeMem.make(fld()._alias, tpriv.meet(tpub).join(fld()._t), false, fld()._final, fidxes, aliases );
+        return TypeMem.make(fld()._alias, t, false, fld()._final, fidxes, aliases).escapesFrom(t);
     }
 
     @Override public Node idealize() {
@@ -87,15 +90,15 @@ public class EscapeNode extends TypeNode {
         return null;
     }
 
-//// Upgrade the internal type
-//@Override boolean _upgradeType( HashMap<String,Type> TYPES) {
-//    Type t = _con.upgradeType(TYPES);
-//    if( t == _con ) return false;
-//    unlock();               // Unlock before changing _con
-//    _con = t;
-//    return true;
-//}
-//
+// Upgrade the internal type
+@Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+    Type t = _con.upgradeType(TYPES);
+    if( t == _con ) return false;
+    unlock();               // Unlock before changing _con
+    _con = t;
+    return true;
+}
+
     @Override public boolean eq(Node n) {
         if( fld()._alias!=((EscapeNode)n).fld()._alias )
             return false;

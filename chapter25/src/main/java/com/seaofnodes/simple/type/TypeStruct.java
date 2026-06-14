@@ -98,7 +98,7 @@ public class TypeStruct extends Type {
         Field[] fs = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ )
             fs[i] = _fields[i].makeFrom(Type.TOP);
-        return make(_name,false,fs);
+        return make(_name,_open,fs);
     }
 
     public TypeStruct add( Field f ) {
