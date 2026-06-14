@@ -272,12 +272,6 @@ abstract public class Serialize {
                 fun.setRet(ret);
                 ret._fun = fun;
                 fun._compunit = cu;
-                //if( remapFIDXs ) {
-                //    // Set the code._linker and compunit fields
-                //    int fidx = fun.sig().fidx();
-                //    assert code._linker.atX(fidx)==null;
-                //    code._linker.setX(fidx,fun);
-                //}
             }
         }
         // Add edge from Start to Stop
@@ -293,11 +287,17 @@ abstract public class Serialize {
     private static boolean check( CodeGen code, Ary<Node> nodes ) {
         // If loading code instead of parsing, the types will be valid
         // post-parse - e.g. nodes are not "in progress" so Regions and Phis
-        // can just do meet-over-inputs.
+        // can just do meet-over-inputs, hence the Phase change before asserting
         CodeGen.Phase phase = code._phase;
         code._phase = CodeGen.Phase.Opto;
         for( Node n : nodes )
-            if( n._type != n.compute() )
+            // TODO: weaked from equality for the same reason Opto dropped the
+            // "beats past value" check: during seperate compilation Opto
+            // assumes a closed-world assumption, *nothing* exists from the
+            // outside.  This is not correct, and Opto needs to track a "all
+            // the world I don't know about, plus these things I do", which
+            // requires an infinite negative bitset.
+            if( !n.compute().isa(n._type) )
                 return false;
         code._phase = phase;
         return true;

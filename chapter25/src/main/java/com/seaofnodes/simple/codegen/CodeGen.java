@@ -814,7 +814,7 @@ public class CodeGen {
     // Debugging helper
     public Node f(int idx) {
         for( CompUnit cu : _compunits.values() ) {
-            Node n = cu._stop.find(idx);
+            Node n = (cu._stop == null ? _stop : cu._stop).find(idx);
             if( n != null ) return n;
         }
         return null;

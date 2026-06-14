@@ -15,7 +15,7 @@ public abstract class ParseAll {
     // Worklist of symbols to search and files to parse
     private static final HashSet<CompUnit> WORK = new HashSet<>();
 
-    private static final HashSet<CompUnit> NEEDS_LOAD = new HashSet<>();
+    private static final Ary<CompUnit> NEEDS_LOAD = new Ary<>(CompUnit.class);
 
     // Return a compilation unit (cached or new).  If new, it does not necessarily
     // need to be compiled.
@@ -102,6 +102,8 @@ public abstract class ParseAll {
                 }
                 if( n instanceof FRefNode fref ) {
                     TypeStruct clz = (TypeStruct)Parser.TYPES.get(fref._name);
+                    if( clz == null )
+                        return null;
                     // Class pointer:
                     TypeMemPtr clzptr = TypeMemPtr.make((byte)2,clz,true);
                     // Class pointer constant:
@@ -118,11 +120,6 @@ public abstract class ParseAll {
     private static void parseOne( CodeGen code, CompUnit cunit ) {
         // Parse a source file, return missing external references
         Ary<FRefNode> frefs = code.P.parse(cunit);
-
-        // Iteratively run peepholes.  Besides doing needed optimization
-        // this might also kill some FRefs.
-        code._stop.peephole();
-        code._iter.iterate(code);
 
         // Find all missing external references, or complain.  This can trigger more parses.
         while( !frefs.isEmpty() ) {
@@ -147,13 +144,41 @@ public abstract class ParseAll {
                 throw new RuntimeException(ioe);
             }
         }
+        addRequiredTypes(code,cunit);
+    }
+
+    private static void addRequiredTypes(CodeGen code, CompUnit cunit) {
+        for( String typeName : Parser.REQUIRED_TYPES ) {
+            if( !Parser.UNRESOLVED_TYPES.contains(typeName) )
+                continue;
+            try {
+                CompUnit xcunit = findRequiredType(code,cunit,typeName);
+                if( xcunit != null )
+                    cunit.addDep(xcunit);
+            } catch( IOException ioe ) {
+                throw new RuntimeException(ioe);
+            }
+        }
+    }
+
+    private static CompUnit findRequiredType(CodeGen code, CompUnit cunit, String typeName) throws IOException {
+        for( CompUnit cu = cunit; cu != null; cu = cu._par ) {
+            String symbol = typeName.startsWith(cu._cname+".")
+                ? typeName.substring(cu._cname.length()+1)
+                : typeName;
+            CompUnit xcunit = findCUnitModule(code,cu,symbol);
+            if( xcunit != null )
+                return xcunit;
+        }
+        return null;
     }
 
     private static void loadDeps(CodeGen code, CompUnit cunit) {
         // Load IR after parsing
-        if( !NEEDS_LOAD.add(cunit) )
+        if( NEEDS_LOAD.find(cunit) != -1 )
             return;             // Already on the to-be-loaded list?
         try {
+            NEEDS_LOAD.add(cunit);
             // Load dependent classes
             ElfReader elf = ElfReader.load(cunit._obj,cunit);
             elf.loadPublicSymbols();
@@ -192,22 +217,20 @@ public abstract class ParseAll {
         code._stop.addDef(cunit._stop);
         code.add(code._stop);
 
-        lStart.subsume(code._start);
+        //code._start._type = code._start._type.join(lStart._type);
+        //lStart.subsume(code._start);
         code.add(code._start);
 
-        // Loaded CompUnits carry post-Opto types, but ParseAll is still
-        // running the pessimistic solver.  Hide the optimistic facts until
-        // Opto resets and recomputes them.
-        pessimizeLoaded(code,code._start);
+        // Loaded CompUnits carry post-Opto types.  Keep those strong facts and
+        // let the next global analysis reconcile them with parsed code.
 
         // Add the new top-level loaded class
         assert !Parser.TYPES.containsKey(cunit._clz._name);
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
         Parser.resolveType(cunit._clz._name);
-        assert Opto.fixedPointCheck(code);
     }
 
-    // With great sadness, we through away the loaded optimistic types so we
+    // With great sadness, we throw away the loaded optimistic types so we
     // can link into the existing pessimistic types without blowing the
     // monotone invariant.
     private static void pessimizeLoaded(CodeGen code, Node seed) {

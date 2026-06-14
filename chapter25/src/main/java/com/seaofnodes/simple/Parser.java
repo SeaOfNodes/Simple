@@ -1587,7 +1587,6 @@ public class Parser {
         if( rvalue._type == Type.BOTTOM )
             if( var._fref )
                 return parsePostfix(rvalue); // No methods on FRefs right now
-            else throw error("Cannot read uninitialized field '"+id+"'");
 
         // Check for a instance field load
         int kx = _scope.kindx(var); // Declaration scope

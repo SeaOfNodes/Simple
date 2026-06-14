@@ -82,7 +82,7 @@ public class PhiNode extends TypeNode {
             Type ctrl = addDep(r.in(i))._type;
             if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
-                    return _con;
+                    return _con; // Fast-path cutout
                 t = t.meet(in(i)._type);
             }
         }
@@ -253,6 +253,10 @@ public class PhiNode extends TypeNode {
         dep.addDep(this);
         if( r.inProgress() ) return false;
         return super.allCons(dep);
+    }
+
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        return liftType(_con.upgradeType(TYPES).join(_type));
     }
 
     // True if last input is null
