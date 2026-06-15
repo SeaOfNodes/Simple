@@ -31,3 +31,26 @@ struct aryi64 {
         str.undo(2).add(']');
     };
 };
+
+
+// Parse a comma-separated list of numbers, wrapped with square brackets,
+// with optional whitespace  e.g. "[ -17, 0,99,12456789   ]  ".
+// parseAryI64 & aryi64.str are bijections modulo whitespace.
+// Returns null if the parse failed, without giving a clue as to why.
+val parseAryI64 = { u8[~] str ->
+    Scan !s = new Scan{ buf = str; };
+    if( !s.match('[') ) return null;
+    // Array of parsed results
+    var nums = new aryi64{ buf=new i64[1]; };
+    // Parse a list of numbers
+    if( !s.match(']') ) {        // Handle the empty list
+        // Parse "123, " until a something else
+        while( s.x < s.buf# ) {
+            nums.add(s.number());
+            if( !s.match(',') )
+                break;
+        };
+        if( !s.match(']') ) return null; // Close the list
+    }
+    return nums;
+};

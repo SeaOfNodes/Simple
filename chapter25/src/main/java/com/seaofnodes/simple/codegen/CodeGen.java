@@ -219,7 +219,10 @@ public class CodeGen {
     // called *in order* during parsing, and that order is part of the global
     // unique mapping
     public final GlobalBits _fidxs = new GlobalBits();
-    public int fidx( ) { return _fidxs.next(_srcName); }
+    // Return local index for specific global file & order.  Used to find fidxs for e.g. FREF class <init> fcns
+    public int fidx( String clz, int order ) { return _fidxs.next(clz, order); }
+    // New fidx in the current file
+    public int fidx( ) { return fidx(_srcName, -1); }
 
     // Compute local RPC index from global RPC info, one per call
     public final GlobalBits _rpcs = new GlobalBits();

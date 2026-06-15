@@ -45,8 +45,9 @@ public class GlobalBits {
     // Get a next local index for this clz
     int next( String clz ) { return next(clz,-1); }
 
-    // Record the next local index for this clz
-    private int next(String clz, int order ) {
+    // Given a clz and order, return an existing local index or make a new
+    // mapping and return that.
+    int next(String clz, int order ) {
         // Get the per-clz Order->Local mapping
         int[] xs = _clzOrder2Local.get(clz);
         if( xs == null )
@@ -58,6 +59,9 @@ public class GlobalBits {
         // Grow as needed
         while( xs.length <= order )
             xs = Arrays.copyOf(xs,xs.length*2);
+        // Have a local mapping already?
+        if( xs[order] != 0 )
+            return xs[order];
         // Extend mapping {clz,Order} -> Local
         _clzOrder2Local.put(clz,xs);
         xs[order] = _local;

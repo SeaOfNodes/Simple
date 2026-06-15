@@ -103,7 +103,7 @@ public class StoreNode extends MemOpNode {
 
         // Forward-ref loads eventually sharpen to a declared type
         Field fld;
-        if( _con == Type.BOTTOM && _alias==1 ) {
+        if( _con == Type.BOTTOM || _alias==1 ) {
             if(  ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null ) {
                 // All memory uses of self must now sharpen, as we are about to
                 // no longer be a bulk memory.  Also find bulk
@@ -137,11 +137,11 @@ public class StoreNode extends MemOpNode {
                         }
                     }
                 }
-
-                _con = fld._t;
-                _alias = fld._alias;
-                setType(compute());
-                return this;
+                if( _con != fld._t || _alias != fld._alias ) {
+                    _con = fld._t;
+                    _alias = fld._alias;
+                    return this;
+                }
             }
             // No further optimizations until alias sharpens
             return null;

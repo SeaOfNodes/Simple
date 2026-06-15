@@ -60,7 +60,7 @@ _Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(66, testCPUSize(src, "x86_64_v2","win64", 6 ));
+        assertEquals(65, testCPUSize(src, "x86_64_v2","win64", 6 ));
         assertEquals(76, testCPUSize(src, "riscv",  "SystemV", 7 ));
         assertEquals(72, testCPUSize(src, "arm"  ,  "SystemV", 7 ));
 
@@ -92,7 +92,7 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(66, testCPUSize(src, "x86_64_v2","win64",6 ));
+        assertEquals(65, testCPUSize(src, "x86_64_v2","win64",6 ));
         assertEquals(76, testCPUSize(src, "riscv",  "SystemV",7 ));
         assertEquals(72, testCPUSize(src, "arm",    "SystemV",7 ));
 
@@ -116,7 +116,7 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(59, testCPUSize(src, "x86_64_v2","win64",6 ));
+        assertEquals(58, testCPUSize(src, "x86_64_v2","win64",6 ));
         assertEquals(72, testCPUSize(src, "riscv",  "SystemV",8 ));
         assertEquals(68, testCPUSize(src, "arm",    "SystemV",8 ));
         // do assertEquals here

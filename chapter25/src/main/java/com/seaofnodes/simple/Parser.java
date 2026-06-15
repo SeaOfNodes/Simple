@@ -266,9 +266,8 @@ public class Parser {
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
-            // Default input if called from Start/external-world
-            Node defalt = t instanceof TypeMem ? new ProjNode(_code._start,1,ScopeNode.MEM0).peephole() : con(t);
-            _scope.define(ids[i], t, i==0 && ids[0]=="self", new ParmNode(ids[i],i+2,t,fun,defalt).peephole(), loc);
+            // Args take a default input if called from Start/external-world
+            _scope.define(ids[i], t, i==0 && ids[0]=="self", new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
 
         // Parse the function body.
@@ -293,9 +292,7 @@ public class Parser {
             addReturn(last);
 
         if( isInit )            // <init>  or  <clinit>
-            upgradeSelfTypeAndStoreFields( typeName, fun.isClz(),
-                                           self,
-                                           fun.parm(3) );
+            upgradeSelfTypeAndStoreFields( typeName, fun.isClz(), self, fun.parm(3) );
 
         // Build a return from the _returnScope.
         // Can be no returns for never-exit functions
@@ -370,8 +367,10 @@ public class Parser {
             // to an outer scope - and should not be in tself.
             if( v._fref )
                 tself = tself.remove(i);
-            else if( v.type() != tfld._t )
-                tself = tself.replace(tfld.makeFrom(v.type()));
+            else if( v.type() != tfld._t ) {
+                assert v.type().isa(tfld._t);
+                tself = tself.replace( tfld.makeFrom( v.type() ) );
+            }
         }
 
         // Close Struct type after parsing struct body.
@@ -1027,7 +1026,7 @@ public class Parser {
         // create type class:NESTED.typeName; no fields.
 
         String old = _nestedType;
-        String fullName = (old+"."+typeName).intern();
+        String fullName = _scope.depth()==1 && _nestedType.endsWith(typeName) ? old : (old+"."+typeName).intern();
         _nestedType = fullName; // Recursive structs start with this as their basename
 
         ReturnNode ret = parseStruct( false, fullName );
@@ -1037,14 +1036,19 @@ public class Parser {
         // Insert a field into class:NESTED.typeName of "val typeName = fcn-ptr-to-init"
         // Function does malloc internally.
         // Future self: means subtyping has to deal with "who does the malloc"
-        TypeStruct ts = classStruct(fullName,ret.fun().sig(),false);
-        TYPES.put(ts._name,ts);
+        String clzName = addClzPrefix(fullName);
+        TypeFunPtr sig = ret.fun().sig();
+        TypeStruct ts = (TypeStruct)TYPES.get(clzName);
+        Field fld = ts==null
+            ? Field.make(fullName,sig,_code.alias(),true)
+            : ts.field(fullName).makeFrom(sig);
+        ts = TypeStruct.make(clzName,false,fld);
+        TYPES.put(clzName,ts);
 
         // Insert a field in the containing class with the nested class type.
-        // This is basically sugar for "val CLZNAME = <class>"
+        // This is basically sugar for "val CLZNAME = <init>"
         // and is a nicer version of updateSelfAsFieldsDiscovered.
-        TypeMemPtr tmp = TypeMemPtr.make((byte)2,ts,true);
-        _scope.define(typeName, tmp, true, con(tmp), loc());
+        _scope.define(typeName, sig, true, con(sig), loc());
 
         require("}");
         return require(_code.ZERO,";");
@@ -1057,8 +1061,10 @@ public class Parser {
         Node oldMem = _scope.mem ().keep();
 
         // Make the future clazz/instance struct.
-        TypeStruct tself = TypeStruct.make(typeName,true);
-        TYPES.put(typeName, tself);
+        TypeStruct tself = (TypeStruct)TYPES.get(typeName);
+        if( tself==null )
+            TYPES.put(typeName, tself = TypeStruct.make(typeName,true));
+        else assert tself._open;
 
         TypeFunPtr sig = structInitSig(isClz,tself);
 
@@ -1076,11 +1082,20 @@ public class Parser {
     // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
     // Self-memory is the rare *private* (never aliased) memory for the new object.
     private TypeFunPtr structInitSig( boolean isClz, TypeStruct tself ) {
-        TypeMem privMem = isClz ? null : TypeMem.makePrivate(tself);
+        // Private uninitialized memory from new object, no escaped values.
+        TypeMem privMem = isClz ? null : TypeMem.make(1,tself.makeHigh(),true,false,null,null);
         Type targ = isClz ? TypeInteger.BOT : privMem;
-        Type tret = isClz ? Type.BOTTOM     : privMem;
+        // Return for private memory has to name all escaped fields, which are not known yet.
+        // Escape ALL fields, and sharpen later.
+        Type tret = isClz ? Type.BOTTOM     : TypeMem.makePrivate(tself);
         Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
-        return TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx());
+        // FIDX for FREFs is in the global namespace, needs the correct clz name.
+        String clzBare = tself._name;
+        if( isClz ) {
+            assert startsClzPrefix( clzBare );
+            clzBare = clzBare.substring(clzPrefix.length()).intern();
+        }
+        return TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx(clzBare,2/*2 is always the <init> FIDX in any file*/));
     }
 
     // A class type carries the constructor function as a required final field.
@@ -1571,10 +1586,15 @@ public class Parser {
                 // Static <clinit> typename lookup
                 if( peek('.') ) // type.fld, which is really a field lookup in the class object
                     return parsePostfix(con(t));
-                // Not a local var, but yes a bare type... disallow a local
-                // FREF and return null, not-a-primary parse.
-                pos(pos);
-                return null;
+                // Direct reference to a <clinit> type.  Convert the instance
+                // type to a class type name
+                if( !(t instanceof TypeMemPtr tmp) ) {
+                    //return new FRefNode(addClzPrefix(tmp._obj._name), loc()).peephole();
+                    // Not a local var, but yes a bare type... disallow a local
+                    // FREF and return null, not-a-primary parse.
+                    pos(pos);
+                    return null;
+                }
             }
 
             // Insert FREF outside enclosing Kind.Func scope.
