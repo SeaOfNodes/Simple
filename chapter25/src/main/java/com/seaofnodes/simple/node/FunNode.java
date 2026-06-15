@@ -2,9 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.*;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
-import com.seaofnodes.simple.type.TypeTuple;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
@@ -174,14 +172,15 @@ public class FunNode extends RegionNode {
     }
 
     // Bypass Region idom, always assume depth == 1, one more than Start,
-    // unless folding then just a ID on input#1
+    // unless folding
     @Override public int idepth() {
-        return _folding ? super.idepth() : CodeGen.CODE.iDepthAt(1);
+        if( _folding ) return super.idepth();
+        return CodeGen.CODE.iDepthAt(1);
     }
+
     // Bypass Region idom, always assume idom is Start
     @Override public CFGNode idom(Node dep) {
-        if( _folding && nIns()==3 ) return cfg(2);
-        return null;
+        return _folding ? cfg(1) : null;
     }
 
     // Always in-progress until we run out of unknown callers

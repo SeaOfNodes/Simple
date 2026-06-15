@@ -52,7 +52,7 @@ public class LoadNode extends MemOpNode {
         // No field?  Open objects might yet get the field when falling;
         // closed objects with missing field are an error.
         if( pfld == null )
-            return tmp.isHigh() ? Type.TOP : _con;
+            return tmp.isHigh() || tmp._obj.isHigh() ? Type.TOP : _con;
 
         Type t = pfld._t;
         // Load member of constant array

@@ -71,7 +71,8 @@ public class TypeStruct extends Type {
         if( (maxAlias&31)==31 ) len++;
         int[] xs = XInt.free(len);
         for( Field f : _fields )
-            if( f._fname.charAt(0) != '_' ) // Skip private fields.
+            if( f._fname.charAt(0) != '_' &&  // Skip private fields.
+                f._t != Type.TOP )            // Skip uninit fields
                 xs[XInt.idx(f._alias)] |= XInt.mask(f._alias);
         return (_aliases=XInt.intern(xs));
     }
@@ -191,6 +192,8 @@ public class TypeStruct extends Type {
     private static final TypeStruct SFLT0  = make("%SFLT",false);
     public  static final TypeStruct SINT1  = SINT0.add(Field.make("a", TypeInteger.U32, -1, false)).add(Field.make("s2",TypeMemPtr.make((byte)2,SFLT0),-2, false));
     public  static final TypeStruct SFLT1  = SFLT0.add(Field.make("b", TypeFloat  .F32, -3, false)).add(Field.make("s1",TypeMemPtr.make((byte)2,SINT1),-4, false));
+
+    @Override public boolean isHigh() { return _name==TOPNAME; }
 
     public static void gather(ArrayList<Type> ts) {
         ts.add(BOT);

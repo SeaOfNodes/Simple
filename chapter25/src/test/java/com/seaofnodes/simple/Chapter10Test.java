@@ -282,6 +282,23 @@ return ret.v0;
         assertEquals("return .v0;", code.print());
     }
 
+
+
+    @Test
+    public void testModGlobalInConstructor() {
+        CodeGen code = new CodeGen(
+"""
+int cnt = 1;
+struct s0 { int x = cnt++; };
+s0 a = new s0();
+s0 b = new s0();
+return a.x * 100 + b.x * 10 + cnt;
+""");
+        code.parse().iter().opto();
+        assertEquals("Stop[ return (((.x*10)+(.x*100))+2); return MEM[ 2:___ 3:#!-3:[1,[],[]]]; ]", code.print());
+    }
+
+
     @Test
     public void testBug3() {
         CodeGen code = new CodeGen("""
@@ -320,7 +337,7 @@ if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
     """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().typeCheck();
         assertEquals("Stop[ return Test.s0; return MEM[ 2:#!-2:[0,[],[]]]; ]", code.print());
     }
 

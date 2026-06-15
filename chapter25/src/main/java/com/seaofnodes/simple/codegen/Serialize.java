@@ -297,7 +297,8 @@ abstract public class Serialize {
             // outside.  This is not correct, and Opto needs to track a "all
             // the world I don't know about, plus these things I do", which
             // requires an infinite negative bitset.
-            if( !n.compute().isa(n._type) )
+            if( n.compute() != n._type )
+                //if( !n.compute().isa(n._type) )
                 return false;
         code._phase = phase;
         return true;

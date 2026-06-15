@@ -13,7 +13,7 @@ import java.util.*;
 public abstract class ParseAll {
 
     // Worklist of symbols to search and files to parse
-    private static final HashSet<CompUnit> WORK = new HashSet<>();
+    private static final Ary<CompUnit> WORK = new Ary<>(CompUnit.class);
 
     private static final Ary<CompUnit> NEEDS_LOAD = new Ary<>(CompUnit.class);
 
@@ -62,8 +62,7 @@ public abstract class ParseAll {
         WORK.add(cunit);
         // Work through all unparsed compilation units and parse
         while( !WORK.isEmpty() ) {
-            CompUnit cu = WORK.iterator().next();
-            WORK.remove(cu);
+            CompUnit cu = WORK.pop();
             // No source code?  Means we do not need to parse, but instead need to load the symbols as-if we parsed
             if( cu._src==null || cu._src.isEmpty() )
                 loadDeps(code,cu); // Load recursive dependents
@@ -230,39 +229,6 @@ public abstract class ParseAll {
         Parser.resolveType(cunit._clz._name);
     }
 
-    // With great sadness, we throw away the loaded optimistic types so we
-    // can link into the existing pessimistic types without blowing the
-    // monotone invariant.
-    private static void pessimizeLoaded(CodeGen code, Node seed) {
-        Ary<Node> work = new Ary<>(Node.class);
-        BitSet on = new BitSet();
-        // Seed the boundary neighborhood even if Start itself is already
-        // stable; its loaded users can still carry optimistic serialized types.
-        pessPush(work,on,seed);
-        for( Node def : seed._inputs  ) pessPush(work,on,def);
-        for( Node use : seed._outputs ) pessPush(work,on,use);
-        Node n;
-        while( (n=work.pop()) != null ) {
-            on.clear(n._nid);
-            assert !n.isDead();
-            Type old = n._type;
-            Type type = n.compute();
-            if( old == type ) continue;
-            n._type = type;
-            code.add(n);
-            for( Node def : n._inputs  ) pessPush(work,on,def);
-            for( Node use : n._outputs ) pessPush(work,on,use);
-        }
-    }
-
-    private static void pessPush(Ary<Node> work, BitSet on, Node n) {
-        if( n != null && !on.get(n._nid) ) {
-            on.set(n._nid);
-            work.push(n);
-        }
-    }
-
-
     public static CompUnit findCompUnit(CodeGen code, CompUnit cu, String symbol) {
         // Symbol not found in source code (or we would not be here).
         // Search the module for the fref
@@ -325,7 +291,7 @@ public abstract class ParseAll {
         if( f.exists() ) {
             CompUnit sub = makeCUnit(code,cunit,symbol);
             // If not seen before or out of date, parse the new nested cunit
-            if( sub._clz == null )
+            if( sub._clz == null && WORK.find(sub) == -1 )
                 WORK.add(sub);
             return sub;
         }
