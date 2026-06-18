@@ -36,5 +36,5 @@ public class Type {
 
     public boolean isConstant() { return _type == TTOP; }
 
-    public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public StringBuilder print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 }

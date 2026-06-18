@@ -35,7 +35,7 @@ public class TypeInteger extends Type {
     // FIXME this display format is problematic
     // In visualizer '#' gets prepended if its a constant
     @Override
-    public StringBuilder _print(StringBuilder sb) {
+    public StringBuilder print(StringBuilder sb) {
         if( this==TOP ) return sb.append("IntTop");
         if( this==BOT ) return sb.append("IntBot");
         return sb.append(_con);

@@ -52,7 +52,7 @@ public class Type {
     // Excludes both high and low values
     public boolean isConstant() { return false; }
 
-    public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public StringBuilder print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
     // ----------------------------------------------------------
 
@@ -136,6 +136,6 @@ public class Type {
     // ----------------------------------------------------------
     @Override
     public final String toString() {
-        return _print(new StringBuilder()).toString();
+        return print(new StringBuilder()).toString();
     }
 }

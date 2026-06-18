@@ -29,7 +29,7 @@ public class TypeInteger extends Type {
     public static TypeInteger constant(long con) { return make(true, con); }
 
     @Override
-    public StringBuilder _print(StringBuilder sb) {
+    public StringBuilder print(StringBuilder sb) {
         if( this==TOP ) return sb.append("IntTop");
         if( this==BOT ) return sb.append("IntBot");
         return sb.append(_con);

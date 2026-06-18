@@ -41,12 +41,12 @@ public class Type {
 
     public boolean isConstant() { return _type == TTOP; }
 
-    public StringBuilder _print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public StringBuilder print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 
     public Type meet(Type other) { return BOTTOM; }
 
     @Override
     public final String toString() {
-        return _print(new StringBuilder()).toString();
+        return print(new StringBuilder()).toString();
     }
 }
