@@ -272,6 +272,8 @@ public class Parser {
 
         // Parse the function body.
         Node last=_code.ZERO;   // Last statement as the default result
+
+        int nvar = 0;
         while (!peek('}') && !_lexer.isEOF()) {
             // Parse a statement; record last statement as default return
             last = parseStatement();
@@ -279,7 +281,7 @@ public class Parser {
             // get exposed as discovered.  This allows late local functions to
             // use early declared fields.
             if( isInit )
-                updateSelfAsFieldsDiscovered( typeName );
+                nvar = updateSelfAsFieldsDiscovered( typeName, nvar );
         }
 
         ParmNode self = fun.parm(2);
@@ -303,6 +305,9 @@ public class Parser {
         fun.setRet(ret);
         // Approximate function size, for inlining heuristics
         fun._approxUIDs = _code.UID() - oldUID;
+        for( Node cend : ret.outs() )
+            if( cend instanceof CallEndNode )
+                throw TODO(); //_code.add(cend); // have call ends ALREADY? just barely made the Return
 
         // Export (and keep-alive) functions until prove dead
         _ref.addFun(_code,fun);
@@ -323,18 +328,23 @@ public class Parser {
     // fields, and the parser wants to complain right now instead of allowing
     // unknown field loads against unknown types - and letting everything
     // resolve out later in SCCP.
-    private void updateSelfAsFieldsDiscovered( String typeName ) {
-        int lex = _scope.klast()._lexSize;
-        assert _scope.var(lex)._name=="self";
+    private int updateSelfAsFieldsDiscovered( String typeName, int nvar ) {
+        int lex = _scope.klast()._lexSize + 2/*Skip self and selfMem*/;
         // Load self type in and out of the TYPES hashtable.
         TypeStruct tself = (TypeStruct)TYPES.get(typeName);
         // Start looking for newly declared vars at the lexical scope start,
         // skipping two ("self" and "selfmem") and fields seen already.
-        for( int nvar = lex+2+tself._fields.length; nvar < _scope.nIns(); nvar++ ) {
-            Var v = _scope.var(nvar);
-            tself = tself.add(Field.make(v._name,v.type(),_code.alias(),v._final));
+        while( lex + nvar < _scope.nIns() ) {
+            Var v = _scope.var(lex + nvar++);
+            // Field with sharper type
+            Field old = tself.field(v._name);
+            Field fld = old == null
+                ? Field.make(v._name,v.type(),_code.alias(),v._final)
+                : Field.make(v._name,v.type(),old._alias,old._final);
+            tself = tself.addOrUpdate(fld);
         }
         TYPES.put(typeName,tself);
+        return nvar;
     }
 
 
@@ -359,14 +369,16 @@ public class Parser {
         // For init functions, upgrade any forward ref fields.
         TypeStruct tself = (TypeStruct)TYPES.get(typeName);
         int base = lex+2;       // Skip ctrl, mem
-        assert base + tself.nkids() == _scope.nIns();
         for( int i=0; i<tself.nkids(); i++ ) {
-            Var v = _scope.var(base +i);
             Field tfld = tself._fields[i];
+            int vidx = fieldVarIdx(base,tfld._fname);
+            if( vidx == -1 )
+                continue;
+            Var v = _scope.var(vidx);
             // Forward-ref fields where placed in tself but will get promoted
             // to an outer scope - and should not be in tself.
             if( v._fref )
-                tself = tself.remove(i);
+                tself = tself.remove(i--);
             else if( v.type() != tfld._t ) {
                 assert v.type().isa(tfld._t);
                 tself = tself.replace( tfld.makeFrom( v.type() ) );
@@ -402,24 +414,30 @@ public class Parser {
 
 
         // Store constructor results into fields
-        int frefs=0;
         for( int i=0; i<tself.nkids(); i++ ) {
-            Var v = _scope.var(base +i+frefs);
-            if( v._fref )   // Forward refs not declared here
-                frefs++;
-            else {
-                Node val = _returnScope.in(base + i);
-                Field fld = tself._fields[i];
-                Node stmem = mmm.alias(fld._alias);
-                // Store value into extended struct
-                Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, stmem, self, off(tself,fld._fname), val, fld._final));
-                mmm.alias(fld._alias, st);
-            }
+            Field fld = tself._fields[i];
+            int vidx = fieldVarIdx(base,fld._fname);
+            if( vidx == -1 )
+                continue;
+            Var v = _scope.var(vidx);
+            if( v._fref ) continue; // Forward refs not declared here
+            Node val = _returnScope.in(vidx);
+            Node stmem = mmm.alias(fld._alias);
+            // Store value into extended struct
+            Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, stmem, self, off(tself,fld._fname), val, fld._final));
+            mmm.alias(fld._alias, st);
         }
 
         if( !isClz )
             // Stuff private mem into normal expression return value.
             _returnScope.setDef(_returnScope.nIns()-1,mmm.peephole());
+    }
+
+    private int fieldVarIdx( int base, String name ) {
+        for( int i=base; i<_scope.nIns(); i++ )
+            if( _scope.var(i)._name == name )
+                return i;
+        return -1;
     }
 
 
@@ -1039,9 +1057,10 @@ public class Parser {
         String clzName = addClzPrefix(fullName);
         TypeFunPtr sig = ret.fun().sig();
         TypeStruct ts = (TypeStruct)TYPES.get(clzName);
+        String initName = initFieldName(fullName);
         Field fld = ts==null
-            ? Field.make(fullName,sig,_code.alias(),true)
-            : ts.field(fullName).makeFrom(sig);
+            ? Field.make(initName,sig,_code.alias(),true)
+            : ts.field(initName).makeFrom(sig);
         ts = TypeStruct.make(clzName,false,fld);
         TYPES.put(clzName,ts);
 
@@ -1100,7 +1119,14 @@ public class Parser {
 
     // A class type carries the constructor function as a required final field.
     private TypeStruct classStruct( String typeName, TypeFunPtr init, boolean open ) {
-        return TypeStruct.make(addClzPrefix(typeName),open,Field.make(typeName,init,_code.alias(),true));
+        return TypeStruct.make(addClzPrefix(typeName),open,Field.make(initFieldName(typeName),init,_code.alias(),true));
+    }
+
+    private static String initFieldName( String typeName ) {
+        if( startsClzPrefix(typeName) )
+            typeName = typeName.substring(clzPrefix.length());
+        int idx = typeName.lastIndexOf('.');
+        return (idx == -1 ? typeName : typeName.substring(idx+1)).intern();
     }
 
     private TypeStruct latestStruct( TypeStruct ts ) {
@@ -1724,7 +1750,7 @@ public class Parser {
         TypeStruct clz = (TypeStruct)TYPES.get(addClzPrefix(ts._name));
         if( clz==null )
             throw error("Unknown struct type '" + ts._name + "'");
-        TypeFunPtr init = (TypeFunPtr)clz.field(ts._name)._t;
+        TypeFunPtr init = (TypeFunPtr)clz.field(initFieldName(ts._name))._t;
 
         // Call construct <init>($ctrl,$mem,NewNode.self,NewNode.#selfMem) and
         // encourage inlining

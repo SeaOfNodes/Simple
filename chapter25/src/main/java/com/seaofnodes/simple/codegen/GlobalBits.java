@@ -56,6 +56,9 @@ public class GlobalBits {
         // in xs[0]
         if( order == -1 )
             order = xs[0]++;
+        // Order exists from prior compilation, but not recorded locally
+        else if( order >= xs[0] )
+            xs[0] = order+1;
         // Grow as needed
         while( xs.length <= order )
             xs = Arrays.copyOf(xs,xs.length*2);

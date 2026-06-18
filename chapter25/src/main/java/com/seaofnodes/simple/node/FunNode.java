@@ -91,6 +91,11 @@ public class FunNode extends RegionNode {
         assert sig.isa(_sig);
         if( _sig != sig ) {
             CODE.add(this);
+            // Changing the signature can allow more inlining
+            if( _ret != null )
+                for( Node cend : ret().outs() )
+                    if( cend instanceof CallEndNode )
+                        CODE.add(cend);
             _sig = sig;
             unlock();
         }

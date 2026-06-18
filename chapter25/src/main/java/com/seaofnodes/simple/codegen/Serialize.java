@@ -291,14 +291,7 @@ abstract public class Serialize {
         CodeGen.Phase phase = code._phase;
         code._phase = CodeGen.Phase.Opto;
         for( Node n : nodes )
-            // TODO: weaked from equality for the same reason Opto dropped the
-            // "beats past value" check: during seperate compilation Opto
-            // assumes a closed-world assumption, *nothing* exists from the
-            // outside.  This is not correct, and Opto needs to track a "all
-            // the world I don't know about, plus these things I do", which
-            // requires an infinite negative bitset.
             if( n.compute() != n._type )
-                //if( !n.compute().isa(n._type) )
                 return false;
         code._phase = phase;
         return true;

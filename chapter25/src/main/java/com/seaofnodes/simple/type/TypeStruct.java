@@ -120,6 +120,13 @@ public class TypeStruct extends Type {
         return make(_name,_open,flds);
     }
 
+    public TypeStruct addOrUpdate(Field fld) {
+        int idx = find(fld._fname);
+        int len = idx == -1 ? (idx=_fields.length)+1 : _fields.length;
+        Field[] flds = Arrays.copyOf(_fields,len);
+        flds[idx] = fld;
+        return make(_name,_open,flds);
+    }
 
     public final TypeStruct close() {
         return (TypeStruct)recurOpen()._close(_name, null).recurClose();
