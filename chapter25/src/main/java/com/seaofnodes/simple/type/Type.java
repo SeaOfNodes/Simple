@@ -603,12 +603,8 @@ public class Type /*implements Cloneable*/ {
             }
             if( types[i] instanceof TypeFunPtr tfp )
                 tfp._fidxs = remapBits(fileFidxs,fidxs,tfp._fidxs,GlobalBits.RESERVED);
-            if( types[i] instanceof TypeRPC rpc && !rpc._rpcs.isEmpty() ) {
-                HashSet<Integer> rpcs2 = new HashSet<>();
-                for( Integer rpcx : rpc._rpcs )
-                    rpcs2.add(rpcx < GlobalBits.RESERVED ? rpcx : rpcs.map(fileRpcs,rpcx));
-                rpc._rpcs = rpcs2;
-            }
+            if( types[i] instanceof TypeRPC rpc )
+                rpc._rpcs = remapBits(fileRpcs,rpcs,rpc._rpcs,GlobalBits.RESERVED);
             if( types[i] instanceof TypeMem mem ) {
                 if( mem._alias >= GlobalBits.RESERVED )
                     mem._alias = aliases.map(fileAliases,mem._alias);
