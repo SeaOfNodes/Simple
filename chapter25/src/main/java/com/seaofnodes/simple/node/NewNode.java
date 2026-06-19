@@ -44,10 +44,13 @@ public class NewNode extends Node implements MultiNode {
     @Override public TypeTuple compute() {
         if( ctrl()._type.isHigh() )
             return TypeTuple.DEAD_NEW;
+        TypeStruct ts = _ts.isAry() ? _ts : _ts.makeInit();
         return TypeTuple.make(TypeMemPtr.make(_ts),
                               // Arrays get pre-zeroed by constructor.
-                              // Objects start with uninit memory and must stomp all fields
-                              TypeMem.makePrivate( _ts.isAry() ? _ts : _ts.makeHigh()));
+                              // Objects start with default-zero memory for
+                              // fields that can be zero-initialized.  This is
+                              // still private memory, so no aliases escape yet.
+                              TypeMem.make(1,ts,true,false,null,null));
     }
 
     @Override public Node idealize() { return null; }

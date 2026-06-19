@@ -122,7 +122,7 @@ abstract public class Opto {
         if( XInt.isHigh(fidxs) )
             return;             // Can get here from some error programs
         for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
-            FunNode fun = code._linker.at(fidx);
+            FunNode fun = code._linker.atX(fidx);
             if( fun==null )  assert code._externFunc.containsKey(fidx);
             else             linkStart(code,fun,true);
         }

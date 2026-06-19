@@ -184,7 +184,7 @@ public class Parser {
         Ary<FRefNode> frefs = new Ary<>(FRefNode.class);
         for( int i=2; i<_scope._vars._len; i++ ) {
             FRefNode fref = (FRefNode)_scope._inputs.at(i);
-            CompUnit cu = ParseAll.findCompUnit(_code,_ref,fref._name);
+            CompUnit cu = ParseAll.findCompUnitOrThrow(_code,_ref,fref._name);
             fref._con = TypeMemPtr.make((byte)2,TypeStruct.make(addClzPrefix(cu._cname),true),true);
             frefs.push(fref);
         }
@@ -339,7 +339,7 @@ public class Parser {
             // Field with sharper type
             Field old = tself.field(v._name);
             Field fld = old == null
-                ? Field.make(v._name,v.type(),_code.alias(),v._final)
+                ? Field.make(v._name,v.type(),_code.alias(_ref._cname),v._final)
                 : Field.make(v._name,v.type(),old._alias,old._final);
             tself = tself.addOrUpdate(fld);
         }
@@ -1058,9 +1058,10 @@ public class Parser {
         TypeFunPtr sig = ret.fun().sig();
         TypeStruct ts = (TypeStruct)TYPES.get(clzName);
         String initName = initFieldName(fullName);
-        Field fld = ts==null
-            ? Field.make(initName,sig,_code.alias(),true)
-            : ts.field(initName).makeFrom(sig);
+        Field oldFld = ts==null ? null : ts.field(initName);
+        Field fld = oldFld==null
+            ? Field.make(initName,sig,_code.alias(_ref._cname),true)
+            : oldFld.makeFrom(sig);
         ts = TypeStruct.make(clzName,false,fld);
         TYPES.put(clzName,ts);
 
@@ -1119,7 +1120,7 @@ public class Parser {
 
     // A class type carries the constructor function as a required final field.
     private TypeStruct classStruct( String typeName, TypeFunPtr init, boolean open ) {
-        return TypeStruct.make(addClzPrefix(typeName),open,Field.make(initFieldName(typeName),init,_code.alias(),true));
+        return TypeStruct.make(addClzPrefix(typeName),open,Field.make(initFieldName(typeName),init,_code.alias(_ref._cname),true));
     }
 
     private static String initFieldName( String typeName ) {
@@ -1140,7 +1141,7 @@ public class Parser {
         if( fld != null ) return fld;
         if( !ts._open || !UNRESOLVED_TYPES.contains(ts._name) ) return null;
         REQUIRED_TYPES.add(ts._name);
-        fld = Field.make(name,Type.BOTTOM,_code.alias(),xfinal);
+        fld = Field.make(name,Type.BOTTOM,_code.alias(_ref._cname),xfinal);
         TYPES.put(ts._name,ts = ts.add(fld));
         if( _ctorOpenStruct != null && _ctorOpenStruct._name == ts._name )
             _ctorOpenStruct = ts;
@@ -1286,7 +1287,7 @@ public class Parser {
         String tname = ("[]"+t.str()).intern();
         TypeStruct ta = (TypeStruct)TYPES.get(tname);
         if( ta==null ) {
-            ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.alias(),t,_code.alias(), false );
+            ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.alias(_ref._cname),t,_code.alias(_ref._cname), false );
             TYPES.put(tname,ta);
         }
         if( !efinal ) return ta;
@@ -1625,14 +1626,25 @@ public class Parser {
 
             // Insert FREF outside enclosing Kind.Func scope.
             pos(pos2);
-            var = _scope.defineFRef(id,loc());
+            t = FRefNode.FREF_TYPE;
+            // Check if this is a class.
+            CompUnit cu = ParseAll.findCompUnit(_code,_ref,id);
+            if( cu!=null ) {
+                // Must be a final class-type
+                String clzName = addClzPrefix(cu._cname);
+                TypeStruct clz = (TypeStruct)TYPES.get(clzName);
+                if( clz == null )
+                    TYPES.put(clzName,clz = TypeStruct.make(clzName,true));
+                t = TypeMemPtr.make((byte)2,clz,true);
+            }
+            // Define the FRef
+            var = _scope.defineFRef(id,t,cu!=null,loc());
         }
 
         // Load local value
         Node rvalue = _scope.in(var);
-        if( rvalue._type == Type.BOTTOM )
-            if( var._fref )
-                return parsePostfix(rvalue); // No methods on FRefs right now
+        if( var._fref )
+            return parsePostfix(rvalue);
 
         // Check for a instance field load
         int kx = _scope.kindx(var); // Declaration scope
@@ -1884,19 +1896,18 @@ public class Parser {
      *     expr '(' [args,]* ')'              // Function call
      * </pre>
      */
-    // 'self' for a possible method call
     private Node parsePostfixMethod(Node expr, Node self) {
-        // Self method call?
-        // - expr is a TFP, with a potential self,
-        // - - which is neither a Class nor an array
-        // - has function call args following
-        if( expr._type instanceof TypeFunPtr tfp && tfp._sig.length>=1 && tfp._sig[0] instanceof TypeMemPtr tself &&
-            // Not an array or Class method
-            !(tself._obj._name.startsWith( "[" ) ||
-              (self._type instanceof TypeMemPtr clzptr && startsClzPrefix(clzptr._obj._name))) &&
+        // CNC BUGGY
+
+        // CNC TODO - Too broad, but the "real fix" requires having strong
+        // types too early in the parse.  This fix allows some normal functions
+        // to end up with a "self" argument.
+
+        // Self method call?  Self is a TMP-not-CLZ, then assume and pass self.
+        if( !(self._type instanceof TypeMemPtr ptr && startsClzPrefix(ptr._obj._name)) &&
             match("(") ) {
             expr = parsePostfix(require(functionCall(expr,self),")"));
-        } else if( self != null )
+        } else
             self.isKill();      // Not a method call, no need for self
         return parsePostfix(expr);
     }
@@ -2045,7 +2056,7 @@ public class Parser {
         }
         require("->");
         // Make a concrete function type, with a fidx
-        TypeFunPtr tfp = _code.makeFun(TypeFunPtr.make(false,ts.asAry(),Type.BOTTOM));
+        TypeFunPtr tfp = TypeFunPtr.make1((byte)2,false,ts.asAry(),Type.BOTTOM,_code.fidx(_ref._cname));
         ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
         return con(tfp.makeFrom(ret.expr()._type));
     }
@@ -2094,7 +2105,7 @@ public class Parser {
         // Into the call
         CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
         // Post-call setup
-        CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
+        CallEndNode cend = (CallEndNode)new CallEndNode(call,TypeRPC.constant(_code.rpc(_ref._cname))).peephole();
         call.peephole();        // Rerun peeps after CallEnd, allows early inlining
         cend = (CallEndNode)cend.keep().peephole(); // TODO: Might inline
         // Control from CallEnd
@@ -2117,8 +2128,9 @@ public class Parser {
     // External linked constant
     private ConstantNode externDecl( String ex, Type t ) {
         if( t instanceof TypeFunPtr tfp ) {  // Generic TFP from type parse
-            tfp = _code.makeFun(tfp);        // Get a FIDX, becomes a constant
-            _code.externFunc(tfp.fidx(),ex); // Map fidx to extern name
+            int fidx = _code.fidx(_ref._cname); // Get a FIDX
+            tfp = tfp.makeFrom(fidx);           // Become a constant
+            _code.externFunc(fidx,ex);          // Map fidx to extern name
             t = tfp;
         }
         return (ExternNode)(new ExternNode(t,ex).peephole());

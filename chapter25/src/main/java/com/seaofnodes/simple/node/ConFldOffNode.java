@@ -67,7 +67,7 @@ public class ConFldOffNode extends ConstantNode {
 
     @Override public boolean eq(Node n) {
         ConFldOffNode off = (ConFldOffNode)n; // Invariant
-        return _ts.equals(off._ts) && _fname.equals(off._fname) && super.eq(n);
+        return _ts._name==off._ts._name && _fname.equals(off._fname) && super.eq(n);
     }
-    @Override int hash() { return super.hash() * _ts.hashCode() * _fname.hashCode(); }
+    @Override int hash() { return super.hash() * _ts._name.hashCode() * _fname.hashCode(); }
 }

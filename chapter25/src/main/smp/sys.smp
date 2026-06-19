@@ -2,7 +2,7 @@
 
 // top-level default standard library import
 
-libc libc = libc;
-io io = io;
-aryu8 aryu8 = aryu8;
-aryi64 aryi64 = aryi64;
+var libc = libc;
+var io = io;
+var aryu8 = aryu8;
+var aryi64 = aryi64;

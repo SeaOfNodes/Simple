@@ -62,6 +62,30 @@ hashCode(new String{cs="Hello, World!";});
     }
 
     @Test
+    public void testTernaryStoreCall() {
+        String src =
+"""
+struct String {
+    u8[~] cs;
+    int _hashCode;
+};
+
+val f = { String self -> 7; };
+
+val hashCode = { String self ->
+    self._hashCode
+    ? 3
+    : (self._hashCode = f(self));
+};
+
+hashCode(new String{cs="Hello";});
+""";
+        CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
+        assertFalse(code.print().contains("return Top"));
+        assertEquals("7", Eval2.eval(code, 2));
+    }
+
+    @Test
     public void testBasic0() {
         CodeGen code = new CodeGen("return 0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return 0;", code.print());

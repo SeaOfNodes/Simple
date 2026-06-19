@@ -3,10 +3,11 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.ParseAll;
+import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
-
 import java.util.*;
 
 /**
@@ -231,12 +232,14 @@ public class ScopeNode extends MemMergeNode {
     // enclosing Kind.Func scope, skipping any nested Blocks or Allocs and
     // return the Var.  May insert at the outermost scope, which means this
     // must be defined externally, or it's an error.
-    public Var defineFRef( String name, Parser.Lexer loc ) {
+
+    public Var defineFRef( String id, Type t, boolean xfinal, Parser.Lexer loc ) {
         // Kind/Lexical scope index
         int kidx = enclosingFunction();
         int idx = _kinds.at(kidx)._lexSize;
-        Var var = new Var(idx,name,FRefNode.FREF_TYPE,false,loc,true);
-        FRefNode fref = new FRefNode(name,loc).init();
+        Var var = new Var(idx,id,t,xfinal,loc,true);
+        FRefNode fref = new FRefNode(id,loc).init();
+        fref._type = fref._con = t;
         // Insert in the lex scope just prior to kidx
         insert(var,fref,kidx);
         return var;

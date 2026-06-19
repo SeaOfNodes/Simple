@@ -102,6 +102,15 @@ public class TypeStruct extends Type {
         return make(_name,_open,fs);
     }
 
+    public TypeStruct makeInit() {
+        Field[] fs = new Field[_fields.length];
+        for( int i=0; i<_fields.length; i++ ) {
+            Type zero = _fields[i]._t.makeZero();
+            fs[i] = _fields[i].makeFrom(_fields[i]._t != Type.BOTTOM && _fields[i]._t != Type.TOP && zero.isa(_fields[i]._t) ? zero : Type.TOP);
+        }
+        return make(_name,_open,fs);
+    }
+
     public TypeStruct add( Field f ) {
         assert find(f._fname)==-1; // No double field names
         Field[] flds = Arrays.copyOf(_fields,_fields.length+1);
