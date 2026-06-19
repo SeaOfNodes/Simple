@@ -52,6 +52,15 @@ public class FunNode extends RegionNode {
         baos.packed2(types.get(_sig)); // NPE if fails lookup
         baos.packed2(_name==null ? 0 : strs.get(_name));
     }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) {
+        assert !_folding;
+        baos.packed1(nSerialInputs(nodes));
+        baos.packed2(types.get(_sig)); // NPE if fails lookup
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+    }
+    @Override public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) {
+        return in(i)==null || nodes.containsKey(in(i));
+    }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
         TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
