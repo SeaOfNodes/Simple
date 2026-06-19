@@ -150,13 +150,14 @@ abstract public class Serialize {
         for( Node n : nodes ) {
             baos.packed1(n.serialTag().ordinal());
             baos.packed2(types.get(n._type));
-            n.packed(baos,strs,types);
+            n.packed(baos,strs,types,anodes);
         }
         // Write out the input indices packed
         for( int j=1; j<nodes._len; j++ ) {
             Node n = nodes._es[j];
             for( int i=0; i<n.nIns(); i++ )
-                baos.packed2(n.in(i)==null ? 0 : anodes.get(n.in(i)));
+                if( n.serialInput(i,anodes) )
+                    baos.packed2(n.in(i)==null ? 0 : anodes.get(n.in(i)));
             if( n instanceof FunNode fun )
                 baos.packed2(anodes.get(fun.ret()));
         }

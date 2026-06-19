@@ -6,6 +6,7 @@ import com.seaofnodes.simple.util.BAOS;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 // A collection of function ReturnNodes for a compilation unit.
 public class StopNode extends CFGNode {
@@ -17,6 +18,8 @@ public class StopNode extends CFGNode {
     public StopNode(StopNode stop) { super(stop); }
     @Override public Tag serialTag() { return Tag.Stop; }
     public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) { baos.packed1(nIns()); }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) { baos.packed1(nSerialInputs(nodes)); }
+    @Override public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) { return in(i)==null || nodes.containsKey(in(i)); }
     static Node make( BAOS bais ) {
         StopNode stop = new StopNode();
         stop.setDefX(bais.packed1()-1,null);

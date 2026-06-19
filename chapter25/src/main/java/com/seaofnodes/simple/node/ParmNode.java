@@ -5,6 +5,7 @@ import com.seaofnodes.simple.util.BAOS;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class ParmNode extends PhiNode {
 
@@ -22,6 +23,17 @@ public class ParmNode extends PhiNode {
         baos.packed2(_label==null ? 0 : strs.get(_label));
         baos.packed2(types.get(_con)); // NPE if fails lookup
         baos.packed1(_idx);
+    }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) {
+        baos.packed1(nSerialInputs(nodes));
+        baos.packed2(_label==null ? 0 : strs.get(_label));
+        baos.packed2(types.get(_con)); // NPE if fails lookup
+        baos.packed1(_idx);
+    }
+    @Override public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) {
+        if( i==0 ) return true;
+        FunNode fun = fun();
+        return i < fun.nIns() && fun.serialInput(i,nodes) && (in(i)==null || nodes.containsKey(in(i)));
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];

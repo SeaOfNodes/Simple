@@ -151,6 +151,19 @@ public abstract class Node implements Cloneable {
     public Tag serialTag() { throw Utils.TODO(); }
     // Serialize extra data, including input counts
     public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {}
+    // Linked Call/FunNodes have live ideal-graph edges that might cross
+    // object-file boundaries and such edges cannot Serialize.  These hooks let
+    // such nodes serialize a filtered input count and matching filtered edge
+    // list without mutating the graph.
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) { packed(baos,strs,types); }
+    public int nSerialInputs( IdentityHashMap<Node,Integer> nodes ) {
+        int len=0;
+        for( int i=0; i<nIns(); i++ )
+            if( serialInput(i,nodes) )
+                len++;
+        return len;
+    }
+    public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) { return true; }
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public String label() { return serialTag().toString(); }

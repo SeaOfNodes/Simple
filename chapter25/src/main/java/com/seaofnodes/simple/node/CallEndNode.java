@@ -7,6 +7,7 @@ import com.seaofnodes.simple.util.Utils;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  *  CallEnd
@@ -37,6 +38,16 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // break the cycle
         baos.packed2(types.get(_type));
         baos.packed2(types.get(_rpc));
+    }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) {
+        baos.packed1(nSerialInputs(nodes));
+        // Linked CallEnds depend on Return types which depend on CallEnds;
+        // break the cycle
+        baos.packed2(types.get(_type));
+        baos.packed2(types.get(_rpc));
+    }
+    @Override public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) {
+        return in(i)==null || nodes.containsKey(in(i));
     }
     static Node make( BAOS bais, Type[] types )  {
         int nIns = bais.packed1();
