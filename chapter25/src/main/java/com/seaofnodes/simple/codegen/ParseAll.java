@@ -229,6 +229,14 @@ public abstract class ParseAll {
         Parser.resolveType(cunit._clz._name);
     }
 
+    // Symbol not found in source code (or we would not be here).
+    // Search the module for the fref
+    public static CompUnit findCompUnitOrThrow(CodeGen code, CompUnit cu, String symbol) {
+        CompUnit cu2 =  findCompUnit(code,cu,symbol);
+        if( cu2 != null ) return cu2;
+        throw new RuntimeException("Undefined name '" + symbol +"'");
+    }
+
     public static CompUnit findCompUnit(CodeGen code, CompUnit cu, String symbol) {
         // Symbol not found in source code (or we would not be here).
         // Search the module for the fref
@@ -240,8 +248,7 @@ public abstract class ParseAll {
             CompUnit ext = findCUnitExternal( code, symbol );
             if( ext != null )
                return ext;
-
-            throw new RuntimeException("Undefined name '" + symbol +"'");
+            return null;
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
         }

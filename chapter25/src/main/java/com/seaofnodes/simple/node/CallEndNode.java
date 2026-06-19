@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 
 import java.util.BitSet;
 import java.util.HashMap;
@@ -16,9 +17,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
     private boolean _folding;
     public final TypeRPC _rpc;
 
-    public CallEndNode(CallNode call) {
+    public CallEndNode(CallNode call, TypeRPC rpc) {
         super(new Node[]{call});
-        _rpc = TypeRPC.constant(CodeGen.CODE.rpc());
+        _rpc = rpc;
     }
     public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
     public CallEndNode(TypeRPC rpc) {
@@ -109,9 +110,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
             Node fptr = call.fptr();
             if( fptr.isConst() && // We have an immediate call
                 // Function is being called, and its not-null
-                fptr._type instanceof TypeFunPtr tfp && tfp.notNull() &&
+                fptr._type instanceof TypeFunPtr tfp && tfp.notNull() && !tfp.isHigh() &&
                 // Arguments are correct
-                call.err()==null ) {
+                call.nargs()==tfp.nargs() && goodArgs(call,tfp) ) {
                 ReturnNode ret = (ReturnNode)in(1);
                 FunNode fun = ret.fun();
                 int isTrivial = trivialInlining( fptr, fun );
@@ -148,6 +149,16 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
         return null;
     }
+
+    boolean goodArgs( CallNode call, TypeFunPtr tfp ) {
+        for( int i=0; i<tfp.nargs(); i++ ) {
+            Node arg = call.arg(i+2);
+            if( !arg._type.isa(tfp.arg(i)) )
+                { addDep(arg); return  false; }
+        }
+        return true;
+    }
+
 
     // Check for trivial inlining: call only calls fun; fun only called by
     // call.  Returns 0 for trivial, +1 for not-trivial because fptr/fun, and

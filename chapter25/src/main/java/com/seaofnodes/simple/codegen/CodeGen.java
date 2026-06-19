@@ -213,7 +213,7 @@ public class CodeGen {
     // called *in order* during parsing, and that order is part of the global
     // unique mapping
     public final GlobalBits _aliases = new GlobalBits();
-    public int alias() { return _aliases.next(_srcName); }
+    public int alias(String clz) { return _aliases.next(clz); }
 
     // Compute local function index (FIDX) from global function info.  This is
     // called *in order* during parsing, and that order is part of the global
@@ -222,11 +222,11 @@ public class CodeGen {
     // Return local index for specific global file & order.  Used to find fidxs for e.g. FREF class <init> fcns
     public int fidx( String clz, int order ) { return _fidxs.next(clz, order); }
     // New fidx in the current file
-    public int fidx( ) { return fidx(_srcName, -1); }
+    public int fidx( String clz ) { return fidx(clz, -1); }
 
     // Compute local RPC index from global RPC info, one per call
     public final GlobalBits _rpcs = new GlobalBits();
-    public int rpc( ) { return _rpcs.next(_srcName); }
+    public int rpc( String clz ) { return _rpcs.next(clz); }
 
 
     // idepths are cached and valid until *inserting* CFG edges (deleting is
@@ -258,13 +258,6 @@ public class CodeGen {
     // Global Value Numbering.  Hash over opcode and inputs; hits in this table
     // are structurally equal.
     public final HashMap<Node,Node> _gvn;
-
-    // Source of unique function indices for the current compilation
-    public TypeFunPtr makeFun( TypeFunPtr fun ) {
-        assert fun.nfcns() == Integer.MAX_VALUE; // Not assigned yet
-        return fun.makeFrom(fidx());
-    }
-
 
     // Reverse from a constant function pointer to the IR function being called.
     // Error to call with a non-constant TFP
