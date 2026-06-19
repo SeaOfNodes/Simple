@@ -65,17 +65,44 @@ public class GlobalBits {
         // Have a local mapping already?
         if( xs[order] != 0 )
             return xs[order];
-        // Extend mapping {clz,Order} -> Local
+        int local = _local++;
+        bind(local,clz,order);
+        return local;        // The dense local index
+    }
+
+    // Bind a specific dense local index to {clz,order}.  Used by both fresh
+    // allocation and deserialization, where local indexes must not compact
+    // across holes because XInt bitsets are serialized against this space.
+    private void bind( int local, String clz, int order ) {
+        if( _local <= local )
+            _local = local+1;
+        _local2Clz  .setX(local,clz  );
+        _local2Order.setX(local,order);
+
+        // Inline-only fidx holes are represented as {null,0}.  They need the
+        // reverse mapping above, but no forward map because xs[0] is the
+        // per-class next-order counter.
+        if( clz==null && order==0 )
+            return;
+
+        int[] xs = _clzOrder2Local.get(clz);
+        if( xs == null )
+            xs = new int[]{RESERVED,1};
+        if( order >= xs[0] )
+            xs[0] = order+1;
+        while( xs.length <= order )
+            xs = Arrays.copyOf(xs,xs.length*2);
         _clzOrder2Local.put(clz,xs);
-        xs[order] = _local;
-        // Save reverse mapping
-        _local2Clz  .setX(_local,clz  );
-        _local2Order.setX(_local,order);
-        return _local++;        // The dense local index
+        xs[order] = local;
     }
 
     // A file-local function that will inline, and never write to disk
-    public int nextInline( ) { return _local++; }
+    public int nextInline( ) {
+        int local = _local++;
+        _local2Clz  .setX(local,null);
+        _local2Order.setX(local,0);
+        return local;
+    }
     // Get a next local index for the same clz as this old index
     public int next( int old ) { return next(_local2Clz.at(old));  }
 
@@ -127,7 +154,7 @@ public class GlobalBits {
             String clz = strs[sx];
             if( clz.isEmpty() ) clz = null;
             int order = bais.packed2();
-            gb.next(clz,order);
+            gb.bind(i,clz,order);
         }
         return gb;
     }
