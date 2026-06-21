@@ -44,6 +44,7 @@ public class TypeTuple extends Type {
     // being created and we cannot tell what the future holds.  This is the
     // default ReturnNode type, returning what the worst a function can do.
     public static final TypeTuple STATE = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM);
+    public static final TypeTuple STOP_HIGH = make(Type.CONTROL,TypeMem.START,Type.TOP);
 
     public static final TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
     public static final TypeTuple DEAD_NEW = make(TypeMemPtr.TOP,TypeMem.TOP);
@@ -113,7 +114,11 @@ public class TypeTuple extends Type {
         return align;
     }
 
-    public Type ret() { assert _types.length>=3; return _types[2]; }
+    public Type    ctl() { assert _types.length>=3; return _types[0]; }
+    public Type    ret() { assert _types.length>=3; return _types[2]; }
+    public TypeMem mem() { assert _types.length>=3;
+        return _types[1] instanceof TypeMem tmem ? tmem : (_types[1].isHigh() ? TypeMem.START : TypeMem.BOT);
+    }
 
     @Override public int nkids() { return _types.length; }
     @Override public Type at( int idx ) { return _types[idx]; }

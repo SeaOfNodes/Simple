@@ -82,9 +82,17 @@ public class TypeMem extends Type {
     public TypeMem escapesFrom(Type t) {
         return make(_alias,t,_one,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
     }
+    // Existing escapes plus `t` escapes
+    public TypeMem escapesFrom(int alias, Type t) {
+        return make(alias,t,_one,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
+    }
+    public TypeMem escapesAliases(Type t) {
+        return make(_alias,_t,_one,_final, _escFs, escapeAlias(_escAs,t));
+    }
 
     public static final TypeMem TOP = make(1, Type.TOP   ,true ,true , XInt.EMPTY, XInt.EMPTY);
     public static final TypeMem BOT = make(1, Type.BOTTOM,false,false, XInt.FULL , XInt.FULL );
+    public static final TypeMem START = make(1, Type.BOTTOM,false,false, XInt.EMPTY, XInt.EMPTY);
     public static final TypeMem SELF_MEM = make(1, TypeStruct.BOT);
 
     public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); ts.add(SELF_MEM); }
@@ -194,7 +202,7 @@ public class TypeMem extends Type {
         case TypeMemPtr tmp -> escapeFIDX(xs,tmp._obj);
         case TypeStruct ts  -> ts._open
                 ? XInt.FULL         // Open structs can have any fields
-                : xs;
+                : XInt.meet(xs,ts.fidxs());
         case TypeFunPtr tfp -> XInt.meet(xs,tfp.fidxs());
         case TypeMem    mem -> XInt.meet(xs,mem._escFs);
         case Type tt -> tt == BOTTOM ? XInt.FULL : xs;

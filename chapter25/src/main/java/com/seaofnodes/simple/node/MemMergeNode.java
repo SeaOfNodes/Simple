@@ -66,14 +66,14 @@ public class MemMergeNode extends Node {
 
 
     @Override public Type compute() {
-        if( in(1)._type.isHigh() )
-            return TypeMem.TOP;
+        if( !(in(1)._type instanceof TypeMem defmem) )
+            return in(1)._type;
         // Is this a single private instance memory?
-        TypeMem defmem = (TypeMem)in(1)._type;
         if( defmem._one ) {
+            if( !(defmem._t instanceof TypeStruct ts) )
+                return defmem;
             // Perfect singleton memory, so all updates are parallel and
             // independent and stack.
-            TypeStruct ts = (TypeStruct)defmem._t;
             for( int i=2; i<nIns(); i++ ) {
                 if( in(i) !=null && in(i)._type.isHigh() )
                     return TypeMem.TOP;

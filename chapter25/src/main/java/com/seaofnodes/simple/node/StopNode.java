@@ -18,8 +18,6 @@ public class StopNode extends CFGNode {
     public StopNode(StopNode stop) { super(stop); }
     @Override public Tag serialTag() { return Tag.Stop; }
     public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) { baos.packed1(nIns()); }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) { baos.packed1(nSerialInputs(nodes)); }
-    @Override public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) { return in(i)==null || nodes.containsKey(in(i)); }
     static Node make( BAOS bais ) {
         StopNode stop = new StopNode();
         stop.setDefX(bais.packed1()-1,null);
@@ -71,58 +69,12 @@ public class StopNode extends CFGNode {
         // cannot know if more are coming, so must assume the worst.
         if( CodeGen.CODE._phase ==null || CodeGen.CODE._phase == CodeGen.Phase.Parse )
             return TypeTuple.STATE;
-        StartNode start = CodeGen.CODE._start;
 
-        // Just meet-over-inputs.  Due to the clunky double-stacked nature of
-        // StopNodes, this is either a meet over Stops or a meet over Returns.
-        TypeTuple tt = TypeTuple.STATE.dual();
-        for( Node def : _inputs ) {
-            if( def instanceof ReturnNode ret ) {
-                // Dead Return
-                if( ret._type == Type.TOP ) continue;
-                if( !(ret._type instanceof TypeTuple tret) )
-                    return TypeTuple.STATE; // Some broken thing
-
-
-                // Does this function escape?  If not, then no need to MEET
-                // here as its effects are not visible to the outside world.
-                FunNode fun = ret.fun();
-                addDep(start);
-                if( !start.escapedFIDX(fun.sig().fidx()) &&
-                    !(fun.isPublic() && fun.isInit()) )
-                    continue;
-
-                // Capture (precisely?) all escaping pointer aliases and fidxs.
-                // Escaped fidxs means the linked world can call that function;
-                // escaped aliases means the linked world can R/W those aliases.
-
-                // Tuple meet the first 3 elements
-                Type ctl = tt._types[0].meet(tret._types[0]);
-                Type mem = tt._types[1].meet(tret._types[1]);
-                Type val = tt._types[2].meet(tret._types[2]);
-
-                if( mem instanceof TypeMem tmem ) {
-                    // Gather escaping {aliases,functions} from the return expression
-                    tmem = tmem.escapes(tret.ret());
-                    // Returns for public <init> and <clinit> are alive because
-                    // public, so force their FIDX to escape
-                    if( fun.isPublic() && fun.isInit() ) {
-                        tmem = tmem.escapes(fun.sig());
-                        // Classes also escape their public clazz pointer,
-                        // which then escapes all their public fields.  Private
-                        // fields do not escape, and are only available from
-                        // the local class code.
-                        if( fun.isClz() )
-                            tmem = tmem.escapes(fun.sig()._sig[0]);
-                    }
-                    mem = tmem;
-                }
-                tt = (TypeTuple)tt.meet(TypeTuple.make(ctl,mem,val));
-
-            } else
-                // Stacked StopNodes just MEET
-                tt = (TypeTuple)tt.meet(def._type);
-        }
+        // Just meet-over-inputs.
+        TypeTuple tt = TypeTuple.STOP_HIGH;
+        for( Node def : _inputs )
+            tt = (TypeTuple)tt.meet(def._type);
+        assert tt.mem()._alias==1 && !tt.mem()._one;
         return tt;
     }
 

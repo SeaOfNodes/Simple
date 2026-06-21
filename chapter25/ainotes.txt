@@ -28,11 +28,3 @@ and have the symbols `sys`, `io` and `p` be found in the standard library.
 I am using a test case to represent this seperate compilation strategy in
 `Chapter25Test.testModules`.  There are comments there to help drive my
 thinking.
-
-The current status is that I can compile any 1 source file with a single
-invocation of `CodeGen.driver`, and in `Parser` recoginize missing symbols that
-need to be loaded, and find an ELF file in the search path (very similar to
-what `-classpath` does for Java) and load & link against the symbols.
-
-
-

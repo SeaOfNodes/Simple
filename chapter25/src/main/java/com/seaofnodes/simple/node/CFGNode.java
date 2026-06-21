@@ -129,12 +129,21 @@ public abstract class CFGNode extends Node {
     public void buildLoopTree( Ary<FunNode> funs, StopNode stop) {
         _ltree = stop._ltree = CodeGen.CODE.XCTRL._ltree = new LoopTree((StartNode)this);
         Ary<FunNode> work = new Ary<>(FunNode.class);
-        for( FunNode fun : funs )
-            if( fun!=null && !fun.isDead() )
-                work.push(fun);
+
         BitSet post = new BitSet();
         int pre = 1;
         _pre = pre++;
+        for( FunNode fun : funs ) {
+            if( fun!=null && !fun.isDead() ) {
+                work.push(fun);
+                if(fun.in(1) instanceof StartCUNode start && start._pre==0 ) {
+                    start._pre = pre++;
+                    start._ltree = _ltree;
+                    post.set(start._nid);
+                }
+            };
+        }
+
         for( int i=0; i<work._len; i++ )
             pre = work.at(i)._bltWalk(pre,work.at(i),stop, post, work);
     }

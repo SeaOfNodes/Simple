@@ -52,15 +52,6 @@ public class FunNode extends RegionNode {
         baos.packed2(types.get(_sig)); // NPE if fails lookup
         baos.packed2(_name==null ? 0 : strs.get(_name));
     }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) {
-        assert !_folding;
-        baos.packed1(nSerialInputs(nodes));
-        baos.packed2(types.get(_sig)); // NPE if fails lookup
-        baos.packed2(_name==null ? 0 : strs.get(_name));
-    }
-    @Override public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) {
-        return in(i)==null || nodes.containsKey(in(i));
-    }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
         TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
@@ -159,7 +150,7 @@ public class FunNode extends RegionNode {
         // - Must be past Parser, which invents new calls "from whole cloth".
         // - FIDX is not in the escape set
         // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
-        if( in(1) instanceof StartNode start ) {
+        if( in(1) instanceof StartCUNode start ) {
             if( !start.escapedFIDX(_sig.fidx()) && nIns()<=2 ) {
                 _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
                 return removeDeadPath(1);
@@ -262,9 +253,11 @@ public class FunNode extends RegionNode {
         if( n==null ) return false;
         if( visit.get(n._nid) ) return body.get(n._nid);
         visit.set(n._nid);
-        // Visit self as CFG outside of the function
+        // Visit self as CFG outside the function
         if( n instanceof CFGNode && !cfgs.get(n._nid) && unfolded( n ) )
             return false;
+        // Pretend the NewNode is a CFG, so its projections stay with it in loops
+        if( n instanceof NewNode nnn ) cfgs.set(n._nid);
         // Visit n.cfg() outside of function
         if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) && unfolded( n.in( 0 ) ) )
             return false;

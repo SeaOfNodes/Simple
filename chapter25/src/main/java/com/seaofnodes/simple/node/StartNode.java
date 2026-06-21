@@ -26,9 +26,10 @@ public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
 
-    public StartNode(StopNode stop, Type arg) { super(null,stop); _arg = arg;  }
+    public StartNode(StartNode start, StopNode stop, Type arg) { super(null,start,stop); _arg = arg;  }
     public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
     @Override public Tag serialTag() { return Tag.Start; }
+    public Type arg() { return _arg; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -46,6 +47,10 @@ public class StartNode extends LoopNode implements MultiNode {
         for( Node use : _outputs )
             if( use instanceof FunNode fun && fun.isModInit() )
                 { assert C==null; C = fun; }
+        if( C==null )
+            for( FunNode fun : CodeGen.CODE._linker )
+                if( fun!=null && !fun.isDead() && fun.isModInit() )
+                    { assert C==null; C = fun; }
         return C;
     }
 
@@ -59,15 +64,11 @@ public class StartNode extends LoopNode implements MultiNode {
     }
 
     @Override public TypeTuple compute() {
-        TypeMem tmem;
         StopNode stop = (StopNode)in(1);
-        if( !(stop._type instanceof TypeTuple tt) )
-            tmem = stop._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
-        else {
-            tmem = (TypeMem)tt._types[1];
-            if( tmem.isHigh() )
-                tmem = TypeMem.make(1,Type.BOTTOM,false,false,tmem._escFs,tmem._escAs);
-        }
+        TypeMem tmem = stop._type instanceof TypeTuple tt
+            ? tt.mem()
+            : stop._type.isHigh() ? TypeMem.START : TypeMem.BOT;
+        assert tmem._alias==1 && !tmem._one;
         return TypeTuple.make(Type.CONTROL,tmem,_arg);
     }
 

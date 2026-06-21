@@ -145,7 +145,7 @@ return fcn(3);
     public void testFcn5() {
         CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1 : x*_fact(x-1); }; return _fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(_fact,Top,arg,(x-1))*#2)); ]", code.print());
+        assertEquals("Stop[ return Phi(Region,1,(arg*#2)); return Phi(Region,1,(Parm_x(_fact,Top,(arg-1),(x-1))*#2)); ]", code.print());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));

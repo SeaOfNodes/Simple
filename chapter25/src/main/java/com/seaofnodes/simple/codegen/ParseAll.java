@@ -117,6 +117,7 @@ public abstract class ParseAll {
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
     private static void parseOne( CodeGen code, CompUnit cunit ) {
+        cunit.setStart(code);
         // Parse a source file, return missing external references
         Ary<FRefNode> frefs = code.P.parse(cunit);
 
@@ -200,8 +201,8 @@ public abstract class ParseAll {
         // cross-references will pick them up there.
         ElfReader elf = ElfReader.load(cunit._obj,cunit);
         cunit._clz = elf.loadSimple(code);
-        StartNode lStart = (StartNode)elf._nodes.at(0);
-        StopNode  lStop  = ( StopNode)elf._nodes.last();
+        StartCUNode lStart = (StartCUNode)elf._nodes.at(0);
+        StopCUNode  lStop  = ( StopCUNode)elf._nodes.last();
 
         // Loaded fidxs have already been remapped into this CodeGen's local
         // namespace.  Publish the function heads so Opto can resolve escaped
@@ -212,7 +213,8 @@ public abstract class ParseAll {
 
         // The global Stop owns each loaded CompUnit Stop; the global Start
         // replaces the loaded Start as the single external-world boundary.
-        cunit._stop = lStop;
+        cunit._start = lStart;
+        cunit._stop  = lStop ;
         code._stop.addDef(cunit._stop);
         code.add(code._stop);
 
@@ -224,7 +226,7 @@ public abstract class ParseAll {
         // let the next global analysis reconcile them with parsed code.
 
         // Add the new top-level loaded class
-        assert !Parser.TYPES.containsKey(cunit._clz._name);
+        // assert !Parser.TYPES.containsKey(cunit._clz._name);
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
         Parser.resolveType(cunit._clz._name);
     }

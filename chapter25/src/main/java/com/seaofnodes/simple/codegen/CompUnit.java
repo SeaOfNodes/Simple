@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.*;
 import java.io.File;
@@ -33,8 +34,11 @@ public class CompUnit {
     // List of symbols exported by this compilation unit, and their Node
     // definitions.
     public HashMap<String,Node> _exported;
-    // Per-Compilation-Unit StopNode, keeping alive all exported Nodes.
-    public StopNode _stop;
+    // Per-Compilation-Unit Start/StopNodes, keeping alive all exported Nodes.
+    // Null means no code loaded (yet).
+    public StartCUNode _start;
+    public StopCUNode  _stop ;
+
 
     // Discovered source file.  Source is loaded if required to parse, and null
     // otherwise.
@@ -46,7 +50,7 @@ public class CompUnit {
         _ext  = null;
         _smp  = new File( CODE.  _modDir + "/" + fname + ".smp");
         _obj  = new File( CODE._buildDir + "/" + fname + ".o"  );
-        _src  = !_obj.exists() || // No object file?
+        _src  = !_obj.exists() ||                        // No object file?
             _smp.lastModified() > _obj.lastModified() || // Out-of-date with source?
             checkDependentObjs()                         // Out-of-date with other objs?
             ? new String(Files.readAllBytes(_smp.toPath()))
@@ -96,15 +100,19 @@ public class CompUnit {
         _deps.add(dep);
     }
 
-    // Add a function which might be exported later; need to keep it alive
-    // right now but can kill it if later we find no live FIDXs refer to it.
     public void addFun(CodeGen code, FunNode fun) {
-        if( _stop == null )
-            code._stop.addDef(_stop = new StopNode());
+        assert fun.in(1)==_start;
+        _stop.addDef(fun.ret());
         code.add(_stop);
         _stop.addDep(fun);
-        _stop.addDef(fun.ret());
     }
+
+    void setStart(CodeGen code) {
+        _stop  = new  StopCUNode().init();
+        _start = new StartCUNode(code._start,_stop, Type.BOTTOM).init();
+        code._stop.addDef(_stop);
+    }
+
 
     @Override public String toString() {
         String x = "{"+_cname;
