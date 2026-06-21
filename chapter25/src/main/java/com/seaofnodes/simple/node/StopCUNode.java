@@ -4,13 +4,21 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 
+import java.util.HashMap;
+
 // Stop of a single compilation unit, distinct from the outer whole-program Stop.
 public class StopCUNode extends StopNode {
     public StopCUNode() { super(); }
     public StopCUNode(StopNode stop) { super(stop); }
     @Override public Tag serialTag() { return Tag.StopCU; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) { baos.packed1(nIns()); }
+    static Node make( BAOS bais ) {
+        StopCUNode stop = new StopCUNode();
+        stop.setDefX(bais.packed1()-1,null);
+        return stop;
+    }
 
-    private StartCUNode start() {
+    public StartCUNode start() {
         for( Node use : _outputs )
             if( use instanceof StartCUNode start )
                 return start;
@@ -63,9 +71,13 @@ public class StopCUNode extends StopNode {
         return TypeTuple.make(Type.CONTROL,xmem,Type.BOTTOM);
     }
 
-    static Node make( BAOS bais ) {
-        StopCUNode stop = new StopCUNode();
-        stop.setDefX(bais.packed1()-1,null);
-        return stop;
+    @Override
+    public Node idealize() {
+        int len = nIns();
+        for( int i=0; i<nIns(); i++ )
+            if( in(i) instanceof ReturnNode ret && addDep(ret.fun()).isDead() )
+                delDef(i--);
+        if( len != nIns() ) return this;
+        return null;
     }
 }

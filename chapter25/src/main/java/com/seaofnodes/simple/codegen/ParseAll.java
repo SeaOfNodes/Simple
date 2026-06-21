@@ -201,8 +201,8 @@ public abstract class ParseAll {
         // cross-references will pick them up there.
         ElfReader elf = ElfReader.load(cunit._obj,cunit);
         cunit._clz = elf.loadSimple(code);
-        StartCUNode lStart = (StartCUNode)elf._nodes.at(0);
-        StopCUNode  lStop  = ( StopCUNode)elf._nodes.last();
+        StopCUNode lStop = (StopCUNode)elf._nodes.at(elf._nodes._len-2);
+        StartCUNode lStart = lStop.start();
 
         // Loaded fidxs have already been remapped into this CodeGen's local
         // namespace.  Publish the function heads so Opto can resolve escaped
@@ -217,9 +217,8 @@ public abstract class ParseAll {
         cunit._stop  = lStop ;
         code._stop.addDef(cunit._stop);
         code.add(code._stop);
-
-        //code._start._type = code._start._type.join(lStart._type);
-        //lStart.subsume(code._start);
+        code.add(lStop);
+        lStart.in(0).subsume(code._start);
         code.add(code._start);
 
         // Loaded CompUnits carry post-Opto types.  Keep those strong facts and

@@ -17,10 +17,9 @@ public class StopNode extends CFGNode {
     }
     public StopNode(StopNode stop) { super(stop); }
     @Override public Tag serialTag() { return Tag.Stop; }
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) { baos.packed1(nIns()); }
     static Node make( BAOS bais ) {
         StopNode stop = new StopNode();
-        stop.setDefX(bais.packed1()-1,null);
+        stop.addDef(null);
         return stop;
     }
 
@@ -78,15 +77,7 @@ public class StopNode extends CFGNode {
         return tt;
     }
 
-    @Override
-    public Node idealize() {
-        int len = nIns();
-        for( int i=0; i<nIns(); i++ )
-            if( in(i) instanceof ReturnNode ret && addDep(ret.fun()).isDead() )
-                delDef(i--);
-        if( len != nIns() ) return this;
-        return null;
-    }
+    @Override public Node idealize() { return null; }
 
     @Override public int idepth() {
         if( _idepth!=0 ) return _idepth;
