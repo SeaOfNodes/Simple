@@ -352,6 +352,8 @@ public class riscv extends Machine {
         case SarNode      sar -> sra(sar);
         case ShlNode      shl -> sll(shl);
         case ShrNode      shr -> srl(shr);
+        case StartCUNode start -> new StartCUNode(start);
+        case StopCUNode  stop -> new StopCUNode(stop);
         case StartNode  start -> new StartNode(start);
         case StopNode    stop -> new StopNode(stop);
         case StoreNode     st -> st(st);

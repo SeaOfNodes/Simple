@@ -150,14 +150,13 @@ abstract public class Serialize {
         for( Node n : nodes ) {
             baos.packed1(n.serialTag().ordinal());
             baos.packed2(types.get(n._type));
-            n.packed(baos,strs,types,anodes);
+            n.packed(baos,strs,types);
         }
         // Write out the input indices packed
         for( int j=1; j<nodes._len; j++ ) {
             Node n = nodes._es[j];
             for( int i=0; i<n.nIns(); i++ )
-                if( n.serialInput(i,anodes) )
-                    baos.packed2(n.in(i)==null ? 0 : anodes.get(n.in(i)));
+                baos.packed2(anodes.get(n.in(i)));
             if( n instanceof FunNode fun )
                 baos.packed2(anodes.get(fun.ret()));
         }
@@ -311,8 +310,8 @@ abstract public class Serialize {
 
         // Just constants used by the listed functions
         Ary<Node> cons = new Ary<>(Node.class);
-        cons.add(code._start);
-        for( Node n : code._start._outputs ) {
+        cons.add(cu._start);
+        for( Node n : cu._start._outputs ) {
             if( n instanceof ProjNode ) cons.add(n);
             if( n instanceof ConstantNode con && !visit.get(con._nid) ) {
                 for( Node use : con.outs() ) {

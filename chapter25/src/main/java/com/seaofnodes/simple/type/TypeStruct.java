@@ -45,6 +45,7 @@ public class TypeStruct extends Type {
         ts._dual = null;
         ts._hash = 0;
         ts._aliases = null;
+        ts._fidxs   = null;
         FREE.push(ts);
         return this;
     }
@@ -75,6 +76,26 @@ public class TypeStruct extends Type {
                 f._t != Type.TOP )            // Skip uninit fields
                 xs[XInt.idx(f._alias)] |= XInt.mask(f._alias);
         return (_aliases=XInt.intern(xs));
+    }
+
+    // Summary fidxs, after interning.  Skips private
+    // fields which need to be explicitly loaded.
+    private int[] _fidxs;
+    int[] fidxs() {
+        if( _fidxs != null ) return _fidxs;
+        if( _fields.length==0 ) return (_fidxs=XInt.EMPTY);
+        assert _terned;
+        int max = -1;
+        for( Field f : _fields )
+            if( f._fname.charAt(0) != '_' &&  // Skip private fields.
+                f._t instanceof TypeFunPtr tfp ) { // Looking for TFP
+                if( XInt.isHigh(tfp._fidxs) )
+                    return (_fidxs=XInt.FULL);
+                max = Math.max(max,XInt.max(tfp._fidxs));
+            }
+
+        if( max == -1 ) return (_fidxs=XInt.EMPTY);
+        throw Utils.TODO();
     }
 
     // New open struct with no fields

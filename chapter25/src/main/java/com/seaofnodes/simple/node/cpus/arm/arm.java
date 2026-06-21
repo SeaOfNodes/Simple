@@ -692,6 +692,8 @@ public class arm extends Machine {
         case SarNode sar     -> asr(sar);
         case ShlNode shl     -> lsl(shl);
         case ShrNode shr     -> lsr(shr);
+        case StartCUNode start -> new StartCUNode(start);
+        case StopCUNode stop   -> new StopCUNode(stop);
         case StartNode start -> new StartNode(start);
         case StopNode stop   -> new StopNode(stop);
         case StoreNode st    -> st(st);

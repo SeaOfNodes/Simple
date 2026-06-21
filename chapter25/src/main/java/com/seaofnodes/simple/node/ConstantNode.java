@@ -7,6 +7,7 @@ import com.seaofnodes.simple.util.BAOS;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  * A Constant node represents a constant value.

@@ -161,11 +161,8 @@ public class Parser {
         _scope = new ScopeNode();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
-        //_scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
         // Track active scopes for Graph display
         _xScopes.push(_scope);
-
-        //
         ctrl(_code.XCTRL);
         mem(new MemMergeNode(false));
 
@@ -245,7 +242,7 @@ public class Parser {
         ScopeNode   returnScope =   _returnScope;   _returnScope = null;
 
         int oldUID = _code.UID(); // Used to approximate function size
-        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, funName, _ref, null, _code._start));
+        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, funName, _ref, null, _ref._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
@@ -259,7 +256,7 @@ public class Parser {
         // external calls.
         _scope.ctrl(fun);              // Scope control from function
         // Private mem alias tracking per function
-        Node defaultMem = new ProjNode(_code._start,1,ScopeNode.MEM0).peephole();
+        Node defaultMem = new ProjNode(_ref._start,1,ScopeNode.MEM0).peephole();
         Node privMem = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,defaultMem).peephole();
         MemMergeNode mem = new MemMergeNode(true,null,privMem);
         mem(mem);
@@ -539,7 +536,7 @@ public class Parser {
         // used as an indicator to switch off peepholes of the region and
         // associated phis; see {@code inProgress()}.
 
-        ctrl(new LoopNode(loc(),ctrl()).peephole()); // Note we set back edge to null here
+        ctrl(new LoopNode(loc(),null,ctrl()).peephole()); // Note we set back edge to null here
 
         // At loop head, we clone the current Scope (this includes all
         // names in every nesting level within the Scope).

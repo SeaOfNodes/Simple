@@ -371,6 +371,8 @@ public class x86_64_v2 extends Machine {
         case SarNode      sar -> sar(sar);
         case ShlNode      shl -> shl(shl);
         case ShrNode      shr -> shr(shr);
+        case StartCUNode start -> new StartCUNode(start);
+        case StopCUNode  stop -> new StopCUNode(stop);
         case StartNode  start -> new StartNode(start);
         case StopNode    stop -> new StopNode(stop);
         case StoreNode     st -> st(st);

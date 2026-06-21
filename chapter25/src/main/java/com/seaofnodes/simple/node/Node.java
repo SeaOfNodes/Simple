@@ -85,7 +85,7 @@ public abstract class Node implements Cloneable {
         New,Never,Not,Or,Parm,Phi,Proj,
         ReadOnly,Return,Region,RoundF32,
         Sar,Shl,Shr,Start,Stop,Store,Struct,Sub,SubF,ToFloat,
-        XCtrl,Xor;
+        XCtrl,Xor,StartCU,StopCU;
         public static final Tag[] VALS = values();
         public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
             return switch(this) {
@@ -95,7 +95,7 @@ public abstract class Node implements Cloneable {
             case Div    -> new   DivNode(null,null);
             case DivF   -> new  DivFNode(null,null);
             case If     -> new    IfNode(null,null);
-            case Loop   -> new  LoopNode(null,null);
+            case Loop   -> new  LoopNode(null,null,null);
             case Minus  -> new MinusNode(null);
             case MinusF ->new MinusFNode(null);
             case Mul    -> new   MulNode(null,null);
@@ -109,7 +109,8 @@ public abstract class Node implements Cloneable {
             case Sar    -> new   SarNode(null,null,null);
             case Shl    -> new   ShlNode(null,null,null);
             case Shr    -> new   ShrNode(null,null,null);
-            case Start  -> new StartNode(null,TypeInteger.BOT);
+            case Start  -> new StartNode(null,null,TypeInteger.BOT);
+            case StartCU-> new StartCUNode(null,null,TypeInteger.BOT);
             case Sub    -> new   SubNode(null,null);
             case SubF   -> new  SubFNode(null,null);
             case ToFloat-> new ToFloatNode(null);
@@ -141,6 +142,7 @@ public abstract class Node implements Cloneable {
             case Proj  ->      ProjNode.make(bais,strs);
             case Store ->      new StoreNode(bais,strs,types,fileAliases,aliases);
             case Stop ->       StopNode.make(bais);
+            case StopCU ->   StopCUNode.make(bais);
             case Struct->    StructNode.make(bais,     types);
             case Region->    RegionNode.make(bais);
 
@@ -151,19 +153,6 @@ public abstract class Node implements Cloneable {
     public Tag serialTag() { throw Utils.TODO(); }
     // Serialize extra data, including input counts
     public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {}
-    // Linked Call/FunNodes have live ideal-graph edges that might cross
-    // object-file boundaries and such edges cannot Serialize.  These hooks let
-    // such nodes serialize a filtered input count and matching filtered edge
-    // list without mutating the graph.
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) { packed(baos,strs,types); }
-    public int nSerialInputs( IdentityHashMap<Node,Integer> nodes ) {
-        int len=0;
-        for( int i=0; i<nIns(); i++ )
-            if( serialInput(i,nodes) )
-                len++;
-        return len;
-    }
-    public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) { return true; }
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public String label() { return serialTag().toString(); }
@@ -646,19 +635,30 @@ public abstract class Node implements Cloneable {
     // revisit them if `this` changes.
     Ary<Node> _deps;
 
+    private boolean addDepImpl( Node dep ) {
+        // Running peepholes during the big assert cannot have side effects
+        // like adding dependencies.
+        if( CODE._midAssert ) return false;
+        if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
+        if( dep._deps   .find(this) != -1 ) return false; // Already on list
+        if( dep._outputs.find(this) != -1 ) return false;
+        return true;
+    }
+
     /**
      * Add a node to the list of dependencies.  Only add it if it's not an input
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */
     public <N extends Node> N addDep( N dep ) {
-        // Running peepholes during the big assert cannot have side effects
-        // like adding dependencies.
-        if( CODE._midAssert ) return dep;
-        if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
-        if( dep._deps   .find(this) != -1 ) return dep; // Already on list
+        if( !addDepImpl(dep) ) return dep;
         if( dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors
-        if( dep._outputs.find(this) != -1 ) return dep;
+        dep._deps.add(this);
+        return dep;
+    }
+
+    public <N extends Node> N addDepForwards( N dep ) {
+        if( !addDepImpl(dep) ) return dep;
         dep._deps.add(this);
         return dep;
     }

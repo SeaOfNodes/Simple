@@ -77,11 +77,9 @@ abstract public class Opto {
             for( int i=0; i<stop.nIns(); i++ ) {
                 ReturnNode ret = (ReturnNode)stop.in(i);
                 FunNode fun = ret.fun();
-                if( fun.in(1) != code._start && fun.in(1) instanceof StartNode lStart )
-                    lStart.subsume(code._start);
                 // Non-public functions unhook completely from Start.
                 // They only can be reached if directly called.
-                if( !fun.isPublic() && fun.in(1)==code._start ) {
+                if( !fun.isPublic() && fun.in(1) instanceof StartNode ) {
                     fun.removeDeadPath(1);
                     // Unhook from Stop without treating the ReturnNode as
                     // DEAD.  It stays in limbo until Opto links when a caller
@@ -134,16 +132,18 @@ abstract public class Opto {
     // code-gen for, whether it escapes or not.
     private static void linkStart( CodeGen code, FunNode fun, boolean funEscaped ) {
         assert !fun.isDead();
-        if( fun.nIns() < 2 || fun.in(1) != code._start ) {
+        StartNode start = fun._compunit._start;
+        if( fun.nIns() < 2 || fun.in(1) != start ) {
             // Function is added back to its original CompUnit
-            fun._compunit._stop.addDef(fun.ret());
+            if( fun._compunit._stop._inputs.find(fun.ret()) == -1 )
+                fun._compunit._stop.addDef(fun.ret());
             // Function is reachable by any *remote* caller who gets the pointer!
-            fun.insertDef(1,code._start);
+            fun.insertDef(1,start);
             code._iter.add(fun);
             for( Node p : fun._outputs )
                 if( p instanceof ParmNode parm ) {
                     Node defalt = !funEscaped ? code.con(Type.TOP)
-                        : parm._idx==1 ? new ProjNode(code._start,1,ScopeNode.MEM0).peephole()
+                        : parm._idx==1 ? new ProjNode(start,1,ScopeNode.MEM0).peephole()
                         : code.con(parm._con);
                     parm.insertDef(1,defalt);
                     code._iter.add(parm);
@@ -167,7 +167,7 @@ abstract public class Opto {
             Type pesiVal = oldTypes.at(n._nid);
             // TODO: This asset should be valid.  Fails because no way to represent
             //   "all the outside world except things I know about"
-            //assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
+            assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
             n._type = nval;
 
             // Now we have a series of stanzas where we lazily create the Call
@@ -226,12 +226,14 @@ abstract public class Opto {
     // Quadratic (expensive) small-step assert for SCCP, where changed nodes
     // may already be on the worklist.
     private static boolean worklistCheck(CodeGen code) {
+        code._midAssert = true;
         Node root = code._start;
         root.walk( x -> {
                 Type xval = x.compute();
                 assert xval == x._type || (x._type.isa( xval ) && code._iter._work.on( x ));
             return null;
             });
+        code._midAssert = false;
         return true;
     }
 

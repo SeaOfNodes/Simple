@@ -42,6 +42,13 @@ public abstract class XInt {
             cnt += Integer.bitCount(xs[i]);
         return cnt;
     }
+
+    // Largest bit
+    public static int max(int[] xs) {
+        assert !isHigh(xs);
+        return Integer.numberOfTrailingZeros(xs[xs.length-1])+((xs.length-1-1)<<5);
+    }
+
     // Has 1 bit set
     public static boolean isConstant(int[] xs) { return !isHigh(xs) && bitCount(xs)==1; }
     // Return the 1 set bit or assert

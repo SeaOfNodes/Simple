@@ -116,8 +116,8 @@ public class CodeGen {
         _gvn = new HashMap<>();
         _iter = new IterPeeps(workListSeed);
         // End points of graph
-        _stop = new StopNode().init();;
-        _start = new StartNode(_stop,arg).init();
+        _stop = new StopNode().init();
+        _start = new StartNode(null,_stop,arg).init();
         ZERO  = con(TypeInteger.ZERO).keep();
         XCTRL = new XCtrlNode().peephole().keep();
         P = new Parser(this);
@@ -500,8 +500,10 @@ public class CodeGen {
 
         // Replace the CompUnit stop (and list of functions)
         // with hardware-specific ones
-        for( CompUnit cu : _compunits.values() )
-            cu._stop = (StopNode)map.get(cu._stop);
+        for( CompUnit cu : _compunits.values() ) {
+            cu._start= (StartCUNode)map.get(cu._start);
+            cu._stop = (StopCUNode )map.get(cu._stop );
+        }
 
         _times[Phase.Select.ordinal()] = System.currentTimeMillis() - t0;
         return this;
@@ -525,6 +527,11 @@ public class CodeGen {
 
         // Produce a machine node from n; map it to flag as done so stops cycles.
         map.put(n, x=_mach.instSelect(n) );
+        // Carry loop-tree and pre-order info across the ideal->mach transition
+        if( n instanceof CFGNode ncfg && x instanceof CFGNode xcfg ) {
+            xcfg._ltree = ncfg._ltree;
+            xcfg._pre = ncfg._pre;
+        }
         // Walk machine op and replace inputs with mapped inputs
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );
@@ -567,11 +574,14 @@ public class CodeGen {
                 continue;
             // Insert a hook to Start and Stop
             ReturnNode ret = fun.ret();
-            if( fun.in(1) != _start ) {
-                fun.insertDef(1,_start);
+            StartNode start = fun._compunit._start;
+            assert start!=null;
+            if( fun.in(1) != start ) {
+                fun.insertDef(1,start);
                 for( Node use : fun._outputs )
                     if( use instanceof ParmNode parm )
                         parm.insertDef(1,ConstantNode.make(parm._type).peephole());
+                assert fun._compunit._stop._inputs.find(ret) == -1;
                 fun._compunit._stop.addDef(ret);
             }
             // Unlink from Call

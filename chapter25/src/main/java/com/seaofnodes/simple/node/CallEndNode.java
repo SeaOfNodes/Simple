@@ -39,16 +39,6 @@ public class CallEndNode extends CFGNode implements MultiNode {
         baos.packed2(types.get(_type));
         baos.packed2(types.get(_rpc));
     }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> nodes ) {
-        baos.packed1(nSerialInputs(nodes));
-        // Linked CallEnds depend on Return types which depend on CallEnds;
-        // break the cycle
-        baos.packed2(types.get(_type));
-        baos.packed2(types.get(_rpc));
-    }
-    @Override public boolean serialInput( int i, IdentityHashMap<Node,Integer> nodes ) {
-        return in(i)==null || nodes.containsKey(in(i));
-    }
     static Node make( BAOS bais, Type[] types )  {
         int nIns = bais.packed1();
         Type type = types[bais.packed2()];
@@ -145,7 +135,6 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     call.link(fun2);
                     assert trivialInlining( fptr2, fun2 )==0;
                     fun = fun2;
-                    isTrivial = 0;
                 }
 
                 // Trivial inlining: call site calls a single function; single function
@@ -189,7 +178,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 { addDep(fun); return -1; }
 
         CFGNode idom = call(), prior = this;
-        while( !(idom instanceof FunNode fun3) ) {
+        while( !(idom instanceof FunNode) ) {
             if( idom==null ) {
                 addDep(prior);
                 if( prior instanceof RegionNode && !(prior instanceof StartNode) )
@@ -262,7 +251,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     }
 
     @Override public Node copy() {
-        return new CallEndNode(_rpc);
+        return _folding ? super.copy() : new CallEndNode(_rpc);
     }
 
 }
