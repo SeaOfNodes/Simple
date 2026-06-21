@@ -83,19 +83,13 @@ public class TypeStruct extends Type {
     private int[] _fidxs;
     int[] fidxs() {
         if( _fidxs != null ) return _fidxs;
-        if( _fields.length==0 ) return (_fidxs=XInt.EMPTY);
         assert _terned;
-        int max = -1;
+        int[] xs = XInt.EMPTY;
         for( Field f : _fields )
-            if( f._fname.charAt(0) != '_' &&  // Skip private fields.
-                f._t instanceof TypeFunPtr tfp ) { // Looking for TFP
-                if( XInt.isHigh(tfp._fidxs) )
-                    return (_fidxs=XInt.FULL);
-                max = Math.max(max,XInt.max(tfp._fidxs));
-            }
-
-        if( max == -1 ) return (_fidxs=XInt.EMPTY);
-        throw Utils.TODO();
+            if( f._fname.charAt(0) != '_' &&     // Skip private fields.
+                f._t instanceof TypeFunPtr tfp ) // Looking for TFP
+                xs = XInt.meet(xs,tfp._fidxs);
+        return (_fidxs = xs);
     }
 
     // New open struct with no fields

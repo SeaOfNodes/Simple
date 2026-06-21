@@ -110,7 +110,7 @@ public abstract class Node implements Cloneable {
             case Shl    -> new   ShlNode(null,null,null);
             case Shr    -> new   ShrNode(null,null,null);
             case Start  -> new StartNode(null,null,TypeInteger.BOT);
-            case StartCU-> new StartCUNode(null,null,TypeInteger.BOT);
+            case StartCU-> new StartCUNode(null,null,Type.BOTTOM);
             case Sub    -> new   SubNode(null,null);
             case SubF   -> new  SubFNode(null,null);
             case ToFloat-> new ToFloatNode(null);
