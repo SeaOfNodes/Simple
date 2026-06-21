@@ -3,7 +3,6 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.FunNode;
-import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.util.BAOS;
 import java.io.IOException;
@@ -37,8 +36,8 @@ public abstract class TestRisc5 {
 
         // Look up starting PC or zero if not given
         if( main!=null )
-            for( Node use : code._start._outputs )
-                if( use instanceof FunNode fun && main.equals(fun._name) )
+            for( FunNode fun : code._linker )
+                if( fun != null && !fun.isDead() && fun._compunit == code.compunit() && main.equals(fun._name) )
                     R5._pc = code.compunit()._encoding.opStart(fun);
 
         return R5;

@@ -156,7 +156,7 @@ abstract public class Serialize {
         for( int j=1; j<nodes._len; j++ ) {
             Node n = nodes._es[j];
             for( int i=0; i<n.nIns(); i++ )
-                baos.packed2(anodes.get(n.in(i)));
+                baos.packed2(n.in(i)==null ? 0 : anodes.get(n.in(i)));
             if( n instanceof FunNode fun )
                 baos.packed2(anodes.get(fun.ret()));
         }
@@ -310,9 +310,8 @@ abstract public class Serialize {
 
         // Just constants used by the listed functions
         Ary<Node> cons = new Ary<>(Node.class);
-        cons.add(cu._start);
-        for( Node n : cu._start._outputs ) {
-            if( n instanceof ProjNode ) cons.add(n);
+        cons.add(code._start);
+        for( Node n : code._start._outputs ) {
             if( n instanceof ConstantNode con && !visit.get(con._nid) ) {
                 for( Node use : con.outs() ) {
                     // Special case for Cast:BOT which is basically a double-indirect constant
@@ -324,9 +323,15 @@ abstract public class Serialize {
                 }
             }
         }
+        // StartCU and memory projection
+        cons.add(cu._start);
+        for( Node n : cu._start._outputs )
+            if( n instanceof ProjNode ) cons.add(n);
+        // All the innards of functions
         cons.addAll(nodes);
+        // StopCU, Stop
         cons.add(cu._stop);
-        //cons.add(code._stop);
+        cons.add(code._stop);
         visit.clear();
         return cons;
     }
@@ -345,14 +350,13 @@ abstract public class Serialize {
         nodes.add(code._start);
 
         // All the global constants
-        for( Node n : code._start._outputs )
-            if( !(n instanceof FunNode) ) {
-                visit.set(n._nid); nodes.add(n);
-                // Special for Cast:BOT
-                for( Node cast : n._outputs )
-                    if( cast!=null && cast.nIns()==2 && cast.in(0)==null )
-                        { visit.set(cast._nid); nodes.add(cast); }
-            }
+        for( Node n : code._start._outputs ) {
+            visit.set(n._nid); nodes.add(n);
+            // Special for Cast:BOT
+            for( Node cast : n._outputs )
+                if( cast!=null && cast.nIns()==2 && cast.in(0)==null )
+                    { visit.set(cast._nid); nodes.add(cast); }
+        }
 
         // All the functions, including internal ones
         for( FunNode fun : code._linker )
