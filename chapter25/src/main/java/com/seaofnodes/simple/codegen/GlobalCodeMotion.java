@@ -24,10 +24,10 @@ public abstract class GlobalCodeMotion {
         schedEarly(code);
 
         // Break up shared global constants by functions
-        breakUpGlobalConstants(code._start, code._linker);
+        breakUpGlobalConstants(code._start );
 
         code._visit.clear();
-        schedLate (code);
+        schedLate(code);
     }
 
     // Post-Order of CFG
@@ -44,20 +44,20 @@ public abstract class GlobalCodeMotion {
     }
 
     // Break up shared global constants by functions
-    private static void breakUpGlobalConstants( Node start, Ary<FunNode> linker ) {
+    private static void breakUpGlobalConstants( Node start ) {
 
         // For all global constants
         for( int i=0; i< start.nOuts(); i++ ) {
             Node con = start.out(i);
             if( con instanceof ConstantNode conx && conx._type.isConstant() ) {
-                breakUpGlobalConstantSingle(start,con);
+                breakUpGlobalConstantSingle( con);
                 i--;        // Removed a global constant, re-run same index
             }
         }
     }
 
 
-    private static void breakUpGlobalConstantSingle( Node start, Node con) {
+    private static void breakUpGlobalConstantSingle( Node con) {
         // While constant has users in different functions
         while( true ) {
             // Find a function user, and another function

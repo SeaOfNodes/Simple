@@ -152,14 +152,21 @@ abstract public class Serialize {
             baos.packed2(types.get(n._type));
             n.packed(baos,strs,types);
         }
-        // Write out the input indices packed
-        for( int j=1; j<nodes._len; j++ ) {
-            Node n = nodes._es[j];
-            for( int i=0; i<n.nIns(); i++ )
-                baos.packed2(n.in(i)==null ? 0 : anodes.get(n.in(i)));
+        // Write out the input indices packed.  Skip the very last StopNode.
+        for( int i=0; i<nodes._len-1; i++ ) {
+            Node n = nodes.at(i);
+            for( int j=0; j<n.nIns(); j++ )
+                baos.packed2(n.in(j)==null ? 0 : anodes.get(n.in(j)));
             if( n instanceof FunNode fun )
                 baos.packed2(anodes.get(fun.ret()));
         }
+        // The very last node, the StopNode, has output edges to *other*
+        // CompUnits that do not write out
+        StopCUNode stopcu = (StopCUNode)nodes.at(nodes._len-2);
+        StopNode stop = (StopNode)nodes.last();
+        for( Node n : stop._inputs )
+            if( n == stopcu )
+                baos.packed2(anodes.get(n));
 
         return baos;
     }
@@ -258,8 +265,7 @@ abstract public class Serialize {
         }
 
         // Node edges
-        for( int j=1; j<nodes._len; j++ ) {
-            Node n = nodes._es[j];
+        for( Node n : nodes ) {
             int len = n.nIns();
             for( int i=0; i<len; i++ ) {
                 int idx = bais.packed2();
@@ -290,9 +296,13 @@ abstract public class Serialize {
         // can just do meet-over-inputs, hence the Phase change before asserting
         CodeGen.Phase phase = code._phase;
         code._phase = CodeGen.Phase.Opto;
-        for( Node n : nodes )
+        // Skip the final StopNode, which no long has inputs from other
+        // CompUnits so will report a slightly different type.
+        for( int i=0; i<nodes._len-1; i++ ) {
+            Node n = nodes.at(i);
             if( n.compute() != n._type )
                 return false;
+        }
         code._phase = phase;
         return true;
     }
