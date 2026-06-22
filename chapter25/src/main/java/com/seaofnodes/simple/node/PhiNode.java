@@ -8,6 +8,7 @@ import com.seaofnodes.simple.util.SB;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class PhiNode extends TypeNode {
 
@@ -29,7 +30,7 @@ public class PhiNode extends TypeNode {
             addDef(sample);
     }
     @Override public Tag serialTag() { return Tag.Phi; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(nIns());
         baos.packed2(_label==null ? 0 : strs.get(_label));
         baos.packed2(types.get(_con));

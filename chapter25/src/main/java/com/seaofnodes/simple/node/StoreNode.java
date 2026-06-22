@@ -8,6 +8,7 @@ import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  * Store represents setting a value to a memory based object, in chapter 10
@@ -35,8 +36,8 @@ public class StoreNode extends MemOpNode {
         _init = bais.read() != 0;
     }
     @Override public Tag serialTag() { return Tag.Store; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
-        super.packed(baos,strs,types );
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        super.packed(baos,strs,types, anodes );
         baos.write(_init ? 1 : 0);
     }
 

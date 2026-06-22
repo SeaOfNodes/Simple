@@ -8,6 +8,7 @@ import com.seaofnodes.simple.util.BAOS;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class CProjNode extends CFGNode implements Proj {
 
@@ -24,7 +25,7 @@ public class CProjNode extends CFGNode implements Proj {
     }
     public CProjNode(CProjNode c) { super(c); _idx = c._idx; _label = c._label; }
     @Override public Tag serialTag() { return Tag.CProj; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(_idx);
         baos.packed2(_label==null ? 0 : strs.get(_label));
     }

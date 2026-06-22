@@ -5,6 +5,7 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 
 import java.util.BitSet;
+import java.util.IdentityHashMap;
 
 /** Control Flow Graph Nodes
  * <p>
@@ -214,7 +215,6 @@ public abstract class CFGNode extends Node {
                 (this instanceof ReturnNode && usecfg instanceof CallEndNode);
     }
 
-
     public static String label( CFGNode target ) {
         return switch(target) {
         case StartNode start -> start.label();
@@ -223,4 +223,5 @@ public abstract class CFGNode extends Node {
         default -> "L"+target._nid;
         };
     }
+
 }

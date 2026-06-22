@@ -5,6 +5,7 @@ import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  * Build a compound object
@@ -14,7 +15,7 @@ public class StructNode extends Node {
     public final TypeStruct _ts;
     public StructNode(TypeStruct ts) { _ts=ts; assert !ts._open; }
     @Override public Tag serialTag() { return Tag.Struct; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         //baos.packed1(nIns());
         //baos.packed2(_label==null ? 0 : strs.get(_label));
         //baos.packed2(types.get(_type)); // Write _type not _minType, which can be higher

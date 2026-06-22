@@ -150,23 +150,26 @@ abstract public class Serialize {
         for( Node n : nodes ) {
             baos.packed1(n.serialTag().ordinal());
             baos.packed2(types.get(n._type));
-            n.packed(baos,strs,types);
+            n.packed(baos,strs,types,anodes);
         }
-        // Write out the input indices packed.  Skip the very last StopNode.
-        for( int i=0; i<nodes._len-1; i++ ) {
-            Node n = nodes.at(i);
-            for( int j=0; j<n.nIns(); j++ )
-                baos.packed2(n.in(j)==null ? 0 : anodes.get(n.in(j)));
+        // Write out the input indices packed.  Skip cross-module inputs.
+        // Stop has cross-module StopCU inputs.
+        // FunNode has linked cross-module Call inputs.
+        // CallEnd has linked cross-module Return inputs.
+        for( Node n : nodes ) {
+            for( int j=0; j<n.nIns(); j++ ) {
+                if( n.in(j)==null )
+                    baos.packed2(0);
+                else {
+                    // If missing from anodes, assume a cross-module input
+                    Integer ii = anodes.get(n.in(j));
+                    if( ii!=null )
+                        baos.packed2(ii);
+                }
+            }
             if( n instanceof FunNode fun )
                 baos.packed2(anodes.get(fun.ret()));
         }
-        // The very last node, the StopNode, has output edges to *other*
-        // CompUnits that do not write out
-        StopCUNode stopcu = (StopCUNode)nodes.at(nodes._len-2);
-        StopNode stop = (StopNode)nodes.last();
-        for( Node n : stop._inputs )
-            if( n == stopcu )
-                baos.packed2(anodes.get(n));
 
         return baos;
     }

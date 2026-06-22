@@ -9,6 +9,7 @@ import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  * Convenience common base for Load and Store.
@@ -73,7 +74,7 @@ public abstract class MemOpNode extends TypeNode {
         return alias < GlobalBits.RESERVED ? alias : aliases.map(fileAliases,alias);
     }
 
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed2(_name==null ? 0 : strs.get(_name));
         baos.packed2(_alias);
         baos.packed2(types.get(_con));                // NPE if fails lookup

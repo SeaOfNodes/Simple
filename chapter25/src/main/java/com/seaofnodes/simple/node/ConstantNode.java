@@ -26,7 +26,7 @@ public class ConstantNode extends TypeNode {
     }
     public ConstantNode( ConstantNode con ) { super(con); }
     @Override public Tag serialTag() { return Tag.Con; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed2(types.get(_con)); // NPE if fails lookup
     }
     static Node make( BAOS bais, Type[] types)  { return new ConstantNode(types[bais.packed2()]); }

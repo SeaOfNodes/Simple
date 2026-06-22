@@ -6,6 +6,7 @@ import com.seaofnodes.simple.util.BAOS;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 // Upcast (join) the input to a t.  Used after guard test to lift an input.
 // Can also be used to make a type-assertion if ctrl is null.
@@ -17,7 +18,7 @@ public class CastNode extends TypeNode {
         setType(compute());     // Ensure type is recomputed
     }
     @Override public Tag serialTag() { return Tag.Cast; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed2(types.get(_con)); // NPE if fails lookup
     }
     static Node make( BAOS bais, Type[] types)  { return new CastNode(types[bais.packed2()], null, null); }
