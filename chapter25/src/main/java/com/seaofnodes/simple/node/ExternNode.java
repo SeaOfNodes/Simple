@@ -7,6 +7,7 @@ import com.seaofnodes.simple.util.SB;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
    A constant with external linkage.
@@ -16,7 +17,7 @@ public class ExternNode extends ConstantNode {
     public final String _extern;
     public ExternNode(Type t, String ex) { super(t); _extern = ex; }
     @Override public Tag serialTag() { return Tag.Extern; }
-    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed2(types.get(_con   ));
         baos.packed2( strs.get(_extern));
     }

@@ -7,6 +7,7 @@ import com.seaofnodes.simple.util.SB;
 
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  * Allocation!  Allocate a chunk of memory, no init.
@@ -23,7 +24,7 @@ public class NewNode extends Node implements MultiNode {
     // --- Serialization
     public NewNode(NewNode nnn) { super(nnn); _ts = nnn._ts; }
     @Override public Tag serialTag() { return Tag.New; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed2(types.get(_ts));
     }
     static Node make( BAOS bais, Type[] types)  {

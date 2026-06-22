@@ -152,7 +152,7 @@ public abstract class Node implements Cloneable {
     };
     public Tag serialTag() { throw Utils.TODO(); }
     // Serialize extra data, including input counts
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {}
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {}
 
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public String label() { return serialTag().toString(); }
@@ -830,6 +830,14 @@ public abstract class Node implements Cloneable {
             CODE.addAll(_outputs);
             if( _deps!=null ) CODE.addAll(_deps);
         }
+    }
+
+    public int cntSameModuleInputs( IdentityHashMap<Node,Integer> anodes ) {
+        int nins = 0;
+        for( Node n : _inputs )
+            if( n==null || anodes.containsKey(n) )
+                nins++;
+        return nins;
     }
 
     /**

@@ -4,6 +4,7 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  *  Merge public and private aliases.
@@ -34,7 +35,7 @@ public class EscapeNode extends TypeNode {
     public Field fld() { return (Field)_con; }
 
     @Override public Tag serialTag() { return Tag.Escape; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed2(types.get(_con));
     }
     static Node make( BAOS bais, Type[] types)  {

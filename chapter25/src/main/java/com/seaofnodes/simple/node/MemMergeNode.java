@@ -23,7 +23,7 @@ public class MemMergeNode extends Node {
     public MemMergeNode( boolean inProgress, Node ...nodes) { super(nodes); _type = TypeMem.BOT; _inProgress = inProgress; }
     public MemMergeNode(MemMergeNode mem) { super(mem); _inProgress = false; }
     @Override public Tag serialTag() { return Tag.MemMerge; }
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) { baos.packed1(nIns()); }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
     static Node make( BAOS bais )  { Node mem = new MemMergeNode(false); mem.setDefX(bais.packed1()-1,null); return mem; }
 
 

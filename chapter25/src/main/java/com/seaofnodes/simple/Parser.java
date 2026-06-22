@@ -1108,11 +1108,13 @@ public class Parser {
         Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
         // FIDX for FREFs is in the global namespace, needs the correct clz name.
         String clzBare = tself._name;
+        int order = 3; // 3 is always the <init> order, 2nd in the file just behind the <clinit>
         if( isClz ) {
             assert startsClzPrefix( clzBare );
             clzBare = clzBare.substring(clzPrefix.length()).intern();
+            order = 2; // 2 is always the <clinit> order, first in file and skipping reserved #1
         }
-        return TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx(clzBare,2/*2 is always the <init> FIDX in any file*/));
+        return TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx(clzBare,order));
     }
 
     // A class type carries the constructor function as a required final field.

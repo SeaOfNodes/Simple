@@ -18,8 +18,8 @@ public class ParmNode extends PhiNode {
     }
     public ParmNode(ParmNode parm) { super(parm, parm._label, parm._con ); _idx = parm._idx; }
     @Override public Tag serialTag() { return Tag.Parm; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
-        baos.packed1(nIns());
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(region().cntSameModuleInputs(anodes)); // Number of linked calls
         baos.packed2(_label==null ? 0 : strs.get(_label));
         baos.packed2(types.get(_con)); // NPE if fails lookup
         baos.packed1(_idx);

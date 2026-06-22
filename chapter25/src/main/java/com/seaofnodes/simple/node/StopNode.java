@@ -17,6 +17,8 @@ public class StopNode extends CFGNode {
     }
     public StopNode(StopNode stop) { super(stop); }
     @Override public Tag serialTag() { return Tag.Stop; }
+    // A re-inflated StopNode assumes a single StopCUNode because loading 1
+    // module at a time.
     static Node make( BAOS bais ) {
         StopNode stop = new StopNode();
         stop.addDef(null);

@@ -7,6 +7,7 @@ import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.util.BAOS;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class ProjNode extends Node implements Proj {
 
@@ -23,7 +24,7 @@ public class ProjNode extends Node implements Proj {
     }
     public ProjNode(ProjNode p) { super(p); _idx = p._idx; _label = p._label; }
     @Override public Tag serialTag() { return Tag.Proj; }
-    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) {
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(_idx);
         baos.packed2(_label==null ? 0 : strs.get(_label));
     }

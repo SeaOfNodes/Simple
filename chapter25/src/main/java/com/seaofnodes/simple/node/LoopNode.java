@@ -7,12 +7,13 @@ import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class LoopNode extends RegionNode {
     public LoopNode( Parser.Lexer loc, Node xctrl, Node entry ) { super(loc,xctrl,entry,null); }
     public LoopNode( LoopNode loop ) { super(loop); }
     @Override public Tag serialTag() { return Tag.Loop; }
-    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types ) { }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { }
 
     public CFGNode entry() { return cfg(1); }
     public CFGNode back () { return cfg(2); }
