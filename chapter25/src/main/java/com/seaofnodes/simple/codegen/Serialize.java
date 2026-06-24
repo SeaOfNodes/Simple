@@ -154,21 +154,33 @@ abstract public class Serialize {
         }
         // Write out the input indices packed.  Skip cross-module inputs.
         // Stop has cross-module StopCU inputs.
-        // FunNode has linked cross-module Call inputs.
+        // FunNode has linked cross-module Call inputs, Parm matches Fun
         // CallEnd has linked cross-module Return inputs.
         for( Node n : nodes ) {
-            for( int j=0; j<n.nIns(); j++ ) {
-                if( n.in(j)==null )
-                    baos.packed2(0);
-                else {
-                    // If missing from anodes, assume a cross-module input
-                    Integer ii = anodes.get(n.in(j));
-                    if( ii!=null )
-                        baos.packed2(ii);
+            // Parm inputs must match Fun inputs; Funs skip external callers
+            if( n instanceof ParmNode parm ) {
+                CFGNode r = parm.region();
+                baos.packed2(anodes.get(r)); // Always the FunNode gets emitted
+                for( int j=1; j<n.nIns(); j++ ) {
+                    Integer ii = anodes.get(r.in(j));
+                    if( ii!=null )                            // Fun has input?
+                        baos.packed2(anodes.get(parm.in(j))); // Parm matching inputs
                 }
+
+            } else {            // All the other nodes
+                for( int j=0; j<n.nIns(); j++ ) {
+                    if( n.in(j)==null )
+                        baos.packed2(0);
+                    else {
+                        // If missing from anodes, assume a cross-module input
+                        Integer ii = anodes.get(n.in(j));
+                        if( ii!=null )
+                            baos.packed2(ii);
+                    }
+                }
+                if( n instanceof FunNode fun )
+                    baos.packed2(anodes.get(fun.ret()));
             }
-            if( n instanceof FunNode fun )
-                baos.packed2(anodes.get(fun.ret()));
         }
 
         return baos;
@@ -299,11 +311,15 @@ abstract public class Serialize {
         // can just do meet-over-inputs, hence the Phase change before asserting
         CodeGen.Phase phase = code._phase;
         code._phase = CodeGen.Phase.Opto;
-        // Skip the final StopNode, which no long has inputs from other
-        // CompUnits so will report a slightly different type.
-        for( int i=0; i<nodes._len-1; i++ ) {
-            Node n = nodes.at(i);
-            if( n.compute() != n._type )
+        for( Node n : nodes ) {
+            if( (n.compute() != n._type) &&
+                // Skip the final StopNode, which no long has inputs from other
+                // CompUnits so will report a slightly different type.
+                !(n instanceof StopNode) &&
+                // Cross-CompUnit does not precise link, acts as-if will call and return from any old target
+                !(n instanceof CallEndNode) &&
+                // Skip Parm $RPC if we dropped callers from other CU's
+                !(n instanceof ParmNode parm && parm._idx==0) )
                 return false;
         }
         code._phase = phase;
