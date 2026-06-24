@@ -129,7 +129,7 @@ public class Chapter25Test {
     @Test
     public void testSys() throws IOException {
         String MODDIR = "src/main/smp";
-        String BLDDIR = "build/objs/sys";
+        String BLDDIR = "build/objs";
         delELFiles(new File(BLDDIR));
 
         // Compile MODDIR/sys.smp into BLDDIR/sys.o
@@ -160,11 +160,13 @@ public class Chapter25Test {
 
         // Elf files are sane
 
-        // Sys depends on io, libc
-        assertEquals(2,sys_elf._deps.length);
-        assertSame("sys/io"   ,sys_elf._deps[0]);
-        assertSame("sys/libc" ,sys_elf._deps[1]);
-        assertSame("class:sys",sys_elf._clz._name);
+        // Sys depends on io, libc, aryi64, aryu8
+        assertEquals(4,sys_elf._deps.length);
+        assertSame("sys/aryi64",sys_elf._deps[0]);
+        assertSame("sys/aryu8" ,sys_elf._deps[1]);
+        assertSame("sys/io"    ,sys_elf._deps[2]);
+        assertSame("sys/libc"  ,sys_elf._deps[3]);
+        assertSame("class:sys" ,sys_elf._clz._name);
 
         // io depends on ary, libc
         assertEquals(2,io_elf._deps.length);

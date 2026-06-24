@@ -14,7 +14,7 @@ import java.util.IdentityHashMap;
 public class CallEndNode extends CFGNode implements MultiNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
-    private boolean _folding;
+    boolean _folding;
     public final TypeRPC _rpc;
 
     public CallEndNode(CallNode call, TypeRPC rpc) {
@@ -132,8 +132,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     call.setDef(call.nIns()-1,fptr2);
                     // Link to the new function
                     call.link(fun2);
-                    assert trivialInlining( fptr2, fun2 )==0;
                     fun = fun2;
+                    assert trivialInlining( fptr2, fun2 )==0;
+                    isTrivial = 0;
                 }
 
                 // Trivial inlining: call site calls a single function; single function
