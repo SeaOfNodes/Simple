@@ -95,7 +95,7 @@ public class TypeMem extends Type {
     public static final TypeMem START = make(1, Type.BOTTOM,false,false, XInt.EMPTY, XInt.EMPTY);
     public static final TypeMem SELF_MEM = make(1, TypeStruct.BOT);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); ts.add(SELF_MEM); }
+    public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); ts.add(SELF_MEM); ts.add(START); }
 
     @Override
     TypeMem xmeet(Type t) {
