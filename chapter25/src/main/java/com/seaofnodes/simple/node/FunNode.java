@@ -340,7 +340,7 @@ public class FunNode extends RegionNode {
         visit.set(n._nid);
         Node m = map.get(n);
         // The cloned Call should not clone any linked edges.
-        if( n instanceof CallEndNode cend ) {
+        if( n instanceof CallEndNode cend && !cend._folding ) {
             m.addDef( map.get(cend.call()) );
         } else {
             for( Node e : n._inputs ) {

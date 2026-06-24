@@ -245,8 +245,8 @@ public abstract class ParseAll {
             CompUnit local = findCUnitModule(code,cu,symbol);
             if( local != null )
                 return local;
-            // Module search failed, now try external paths
-            CompUnit ext = findCUnitExternal( code, symbol );
+            // Module search failed, now try external paths as a class symbol
+            CompUnit ext = findCUnitExternal( code, Parser.addClzPrefix(symbol) );
             if( ext != null )
                return ext;
             return null;

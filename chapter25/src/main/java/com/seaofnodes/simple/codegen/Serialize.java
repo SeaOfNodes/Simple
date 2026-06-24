@@ -228,23 +228,25 @@ abstract public class Serialize {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
-        // A - Read a header
-        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='E' )
-            throw new IllegalArgumentException("Missing magic word");
+        // If not read the strings already, read them now
+        String[] strs = elf._strs;
+        if( strs == null ) {
+            // A - Read a header
+            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != 'E' )
+                throw new IllegalArgumentException( "Missing magic word" );
 
-        // B - Packed read of #strings, then strings
-        int ndependents = bais.packed4(); // Number of dependent object files
-        int nstrs = bais.packed4();       // Total number of strings
-        String[] strs = new String[nstrs];
-        for( int i=0; i<nstrs; i++ )
-            strs[i] = bais.packedS();
-        elf._strs = strs;
+            // B - Packed read of #strings, then strings
+            int ndependents = bais.packed4(); // Number of dependent object files
+            int nstrs = bais.packed4();       // Total number of strings
+            elf._strs = strs = new String[nstrs];
+            for( int i = 0; i < nstrs; i++ )
+                strs[i] = bais.packedS();
 
-        // Collect dependent file names
-        elf._deps = new String[ndependents];
-        for( int i=0; i<ndependents; i++ )
-            elf._deps[i] = strs[1+i+1];
-
+            // Collect dependent file names
+            elf._deps = new String[ndependents];
+            for( int i = 0; i < ndependents; i++ )
+                elf._deps[i] = strs[1 + i + 1];
+        }
 
         // B.2 - Read the local->global mappings.  Further down we will map
         // Elf file-local -> global, then global -> CodeGen.CODE local

@@ -752,12 +752,10 @@ public class CodeGen {
                 // Load public symbols from the ELF
                 elf.loadPublicSymbols();
                 if( elf._strs==null ) break; // No .simple section with strings
-                // Put public symbols in global table; first names shadow all others
-                for( String s : elf._strs )
-                    if( !s.isEmpty() )
-                        // Map from symbol string to ELFReader; most lookups
-                        // will miss and no need to unpack ElfReader types
-                        _externSymbols.putIfAbsent(s,elf);
+                // Put public symbol in global table; first names shadow all others
+                // Map from symbol string to ELFReader; most lookups
+                // will miss and no need to unpack ElfReader types
+                _externSymbols.putIfAbsent(elf._strs[1],elf);
                 break;
 
             default: throw Utils.TODO("should not reach here");
