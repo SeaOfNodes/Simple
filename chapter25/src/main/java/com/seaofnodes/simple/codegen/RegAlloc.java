@@ -263,7 +263,7 @@ public class RegAlloc {
             //   st4 [V1],len - No good, must split around
             insertAfterAndReplace( makeSplit("def/empty1",round,lrg), (Node)lrg._machDef, false/*true*/);
         // Split just before use
-        if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && defNouts==1) )
+        if( lrg._machUse!=null && (lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && defNouts==1)) )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
         return true;
     }

@@ -236,14 +236,19 @@ public class x86_64_v2 extends Machine {
     static RegMask callWin64(TypeFunPtr tfp, int idx, int maxArgSlot ) {
         // idx 2,3,4,5 passed in registers, with stack slot mirrors.
         // idx >= 6 passed on stack, starting at slot#1 (#0 reserved for RPC).
-        if( idx >= 6 )
-            return new RegMask(MAX_REG+maxArgSlot+(idx-2));
+        int sigidx = idx-2;
+        if( hiddenSelf(tfp) ) {
+            if( sigidx==0 ) return null;
+            sigidx--;
+        }
+        if( sigidx >= 4 )
+            return new RegMask(MAX_REG+maxArgSlot+sigidx);
         return tfp.arg(idx-2) instanceof TypeFloat
-            ? XMMS8     [idx-2]
-            : WIN64_CALL[idx-2];
+            ? XMMS8     [sigidx]
+            : WIN64_CALL[sigidx];
     }
     static short maxArgSlotWin64(TypeFunPtr tfp) {
-        return (short)tfp.nargs();
+        return (short)(tfp.nargs() - (hiddenSelf(tfp) ? 1 : 0));
     }
 
     // Sys5: max 6 GPRs and 8 FPRS filled first.  Extra args land in increasing
@@ -277,9 +282,14 @@ public class x86_64_v2 extends Machine {
     static RegMask callSys5(TypeFunPtr tfp, int idx, int maxArgSlot ) {
         // First 6 integers passed in registers: rdi,rsi,rdx,rcx,r08,r09
         // First 8 floats passed in registers: xmm0-xmm7
+        int sigidx = idx-2;
+        if( hiddenSelf(tfp) ) {
+            if( sigidx==0 ) return null;
+            sigidx--;
+        }
         int icnt=0, fcnt=0;     // Count of ints, floats
-        for( int i=2; i<idx; i++ ) {
-            if( tfp.arg(i-2) instanceof TypeFloat ) fcnt++;
+        for( int i=hiddenSelf(tfp) ? 1 : 0; i<idx-2; i++ ) {
+            if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
             else icnt++;
         }
         int nstk = Math.max(icnt-6,0)+Math.max(fcnt-8,0);
@@ -289,12 +299,15 @@ public class x86_64_v2 extends Machine {
     }
     static short maxArgSlotSys5(TypeFunPtr tfp) {
         int icnt=0, fcnt=0;     // Count of ints, floats
-        for( int i=0; i<tfp.nargs(); i++ ) {
+        for( int i=hiddenSelf(tfp) ? 1 : 0; i<tfp.nargs(); i++ ) {
             if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
             else icnt++;
         }
         int nstk = Math.max(icnt-6,0)+Math.max(fcnt-8,0);
         return (short)nstk;
+    }
+    private static boolean hiddenSelf(TypeFunPtr tfp) {
+        return tfp.nargs() > 0 && tfp.arg(0) == TypePtr.PTR;
     }
 
     static final long SYSTEM5_CALLER_SAVE =

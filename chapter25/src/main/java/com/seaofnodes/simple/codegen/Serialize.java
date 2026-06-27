@@ -288,7 +288,7 @@ abstract public class Serialize {
                 int idx = bais.packed2();
                 n.setDef(i,idx==0 ? null : nodes.at(idx-1));
                 // Call's output[0] is always the CallEnd
-                if( n instanceof CallEndNode cend && idx==1 ) {
+                if( n instanceof CallEndNode cend && i==0 ) {
                     var outs = cend.call()._outputs;
                     outs.swap(0,outs._len-1);
                 }

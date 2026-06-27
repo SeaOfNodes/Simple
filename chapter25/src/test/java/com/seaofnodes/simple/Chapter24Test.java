@@ -62,7 +62,7 @@ return (sq_noInline(2) <= score < sq_noInline(3))
     ? 0  // Expected
     : 1; // Error
 """;
-        TestC.runSF( src, "stacked_r_3", "", 3);
+        TestC.runSF( src, "stacked_r_3", "", 5);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 5, false);

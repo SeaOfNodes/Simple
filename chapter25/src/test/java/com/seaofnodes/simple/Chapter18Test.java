@@ -65,7 +65,7 @@ return x2;
 """);
         code.parse().opto();
         assertEquals("Stop[ return { sq}; return (Parm_x(sq,i64)*x); ]", code.print());
-        assertEquals("{ i64 -> i64 #[ 3]}", Eval2.eval(code, 3));
+        assertEquals("{ ptr i64 -> i64 #[ 3]}", Eval2.eval(code, 3));
     }
 
     @Test
@@ -91,8 +91,8 @@ int cnt=1;                      // Global scope; exactly one of these
 return { -> cnt++; };           // Escape global-scope variable is OK
 """);
         code.parse().opto();
-        assertEquals("Stop[ return { -> i64 #[ 3]}; return .cnt; ]", code.print());
-        assertEquals("{ -> i64 #[ 3]}", Eval2.eval(code, 0));
+        assertEquals("Stop[ return { ptr -> i64 #[ 3]}; return .cnt; ]", code.print());
+        assertEquals("{ ptr -> i64 #[ 3]}", Eval2.eval(code, 0));
     }
 
     // Function scope test
@@ -145,7 +145,7 @@ return fcn(3);
     public void testFcn5() {
         CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1 : x*_fact(x-1); }; return _fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(_fact,Top,arg,(x-1))*#2)); ]", code.print());
+        assertEquals("Stop[ return Phi(Region,1,(arg*#2)); return Phi(Region,1,(Parm_x(_fact,Top,(arg-1),(x-1))*#2)); ]", code.print());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -271,7 +271,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #[ 3]}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { ptr i64 -> i64 #[ 3]}?",e.getMessage()); }
     }
 
 
@@ -283,7 +283,7 @@ val f = { int i, int j -> return i+j; };
 return f();
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Expecting 2 arguments, but found 0",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Expecting 3 arguments, but found 1",e.getMessage()); }
     }
 
 

@@ -20,6 +20,8 @@ abstract public class BuildLRG {
                 fun = fun2;
             for( Node n : bb.outs() ) {
                 if( n instanceof PhiNode phi && !(phi._type instanceof TypeMem) ) {
+                    if( phi instanceof MachNode mach && mach.outregmap()==null )
+                        continue;
                     // All Phi inputs end up with the same LRG.
                     // Pass 1: find any pre-existing LRG, to avoid make-then-Union a LRG
                     LRG lrg = alloc.lrg(phi);

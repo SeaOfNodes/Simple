@@ -256,10 +256,16 @@ public class riscv extends Machine {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        boolean hidden = hiddenSelf(tfp);
+        int sigidx = idx-2;
+        if( hidden ) {
+            if( sigidx==0 ) return null;
+            sigidx--;
+        }
         // Count floats in signature up to index
         int fcnt=0;
-        for( int i=2; i<idx; i++ )
-            if( tfp.arg(i-2) instanceof TypeFloat )
+        for( int i=hidden ? 1 : 0; i<idx-2; i++ )
+            if( tfp.arg(i) instanceof TypeFloat )
                 fcnt++;
         // Floats up to XMMS in XMM registers
         if( tfp.arg(idx-2) instanceof TypeFloat ) {
@@ -267,22 +273,25 @@ public class riscv extends Machine {
                 return XMMS[fcnt];
         } else {
             RegMask[] cargs = CALLINMASK;
-            if( idx-2-fcnt < cargs.length )
-                return cargs[idx-2-fcnt];
+            if( sigidx-fcnt < cargs.length )
+                return cargs[sigidx-fcnt];
         }
         // Pass on stack slot(8 and higher)
         if( maxArgSlot>0 ) throw Utils.TODO();
-        return new RegMask(MAX_REG + 1 + (idx - 2));
+        return new RegMask(MAX_REG + 1 + sigidx);
     }
 
     @Override public short maxArgSlot( TypeFunPtr tfp ) {
         int icnt=0, fcnt=0;     // Count of ints, floats
-        for( int i=0; i<tfp.nargs(); i++ ) {
+        for( int i=hiddenSelf(tfp) ? 1 : 0; i<tfp.nargs(); i++ ) {
             if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
             else icnt++;
         }
         int nstk = Math.max(icnt-8,0)+Math.max(fcnt-8,0);
         return (short)nstk;
+    }
+    private static boolean hiddenSelf(TypeFunPtr tfp) {
+        return tfp.nargs() > 0 && tfp.arg(0) == TypePtr.PTR;
     }
 
     static final long CALLER_SAVE =
