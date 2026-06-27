@@ -1289,6 +1289,11 @@ public class Parser {
         return TypeStruct.makeAry(tname,TypeInteger.U32,ta._fields[0]._alias,t,ta._fields[1]._alias,true );
     }
 
+    private Type implicitSelfType() {
+        TypeStruct self = _scope.constructorSelf();
+        return self == null ? TypePtr.PTR : TypeMemPtr.make(self);
+    }
+
     // A function type is `{ type... -> type }` or `{ type }`.
     private Type typeFunPtr() {
         int old = pos();        // Record lexer position
@@ -1296,9 +1301,9 @@ public class Parser {
         Type t0 = type();       // Either return or first arg
         if( t0==null ) return posT(old); // Not a function
         Ary<Type> ts = new Ary<>(Type.class);
-        // Push 'self' arg unless at file scope
-        if( _scope.inConstructor() )
-            ts.push(TypeMemPtr.make((TypeStruct)TYPES.get(_nestedType)));
+        // Always reserve a receiver slot.  Outside constructor scopes it is
+        // broad and unused, so call sites can uniformly pass their self.
+        ts.push(implicitSelfType());
         if( match("}") )                 // No-arg function { -> type }
             return TypeFunPtr.make(match("?"),ts.asAry(),t0);
         ts.push(t0);            // First argument
@@ -1769,7 +1774,7 @@ public class Parser {
         if( hasConstructor ) {
             int idx = _scope.nIns();
             // Push a scope, and pre-assign all struct fields.
-            _scope.push(new Kind.Func((ts._name+".<init>").intern()));
+            _scope.push(new Kind.Constructor(ts));
             TypeStruct oldCtorOpenStruct = _ctorOpenStruct;
             _ctorOpenStruct = latestStruct(ts)._open && UNRESOLVED_TYPES.contains(ts._name) ? latestStruct(ts) : null;
             Lexer loc = loc();
@@ -1898,8 +1903,7 @@ public class Parser {
         // to end up with a "self" argument.
 
         // Self method call?  Self is a TMP-not-CLZ, then assume and pass self.
-        if( !(self._type instanceof TypeMemPtr ptr && startsClzPrefix(ptr._obj._name)) &&
-            match("(") ) {
+        if( match("(") ) {
             expr = parsePostfix(require(functionCall(expr,self),")"));
         } else
             self.isKill();      // Not a method call, no need for self
@@ -1910,11 +1914,16 @@ public class Parser {
         if( match(".") )      name = requireId();
         else if( match("#") ) name = "#";
         else if( match("[") ) name = "[]";
-        // can get here without a 'self': "self.method()(next)(next)(next)"
-        else if( match("(") ) return parsePostfix(require(functionCall(expr,null),")"));
+        // Can get here without an explicit receiver: "f()" or
+        // "self.method()(next)(next)(next)".  Pass the current function self.
+        else if( match("(") ) return parsePostfix(require(functionCall(expr,defaultSelf()),")"));
         else return expr;       // No postfix
 
         return parsePostfixName(expr,name);
+    }
+
+    private Node defaultSelf() {
+        return _scope.in(_scope._kinds.at(_scope.enclosingFuncOrDecl())._lexSize);
     }
 
     /**
@@ -1932,9 +1941,11 @@ public class Parser {
         // Keep expr across possible updates
         expr.keep();
 
-        // TODO: optimize a mix of known and unknown mem stores
-        // Do we know the field type already?
-        TypeStruct ts = expr._type instanceof TypeMemPtr tmp ? tmp._obj : null;
+        // Get the best known TypeStruct from a pointer type.
+        TypeStruct ts = null, ts2 = null;
+        if( expr._type instanceof TypeMemPtr tmp && (ts2=((TypeStruct)TYPES.get(tmp._obj._name))) != null )
+            ts = (TypeStruct)tmp._obj.join(ts2);
+
         Field fld = ts==null ? null : ts.field(name);
         if( fld==null && ts!=null )
             fld = fieldOrOpen(ts,name,false);
@@ -2031,11 +2042,9 @@ public class Parser {
     private Node func() {
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
-        TypeStruct self = (TypeStruct)TYPES.get(_nestedType);
-        if( self != null ) {
-            ts.push( TypeMemPtr.make( self ) ); // Self pointer
-            ids.push( "self" );
-        }
+        Type self = implicitSelfType();
+        ts.push(self);
+        ids.push(self == TypePtr.PTR ? "#self" : "self");
 
         // Parse other arguments
         _lexer.skipWhiteSpace();

@@ -32,6 +32,11 @@ public class ScopeNode extends MemMergeNode {
     public static class Kind {
         // Basic block scoping
         public static class Block extends Kind { }
+        // Constructor/initializer block for an allocated struct.
+        public static class Constructor extends Block {
+            public Constructor(TypeStruct self) { _self = self; }
+            public final TypeStruct _self;
+        }
         // Function scope
         public static class Func  extends Kind { public Func(String name) { _name=name;} public final String _name; }
 
@@ -142,10 +147,17 @@ public class ScopeNode extends MemMergeNode {
     }
 
 
-    public boolean inFunction   () { return klast() instanceof Kind.Func  ; }
-    // Is the enclosing scope a constructor?  Shallow check, not deep
-    public boolean inConstructor() {
-        return klast() instanceof Kind.Func func && FunNode.isInstance(func._name);
+    public boolean inFunction   () { return klast() instanceof Kind.Func; }
+    // Is any enclosing scope a constructor?
+    public boolean inConstructor() { return constructorSelf() != null; }
+    // Nearest constructor self type, if any.
+    public TypeStruct constructorSelf() {
+        for( int i=depth()-1; i>=0; i-- )
+            if( _kinds.at(i) instanceof Kind.Constructor ctor )
+                return ctor._self;
+            else if( _kinds.at(i) instanceof Kind.Func func && FunNode.isInstance(func._name) )
+                return (TypeStruct)((TypeMemPtr)var(_kinds.at(i)._lexSize).type())._obj;
+        return null;
     }
 
     // Find nearest enclosing function scope

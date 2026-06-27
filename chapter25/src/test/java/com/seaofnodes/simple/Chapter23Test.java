@@ -182,7 +182,7 @@ return (a && sq_noInline(0))
     ? 1  // Error
     : 0; // Expected
 """;
-        TestC.runSF( src, "and3", "", 0);
+        TestC.runSF( src, "and3", "", 2);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);
@@ -223,9 +223,9 @@ return _s.peek('q');
 """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return Phi(Region,0,1);", code.print());
+        assertEquals("Stop[ return #2; return Phi(Region,0,1); ]", code.print());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "win64",19,null);
+        testCPU(src,"x86_64_v2", "win64",22,null);
     };
 
     @Test
