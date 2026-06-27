@@ -61,7 +61,12 @@ public class TypeRPC extends Type {
         return make(XInt.meet(_rpcs,rpc._rpcs));
     }
 
-    @Override Type xdual() { return malloc(XInt.dual(_rpcs)); }
+    @Override TypeRPC xdual() { return malloc(XInt.dual(_rpcs)); }
+    @Override Type rdual() {
+        TypeRPC d = xdual();
+        (_dual = d)._dual = this;
+        return d;
+    }
 
     @Override boolean _isConstant() { return XInt.isConstant(_rpcs); }
     @Override boolean _isGLB(boolean mem) { return true; }

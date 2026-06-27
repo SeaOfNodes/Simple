@@ -82,6 +82,18 @@ public class CompUnit {
         _src  = null;
     }
 
+    // External Simple object file, or namespace parent, found on an external search path.
+    CompUnit( File obj, CompUnit par, String fname, String cname, String name ) {
+        _par  = par;
+        _name = name;
+        _fname= fname;
+        _cname= cname;
+        _ext  = null;
+        _smp  = null;
+        _obj  = obj;
+        _src  = null;
+    }
+
     // Return true if _obj is out-of-date relative to dependents.
     private boolean checkDependentObjs() {
         ElfReader elf = CODE.getElf(_obj);

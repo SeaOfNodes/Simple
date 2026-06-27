@@ -161,6 +161,7 @@ public class TypeStruct extends Type {
         TypeStruct ts = (TypeStruct)VISIT.get(namePlusFinal);
         if( ts!=null ) return ts;
         TypeStruct base = name==null ? (TypeStruct)TYPES.get(_name) : this;
+        if( base == null ) base = this;
         ts = base.recurPre(namePlusFinal, _name, name != _name && name != null && _open );
         Field[] flds = ts._fields;
         // Now start the recursion

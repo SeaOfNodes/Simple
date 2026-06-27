@@ -223,9 +223,9 @@ return _s.peek('q');
 """;
 
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("Stop[ return #2; return Phi(Region,0,1); ]", code.print());
+        assertEquals("return Phi(Region,0,1);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "win64",22,null);
+        testCPU(src,"x86_64_v2", "win64",19,null);
     };
 
     @Test
