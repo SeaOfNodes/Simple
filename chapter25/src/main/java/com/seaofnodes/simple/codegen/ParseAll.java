@@ -127,8 +127,26 @@ public abstract class ParseAll {
                     fref.addDef(clzCon);
                     code.add(fref);
                 }
+                // Adds sort by NIDs, which just got shuffled
+                if( n instanceof AddNode add )
+                    code.add(add);
                 return null;
             } );
+
+        //// Really Bad Idea
+        //boolean[] done = new boolean[1];
+        //while( !done[0] ) {
+        //    done[0] = true;
+        //    code._stop.walk( (Node n) -> {
+        //            Type t = n.compute();
+        //            if( !t.isa(n._type) ) {
+        //                n._type = t;
+        //                code.add(n);
+        //                done[0] = false;
+        //            }
+        //            return null;
+        //        } );
+        //}
     }
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
@@ -335,11 +353,6 @@ public abstract class ParseAll {
         // Look up the scope
         return findCUnitModule( code, cunit._par, symbol );
     }
-
-
-
-
-
 
     // Search external Simple objects only.  C linkage uses explicit "C"
     // declarations, which produce ExternNodes and are resolved by the linker.

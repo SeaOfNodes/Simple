@@ -320,12 +320,6 @@ public class Parser {
         return ret;
     }
 
-    // TODO: Ponder another strategy here; the Actual Problem is later parsing
-    // field loads/stores from pointers which will (eventually) become the
-    // final Type of 'self' - they get an early version of 'self' missing
-    // fields, and the parser wants to complain right now instead of allowing
-    // unknown field loads against unknown types - and letting everything
-    // resolve out later in SCCP.
     private int updateSelfAsFieldsDiscovered( String typeName, int nvar ) {
         int lex = _scope.klast()._lexSize + 2/*Skip self and selfMem*/;
         // Load self type in and out of the TYPES hashtable.
@@ -1646,7 +1640,7 @@ public class Parser {
         if( var._fref )
             return parsePostfix(rvalue);
 
-        // Check for a instance field load
+        // Check for an instance field load
         int kx = _scope.kindx(var); // Declaration scope
         int fx = _scope.enclosingFunction(); // Enclosing function scope
         Kind kk = _scope._kinds.at(kx);

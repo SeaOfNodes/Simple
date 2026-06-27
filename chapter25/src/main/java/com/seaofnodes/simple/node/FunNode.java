@@ -51,12 +51,15 @@ public class FunNode extends RegionNode {
         baos.packed1(cntSameModuleInputs(anodes)); // Number of linked calls
         baos.packed2(types.get(_sig)); // NPE if fails lookup
         baos.packed2(_name==null ? 0 : strs.get(_name));
+        baos.packed2(_approxUIDs);
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
         TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
         String name = strs[bais.packed2()];
-        return new FunNode(null,sig,name,null,ins);
+        FunNode fun = new FunNode(null,sig,name,null,ins);
+        fun._approxUIDs = bais.packed2();
+        return fun;
     }
 
     @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
