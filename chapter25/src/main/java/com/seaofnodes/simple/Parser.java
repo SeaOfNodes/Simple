@@ -28,7 +28,8 @@ public class Parser {
     private Lexer _lexer;
 
     // Class prefix string; TODO: use something short: "%"
-    private static final String clzPrefix = "class:";
+    public static final String CLZ = "class:";
+    private static final String clzPrefix = CLZ;
     public static String addClzPrefix( String x ) {
         assert !x.startsWith(clzPrefix);
         return (clzPrefix+x).intern();
@@ -2055,7 +2056,7 @@ public class Parser {
         }
         require("->");
         // Make a concrete function type, with a fidx
-        TypeFunPtr tfp = TypeFunPtr.make1((byte)2,false,ts.asAry(),Type.BOTTOM,_code.fidx(_ref._cname));
+        TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),Type.BOTTOM,_code.fidx(_ref._cname));
         ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
         return con(tfp.makeFrom(ret.expr()._type));
     }

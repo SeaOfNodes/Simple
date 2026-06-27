@@ -706,7 +706,7 @@ public class CodeGen {
     // This is a state machine which lazily searches down the set of search
     // paths until the requested module is class is found.
 
-    // Map from external Strings to either partially read ElfFile or ExternNode
+    // Map from external Strings to either partially read Simple ElfFile or ExternNode
     public final HashMap<String,Object> _externSymbols = new HashMap<>();
 
     // State machine elements; the outermost element is _externPaths
@@ -714,8 +714,18 @@ public class CodeGen {
     private final Ary<File> _files = new Ary<>(File.class);   // Files in the current extern path being searched
     private int _extFileIdx;    // Index into _files
 
-    public ExternNode findExternal( String name ) {
+    public ElfReader findExternalSimple( String name ) {
+        return findExternalSymbol(name) instanceof ElfReader elf ? elf : null;
+    }
 
+    public ExternNode findExternal( String name ) {
+        return findExternalSymbol(name) instanceof ExternNode extern ? extern : null;
+    }
+
+    // Search the search-path for the name; return an ElfReader if found in a
+    // Simple-made ELF; return an ExternNode if from another ELF, or null if
+    // not found.
+    private Object findExternalSymbol( String name ) {
         // State Machine!
 
         while( true ) {
@@ -727,11 +737,7 @@ public class CodeGen {
                 return extern;
 
             case ElfReader elf:
-                // Name maps to an unparsed ElfReader.  Pull out all the
-                // published symbols from the ELF and map them.
-                TypeStruct clz = elf.loadSimple(this);
-                _externSymbols.put(clz._name, new ExternNode(TypeMemPtr.make(clz),clz._name));
-                break;
+                return elf;
 
             case null:
                 // Name is unknown.  Advance the file-system search, pulling

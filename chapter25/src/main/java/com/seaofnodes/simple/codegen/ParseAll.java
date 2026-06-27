@@ -20,11 +20,27 @@ public abstract class ParseAll {
     // Return a compilation unit (cached or new).  If new, it does not necessarily
     // need to be compiled.
     public static CompUnit makeCUnit( CodeGen code, CompUnit par, String name ) throws IOException {
-        String fname = par==null ? name : par._fname + "/" + name;
+        return makeCUnit(code,par,name,null,false);
+    }
+
+    private static CompUnit makeCUnit( CodeGen code, CompUnit par, String name, File obj ) throws IOException {
+        return makeCUnit(code,par,name,obj,obj!=null);
+    }
+
+    private static CompUnit makeCUnit( CodeGen code, CompUnit par, String name, File obj, boolean external ) throws IOException {
+        // Slashed file name?  Move leading parts into parent CUs.
+        int idx = name.indexOf("/");
+        if( idx >= 0 ) {
+            String head = name.substring(0,idx);
+            CompUnit sub = makeCUnit(code,par,head,external ? externalObj(code,par,head) : null,external);
+            return makeCUnit(code,sub,name.substring(idx+1).intern(),obj,external);
+        }
+
+        String fname = par==null ? name : (par._fname + "/" + name).intern();
         CompUnit cunit = code._compunits.get(fname);
         if( cunit != null ) return cunit;
         String cname = par==null ? name : (par._cname + "." + name).intern();
-        code._compunits.put(fname, cunit = new CompUnit(par,fname,cname,name));
+        code._compunits.put(fname, cunit = external ? new CompUnit(obj,par,fname,cname,name) : new CompUnit(par,fname,cname,name));
         return cunit;
     }
 
@@ -44,10 +60,7 @@ public abstract class ParseAll {
     static void parsePath(CodeGen code, String fname) {
         try {
             // Split and build the parent-path down to the source file.
-            String[] ss = fname.split("/");
-            CompUnit cu = null;
-            for( String s : ss )
-                cu = makeCUnit( code, cu, s );
+            CompUnit cu = makeCUnit( code, null, fname );
             // Compile this CompUnit
             parseAll(code,cu);
         } catch( IOException ioe ) {
@@ -85,6 +98,9 @@ public abstract class ParseAll {
         TypeStruct[] tss = Type.closeOver(ary.asAry(),Parser.TYPES);
         for( TypeStruct ts : tss )
             Parser.TYPES.put(ts._name,ts);
+        for( CompUnit cu : code._compunits.values() )
+            if( cu._ext==null )
+                cu._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cu._cname));
 
         // Walk over all Nodes, and upgrade the internal constants to the
         // closed-over types.
@@ -128,15 +144,12 @@ public abstract class ParseAll {
             // Search the module for the fref
             try {
                 CompUnit xcunit = findCUnitModule(code,cunit,fref._name);
+                if( xcunit == null )
+                    xcunit = findCUnitExternalSimple(code,fref._name);
                 if( xcunit != null ) {
                     // Replace the FRef with the discovered class name.
                     fref._name = Parser.addClzPrefix(xcunit._cname);
                     cunit.addDep(xcunit);
-
-                    // Module search failed, now try external paths
-                } else if( (xcunit = findCUnitExternal( code, fref._name ) ) != null ) {
-                    // fref.addDef(xcunit.extern);
-                    throw Utils.TODO();
                 } else {
                     throw new RuntimeException("Undefined name '" + fref._name +"'");
                 }
@@ -170,9 +183,10 @@ public abstract class ParseAll {
             if( xcunit != null )
                 return xcunit;
         }
-        return null;
+        return findCUnitExternalSimple(code,typeName);
     }
 
+    // Load the public symbols for this CompUnit, and add dependent CompUnits to the NEEDS_LOAD list.
     private static void loadDeps(CodeGen code, CompUnit cunit) {
         // Load IR after parsing
         if( NEEDS_LOAD.find(cunit) != -1 )
@@ -182,9 +196,9 @@ public abstract class ParseAll {
             // Load dependent classes
             ElfReader elf = ElfReader.load(cunit._obj,cunit);
             elf.loadPublicSymbols();
-            for( String symbol : elf._deps ) {
+            for( String fname : elf._deps ) {
                 // Check CompUnit for being up to date
-                CompUnit sub = makeCUnit(code,null,symbol);
+                CompUnit sub = makeCUnit(code,null,fname,depObj(code,cunit,fname));
                 // If not seen before or out of date, parse the new nested cunit
                 if( sub._clz == null )
                     WORK.add(sub);
@@ -192,6 +206,21 @@ public abstract class ParseAll {
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
         }
+    }
+
+    private static File depObj(CodeGen code, CompUnit cunit, String fname) {
+        if( cunit._smp != null )
+            return null;
+        ElfReader elf = code.findExternalSimple(Parser.addClzPrefix(fname.replace('/','.')));
+        if( elf == null )
+            throw new RuntimeException("Cannot find external Simple dependency '"+fname+"'");
+        return elf._file;
+    }
+
+    private static File externalObj(CodeGen code, CompUnit par, String name) {
+        String cname = par==null ? name : par._cname + "." + name;
+        ElfReader elf = code.findExternalSimple(Parser.addClzPrefix(cname));
+        return elf == null ? null : elf._file;
     }
 
     private static void loadCompUnit(CodeGen code, CompUnit cunit) {
@@ -227,6 +256,9 @@ public abstract class ParseAll {
         // Add the new top-level loaded class
         // assert !Parser.TYPES.containsKey(cunit._clz._name);
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
+        Field inst = cunit._clz.field(cunit._name);
+        if( inst != null ) // Also the instance type, if a constructor exists
+            Parser.TYPES.put(cunit._cname, ((TypeMem)((TypeFunPtr)inst._t)._ret)._t);
         Parser.resolveType(cunit._clz._name);
     }
 
@@ -245,11 +277,7 @@ public abstract class ParseAll {
             CompUnit local = findCUnitModule(code,cu,symbol);
             if( local != null )
                 return local;
-            // Module search failed, now try external paths as a class symbol
-            CompUnit ext = findCUnitExternal( code, Parser.addClzPrefix(symbol) );
-            if( ext != null )
-               return ext;
-            return null;
+            return findCUnitExternalSimple(code,symbol);
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
         }
@@ -313,26 +341,32 @@ public abstract class ParseAll {
 
 
 
-    // Search external references only.  This should go deep on well known
-    // container classes (tar, zip) and needs check for all the symbols in the
-    // file, not just the file name (which is only checked here).
-    private static CompUnit findCUnitExternal( CodeGen code, String symbol ) {
-        if( symbol.contains( "." ) )
-            throw new RuntimeException("Need to handle nested external symbols");
+    // Search external Simple objects only.  C linkage uses explicit "C"
+    // declarations, which produce ExternNodes and are resolved by the linker.
+    private static CompUnit findCUnitExternalSimple( CodeGen code, String symbol ) {
+        String clzName = symbol.startsWith(Parser.CLZ) ? symbol : Parser.addClzPrefix(symbol);
+        String cname = clzName.substring(Parser.CLZ.length());
+        String fname = cname.replace('.','/');
 
-        // Already found external symbol.  Expect lots of lookups on common symbols
-        // like malloc/stdin/write
-        CompUnit cunit = code._compunits.get(symbol);
+        CompUnit cunit = code._compunits.get(fname);
         if( cunit != null )
             return cunit;
 
-        // For now only look in file names, recursively in directories.
-        // TODO: search tar files, zip files, contents of .obj files.
-        ExternNode ext = code.findExternal(symbol);
-        if( ext == null )
-            return null;             // Failed to find in extern libraries
-        // Add external symbol mapping
-        code._compunits.put( symbol, cunit = new CompUnit(ext,symbol) );
+        ElfReader elf = code.findExternalSimple(clzName);
+        if( elf == null )
+            return null;
+
+        try {
+            cunit = makeCUnit(code,null,fname,elf._file);
+        } catch( IOException ioe ) {
+            throw new RuntimeException(ioe);
+        }
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
+        if( clz == null )
+            Parser.TYPES.put(clzName,clz = TypeStruct.make(clzName,true));
+        cunit._clz = clz;
+        if( WORK.find(cunit) == -1 && NEEDS_LOAD.find(cunit) == -1 )
+            WORK.add(cunit);
         return cunit;
     }
 

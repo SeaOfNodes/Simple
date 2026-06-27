@@ -182,7 +182,7 @@ public class TypeFunPtr extends TypeNil {
     // Replace recursively all TypeBuilders with cyclic TypeStructs
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
         Type[] sig = new Type[_sig.length];
-        TypeFunPtr fun = malloc(_nil,true,sig,null,_fidxs);
+        TypeFunPtr fun = malloc(_nil,_open,sig,null,_fidxs);
         // Now start the recursion
         fun._ret = _ret._upgradeType(TYPES);
         for( int i=0; i<sig.length; i++ )
@@ -219,7 +219,7 @@ public class TypeFunPtr extends TypeNil {
     // Tag 7 - null,close+fidxs+nargs
     @Override int TAGOFF() { return 8; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
-        assert _open;
+        assert _open;           // Open: Passing extra args is fine, and extras ignored.
         if( _nil==2 && nargs()<6 && nfcns() == 1 ) {
             baos.write(TAGOFFS[_type] + nargs());
             baos.packed2(fidx());
@@ -293,6 +293,7 @@ public class TypeFunPtr extends TypeNil {
         if( _sig!=null )
             for( Type t : _sig )
                 sb.p(t==null ? "---" : t.str()).p(" "); // Short form in signature
+        if( !_open ) sb.p("^ ");
         _ret.print(sb.p(html ? "&rarr; " : "-> "),visit,html).p(" #");
         // Print fidxs
         return sb.p(printFIDX()).p("}").p(q());
