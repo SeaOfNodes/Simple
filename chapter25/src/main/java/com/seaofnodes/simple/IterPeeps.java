@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Opto;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -180,12 +181,18 @@ public class IterPeeps {
             for( E n : ary )
                 push(n);
         }
+        public void addAll( E[] es ) {
+            for( E n : es )
+                push(n);
+        }
+
 
         /**
          * True if Node is on the WorkList
          */
         public boolean on( E x ) { return _on.get(x._nid); }
         boolean isEmpty() { return _len==0; }
+        Node[] asAry() { return Arrays.copyOf(_es,_len); }
 
         /**
          * Removes a random Node from the WorkList; null if WorkList is empty
