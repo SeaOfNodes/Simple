@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
@@ -132,21 +133,6 @@ public abstract class ParseAll {
                     code.add(add);
                 return null;
             } );
-
-        //// Really Bad Idea
-        //boolean[] done = new boolean[1];
-        //while( !done[0] ) {
-        //    done[0] = true;
-        //    code._stop.walk( (Node n) -> {
-        //            Type t = n.compute();
-        //            if( !t.isa(n._type) ) {
-        //                n._type = t;
-        //                code.add(n);
-        //                done[0] = false;
-        //            }
-        //            return null;
-        //        } );
-        //}
     }
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
