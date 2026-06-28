@@ -49,7 +49,7 @@ return new s0.v1;
 
 
     static int testCPUSize( String src, String cpu, String os, int spills ) {
-        return testCPU(src,cpu,os,spills, "return 0;" ).compunit()._encoding._bits.size();
+        return testCPU(src,cpu,os,spills, "return 0;" )._encoding._bits.size();
     }
 
     // Should not fold away

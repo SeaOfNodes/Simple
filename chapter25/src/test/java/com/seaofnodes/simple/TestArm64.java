@@ -25,9 +25,9 @@ public class TestArm64 {
         byte[] image = new byte[1<<20]; // A megabyte (1024*1024 bytes)
         EvalArm64 ARM = new EvalArm64(image, 1<<16);
         int start = 0;          // Code at offset 0
-        int cpool = fill(code.compunit()._encoding._bits ,image,start);
-        int sdata = fill(code.compunit()._encoding._cpool,image,cpool);
-        int end   = fill(code.compunit()._encoding._sdata,image,sdata);
+        int cpool = fill(code._encoding._bits ,image,start);
+        int sdata = fill(code._encoding._cpool,image,cpool);
+        int end   = fill(code._encoding._sdata,image,sdata);
 
         // Initial incoming int arg
         ARM.regs[arm.X0] = arg;
@@ -37,7 +37,7 @@ public class TestArm64 {
         if( main!=null )
             for( FunNode fun : code._linker )
                 if( fun != null && !fun.isDead() && fun._compunit == code.compunit() && main.equals(fun._name) )
-                    ARM._pc = code.compunit()._encoding.opStart(fun);
+                    ARM._pc = code._encoding.opStart(fun);
 
         return ARM;
     }

@@ -48,7 +48,7 @@ public class FunNode extends RegionNode {
     @Override public Tag serialTag() { return Tag.Fun; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes ) {
         assert !_folding;
-        baos.packed1(cntSameModuleInputs(anodes)); // Number of linked calls
+        baos.packed1(nIns());          // Number of linked calls
         baos.packed2(types.get(_sig)); // NPE if fails lookup
         baos.packed2(_name==null ? 0 : strs.get(_name));
         baos.packed2(_approxUIDs);

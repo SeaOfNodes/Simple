@@ -107,15 +107,6 @@ public abstract class ParseAll {
         // closed-over types.
         code._stop.walk( (Node n) -> {
                 n.upgradeType(Parser.TYPES);
-                // If function types have sharpened, we need to revisit inline
-                // decisions.
-                if( n instanceof FunNode fun ) {
-                    code.add(n); // Recheck after parse stops making new function calls
-                    // Linked call sites might now inline, need to recheck
-                    for( Node cend : fun.ret().outs() )
-                        if( cend instanceof CallEndNode )
-                            code.add(cend);
-                }
                 if( n instanceof FRefNode fref ) {
                     TypeStruct clz = (TypeStruct)Parser.TYPES.get(fref._name);
                     if( clz == null )
@@ -133,6 +124,10 @@ public abstract class ParseAll {
                     code.add(add);
                 return null;
             } );
+
+        // If we loaded Opto-typed code, skip first Iter
+        if( !NEEDS_LOAD.isEmpty() )
+            code._phase = CodeGen.Phase.Iter;
     }
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
@@ -202,9 +197,9 @@ public abstract class ParseAll {
             elf.loadPublicSymbols();
             for( String fname : elf._deps ) {
                 // Check CompUnit for being up to date
-                CompUnit sub = makeCUnit(code,null,fname,depObj(code,cunit,fname));
+                CompUnit sub = makeCUnit(code,null,fname,null/*depObj(code,cunit,fname)*/);
                 // If not seen before or out of date, parse the new nested cunit
-                if( sub._clz == null )
+                if( sub._clz == null && sub._par == null )
                     WORK.add(sub);
             }
         } catch( IOException ioe ) {
@@ -234,31 +229,29 @@ public abstract class ParseAll {
         // cross-references will pick them up there.
         ElfReader elf = ElfReader.load(cunit._obj,cunit);
         cunit._clz = elf.loadSimple(code);
-        StopCUNode lStop = (StopCUNode)elf._nodes.at(elf._nodes._len-2);
-        StartCUNode lStart = lStop.start();
+        StartNode lstart = (StartNode)elf._nodes.at(0);
+        StopNode  lstop  = ( StopNode)elf._nodes.last();
 
-        // Loaded fidxs have already been remapped into this CodeGen's local
-        // namespace.  Publish the function heads so Opto can resolve escaped
-        // function pointers without scanning the whole loaded graph.
-        for( Node use : lStart._outputs )
-            if( use instanceof FunNode fun )
+        // Add all new loaded functions to the linker table
+        for( Node n : lstop._inputs ) {
+            StopCUNode  stop = (StopCUNode)n;
+            StartCUNode start = stop.start();
+            CompUnit cu = code._compunits.get(start._fname);
+            cu._start = start;
+            cu._stop  = stop ;
+
+            for( Node ret : stop._inputs ) {
+                FunNode fun = ((ReturnNode)ret).fun();
                 code.link(fun);
+            }
+        }
 
-        // The global Stop owns each loaded CompUnit Stop; the global Start
-        // replaces the loaded Start as the single external-world boundary.
-        cunit._start = lStart;
-        cunit._stop  = lStop ;
-        code._stop.addDef(cunit._stop);
-        code.add(code._stop);
-        code.add(lStop);
-        lStart.in(0).subsume(code._start);
-        code.add(code._start);
-
-        // Loaded CompUnits carry post-Opto types.  Keep those strong facts and
-        // let the next global analysis reconcile them with parsed code.
+        // Hook the new code into the existing code graph
+        for( Node lstopcu : lstop._inputs )
+            code._stop.addDef(lstopcu);
+        lstart.subsume(code._start);
 
         // Add the new top-level loaded class
-        // assert !Parser.TYPES.containsKey(cunit._clz._name);
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
         Field inst = cunit._clz.field(cunit._name);
         if( inst != null ) // Also the instance type, if a constructor exists

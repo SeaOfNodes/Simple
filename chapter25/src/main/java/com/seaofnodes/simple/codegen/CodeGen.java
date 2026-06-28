@@ -425,6 +425,7 @@ public class CodeGen {
     }
 
     // ---------------------------
+    public BAOS _serial;
     public void serialize() {
         assert _phase.ordinal() <= Phase.LoopTree.ordinal();
         _phase = Phase.Serialize;
@@ -656,46 +657,34 @@ public class CodeGen {
 
     // ---------------------------
     // Encoding
+    public Encoding _encoding;
     public CodeGen encode() {
         assert _phase == Phase.RegAlloc;
         _phase = Phase.Encoding;
         long t0 = System.currentTimeMillis();
-        for( CompUnit ref : _compunits.values() )
-            if( ref._src != null )
-                (ref._encoding = new Encoding(this)).encode(ref);
+
+        _encoding = new Encoding(this).encode();
+
         _times[Phase.Encoding.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
 
     // ---------------------------
     // Exporting to external formats
+    ElfWriter _elf;
     public CodeGen exportELF( boolean inMemory, boolean main ) {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
         long t0 = System.currentTimeMillis();
-        if( inMemory ) {
-            new LinkMem(this).link(compunit()._encoding); // In memory patching
-        } else {
-            ElfWriter elf = new ElfWriter(this);
-            for( CompUnit cu : _compunits.values() )
-                exportElf(cu,elf,main);
+        if( _encoding!=null ) {
+            if( inMemory )
+                new LinkMem(this).link(_encoding); // In memory patching
+            else
+                _elf = new ElfWriter(this).export(main);
         }
         _times[Phase.Export.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
-
-    private void exportElf(CompUnit cu, ElfWriter elf, boolean main) {
-        // Not being written, or already written out?
-        if( cu._encoding==null || cu._didWrite ) return;
-        cu._didWrite = true;    // Flag as will-be-written
-        // Write dependent obj files before users of it, to force correct time
-        // stamps.
-        if( cu._deps != null )
-            for( CompUnit dep : cu._deps )
-                exportElf(dep,elf,false);
-        elf.export(cu,main);
-    }
-
 
 
     // ---------------------------
@@ -801,8 +790,7 @@ public class CodeGen {
     public boolean _asmLittle=true;
     public String asm() { return asm(new SB()).toString(); }
     SB asm(SB sb) {
-        for( CompUnit ref : _compunits.values() )
-            ASMPrinter.print(sb,this,ref);
+        ASMPrinter.print(sb,this);
         return sb;
     }
 

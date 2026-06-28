@@ -10,39 +10,42 @@ abstract public class Serialize {
 
     static void serialize( CodeGen code ) {
 
-        for( CompUnit ref : code._compunits.values() ) {
-            if( ref._clz==null ) continue; // Not writing this one
-            // Get all Nodes in a sane order
-            Ary<Node> nodes = nodeOrder(code,ref);
+        // Get all Nodes in a sane order
+        Ary<Node> nodes = nodeOrder(code);
 
-            // Array of dependent file names
-            String[] deps = null;
-            if( ref._deps != null && ref._deps._len>0 ) {
-                deps = new String[ref._deps._len];
-                for( int i=0; i<deps.length; i++ )
-                    deps[i] = ref._deps.at(i)._fname;
-            }
-
-            // Compress into bytes
-            BAOS baos = write(nodes, ref._clz, deps, code._aliases, code._fidxs, code._rpcs);
-
-            // --- Expensive bijection assert
-            if( true ) {
-                // Inflate into POJOs; renumbers everything
-                ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
-                readAll(code,elf,ref, code._aliases, code._fidxs, code._rpcs);
-                BAOS baos2 = write(elf._nodes,elf._clz,elf._deps, code._aliases, code._fidxs, code._rpcs);
-
-                // Bi-jection
-                for( int i=0; i<baos.size(); i++ )
-                    assert baos.buf()[i]==baos2.buf()[i] : "bijection mismatch at "+i+": "+(baos.buf()[i]&0xFF)+" != "+(baos2.buf()[i]&0xFF);
-                assert baos.size()==baos2.size() : "bijection size mismatch: "+baos.size()+" != "+baos2.size();
-            }
-            // --- Expensive bijection assert
-
-            // Record serialized IR for later ELF writing
-            ref._serial = baos;
+        // Array of dependent file names
+        HashSet<String> xdeps = new HashSet<>();
+        for( CompUnit cu : code._compunits.values() ) {
+            if( cu._deps != null )
+                for( CompUnit cudep : cu._deps )
+                    xdeps.add(cudep._fname);
         }
+        String[] deps = xdeps.toArray(new String[xdeps.size()]);
+
+        // Top-level clazz being reported
+        String topName = code._srcName == null ? "Test" : code._srcName;
+        CompUnit top = code._compunits.get(topName);
+        TypeStruct clz = top._clz;
+
+        // Compress into bytes
+        BAOS baos = write(nodes, clz, deps, code._aliases, code._fidxs, code._rpcs);
+
+        // --- Expensive bijection assert
+        if( true ) {
+            // Inflate into POJOs; renumbers everything
+            ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
+            readAll(code,elf, code._aliases, code._fidxs, code._rpcs);
+            BAOS baos2 = write(elf._nodes,elf._clz,elf._deps, code._aliases, code._fidxs, code._rpcs);
+
+            // Bi-jection
+            for( int i=0; i<baos.size(); i++ )
+                assert baos.buf()[i]==baos2.buf()[i] : "bijection mismatch at "+i+": "+(baos.buf()[i]&0xFF)+" != "+(baos2.buf()[i]&0xFF);
+            assert baos.size()==baos2.size() : "bijection size mismatch: "+baos.size()+" != "+baos2.size();
+        }
+        // --- Expensive bijection assert
+
+        // Record serialized IR for later ELF writing
+        code._serial = baos;
     }
 
     // --------------------------------------------------
@@ -152,35 +155,12 @@ abstract public class Serialize {
             baos.packed2(types.get(n._type));
             n.packed(baos,strs,types,anodes);
         }
-        // Write out the input indices packed.  Skip cross-module inputs.
-        // Stop has cross-module StopCU inputs.
-        // FunNode has linked cross-module Call inputs, Parm matches Fun
-        // CallEnd has linked cross-module Return inputs.
+        // Write out the input indices packed.
         for( Node n : nodes ) {
-            // Parm inputs must match Fun inputs; Funs skip external callers
-            if( n instanceof ParmNode parm ) {
-                CFGNode r = parm.region();
-                baos.packed2(anodes.get(r)); // Always the FunNode gets emitted
-                for( int j=1; j<n.nIns(); j++ ) {
-                    Integer ii = anodes.get(r.in(j));
-                    if( ii!=null )                            // Fun has input?
-                        baos.packed2(anodes.get(parm.in(j))); // Parm matching inputs
-                }
-
-            } else {            // All the other nodes
-                for( int j=0; j<n.nIns(); j++ ) {
-                    if( n.in(j)==null )
-                        baos.packed2(0);
-                    else {
-                        // If missing from anodes, assume a cross-module input
-                        Integer ii = anodes.get(n.in(j));
-                        if( ii!=null )
-                            baos.packed2(ii);
-                    }
-                }
-                if( n instanceof FunNode fun )
-                    baos.packed2(anodes.get(fun.ret()));
-            }
+            for( int j=0; j<n.nIns(); j++ )
+                baos.packed2( n.in(j)==null ? 0 : anodes.get(n.in(j)) );
+            if( n instanceof FunNode fun )
+                baos.packed2(anodes.get(fun.ret()));
         }
 
         return baos;
@@ -223,7 +203,7 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static void readAll( CodeGen code, ElfReader elf, CompUnit cu, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {
+    static void readAll( CodeGen code, ElfReader elf, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {
         BAOS bais = elf._bais;
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
@@ -273,12 +253,25 @@ abstract public class Serialize {
         int num = bais.packed4();
         // Packed array of nodes
         Ary<Node> nodes = new Ary<>(Node.class);
+        CompUnit cu = null;
         for( int i=0; i<num; i++ ) {
             Node.Tag tag = Node.Tag.VALS[bais.packed1()];
             Type t = types[bais.packed2()];
             Node n = tag.make(bais,strs,types,fileAliases,aliases);
             n._type = t;
             nodes.push(n);
+            // A little extra for FunNodes
+            if( n instanceof StartCUNode startcu ) {
+                cu = code._compunits.get(startcu._fname==null ? (code._srcName==null ? "Test" : code._srcName) : startcu._fname);
+                assert cu != null;
+            }
+            if( n instanceof StopCUNode stopcu ) {
+                cu = null;
+            }
+            if( n instanceof FunNode fun ) {
+                assert cu != null;
+                fun._compunit = cu;
+            }
         }
 
         // Node edges
@@ -299,7 +292,6 @@ abstract public class Serialize {
                 ReturnNode ret = (ReturnNode)nodes.at(bais.packed2()-1);
                 fun.setRet(ret);
                 ret._fun = fun;
-                fun._compunit = cu;
             }
         }
         // Add edge from Start to Stop
@@ -316,21 +308,18 @@ abstract public class Serialize {
         // If loading code instead of parsing, the types will be valid
         // post-parse - e.g. nodes are not "in progress" so Regions and Phis
         // can just do meet-over-inputs, hence the Phase change before asserting
+        boolean good = true;
         CodeGen.Phase phase = code._phase;
         code._phase = CodeGen.Phase.Opto;
         for( Node n : nodes ) {
-            if( (n.compute() != n._type) &&
-                // Skip the final StopNode, which no long has inputs from other
-                // CompUnits so will report a slightly different type.
-                !(n instanceof StopNode) &&
-                // Cross-CompUnit does not precise link, acts as-if will call and return from any old target
-                !(n instanceof CallEndNode) &&
-                // Skip Parm $RPC if we dropped callers from other CU's
-                !(n instanceof ParmNode parm && parm._idx==0) )
-                return false;
+            Type nval = n.compute();
+            if( nval != n._type ) {
+                System.err.println("Node "+n+" read in as "+n._type+" but computes as "+nval);
+                good = false;
+            }
         }
         code._phase = phase;
-        return true;
+        return good;
     }
 
     // --------------------------------------------------
@@ -387,17 +376,29 @@ abstract public class Serialize {
 
         // All the global constants
         for( Node n : code._start._outputs ) {
-            visit.set(n._nid); nodes.add(n);
-            // Special for Cast:BOT
-            for( Node cast : n._outputs )
-                if( cast!=null && cast.nIns()==2 && cast.in(0)==null )
-                    { visit.set(cast._nid); nodes.add(cast); }
+            if( n instanceof ConstantNode ) {
+                visit.set( n._nid );
+                nodes.add( n );
+                // Special for Cast:BOT
+                for( Node cast : n._outputs )
+                    if( cast != null && cast.nIns() == 2 && cast.in( 0 ) == null ) {
+                        visit.set( cast._nid );
+                        nodes.add( cast );
+                    }
+            }
         }
 
-        // All the functions, including internal ones
-        for( FunNode fun : code._linker )
-            if( fun!=null && !fun.isDead() )
-                _funWalk(fun,nodes,visit);
+        // All the CompUnits
+        for( CompUnit cu : code._compunits.values() ) {
+            nodes.add(cu._start);
+            // Memory proj
+            nodes.add(cu._start.proj(1));
+            // All the functions, including internal ones, in comp-unit order
+            for( FunNode fun : code._linker )
+                if( fun!=null && !fun.isDead() && fun._compunit == cu )
+                    _funWalk(fun,nodes,visit);
+            nodes.add(cu._stop);
+        }
 
         nodes.add(code._stop);
         visit.clear();

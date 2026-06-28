@@ -12,9 +12,9 @@ import java.util.HashSet;
 
 public abstract class ASMPrinter {
 
-    public static SB print(SB sb, CodeGen code, CompUnit ref ) {
-        Encoding enc = ref._encoding;
-        if( enc == null ) return sb.p("No encoding for ").p(ref.toString());
+    public static SB print(SB sb, CodeGen code ) {
+        Encoding enc = code._encoding;
+        if( enc == null ) return sb.p("No encoding for ").p(code._srcName);
 
         // instruction address
         int iadr = 0;

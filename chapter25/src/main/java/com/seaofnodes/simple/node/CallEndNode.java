@@ -32,7 +32,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     }
     @Override public Tag serialTag() { return Tag.CallEnd; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
-        baos.packed1(cntSameModuleInputs(anodes));
+        baos.packed1(nIns());
         // Linked CallEnds depend on Return types which depend on CallEnds;
         // break the cycle
         baos.packed2(types.get(_type));

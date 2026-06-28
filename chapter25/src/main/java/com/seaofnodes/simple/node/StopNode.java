@@ -17,11 +17,10 @@ public class StopNode extends CFGNode {
     }
     public StopNode(StopNode stop) { super(stop); }
     @Override public Tag serialTag() { return Tag.Stop; }
-    // A re-inflated StopNode assumes a single StopCUNode because loading 1
-    // module at a time.
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
     static Node make( BAOS bais ) {
         StopNode stop = new StopNode();
-        stop.addDef(null);
+        stop.setDefX(bais.packed1()-1,null);
         return stop;
     }
 

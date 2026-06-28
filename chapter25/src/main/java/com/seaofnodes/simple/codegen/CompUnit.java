@@ -24,16 +24,15 @@ public class CompUnit {
     final File _smp;            // Simple source file, e.g. module_root/A/B/C.smp
     final File _obj;            // ELF output file, e.g. build/A/B/C.o
     final public String _src;   // Source code, from file or test case
-    public Encoding _encoding;  // Encoding for output
+    //public Encoding _encoding;  // Encoding for output
 
     public TypeStruct _clz; // The one TypeStruct being published
-    BAOS _serial;           // Serialized IR for this ELF file
+    //BAOS _serial;           // Serialized IR for this ELF file
     Ary<CompUnit> _deps;    // CompUnits that this CompUnit depends on
-    boolean _didWrite;      // Used to topo-sort a collection of CompUnits to write all at once
 
-    // List of symbols exported by this compilation unit, and their Node
-    // definitions.
-    public HashMap<String,Node> _exported;
+    //// List of symbols exported by this compilation unit, and their Node
+    //// definitions.
+    //public HashMap<String,Node> _exported;
     // Per-Compilation-Unit Start/StopNodes, keeping alive all exported Nodes.
     // Null means no code loaded (yet).
     public StartCUNode _start;
@@ -50,11 +49,12 @@ public class CompUnit {
         _ext  = null;
         _smp  = new File( CODE.  _modDir + "/" + fname + ".smp");
         _obj  = new File( CODE._buildDir + "/" + fname + ".o"  );
-        _src  = !_obj.exists() ||                        // No object file?
-            _smp.lastModified() > _obj.lastModified() || // Out-of-date with source?
-            checkDependentObjs()                         // Out-of-date with other objs?
-            ? new String(Files.readAllBytes(_smp.toPath()))
-            : null;
+
+        boolean mustCompile = _smp.exists() && // Has source to compile
+            ( !_obj.exists() ||                // No object file
+              _smp.lastModified() > _obj.lastModified() || // Out-of-date with source?
+              checkDependentObjs() );                      // Out-of-date with other objs?
+        _src  = mustCompile ? new String(Files.readAllBytes(_smp.toPath())) : null;
     }
 
     // Test case.  No source file.  Source code passed in as a String.  Fake
@@ -121,7 +121,7 @@ public class CompUnit {
 
     void setStart(CodeGen code) {
         _stop  = new  StopCUNode().init();
-        _start = new StartCUNode(code._start,_stop, Type.BOTTOM).init();
+        _start = new StartCUNode(code._start,_stop, Type.BOTTOM, _fname).init();
         code._stop.addDef(_stop);
     }
 

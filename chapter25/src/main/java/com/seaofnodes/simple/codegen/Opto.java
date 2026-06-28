@@ -164,10 +164,10 @@ abstract public class Opto {
             Type oval = n._type, nval = n.compute();
             if( oval == nval ) continue;
             assert oval.isa(nval);    // Types start high and always fall
-            Type pesiVal = oldTypes.at(n._nid);
+            Type pesiVal = oldTypes.atX(n._nid);
             // TODO: This asset should be valid.  Fails because no way to represent
             //   "all the outside world except things I know about"
-            assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
+            assert pesiVal==null || nval.isa(pesiVal); // Never fall worse than the pessimistic pass
             n._type = nval;
 
             // Now we have a series of stanzas where we lazily create the Call

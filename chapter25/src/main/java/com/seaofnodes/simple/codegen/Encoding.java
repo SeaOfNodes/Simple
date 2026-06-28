@@ -177,13 +177,13 @@ public class Encoding {
     }
 
     // --------------------------------------------------
-    void encode( CompUnit ref ) {
+    Encoding encode( ) {
         // Basic block layout: negate branches to keep blocks in-order; insert
         // unconditional jumps.  Attempt to keep backwards branches taken,
         // forwards not-taken (this is the default prediction on most
         // hardware).  Layout is still Reverse Post Order but with more
         // restrictions.
-        basicBlockLayout( ref );
+        basicBlockLayout( );
 
         // Write encoding bits in order into a big byte array.
         // Record opcode start and length.
@@ -200,6 +200,8 @@ public class Encoding {
 
         // Patch RIP-relative and local encodings now.
         patchLocalRelocations();
+
+        return this;
     }
 
     // --------------------------------------------------
@@ -207,7 +209,7 @@ public class Encoding {
     // unconditional jumps.  Attempt to keep backwards branches taken, forwards
     // not-taken (this is the default prediction on most hardware).  Layout is
     // still Reverse Post Order but with more restrictions.
-    private void basicBlockLayout( CompUnit cu ) {
+    private void basicBlockLayout( ) {
         IdentityHashMap<LoopNode,Ary<CFGNode>> rpos = new IdentityHashMap<>();
         _cfg = new Ary<>(CFGNode.class);
         rpos.put(_code._start.loop(),_cfg);
@@ -216,7 +218,7 @@ public class Encoding {
         // Do them all except the <clinit>
         FunNode clinit=null;
         for( FunNode fun : _code._linker ) {
-            if( fun != null && !fun.isDead() && fun._compunit == cu ) {
+            if( fun != null && !fun.isDead() ) {
                 if( fun.isClz() ) {
                     clinit = fun;
                 } else {

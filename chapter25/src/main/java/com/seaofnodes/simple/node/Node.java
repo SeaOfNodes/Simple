@@ -110,7 +110,6 @@ public abstract class Node implements Cloneable {
             case Shl    -> new   ShlNode(null,null,null);
             case Shr    -> new   ShrNode(null,null,null);
             case Start  -> new StartNode(null,null,TypeInteger.BOT);
-            case StartCU-> new StartCUNode(null,null,Type.BOTTOM);
             case Sub    -> new   SubNode(null,null);
             case SubF   -> new  SubFNode(null,null);
             case ToFloat-> new ToFloatNode(null);
@@ -142,6 +141,7 @@ public abstract class Node implements Cloneable {
             case Proj  ->      ProjNode.make(bais,strs);
             case Store ->      new StoreNode(bais,strs,types,fileAliases,aliases);
             case Stop ->       StopNode.make(bais);
+            case StartCU->  StartCUNode.make(bais,strs,types);
             case StopCU ->   StopCUNode.make(bais);
             case Struct->    StructNode.make(bais,     types);
             case Region->    RegionNode.make(bais);
@@ -830,14 +830,6 @@ public abstract class Node implements Cloneable {
             CODE.addAll(_outputs);
             if( _deps!=null ) CODE.addAll(_deps);
         }
-    }
-
-    public int cntSameModuleInputs( IdentityHashMap<Node,Integer> anodes ) {
-        int nins = 0;
-        for( Node n : _inputs )
-            if( n==null || anodes.containsKey(n) )
-                nins++;
-        return nins;
     }
 
     /**

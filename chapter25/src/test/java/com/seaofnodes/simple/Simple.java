@@ -209,12 +209,8 @@ Options:
         if( do_codegen && print_asm )
             System.out.println(code.asm());
 
-        if( print_size ) {
-            int sum = 0;
-            for( CompUnit cu : code._compunits.values() )
-                sum += cu._encoding._bits.size();
-            System.out.printf( "Code Size: %d%n", sum);
-        }
+        if( print_size )
+            System.out.printf( "Code Size: %d%n", code._encoding._bits.size());
 
         if( print_time )
             print_compilation_times(code);

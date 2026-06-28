@@ -26,9 +26,9 @@ public abstract class TestRisc5 {
         byte[] image = new byte[1<<20]; // A megabyte (1024*1024 bytes)
         EvalRisc5 R5 = new EvalRisc5(image, 1<<16);
         int start = 0;          // Code at offset 0
-        int cpool = fill(code.compunit()._encoding._bits ,image,start);
-        int sdata = fill(code.compunit()._encoding._cpool,image,cpool);
-        int end   = fill(code.compunit()._encoding._sdata,image,sdata);
+        int cpool = fill(code._encoding._bits ,image,start);
+        int sdata = fill(code._encoding._cpool,image,cpool);
+        int end   = fill(code._encoding._sdata,image,sdata);
 
         // Initial incoming int arg
         R5.regs[riscv.A0] = arg;
@@ -38,7 +38,7 @@ public abstract class TestRisc5 {
         if( main!=null )
             for( FunNode fun : code._linker )
                 if( fun != null && !fun.isDead() && fun._compunit == code.compunit() && main.equals(fun._name) )
-                    R5._pc = code.compunit()._encoding.opStart(fun);
+                    R5._pc = code._encoding.opStart(fun);
 
         return R5;
     }
