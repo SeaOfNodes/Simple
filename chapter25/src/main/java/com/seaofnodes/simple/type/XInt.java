@@ -211,11 +211,27 @@ public abstract class XInt {
     // for( int bit = XInt.next(bits,0); bit >=0; bit = XInt.next(bits,bit) ) {...bit...}
     public static int next(int[] xs, int x) {
         assert !isHigh(xs);     // No iterating infinite bitsets
+        return nextFinite(xs,x);
+    }
+
+    public static int nextFinite(int[] xs, int x) {
         x++;                    // Skip current
-        for( ; !bit(xs,x); x++ )
-            if( idx(x)>=xs.length )
+        int len = isHigh(xs) ? xs.length-1 : xs.length;
+        for( ; ; x++ ) {
+            int idx = idx(x);
+            if( idx>=len )
                 return -1;
-        return x;
+            if( (xs[idx] & mask(x))!=0 )
+                return x;
+        }
+    }
+
+    public static int[] high(int[] xs) {
+        if( isHigh(xs) ) return xs;
+        int[] ys = free(xs.length+1);
+        System.arraycopy(xs,1,ys,1,xs.length-1);
+        ys[ys.length-1] = -1;
+        return intern(ys);
     }
 
     // Remap all bits

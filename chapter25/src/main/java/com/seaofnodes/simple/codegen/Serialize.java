@@ -24,14 +24,14 @@ abstract public class Serialize {
             }
 
             // Compress into bytes
-            BAOS baos = write(nodes, ref._clz, deps, code._aliases, code._fidxs, code._rpcs);
+            BAOS baos = write(nodes, ref, deps, code._aliases, code._fidxs, code._rpcs);
 
             // --- Expensive bijection assert
             if( true ) {
                 // Inflate into POJOs; renumbers everything
                 ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
                 readAll(code,elf,ref, code._aliases, code._fidxs, code._rpcs);
-                BAOS baos2 = write(elf._nodes,elf._clz,elf._deps, code._aliases, code._fidxs, code._rpcs);
+                BAOS baos2 = write(elf._nodes,elf._clz,ref._cname,elf._deps, code._aliases, code._fidxs, code._rpcs);
 
                 // Bi-jection
                 for( int i=0; i<baos.size(); i++ )
@@ -46,7 +46,11 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static BAOS write(Ary<Node> nodes, TypeStruct clz, String[] depobjs, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs) {
+    static BAOS write(Ary<Node> nodes, CompUnit cu, String[] depobjs, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs) {
+        return write(nodes,cu._clz,cu._cname,depobjs,aliases,fidxs,rpcs);
+    }
+
+    static BAOS write(Ary<Node> nodes, TypeStruct clz, String cname, String[] depobjs, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs) {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -77,6 +81,69 @@ abstract public class Serialize {
         for( Type t : types.keySet() )
             atypes[types.get(t)] = t;
 
+        GlobalBits fileAliases = new GlobalBits();
+        GlobalBits fileFidxs   = new GlobalBits();
+        GlobalBits fileRpcs    = new GlobalBits();
+        TypeLocalizer localizer = new TypeLocalizer(cname,aliases,fileAliases,fidxs,fileFidxs,rpcs,fileRpcs);
+        Type[] latypes = localizer.localize(atypes);
+        TypeStruct lclz = (TypeStruct)latypes[types.get(clz)];
+        Ary<Undo> undos = new Ary<>(Undo.class);
+        localizeNodes(undos,nodes,cname,aliases,fileAliases);
+        baos = writeLocalized(nodes,lclz,depobjs,types,atypes,latypes,fileAliases,fileFidxs,fileRpcs);
+        undo(undos);
+
+        return baos;
+    }
+    public static <T> void gather( HashMap<T,Integer> strs, T s) {
+        if( s!=null && !strs.containsKey(s) )
+            strs.put(s,strs.size());
+    }
+    public static void gather( AryInt is, int s) {
+        if( is.atX(s)==0 ) {
+            int cnt=0;
+            for( int i=1; i<is._len; i++ )
+                if( is._es[i] != 0 )
+                    cnt++;
+            is.setX(s,cnt+1);
+        }
+    }
+
+    private interface Undo { void undo(); }
+
+    private static void undo(Ary<Undo> undos) {
+        for( int i=undos._len-1; i>=0; i-- )
+            undos.at(i).undo();
+    }
+
+    private static int localInt(int x, String cname, GlobalBits globals, GlobalBits locals) {
+        return x < GlobalBits.RESERVED ? x : (globals.hasLocal(x) ? locals.local(globals,x) : x);
+    }
+
+    private static void localizeNodes(Ary<Undo> undos, Ary<Node> nodes, String cname, GlobalBits aliases, GlobalBits fileAliases) {
+        for( Node n : nodes )
+            if( n instanceof MemOpNode mop ) {
+                int old = mop._alias;
+                int alias = localInt(old,cname,aliases,fileAliases);
+                if( alias != old ) {
+                    undos.push(() -> mop._alias = old);
+                    mop._alias = alias;
+                }
+            }
+    }
+
+    private static BAOS writeLocalized(Ary<Node> nodes, TypeStruct clz, String[] depobjs,
+                                       HashMap<Type,Integer> types, Type[] atypes, Type[] latypes,
+                                       GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs) {
+        types.clear();
+        for( int i=0; i<atypes.length; i++ ) {
+            types.put(atypes[i],i);
+            types.put(latypes[i],i);
+        }
+
+        BAOS baos = new BAOS();
+        // A - Print a header
+        baos.write('C').write('0').write('D').write('E');
+
         // Count all unique Strings
         var strs = new HashMap<String,Integer>();
         strs.put("",0);         // Null string is always 0
@@ -87,7 +154,7 @@ abstract public class Serialize {
             for( String fname : depobjs )
                 gather(strs,fname);
         // Count strings from all types
-        for( Type t : atypes ) {
+        for( Type t : latypes ) {
             if( t instanceof Field fld     ) gather(strs,fld._fname);
             if( t instanceof TypeStruct ts ) gather(strs,ts . _name);
         }
@@ -104,11 +171,10 @@ abstract public class Serialize {
             astrs[strs.get(s)] = s;
 
         // Check that published strings and types align
-        assert astrs[1] == ((TypeStruct)atypes[1])._name;
+        assert astrs[1] == ((TypeStruct)latypes[1])._name;
         if( depobjs != null )
             for( int i=0; i<depobjs.length; i++ )
                 assert astrs[1+i+1] == depobjs[i];
-
 
         // B - Write unique strings
         baos.packed4(depobjs==null ? 0 : depobjs.length);
@@ -123,17 +189,16 @@ abstract public class Serialize {
         rpcs   .packed(baos,strs);
 
         // C - Write unique Types
-        baos.packed4(atypes.length);
+        baos.packed4(latypes.length);
         // Write Types in ID# order, no children
-        for( Type t : atypes )
+        for( Type t : latypes )
             t.packed(baos,strs);
         // Write Types in ID# order, only child IDs
-        for( Type t : atypes ) {
+        for( Type t : latypes ) {
             int nkids = t.nkids();
             for( int i=0; i<nkids; i++ )
                 baos.packed4(types.get(t.at(i)));
         }
-
 
         // D - Write the nodes.  Since this is expected to be the bulk of the
         // data, we might want to explore various options.
@@ -182,21 +247,7 @@ abstract public class Serialize {
                     baos.packed2(anodes.get(fun.ret()));
             }
         }
-
         return baos;
-    }
-    public static <T> void gather( HashMap<T,Integer> strs, T s) {
-        if( s!=null && !strs.containsKey(s) )
-            strs.put(s,strs.size());
-    }
-    public static void gather( AryInt is, int s) {
-        if( is.atX(s)==0 ) {
-            int cnt=0;
-            for( int i=1; i<is._len; i++ )
-                if( is._es[i] != 0 )
-                    cnt++;
-            is.setX(s,cnt+1);
-        }
     }
 
     // Returned array of *public* strings only.
@@ -318,18 +369,22 @@ abstract public class Serialize {
         // can just do meet-over-inputs, hence the Phase change before asserting
         CodeGen.Phase phase = code._phase;
         code._phase = CodeGen.Phase.Opto;
-        for( Node n : nodes ) {
-            if( (n.compute() != n._type) &&
-                // Skip the final StopNode, which no long has inputs from other
-                // CompUnits so will report a slightly different type.
-                !(n instanceof StopNode) &&
-                // Cross-CompUnit does not precise link, acts as-if will call and return from any old target
-                !(n instanceof CallEndNode) &&
-                // Skip Parm $RPC if we dropped callers from other CU's
-                !(n instanceof ParmNode parm && parm._idx==0) )
-                return false;
+        try {
+            for( Node n : nodes ) {
+                Type compute = n.compute();
+                if( (compute != n._type) &&
+                    // Skip the final StopNode, which no long has inputs from other
+                    // CompUnits so will report a slightly different type.
+                    !(n instanceof StopNode) &&
+                    // Cross-CompUnit does not precise link, acts as-if will call and return from any old target
+                    !(n instanceof CallEndNode) &&
+                    // Skip Parm $RPC if we dropped callers from other CU's
+                    !(n instanceof ParmNode parm && parm._idx==0) )
+                    throw new AssertionError("Serialize.check "+n.label()+" compute="+compute+" type="+n._type);
+            }
+        } finally {
+            code._phase = phase;
         }
-        code._phase = phase;
         return true;
     }
 

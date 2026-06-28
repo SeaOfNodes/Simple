@@ -13,6 +13,7 @@ public class TypeTuple extends Type {
     private static TypeTuple malloc(Type[] types) {
         return FREE.isEmpty() ? new TypeTuple(types) : FREE.pop().init(types);
     }
+    static TypeTuple raw(Type[] types) { return malloc(types); }
     // All fields directly listed
     public static TypeTuple make(Type... types) {
         TypeTuple tt = malloc(types);

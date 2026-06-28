@@ -113,6 +113,18 @@ public class GlobalBits {
         return findOrNext(fileBits._local2Clz.at(fileLocal), fileBits._local2Order.at(fileLocal));
     }
 
+    public boolean isLocal( int local, String clz ) {
+        return local < RESERVED || (local < _local2Clz.size() && Objects.equals(_local2Clz.at(local),clz));
+    }
+
+    public boolean hasLocal( int local ) {
+        return local < _local2Clz.size();
+    }
+
+    public int local( GlobalBits bits, int local ) {
+        return findOrNext(bits._local2Clz.at(local),bits._local2Order.at(local));
+    }
+
     // Map a global {clz,order} to a local one; keep any existing mapping or
     // make a new one as needed.
     private int findOrNext(String clz, int order ) {

@@ -35,6 +35,7 @@ public class TypeStruct extends Type {
     private static TypeStruct malloc(String name, boolean open, Field[] fields) {
         return (FREE.isEmpty() ? new TypeStruct() : FREE.pop()).init(name,open,fields);
     }
+    static TypeStruct raw(String name, boolean open, Field[] fields) { return malloc(name,open,fields); }
     // Free ts; return this.
     @Override TypeStruct free(Type t) {
         TypeStruct ts = (TypeStruct)t;

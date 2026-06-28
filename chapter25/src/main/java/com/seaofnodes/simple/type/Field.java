@@ -39,6 +39,7 @@ public class Field extends Type {
     }
     // Malloc-from
     public Field malloc( ) { return malloc(_fname,null,_alias,_final); }
+    static Field raw(String fname, Type type, int alias, boolean xfinal ) { return malloc(fname,type,alias,xfinal); }
     @Override Field free(Type t) {
         Field f = (Field)t;
         assert !f.isFree() && !f._terned;

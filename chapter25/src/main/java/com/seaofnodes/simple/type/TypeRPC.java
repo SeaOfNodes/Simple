@@ -19,6 +19,7 @@ public class TypeRPC extends Type {
     private static TypeRPC malloc(int[] rpcs) {
         return (FREE.isEmpty() ? new TypeRPC() : FREE.pop()).init(rpcs);
     }
+    static TypeRPC raw(int[] rpcs) { return malloc(rpcs); }
     private static TypeRPC make(int[] rpcs) {
         TypeRPC rpc = malloc(rpcs);
         TypeRPC t2 = rpc.intern();
@@ -80,7 +81,6 @@ public class TypeRPC extends Type {
             baos.write(TAGOFFS[_type] + 1);
             baos.packed2(rpc());
         } else {                // Generic
-            assert !XInt.isHigh(_rpcs); // Not serializing above-center RPC
             baos.write(TAGOFFS[_type] + 2);
             XInt.packed(baos,_rpcs);
         }

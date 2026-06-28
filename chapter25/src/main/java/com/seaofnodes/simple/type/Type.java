@@ -187,6 +187,7 @@ public class Type /*implements Cloneable*/ {
         for( Type t : INTERN.keySet() ) {
             Type t2 = INTERN.get(t);
             assert t==t2;
+            assert t._dual==null || t._dual._dual==t;
         }
         return true;
     }
@@ -621,11 +622,10 @@ public class Type /*implements Cloneable*/ {
     private static int[] remapBits(GlobalBits fileBits, GlobalBits bits, int[] fileLocals, int firstMapped ) {
         if( fileLocals == XInt.EMPTY || fileLocals == XInt.FULL )
             return fileLocals;
-        assert !XInt.isHigh(fileLocals);
         int[] locals = XInt.EMPTY;
-        for( int fileLocal = XInt.next(fileLocals,-1); fileLocal >=0; fileLocal = XInt.next(fileLocals,fileLocal) )
-            locals = XInt.make(locals,fileLocal < firstMapped ? fileLocal : bits.map(fileBits,fileLocal));
-        return locals;
+        for( int fileLocal = XInt.nextFinite(fileLocals,-1); fileLocal >=0; fileLocal = XInt.nextFinite(fileLocals,fileLocal) )
+            locals = XInt.make(locals,fileLocal < firstMapped || !fileBits.hasLocal(fileLocal) ? fileLocal : bits.map(fileBits,fileLocal));
+        return XInt.isHigh(fileLocals) ? XInt.high(locals) : locals;
     }
 
 
