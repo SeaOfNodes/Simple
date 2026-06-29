@@ -113,7 +113,10 @@ public class FunNode extends RegionNode {
     }
 
     public void setName( String name ) {
-        if( _name==null ) _name=name;
+        if( _name==null )
+            _name = _compunit==null || _compunit._cname==null || _compunit._cname.indexOf('.')==-1
+                ? name
+                : (_compunit._cname+"."+name).intern();
     }
 
     @Override
