@@ -529,6 +529,9 @@ public class TypeStruct extends Type {
 
 
     public boolean isAry() { return find("[]")!=-1; }
+    public boolean isConAry() {
+        return isAry() && _fields[1]._t instanceof TypeConAry;
+    }
 
     public int aryBase() {
         assert isAry();

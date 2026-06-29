@@ -1281,7 +1281,9 @@ public class Parser {
         String tname = ("[]"+t.str()).intern();
         TypeStruct ta = (TypeStruct)TYPES.get(tname);
         if( ta==null ) {
-            ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.alias(_ref._cname),t,_code.alias(_ref._cname), false );
+            // Primitive arrays use the null compunit
+            String rcname = TYPES.get(t) instanceof TypeStruct ? _ref._cname : ("_."+t).intern();
+            ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.alias(rcname),t,_code.alias(rcname), false );
             TYPES.put(tname,ta);
         }
         if( !efinal ) return ta;

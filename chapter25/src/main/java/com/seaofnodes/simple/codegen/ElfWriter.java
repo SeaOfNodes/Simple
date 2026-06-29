@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.Utils;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -270,7 +270,6 @@ public class ElfWriter {
         // Constant pool
         DataSection rodata = new DataSection(".rodata", Section.SHT_PROGBITS, enc._cpool, DataSection.SHF_ALLOC );
         // Static/global pool
-        if( enc._sdata.size() > 0 ) throw Utils.TODO();
         DataSection rwdata = new DataSection(".data"  , Section.SHT_PROGBITS, enc._sdata, DataSection.SHF_ALLOC | DataSection.SHF_WRITE );
 
 
@@ -292,7 +291,9 @@ public class ElfWriter {
 
         // Write relocations for the constant pool
         for( Encoding.Relo relo : enc._bigCons.values() ) {
-            int symidx = symbols.symbol("CPOOL$"+symbols.gidx(), rodata._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, relo._target, relo._t.size());
+            boolean ro = !(relo._t instanceof TypeStruct ts) || ts.isConstant();
+            DataSection data = ro ? rodata : rwdata;
+            int symidx = symbols.symbol("CPOOL$"+symbols.gidx(), data._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, relo._target, relo._t.size());
             relocations.writeReloOffPlus(relo._opStart+relo._off, symidx, relo._elf );
         }
 

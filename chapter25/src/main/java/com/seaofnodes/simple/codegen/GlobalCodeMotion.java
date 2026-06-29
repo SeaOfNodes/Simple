@@ -49,7 +49,7 @@ public abstract class GlobalCodeMotion {
         // For all global constants
         for( int i=0; i< start.nOuts(); i++ ) {
             Node con = start.out(i);
-            if( con instanceof ConstantNode conx && conx._type.isConstant() ) {
+            if( con instanceof ConstantNode conx && conx._type.isHighOrConst() ) {
                 breakUpGlobalConstantSingle( con);
                 i--;        // Removed a global constant, re-run same index
             }

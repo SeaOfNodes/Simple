@@ -480,7 +480,7 @@ public abstract class Eval2 {
             Object[] xs = (Object[])x; // Array of fields
             if( tmp._obj.isAry() ) {
                 Type elem = tmp._obj._fields[1]._t;
-                if( elem == TypeInteger.U8 ) {
+                if( elem.isa(TypeInteger.U8) ) {
                     // Shortcut u8[] as a String
                     for( Object o : xs )
                         sb.p((char)(long)(Long)o);

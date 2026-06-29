@@ -27,19 +27,23 @@ public class TypeMemPtr extends TypeNil {
     // (TOP   ,true ) - a nil
 
     public TypeStruct _obj;
-    public boolean _one;  // Singleton instance
+    public boolean _one;      // Singleton instance, a constant pointer value
+    public boolean _private;  // Unescaped allocation-local pointer
 
     private static final Ary<TypeMemPtr> FREE = new Ary<>(TypeMemPtr.class);
-    private TypeMemPtr(byte nil, TypeStruct obj, boolean one) { super(TMEMPTR,nil); init(nil,obj,one); }
-    private TypeMemPtr init(byte nil, TypeStruct obj, boolean one) { _nil=nil; _obj=obj; _one=one; return this; }
+    private TypeMemPtr(byte nil, TypeStruct obj, boolean one, boolean xprivate) { super(TMEMPTR,nil); init(nil,obj,one,xprivate); }
+    private TypeMemPtr init(byte nil, TypeStruct obj, boolean one, boolean xprivate) { _nil=nil; _obj=obj; _one=one; _private=xprivate; return this; }
     // Return a filled-in TypeMemPtr; either from free list or alloc new.
-    static TypeMemPtr malloc(byte nil, TypeStruct obj, boolean one) {
-        return FREE.isEmpty() ? new TypeMemPtr(nil,obj,one) : FREE.pop().init(nil,obj,one);
+    static TypeMemPtr malloc(byte nil, TypeStruct obj, boolean one, boolean xprivate) {
+        return FREE.isEmpty() ? new TypeMemPtr(nil,obj,one,xprivate) : FREE.pop().init(nil,obj,one,xprivate);
     }
 
     // All fields directly listed
     public static TypeMemPtr make(byte nil, TypeStruct obj, boolean one) {
-        TypeMemPtr tmp = malloc(nil, obj, one);
+        return make(nil,obj,one,false);
+    }
+    public static TypeMemPtr make(byte nil, TypeStruct obj, boolean one, boolean xprivate) {
+        TypeMemPtr tmp = malloc(nil, obj, one, xprivate);
         TypeMemPtr t2 = tmp.intern();
         if( t2==tmp ) return tmp;
         return VISIT.isEmpty() ? t2.free(tmp) : t2.delayFree(tmp);
@@ -48,6 +52,8 @@ public class TypeMemPtr extends TypeNil {
         TypeMemPtr tmp = (TypeMemPtr)t;
         tmp._nil  = -99;
         tmp._obj  = null;
+        tmp._one  = false;
+        tmp._private = false;
         tmp._dual = null;
         tmp._hash = 0;
         FREE.push(tmp);
@@ -58,10 +64,11 @@ public class TypeMemPtr extends TypeNil {
     static TypeMemPtr make(byte nil, TypeStruct obj) { return make(nil, obj, false); }
     public static TypeMemPtr make        (TypeStruct obj) { return make((byte)2, obj); }
     public static TypeMemPtr makeNullable(TypeStruct obj) { return make((byte)3, obj); }
+    public static TypeMemPtr makePrivate (TypeStruct obj) { return make((byte)2, obj, false, true); }
 
-    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one); }
+    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one, _private); }
     public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
-    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one); }
+    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one, _private); }
     public TypeMemPtr makeHigh(byte nil) { return make(nil,_obj.makeHigh(),false); }
 
     // An abstract pointer, pointing to either a Struct or an Array.
@@ -77,16 +84,19 @@ public class TypeMemPtr extends TypeNil {
     public TypeNil xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
         assert !isFree() && !that.isFree();
-        return make(xmeet0(that), (TypeStruct)_obj.meet(that._obj), _one & that._one);
+        // Can't keep the _one if mixing 2 unequal singletons; the result is
+        // not either singleton.
+        boolean one = _one && that._one && (_obj==that._obj || !(_obj.isConAry() || that._obj.isConAry()));
+        return make(xmeet0(that), (TypeStruct)_obj.meet(that._obj), one, _private & that._private);
     }
 
     @Override
-    TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), !_one); }
+    TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), !_one, !_private); }
 
     @Override TypeMemPtr rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        TypeMemPtr d = malloc(dual0(), null, !_one);
+        TypeMemPtr d = malloc(dual0(), null, !_one, !_private);
         (_dual = d)._dual = this; // Cross link duals
         d._obj = _obj._terned ? _obj.dual() : _obj.rdual();
         return d;
@@ -95,12 +105,12 @@ public class TypeMemPtr extends TypeNil {
     // RHS is NIL; do not deep-dual when crossing the center line
     @Override Type meet0() { return _nil==3 ? this : make((byte)3,_obj); }
 
-    @Override boolean _isConstant() { return _one && _obj._isConstant(); }
+    @Override boolean _isConstant() { return _one; }
     @Override boolean _isFinal() { return _obj._isFinal(); }
     @Override TypeMemPtr _makeRO() { return makeFrom(_obj._makeRO()); }
     @Override boolean _isGLB(boolean mem) { return _obj._isGLB(true); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
-    @Override TypeMemPtr _close( String name, HashMap<String, Type> TYPES ) { return malloc(_nil,_obj._close(name, TYPES ),_one); }
+    @Override TypeMemPtr _close( String name, HashMap<String, Type> TYPES ) { return malloc(_nil,_obj._close(name, TYPES ),_one,_private); }
 
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
         return makeFrom((TypeStruct)_obj._upgradeType(TYPES));
@@ -108,32 +118,33 @@ public class TypeMemPtr extends TypeNil {
 
     @Override public int log_size() { return 3; } // (1<<3)==8-byte pointers
 
-    @Override int hash() { return _obj.hashCode() ^ super.hash() ^ (_one ? 2048 : 0); }
+    @Override int hash() { return _obj.hashCode() ^ super.hash() ^ (_one ? 2048 : 0) ^ (_private ? 4096 : 0); }
 
     @Override boolean eq(Type t) {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return super.eq(ptr) && _one == ptr._one && _obj == ptr._obj;
+        return super.eq(ptr) && _one == ptr._one && _private == ptr._private && _obj == ptr._obj;
     }
     @Override boolean cycle_eq(Type t) {
         if( t._type != TMEMPTR ) return false;
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return super.eq(ptr) && _one == ptr._one && _obj.cycle_eq(ptr._obj);
+        return super.eq(ptr) && _one == ptr._one && _private == ptr._private && _obj.cycle_eq(ptr._obj);
     }
 
     @Override public int nkids() { return 1; }
     @Override public Type at( int idx ) { return _obj; }
     @Override public void set( int idx, Type t ) { _obj = (TypeStruct)t; }
 
-    // Reserve tags for null/not and one/general
-    @Override int TAGOFF() { return 4; }
+    // Reserve tags for null/not, one/general and private/general
+    @Override int TAGOFF() { return 8; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         assert _nil>=2;
         baos.write(TAGOFFS[_type]
                    + (_nil==2 ? 0 : 1)
-                   + (!_one   ? 0 : 2) );
+                   + (!_one   ? 0 : 2)
+                   + (!_private ? 0 : 4) );
     }
     static TypeMemPtr packed( int tag, BAOS bais ) {
-        return malloc((byte)((tag&1)+2),null,(tag&2)==2);
+        return malloc((byte)((tag&1)+2),null,(tag&2)==2,(tag&4)==4);
     }
 
     @Override public String str() {

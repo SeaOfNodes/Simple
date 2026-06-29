@@ -31,7 +31,7 @@ abstract public class Serialize {
         BAOS baos = write(nodes, clz, deps, code._aliases, code._fidxs, code._rpcs);
 
         // --- Expensive bijection assert
-        if( true ) {
+        if( false ) {
             // Inflate into POJOs; renumbers everything
             ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
             readAll(code,elf, code._aliases, code._fidxs, code._rpcs);

@@ -445,7 +445,7 @@ abstract public class IFG {
     private static int pickRiskyScore( LRG lrg ) {
         // Pick single-def clonables that are not right next to their single-use.
         // Failing to color these will clone them closer to their uses.
-        if( !lrg._multiDef && lrg._machDef.isClone() ) {
+        if( !lrg._multiDef && lrg._machDef.isClone() && lrg._machUse != null ) {
             Node def = ((Node)lrg._machDef);
             Node use = ((Node)lrg._machUse);
             CFGNode cfg = def.cfg0();

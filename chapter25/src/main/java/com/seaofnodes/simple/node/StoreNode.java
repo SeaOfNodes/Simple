@@ -74,7 +74,7 @@ public class StoreNode extends MemOpNode {
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
         // which is never does in a constructor.
-        if( !_name.equals("[]") && (mem._one || ptr._one) )
+        if( !_name.equals("[]") && (mem._one || ptr._private || (ptr._one && _loc==null)) )
             // Just track the stored value
             return TypeMem.make(_alias,val,true,_init,null,null).escapesFrom(val);
 

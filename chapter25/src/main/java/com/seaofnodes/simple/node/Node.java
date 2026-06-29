@@ -500,7 +500,7 @@ public abstract class Node implements Cloneable {
         // node.  If peeps are disabled, still allow high Phis to collapse;
         // they typically come from dead Regions, and we want the Region to
         // collapse, which requires the Phis to die first.
-        if( !isConst() && _type.isHighOrConst() )
+        if( !isConst() && !(this instanceof ParmNode parm && parm.inProgress()) && _type.isHighOrConst() )
             return ConstantNode.make(_type).peephole();
 
         // Global Value Numbering

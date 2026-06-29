@@ -89,8 +89,8 @@ flt farg = arg; return _test_sqrt_noInline(farg) + _test_sqrt_noInline(farg+2.0)
     public void testAlloc2() {
         String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
         testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
-        testCPU(src,"riscv"    , "SystemV", 9,"return .[];");
-        testCPU(src,"arm"      , "SystemV", 9,"return .[];");
+        testCPU(src,"riscv"    , "SystemV", 6,"return .[];");
+        testCPU(src,"arm"      , "SystemV", 6,"return .[];");
     }
 
 
@@ -109,8 +109,8 @@ for( int i=0; i<ary#-1; i++ )
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
         testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
-        testCPU(src,"riscv"    , "SystemV", 8,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
     }
 
 
@@ -156,9 +156,9 @@ val _hashCodeString = { String self ->
     @Test
     public void testCast() {
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
-        testCPU(src,"x86_64_v2", "SystemV",4,null);
-        testCPU(src,"riscv"    , "SystemV",6,null);
-        testCPU(src,"arm"      , "SystemV",6,null);
+        testCPU(src,"x86_64_v2", "SystemV",1,null);
+        testCPU(src,"riscv"    , "SystemV",3,null);
+        testCPU(src,"arm"      , "SystemV",3,null);
     }
 
     @Test
@@ -177,8 +177,8 @@ if (_b1) return 2;
 return 0;
 """;
         testCPU(src,"x86_64_v2", "SystemV",0,"return Phi(Region,2,0,1);");
-        testCPU(src,"riscv"    , "SystemV",0,"return mov(Phi(Region,2,0,1));");
-        testCPU(src,"arm"      , "SystemV",0,"return mov(Phi(Region,2,0,1));");
+        testCPU(src,"riscv"    , "SystemV",0,"return Phi(Region,2,0,1);");
+        testCPU(src,"arm"      , "SystemV",0,"return Phi(Region,2,0,1);");
     }
 
     @Test
