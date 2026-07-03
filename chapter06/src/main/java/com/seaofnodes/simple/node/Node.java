@@ -189,7 +189,7 @@ public abstract class Node {
     }
 
     // Breaks the edge invariants, used temporarily
-    protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
+    protected <N extends Node> void addUse(N n) { _outputs.add(n); }
 
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterward.
@@ -227,7 +227,7 @@ public abstract class Node {
 
     // Shortcuts to stop DCE mid-parse
     // Add bogus null use to keep node alive
-    public <N extends Node> N keep() { return addUse(null); }
+    public <N extends Node> N keep() { addUse(null); return (N)this; }
     // Remove bogus null.
     public <N extends Node> N unkeep() { delUse(null); return (N)this; }
     // ------------------------------------------------------------------------
