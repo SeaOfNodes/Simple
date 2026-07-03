@@ -21,11 +21,11 @@ public class TypeInteger extends Type {
 
     @Override
     public String toString() {
-      return _print(new StringBuilder()).toString();
+      return print(new StringBuilder()).toString();
     }
 
     @Override
-    public StringBuilder _print(StringBuilder sb) { return sb.append(_con); }
+    public StringBuilder print(StringBuilder sb) { return sb.append(_con); }
 
     @Override
     public boolean isConstant() { return true; }

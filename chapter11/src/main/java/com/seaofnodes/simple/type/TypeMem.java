@@ -52,7 +52,7 @@ public class TypeMem extends Type {
     }
 
     @Override
-    public StringBuilder _print(StringBuilder sb) {
+    public StringBuilder print(StringBuilder sb) {
         return sb.append("MEM#").append( switch(_alias) {
             case  0 -> "TOP";
             case -1 -> "BOT";
@@ -60,5 +60,5 @@ public class TypeMem extends Type {
             });
     }
 
-    @Override public String str() { return _print(new StringBuilder()).toString(); }
+    @Override public String str() { return print(new StringBuilder()).toString(); }
 }

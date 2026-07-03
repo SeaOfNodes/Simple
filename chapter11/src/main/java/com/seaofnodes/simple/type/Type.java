@@ -75,7 +75,7 @@ public class Type {
     /**
      * Display Type name in a format that's good for IR printer
      */
-    public StringBuilder typeName( StringBuilder sb) { return _print(sb); }
+    public StringBuilder typeName( StringBuilder sb) { return print(sb); }
 
     public Type makeInit() { return null; }
 
@@ -177,10 +177,10 @@ public class Type {
     // This is a more verbose dev-friendly print.
     @Override
     public final String toString() {
-        return _print(new StringBuilder()).toString();
+        return print(new StringBuilder()).toString();
     }
 
-    public StringBuilder _print(StringBuilder sb) { return is_simple() ? sb.append(STRS[_type]) : sb;}
+    public StringBuilder print(StringBuilder sb) { return is_simple() ? sb.append(STRS[_type]) : sb;}
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }

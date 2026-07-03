@@ -32,7 +32,7 @@ public class ConstantNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return _con._print(sb);
+        return _con.print(sb);
     }
 
     @Override public boolean isMultiTail() { return true; }

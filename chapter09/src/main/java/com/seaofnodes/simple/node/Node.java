@@ -139,7 +139,7 @@ public abstract class Node {
         for( int i = _outputs.size(); i<lim; i++ )
             sb.append("     ");
         sb.append(" ]]  ");
-        if( _type!= null ) _type._print(sb);
+        if( _type!= null ) _type.print(sb);
         sb.append("\n");
     }
 

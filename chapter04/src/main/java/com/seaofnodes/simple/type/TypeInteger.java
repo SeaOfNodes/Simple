@@ -29,7 +29,7 @@ public class TypeInteger extends Type {
     public boolean isBot() { return !_is_con && _con==1; }
 
     @Override
-    public StringBuilder _print(StringBuilder sb) {
+    public StringBuilder print(StringBuilder sb) {
         if (isTop()) return sb.append("IntTop");
         if (isBot()) return sb.append("IntBot");
         return sb.append(_con);
