@@ -245,8 +245,13 @@ public class Parser {
             last = parseStatement();
 
         // Last expression is the return except for the top-level main
-        if( ctrl()._type==Type.CONTROL && fun.sig() != _code._main )
-            fun.addReturn(ctrl(), _scope.mem().merge(), last);
+        if( ctrl()._type==Type.CONTROL )
+            if( fun.sig() != _code._main )
+                fun.addReturn(ctrl(), _scope.mem().merge(), last);
+            else {
+                fun.setDef(1,XCTRL); // Kill default main
+                _code.addAll(fun._outputs);
+            }
 
         // Pop off the inProgress node on the multi-exit Region merge
         assert r.inProgress();

@@ -143,9 +143,10 @@ Options:
         System.out.printf( "TOTAL COMPILATION TIME:   %.3f sec%n", total);
     }
 
-    static String getInput() {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        return reader.lines().collect(Collectors.joining("\n"));
+    static String getInput() throws IOException {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
+            return reader.lines().collect(Collectors.joining("\n"));
+        }
     }
 
     public static void main(String[] args) throws Exception {

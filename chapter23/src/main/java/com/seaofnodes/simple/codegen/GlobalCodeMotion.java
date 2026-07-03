@@ -36,7 +36,7 @@ public abstract class GlobalCodeMotion {
             return;             // Been there, done that
         if( def instanceof ReturnNode && use instanceof CallEndNode )
             return;
-        assert !( def instanceof CallNode && use instanceof FunNode );
+        assert !( def instanceof CallNode && use instanceof FunNode ); // All calls unwired now
         visit.set(cfg._nid);
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);

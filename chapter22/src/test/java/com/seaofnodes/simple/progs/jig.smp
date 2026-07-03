@@ -1,6 +1,16 @@
 // -*- mode: java;  -*-
-// Should fold away sign extend
-struct Person { i8 age;};
-Person !p = new Person;
-p.age = (arg<<48)>>48;
-return 0;
+val fib = {int n ->
+    int temp=0;
+    int f1=1;
+    int f2=1;
+    int i=n;
+    while( i>1 ){
+        temp = f1+f2;
+        f1=f2;
+        f2=temp;
+        i=i-1;
+    }
+    return f2;
+};
+
+fib(10);

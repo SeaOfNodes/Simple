@@ -16,24 +16,23 @@ public class Chapter22Test {
     @Test
     public void testJig() throws IOException {
         String src =
-                """
-                struct s0 {
-                    bool v1;
-                    i16 v2;
-                    int v3;
-                    i8 v4;
-                    byte v5;
-                };
-                while(new s0.v3)
-                    while(new s0.v5<<new s0.v4) {}
-                if(0) {
-                    if(0) {
-                        flt !P5ZUD4=new s0.v2;
-                    }
-                    while(0) {}
-                }
-                return new s0.v1;
-                """;
+"""
+val fib = {int n ->
+    int temp=0;
+    int f1=1;
+    int f2=1;
+    int i=n;
+    while( i>1 ){
+        temp = f1+f2;
+        f1=f2;
+        f2=temp;
+        i=i-1;
+    }
+    return f2;
+};
+
+fib(10);
+""";
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
@@ -138,7 +137,7 @@ struct Person {
 val fcn = { Person?[] ps, int x ->
     if( ps[x] )
         ps[x].age++;
-};                
+};
 """;
         String person = "6\n";
         TestC.run(src, "person", null, person, 0);
