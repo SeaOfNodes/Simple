@@ -135,14 +135,14 @@ public class CodeGen {
             return driver(phase,cpu,callingConv,false,false,0);
         if( _srcName == null )
             throw new RuntimeException("No source filename provided, so do not know how to name the obj file");
-        boolean main = !_srcName.contains(".");
-        return driver( phase, cpu, callingConv, false, main, 0 );
+        boolean emitEntrySymbol = !_srcName.contains(".");
+        return driver( phase, cpu, callingConv, false, emitEntrySymbol, 0 );
     }
     // Write an object file for a specific cpu/os pair
 
-    public CodeGen driver( String cpu, String callingConv, boolean inMemory, boolean main ) { return driver(Phase.Export,cpu,callingConv,inMemory,main,0); }
+    public CodeGen driver( String cpu, String callingConv, boolean inMemory, boolean emitEntrySymbol ) { return driver(Phase.Export,cpu,callingConv,inMemory,emitEntrySymbol,0); }
     // Generic driver
-    public CodeGen driver( Phase phase, String cpu, String callingConv, boolean inMemory, boolean main, int dump ) {
+    public CodeGen driver( Phase phase, String cpu, String callingConv, boolean inMemory, boolean emitEntrySymbol, int dump ) {
         int p1 = phase.ordinal(), p2 = _phase==null ? -1 : _phase.ordinal();
         if( p2 < p1 && p2 <  Phase.Parse     .ordinal() ) { parse();     p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Iter      .ordinal() ) { iter();      p2 = dump(dump); }
@@ -156,8 +156,12 @@ public class CodeGen {
         if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) { localSched();p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) { regAlloc();  p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Encoding  .ordinal() ) { encode();    p2 = dump(dump); }
-        if( p2 < p1 && p2 <  Phase.Export    .ordinal() ) { exportELF(inMemory,main); p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Export    .ordinal() ) { exportELF(inMemory,emitEntrySymbol); p2 = dump(dump); }
         return this;
+    }
+
+    public String entryClinitName() {
+        return Parser.addClzPrefix(_srcName==null ? "Test" : _srcName)+".<clinit>";
     }
 
     // Verbose printing during compilation
@@ -672,7 +676,7 @@ public class CodeGen {
     // ---------------------------
     // Exporting to external formats
     ElfWriter _elf;
-    public CodeGen exportELF( boolean inMemory, boolean main ) {
+    public CodeGen exportELF( boolean inMemory, boolean emitEntrySymbol ) {
         assert _phase == Phase.Encoding;
         _phase = Phase.Export;
         long t0 = System.currentTimeMillis();
@@ -680,7 +684,7 @@ public class CodeGen {
             if( inMemory )
                 new LinkMem(this).link(_encoding); // In memory patching
             else
-                _elf = new ElfWriter(this).export(main);
+                _elf = new ElfWriter(this).export(emitEntrySymbol);
         }
         _times[Phase.Export.ordinal()] = System.currentTimeMillis() - t0;
         return this;

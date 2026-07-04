@@ -126,9 +126,9 @@ public class FunNode extends RegionNode {
             return Type.CONTROL;
         Type t = Type.XCONTROL;
         for (int i = 1; i < nIns(); i++) {
-            // Since no unknown callers, we are not main and the Start input
-            // will be a Tuple with XControl, so ignore it.  Need to be called
-            // from someplace other than Start
+            // Since there are no unknown callers, the Start input is only a
+            // fake hook and will be a Tuple with XControl, so ignore it.  Need
+            // to be called from someplace other than Start.
             if( !(in(i) instanceof StartNode) )
                 t = t.meet(in(i)._type);
         }
@@ -138,7 +138,7 @@ public class FunNode extends RegionNode {
     @Override
     public Node idealize() {
 
-        // Some linked path dies, except main never kills Start
+        // Some linked path dies, except unknown caller hooks never kill Start.
         Node progress = deadPath(unknownCallers());
         if( progress!=null ) {
             if( nIns()==2 && in(1) instanceof CallNode call )

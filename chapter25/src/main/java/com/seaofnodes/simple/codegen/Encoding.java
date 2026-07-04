@@ -217,13 +217,13 @@ public class Encoding {
 
         // Do them all except the <clinit>s
         Ary<FunNode> clinits = new Ary<>(FunNode.class);
-        FunNode main = null;
-        String mainName = Parser.addClzPrefix(_code._srcName==null ? "Test" : _code._srcName)+".<clinit>";
+        FunNode entry = null;
+        String entryName = _code.entryClinitName();
         for( FunNode fun : _code._linker ) {
             if( fun != null && !fun.isDead() ) {
                 if( fun.isClz() ) {
-                    if( fun._name.equals(mainName) )
-                        main = fun;
+                    if( fun._name.equals(entryName) )
+                        entry = fun;
                     else
                         clinits.add(fun);
                 } else {
@@ -240,9 +240,9 @@ public class Encoding {
             _rpo_cfg(clinit,visit,rpos);
             assert _cfg.at(x) instanceof ReturnNode;
         }
-        if( main != null ) {
+        if( entry != null ) {
             int x = _cfg._len;
-            _rpo_cfg(main,visit,rpos);
+            _rpo_cfg(entry,visit,rpos);
             assert _cfg.at(x) instanceof ReturnNode;
         }
 

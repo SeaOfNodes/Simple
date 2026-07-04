@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.Ary;
@@ -196,14 +195,15 @@ public class ElfWriter {
             }
         }
 
-        void symbolMain(int text_idx, Encoding enc) {
-            String mainName = Parser.addClzPrefix(_code._srcName==null ? "Test" : _code._srcName)+".<clinit>";
+        void symbolEntryClinit(int text_idx, Encoding enc) {
+            String entryName = _code.entryClinitName();
             for( FunNode fun : _code._linker )
-                if( fun != null && mainName.equals(fun._name) ) {
+                if( fun != null && entryName.equals(fun._name) ) {
+                    assert enc.opStart(fun) == 0;
                     symbol("main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, enc.opStart(fun), 0);
                     return;
                 }
-            throw new IllegalStateException("Missing main function "+mainName);
+            throw new IllegalStateException("Missing entry <clinit> "+entryName);
         }
 
         static void write2( BAOS bits, int op ) {
@@ -256,7 +256,7 @@ public class ElfWriter {
 
     // ------------------------------------------------------------------------
 
-    public ElfWriter export(boolean main) {
+    public ElfWriter export(boolean emitEntrySymbol) {
         // Sections are created in the order they are emitted.
         _sections = new Ary<>(Section.class);
 
@@ -282,9 +282,10 @@ public class ElfWriter {
 
         // populate function symbols
         symbols.encodeFunctions(_code._stop, _code._encoding, text._index);
-        // The "main" symbol, starting code is always location 0
-        if( main )
-            symbols.symbolMain(text._index,enc);
+        // Export the source compilation unit <clinit> as the C runtime "main".
+        // Encoding keeps this function at text offset zero.
+        if( emitEntrySymbol )
+            symbols.symbolEntryClinit(text._index,enc);
 
         // create external .text relocations
         ReloSection relocations = new ReloSection(text._index);

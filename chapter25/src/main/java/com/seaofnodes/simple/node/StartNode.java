@@ -9,18 +9,18 @@ import java.util.BitSet;
 import java.util.HashSet;
 
 /**
- * The Start node represents the external world calling, be it calling main or
- * just some linked caller calling.
+ * The Start node represents the external world calling, be it calling the
+ * entry <clinit> or just some linked caller calling.
  * <p>
  * Start initially has 1 input (arg) from outside and the initial control.
  * In ch10 we also add mem aliases as structs get defined; each field in struct
  * adds a distinct alias to Start's tuple.
  * <p>
  * By ch25, Start is the external world (or linker) calling with everything
- * that has escaped.  Start is NOT the FunNode called *main* (which can assume
- * no memory nor fidxs exist nor escaped).  Start gets escaped things from
- * Stop; together these close the Grand Cycle between the code we know and the
- * code we don't.
+ * that has escaped.  Start is NOT the entry <clinit> itself, which can assume
+ * no memory nor fidxs exist nor escaped.  Start gets escaped things from Stop;
+ * together these close the Grand Cycle between the code we know and the code
+ * we don't.
  */
 public class StartNode extends LoopNode implements MultiNode {
 
