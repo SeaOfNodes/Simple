@@ -129,7 +129,8 @@ abstract public class Opto {
     // Function is now reached from Start, both for escaped functions and after
     // Opto for reachable-not-escaped and not-inlined functions.  This is
     // because after Opto, the Start/Stop pair hooks every function we need to
-    // code-gen for, whether it escapes or not.
+    // code-gen for, whether it escapes or not.  Since not-linked, this Start
+    // input path is the *only* path and must use conservative inputs.
     private static void linkStart( CodeGen code, FunNode fun, boolean funEscaped ) {
         assert !fun.isDead();
         StartNode start = fun._compunit._start;

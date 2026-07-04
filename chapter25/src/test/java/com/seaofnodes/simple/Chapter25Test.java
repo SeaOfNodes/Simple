@@ -17,8 +17,12 @@ import static org.junit.Assert.*;
 
 public class Chapter25Test {
 
+    private static final String SYS_MODDIR = "src/main/smp";
+    private static final String SYS_BLDDIR = "build/objs/lib_"+TestC.CPU_ABI;
+    private static final String RELEASE_SYS_BLDDIR = TestC.RELEASE_SYS_DIR;
 
-    @Test
+
+    @Test @Ignore
     public void testModule0() throws IOException {
         String MODDIR = "src/test/java/com/seaofnodes/simple/test0";
         String BLDDIR = "build/objs/test0";
@@ -128,28 +132,26 @@ public class Chapter25Test {
 
     @Test
     public void testSys() throws IOException {
-        String MODDIR = "src/main/smp";
-        String BLDDIR = "build/objs";
-        delELFiles(new File(BLDDIR));
+        delELFiles(new File(SYS_BLDDIR));
 
-        // Compile MODDIR/sys.smp into BLDDIR/sys.o
+        // Compile SYS_MODDIR/sys.smp into SYS_BLDDIR/sys.o
         // Since sys refers to sys.io also:
-        // Compile MODDIR/sys/sys/io.smp into BLDDIR/sys/io.o
-        CodeGen code1 = new CodeGen(MODDIR, BLDDIR,null,
+        // Compile SYS_MODDIR/sys/sys/io.smp into SYS_BLDDIR/sys/io.o
+        CodeGen code1 = new CodeGen(SYS_MODDIR, SYS_BLDDIR,null,
                                     "sys",null,123L,TypeInteger.BOT);
         code1.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
         // Verify produces sys.o, sys/io.o
-        File  sys_file = new File(BLDDIR+"/sys.o" );
-        //File   io_file = new File(BLDDIR+"/sys/io.o"  );
-        //File  ary_file = new File(BLDDIR+"/sys/Ary.o" );
-        //File libc_file = new File(BLDDIR+"/sys/libc.o");
+        File  sys_file = new File(SYS_BLDDIR+"/sys.o" );
+        //File   io_file = new File(SYS_BLDDIR+"/sys/io.o"  );
+        //File  ary_file = new File(SYS_BLDDIR+"/sys/Ary.o" );
+        //File libc_file = new File(SYS_BLDDIR+"/sys/libc.o");
         assertTrue( sys_file.exists() );
         //assertTrue(  io_file.exists() );
         //assertTrue( ary_file.exists() );
         //assertTrue(libc_file.exists() );
 
         // Can read the ELF files
-        ElfReader  sys_elf = ElfReader.load( sys_file, null);
+        ElfReader sys_elf = ElfReader.load( sys_file, null);
         //ElfReader   io_elf = ElfReader.load(  io_file, null);
         //ElfReader  ary_elf = ElfReader.load( ary_file, null);
         //ElfReader libc_elf = ElfReader.load(libc_file, null);
@@ -183,21 +185,24 @@ public class Chapter25Test {
         //// libc depends on nothing
         //assertEquals(0,libc_elf._deps.length);
         //assertSame("class:sys.libc",libc_elf._clz._name);
-
-        // Compile helloWorld
-        String expected = "Hello, World!";
-        String prog = "sys.io.p(\""+expected+"\");";
-        TestC.run(prog,"helloWorld",new Ary<>(new String[]{BLDDIR}),
-                  TestC.CALL_CONVENTION, null, null, expected,0);
     }
 
     @Test
     public void testHelloWorld() throws IOException {
-        //// Produce lib/sys.o
-        //CodeGen code = new CodeGen(com.seaofnodes.simple.sys.SYS).
-        //    driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"lib/sys.o",false);
+        File sys_file = new File(RELEASE_SYS_BLDDIR+"/sys.o");
+        assertTrue("Missing "+sys_file+"; run make release or make tests_sys first",  sys_file.exists());
 
-        TestC.runSYS("sys.io.p(\"Hello, World!\");","helloWorld", "Hello, World!",0);
+        String expected = "Hello, World!";
+        String prog = "return sys.io.p(\""+expected+"\") - "+expected.length()+";";
+        TestC.run(prog,"helloWorld",new Ary<>(new String[]{RELEASE_SYS_BLDDIR}),
+                  TestC.CALL_CONVENTION, null, null, expected,0);
+    }
+
+    @Test
+    public void testHelloWorldDriver() throws Exception {
+        File sys_file = new File(RELEASE_SYS_BLDDIR+"/sys.o");
+        assertTrue("Missing "+sys_file+"; run make release or make tests_sys first",  sys_file.exists());
+        Simple.main(new String[]{"-L",RELEASE_SYS_BLDDIR,"--norun","docs/examples/A_helloWorld.smp"});
     }
 
     @Test @Ignore

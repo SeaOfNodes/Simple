@@ -763,7 +763,9 @@ public class CodeGen {
         _files.clear();
         _extFileIdx = 0;
         String extpath = _externPaths.at(_extPathIdx++);
-        File f = new File(_cwd+extpath);
+        File f = new File(extpath);
+        if( !f.isAbsolute() )
+            f = new File(_cwd+extpath);
         fillExtFiles(f);
     }
 

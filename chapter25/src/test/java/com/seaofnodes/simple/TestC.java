@@ -21,6 +21,8 @@ public abstract class TestC {
         case "amd64" -> "x86_64_v2";
         default -> throw Utils.TODO("Map Yer CPU Port Here");
     };
+    public static final String CPU_ABI = CPU_PORT+"_"+CALL_CONVENTION;
+    public static final String RELEASE_SYS_DIR = "build/release/"+CPU_ABI;
 
     public static final String C_DRIVERS_DIR = "src/test/java/com/seaofnodes/simple/progs/";
 
@@ -52,8 +54,7 @@ public abstract class TestC {
      * - WITH a test lib sys
      */
     public static void runSYS( String src, String base, String expected, int spills ) throws IOException {
-        String libsysDir = "build/objs/" + "lib_"+CPU_PORT+"_"+CALL_CONVENTION;
-        Ary<String> externPaths = new Ary<>(new String[]{libsysDir});
+        Ary<String> externPaths = new Ary<>(new String[]{RELEASE_SYS_DIR});
         run(src, base, externPaths, CALL_CONVENTION, null,null, expected,spills);
     }
 

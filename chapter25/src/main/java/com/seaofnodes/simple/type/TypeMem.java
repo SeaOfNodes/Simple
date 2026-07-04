@@ -127,6 +127,7 @@ public class TypeMem extends Type {
         return d;
     }
 
+    @Override public TypeMem makeZero() { return TOP; }
     @Override public boolean isHigh() { return _t.isHigh(); }
     @Override boolean _isConstant() { return _one && _alias!= 1 && _t._isConstant(); }
     @Override public int log_size() { throw Utils.TODO(); }

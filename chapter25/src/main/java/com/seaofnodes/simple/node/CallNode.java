@@ -142,6 +142,7 @@ public class CallNode extends CFGNode {
             if( use instanceof ParmNode )
                 use.delDef(path);
         fun.delDef(path);
+        CodeGen.CODE.add(fun);
         CallEndNode cend = cend();
         ReturnNode ret = fun.ret().keep();
         cend.delDef(cend._inputs.find(ret));

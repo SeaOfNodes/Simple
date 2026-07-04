@@ -28,14 +28,14 @@ abstract public class Serialize {
         TypeStruct clz = top._clz;
 
         // Compress into bytes
-        BAOS baos = write(nodes, clz, deps, code._aliases, code._fidxs, code._rpcs);
+        BAOS baos = write(nodes, clz, deps, code._aliases, code._fidxs, code._rpcs, code._externFunc);
 
         // --- Expensive bijection assert
         if( false ) {
             // Inflate into POJOs; renumbers everything
             ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
             readAll(code,elf, code._aliases, code._fidxs, code._rpcs);
-            BAOS baos2 = write(elf._nodes,elf._clz,elf._deps, code._aliases, code._fidxs, code._rpcs);
+            BAOS baos2 = write(elf._nodes,elf._clz,elf._deps, code._aliases, code._fidxs, code._rpcs, code._externFunc);
 
             // Bi-jection
             for( int i=0; i<baos.size(); i++ )
@@ -49,7 +49,7 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static BAOS write(Ary<Node> nodes, TypeStruct clz, String[] depobjs, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs) {
+    static BAOS write(Ary<Node> nodes, TypeStruct clz, String[] depobjs, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs, HashMap<Integer,String> externFunc) {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -98,6 +98,8 @@ abstract public class Serialize {
         aliases.gather(strs);
         fidxs  .gather(strs);
         rpcs   .gather(strs);
+        for( String extern : externFunc.values() )
+            gather(strs,extern);
         // Count strings from nodes
         for( Node n : nodes )
             n.gather(strs);
@@ -124,6 +126,13 @@ abstract public class Serialize {
         aliases.packed(baos,strs);
         fidxs  .packed(baos,strs);
         rpcs   .packed(baos,strs);
+        ArrayList<Integer> externFidxs = new ArrayList<>(externFunc.keySet());
+        Collections.sort(externFidxs);
+        baos.packed2(externFidxs.size());
+        for( int fidx : externFidxs ) {
+            baos.packed2(fidx);
+            baos.packed2(strs.get(externFunc.get(fidx)));
+        }
 
         // C - Write unique Types
         baos.packed4(atypes.length);
@@ -233,6 +242,17 @@ abstract public class Serialize {
         GlobalBits fileAliases = GlobalBits.packed(bais,strs);
         GlobalBits fileFidxs   = GlobalBits.packed(bais,strs);
         GlobalBits fileRpcs    = GlobalBits.packed(bais,strs);
+        int nexterns = bais.packed2();
+        for( int i=0; i<nexterns; i++ ) {
+            int fileFidx = bais.packed2();
+            String extern = strs[bais.packed2()];
+            int fidx = fileFidx < GlobalBits.RESERVED ? fileFidx : fidxs.map(fileFidxs,fileFidx);
+            String old = code.externFunc(fidx);
+            if( old == null )
+                code.externFunc(fidx,extern);
+            else
+                assert old.equals(extern);
+        }
 
 
         // C - Packed read of #types, then types
@@ -271,6 +291,13 @@ abstract public class Serialize {
             if( n instanceof FunNode fun ) {
                 assert cu != null;
                 fun._compunit = cu;
+            }
+            if( n instanceof ExternNode ext && ext._con instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+                String old = code.externFunc(tfp.fidx());
+                if( old == null )
+                    code.externFunc(tfp.fidx(), ext._extern);
+                else
+                    assert old.equals(ext._extern);
             }
         }
 

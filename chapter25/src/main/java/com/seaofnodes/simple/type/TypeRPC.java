@@ -46,8 +46,12 @@ public class TypeRPC extends Type {
     public  static final TypeRPC BOT = make(XInt.FULL);
     private static final TypeRPC TEST2 = constant(2);
     private static final TypeRPC TEST3 = constant(2);
+    public  static final TypeRPC EMPTY = make(XInt.EMPTY);
 
     public static void gather(ArrayList<Type> ts) { ts.add(BOT); ts.add(TEST2); ts.add(TEST3); }
+
+    @Override public TypeRPC makeZero() { return EMPTY; }
+
 
     @Override public String str() {
         if( _rpcs == XInt.FULL  ) return "$[ALL]";

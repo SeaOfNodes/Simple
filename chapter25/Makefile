@@ -69,7 +69,10 @@ test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_alone := com.seaofnodes.simple.BrainFuckTest com.seaofnodes.simple.MergeSortTest com.seaofnodes.simple.TypeTest
 test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21
 test_raw_nums1 := 22 23 24
+# These tests DO rely on the stdlib
 test_raw_sys   := 25
+
+# Convert chapter numbers to test files
 test_raw0    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums0))
 test_raw1    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums1))
 test_sys     := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_sys)  )
@@ -81,6 +84,7 @@ test_cp2     := $(filter-out $(test_raw1) ,$(test_cp1))
 test_cp3     := $(filter-out $(test_alone),$(test_cp2))
 test_cp4     := $(filter-out com.seaofnodes.simple.Chapter25Test,$(test_cp3))
 test_cp      := $(filter-out $(test_sys)  ,$(test_cp4))
+# All the classes to compile
 classes = $(main_classes) $(test_classes)
 # All the libraries
 libs = $(wildcard lib/*jar)
@@ -135,10 +139,20 @@ $(CLZDIR)/test/.ttag: $(test_javas) $(CLZDIR)/main/.mtag
 # dumped.  The default sys search needs to NOT include all the dumped test
 # files; move it down into lib/
 OBJS:= build/objs
+CPU_PORT:= x86_64_v2
+CALL_CONV:= win64
+CPU_ABI:= $(CPU_PORT)_$(CALL_CONV)
+RELEASE:= build/release
+RELEASE_SYS:= $(RELEASE)/$(CPU_ABI)/sys.o
 
-$(OBJS)/lib_x86_64_v2_win64/sys.o:	$(CLZDIR)/main/.mtag
+$(OBJS)/lib_$(CPU_ABI)/sys.o:	$(CLZDIR)/main/.mtag
 	@echo "simping " $@
-	@$(JVM) com.seaofnodes.simple.Simple --cpu x86_64_v2 --abi win64 --norun -o $@ src/main/smp/sys.smp
+	@$(JVM) com.seaofnodes.simple.Simple --cpu $(CPU_PORT) --abi $(CALL_CONV) --norun -o $@ src/main/smp/sys.smp
+
+$(RELEASE_SYS):	$(OBJS)/lib_$(CPU_ABI)/sys.o
+	@echo "copying " $@
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	@cp $< $@
 
 #######################################################
 # Base launch line for JVM tests
@@ -162,7 +176,7 @@ tests_alone:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@$(JVM) org.junit.runner.JUnitCore $(test_alone)
 
 # Tests that DO need sys.smp
-tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(OBJS)/lib_x86_64_v2_win64/sys.o
+tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_SYS)
 	@echo "testing " $(test_sys)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_sys)
@@ -171,20 +185,21 @@ fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "fuzzing "
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(OBJS)/lib_x86_64_v2_win64/sys.o tests_raw0 tests_raw1 tests_alone tests_sys
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_SYS) tests_raw0 tests_raw1 tests_alone tests_sys
 	@echo "All tests"
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 
 
-# Build a Simple jar
-release:	build/release/simple.jar
+# Build a Simple jar and release stdlib
+release:	build/release/Simple.jar $(RELEASE_SYS)
 
 # Build a Simple jar
-build/release/simple.jar:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
+build/release/Simple.jar:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "jarring " $@ " because " $?
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	@jar cf build/release/simple.jar -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
+	@printf "Main-Class: com.seaofnodes.simple.Simple\nClass-Path: ../../lib/junit-4.12.jar ../../lib/hamcrest-core-1.3.jar\n\n" > build/release/MANIFEST.MF
+	@jar cfm $@ build/release/MANIFEST.MF -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
 # Launch viewer
 view:	$(main_classes)

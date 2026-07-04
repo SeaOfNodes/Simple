@@ -65,14 +65,7 @@ public abstract class GlobalCodeMotion {
             boolean done=true;
             for( Node use : con.outs() ) {
                 if( use == null ) continue;
-                FunNode fun2 = use instanceof ReturnNode ret ? ret.fun() : use.cfg0().fun();
-                // Use itself is not in a function... which makes it a 2-part
-                // constant such as happens on some chips where large constants
-                // have to be built up in parts.
-                if( fun2==null ) {
-                    fun2 = use.out(0).cfg0().fun();
-                    assert fun2 != null;
-                }
+                FunNode fun2 = useFun(use);
                 if( fun==null || fun==fun2 ) fun=fun2;
                 else { done=false; break; }
             }
@@ -89,13 +82,29 @@ public abstract class GlobalCodeMotion {
             for( int j=0; j<con._outputs._len; j++ ) {
                 Node use = con.out(j);
                 if( use == null ) continue;
-                FunNode fun2 = use.cfg0().fun();
+                FunNode fun2 = useFun(use);
                 if( fun2==fun ) {
                     use.setDef(use._inputs.find(con),con2);
                     j--;
                 }
             }
         }
+    }
+
+    private static FunNode useFun(Node use) {
+        if( use instanceof ReturnNode ret )
+            return ret.fun();
+        if( use instanceof ParmNode parm )
+            return parm.fun();
+        FunNode fun = use.cfg0().fun();
+        // Use itself is not in a function... which makes it a 2-part
+        // constant such as happens on some chips where large constants
+        // have to be built up in parts.
+        if( fun==null ) {
+            fun = use.out(0).cfg0().fun();
+            assert fun != null;
+        }
+        return fun;
     }
 
 
@@ -267,6 +276,8 @@ public abstract class GlobalCodeMotion {
     // Block of use.  Normally from late[] schedule, except for Phis, which go
     // to the matching Region input.
     private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
+        if( use instanceof ParmNode parm && n.cfg0().fun()==parm.fun() )
+            return late[use._nid];
         if( !(use instanceof PhiNode phi) )
             return late[use._nid];
         CFGNode found=null;

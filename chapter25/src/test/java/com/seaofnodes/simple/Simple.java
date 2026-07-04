@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class Simple {
@@ -31,6 +32,7 @@ Options:
      '/', then all result files use relative paths to 'output', using a input file
      root-relative path.  If --root is missing, the one result file is named 'output'
 
+  -L path                  - add an external Simple object search path
   --eval                   - (slowly) evaluate the compiled code in emulator
   --run                    - run the compiled code natively; this is the default
   --cpu <cpu-name>         - use specific CPU (x86_64_v2, riscv, arm)
@@ -97,6 +99,7 @@ Options:
         String cpu = null;
         String abi = null;
         String out = null;
+        ArrayList<String> libPaths = new ArrayList<>();
 
         // Parse command line
         int i; for( i = 0; i < args.length; i++ ) {
@@ -131,6 +134,9 @@ Options:
             case "-o":                        if (out != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
                                               out = args[++i];  do_codegen=true;
                                               break;
+            case "-L":                        if (i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
+                                              libPaths.add(args[++i]);
+                                              break;
             case "--cpu":                     if (cpu != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
                                               cpu = args[++i];
                                               break;
@@ -160,6 +166,8 @@ Options:
         Path modPath;
         if( root == null ) {
             modPath = inPath.getParent();
+            if( modPath == null )
+                modPath = Path.of(".");
         } else {
             throw Utils.TODO();
         }
@@ -184,17 +192,26 @@ Options:
                 // If the output is a file, the directory is our outPath
                 Path fullOut = outPath;
                 outPath = outPath.getParent();
+                if( outPath == null )
+                    outPath = Path.of(".");
                 Path foo = outPath.relativize(fullOut);
                 if( !foo.toString().equals(srcName+".o") )
                     throw bad("Output path needs to be of the form "+srcName+".o");
             }
         }
+        String outBase = outPath.resolve(srcName).toString();
 
         if( do_run || print_asm || print_size ) {
             if (cpu == null) cpu = TestC.CPU_PORT;
             if (abi == null) abi = TestC.CALL_CONVENTION;
             do_codegen = true;
         }
+        if( cpu == null ) cpu = TestC.CPU_PORT;
+        if( abi == null ) abi = TestC.CALL_CONVENTION;
+
+        String simpleHome = System.getenv("SIMPLE_HOME");
+        if( simpleHome != null && !simpleHome.isEmpty() )
+            libPaths.add(Path.of(simpleHome,cpu+"_"+abi).toString());
 
         // Read input file
         try {
@@ -202,7 +219,7 @@ Options:
         } catch( IOException e ) { throw bad("Cannot read input file: "+input_filename);  }
 
         // Compilation pipeline
-        Ary<String> externPaths = null;
+        Ary<String> externPaths = libPaths.isEmpty() ? null : new Ary<>(libPaths.toArray(new String[0]));
         CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, TypeInteger.BOT );
         code.driver(Phase.LastPhase,cpu,abi, false, do_run || do_eval, dump);
 
@@ -226,8 +243,8 @@ Options:
         if( do_run ) {
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
-            String exe = TestC.OS.startsWith("Windows") ? out+".exe" : out;
-            String result = TestC.gcc(out+".o", null, null, true, exe);
+            String exe = TestC.OS.startsWith("Windows") ? outBase+".exe" : outBase;
+            String result = TestC.gcc(outBase+".o", null, null, true, exe);
             System.out.print(result);
         }
     }

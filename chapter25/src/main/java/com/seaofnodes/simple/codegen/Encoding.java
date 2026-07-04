@@ -215,12 +215,17 @@ public class Encoding {
         rpos.put(_code._start.loop(),_cfg);
         BitSet visit = _code.visit();
 
-        // Do them all except the <clinit>
-        FunNode clinit=null;
+        // Do them all except the <clinit>s
+        Ary<FunNode> clinits = new Ary<>(FunNode.class);
+        FunNode main = null;
+        String mainName = Parser.addClzPrefix(_code._srcName==null ? "Test" : _code._srcName)+".<clinit>";
         for( FunNode fun : _code._linker ) {
             if( fun != null && !fun.isDead() ) {
                 if( fun.isClz() ) {
-                    clinit = fun;
+                    if( fun._name.equals(mainName) )
+                        main = fun;
+                    else
+                        clinits.add(fun);
                 } else {
                     int x = _cfg._len;
                     _rpo_cfg(fun,visit,rpos);
@@ -228,10 +233,18 @@ public class Encoding {
                 }
             }
         }
-        // Now the <clinit> last, so when reversed it becomes first
-        int x = _cfg._len;
-        _rpo_cfg(clinit,visit,rpos);
-        assert _cfg.at(x) instanceof ReturnNode;
+        // Now the <clinit>s last, so when reversed they become first.  The
+        // program entry <clinit> is last of all, so it lands at offset zero.
+        for( FunNode clinit : clinits ) {
+            int x = _cfg._len;
+            _rpo_cfg(clinit,visit,rpos);
+            assert _cfg.at(x) instanceof ReturnNode;
+        }
+        if( main != null ) {
+            int x = _cfg._len;
+            _rpo_cfg(main,visit,rpos);
+            assert _cfg.at(x) instanceof ReturnNode;
+        }
 
 
         // Reverse in-place

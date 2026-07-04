@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.Ary;
@@ -195,8 +196,14 @@ public class ElfWriter {
             }
         }
 
-        void symbolMain(int text_idx) {
-            symbol("main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, 0, 0);
+        void symbolMain(int text_idx, Encoding enc) {
+            String mainName = Parser.addClzPrefix(_code._srcName==null ? "Test" : _code._srcName)+".<clinit>";
+            for( FunNode fun : _code._linker )
+                if( fun != null && mainName.equals(fun._name) ) {
+                    symbol("main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, enc.opStart(fun), 0);
+                    return;
+                }
+            throw new IllegalStateException("Missing main function "+mainName);
         }
 
         static void write2( BAOS bits, int op ) {
@@ -277,7 +284,7 @@ public class ElfWriter {
         symbols.encodeFunctions(_code._stop, _code._encoding, text._index);
         // The "main" symbol, starting code is always location 0
         if( main )
-            symbols.symbolMain(text._index);
+            symbols.symbolMain(text._index,enc);
 
         // create external .text relocations
         ReloSection relocations = new ReloSection(text._index);
