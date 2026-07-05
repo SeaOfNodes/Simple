@@ -422,7 +422,7 @@ abstract public class Serialize {
         // All the CompUnits
         for( CompUnit cu : code._compunits.values() ) {
             // Whole CompUnits have no users, went dead
-            if( !cu._start.isDead() ) {
+            if( cu._start != null && !cu._start.isDead() ) {
                 nodes.add(cu._start);
                 // Memory proj
                 nodes.add(cu._start.proj(1));

@@ -390,7 +390,10 @@ public class Encoding {
                 opLen(bb, (byte) (_bits.size() - opStart(bb)));
             }
             for( Node n : bb._outputs ) {
-                if( n instanceof MachNode mach && !(n instanceof FunNode) ) {
+                if( n instanceof MachNode mach && !(n instanceof FunNode) &&
+                    // FunPtrs are encoding in the block of their control, not
+                    // the block of the ReturnNode input - which is also a CFG.
+                    !(n instanceof FunPtrNode && bb instanceof ReturnNode) ) {
                     opStart(n, _bits.size());
                     mach.encoding( this );
                     opLen(n, (byte) (_bits.size() - opStart(n)));
@@ -490,7 +493,7 @@ public class Encoding {
             // and, it can only be used to test against zero or equals to
             // another function pointer... i.e., there Is No Code Here.
             int target = dst == null ? start : opStart(dst);
-            ((RIPRelSize)src).patch(this, start, opLen(src), target - start);
+             ((RIPRelSize)src).patch(this, start, opLen(src), target - start);
         }
     }
 

@@ -224,14 +224,18 @@ public class Chapter25Test {
         CodeGen code = new CodeGen(null,"build/objs",new Ary<>(new String[]{RELEASE_SYS_BLDDIR}),
                                    base,prog,123L,TypeInteger.BOT);
         code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,true);
+        String str = code.toString();
+        String asm = code.asm();
 
         String obj = "build/objs/"+base+".o";
         String exe = "build/objs/"+base+(TestC.OS.startsWith("Windows") ? ".exe" : "");
         String syms = run(new String[]{"nm",obj});
         assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
 
-        run(new String[]{"gcc",obj,RELEASE_SYS_BLDDIR+"/sys.o","-lm","-g","-o",exe});
-        assertEquals(expected, run(new String[]{exe}));
+        String out = run(new String[]{"gcc",obj,RELEASE_SYS_BLDDIR+"/sys.o","-lm","-g","-o",exe});
+        assertEquals("",out);
+        String rez = run(new String[]{exe});
+        assertEquals(expected,rez);
     }
 
     private static String run(String[] cmd) throws Exception {
