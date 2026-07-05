@@ -126,8 +126,8 @@ public abstract class ParseAll {
             } );
 
         // If we loaded Opto-typed code, skip first Iter
-        if( !NEEDS_LOAD.isEmpty() )
-            code._phase = CodeGen.Phase.Iter;
+        //if( !NEEDS_LOAD.isEmpty() )
+        //    code._phase = CodeGen.Phase.Iter;
     }
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.

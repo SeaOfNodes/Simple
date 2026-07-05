@@ -344,6 +344,7 @@ public class riscv extends Machine {
         case DivNode      div -> new DivRISC(div);
         case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunRISC(fun);
+        case FunPtrNode  fptr -> fptr(fptr);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
@@ -399,8 +400,10 @@ public class riscv extends Machine {
     }
 
     private Node call(CallNode call) {
-        return call.fptr() instanceof ConstantNode con && con._type instanceof TypeFunPtr tfp
-            ? new CallRISC(call, tfp)
+        return call.fptr() instanceof FunPtrNode fptr
+            ? new CallRISC(call, (TypeFunPtr)fptr._type)
+            : call.fptr() instanceof ConstantNode con
+            ? new CallRISC(call, (TypeFunPtr)con._type)
             : new CallRRISC(call);
     }
     private Node nnn(NewNode nnn) {
@@ -462,12 +465,15 @@ public class riscv extends Machine {
         }
         // Load from constant pool
         case TypeFloat   tf  -> new FltRISC(con,ext);
-        case TypeFunPtr  tfp -> new TFPRISC(con,ext);
         case TypeMemPtr  tmp -> new TMPRISC(con,ext);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);
         };
+    }
+
+    private Node fptr( FunPtrNode con ) {
+        return new TFPRISC(con,null);
     }
 
     private Node jmp( IfNode iff ) {

@@ -8,6 +8,11 @@ val p = { u8[~] str ->
     return libc.write(1,ptr,str#);
 };
 
+val p_noInline = { u8[~] str ->
+    i64 ptr = str;  // cast array base to i64
+    return libc.write(1,ptr,str#);
+};
+
 // Return stdin as a u8[].
 val stdin = { ->
     var buf = new u8[8*1024];

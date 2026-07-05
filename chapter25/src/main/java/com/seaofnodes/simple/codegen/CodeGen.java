@@ -31,8 +31,8 @@ public class CodeGen {
         TypeCheck,              // Last check for bad programs
         LoopTree,               // Build a loop tree; break infinite loops
         Serialize,              // Serialize public IR for future compiles to link
+        Unlink,                 // Unlink call sites before machine code generation
         Select,                 // Convert to target hardware nodes
-        Unlink,                 // Unlink call sites; this point keeps moving backwards
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
         RegAlloc,               // Register allocation
@@ -149,9 +149,10 @@ public class CodeGen {
         if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = dump(dump); }
+        if( p2 < p1 && p1 >= Phase.Encoding  .ordinal() ) { unlinkImports(); p2 = dump(dump); }
         if( p2 < p1 && p1 >= Phase.Encoding  .ordinal() ) { serialize(); p2 = dump(dump); } // Include ideal graph in object file
-        if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) { instSelect(cpu,callingConv); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Unlink    .ordinal() ) { unlink();    p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.Select    .ordinal() && cpu != null ) { instSelect(cpu,callingConv); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Schedule  .ordinal() ) { GCM();       p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.LocalSched.ordinal() ) { localSched();p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.RegAlloc  .ordinal() ) { regAlloc();  p2 = dump(dump); }
@@ -300,6 +301,10 @@ public class CodeGen {
         return externFunc(fidx);
     }
 
+    public boolean owns(FunNode fun) {
+        return fun._compunit != null && fun._compunit._src != null;
+    }
+
 
     // ---------------------------
     // Parser object
@@ -418,7 +423,7 @@ public class CodeGen {
     // ---------------------------
     // Build the loop tree; break never-exit loops
     public CodeGen loopTree() {
-        assert _phase.ordinal() <= Phase.TypeCheck.ordinal();
+        assert _phase.ordinal() <= Phase.Serialize.ordinal();
         _phase = Phase.LoopTree;
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
@@ -431,12 +436,27 @@ public class CodeGen {
     // ---------------------------
     public BAOS _serial;
     public void serialize() {
-        assert _phase.ordinal() <= Phase.LoopTree.ordinal();
+        assert _phase.ordinal() <= Phase.Serialize.ordinal();
         _phase = Phase.Serialize;
         long t0 = System.currentTimeMillis();
         // Does not change compiler phase; just records IR
         Serialize.serialize(this);
         _times[Phase.Serialize.ordinal()] = System.currentTimeMillis() - t0;
+    }
+
+    // Unlink imported function bodies before serialization.  Calls to them
+    // remain as normal calls through their function pointer, and codegen later
+    // turns them into external relocations.
+    private void unlinkImports() {
+        assert _phase.ordinal() <= Phase.Serialize.ordinal();
+        for( FunNode fun : _linker ) {
+            if( fun==null || fun.isDead() || owns(fun) )
+                continue;
+            for( int i=1; i<fun.nIns(); i++ )
+                if( fun.in(i) instanceof CallNode call )
+                    call.unlink(fun,i--);
+        }
+        //_iter.iterate(this);
     }
 
     // ---------------------------
@@ -460,7 +480,7 @@ public class CodeGen {
     // Convert to target hardware nodes
     public CodeGen instSelect( String cpu, String callingConv ) { return instSelect(cpu,callingConv,PORTS); }
     public CodeGen instSelect( String cpu, String callingConv, String base ) {
-        assert _phase.ordinal() <= Phase.Serialize.ordinal();
+        assert _phase.ordinal() <= Phase.Unlink.ordinal();
         _phase = Phase.Select;
 
         _callingConv = callingConv;
@@ -577,6 +597,41 @@ public class CodeGen {
             // Already linked to start, not going dead
             if( fun==null || fun.isDead() )
                 continue;
+
+            // Imported functions are not emitted by this object.  Unlink any
+            // concrete calls so they become normal external relocations.
+            if( !owns(fun) ) {
+                while( fun.nIns() > 1 ) {
+                    if( fun.in(1) instanceof CallNode call )
+                        call.unlink(fun,1);
+                    else
+                        fun.removeDeadPath(1);
+                }
+                StartCUNode start = fun._compunit._start;
+                StopCUNode  stop  = fun._compunit._stop;
+                // Unhook the Stop->Return edge also
+                ReturnNode ret = fun.ret();
+                int idx = stop._inputs.find(ret);
+                if( idx != -1 ) {
+                    stop._inputs.del(idx);
+                    ret.delUse(stop);
+                }
+                //
+                if( stop.nIns()==0 ) {
+                    idx = _stop._inputs.find(stop);
+                    if( idx != -1 )
+                        //_stop.delDef(idx);
+                        throw Utils.TODO();
+                    if( start.nIns() > 0 && start.in(0) != null )
+                       //start.setDef(0,null);
+                        throw Utils.TODO();
+                    if( start.nIns() > 1 && start.in(1) != null )
+                        //start.setDef(1,null);
+                        throw Utils.TODO();
+                }
+                continue;
+            }
+
             // Insert a hook to Start and Stop
             ReturnNode ret = fun.ret();
             StartNode start = fun._compunit._start;
@@ -613,7 +668,7 @@ public class CodeGen {
     // Global schedule (code motion) nodes
     public CodeGen GCM() { return GCM(false); }
     public CodeGen GCM( boolean show) {
-        assert _phase.ordinal() <= Phase.Unlink.ordinal();
+        assert _phase.ordinal() <= Phase.Select.ordinal();
         _phase = Phase.Schedule;
         long t0 = System.currentTimeMillis();
 

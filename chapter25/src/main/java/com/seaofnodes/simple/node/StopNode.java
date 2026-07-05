@@ -78,7 +78,14 @@ public class StopNode extends CFGNode {
         return tt;
     }
 
-    @Override public Node idealize() { return null; }
+    @Override public Node idealize() {
+        int len = nIns();
+        for( int i=0; i<nIns(); i++ )
+            if( in(i).nIns()==0 )
+                delDef(i--);
+        if( len != nIns() ) return this;
+        return null;
+    }
 
     @Override public int idepth() {
         if( _idepth!=0 ) return _idepth;

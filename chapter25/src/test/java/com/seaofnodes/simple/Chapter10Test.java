@@ -295,7 +295,7 @@ s0 b = new s0();
 return a.x * 100 + b.x * 10 + cnt;
 """);
         code.parse().iter().opto();
-        assertEquals("Stop[ return (((.x*10)+(.x*100))+2); return MEM[ 2:___ 3:#!-3:[1,[],[]]]; ]", code.print());
+        assertEquals("return (((.x*10)+(.x*100))+2);", code.print());
     }
 
 

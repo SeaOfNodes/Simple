@@ -146,6 +146,7 @@ public class CallNode extends CFGNode {
         CallEndNode cend = cend();
         ReturnNode ret = fun.ret().keep();
         cend.delDef(cend._inputs.find(ret));
+        CodeGen.CODE.add(cend);
         assert !linked(fun);
         ret.unkeep();
     }

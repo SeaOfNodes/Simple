@@ -367,6 +367,7 @@ public class x86_64_v2 extends Machine {
         case DivNode      div -> new DivX86(div);
         case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunX86(fun);
+        case FunPtrNode  fptr -> fptr(fptr);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
@@ -472,8 +473,10 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node call(CallNode call) {
-        return call.fptr() instanceof ConstantNode con && con._type instanceof TypeFunPtr tfp
-            ? new CallX86(call, tfp)
+        return call.fptr() instanceof FunPtrNode con
+            ? new CallX86(call, (TypeFunPtr)con._type)
+            : call.fptr() instanceof ConstantNode con && con._type instanceof TypeFunPtr
+            ? new CallX86(call, (TypeFunPtr)con._type)
             : new CallRX86(call);
     }
 
@@ -525,12 +528,16 @@ public class x86_64_v2 extends Machine {
         return switch (con._con) {
         case TypeInteger ti -> new IntX86(con,ext);
         case TypeFloat   tf -> new FltX86(con,ext);
-        case TypeFunPtr tfp -> new TFPX86(con,ext);
         case TypeMemPtr tmp -> new TMPX86(con,ext);
+        case TypeFunPtr tfp -> new TFPX86(new FunPtrNode(tfp, null, null), ext);
         case TypeNil tn -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t == Type.NIL ? new IntX86(con,null) : new ConstantNode(con);
         };
+    }
+
+    private Node fptr( FunPtrNode con ) {
+        return new TFPX86(con,null);
     }
 
     private Node i2f8(ToFloatNode tfn) {

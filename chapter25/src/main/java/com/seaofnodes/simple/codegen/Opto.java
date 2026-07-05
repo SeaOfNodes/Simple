@@ -77,9 +77,9 @@ abstract public class Opto {
             for( int i=0; i<stop.nIns(); i++ ) {
                 ReturnNode ret = (ReturnNode)stop.in(i);
                 FunNode fun = ret.fun();
-                // Non-public functions unhook completely from Start.
+                // Functions unhook completely from Start.
                 // They only can be reached if directly called.
-                if( !fun.isPublic() && fun.in(1) instanceof StartNode ) {
+                if( !(code.owns(fun) && fun.isClz()) && fun.in(1) instanceof StartNode ) {
                     fun.removeDeadPath(1);
                     // Unhook from Stop without treating the ReturnNode as
                     // DEAD.  It stays in limbo until Opto links when a caller
@@ -133,19 +133,20 @@ abstract public class Opto {
     // input path is the *only* path and must use conservative inputs.
     private static void linkStart( CodeGen code, FunNode fun, boolean funEscaped ) {
         assert !fun.isDead();
-        StartNode start = fun._compunit._start;
+        StartCUNode start = fun._compunit._start;
         if( fun.nIns() < 2 || fun.in(1) != start ) {
             // Function is added back to its original CompUnit
             if( fun._compunit._stop._inputs.find(fun.ret()) == -1 )
-                fun._compunit._stop.addDef(fun.ret());
+                code.add(fun._compunit._stop).addDef(fun.ret());
             // Function is reachable by any *remote* caller who gets the pointer!
             fun.insertDef(1,start);
             code._iter.add(fun);
             for( Node p : fun._outputs )
                 if( p instanceof ParmNode parm ) {
-                    Node defalt = !funEscaped ? code.con(Type.TOP)
-                        : parm._idx==1 ? new ProjNode(start,1,ScopeNode.MEM0).peephole()
-                        : code.con(parm._con);
+                    //Node defalt = !funEscaped ? code.con(Type.TOP)
+                    //    : parm._idx==1 ? start.proj(1)
+                    //    : code.con(parm._con);
+                    Node defalt = parm._idx==1 ? start.proj(1) : code.con(funEscaped ? parm._con : parm._type);
                     parm.insertDef(1,defalt);
                     code._iter.add(parm);
                 }
@@ -166,8 +167,6 @@ abstract public class Opto {
             if( oval == nval ) continue;
             assert oval.isa(nval);    // Types start high and always fall
             Type pesiVal = oldTypes.atX(n._nid);
-            // TODO: This asset should be valid.  Fails because no way to represent
-            //   "all the outside world except things I know about"
             assert pesiVal==null || nval.isa(pesiVal); // Never fall worse than the pessimistic pass
             n._type = nval;
 
@@ -196,7 +195,7 @@ abstract public class Opto {
             if( n instanceof CallNode call && oval.isHigh() && !nval.isHigh() && call.fptr()._type instanceof TypeFunPtr )
                 linkCG(code,call.tfp(),call);
 
-            // If a otherwise-dead function pointer escapes, any future linked
+            // If an otherwise-dead function pointer escapes, any future linked
             // caller might find and call it.  Force the function to be alive
             // and called by Start.
             if( n instanceof StartNode && n._type instanceof TypeTuple tt )
@@ -245,7 +244,7 @@ abstract public class Opto {
                 assert x.compute() == x._type;      // Hit the fixed point
                 // TODO: This asset should be valid.  Fails because no way to represent
                 //   "all the outside world except things I know about"
-                //assert x._nid >= oldTypes._len || x._type.isa(oldTypes.at(x._nid)); // Hit at least the bottom-up type
+                assert x._nid >= oldTypes._len || x._type.isa(oldTypes.at(x._nid)); // Hit at least the bottom-up type
                 code.add(x);
                 return null;
             });
@@ -254,7 +253,8 @@ abstract public class Opto {
         for( FunNode fun : code._linker )
             if( fun != null && !fun.isDead() ) {
                 if( fun._type.isHigh() )  code.add(fun);
-                else                      linkStart(code,fun,false);
+                else if( code.owns(fun) ) linkStart(code,fun,false);
+                else                      code.add(fun);
             }
     }
 

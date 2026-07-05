@@ -49,15 +49,15 @@ public abstract class GlobalCodeMotion {
         // For all global constants
         for( int i=0; i< start.nOuts(); i++ ) {
             Node con = start.out(i);
-            if( con instanceof ConstantNode conx && conx._type.isHighOrConst() ) {
-                breakUpGlobalConstantSingle( con);
+            if( con instanceof TypeNode conx && conx._type.isHighOrConst() && conx.isConst() ) {
+                breakUpGlobalConstantSingle( conx );
                 i--;        // Removed a global constant, re-run same index
             }
         }
     }
 
 
-    private static void breakUpGlobalConstantSingle( Node con) {
+    private static void breakUpGlobalConstantSingle( TypeNode con ) {
         // While constant has users in different functions
         while( true ) {
             // Find a function user, and another function
@@ -66,6 +66,7 @@ public abstract class GlobalCodeMotion {
             for( Node use : con.outs() ) {
                 if( use == null ) continue;
                 FunNode fun2 = useFun(use);
+                if( fun2==null || !CodeGen.CODE.owns(fun2) ) continue;
                 if( fun==null || fun==fun2 ) fun=fun2;
                 else { done=false; break; }
             }
@@ -83,6 +84,7 @@ public abstract class GlobalCodeMotion {
                 Node use = con.out(j);
                 if( use == null ) continue;
                 FunNode fun2 = useFun(use);
+                if( fun2==null || !CodeGen.CODE.owns(fun2) ) continue;
                 if( fun2==fun ) {
                     use.setDef(use._inputs.find(con),con2);
                     j--;
@@ -96,7 +98,9 @@ public abstract class GlobalCodeMotion {
             return ret.fun();
         if( use instanceof ParmNode parm )
             return parm.fun();
-        FunNode fun = use.cfg0().fun();
+        CFGNode cfg = use.cfg0();
+        if( cfg==null ) return null;
+        FunNode fun = cfg.fun();
         // Use itself is not in a function... which makes it a 2-part
         // constant such as happens on some chips where large constants
         // have to be built up in parts.

@@ -96,9 +96,9 @@ public class FunNode extends RegionNode {
             CODE.add(this);
             // Changing the signature can allow more inlining
             if( _ret != null )
-                for( Node cend : ret().outs() )
-                    if( cend instanceof CallEndNode )
-                        CODE.add(cend);
+                for( Node use : ret().outs() )
+                    if( use instanceof CallEndNode || use instanceof FunPtrNode )
+                        CODE.add(use);
             _sig = sig;
             unlock();
         }
@@ -125,7 +125,7 @@ public class FunNode extends RegionNode {
         if( unknownCallers() )
             return Type.CONTROL;
         Type t = Type.XCONTROL;
-        for (int i = 1; i < nIns(); i++) {
+        for( int i = 1; i < nIns(); i++) {
             // Since there are no unknown callers, the Start input is only a
             // fake hook and will be a Tuple with XControl, so ignore it.  Need
             // to be called from someplace other than Start.

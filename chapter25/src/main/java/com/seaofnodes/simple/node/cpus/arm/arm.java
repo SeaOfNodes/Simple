@@ -684,6 +684,7 @@ public class arm extends Machine {
         case DivNode div     -> new DivARM(div);
         case EscapeNode esc  -> new EscapeNode(esc);
         case FunNode fun     -> new FunARM(fun);
+        case FunPtrNode  fptr -> fptr(fptr);
         case IfNode iff      -> jmp(iff);
         case LoadNode ld     -> ld(ld);
         case MemMergeNode mem-> new MemMergeNode(mem);
@@ -764,7 +765,6 @@ public class arm extends Machine {
         return switch( con._con ) {
         case TypeInteger ti -> new IntARM(con,ext);
         case TypeFloat   tf -> new FltARM(con,ext);
-        case TypeFunPtr tfp -> new TFPARM(con,ext);
         case TypeMemPtr tmp -> new TMPARM(con,ext);
         case TypeNil tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
@@ -772,10 +772,16 @@ public class arm extends Machine {
         };
     }
 
+    private Node fptr( FunPtrNode con ) {
+        return new TFPARM(con,null);
+    }
+
     private Node call(CallNode call){
-        return call.fptr() instanceof ConstantNode con && con._type instanceof TypeFunPtr tfp
-                ? new CallARM(call, tfp)
-                : new CallRRARM(call);
+        return call.fptr() instanceof FunPtrNode fptr
+            ? new CallARM(call, (TypeFunPtr)fptr._type)
+            : call.fptr() instanceof ConstantNode con
+            ? new CallARM(call, (TypeFunPtr)con._type)
+            : new CallRRARM(call);
     }
 
     private Node or(OrNode or) {

@@ -166,8 +166,12 @@ abstract public class Serialize {
         }
         // Write out the input indices packed.
         for( Node n : nodes ) {
-            for( int j=0; j<n.nIns(); j++ )
-                baos.packed2( n.in(j)==null ? 0 : anodes.get(n.in(j)) );
+            for( int j=0; j<n.nIns(); j++ ) {
+                Node def = n.in(j);
+                Integer idx = def==null ? Integer.valueOf(0) : anodes.get(def);
+                assert idx != null : "Missing serialized input for "+n+" input "+j+" def "+def;
+                baos.packed2(idx);
+            }
             if( n instanceof FunNode fun )
                 baos.packed2(anodes.get(fun.ret()));
         }
@@ -417,14 +421,17 @@ abstract public class Serialize {
 
         // All the CompUnits
         for( CompUnit cu : code._compunits.values() ) {
-            nodes.add(cu._start);
-            // Memory proj
-            nodes.add(cu._start.proj(1));
-            // All the functions, including internal ones, in comp-unit order
-            for( FunNode fun : code._linker )
-                if( fun!=null && !fun.isDead() && fun._compunit == cu )
-                    _funWalk(fun,nodes,visit);
-            nodes.add(cu._stop);
+            // Whole CompUnits have no users, went dead
+            if( !cu._start.isDead() ) {
+                nodes.add(cu._start);
+                // Memory proj
+                nodes.add(cu._start.proj(1));
+                // All the functions, including internal ones, in comp-unit order
+                for( FunNode fun : code._linker )
+                    if( fun!=null && !fun.isDead() && fun._compunit == cu )
+                        _funWalk(fun,nodes,visit);
+                nodes.add(cu._stop);
+            }
         }
 
         nodes.add(code._stop);

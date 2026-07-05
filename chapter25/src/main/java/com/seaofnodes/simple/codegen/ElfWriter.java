@@ -186,6 +186,8 @@ public class ElfWriter {
             for( Node stopcu : stop._inputs ) {
                 for( Node ret : stopcu._inputs ) {
                     FunNode fun = ((ReturnNode)ret).fun();
+                    if( !_code.owns(fun) )
+                        continue;
                     int end = enc.opStart(fun.ret()) + enc.opLen(fun.ret());
                     long value = enc.opStart(fun);
                     long size = end - value;
@@ -198,7 +200,7 @@ public class ElfWriter {
         void symbolEntryClinit(int text_idx, Encoding enc) {
             String entryName = _code.entryClinitName();
             for( FunNode fun : _code._linker )
-                if( fun != null && entryName.equals(fun._name) ) {
+                if( fun != null && _code.owns(fun) && entryName.equals(fun._name) ) {
                     assert enc.opStart(fun) == 0;
                     symbol("main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, enc.opStart(fun), 0);
                     return;

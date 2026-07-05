@@ -319,7 +319,7 @@ val fib = { int n ->
 };
 """;
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
-        //TestC.runC(src, "fib", fib, 24);
+        TestC.runC(src, "fib", fib, 24);
 
         EvalRisc5 R5 = TestRisc5.build( src, "fib", 9, 17, false);
         int trap = R5.step(100);

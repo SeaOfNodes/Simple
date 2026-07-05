@@ -10,6 +10,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -203,6 +204,43 @@ public class Chapter25Test {
         File sys_file = new File(RELEASE_SYS_BLDDIR+"/sys.o");
         assertTrue("Missing "+sys_file+"; run make release or make tests_sys first",  sys_file.exists());
         Simple.main(new String[]{"-L",RELEASE_SYS_BLDDIR,"--norun","docs/examples/A_helloWorld.smp"});
+    }
+
+    @Test
+    public void testHelloWorldDriverLibFile() throws Exception {
+        File sys_file = new File(RELEASE_SYS_BLDDIR+"/sys.o");
+        assertTrue("Missing "+sys_file+"; run make release or make tests_sys first",  sys_file.exists());
+        Simple.main(new String[]{"-L",sys_file.toString(),"docs/examples/A_helloWorld.smp"});
+    }
+
+    @Test
+    public void testHelloWorldNoInlineImportsSys() throws Exception {
+        File sys_file = new File(RELEASE_SYS_BLDDIR+"/sys.o");
+        assertTrue("Missing "+sys_file+"; run make release or make tests_sys first",  sys_file.exists());
+
+        String base = "helloWorldNoInline";
+        String expected = "Hello, World!";
+        String prog = "return sys.io.p_noInline(\""+expected+"\") - "+expected.length()+";";
+        CodeGen code = new CodeGen(null,"build/objs",new Ary<>(new String[]{RELEASE_SYS_BLDDIR}),
+                                   base,prog,123L,TypeInteger.BOT);
+        code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,true);
+
+        String obj = "build/objs/"+base+".o";
+        String exe = "build/objs/"+base+(TestC.OS.startsWith("Windows") ? ".exe" : "");
+        String syms = run(new String[]{"nm",obj});
+        assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
+
+        run(new String[]{"gcc",obj,RELEASE_SYS_BLDDIR+"/sys.o","-lm","-g","-o",exe});
+        assertEquals(expected, run(new String[]{exe}));
+    }
+
+    private static String run(String[] cmd) throws Exception {
+        Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+        boolean normal = p.waitFor(5, TimeUnit.SECONDS);
+        String out = new String(p.getInputStream().readAllBytes());
+        assertTrue(out, normal);
+        assertEquals(out,0,p.exitValue());
+        return out;
     }
 
     @Test @Ignore

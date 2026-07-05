@@ -8,10 +8,10 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 // Function constants
-public class TFPX86 extends ConstantNode implements MachNode, RIPRelSize {
+public class TFPX86 extends FunPtrNode implements MachNode, RIPRelSize {
     private byte _opLen;
     final String _ext;          // External name
-    TFPX86( ConstantNode fptr, String ext ) { super(fptr); _ext = ext; }
+    TFPX86( FunPtrNode fptr, String ext ) { super(fptr); _ext = ext; }
     @Override public String op() { return "ldx"; }
     @Override public String label() { return op(); }
     @Override public boolean isClone() { return true; }

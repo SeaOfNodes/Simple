@@ -145,13 +145,21 @@ public class Encoding {
     private final HashMap<Node,CFGNode> _internals = new HashMap<>();
     // Source is a Call, destination in the Fun.
     public Encoding relo( CallNode call ) {
-        _internals.put(call,_code.link(call.tfp()));
+        FunNode fun = _code.link(call.tfp());
+        if( fun != null && !_code.owns(fun) )
+            _externals.put(call,fun._name);
+        else
+            _internals.put(call,fun);
         return this;
     }
     // Code address as a constant
-    public Encoding relo( ConstantNode fptr ) {
+    public Encoding relo( FunPtrNode fptr ) {
         TypeFunPtr tfp = (TypeFunPtr)fptr._type;
-        _internals.put(fptr,_code.link(tfp));
+        FunNode fun = _code.link(tfp);
+        if( fun != null && !_code.owns(fun) )
+            _externals.put(fptr,fun._name);
+        else
+            _internals.put(fptr,fun);
         return this;
     }
     // Local jump
@@ -220,7 +228,7 @@ public class Encoding {
         FunNode entry = null;
         String entryName = _code.entryClinitName();
         for( FunNode fun : _code._linker ) {
-            if( fun != null && !fun.isDead() ) {
+            if( fun != null && !fun.isDead() && _code.owns(fun) ) {
                 if( fun.isClz() ) {
                     if( fun._name.equals(entryName) )
                         entry = fun;
@@ -376,7 +384,7 @@ public class Encoding {
         for( CFGNode bb : _cfg ) {
             if( !(bb instanceof MachNode mach0) )
                 opStart(bb, _bits.size());
-            else if( bb instanceof FunNode fun ) {
+            else if( bb instanceof FunNode ) {
                 opStart(bb, _bits.size());
                 mach0.encoding( this );
                 opLen(bb, (byte) (_bits.size() - opStart(bb)));

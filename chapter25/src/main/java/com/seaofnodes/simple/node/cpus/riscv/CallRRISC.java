@@ -13,7 +13,7 @@ public class CallRRISC extends CallNode implements MachNode {
             ? riscv.RMASK                // Function call target
             : riscv.callInMask(tfp(),i,fun()._maxArgSlot); // Normal argument
     }
-    @Override public RegMask outregmap() { return null; }
+    @Override public RegMask outregmap() { return riscv.RPC_MASK; }
 
     @Override public void encoding( Encoding enc ) {
         short rpc = enc.reg(this);

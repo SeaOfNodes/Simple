@@ -283,6 +283,7 @@ public abstract class Eval2 {
         case DivFNode     dvf  -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
         case DivNode      div  -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));
         case EscapeNode   esc  -> esc(esc);
+        case FunPtrNode   fptr -> con(fptr._con);
         case LoadNode     ld   -> load(ld);
         case MemMergeNode merge-> "$mem";
         case MinusFNode   mnf  -> - d(mnf.in(1));

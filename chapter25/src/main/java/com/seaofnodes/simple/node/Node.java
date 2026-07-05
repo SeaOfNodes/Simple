@@ -132,6 +132,7 @@ public abstract class Node implements Cloneable {
             case Con   ->  ConstantNode.make(bais     ,types);
             case Escape->    EscapeNode.make(bais     ,types);
             case Extern->    ExternNode.make(bais,strs,types);
+            case FunPtr->   FunPtrNode.make(bais,     types);
             case Fun   ->       FunNode.make(bais,strs,types);
             case Load  ->       new LoadNode(bais,strs,types,fileAliases,aliases);
             case MemMerge->MemMergeNode.make(bais);
