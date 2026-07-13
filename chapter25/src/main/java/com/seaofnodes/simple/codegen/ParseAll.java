@@ -87,6 +87,12 @@ public abstract class ParseAll {
         // Load all pre-compiled CompUnits
         for( CompUnit cu : NEEDS_LOAD )
             loadCompUnit(code,cu);
+        if( !NEEDS_LOAD.isEmpty() )
+            code._stop.walk(n -> {
+                if( n instanceof CallNode )
+                    code.add(n);
+                return null;
+            });
 
         // Many types will have been declared cyclically either internally or
         // across multiple compilation units.
@@ -124,10 +130,6 @@ public abstract class ParseAll {
                     code.add(add);
                 return null;
             } );
-
-        // If we loaded Opto-typed code, skip first Iter
-        //if( !NEEDS_LOAD.isEmpty() )
-        //    code._phase = CodeGen.Phase.Iter;
     }
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
@@ -335,7 +337,7 @@ public abstract class ParseAll {
 
     // Search external Simple objects only.  C linkage uses explicit "C"
     // declarations, which produce ExternNodes and are resolved by the linker.
-    private static CompUnit findCUnitExternalSimple( CodeGen code, String symbol ) {
+    public static CompUnit findCUnitExternalSimple( CodeGen code, String symbol ) {
         String clzName = symbol.startsWith(Parser.CLZ) ? symbol : Parser.addClzPrefix(symbol);
         String cname = clzName.substring(Parser.CLZ.length());
         String fname = cname.replace('.','/');
@@ -353,7 +355,12 @@ public abstract class ParseAll {
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
         }
-        TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
+        ElfReader typedElf = ElfReader.load(cunit._obj,cunit);
+        TypeStruct clz = typedElf == null ? null : typedElf.loadPublicTypes(code);
+        if( clz != null )
+            Parser.TYPES.put(clz._name,clz);
+        else
+            clz = (TypeStruct)Parser.TYPES.get(clzName);
         if( clz == null )
             Parser.TYPES.put(clzName,clz = TypeStruct.make(clzName,true));
         cunit._clz = clz;
@@ -361,18 +368,4 @@ public abstract class ParseAll {
             WORK.add(cunit);
         return cunit;
     }
-
-    //private static File extSearch( File f, String symbol ) {
-    //    File x;
-    //    if( f.isDirectory() ) {
-    //        for( File f2 : f.listFiles() )
-    //            if( (x = extSearch(f2, symbol)) != null )
-    //                return x;
-    //    } else if( f.getName().equals(symbol+".obj") )
-    //        return f;
-    //    else if( f.getName().endsWith(".tar") )
-    //        throw new RuntimeException("search tar for name");
-    //    return null;
-    //}
-
 }

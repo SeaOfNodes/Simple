@@ -42,15 +42,17 @@ val parseAryI64 = { u8[~] str ->
     if( !s.match('[') ) return null;
     // Array of parsed results
     var nums = new aryi64{ buf=new i64[1]; };
+
     // Parse a list of numbers
-    if( !s.match(']') ) {        // Handle the empty list
-        // Parse "123, " until a something else
-        while( s.x < s.buf# ) {
-            nums.add(s.number());
-            if( !s.match(',') )
-                break;
-        };
-        if( !s.match(']') ) return null; // Close the list
-    }
-    return nums;
+    if( s.match(']') )          // Handle the empty list
+        return nums;
+
+    // Parse number commas "123, " until something else
+    while( s.x < s.buf# ) {
+        nums.add(s.number());
+        if( !s.match(',') )
+            break;
+    };
+    // Close the list
+    return s.match(']') ? nums : null;
 };

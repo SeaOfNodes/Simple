@@ -96,22 +96,20 @@ public class TypeFunPtr extends TypeNil {
         Type def1 = that._open ? BOTTOM : TOP;
         Type def  =       open ? BOTTOM : TOP;
 
-        // Going to pre-trim args, so do not need to over-allocate.
-        // Roll backwards over args.
-        int nargs; for( nargs=Math.max(_sig.length,that._sig.length); nargs>0; nargs-- ) {
-            Type t0 = nargs <= this._sig.length ? this._sig[nargs-1] : def0;
-            Type t1 = nargs <= that._sig.length ? that._sig[nargs-1] : def1;
-            if( t0.meet(t1) != def )
-                break;
-        }
-
-        Type[] args = nargs==0 ? ARG_EMPTY : new Type[nargs];
+        int nargs = Math.max(_sig.length,that._sig.length);
+        Type[] args = new Type[nargs];
 
         for( int i=0; i<nargs; i++ ) {
             Type t0 = i < this._sig.length ? this._sig[i] : def0;
             Type t1 = i < that._sig.length ? that._sig[i] : def1;
             args[i] = t0.meet(t1);
         }
+
+        while( nargs>0 && args[nargs-1] == def )
+            nargs--;
+
+        if( nargs != args.length )
+            args = nargs == 0 ? ARG_EMPTY : Arrays.copyOf(args,nargs);
 
         return make(xmeet0(that), open, args, _ret.meet(that._ret), XInt.meet(_fidxs,that._fidxs));
     }
@@ -152,12 +150,6 @@ public class TypeFunPtr extends TypeNil {
         if( _nil==3 ) return this;
         if( _nil==2 ) return make((byte)3,_open,_sig,_ret,_fidxs);
 
-        //Type[] sig = new Type[_sig.length];
-        //for( int i=0; i<_sig.length; i++ )
-        //    sig[i] = _sig[i].isHigh() ? _sig[i].dual() : _sig[i];
-        //
-        //Type ret = _ret.isHigh() ? _ret.dual() : _ret;
-        //return make((byte)3,_open,sig,ret,_fidxs);
         return make((byte)3,_open,_sig,_ret,_fidxs);
     }
 

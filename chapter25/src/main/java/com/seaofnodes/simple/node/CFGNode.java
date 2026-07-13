@@ -135,7 +135,7 @@ public abstract class CFGNode extends Node {
         int pre = 1;
         _pre = pre++;
         for( FunNode fun : funs ) {
-            if( fun!=null && !fun.isDead() ) {
+            if( fun!=null && !fun.isDead() && !fun._type.isHigh() ) {
                 work.push(fun);
                 if(fun.in(1) instanceof StartCUNode start && start._pre==0 ) {
                     start._pre = pre++;

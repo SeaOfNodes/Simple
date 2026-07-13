@@ -64,7 +64,8 @@ public class LoadNode extends MemOpNode {
             assert ts._name==tmp._obj._name;
             Field mfld = ts.field(_name);
             // Lift from declared type and memory input
-            t = t.join(mfld._t);
+            if( mfld != null )
+                t = t.join(mfld._t);
         } else if( mem._t == Type.TOP ) {
             return Type.TOP;
         }

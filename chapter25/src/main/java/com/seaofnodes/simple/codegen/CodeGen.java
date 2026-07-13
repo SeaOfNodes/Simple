@@ -212,7 +212,7 @@ public class CodeGen {
     // this global info.
 
     // These mappings are all trivial identities when compiling one file; they
-    // only become complex when loading seperately compiled code.
+    // only become complex when loading separately compiled code.
 
     // Compute local function index (FIDX) from global function info.  This is
     // called *in order* during parsing, and that order is part of the global
@@ -428,7 +428,12 @@ public class CodeGen {
         long t0 = System.currentTimeMillis();
         // Build the loop tree, fix never-exit loops
         _start.buildLoopTree( _linker, _stop);
-        _iter.iterate(this);
+        // Invariant theory: No more type or code changes after Opto.  The
+        // LoopTree stuff is used to do layouts now, but not core opts.  TODO:
+        // at some future date we'll do loop opts (e.g. peeling, unrolling)
+        // that will totally impact code shape, types and core opts - but this
+        // will be done in tandem with Opto changes.
+        //_iter.iterate(this);
         _times[Phase.LoopTree.ordinal()] = System.currentTimeMillis() - t0;
         return this;
     }
@@ -464,8 +469,10 @@ public class CodeGen {
     public Machine _mach;
     // Chosen calling convention (usually either Win64 or SystemV)
     public String _callingConv;
+    public String _cCallingConv;
     // Callee save registers
     public RegMask _callerSave;
+    public RegMask _cCallerSave;
 
     // All returns have the following inputs:
     // 0 - ctrl
@@ -492,12 +499,17 @@ public class CodeGen {
         try { _mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor(new Class[]{CodeGen.class}).newInstance(this); }
         catch( Exception e ) { throw new RuntimeException(e); }
 
+        _cCallingConv = _mach.cCallingConv(callingConv);
+
         // Build global copies of common register masks.
         long callerSave = _mach.callerSave();
+        long cCallerSave= _mach.callerSave(_cCallingConv);
         long  neverSave = _mach. neverSave();
         int maxReg = Math.min(64,_mach.regs().length);
         assert maxReg>=64 || (-1L << maxReg & callerSave)==0; // No stack slots in callerSave
+        assert maxReg>=64 || (-1L << maxReg & cCallerSave)==0; // No stack slots in cCallerSave
         _callerSave = new RegMask(callerSave);
+        _cCallerSave= new RegMask(cCallerSave);
 
         // Build a Return RegMask array.  All returns have the following inputs:
         // 0 - ctrl
@@ -595,7 +607,7 @@ public class CodeGen {
     	// need to be re-hooked to stop/start less they go dead.
         for( FunNode fun : _linker ) {
             // Already linked to start, not going dead
-            if( fun==null || fun.isDead() )
+            if( fun==null || fun.isDead() || fun._type.isHigh() )
                 continue;
 
             // Imported functions are not emitted by this object.  Unlink any
@@ -810,6 +822,9 @@ public class CodeGen {
                 // Map from symbol string to ELFReader; most lookups
                 // will miss and no need to unpack ElfReader types
                 _externSymbols.putIfAbsent(elf._strs[1],elf);
+                for( String str : elf._strs )
+                    if( str.startsWith(Parser.CLZ) )
+                        _externSymbols.putIfAbsent(str,elf);
                 break;
 
             default: throw Utils.TODO("should not reach here");

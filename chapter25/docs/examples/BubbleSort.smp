@@ -22,11 +22,9 @@ val sort = { sys.aryi64 nums ->
 // Read from stdin a line of the form "[ 4, 3, 2, 1]" and print it sorted.
 val main = { ->
     // Parse array of numbers from stdin
-    var nums = sys.parseAryI64( sys.io.stdin() );
-    if( !nums ) {
-        sys.io.p("stdin must look like [4, 3, 2, 1]");
-        return 1;
-    }
+    var nums = sys.aryi64.parseAryI64( sys.io.stdin() );
+    if( !nums )
+        return sys.io.p("stdin must look like [4, 3, 2, 1]");
 
     // Bubble sort array of integers
     sort(nums);

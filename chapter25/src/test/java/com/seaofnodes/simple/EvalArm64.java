@@ -297,10 +297,12 @@ public class EvalArm64 {
                 break;
             }
 
-            case 0x90: { // adrp
-                int immhi = ( (ir& ~0x1F) << 8 ) >> 8;
+            case 0x90, 0xB0, 0xD0, 0xF0: { // adrp
+                int immhi = ( ir << 8 ) >>> (8+5);
                 int immlo = (ir>>29)& 3;
-                int imm = ((immhi<<2) | immlo) << 12;
+                int imm = ((immhi<<2) | immlo);
+                imm = (imm << 11) >> 11;
+                imm <<= 12;
                 rval = (pc & ~0xFFF) + imm;
                 break;
             }

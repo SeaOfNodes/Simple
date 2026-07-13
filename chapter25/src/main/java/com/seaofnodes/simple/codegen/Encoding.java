@@ -427,7 +427,10 @@ public class Encoding {
                 opStartAdd(bb, slide);
                 // Slide down all other (non-CFG) ops in the block
                 for( Node n : bb._outputs )
-                    if( n instanceof MachNode && !(n instanceof CFGNode) )
+                    if( n instanceof MachNode && !(n instanceof CFGNode) &&
+                        // Match writeEncodings(): FunPtrs are encoded in the
+                        // block of their control, not again at the Return.
+                        !(n instanceof FunPtrNode && bb instanceof ReturnNode) )
                         opStartAdd(n, slide);
                 if( bb instanceof RIPRelSize riprel ) {
                     CFGNode target = (bb instanceof IfNode iff ? iff.cproj(0) : (CFGNode)bb.out(0)).uctrlSkipEmpty();
@@ -459,7 +462,8 @@ public class Encoding {
             }
             opStartAdd(bb, slide);
             for( Node n : bb._outputs )
-                if( n instanceof MachNode && !(n instanceof CFGNode) )
+                if( n instanceof MachNode && !(n instanceof CFGNode) &&
+                    !(n instanceof FunPtrNode && bb instanceof ReturnNode) )
                     opStartAdd(n, slide);
         }
 

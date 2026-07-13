@@ -15,7 +15,7 @@ public class TypeStruct extends Type {
 
     // During parsing a mid-declaration struct is flagged as a "open".  It is
     // treated as having infinite fields with correct name and type BOT.
-    // CNC: Warning I've flipped these before
+    // Closed high-side structs instead have infinite fields of TOP.
 
     public String _name;  // Struct name
     public boolean _open; // infinite fields are all true:BOT, false:TOP

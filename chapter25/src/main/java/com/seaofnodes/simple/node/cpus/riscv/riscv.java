@@ -466,6 +466,7 @@ public class riscv extends Machine {
         // Load from constant pool
         case TypeFloat   tf  -> new FltRISC(con,ext);
         case TypeMemPtr  tmp -> new TMPRISC(con,ext);
+        case TypeFunPtr  tfp -> new TFPRISC(tfp,ext);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);
@@ -473,7 +474,7 @@ public class riscv extends Machine {
     }
 
     private Node fptr( FunPtrNode con ) {
-        return new TFPRISC(con,null);
+        return new TFPRISC(con);
     }
 
     private Node jmp( IfNode iff ) {

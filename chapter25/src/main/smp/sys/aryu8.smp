@@ -15,6 +15,8 @@ struct aryu8 {
         self;
     };
 
+    val clear = { -> len = 0; self; };
+
     // Add a character to aryu8
     val add = { u8 c ->
         _grow(1).buf[len++] = c;

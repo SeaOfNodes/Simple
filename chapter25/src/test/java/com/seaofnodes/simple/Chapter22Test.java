@@ -60,9 +60,9 @@ _Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(59, testCPUSize(src, "x86_64_v2","win64", 3 ));
-        assertEquals(72, testCPUSize(src, "riscv",  "SystemV", 4 ));
-        assertEquals(68, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
+        assertEquals(76, testCPUSize(src, "x86_64_v2","win64", 3 ));
+        assertEquals(92, testCPUSize(src, "riscv",  "SystemV", 4 ));
+        assertEquals(88, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
 
         // do assertEquals here
         EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 4, false);
@@ -92,9 +92,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(59, testCPUSize(src, "x86_64_v2","win64",3 ));
-        assertEquals(72, testCPUSize(src, "riscv",  "SystemV",4 ));
-        assertEquals(68, testCPUSize(src, "arm",    "SystemV",4 ));
+        assertEquals(76, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(92, testCPUSize(src, "riscv",  "SystemV",4 ));
+        assertEquals(88, testCPUSize(src, "arm",    "SystemV",4 ));
 
     }
 
@@ -116,9 +116,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(51, testCPUSize(src, "x86_64_v2","win64",3 ));
-        assertEquals(68, testCPUSize(src, "riscv",  "SystemV",5 ));
-        assertEquals(64, testCPUSize(src, "arm",    "SystemV",5 ));
+        assertEquals(61, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(80, testCPUSize(src, "riscv",  "SystemV",5 ));
+        assertEquals(76, testCPUSize(src, "arm",    "SystemV",5 ));
         // do assertEquals here
     }
 
@@ -185,9 +185,9 @@ val fcn = { Person?[] ps, int x -> // exports a field with a constant fcn ptr; e
     public void testCoRecur() {
         String src = """
 val x = 5; // aa.az; // Error to self-define forward ref
-struct _A { _B? b; _C? c; i64 ax; val az = x*2; };
-struct _B { _A? a; _C? c; f32 bx; val bz = x*3; };
-struct _C { _A? a; _B? b; f64 cx; val cz = x*x; };
+struct _A { Test._B? b; Test._C? c; i64 ax; val az = x*2; };
+struct _B { Test._A? a; Test._C? c; f32 bx; val bz = x*3; };
+struct _C { Test._A? a; Test._B? b; f64 cx; val cz = x*x; };
 _A !aa = new _A{ ax=17; };
 _B !bb = new _B{ bx=3.14; a = aa; };
 _C !cc = new _C{ cx=2.73; a = aa; b = bb; };

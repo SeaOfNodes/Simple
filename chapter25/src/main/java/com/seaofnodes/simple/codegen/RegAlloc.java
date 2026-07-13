@@ -490,8 +490,8 @@ public class RegAlloc {
     void findAllLRG( LRG lrg ) {
         _ns.clear();
         int wd = 0;
-        _ns.push((Node)lrg._machDef);
-        _ns.push((Node)lrg._machUse);
+        if( lrg._machDef != null ) _ns.push((Node)lrg._machDef);
+        if( lrg._machUse != null ) _ns.push((Node)lrg._machUse);
         while( wd < _ns._len ) {
             Node n = _ns.at(wd++);
             if( lrg(n)!=lrg ) continue;

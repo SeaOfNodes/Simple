@@ -197,14 +197,24 @@ public class ElfWriter {
             }
         }
 
+        // Insert a default-main for top-level compilations, if the top-level
+        // does not declare a main.
         void symbolEntryClinit(int text_idx, Encoding enc) {
+            FunNode clinit = null;
             String entryName = _code.entryClinitName();
             for( FunNode fun : _code._linker )
-                if( fun != null && _code.owns(fun) && entryName.equals(fun._name) ) {
-                    assert enc.opStart(fun) == 0;
-                    symbol("main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, enc.opStart(fun), 0);
-                    return;
+                if( fun != null && _code.owns(fun) ) {
+                    if( "main".equals(fun._name) )
+                        return; // Top-level declared a main, take the existing one
+                    if( entryName.equals(fun._name) )
+                        clinit = fun; // Keep top-level entry, if we don't find an explicit main
                 }
+            // No top-level main, so the top-level clinit becomes a default main
+            if( clinit != null ) {
+                assert enc.opStart(clinit) == 0;
+                symbol("main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, enc.opStart(clinit), 0);
+                return;
+            }
             throw new IllegalStateException("Missing entry <clinit> "+entryName);
         }
 

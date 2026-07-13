@@ -50,6 +50,22 @@ abstract public class Opto {
         // Propagate field size constants
         code._iter.iterate(code);
 
+
+        // Relink function headers back to their CompUnit Starts.  This
+        // grouping is used later to find them all for code-emisison, grouping
+        // functions by CompUnit.  TODO: Ponder a cleaner way to do this, as
+        // editing the graph here allows Parm's compute() calls to apparently
+        // vary, breaking the basic reachable invariants in exchange for
+        // convenience it FunNode iteration ordering.
+        for( FunNode fun : code._linker )
+            if( fun != null && !fun.isDead() && !fun._type.isHigh() )
+                linkStart(code,fun,false);
+
+        for( CompUnit cu : code._compunits.values() ) {
+            ProjNode mem = cu._start.proj(1);
+            if( mem != null ) mem.unkeep();
+        }
+
         // To help with testing, sort StopNode Returns by NID
         for( Node stop : code._stop._inputs )
             Arrays.sort(stop._inputs._es,0,stop.nIns(),
@@ -72,6 +88,12 @@ abstract public class Opto {
     // called unless they get linked (hence go dead and can be removed).  If
     // not wholeWorld, keep only public methods (and not the std lib).
     private static void unlinkStart(CodeGen code) {
+        // Keep the Start & Start.ProjMem alive even as we remove all uses
+        for( CompUnit cu : code._compunits.values() ) {
+            ProjNode mem = cu._start.proj(1);
+            if( mem!=null ) mem.keep();
+        }
+
         // Iterate the Stop-of-Stops
         for( Node stop : code._stop._inputs ) {
             for( int i=0; i<stop.nIns(); i++ ) {
@@ -135,9 +157,12 @@ abstract public class Opto {
         assert !fun.isDead();
         StartCUNode start = fun._compunit._start;
         if( fun.nIns() < 2 || fun.in(1) != start ) {
+            assert !start.isDead();
             // Function is added back to its original CompUnit
-            if( fun._compunit._stop._inputs.find(fun.ret()) == -1 )
-                code.add(fun._compunit._stop).addDef(fun.ret());
+            if( fun._compunit._stop._inputs.find(fun.ret()) == -1 ) {
+                StopCUNode stop = fun._compunit._stop;
+                code.add(stop).addDef( fun.ret() );
+            }
             // Function is reachable by any *remote* caller who gets the pointer!
             fun.insertDef(1,start);
             code._iter.add(fun);
@@ -148,7 +173,7 @@ abstract public class Opto {
                     //    : code.con(parm._con);
                     Node defalt = parm._idx==1 ? start.proj(1) : code.con(funEscaped ? parm._con : parm._type);
                     parm.insertDef(1,defalt);
-                    code._iter.add(parm);
+                    code.add(parm);
                 }
         }
     }
@@ -242,20 +267,10 @@ abstract public class Opto {
     private static void moveChangesToWorklist(CodeGen code, Ary<Type> oldTypes) {
         code._start.walk( x -> {
                 assert x.compute() == x._type;      // Hit the fixed point
-                // TODO: This asset should be valid.  Fails because no way to represent
-                //   "all the outside world except things I know about"
                 assert x._nid >= oldTypes._len || x._type.isa(oldTypes.at(x._nid)); // Hit at least the bottom-up type
                 code.add(x);
                 return null;
             });
-
-        // Also all function headers, just trying to get the dead ones
-        for( FunNode fun : code._linker )
-            if( fun != null && !fun.isDead() ) {
-                if( fun._type.isHigh() )  code.add(fun);
-                else if( code.owns(fun) ) linkStart(code,fun,false);
-                else                      code.add(fun);
-            }
     }
 
     // Freeze field sizes; do struct layouts; convert field offsets into

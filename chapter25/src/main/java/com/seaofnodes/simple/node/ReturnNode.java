@@ -79,6 +79,9 @@ public class ReturnNode extends CFGNode {
         return null;
     }
 
+    @Override public boolean eq( Node n ) {
+        return !_fun.isDead() && !((ReturnNode)n)._fun.isDead();
+    }
 
     // ------------
     // MachNode specifics, shared across all CPUs

@@ -63,8 +63,8 @@ return next.q;
     public void testCoRecur() {
         CodeGen code = new CodeGen(
 """
-struct _int0 { int i; _flt0? f; };
-struct _flt0 { flt f; _int0? i; };
+struct _int0 { int i; Test._flt0? f; };
+struct _flt0 { flt f;      _int0? i; };
 _int0 !i0 = new _int0;
 i0.i = 17;
 _flt0 !f0 = new _flt0;
@@ -99,7 +99,7 @@ N n = new N { next = new M; };
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return (const)Test.M; return MEM[ 2:#!-2:[0,[],[]]]; return MEM[ 2:___ 3:___ 4:___ 5:.next=(*Test.M)Bot; 6:#!-6:[0,[],[]]]; ]", code.print());
+        assertEquals("Stop[ return (const)Test.M; return MEM[ 2:.m=0;]; return MEM[ 2:___ 3:___ 4:___ 5:.next=(*Test.M)Bot; 6:.i=0;]; ]", code.print());
     }
 
     @Test
@@ -161,7 +161,7 @@ struct S1 { S2? s; };
 return new S2;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Unknown struct type 'Test.S2'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
     }
 
     @Test
@@ -173,7 +173,7 @@ struct _S2 { int x; };
 return new _S1{}.s=new _S2;
 """);
         code.parse().opto();
-        assertEquals("return Test._S2;", code.print());
+        assertEquals("return _S2;", code.print());
     }
 
     @Test
@@ -197,9 +197,9 @@ return p1.pi.i + 1;
     public void testCoRecur2() {
         CodeGen code = new CodeGen(
 """
-struct _A { _B? f0; _C? f1; };  _A !a = new _A;
-struct _B { _C? f0; _A? f1; };  _B !b = new _B;
-struct _C { _A? f0; _B? f1; };  _C !c = new _C;
+struct _A { Test._B? f0; Test._C? f1; };  _A !a = new _A;
+struct _B { Test._C? f0; Test._A? f1; };  _B !b = new _B;
+struct _C { Test._A? f0; Test._B? f1; };  _C !c = new _C;
 
 a.f0=b;  a.f1=c;
 b.f0=c;  b.f1=a;
@@ -217,32 +217,32 @@ return a.f0.f1.f0.f1.f0;
     public void testCoRecur3() {
         CodeGen code = new CodeGen(
 """
-struct _A { _L? a; _T? b; _F? c; };  _A !a = new _A;
-struct _B { _M? a; _U? b; _G? c; };  _B !b = new _B;
-struct _C { _N? a; _V? b; _H? c; };  _C !c = new _C;
-struct _D { _O? a; _W? b; _I? c; };  _D !d = new _D;
-struct _E { _P? a; _X? b; _J? c; };  _E !e = new _E;
-struct _F { _Q? a; _Y? b; _K? c; };  _F !f = new _F;
-struct _G { _R? a; _Z? b; _L? c; };  _G !g = new _G;
-struct _H { _S? a; _A? b; _M? c; };  _H !h = new _H;
-struct _I { _T? a; _B? b; _N? c; };  _I !i = new _I;
-struct _J { _U? a; _C? b; _O? c; };  _J !j = new _J;
-struct _K { _V? a; _D? b; _P? c; };  _K !k = new _K;
-struct _L { _W? a; _E? b; _Q? c; };  _L !l = new _L;
-struct _M { _X? a; _F? b; _R? c; };  _M !m = new _M;
-struct _N { _Y? a; _G? b; _S? c; };  _N !n = new _N;
-struct _O { _Z? a; _H? b; _T? c; };  _O !o = new _O;
-struct _P { _A? a; _I? b; _U? c; };  _P !p = new _P;
-struct _Q { _B? a; _J? b; _V? c; };  _Q !q = new _Q;
-struct _R { _C? a; _K? b; _W? c; };  _R !r = new _R;
-struct _S { _D? a; _L? b; _X? c; };  _S !s = new _S;
-struct _T { _E? a; _M? b; _Y? c; };  _T !t = new _T;
-struct _U { _F? a; _N? b; _Z? c; };  _U !u = new _U;
-struct _V { _G? a; _O? b; _A? c; };  _V !v = new _V;
-struct _W { _H? a; _P? b; _B? c; };  _W !w = new _W;
-struct _X { _I? a; _Q? b; _C? c; };  _X !x = new _X;
-struct _Y { _J? a; _R? b; _D? c; };  _Y !y = new _Y;
-struct _Z { _K? a; _S? b; _E? c; };  _Z !z = new _Z;
+struct _A { Test._L? a; Test._T? b; Test._F? c; };  _A !a = new _A;
+struct _B { Test._M? a; Test._U? b; Test._G? c; };  _B !b = new _B;
+struct _C { Test._N? a; Test._V? b; Test._H? c; };  _C !c = new _C;
+struct _D { Test._O? a; Test._W? b; Test._I? c; };  _D !d = new _D;
+struct _E { Test._P? a; Test._X? b; Test._J? c; };  _E !e = new _E;
+struct _F { Test._Q? a; Test._Y? b; Test._K? c; };  _F !f = new _F;
+struct _G { Test._R? a; Test._Z? b; Test._L? c; };  _G !g = new _G;
+struct _H { Test._S? a; Test._A? b; Test._M? c; };  _H !h = new _H;
+struct _I { Test._T? a; Test._B? b; Test._N? c; };  _I !i = new _I;
+struct _J { Test._U? a; Test._C? b; Test._O? c; };  _J !j = new _J;
+struct _K { Test._V? a; Test._D? b; Test._P? c; };  _K !k = new _K;
+struct _L { Test._W? a; Test._E? b; Test._Q? c; };  _L !l = new _L;
+struct _M { Test._X? a; Test._F? b; Test._R? c; };  _M !m = new _M;
+struct _N { Test._Y? a; Test._G? b; Test._S? c; };  _N !n = new _N;
+struct _O { Test._Z? a; Test._H? b; Test._T? c; };  _O !o = new _O;
+struct _P { Test._A? a; Test._I? b; Test._U? c; };  _P !p = new _P;
+struct _Q { Test._B? a; Test._J? b; Test._V? c; };  _Q !q = new _Q;
+struct _R { Test._C? a; Test._K? b; Test._W? c; };  _R !r = new _R;
+struct _S { Test._D? a; Test._L? b; Test._X? c; };  _S !s = new _S;
+struct _T { Test._E? a; Test._M? b; Test._Y? c; };  _T !t = new _T;
+struct _U { Test._F? a; Test._N? b; Test._Z? c; };  _U !u = new _U;
+struct _V { Test._G? a; Test._O? b; Test._A? c; };  _V !v = new _V;
+struct _W { Test._H? a; Test._P? b; Test._B? c; };  _W !w = new _W;
+struct _X { Test._I? a; Test._Q? b; Test._C? c; };  _X !x = new _X;
+struct _Y { Test._J? a; Test._R? b; Test._D? c; };  _Y !y = new _Y;
+struct _Z { Test._K? a; Test._S? b; Test._E? c; };  _Z !z = new _Z;
 
 a.a=l;  a.b=t; a.c=f;
 b.a=m;  b.b=u; b.c=g;

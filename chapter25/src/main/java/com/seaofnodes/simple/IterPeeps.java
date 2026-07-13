@@ -40,7 +40,7 @@ import java.util.Random;
  * <li>Our strong invariant is that for all Nodes, either they are on the worklist
  *   OR no peephole applies.  This invariant is easy to check, although expensive.
  *   Basically the normal "iterate peepholes to a fixed point" is linear, and this
- *   check is linear at each peephole step... so quadratic overall.  Its a useful
+ *   check is linear at each peephole step... so quadratic overall.  It's a useful
  *   assert, but one we can disable once the overall algorithm is stable - and
  *   then turn it back on again when some new set of peepholes is misbehaving.
  *   The code for this is turned on in `IterPeeps.iterate` as `assert
@@ -118,7 +118,7 @@ public class IterPeeps {
         Node changed = code._stop.walk( n -> {
             Node m = n;
             Type nval = n.compute();
-            if( (!n.iskeep() || n._nid<=8) &&  // Types must be forwards, even if on worklist
+            if( (!n.iskeep() || n._nid<=8 || (n instanceof ProjNode && n.in(0) instanceof StartNode) ) &&  // Types must be forwards, even if on worklist
                 ( dir
                   ? nval.isa(n._type) // Pesi: new value lifts over old
                   : n._type.isa(nval) // Opto: new value falls over old
@@ -127,7 +127,7 @@ public class IterPeeps {
                 m = n.peepholeOpt();
                 if( m==null ) return null;
             }
-            System.err.println("BREAK HERE FOR BUG: "+n+" old="+n._type+" new="+nval+" peep="+m);
+            assert false : "Non-monotonic peep: "+n+" old="+n._type+" new="+nval+" peep="+m;
             return m;
         });
         code._midAssert = false;

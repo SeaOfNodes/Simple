@@ -49,10 +49,15 @@ public class FunPtrNode extends TypeNode {
     }
     @Override public Node idealize() {
         ReturnNode ret = ret();
-        if( ret != null && fun().sig() != _con ) {
-            liftType(fun().sig());
-            return this;
-        }
+        if( ret==null ) return null;
+        // Function died (never executed), but fcn ptr is alive.
+        // Can be checked for null, or for unequals another FunPtr.
+        FunNode fun = addDep(ret.fun());
+        TypeFunPtr sig = fun.sig();
+        if( sig != _con )
+            { liftType(sig);  return this; }
+        if( fun.isDead() )
+            { setDef(1,null); liftType(sig.makeFrom(Type.TOP)); return this; }
         return null;
     }
 }

@@ -202,14 +202,6 @@ public class CallEndNode extends CFGNode implements MultiNode {
             idom = idom.idom();
         }
 
-        // Expecting just the Call
-        if( fptr.nOuts() > 1 ) {
-            addDep(fptr);
-            for( Node out : fptr._outputs )
-                if( out instanceof ScopeNode )
-                    return -1;  // Wait for these to disappear on their own
-            return 1;
-        }
         // Only fun user is this call
         if( fun.nIns() > 2 ) { addDep(fun); return 1; }
         // Trivial inlining: call site calls a single function; single function
@@ -223,6 +215,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     // Do trivial inlining.  Inlining does not need to clone code, merely
     // triggers folding the Call/Fun and Return/CallEnd away.
     private Node doTrivialInlining( FunNode fun ) {
+        assert !CodeGen.CODE._midAssert; // Triggered inlining
         // Add the size heuristic to grow caller, preventing self-recursive
         // functions from endlessly inlining.
         fun()._approxUIDs += fun._approxUIDs;

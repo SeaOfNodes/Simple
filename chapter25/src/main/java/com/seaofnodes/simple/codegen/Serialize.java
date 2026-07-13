@@ -216,7 +216,9 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static void readAll( CodeGen code, ElfReader elf, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {
+    record TypeRead(Type[] types, String[] strs, GlobalBits fileAliases, GlobalBits fileFidxs, GlobalBits fileRpcs) {}
+
+    static TypeRead readTypes( CodeGen code, ElfReader elf, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {
         BAOS bais = elf._bais;
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
@@ -270,6 +272,28 @@ abstract public class Serialize {
         // Check and collect first published symbols map to TypeStructs
         elf._clz = (TypeStruct)types[1/*skip zero*/];
         assert elf._clz._name==strs[1/*skip null ptr*/];
+        for( Type type : types )
+            if( type instanceof TypeStruct ts )
+                Parser.TYPES.put(ts._name,ts);
+        for( Type type : types ) {
+            if( !(type instanceof TypeStruct ts) || !Parser.startsClzPrefix(ts._name) )
+                continue;
+            String cname = ts._name.substring(Parser.CLZ.length());
+            int dot = cname.lastIndexOf('.');
+            String name = dot == -1 ? cname : cname.substring(dot+1);
+            Field inst = ts.field(name.intern());
+            if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMem mem && mem._t instanceof TypeStruct its )
+                Parser.TYPES.put(cname,its);
+        }
+        return new TypeRead(types,strs,fileAliases,fileFidxs,fileRpcs);
+    }
+
+    static void readAll( CodeGen code, ElfReader elf, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {
+        BAOS bais = elf._bais;
+        TypeRead tread = readTypes(code, elf, aliases, fidxs, rpcs);
+        Type[] types = tread.types();
+        String[] strs = tread.strs();
+        GlobalBits fileAliases = tread.fileAliases();
 
         // D - Read the nodes
 
@@ -407,7 +431,7 @@ abstract public class Serialize {
 
         // All the global constants
         for( Node n : code._start._outputs ) {
-            if( n instanceof ConstantNode ) {
+            if( n.isConst() ) {
                 visit.set( n._nid );
                 nodes.add( n );
                 // Special for Cast:BOT

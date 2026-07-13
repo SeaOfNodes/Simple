@@ -71,7 +71,7 @@ public class EscapeNode extends TypeNode {
         Type t = tpriv.meet(tpub).join(fld()._t);
         int[] fidxes  = XInt.meet(mpriv._escFs, mpub._escFs);
         int[] aliases = XInt.meet(mpriv._escAs, mpub._escAs);
-        return TypeMem.make(fld()._alias, t, false, fld()._final, fidxes, aliases).escapesFrom(t);
+        return TypeMem.make(fld()._alias, t, false, false, fld()._final, fidxes, aliases).escapesFrom(t);
     }
 
     @Override public Node idealize() {

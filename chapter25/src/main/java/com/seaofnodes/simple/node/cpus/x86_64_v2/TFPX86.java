@@ -11,22 +11,22 @@ import com.seaofnodes.simple.util.Utils;
 public class TFPX86 extends FunPtrNode implements MachNode, RIPRelSize {
     private byte _opLen;
     final String _ext;          // External name
-    TFPX86( FunPtrNode fptr, String ext ) { super(fptr); _ext = ext; }
+    // Pointer to a Simple function
+    TFPX86( FunPtrNode fptr ) { super(fptr); _ext = null; }
+    // Pointer to an Extern "C" function
+    TFPX86( TypeFunPtr fptr, String ext ) { super(fptr,CodeGen.CODE._start,null); _type = fptr; _ext = ext; }
     @Override public String op() { return "ldx"; }
     @Override public String label() { return op(); }
     @Override public boolean isClone() { return true; }
-    @Override public Node copy() { return new TFPX86(this,_ext); }
+    @Override public TFPX86 copy() { return new TFPX86((TypeFunPtr)_con,_ext); }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public void encoding( Encoding enc ) {
-        short dst = enc.reg(this);
-
+        if( _ext==null ) enc.relo(this);          // Internal patch
+        else             enc.external(this,_ext); // ELF-file external patch
         // lea to load function pointer address
         // lea rax, [rip+disp32]
-        if( _ext==null )
-            enc.relo(this);     // Internal patch
-        else
-            enc.external(this,_ext); // ELF-file external patch
+        short dst = enc.reg(this);
         // 0 or 1 for REX depending on the dst.
         // Zero/sign extend should be fine, so not wide.
         _opLen = (byte)(6+ x86_64_v2.rexF(dst, 0, 0, true, enc));

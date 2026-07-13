@@ -185,13 +185,13 @@ return (a && sq_noInline(0))
         TestC.runSF( src, "and3", "", 2);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("and3", src, 0, 2, false);
+        EvalArm64 arm = TestArm64.build("and3", src, 0, 5, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);

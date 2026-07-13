@@ -62,16 +62,16 @@ return (sq_noInline(2) <= score < sq_noInline(3))
     ? 0  // Expected
     : 1; // Error
 """;
-        TestC.runSF( src, "stacked_r_3", "", 6);
+        TestC.runSF( src, "stacked_r_3", "", 4);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 7, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_3", src, 0, 7, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_3", src, 0, 5, false);
         int trap_1 = arm.step(100);
         assertEquals(0,trap_1);
         assertEquals(0,arm.regs[0]);

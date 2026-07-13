@@ -1,15 +1,16 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.ParseAll;
-import com.seaofnodes.simple.codegen.CompUnit;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
+import com.seaofnodes.simple.util.Utils;
+
 import static com.seaofnodes.simple.util.Utils.TODO;
 
+import java.text.ParseException;
 import java.util.*;
 
 /**
@@ -43,7 +44,6 @@ public class Parser {
 
     // Current classname being parsed
     private String _nestedType;
-
     /**
      * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
      * there is one current ScopeNode. The reason the current ScopeNode can change is to do with how
@@ -332,7 +332,7 @@ public class Parser {
             Field old = tself.field(v._name);
             Field fld = old == null
                 ? Field.make(v._name,v.type(),_code.alias(_ref._cname),v._final)
-                : Field.make(v._name,v.type(),old._alias,old._final);
+                : Field.make(v._name,v.type(), old._alias,           old._final);
             tself = tself.addOrUpdate(fld);
         }
         TYPES.put(typeName,tself);
@@ -873,9 +873,29 @@ public class Parser {
 
         // Lift expression, based on type
         Type decl = def.type(); // Declared type
-        Node lift = liftExpr(expr.keep(), decl, true);
+        Node lift = liftExpr(expr.keep(), decl, true).keep();
         // Update
         _scope.update(name,lift);
+
+        // Check for storing into an instance field instead of a local var
+        int kx = _scope.kindx(def); // Declaration scope
+        int fx = _scope.enclosingFunction(); // Enclosing function scope
+        Kind kk = _scope._kinds.at(kx);
+        Kind fk = _scope._kinds.at(fx);
+        // Access instance field from 'self'
+        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method ) {
+            // Named field offset on an unknown struct type
+            Node off = fldoff(expr,name);
+            TypeMemPtr self = (TypeMemPtr)_scope.var(fk._lexSize).type();
+            TypeStruct sobj = (TypeStruct)TYPES.get(self._obj._name);
+            Field fld = sobj.field(name);
+            int alias = fld._alias;
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), memAlias(alias), expr, off, lift, false).peephole();
+            memAlias(alias,st);
+        }
+        lift.unkill();
+
+
         // Return un-lifted expr
         return expr.unkeep();
     }
@@ -891,10 +911,10 @@ public class Parser {
         // Auto-narrow wide ints to narrow ints.  For loads, emit code to force
         // the loaded value to match the declared sign/zero bits.  For stores,
         // just force the type, acting "as if" the store silently truncates.
-        // CNC: Language design question: should these be OK or errors?
+        // Language design question: should these be OK or errors?
         //    byte b = 123456; // Currently silent, obviously sensible to error
         //    b++;             // Currently silent, but the math overflows and stores an int
-        // CNC: Same issue for both, should storing an `int` into `byte` silently truncate or fail?
+        // Same issue for both: should storing an `int` into `byte` silently truncate or fail?
         Type et = expr._type;
         if( isLoad ) { expr = zsMask(expr,t); et = expr._type; }
         else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
@@ -1060,7 +1080,7 @@ public class Parser {
         // Insert a field in the containing class with the nested class type.
         // This is basically sugar for "val CLZNAME = <init>"
         // and is a nicer version of updateSelfAsFieldsDiscovered.
-        _scope.define(typeName, sig, true, con(sig), loc());
+        _scope.define(typeName, sig, true, new FunPtrNode(sig,_code._start,ret).peephole(), loc());
 
         require("}");
         return require(_code.ZERO,";");
@@ -1091,11 +1111,11 @@ public class Parser {
         return ret;
     }
 
-    // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
-    // Self-memory is the rare *private* (never aliased) memory for the new object.
+        // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
+        // Self-memory is the rare *private* (never aliased) memory for the new object.
     private TypeFunPtr structInitSig( boolean isClz, TypeStruct tself ) {
         // Private uninitialized memory from new object, no escaped values.
-        TypeMem privMem = isClz ? null : TypeMem.make(1,tself.makeHigh(),true,false,null,null);
+        TypeMem privMem = isClz ? null : TypeMem.make(1,tself,true,isClz,false,null,null);
         Type targ = isClz ? TypeInteger.BOT : privMem;
         // Return for private memory has to name all escaped fields, which are not known yet.
         // Escape ALL fields, and sharpen later.
@@ -1161,6 +1181,9 @@ public class Parser {
     // Structs have nested names, and can be discovered with a partial name
     // match.  Example, searching for a type name "C.D" in the namespace "A.B".
     // This will match "A.B.C.D", then "A.C.D", then "C.D".
+
+    // Will also match external names like "sys.io" or "externModule.subtype.subtype"
+
     private Type type() {
         // Only type with a leading `{` is a function pointer...
         if( peek('{') ) return typeFunPtr();
@@ -1179,31 +1202,97 @@ public class Parser {
             // Can be "int[]" so still need to check array-ness
         } else {
             if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
-            // Now have a tname like "C", which might be followed by more ".D"
-            // typenames.  Do a search for e.g. "A.B.C", then "A.C", then "C".
-            String nest = _nestedType, fullq;
-            while( true ) {
-                fullq = nest+"."+tname; // Full qualified name
-                t0 = TYPES.get(fullq);
-                if( t0 != null )
-                    break;          // Search succeeded
-                // Subtract a layer from nested typenames
-                int idx = nest.lastIndexOf('.');
-                if( idx== -1 ) break; // Search failed
-                nest = nest.substring(0,idx);
-            }
-            tname = fullq;          // Fully qualified type name
 
-            // Gather id.id.id.lasttype.
-            // Ok (and normal) for "id.id.id" to be empty.
-            while( true ) {
-                int old2 = pos();
-                if( !match(".") )  break;
-                String sname = _lexer.matchId();
-                if( sname==null ) { pos(old2); break; }
-                sname = tname+"."+sname;
-                if( TYPES.get(sname) == null ) { pos(old2); break; }
+            if( t0 != null ) {
+                while( true ) {
+                    int old2 = pos();
+                    if( !match(".") ) break;
+                    String sname = matchId();
+                    if( sname==null ) { pos(old2); break; }
+                    sname = tname+"."+sname;
+                    Type t = TYPES.get(sname);
+                    if( t==null ) { pos(old2); break; }
+                    tname = sname;
+                    t0 = t;
+                }
+            } else {
+                // Type A.B.C starts with just A.  Search our nested type path,
+                // e.g. path "X.Y.Z", in order:
+
+                // If A==X its now a local type.
+                //   If another dot, repeat for B==Y then C==Z
+                //   Else if AX.B exists, done
+                //   Else AX.B is a local forward ref.
+                //
+                // Else its a short cut form, one of:
+                //   X.Y.Z.A
+                //   X.Y.A
+                //   X.A
+                // Else this all failed, assume a forward ref with A as an external symbol:
+                //   A
+
+                String root = _nestedType;
+                int ridx = root.indexOf('.');
+                if( ridx != -1 ) root = root.substring(0,ridx);
+                if( tname.equals(root) ) {
+                    boolean localForward = false;
+                    while( true ) {
+                        int old2 = pos();
+                        if( !match(".") ) break;
+                        String sname = matchId();
+                        if( sname==null ) { pos(old2); break; }
+                        sname = tname+"."+sname;
+                        Type t = TYPES.get(sname);
+                        if( t==null && !(_nestedType.equals(tname) || _nestedType.startsWith(tname+".")) && !localForward ) {
+                            pos(old2);
+                            break;
+                        }
+                        tname = sname;
+                        t0 = t;
+                        localForward |= t==null;
+                    }
+                } else {
+                    String nest = _nestedType, fullq = tname;
+                    while( true ) {
+                        fullq = nest+"."+tname; // Full qualified name
+                        t0 = TYPES.get(fullq);
+                        if( t0 != null )
+                            { tname = fullq; break; } // Search succeeded
+                        // Subtract a layer from nested typenames
+                        int idx = nest.lastIndexOf('.');
+                        if( idx== -1 ) break; // Search failed; leave as an external symbol
+                        nest = nest.substring(0,idx);
+                    }
+                    if( t0==null ) {
+                        CompUnit cu = ParseAll.findCompUnit(_code,_ref,tname);
+                        if( cu != null ) {
+                            tname = cu._cname;
+                            t0 = TYPES.get(tname);
+                        }
+                        while( true ) {
+                            int old2 = pos();
+                            if( !match(".") ) break;
+                            String sname = matchId();
+                            if( sname==null ) { pos(old2); break; }
+                            tname = tname+"."+sname;
+                            t0 = TYPES.get(tname);
+                        }
+                    } else {
+                        while( true ) {
+                            int old2 = pos();
+                            if( !match(".") ) break;
+                            String sname = matchId();
+                            if( sname==null ) { pos(old2); break; }
+                            sname = tname+"."+sname;
+                            Type t = TYPES.get(sname);
+                            if( t==null ) { pos(old2); break; }
+                            tname = sname;
+                            t0 = t;
+                        }
+                    }
+                }
             }
+
             tname = tname.intern();
             // Still no type found?  Assume forward reference
             t1 = t0 == null
@@ -1654,7 +1743,7 @@ public class Parser {
         Kind fk = _scope._kinds.at(fx);
         // Access instance field from 'self'
         if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method )
-            return parsePostfixName(_scope.in(method._lexSize),var._name);
+            return parsePostfixName(_scope.in(method._lexSize),id);
 
         // Check for a function-escaping variable; these require true
         // closures.  Final constants are OK; final vars require a hidden var
@@ -1803,7 +1892,7 @@ public class Parser {
                 Node newval = _scope.in(idx++);
                 // Speed optimization: skip store-of-same
                 if( !(selfMem instanceof MemMergeNode mmm && mmm.alias(fld._alias) instanceof StoreNode st && st.val() == newval) ) {
-                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, selfMem, self, off(ts, fld._fname), newval, true));
+                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, selfMem, self, off(ts, fld._fname), newval, fld._final));
                     updatedPrivMem.alias(fld._alias,st);
                 }
             }
@@ -1817,7 +1906,7 @@ public class Parser {
             return self.unkeep();
         }
 
-        // Check that all fields are initialized
+        // Check that all fields are initialized.
         if( tmem._t instanceof TypeStruct postinit ) {
             for( Field fld : postinit._fields ) {
                 assert fld._t != Type.TOP;
@@ -1898,11 +1987,8 @@ public class Parser {
      * </pre>
      */
     private Node parsePostfixMethod(Node expr, Node self) {
-        // CNC BUGGY
-
-        // CNC TODO - Too broad, but the "real fix" requires having strong
-        // types too early in the parse.  This fix allows some normal functions
-        // to end up with a "self" argument.
+        // TODO: This is too broad because the parser lacks strong types here.
+        // Some normal functions can end up with a "self" argument.
 
         // Self method call?  Self is a TMP-not-CLZ, then assume and pass self.
         if( match("(") ) {
@@ -1944,7 +2030,7 @@ public class Parser {
         expr.keep();
 
         // Get the best known TypeStruct from a pointer type.
-        TypeStruct ts = null, ts2 = null;
+        TypeStruct ts = null, ts2;
         if( expr._type instanceof TypeMemPtr tmp && (ts2=((TypeStruct)TYPES.get(tmp._obj._name))) != null )
             ts = (TypeStruct)tmp._obj.join(ts2);
 
@@ -1952,8 +2038,8 @@ public class Parser {
         if( fld==null && ts!=null )
             fld = fieldOrOpen(ts,name,false);
         // With no field, we will update the bulk memory
-        int alias = fld==null ?  1            : fld._alias;
-        Type decl = fld==null ? Type.BOTTOM   : fld._t;
+        int alias = fld==null ?  1          : fld._alias;
+        Type decl = fld==null ? Type.BOTTOM : fld._t;
 
         // Field offset; fixed for structs, computed for arrays
         Node off = (name=="[]"

@@ -466,7 +466,17 @@ public class arm extends Machine {
     // int l
     public static int adrp(int op, int imlo,int opcode, int imhi, int rd) {
         assert 0 <= rd && rd < 32;
+        assert 0 <= imlo && imlo <= 0x3;     //  2 bits
+        assert 0 <= imhi && imhi <= 0x7FFFF; // 19 bits
         return (op << 31) | (imlo << 29) |(opcode << 24) | (imhi << 5) | rd;
+    }
+
+    public static void patch_adrp_add(Encoding enc, int opStart, int delta, int rd) {
+        int target = opStart + delta;
+        int pageDelta = ((target & ~0xFFF) - (opStart & ~0xFFF)) >> 12;
+        int imm21 = pageDelta & 0x1FFFFF;
+        enc.patch4(opStart  , adrp(1, imm21 & 3, OP_ADRP, imm21 >>> 2, rd));
+        enc.patch4(opStart+4, imm_inst_l(OPI_ADD, target & 0xFFF, rd));
     }
 
     // [Rptr+Roff]
@@ -766,6 +776,7 @@ public class arm extends Machine {
         case TypeInteger ti -> new IntARM(con,ext);
         case TypeFloat   tf -> new FltARM(con,ext);
         case TypeMemPtr tmp -> new TMPARM(con,ext);
+        case TypeFunPtr tfp -> new TFPARM(tfp,ext);
         case TypeNil tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t==Type.NIL ? new IntARM(con,ext) : new ConstantNode(con);
@@ -773,7 +784,7 @@ public class arm extends Machine {
     }
 
     private Node fptr( FunPtrNode con ) {
-        return new TFPARM(con,null);
+        return new TFPARM(con);
     }
 
     private Node call(CallNode call){

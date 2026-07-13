@@ -156,7 +156,7 @@ public class ScopeNode extends MemMergeNode {
             if( _kinds.at(i) instanceof Kind.Constructor ctor )
                 return ctor._self;
             else if( _kinds.at(i) instanceof Kind.Func func && FunNode.isInstance(func._name) )
-                return (TypeStruct)((TypeMemPtr)var(_kinds.at(i)._lexSize).type())._obj;
+                return ((TypeMemPtr)var(_kinds.at(i)._lexSize).type())._obj;
         return null;
     }
 

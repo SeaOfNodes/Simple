@@ -20,6 +20,7 @@ abstract public class Machine {
 
     // List of caller-save registers, as a 64bit mask
     public abstract long callerSave();
+    public long callerSave(String conv) { return callerSave(); }
 
     // List of never-save registers, e.g. RSP or a ZERO register if you have one
     public abstract long neverSave();
@@ -30,6 +31,7 @@ abstract public class Machine {
     // given to the incoming function arguments (stack slots reserved for
     // incoming arguments).
     public abstract RegMask callArgMask(TypeFunPtr tfp, int arg, int maxArgSlot);
+    public RegMask callArgMask(TypeFunPtr tfp, int arg, int maxArgSlot, String conv) { return callArgMask(tfp,arg,maxArgSlot); }
 
     // Return register mask, based on signature (GPR vs FPR)
     public abstract RegMask retMask(TypeFunPtr tfp);
@@ -105,5 +107,9 @@ Pre-alloc               Post-Alloc    SP+48   RPC
     // shadow slots if defined in the ABI, even if all arguments are passed in
     // registers.
     public abstract short maxArgSlot(TypeFunPtr tfp);
+    public short maxArgSlot(TypeFunPtr tfp, String conv) { return maxArgSlot(tfp); }
+
+    // Calling convention used for external C symbols.
+    public String cCallingConv(String callingConv) { return callingConv; }
 
 }

@@ -51,7 +51,7 @@ public class NewNode extends Node implements MultiNode {
                               // Objects start with default-zero memory for
                               // fields that can be zero-initialized.  This is
                               // still private memory, so no aliases escape yet.
-                              TypeMem.make(1,ts,true,false,null,null));
+                              TypeMem.make(1,ts,true,false,false,null,null));
     }
 
     @Override public Node idealize() { return null; }
@@ -74,19 +74,19 @@ public class NewNode extends Node implements MultiNode {
     private RegMask _retMask;
     private RegMask _kills;
     public void cacheRegs(CodeGen code) {
-        _arg2Reg  = code._mach.callArgMask(TypeFunPtr.CALLOC,2,0).firstReg();
-        _arg3Mask = code._mach.callArgMask(TypeFunPtr.CALLOC,3,0);
+        _arg2Reg  = code._mach.callArgMask(TypeFunPtr.CALLOC,2,0,code._cCallingConv).firstReg();
+        _arg3Mask = code._mach.callArgMask(TypeFunPtr.CALLOC,3,0,code._cCallingConv);
         // Return mask depends on TFP (either GPR or FPR)
         _retMask = code._mach.retMask(TypeFunPtr.CALLOC);
         // Kill mask is all caller-saves, and any mirror stack slots for args
         // in registers.
-        RegMaskRW kills = code._callerSave.copy();
+        RegMaskRW kills = code._cCallerSave.copy();
         // Start of stack slots
         int maxReg = code._mach.regs().length;
         // Incoming function arg slots, all low numbered in the RA
         int fslot = cfg0().fun()._maxArgSlot;
         // Killed slots for this calls outgoing args
-        int xslot = code._mach.maxArgSlot(TypeFunPtr.CALLOC);
+        int xslot = code._mach.maxArgSlot(TypeFunPtr.CALLOC,code._cCallingConv);
         _xslot = (maxReg+fslot)+xslot;
         for( int i=0; i<xslot; i++ )
             kills.set((maxReg+fslot)+i);

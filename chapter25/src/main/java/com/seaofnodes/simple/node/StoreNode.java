@@ -74,9 +74,9 @@ public class StoreNode extends MemOpNode {
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
         // which is never does in a constructor.
-        if( !_name.equals("[]") && (mem._one || ptr._private || (ptr._one && _loc==null)) )
+        if( !_name.equals("[]") && (mem._one || !ptr._pub || (ptr._one && _loc==null)) )
             // Just track the stored value
-            return TypeMem.make(_alias,val,true,_init,null,null).escapesFrom(val);
+            return TypeMem.make(_alias,val,true,false,_init,null,null).escapesFrom(val);
 
         // Normal aliasing Store.
         assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
@@ -186,7 +186,7 @@ public class StoreNode extends MemOpNode {
             } else {
                 for( Node use : esc._outputs )
                     addDep(use); // Recheck once esc loses a use
-                // CNC: TODO: Trivial bypass Escape to public side
+                // TODO: Trivial bypass Escape to public side
             }
         }
 

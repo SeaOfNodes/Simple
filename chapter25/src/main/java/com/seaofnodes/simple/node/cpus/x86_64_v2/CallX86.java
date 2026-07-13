@@ -8,20 +8,27 @@ import com.seaofnodes.simple.util.SB;
 public class CallX86 extends CallNode implements MachNode, RIPRelSize {
     final TypeFunPtr _tfp;
     final String _name;
+    final boolean _extern;
     CallX86( CallNode call, TypeFunPtr tfp ) {
         super(call);
         _inputs.pop(); // Pop constant target
         assert tfp.isConstant();
         _tfp = tfp;
         _name = CodeGen.CODE.funcName(tfp.fidx());
+        _extern = CodeGen.CODE.externFunc(tfp.fidx()) != null;
     }
     @Override public String op() { return "call"; }
     @Override public String label() { return op(); }
     @Override public String name() { return _name; }
     @Override public TypeFunPtr tfp() { return _tfp; }
-    @Override public RegMask regmap(int i) { return x86_64_v2.callInMask(_tfp,i,fun()._maxArgSlot);  }
+    @Override public RegMask regmap(int i) {
+        return _extern
+            ? x86_64_v2.callInMask(_tfp,i,fun()._maxArgSlot,CodeGen.CODE._cCallingConv)
+            : x86_64_v2.callInMask(_tfp,i,fun()._maxArgSlot);
+    }
     @Override public RegMask outregmap() { return null; }
     @Override public int nargs() { return nIns()-2; } // Minus control, memory, fptr
+    @Override public boolean external() { return _extern; }
 
     @Override public void encoding( Encoding enc ) {
         FunNode fun = CodeGen.CODE.link(_tfp);

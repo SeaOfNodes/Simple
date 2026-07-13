@@ -12,7 +12,7 @@ public class LoadX86 extends MemOpX86 {
         super(ld,ld, base, idx, off, scale, 0);
     }
     @Override public String op() { return "ld"+_sz; }
-    @Override public RegMask outregmap() { return x86_64_v2.MEM_MASK; }
+    @Override public RegMask outregmap() { return _con instanceof TypeFloat ? x86_64_v2.XMASK : x86_64_v2.WMASK; }
     @Override public void encoding( Encoding enc ) {
         // REX.W + 8B /r	MOV r64, r/m64
         // Zero extension for u8, u16 and u32 but sign extension i8, i16, i32

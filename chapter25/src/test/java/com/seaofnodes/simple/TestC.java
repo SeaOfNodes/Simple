@@ -5,7 +5,9 @@ import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
@@ -75,6 +77,10 @@ public abstract class TestC {
      *                    register allocation is reasonable
      */
     public static void run( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv, String cfile, String expected, int spills ) throws IOException {
+        run(src, base, externPaths, simple_conv, c_conv, cfile, null, expected, spills);
+    }
+
+    public static void run( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv, String cfile, String stdin, String expected, int spills ) throws IOException {
         // Simple file base-name example:
         // foo.smp ->
         //   build/objs/foo.o   - object file
@@ -87,7 +93,7 @@ public abstract class TestC {
         CodeGen code = new CodeGen(null,"build/objs",externPaths,base,src,123L,TypeInteger.BOT);
         code.driver( CPU_PORT, simple_conv, false, cfile==null );
 
-        String result = gcc(obj, c_conv, cfile, false, exe );
+        String result = gcc(obj, c_conv, cfile, stdin, linkObjs(externPaths), exe );
         assertEquals(expected,result);
 
         // Allocation quality not degraded
@@ -112,6 +118,14 @@ public abstract class TestC {
     // utility is meant to execute inside a JUnit test which will catch the
     // assert and flag the test as failed.
     public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {
+        return gcc(obj,c_conv,cfile,stdin ? "" : null,null,args);
+    }
+
+    public static String gcc( String obj, String c_conv, String cfile, String stdin, String... args ) throws IOException {
+        return gcc(obj,c_conv,cfile,stdin,null,args);
+    }
+
+    public static String gcc( String obj, String c_conv, String cfile, String stdin, Ary<String> linkObjs, String... args ) throws IOException {
 
         // Compile the C program.  Compiling code and constants in the low
         // 2Gig.  Pointers are 64b BUT since always in the low 2G all the
@@ -120,12 +134,14 @@ public abstract class TestC {
         var params = new Ary<>(String.class);
         params.add("gcc");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
+        params.add(obj);
+        if( linkObjs != null )
+            params.addAll(linkObjs.asAry());
         params.addAll(new String[] {
-                obj,
-                "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
-                "-g",
-                "-o",
-                args[0],
+            "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
+            "-g",
+            "-o",
+            args[0],
         });
         // Calling convention for C calls, if any
         if( cfile!=null ) {
@@ -152,12 +168,42 @@ public abstract class TestC {
 
         // Execute results
         ProcessBuilder smp = new ProcessBuilder(args);
-        if( stdin ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
+        File stdinFile = null;
+        File stdoutFile = File.createTempFile("simple-stdout",".txt");
+        smp.redirectOutput(stdoutFile);
+        if( stdin!=null && stdin.isEmpty() ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
+        else if( stdin!=null ) {
+            stdinFile = File.createTempFile("simple-stdin",".txt");
+            Files.writeString(stdinFile.toPath(),stdin);
+            smp.redirectInput(stdinFile);
+        }
         Process p = smp.start();
+        if( stdin==null )
+            p.getOutputStream().close();
         try { exit = (byte)p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
-        result = new String(p.getInputStream().readAllBytes());
+        result = Files.readString(stdoutFile.toPath());
+        if( stdinFile != null )
+            stdinFile.delete();
+        stdoutFile.delete();
         if( exit!=0 )
             return "exec exit code: "+exit;
         return result;
+    }
+
+    private static Ary<String> linkObjs(Ary<String> externPaths) {
+        if( externPaths == null )
+            return null;
+        Ary<String> objs = new Ary<>(String.class);
+        for( String path : externPaths ) {
+            File file = new File(path);
+            if( file.isFile() && file.getName().endsWith(".o") )
+                objs.add(file.toString());
+            else if( file.isDirectory() ) {
+                File sys = new File(file,"sys.o");
+                if( sys.isFile() )
+                    objs.add(sys.toString());
+            }
+        }
+        return objs.isEmpty() ? null : objs;
     }
 }

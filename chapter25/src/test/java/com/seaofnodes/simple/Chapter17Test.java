@@ -500,8 +500,8 @@ struct _A {
 return new _A{array_of_b = new B?[0]; }.array_of_b;
 """);
         code.parse().opto();
-        assertEquals("return []*Test.B?;", code.print());
-        assertEquals("*Test.B {}?[]", Eval2.eval(code,0));
+        assertEquals("return []*B?;", code.print());
+        assertEquals("*B {}?[]", Eval2.eval(code,0));
     }
 
     // ---------------------------------------------------------------

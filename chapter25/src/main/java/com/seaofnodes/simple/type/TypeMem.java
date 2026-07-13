@@ -17,7 +17,8 @@ public class TypeMem extends Type {
     //  N means alias slice#N.
     public int _alias;
     public Type _t;       // Memory contents, some scalar type
-    public boolean _one;  // Private memory, corresponds to TMP _one
+    public boolean _one;  // Singleton memory, corresponding to TypeMemPtr._one.
+    public boolean _clz;  // Class-object singleton memory; true singletons stay constant after construction.
     public boolean _final;// Memory is only set in the constructor
 
     // Escaped aliases and functions - escaped into this memory.  These are
@@ -31,10 +32,11 @@ public class TypeMem extends Type {
     private static final Ary<TypeMem> FREE = new Ary<>(TypeMem.class);
 
     private TypeMem() { super(TMEM); CNT++; }
-    private TypeMem init(int alias, Type t, boolean one, boolean xfinal, int[] fidxs, int[] aliases) {
+    private TypeMem init(int alias, Type t, boolean one, boolean clz, boolean xfinal, int[] fidxs, int[] aliases) {
         _alias = alias;
         _t = t;
         _one = one;
+        _clz = clz;
         _final = xfinal;
 
         assert _escFs == null && _escAs == null;
@@ -48,6 +50,9 @@ public class TypeMem extends Type {
         mem._dual = null;
         mem._hash = 0;
         mem._t = null;
+        mem._one = false;
+        mem._clz = false;
+        mem._final = false;
         mem._escFs = null;
         mem._escAs = null;
         FREE.push(mem);
@@ -55,44 +60,44 @@ public class TypeMem extends Type {
     }
     @Override boolean isFree() { return _alias == -99; }
 
-    public static TypeMem malloc(int alias, Type t, boolean one, boolean xfinal, int[] fidxs, int[] aliases) {
-        return (FREE.isEmpty() ? new TypeMem() : FREE.pop()).init(alias,t,one,xfinal,fidxs,aliases);
+    public static TypeMem malloc(int alias, Type t, boolean one, boolean clz, boolean xfinal, int[] fidxs, int[] aliases) {
+        return (FREE.isEmpty() ? new TypeMem() : FREE.pop()).init(alias,t,one,clz,xfinal,fidxs,aliases);
     }
-    public static TypeMem make(int alias, Type t, boolean one, boolean xfinal, int[] fidxs, int[] aliases) {
+    public static TypeMem make(int alias, Type t, boolean one, boolean clz, boolean xfinal, int[] fidxs, int[] aliases) {
         if( fidxs  ==null ) fidxs  = XInt.EMPTY;
         if( aliases==null ) aliases= XInt.EMPTY;
-        TypeMem f = malloc(alias,t,one,xfinal, fidxs, aliases);
+        TypeMem f = malloc(alias,t,one,clz,xfinal, fidxs, aliases);
         TypeMem f2 = f.intern();
         if( f2==f ) return f;
         return VISIT.isEmpty() ? f2.free(f) : f2.delayFree(f);
     }
-    public static TypeMem make(int alias, Type t) { return make(alias,t,false,false,null,null); }
+    public static TypeMem make(int alias, Type t) { return make(alias,t,false,false,false,null,null); }
     // Make a private memory
-    public static TypeMem makePrivate(Type t) { return make(1,t,true,false,escapeFIDX(XInt.EMPTY,t), escapeAlias(XInt.EMPTY,t)); }
+    public static TypeMem makePrivate(Type t) { return make(1,t,true,false,false,escapeFIDX(XInt.EMPTY,t), escapeAlias(XInt.EMPTY,t)); }
 
-    public TypeMem makeFrom(Type t) { return make(_alias,t,_one,_final,_escFs,_escAs); }
+    public TypeMem makeFrom(Type t) { return make(_alias,t,_one,_clz,_final,_escFs,_escAs); }
     public TypeMem makeFrom(int[] fidxes, int[] aliases) {
-        return make(_alias,_t,_one,_final,fidxes,aliases);
+        return make(_alias,_t,_one,_clz,_final,fidxes,aliases);
     }
     // Existing escapes plus `t` escapes
     public TypeMem escapes(Type t) {
-        return make(_alias,_t,_one,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
+        return make(_alias,_t,_one,_clz,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
     }
     // Existing escapes plus `t` escapes
     public TypeMem escapesFrom(Type t) {
-        return make(_alias,t,_one,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
+        return make(_alias,t,_one,_clz,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
     }
     // Existing escapes plus `t` escapes
     public TypeMem escapesFrom(int alias, Type t) {
-        return make(alias,t,_one,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
+        return make(alias,t,_one,_clz,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
     }
     public TypeMem escapesAliases(Type t) {
-        return make(_alias,_t,_one,_final, _escFs, escapeAlias(_escAs,t));
+        return make(_alias,_t,_one,_clz,_final, _escFs, escapeAlias(_escAs,t));
     }
 
-    public static final TypeMem TOP = make(1, Type.TOP   ,true ,true , XInt.EMPTY, XInt.EMPTY);
-    public static final TypeMem BOT = make(1, Type.BOTTOM,false,false, XInt.FULL , XInt.FULL );
-    public static final TypeMem START = make(1, Type.BOTTOM,false,false, XInt.EMPTY, XInt.EMPTY);
+    public static final TypeMem TOP = make(1, Type.TOP   ,true ,true, true , XInt.EMPTY, XInt.EMPTY);
+    public static final TypeMem BOT = make(1, Type.BOTTOM,false,false,false, XInt.FULL , XInt.FULL );
+    public static final TypeMem START= make(1,Type.BOTTOM,false,false,false, XInt.EMPTY, XInt.EMPTY);
     public static final TypeMem SELF_MEM = make(1, TypeStruct.BOT);
 
     public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); ts.add(SELF_MEM); ts.add(START); }
@@ -112,16 +117,17 @@ public class TypeMem extends Type {
         Type mt = _t.meet(that._t);
         int[] fidxs  = XInt.meet( _escFs, that._escFs );
         int[] aliases= XInt.meet( _escAs, that._escAs );
-        return make(alias, mt, _one & that._one, _final & that._final, fidxs, aliases);
+        // Singleton/class/final facts are kept only when both sides agree.
+        return make(alias, mt, _one & that._one, _clz & that._clz, _final & that._final, fidxs, aliases);
     }
 
     @Override
-    Type xdual() { return malloc(_alias,_t.dual(),!_one,!_final, XInt.dual(_escFs), XInt.dual(_escAs)); }
+    Type xdual() { return malloc(_alias,_t.dual(),!_one,!_clz,!_final, XInt.dual(_escFs), XInt.dual(_escAs)); }
 
     @Override TypeMem rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        TypeMem d = malloc(_alias,null,!_one,!_final, XInt.dual(_escFs), XInt.dual(_escAs));
+        TypeMem d = malloc(_alias,null,!_one,!_clz,!_final, XInt.dual(_escFs), XInt.dual(_escAs));
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
         return d;
@@ -129,28 +135,28 @@ public class TypeMem extends Type {
 
     @Override public TypeMem makeZero() { return TOP; }
     @Override public boolean isHigh() { return _t.isHigh(); }
-    @Override boolean _isConstant() { return _one && _alias!= 1 && _t._isConstant(); }
+    @Override boolean _isConstant() { return _one && _clz && _alias!= 1 && _t._isConstant(); }
     @Override public int log_size() { throw Utils.TODO(); }
     @Override boolean _isFinal() { return _t._isFinal(); }
     @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
-    @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true),_one,_final,_escFs,_escAs); }
+    @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true),_one,_clz,_final,_escFs,_escAs); }
 
-    @Override TypeMem _close( String name, HashMap<String, Type> TYPES ) { return malloc(_alias,_t._close(name, TYPES ),_one,_final,_escFs,_escAs); }
+    @Override TypeMem _close( String name, HashMap<String, Type> TYPES ) { return malloc(_alias,_t._close(name, TYPES ),_one,_clz,_final,_escFs,_escAs); }
 
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
-        return make(_alias,_t._upgradeType(TYPES),_one,_final,_escFs,_escAs);
+        return make(_alias,_t._upgradeType(TYPES),_one,_clz,_final,_escFs,_escAs);
     }
 
-    @Override int hash() { return 9876543 + _alias + _t.hashCode() + (_one ? 8196 : 0) + (_final ? 16392 : 0) + XInt.hash(_escFs) + XInt.hash(_escAs); }
+    @Override int hash() { return 9876543 + _alias + _t.hashCode() + (_one ? 8196 : 0) + (_clz ? 4098 : 0) + (_final ? 16392 : 0) + XInt.hash(_escFs) + XInt.hash(_escAs); }
 
     @Override boolean eq(Type t) {
         TypeMem that = (TypeMem) t; // Invariant
-        return _alias == that._alias && _t == that._t && _one == that._one && _final == that._final && _escFs == that._escFs && _escAs == that._escAs;
+        return _alias == that._alias && _t == that._t && _one == that._one && _clz == that._clz && _final == that._final && _escFs == that._escFs && _escAs == that._escAs;
     }
 
     @Override boolean cycle_eq(Type t) {
         TypeMem that = (TypeMem) t; // Invariant
-        return _alias == that._alias && _one == that._one && _final == that._final && _escFs == that._escFs && _escAs == that._escAs && _t.cycle_eq(that._t);
+        return _alias == that._alias && _one == that._one && _clz == that._clz && _final == that._final && _escFs == that._escFs && _escAs == that._escAs && _t.cycle_eq(that._t);
     }
 
     @Override public int nkids() { return 1; }
@@ -158,12 +164,12 @@ public class TypeMem extends Type {
     @Override public void set( int idx, Type t ) { _t = t; }
     // one tag for alias#1, one tag for generic alias.
     // tag bit for _one, another bit for _final.
-    @Override int TAGOFF() { return 8; }
+    @Override int TAGOFF() { return 12; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         baos.write(TAGOFFS[_type]
                    + (_alias==1 ? 0 : 1)
-                   + (!_one     ? 0 : 2)
-                   + (!_final   ? 0 : 4) );
+                   + (!_final   ? 0 : 2)
+                   + (!_one     ? 0 : (_clz ? 4 : 8)));
         if( _alias!=1 ) {
             // generic alias
             assert _alias <= 255;
@@ -174,17 +180,18 @@ public class TypeMem extends Type {
     }
     static TypeMem packed( int tag, BAOS bais ) {
         int alias = (tag&1)==0 ? 1 : bais.packed1();
-        boolean one   = (tag&2)==2;
-        boolean xfinal= (tag&4)==4;
+        boolean xfinal= (tag&2)==2;
+        boolean one   = (tag&12)!=0;
+        boolean clz   = (tag&4)==4;
         int[] escFs = XInt.packed(bais);
         int[] escAs = XInt.packed(bais);
-        return malloc(alias,null,one,xfinal,escFs,escAs);
+        return malloc(alias,null,one,clz,xfinal,escFs,escAs);
     }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {
         sb.p('#');
         if( !_final ) sb.p('!'); // Mutable memory
-        if( _one ) sb.p('-');
+        if( _one ) sb.p(_clz ? 'z' : '-');
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
         sb.p(_alias).p(":[");
         _t.print(sb,visit,html).p(",");

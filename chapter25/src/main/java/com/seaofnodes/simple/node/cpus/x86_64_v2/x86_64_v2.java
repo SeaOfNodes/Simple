@@ -188,11 +188,15 @@ public class x86_64_v2 extends Machine {
     // Map from function signature and argument index to register.
     // Used to set input registers to CallNodes, and ParmNode outputs.
     @Override public RegMask callArgMask( TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
+    @Override public RegMask callArgMask( TypeFunPtr tfp, int idx, int maxArgSlot, String conv ) { return callInMask(tfp,idx,maxArgSlot,conv); }
     static RegMask callInMask( TypeFunPtr tfp, int idx, int maxArgSlot ) {
+        return callInMask(tfp,idx,maxArgSlot,CodeGen.CODE._callingConv);
+    }
+    static RegMask callInMask( TypeFunPtr tfp, int idx, int maxArgSlot, String conv ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
-        return switch( CodeGen.CODE._callingConv ) {
+        return switch( conv ) {
         case "SystemV" -> callSys5 (tfp,idx,maxArgSlot);
         case "win64"   -> callWin64(tfp,idx,maxArgSlot);
         default -> throw Utils.TODO();
@@ -201,7 +205,10 @@ public class x86_64_v2 extends Machine {
 
     // Maximum stack args used by this signature
     @Override public short maxArgSlot( TypeFunPtr tfp ) {
-        return switch( CodeGen.CODE._callingConv ) {
+        return maxArgSlot(tfp,CodeGen.CODE._callingConv);
+    }
+    @Override public short maxArgSlot( TypeFunPtr tfp, String conv ) {
+        return switch( conv ) {
         case "SystemV" -> maxArgSlotSys5 (tfp);
         case "win64"   -> maxArgSlotWin64(tfp);
         default -> throw Utils.TODO();
@@ -248,7 +255,10 @@ public class x86_64_v2 extends Machine {
             : WIN64_CALL[sigidx];
     }
     static short maxArgSlotWin64(TypeFunPtr tfp) {
-        return (short)(tfp.nargs() - (hiddenSelf(tfp) ? 1 : 0));
+        return (short)Math.max(4,tfp.nargs() - (hiddenSelf(tfp) ? 1 : 0));
+    }
+    static short maxIncomingArgSlotWin64(TypeFunPtr tfp) {
+        return (short)Math.max(0,tfp.nargs() - (hiddenSelf(tfp) ? 1 : 0) - 4);
     }
 
     // Sys5: max 6 GPRs and 8 FPRS filled first.  Extra args land in increasing
@@ -327,11 +337,17 @@ public class x86_64_v2 extends Machine {
         (1L<<XMM4) | (1L<<XMM5) ;
 
     @Override public long callerSave() {
-        return switch (CodeGen.CODE._callingConv) {
+        return callerSave(CodeGen.CODE._callingConv);
+    }
+    @Override public long callerSave(String conv) {
+        return switch (conv) {
         case "SystemV" -> SYSTEM5_CALLER_SAVE;
         case "win64"   ->   WIN64_CALLER_SAVE;
-        default -> throw new IllegalArgumentException("Unknown calling convention: " + CodeGen.CODE._callingConv);
+        default -> throw new IllegalArgumentException("Unknown calling convention: " + conv);
         };
+    }
+    @Override public String cCallingConv(String callingConv) {
+        return callingConv;
     }
     @Override public long neverSave() { return 1L<<RSP; }
     @Override public RegMask retMask( TypeFunPtr tfp ) {
@@ -412,11 +428,6 @@ public class x86_64_v2 extends Machine {
         Node rhs = add.in(2);
         if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._con.log_size() >= 3)
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, 0, rhs);
-
-//        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._con.log_size() >= 3) {
-//            throw Utils.TODO(); // Swap load sides
-//        }
-
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS
         if( rhs instanceof ConstantNode off2 && off2._con instanceof TypeInteger toff ) {
@@ -442,10 +453,6 @@ public class x86_64_v2 extends Machine {
     private Node addf(AddFNode addf) {
         if(addf.in(1) instanceof LoadNode ld && ld.nOuts() == 1)
             return new AddFMemX86(addf, address(ld), ld.ptr(), idx, off, scale, addf.in(2));
-
-//        if(addf.in(2) instanceof LoadNode ld && ld.nOuts() == 1)
-//            throw Utils.TODO(); // Swap load sides
-
         return new AddFX86(addf);
     }
 
@@ -529,7 +536,7 @@ public class x86_64_v2 extends Machine {
         case TypeInteger ti -> new IntX86(con,ext);
         case TypeFloat   tf -> new FltX86(con,ext);
         case TypeMemPtr tmp -> new TMPX86(con,ext);
-        case TypeFunPtr tfp -> new TFPX86(new FunPtrNode(tfp, null, null), ext);
+        case TypeFunPtr tfp -> new TFPX86(tfp,ext);
         case TypeNil tn -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
         case Type t -> t == Type.NIL ? new IntX86(con,null) : new ConstantNode(con);
@@ -537,7 +544,7 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node fptr( FunPtrNode con ) {
-        return new TFPX86(con,null);
+        return new TFPX86(con);
     }
 
     private Node i2f8(ToFloatNode tfn) {

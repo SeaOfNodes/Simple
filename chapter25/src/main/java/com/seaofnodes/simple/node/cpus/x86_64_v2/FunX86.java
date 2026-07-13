@@ -10,6 +10,7 @@ public class FunX86 extends FunNode implements MachNode {
     FunX86( FunNode fun ) { super(fun); }
     @Override public void postSelect(CodeGen code) {
         super.postSelect(code);
+        _maxArgSlot = code._mach.maxArgSlot(sig(),code._callingConv);
         // One more for RPC pre-pushed; X86 special
         _maxArgSlot++;
     }

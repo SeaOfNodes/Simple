@@ -94,6 +94,14 @@ public class ElfReader {
         return _clz;
     }
 
+    // Loads strings, mappings, and types, but not Nodes.  Used after the
+    // public-string scan finds a matching Simple ELF, so parsing can resolve
+    // imported field/array aliases before the full graph is linked in later.
+    public TypeStruct loadPublicTypes(CodeGen code) {
+        Serialize.readTypes(code, this, code._aliases, code._fidxs, code._rpcs);
+        return _clz;
+    }
+
     int u1() { return _buf[_x++]&0xFF; }
     int magic() {                         // Big endian
         return (u1() << 24) | (u1() << 16) | (u1() << 8) | u1();

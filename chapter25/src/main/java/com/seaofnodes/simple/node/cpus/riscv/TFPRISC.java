@@ -8,15 +8,18 @@ import com.seaofnodes.simple.util.Utils;
 
 public class TFPRISC extends FunPtrNode implements MachNode, RIPRelSize {
     final String _ext;
-    TFPRISC( FunPtrNode fptr, String ext ) { super(fptr); _ext = ext; }
+    // Pointer to a Simple function
+    TFPRISC( FunPtrNode fptr ) { super(fptr); _ext = null; }
+    // Pointer to an Extern "C" function
+    TFPRISC( TypeFunPtr fptr, String ext ) { super(fptr,CodeGen.CODE._start,null); _type = fptr; _ext = ext; }
     @Override public String op() { return "ldx"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public TFPRISC copy() { return new TFPRISC(this,_ext); }
+    @Override public TFPRISC copy() { return new TFPRISC((TypeFunPtr)_con,_ext); }
     @Override public void encoding( Encoding enc ) {
-        if( _ext!=null ) throw Utils.TODO();
-        enc.relo(this);
+        if( _ext==null ) enc.relo(this);          // Internal patch
+        else             enc.external(this,_ext); // ELF-file external patch
         // TODO: 1 op encoding, plus a TODO if it does not fit
         short dst = enc.reg(this);
         // auipc  t0,0

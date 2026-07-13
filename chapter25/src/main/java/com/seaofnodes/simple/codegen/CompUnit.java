@@ -16,13 +16,13 @@ import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 // files.  These are mirrored over a file system tree (so form a tree), both
 // the source tree and build/object tree.
 public class CompUnit {
-    final CompUnit _par;        // Parent, e.g. A/B
+    public final CompUnit _par;        // Parent, e.g. A/B
     final String _fname;        // Full slashed file name starting from module root, e.g. A/B/C
     final public String _cname; // Full dotted class name starting from module root, e.g. A.B.C
     final String _name;         // Base name, e.g. C
     final ExternNode _ext;      // Found in external libs; e.g. libc
     final File _smp;            // Simple source file, e.g. module_root/A/B/C.smp
-    final File _obj;            // ELF output file, e.g. build/A/B/C.o
+    public final File _obj;            // ELF output file, e.g. build/A/B/C.o
     final public String _src;   // Source code, from file or test case
     //public Encoding _encoding;  // Encoding for output
 

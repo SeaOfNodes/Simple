@@ -85,6 +85,8 @@ public class Type /*implements Cloneable*/ {
     protected Type(byte type) {
         _type = type;           // RTTI
         _uid = (char)UID++;     // A unique ID for every type
+        if( UID > 32000 )
+            type = type;
         assert _uid!=0;         // Overflow
     }
 
@@ -422,10 +424,12 @@ public class Type /*implements Cloneable*/ {
         free(this);
     }
 
-    Type free(Type free) { return this; }
+    Type free(Type free) {
+        return this;
+    }
     boolean isFree() { return false; }
 
-    <T extends Type> T delayFree(Type free) {
+    final <T extends Type> T delayFree(Type free) {
         assert !free._terned;
         FREES.push(free);
         return (T)this;
