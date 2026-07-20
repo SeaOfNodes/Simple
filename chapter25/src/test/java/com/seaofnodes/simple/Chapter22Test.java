@@ -185,12 +185,12 @@ val fcn = { Person?[] ps, int x -> // exports a field with a constant fcn ptr; e
     public void testCoRecur() {
         String src = """
 val x = 5; // aa.az; // Error to self-define forward ref
-struct _A { Test._B? b; Test._C? c; i64 ax; val az = x*2; };
-struct _B { Test._A? a; Test._C? c; f32 bx; val bz = x*3; };
-struct _C { Test._A? a; Test._B? b; f64 cx; val cz = x*x; };
-_A !aa = new _A{ ax=17; };
-_B !bb = new _B{ bx=3.14; a = aa; };
-_C !cc = new _C{ cx=2.73; a = aa; b = bb; };
+struct _A { Test._B? b; Test._C? c; i64 ax; val az = x*2; new _A = { i64 x -> ax=x; }; };
+struct _B { Test._A? a; Test._C? c; f32 bx; val bz = x*3; new _B = { f32 x, Test._A? aa -> bx=x; a=aa; }; };
+struct _C { Test._A? a; Test._B? b; f64 cx; val cz = x*x; new _C = { f64 x, Test._A? aa, Test._B? bb -> cx=x; a=aa; b=bb; }; };
+_A !aa = new _A(17);
+_B !bb = new _B(3.14, aa);
+_C !cc = new _C(2.73, aa, bb);
 aa.b = bb;
 aa.c = cc;
 bb.c = cc;

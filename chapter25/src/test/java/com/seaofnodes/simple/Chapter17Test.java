@@ -163,7 +163,7 @@ return s.x;
     }
 
     @Test public void testVar5() {
-        CodeGen code = new CodeGen("struct _S{int x;}; _S? s; s=new _S{x=3;}; s.x++; return s.x; // Ok, no initializer so x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x; new _S={ int xx -> x=xx; };}; _S? s; s=new _S(3); s.x++; return s.x; // Ok, no initializer so x is mutable ");
         code.parse().opto();
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
@@ -176,7 +176,7 @@ return s.x;
     }
 
     @Test public void testVar7() {
-        CodeGen code = new CodeGen("struct S{int x;}; val s = new S{x=3;}; s.x++; return s.x; // Error initializer so x is immutable ");
+        CodeGen code = new CodeGen("struct S{int x; new S={ int xx -> x=xx; };}; val s = new S(3); s.x++; return s.x; // Error initializer so x is immutable ");
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
@@ -207,8 +207,8 @@ struct Bar { int x; };
 Bar !bar = new Bar;
 bar.x = 3; // Ok, bar is mutable
 
-struct Foo { Bar? !bar; int y; };
-Foo !foo = new Foo { bar = bar; };
+struct Foo { Bar? !bar; int y; new Foo = { Bar? b -> bar = b; }; };
+Foo !foo = new Foo(bar);
 foo.bar = bar; // Ok foo is mutable
 foo.bar.x++;   // Ok foo and foo.bar and foo.bar.x are all mutable
 
@@ -256,11 +256,11 @@ int i,i++;
     public void testVar14() {
         CodeGen code = new CodeGen("""
 struct B {};
-struct A { B b; };
-A x = new A {
+struct A { B b; new A = { ->
     return b; // read before init
     b = new B;
-};
+}; };
+A x = new A;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
@@ -270,10 +270,10 @@ A x = new A {
     public void testVar15() {
         CodeGen code = new CodeGen("""
 struct B {};
-struct A { B b; };
-return new A {
+struct A { B b; new A = { ->
     if (arg) b = new B; // Constructor ends with partial init of b
-}.b;
+}; };
+return (new A).b;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
@@ -283,9 +283,9 @@ return new A {
     public void testVar16() {
         CodeGen code = new CodeGen(
 """
-struct S{};
+struct S{ new S = { -> x = 2; }; };
 val x = 1;
-val s = new S{x = 2;};
+val s = new S;
 return x;
 """
 );
@@ -365,8 +365,8 @@ return b ? b.x++ + b.x++ : -1;
     public void testTrinary4() {
         // This test case will benefit from an unzipping transformation
         CodeGen code = new CodeGen("""
-struct _Bar { _Bar? next; int x; };
-var b = arg ? new _Bar { next = (arg==2) ? new _Bar{x=2;}; x=1; };
+struct _Bar { _Bar? next; int x; new _Bar = { _Bar? n, int xx -> next=n; x=xx; }; };
+var b = arg ? new _Bar((arg==2) ? new _Bar(null,2), 1);
 return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0"
 """);
         code.parse().opto();
@@ -496,8 +496,9 @@ return new _A;
 struct _A {
     B?[]? nil_array_of_b;
     B?[]      array_of_b;
+    new _A = { B?[] bs -> array_of_b = bs; };
 };
-return new _A{array_of_b = new B?[0]; }.array_of_b;
+return new _A(new B?[0]).array_of_b;
 """);
         code.parse().opto();
         assertEquals("return []*B?;", code.print());
@@ -508,10 +509,10 @@ return new _A{array_of_b = new B?[0]; }.array_of_b;
     @Test
     public void testLinkedList2() {
         CodeGen code = new CodeGen("""
-struct _LLI { _LLI? next; int i; };
+struct _LLI { _LLI? next; int i; new _LLI = { _LLI? n, int ii -> next=n; i=ii; }; };
 _LLI? !head = null;
 while( arg-- )
-    head = new _LLI { next=head; i=arg; };
+    head = new _LLI(head,arg);
 int sum=0;
 var ptr = head; // A read-only ptr, to be assigned from read-only next fields
 for( ; ptr; ptr = ptr.next )

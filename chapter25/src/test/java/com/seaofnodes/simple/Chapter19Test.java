@@ -26,6 +26,7 @@ return 0;
 struct String {
     u8[~] cs;
     int _hashCode;
+    new String = { u8[~] s -> cs=s; };
 };
 
 // Compare two Strings
@@ -54,7 +55,7 @@ val hashCode = { String self ->
     : (self._hashCode = _hashCodeString(self));
 };
 
-hashCode(new String{cs="Hello, World!";});
+hashCode(new String("Hello, World!"));
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
         assertEquals("Stop[ return Phi(Region,123456789,Phi(Loop,0,(((Phi_hash<<5)-Phi_hash)+.[]))); return MEM[ 2:___ 3:___ 4:.cs=(*[]u8)Bot; 5:._hashCode=0;]; return Phi(Region,1,1,0,0); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code.print());
@@ -69,6 +70,7 @@ hashCode(new String{cs="Hello, World!";});
 struct String {
     u8[~] cs;
     int _hashCode;
+    new String = { u8[~] s -> cs=s; };
 };
 
 val f = { String self -> 7; };
@@ -79,7 +81,7 @@ val hashCode = { String self ->
     : (self._hashCode = f(self));
 };
 
-hashCode(new String{cs="Hello";});
+hashCode(new String("Hello"));
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
         assertFalse(code.print().contains("return Top"));

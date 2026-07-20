@@ -283,14 +283,21 @@ public class Parser {
         }
 
         ParmNode self = fun.parm(2);
-        assert last!=null;
-        if( isInit )
-            last = initSpecialLastExpr(last, fun.isClz(), self);
-
         // Last expression is the return
-        if( ctrl()._type==Type.CONTROL )
+        if( ctrl()._type==Type.CONTROL ) {
+            // Constructors get special return types
+            if( fun.isClz() ) {
+                // <clinit> only returns an integer, which becomes an OS exit code
+                // if the <clinit> is run directly
+                if( !(last._type instanceof TypeInteger) )
+                    last = _code.ZERO;
+                assert last!=null;
+            } else if( isInit || inExplicitConstructor() ) {
+                last = fun.parm(3);
+            }
             addReturn(last);
-
+            // exit path is now dead (nothing live after a "return")
+        }
         if( isInit )            // <init>  or  <clinit>
             upgradeSelfTypeAndStoreFields( typeName, fun.isClz(), self, fun.parm(3) );
 
@@ -340,21 +347,6 @@ public class Parser {
     }
 
 
-    Node initSpecialLastExpr( Node last, boolean isClz, Node self ) {
-        if( !isClz ) {          // <init>, not <clinit>
-            last = self;        // Init returns self, not last expression
-        } else if( last._type instanceof TypeFunPtr tfp && tfp.nfcns()==1 ) {
-            // Do not return a private function from a <clinit>, as these
-            // might entirely inline and the TFP would otherwise be dead.
-            // The <clinit> exit is only usable as the OS system exit result
-            // or in simple tests.
-            FunNode lastFun = _code.link(tfp);
-            if( lastFun._name==null || lastFun._name.charAt(0)=='_' )
-                last = _code.ZERO;
-        }
-        return last;
-    }
-
     void upgradeSelfTypeAndStoreFields( String typeName, boolean isClz, ParmNode self, ParmNode smem ) {
         int lex = _scope.klast()._lexSize;
         assert _scope.var(lex)._name=="self";
@@ -382,14 +374,13 @@ public class Parser {
         resolveType(tself._name);
 
         // Improve self, selfMem types in scope.
-        // Class self-type is a singleton pointer.
-        self._con = self._type = TypeMemPtr.make((byte)2,tself,isClz);
-        if( isClz ) {           // Upgrade class function signature
-            FunNode fun = self.fun();
-            fun.setSig(fun.sig().makeFrom(self._type,0));
-        } else {                // <init> returns a upgraded private memory
+        // Class self-type is a singleton pointer.  Instance <init> receives the
+        // broad allocation pointer, while private memory tracks initialized fields.
+        self._con = self._type = isClz ? TypeMemPtr.make((byte)2,tself,true) : TypeMemPtr.make(constructorRecv(tself));
+        FunNode fun = self.fun();
+        fun.setSig(fun.sig().makeFrom(self._type,0));
+        if( !isClz )            // <init> returns a upgraded private memory
             smem._con = smem._type = TypeMem.makePrivate(tself);
-        }
 
         // When can _returnScope be null here? A never-exit constructor will
         // not have any returns, and thus no need to gather values and store
@@ -432,6 +423,27 @@ public class Parser {
         return -1;
     }
 
+    private boolean isConstructorDecl(String name) {
+        TypeStruct self = _scope.constructorSelf();
+        return self != null && name == initFieldName(self._name);
+    }
+
+    private boolean inExplicitConstructor() {
+        if( !(_scope.klast() instanceof Kind.Func func) )
+            return false;
+        TypeStruct self = _scope.constructorSelf();
+        return self != null && func._name == (self._name+"."+initFieldName(self._name)).intern();
+    }
+
+    private static TypeStruct constructorRecv(TypeStruct self) {
+        Field[] fs = new Field[self._fields.length];
+        for( int i=0; i<fs.length; i++ ) {
+            Field fld = self._fields[i];
+            fs[i] = fld._t instanceof TypeFunPtr ? fld : fld.makeFrom(fld._t.glb(true));
+        }
+        return TypeStruct.make(self._name,self._open,fs);
+    }
+
 
     /**
      * Parses a block
@@ -470,6 +482,7 @@ public class Parser {
         else if (matchx("break")   ) return parseBreak();
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
+        else if (inStructDeclaration() && matchx("new")) return parseConstructorDeclaration();
         else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")       ) return _code.ZERO; // Empty statement
         // Break ambiguity around leading function types and starting a block
@@ -479,6 +492,31 @@ public class Parser {
         }
         // Declaration or normal assignment/expression
         else return parseDeclarationStatement();
+    }
+
+    private boolean inStructDeclaration() {
+        return _scope.klast() instanceof Kind.Func fun && FunNode.isInstance(fun._name);
+    }
+
+    // Constructor declaration: new TypeName = { args -> body };
+    private Node parseConstructorDeclaration() {
+        TypeStruct self = _scope.constructorSelf();
+        assert self != null;
+        String name = requireId();
+        String expect = initFieldName(self._name);
+        if( name != expect )
+            throw error("Constructor name '" + name + "' must match type name '" + expect + "'");
+        require("=");
+        Node ctor = constructorFunc(name);
+        TypeFunPtr sig = (TypeFunPtr)ctor._type;
+        String clzName = addClzPrefix(self._name);
+        TypeStruct clz = (TypeStruct)TYPES.get(clzName);
+        Field old = clz==null ? null : clz.field("<ctor>");
+        if( old != null )
+            throw error("Redefining constructor '" + name + "'");
+        Field fld = Field.make("<ctor>",sig,_code.alias(_ref._cname),true);
+        TYPES.put(clzName,clz==null ? TypeStruct.make(clzName,true,fld) : clz.add(fld));
+        return require(ctor,";");
     }
 
     /**
@@ -783,7 +821,7 @@ public class Parser {
         return addReturn(expr);
     }
     private Node addReturn(Node expr) {
-      expr.keep();
+        expr.keep();
         // Need default memory, since it can be lazy, need to force
         // a non-lazy Phi
         mem().removeLazyAll();
@@ -865,7 +903,8 @@ public class Parser {
         if( _scope.in(def._idx)._type!=Type.TOP && def._final &&
             // Inside an allocation, final assign is OK, outside nope.
             // The alloc() call added the allocation scope
-            !(_scope.inConstructor() && def._idx >= _scope.klast()._lexSize) )
+            !(_scope.inConstructor() && def._idx >= _scope.klast()._lexSize) &&
+            !inExplicitConstructor() )
             throw error("Cannot reassign final '"+name+"'");
 
         // Parse assignment expression
@@ -885,12 +924,13 @@ public class Parser {
         // Access instance field from 'self'
         if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method ) {
             // Named field offset on an unknown struct type
-            Node off = fldoff(expr,name);
             TypeMemPtr self = (TypeMemPtr)_scope.var(fk._lexSize).type();
             TypeStruct sobj = (TypeStruct)TYPES.get(self._obj._name);
             Field fld = sobj.field(name);
             int alias = fld._alias;
-            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), memAlias(alias), expr, off, lift, false).peephole();
+            Node ptr = _scope.in(method._lexSize);
+            Node off = fldoff(ptr,name);
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), memAlias(alias), ptr, off, lift, inExplicitConstructor()).peephole();
             memAlias(alias,st);
         }
         lift.unkill();
@@ -970,6 +1010,8 @@ public class Parser {
             if( isExternDecl() ) {
                 expr = externDecl(name,t);
                 t = expr._type; // Upgrade declared type to the exact extern decl type
+            } else if( isConstructorDecl(name) ) {
+                expr = constructorFunc(name);
             } else {
                 expr = parseAsgn();
             }
@@ -1074,7 +1116,10 @@ public class Parser {
         Field fld = oldFld==null
             ? Field.make(initName,sig,_code.alias(_ref._cname),true)
             : oldFld.makeFrom(sig);
-        ts = TypeStruct.make(clzName,false,fld);
+        Field ctorFld = ts==null ? null : ts.field("<ctor>");
+        ts = ctorFld==null
+            ? TypeStruct.make(clzName,false,fld)
+            : TypeStruct.make(clzName,false,fld,ctorFld);
         TYPES.put(clzName,ts);
 
         // Insert a field in the containing class with the nested class type.
@@ -1098,8 +1143,9 @@ public class Parser {
             TYPES.put(typeName, tself = TypeStruct.make(typeName,true));
         else assert tself._open;
 
+        // Signature of the default constructor
         TypeFunPtr sig = structInitSig(isClz,tself);
-
+        // Function and argument names of default constructor
         String fname = (typeName + (isClz ? ".<clinit>" : ".<init>")).intern();
         String[] ids = new String[]{"self", isClz ? "arg" : "#selfMem"};
 
@@ -1382,7 +1428,7 @@ public class Parser {
 
     private Type implicitSelfType() {
         TypeStruct self = _scope.constructorSelf();
-        return self == null ? TypePtr.PTR : TypeMemPtr.make(self);
+        return self == null ? TypePtr.PTR : TypeMemPtr.make(constructorRecv(self));
     }
 
     // A function type is `{ type... -> type }` or `{ type }`.
@@ -1840,6 +1886,7 @@ public class Parser {
     private Node allocStruct(TypeStruct ts) {
         if( UNRESOLVED_TYPES.contains(ts._name) )
             REQUIRED_TYPES.add(ts._name);
+        Ary<Node> ctorArgs = constructorArgs(); // CNC TODO- BAD THREADING SELF-MEM
         Node size = off(ts, " len");
 
         // Build a NewNode; takes in ctrl and size.
@@ -1856,82 +1903,81 @@ public class Parser {
 
         // Call construct <init>($ctrl,$mem,NewNode.self,NewNode.#selfMem) and
         // encourage inlining
-        Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(mem().merge()); add(self); add(smem); add(con(init)); }};
-        Node selfMem = functionCall( args ).keep();
+        Node initSelf = self._type.isa(init.arg(0)) ? self : peep(new CastNode(init.arg(0),ctrl(),self));
+        Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(mem().merge()); add(initSelf); add(smem); add(con(init)); }};
+        Node selfMem = functionCall( args );
         // The returned value is a merge of private *Memory* and NOT some Scalar
 
-        // Check for constructor block:
-        boolean hasConstructor = match("{");
-        if( hasConstructor ) {
-            int idx = _scope.nIns();
-            // Push a scope, and pre-assign all struct fields.
-            _scope.push(new Kind.Constructor(ts));
-            TypeStruct oldCtorOpenStruct = _ctorOpenStruct;
-            _ctorOpenStruct = latestStruct(ts)._open && UNRESOLVED_TYPES.contains(ts._name) ? latestStruct(ts) : null;
-            Lexer loc = loc();
-            for( Field fld : ts._fields ) {
-                Node finit;
-                // Speed optimization: skip load-of-merge-of-store
-                if( selfMem instanceof MemMergeNode mmm && mmm.alias(fld._alias) instanceof StoreNode st )
-                    finit = st.val();
-                else
-                    finit = peep(new LoadNode(null, fld._fname, fld._alias, fld._t, null, selfMem, self, off(ts, fld._fname)));
-                _scope.define(fld._fname, fld._t, fld._final, finit, loc);
-            }
-
-            // Parse the constructor body
-            while( !peek('}') && !_lexer.isEOF() )
-                parseStatement();
-            require("}");
-            ts = latestStruct(ts);
-            _ctorOpenStruct = oldCtorOpenStruct;
-
-            // Store updated fields
-            MemMergeNode updatedPrivMem = new MemMergeNode(false);
-            for( Field fld : ts._fields ) {
-                Node newval = _scope.in(idx++);
-                // Speed optimization: skip store-of-same
-                if( !(selfMem instanceof MemMergeNode mmm && mmm.alias(fld._alias) instanceof StoreNode st && st.val() == newval) ) {
-                    Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, selfMem, self, off(ts, fld._fname), newval, fld._final));
-                    updatedPrivMem.alias(fld._alias,st);
-                }
-            }
-            updatedPrivMem.alias(1,selfMem.unkeep());
-            selfMem = peep(updatedPrivMem).keep();
-        }
+        // Optional user constructor; same as the default constructor; private
+        // memory going in and out.
+        Field ctor = clz.field("<ctor>");
+        if( ctor != null )
+            selfMem = constructorCall((TypeFunPtr)ctor._t,self,selfMem,ctorArgs);
+        else if( !ctorArgs.isEmpty() )
+            throw error("Constructor arguments for '" + ts._name + "' but no constructor is defined");
+        if( match("{") )
+            throw error("Inline constructor blocks are no longer supported; define a constructor in '" + ts._name + "'");
 
         // Might be TOP if parsing in dead/unreachable code
-        if( !(selfMem._type instanceof TypeMem tmem) ) {
-            selfMem.unkeep();
+        if( !(selfMem._type instanceof TypeMem tmem) )
             return self.unkeep();
-        }
 
         // Check that all fields are initialized.
-        if( tmem._t instanceof TypeStruct postinit ) {
-            for( Field fld : postinit._fields ) {
-                assert fld._t != Type.TOP;
-                if( fld._t == Type.BOTTOM )
-                    throw error( "'" + postinit._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
-            }
+        TypeStruct postinit = (TypeStruct)tmem._t;
+        for( Field fld : postinit._fields ) {
+            assert fld._t != Type.TOP;
+            if( fld._t == Type.BOTTOM )
+                throw error( "'" + postinit._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
         }
-        // Pop constructor scope
-        if( hasConstructor )
-            _scope.pop();
-
         // Escape all new aliases.  EscapeNode inputs are the self pointer, the
         // merged private memory, then all the named public aliases.  The
         // output is all the newly merged public aliases - but not actually
         // bulk memory.
-        if( tmem._t instanceof TypeStruct postinit ) {
-            for( Field fld : postinit._fields ) {
-                Node esc = peep( new EscapeNode( (Field) fld.glb( true ), self, selfMem, memAlias( fld._alias ) ) );
-                memAlias( fld._alias, esc );
-            }
+        selfMem.keep();
+        for( Field fld : postinit._fields ) {
+            Node esc = peep( new EscapeNode( (Field) fld.glb( true ), self, selfMem, memAlias( fld._alias ) ) );
+            memAlias( fld._alias, esc );
         }
 
         if( selfMem.unkeep().isUnused() ) selfMem.kill();
-        else _code.add(smem);
+        else _code.add(selfMem);
         return self.unkeep();
+    }
+
+    private Ary<Node> constructorArgs() {
+        Ary<Node> args = new Ary<>(Node.class);
+        if( !match("(") )
+            return args;
+        while( !peek(')') ) {
+            Node arg = parseAsgn();
+            if( arg==null ) break;
+            args.push(arg.keep());
+            if( !match(",") ) break;
+        }
+        require(")");
+        return args;
+    }
+
+    // COnstructors are called with two extra arguments: self and selfMem.
+    private Node constructorCall(TypeFunPtr ctor, Node self, Node selfMem, Ary<Node> ctorArgs) {
+        Ary<Node> args = new Ary<>(Node.class);
+        assert self._type.isa(ctor.arg(0));
+        args.add(ctrl());
+        args.add(mem().merge());
+        args.add(self);
+        args.add(selfMem);
+        for( Node arg : ctorArgs )
+            args.add(arg.unkeep());
+        args.add(con(ctor));
+
+        CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
+        CallEndNode cend = (CallEndNode)new CallEndNode(call,TypeRPC.constant(_code.rpc(_ref._cname))).peephole();
+        call.peephole();
+        cend = (CallEndNode)cend.keep().peephole();
+        ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
+        Node pubmem = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
+        mem(new MemMergeNode(true,null,pubmem));
+        return new ProjNode(cend.unkeep(),2,"#selfMem").peephole();
     }
 
     private Node allocArray(TypeStruct ts, Node len) {
@@ -2075,6 +2121,29 @@ public class Parser {
         if( name=="[]" && decl instanceof TypeConAry conary )
             decl = conary.elem();
 
+        if( expr._type instanceof TypeMemPtr tmp ) {
+            Field fld2 = tmp._obj.field(name);
+            if( fld2 != null ) {
+                if( fld2._t != decl )
+                    /*
+// DECL IS DECLARED MUTABLE
+// EXPR IS READ-ONLY
+So... Lattice orderings final.meet(mut)== either final or mut; symmetric; lattice doesn't care.
+So... normal MEET at a trinary: "(rand ? ptr-to-mut : ptr-to-final).fld=val" should be error;
+      cannot set final.  Argues FINAL is low in lattice.
+So... declaring a ptr-to-mut, passing thru R/O.  Getting Type from Parser.TYPES (so still R/W).
+      But ptr is final (or is unknown yet).
+      So load guesses too high.
+      Need to make DECL type low.
+
+
+                    */
+                    System.out.println("BUG");
+            }
+
+        }
+
+
         // Load field
         Node load = peep(new LoadNode(loc(),name, alias, decl, ctrl(), mem, expr, off));
 
@@ -2149,6 +2218,39 @@ public class Parser {
         // Make a concrete function type, with a fidx
         TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),Type.BOTTOM,_code.fidx(_ref._cname));
         ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
+        return new FunPtrNode(tfp,_code._start,ret).peephole();
+    }
+
+    private Node constructorFunc(String name) {
+        require("{");
+        Ary<Type> ts = new Ary<>(Type.class);
+        Ary<String> ids = new Ary<>(String.class);
+        TypeStruct self = _scope.constructorSelf();
+        assert self != null;
+        ts.push(TypeMemPtr.make(constructorRecv(self)));
+        ids.push("self");
+        // Explicit constructors use the same hidden allocation arguments as
+        // <init>: public memory is the call memory edge (index 1), followed by
+        // self (index 2) and the private, unescaped object memory (index 3).
+        ts.push(TypeMem.makePrivate(self));
+        ids.push("#selfMem");
+
+        _lexer.skipWhiteSpace();
+        Lexer loc = loc();
+        while( true ) {
+            Type t = type();
+            if( t==null ) break;
+            String id = requireId();
+            ts .push(t );
+            ids.push(id);
+            match(",");
+        }
+        require("->");
+        TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),TypeMem.makePrivate(self),_code.fidx(_ref._cname));
+        Node[] preParse = _scope.save();
+        ReturnNode ret = _parseFunctionBody((self._name+"."+name).intern(),tfp,loc,ids.asAry());
+        _scope.restore(preParse);
+        require("}");
         return new FunPtrNode(tfp,_code._start,ret).peephole();
     }
 

@@ -289,13 +289,16 @@ return ret.v0;
         CodeGen code = new CodeGen(
 """
 int cnt = 1;
+// cnt is incremented exactly once, it is not part of s0 constructor
+// hence s0.x is always 1, and cnt remains at 2
 struct s0 { int x = cnt++; };
 s0 a = new s0();
 s0 b = new s0();
+// a.x==1, b.x==1, cnt==2
 return a.x * 100 + b.x * 10 + cnt;
 """);
         code.parse().iter().opto();
-        assertEquals("return (((.x*10)+(.x*100))+2);", code.print());
+        assertEquals("Stop[ return 112; return MEM[ 2:___ 3:.x=1;]; ]", code.print());
     }
 
 

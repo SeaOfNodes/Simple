@@ -199,7 +199,15 @@ public class TypeMem extends Type {
         return XInt.str(sb,_escAs).p("]");
     }
 
-    @Override public String str() { return toString(); }
+    @Override public String str() {
+        SB sb = new SB().p('#');
+        if( !_final ) sb.p('!'); // Mutable memory
+        if( _one ) sb.p(_clz ? 'z' : '-');
+        if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT").toString();
+        sb.p(_alias).p(":[").p(_t.str()).p(",");
+        XInt.str(sb,_escFs).p(",");
+        return XInt.str(sb,_escAs).p("]").toString();
+    }
 
 
     // Tracking bulk escaped aliases and fidxs

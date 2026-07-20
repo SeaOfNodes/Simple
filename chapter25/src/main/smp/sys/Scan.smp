@@ -5,6 +5,10 @@ struct Scan {
     int !x;                     // Cursor
     u8[~] buf;                  // Immutable byte array, must be set in 2nd constructor
 
+    new Scan = { u8[~] b ->
+        buf = b;
+    };
+
     // Skip whitespace
     val skip = { ->
         while( x < buf# && buf[x] <= ' ' )

@@ -83,8 +83,8 @@ return z.x;
     @Test
     public void testConstruct1() {
         CodeGen code = new CodeGen("""
-struct _X { int !x; };
-_X z = new _X { x=3; };
+struct _X { int !x; new _X = { int xx -> x=xx; }; };
+_X z = new _X(3);
 return z.x;
 """);
         code.parse().opto();
@@ -95,8 +95,8 @@ return z.x;
     @Test
     public void testConstruct2() {
         CodeGen code = new CodeGen("""
-struct _X { int x=3; };
-_X z = new _X { x = 4; };
+struct _X { int x=3; new _X = { int xx -> x=xx; }; };
+_X z = new _X(4);
 return z.x;
 """);
         code.parse().opto();
@@ -108,8 +108,8 @@ return z.x;
     @Test
     public void testStructFinal0() {
         CodeGen code = new CodeGen("""
-struct _Point { int !x, !y; };
-_Point p = new _Point { x=3; y=4; };
+struct _Point { int !x, !y; new _Point = { int xx, int yy -> x=xx; y=yy; }; };
+_Point p = new _Point(3,4);
 return p;
 """);
         code.parse().opto();
@@ -120,8 +120,8 @@ return p;
     @Test
     public void testStructFinal1() {
         CodeGen code = new CodeGen("""
-struct _Point { int x=3, y=4; };
-val p = new _Point { x=5; y=6; };
+struct _Point { int x=3, y=4; new _Point = { int xx, int yy -> x=xx; y=yy; }; };
+val p = new _Point(5,6);
 p.x++;
 return p;
 """);
@@ -184,10 +184,10 @@ return p;
     public void testLinkedList1() {
         CodeGen code = new CodeGen(
 """
-struct _LLI { _LLI? next; int i; };
+struct _LLI { _LLI? next; int i; new _LLI = { _LLI? n, int ii -> next=n; i=ii; }; };
 _LLI? !head = null;
 while( arg ) {
-    head = new _LLI { next=head; i=arg; };
+    head = new _LLI(head,arg);
     arg = arg-1;
 }
 if( !head ) return 0;
@@ -206,19 +206,18 @@ return next.i;
     public void testLinkedList2() {
         CodeGen code = new CodeGen(
 """
-struct _LLI { _LLI? next; int i; };
+struct _LLI { _LLI? next; int i; new _LLI = { _LLI? n, int a ->
+    next=n;
+    int !tmp=a;
+    while( a > 10 ) {
+        tmp = tmp + a;
+        a = a - 1;
+    }
+    i=tmp;
+}; };
 _LLI? !head = null;
 while( arg ) {
-    head = new _LLI {
-        next=head;
-        // Any old code in the constructor
-        int !tmp=arg;
-        while( arg > 10 ) {
-            tmp = tmp + arg;
-            arg = arg - 1;
-        }
-        i=tmp;
-    };
+    head = new _LLI(head,arg);
     arg = arg-1;
 }
 if( !head ) return 0;

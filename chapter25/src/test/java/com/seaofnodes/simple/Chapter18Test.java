@@ -157,8 +157,8 @@ return fcn(3);
     public void testFcn6() {
         CodeGen code = new CodeGen(
 """
-struct _S { int i; };
-val _newS = { int x -> return new _S { i=x; }; };
+struct _S { int i; new _S = { int x -> i=x; }; };
+val _newS = { int x -> return new _S(x); };
 return _newS(1).i;
 """);
         code.parse().opto().typeCheck();

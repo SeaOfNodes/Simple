@@ -94,8 +94,8 @@ return n.next;
         CodeGen code = new CodeGen(
 """
 struct M { int m; };
-struct N { M next; int i; };
-N n = new N { next = new M; };
+struct N { M next; int i; new N = { M m -> next = m; }; };
+N n = new N(new M);
 return n.next;
 """);
         code.parse().opto();
@@ -107,8 +107,8 @@ return n.next;
         CodeGen code = new CodeGen(
 """
 struct M { int m; };
-struct N { M next; int i; };
-N n = new N { next = null; };
+struct N { M next; int i; new N = { M m -> next = m; }; };
+N n = new N(null);
 return n.next;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
@@ -170,7 +170,7 @@ return new S2;
 """
 struct _S1 { _S2? s; };
 struct _S2 { int x; };
-return new _S1{}.s=new _S2;
+return (new _S1).s=new _S2;
 """);
         code.parse().opto();
         assertEquals("return _S2;", code.print());

@@ -89,8 +89,8 @@ return a && b ? 0 : 1;  // Expected answer 0
     public void testAndPtr() throws IOException {
         // Todo: have one src here
         String src = """
-struct S { S? fld; };
-val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
+struct S { S? fld; new S = { S? f -> fld=f; }; };
+val ptr = arg == 1 ? null : new S(arg==1 ? null : new S(null));
 return ptr && ptr.fld ? "true" : "false";
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
@@ -218,7 +218,7 @@ struct _Scan {
         return true;
     };
 };
-_Scan !_s = new _Scan{ buf = "  q"; };
+_Scan !_s = new _Scan("  q");
 return _s.peek('q');
 """;
 
@@ -235,6 +235,7 @@ return _s.peek('q');
 struct Scan {
     int !x;
     u8[~] buf;
+    new Scan = { u8[~] b -> buf=b; };
     // Skip whitespace
     val skip = { ->
         while( buf[x] <= ' ' )
@@ -242,7 +243,7 @@ struct Scan {
         return self;
     };
 };
-val s = new Scan{ buf = "  q"; };
+val s = new Scan("  q");
 return s.skip().x;
 """;
 
@@ -271,7 +272,7 @@ struct _Scan {
         buf[x++]==ch;
     };
 };
-_Scan !_s = new _Scan{ buf = "  [1,2]"; };
+_Scan !_s = new _Scan("  [1,2]");
 return _s.require('[');
 """;
 

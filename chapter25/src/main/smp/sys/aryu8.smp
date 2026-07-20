@@ -4,6 +4,11 @@
 struct aryu8 {
     u32 !len = 0;
     u8[] !buf;
+
+    new aryu8 = { u8[] b ->
+        buf = b;
+    };
+
     // Grow as needed
     val _grow = { int len2 ->
         if( len+len2 < buf# ) return self;

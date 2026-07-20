@@ -76,7 +76,7 @@ public abstract class ParseAll {
         WORK.add(cunit);
         // Work through all unparsed compilation units and parse
         while( !WORK.isEmpty() ) {
-            CompUnit cu = WORK.pop();
+            CompUnit cu = WORK.remove(0);
             // No source code?  Means we do not need to parse, but instead need to load the symbols as-if we parsed
             if( cu._src==null || cu._src.isEmpty() )
                 loadDeps(code,cu); // Load recursive dependents
@@ -140,7 +140,7 @@ public abstract class ParseAll {
 
         // Find all missing external references, or complain.  This can trigger more parses.
         while( !frefs.isEmpty() ) {
-            FRefNode fref = frefs.pop();
+            FRefNode fref = frefs.remove(0);
             // Symbol not found in source code (or we would not be here).
             // Search the module for the fref
             try {

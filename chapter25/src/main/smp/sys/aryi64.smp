@@ -4,6 +4,11 @@
 struct aryi64 {
     u32 !len = 0;
     i64[] !buf;
+
+    new aryi64 = { i64[] b ->
+        buf = b;
+    };
+
     // Grow as needed
     val _grow = { int len2 ->
         if( len+len2 < buf# ) return self;
@@ -25,7 +30,7 @@ struct aryi64 {
     // Write to aryu8
     val str = { ->
         // TODO: clunky default constructor syntax
-        var str = new aryu8 { buf = new u8[1]; }.add('[');
+        var str = new aryu8(new u8[1]).add('[');
         for( int i=0; i<len; i++ )
             str.num(buf[i]).add(',').add(' ');
         str.undo(2).add(']');
@@ -38,10 +43,10 @@ struct aryi64 {
 // parseAryI64 & aryi64.str are bijections modulo whitespace.
 // Returns null if the parse failed, without giving a clue as to why.
 val parseAryI64 = { u8[~] str ->
-    Scan !s = new Scan{ buf = str; };
+    Scan !s = new Scan(str);
     if( !s.match('[') ) return null;
     // Array of parsed results
-    var nums = new aryi64{ buf=new i64[1]; };
+    var nums = new aryi64(new i64[1]);
 
     // Parse a list of numbers
     if( s.match(']') )          // Handle the empty list

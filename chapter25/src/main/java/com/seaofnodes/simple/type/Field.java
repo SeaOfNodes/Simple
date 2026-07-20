@@ -80,7 +80,7 @@ public class Field extends Type {
         if( fld ==BOT.dual() ) return this;
         if( _fname!=fld._fname ) { assert !_fname.equals(fld._fname); return BOT; }
         assert _alias==fld._alias;
-        return make(_fname, _t.meet(fld._t ), _alias, _final & fld._final);
+        return make(_fname, _t.meet(fld._t ), _alias, _final | fld._final);
     }
 
     @Override
@@ -99,7 +99,7 @@ public class Field extends Type {
     @Override boolean _isFinal() { return _final && _t._isFinal(); }
     @Override Field _makeRO() { return _final ? this : make(_fname, _t._makeRO(),_alias,true);  }
     @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
-    @Override public Type _glb(boolean mem) { return make(_fname,_t._glb(true),_alias,_final); }
+    @Override public Type _glb(boolean mem) { return make(_fname,_t._glb(true),_alias,true); }
     @Override Field _close( String name, HashMap<String, Type> TYPES ) { return makeFrom( _t._close(name, TYPES )); }
 
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {

@@ -280,6 +280,7 @@ public class TypeFunPtr extends TypeNil {
 
     @Override public String str() { return "{"+printFIDX()+"}"; }
 
+    @Override
     SB _print(SB sb, BitSet visit, boolean html ) {
         sb.p(x()).p("{ ");
         if( _sig!=null )

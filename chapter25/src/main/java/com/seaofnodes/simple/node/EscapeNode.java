@@ -68,6 +68,8 @@ public class EscapeNode extends TypeNode {
         assert !(mpub._t instanceof TypeStruct); // Never expect this, but if it starts to happen, need to optimize
         Type tpub = mpub._t;
 
+        // t is meet of pub & priv.  Pub memory can be very weak (e.g. alias 1)
+        // and we're no worse than GLB of private
         Type t = tpriv.meet(tpub).join(fld()._t);
         int[] fidxes  = XInt.meet(mpriv._escFs, mpub._escFs);
         int[] aliases = XInt.meet(mpriv._escAs, mpub._escAs);
