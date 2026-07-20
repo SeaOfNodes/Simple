@@ -94,6 +94,9 @@ public abstract class ArithNode extends Node {
 
     @Override public Parser.ParseException err() {
         if( in(1)._type.isHigh() || in(2)._type.isHigh() ) return null;
+        // A weak input is not evidence of a non-integer.  In particular,
+        // loop Phis can remain BOTTOM until their backedge is parsed.
+        if( in(1)._type==Type.BOTTOM || in(2)._type==Type.BOTTOM ) return null;
         if( !(in(1)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+op()+"' " + in(1)._type,_loc);
         if( !(in(2)._type instanceof TypeInteger) ) return Parser.error("Cannot '"+op()+"' " + in(2)._type,_loc);
         return null;

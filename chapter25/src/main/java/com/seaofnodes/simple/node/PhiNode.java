@@ -85,7 +85,7 @@ public class PhiNode extends Node {
             }
         }
         Type declared = declaredType();
-        Type newt = t.join(declared);
+        Type newt = declared==Type.BOTTOM ? t : t.join(declared);
 
         // phi loop widening part
         if( region() instanceof LoopNode && // Only around loops
@@ -93,7 +93,8 @@ public class PhiNode extends Node {
             // Types changed and are falling (the optimistic case, expected to fall forever)
             newi != _type ) {
             if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
-                return newi.same_but_slightly_wider_than(declared);
+                return newi.same_but_slightly_wider_than(
+                    declared instanceof TypeInteger ? declared : TypeInteger.BOT);
         }
 
         return newt;
