@@ -205,6 +205,7 @@ return (a && sq_noInline(0))
 struct _Scan {
     int !x;
     u8[~] buf;
+    new _Scan = { u8[~] b -> buf=b; };
     // Skip whitespace
     val skip = { ->
         while( buf[x] <= ' ' )
@@ -262,6 +263,7 @@ return s.skip().x;
 struct _Scan {
     int !x;
     u8[~] buf;
+    new _Scan = { u8[~] b -> buf=b; };
     // Skip whitespace
     val skip = { ->
         while( buf[x] <= ' ' )
