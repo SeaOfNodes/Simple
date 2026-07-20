@@ -85,7 +85,7 @@ public class PhiNode extends Node {
             }
         }
         Type declared = declaredType();
-        Type newt = declared==Type.BOTTOM ? t : t.join(declared);
+        Type newt = constrain(t);
 
         // phi loop widening part
         if( region() instanceof LoopNode && // Only around loops
@@ -102,6 +102,7 @@ public class PhiNode extends Node {
 
     // Ordinary Phis have no parser-supplied type constraint.
     protected Type declaredType() { return Type.BOTTOM; }
+    protected Type constrain(Type t) { return t; }
 
     @Override
     public Node idealize() {

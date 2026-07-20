@@ -39,6 +39,7 @@ public class ParmNode extends PhiNode {
     @Override public String glabel() { return _label; }
 
     @Override protected Type declaredType() { return _declaredType; }
+    @Override protected Type constrain(Type t) { return t.join(_declaredType); }
 
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
         Type t = _declaredType.upgradeType(TYPES);
