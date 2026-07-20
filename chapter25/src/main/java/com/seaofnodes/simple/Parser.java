@@ -376,11 +376,11 @@ public class Parser {
         // Improve self, selfMem types in scope.
         // Class self-type is a singleton pointer.  Instance <init> receives the
         // broad allocation pointer, while private memory tracks initialized fields.
-        self._con = self._type = isClz ? TypeMemPtr.make((byte)2,tself,true) : TypeMemPtr.make(constructorRecv(tself));
+        self._declaredType = self._type = isClz ? TypeMemPtr.make((byte)2,tself,true) : TypeMemPtr.make(constructorRecv(tself));
         FunNode fun = self.fun();
         fun.setSig(fun.sig().makeFrom(self._type,0));
         if( !isClz )            // <init> returns a upgraded private memory
-            smem._con = smem._type = TypeMem.makePrivate(tself);
+            smem._declaredType = smem._type = TypeMem.makePrivate(tself);
 
         // When can _returnScope be null here? A never-exit constructor will
         // not have any returns, and thus no need to gather values and store

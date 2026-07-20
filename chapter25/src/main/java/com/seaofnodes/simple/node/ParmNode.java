@@ -11,17 +11,20 @@ public class ParmNode extends PhiNode {
 
     // Argument indices are mapped one-to-one on CallNode inputs
     public final int _idx;             // Argument index
+    public Type _declaredType;
 
     public ParmNode(String label, int idx, Type declaredType, Node... inputs) {
         super(label,declaredType,inputs);
         _idx = idx;
+        _declaredType = declaredType;
+        _type = declaredType;
     }
-    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._con ); _idx = parm._idx; }
+    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._declaredType ); _idx = parm._idx; _declaredType = parm._declaredType; }
     @Override public Tag serialTag() { return Tag.Parm; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(nIns());   // Number of linked calls
         baos.packed2(_label==null ? 0 : strs.get(_label));
-        baos.packed2(types.get(_con)); // NPE if fails lookup
+        baos.packed2(types.get(_declaredType)); // NPE if fails lookup
         baos.packed1(_idx);
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
@@ -34,6 +37,16 @@ public class ParmNode extends PhiNode {
     @Override public String label() { return MemOpNode.mlabel(_label); }
 
     @Override public String glabel() { return _label; }
+
+    @Override protected Type declaredType() { return _declaredType; }
+
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        Type t = _declaredType.upgradeType(TYPES);
+        if( t == _declaredType ) return false;
+        unlock();
+        _declaredType = t;
+        return true;
+    }
 
     public FunNode fun() { return (FunNode)in(0); }
 

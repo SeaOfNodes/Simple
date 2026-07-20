@@ -10,22 +10,23 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
-public class PhiNode extends TypeNode {
+public class PhiNode extends Node {
 
     public final String _label;
 
     public PhiNode(String label, Type minType, Node... inputs) {
-        super(minType,inputs);
+        super(inputs);
         _label = label;
     }
     // Used by ParmNode
-    public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; _type = minType; }
+    public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; }
     // Used by instruction Selection
-    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._con);  }
+    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._type);  }
     // Used by the infinite-loop exit breaker
     public PhiNode(RegionNode r, Node sample) {
-        super(sample._type,new Node[]{r});
+        super(new Node[]{r});
         _label = "";
+        _type = sample._type;
         while( nIns() < r.nIns() )
             addDef(sample);
     }
@@ -33,7 +34,7 @@ public class PhiNode extends TypeNode {
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(nIns());
         baos.packed2(_label==null ? 0 : strs.get(_label));
-        baos.packed2(types.get(_con));
+        baos.packed2(types.get(_type));
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
@@ -60,7 +61,7 @@ public class PhiNode extends TypeNode {
     }
 
     public CFGNode region() { return (CFGNode)in(0); }
-    @Override public boolean isMem() { return _con instanceof TypeMem; }
+    @Override public boolean isMem() { return _type instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
     boolean isRPC() { return false; }
 
@@ -70,11 +71,7 @@ public class PhiNode extends TypeNode {
             return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() )
-            // Loop-Phis must lift to the declared type, because that is how
-            // the Parser keeps precise types until the loop finishes parsing.
-            // Similar, ParmNodes use precise minType until all calls are
-            // linked (post opto).
-            return r instanceof LoopNode || (this instanceof ParmNode) ? _con : Type.BOTTOM;
+            return declaredType();
         // Set type to local top of the starting type
         Type t = Type.TOP;
         for (int i = 1; i < nIns(); i++) {
@@ -83,11 +80,12 @@ public class PhiNode extends TypeNode {
             Type ctrl = addDep(r.in(i))._type;
             if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
-                    return _con; // Fast-path cutout
+                    return Type.BOTTOM;
                 t = t.meet(in(i)._type);
             }
         }
-        Type newt = t.join( _con );
+        Type declared = declaredType();
+        Type newt = t.join(declared);
 
         // phi loop widening part
         if( region() instanceof LoopNode && // Only around loops
@@ -95,11 +93,14 @@ public class PhiNode extends TypeNode {
             // Types changed and are falling (the optimistic case, expected to fall forever)
             newi != _type ) {
             if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
-                return newi.same_but_slightly_wider_than(_con);
+                return newi.same_but_slightly_wider_than(declared);
         }
 
         return newt;
     }
+
+    // Ordinary Phis have no parser-supplied type constraint.
+    protected Type declaredType() { return Type.BOTTOM; }
 
     @Override
     public Node idealize() {
@@ -254,10 +255,6 @@ public class PhiNode extends TypeNode {
         dep.addDep(this);
         if( r.inProgress() ) return false;
         return super.allCons(dep);
-    }
-
-    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
-        return liftType(_con.upgradeType(TYPES).join(_type));
     }
 
     // True if last input is null

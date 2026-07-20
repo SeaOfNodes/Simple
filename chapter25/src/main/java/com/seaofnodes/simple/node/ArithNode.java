@@ -76,7 +76,7 @@ public abstract class ArithNode extends Node {
                         : copy(lhs.in(i), rhs.in(i)).peephole();
                 }
                 String label = lhs._label==rhs._label ? lhs._label : lhs._label + rhs._label;
-                return new PhiNode(label,lhs._con,ns).peephole();
+                return new PhiNode(label,lhs._type,ns).peephole();
             }
         }
         return null;

@@ -165,13 +165,10 @@ abstract public class Opto {
             }
             // Function is reachable by any *remote* caller who gets the pointer!
             fun.insertDef(1,start);
-            code._iter.add(fun);
-            for( Node p : fun._outputs )
-                if( p instanceof ParmNode parm ) {
-                    //Node defalt = !funEscaped ? code.con(Type.TOP)
-                    //    : parm._idx==1 ? start.proj(1)
-                    //    : code.con(parm._con);
-                    Node defalt = parm._idx==1 ? start.proj(1) : code.con(funEscaped ? parm._con : parm._type);
+                code._iter.add(fun);
+                for( Node p : fun._outputs )
+                    if( p instanceof ParmNode parm ) {
+                    Node defalt = parm._idx==1 ? start.proj(1) : code.con(funEscaped ? parm._declaredType : parm._type);
                     parm.insertDef(1,defalt);
                     code.add(parm);
                 }
