@@ -133,6 +133,30 @@ introduce a `MemPhiNode` or an explicit immutable Phi kind.  It may lift weak
 inputs to the weakest memory type.  It must not contain a parser-chosen sharp
 lower bound disguised as another `_con`.
 
+### Keep arithmetic flavor out of the parser
+
+Arithmetic syntax determines the operation (`+`, `-`, `*`, `/`, unary `-`),
+but not necessarily its integer or floating-point machine flavor.  The current
+`Node.widen()` is a parser-time semantic rewrite: it inspects the operands'
+current types, replaces integer nodes with FP nodes, and inserts `ToFloatNode`s.
+A weak forward-reference input can therefore permanently choose the wrong SSA
+shape.
+
+Replace this decision with a generic or unresolved arithmetic node, or make the
+syntax-level arithmetic node itself generic until its operand family resolves.
+It must:
+
+- compute a weak result while either operand family is unknown;
+- resolve monotonically to integer or floating-point arithmetic when sufficient
+  information arrives;
+- insert integer-to-float conversions only after the FP choice is definitive;
+- report mixed or invalid operands during type checking rather than guessing
+  during parsing; and
+- be completely resolved before instruction selection.
+
+Compound assignments and increment/decrement use the same mechanism; they must
+not retain a separate parser-time `widen()` decision path.
+
 ## Phase 2: Separate name binding from type inference
 
 Locals remain define-before-use.  The unresolved case is an unqualified field
