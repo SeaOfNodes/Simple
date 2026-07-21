@@ -27,7 +27,6 @@ public class StoreNode extends MemOpNode {
      */
     public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
         super(loc, name, alias, false, glb, ctrl, mem, ptr, off, value);
-        assert alias!= 1;
         _init = init;
     }
     StoreNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
@@ -95,6 +94,15 @@ public class StoreNode extends MemOpNode {
     public Node idealize() {
         assert !(mem() instanceof CheckCastNode);
 
+        // Alias #1 is the conservative parser-time choice.  A sharp memory
+        // input can sharpen it exactly once; a later pointer discovery must
+        // agree with that choice.
+        if( mem()._type instanceof TypeMem mem ) {
+            assert mem._alias > 0;
+            if( mem._alias != 1 && sharpenAlias(mem._alias) )
+                return this;
+        }
+
         // Stores into structs do not need a ctrl edge, as null-ptr checking is
         // baked into the type system.  Stores into arrays DO need the ctrl
         // edge, at least until proper range-checking is in place.
@@ -110,6 +118,7 @@ public class StoreNode extends MemOpNode {
         Field fld;
         if( _con == Type.BOTTOM || _alias==1 ) {
             if(  ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null ) {
+                assert _alias == 1 || _alias == fld._alias;
                 // All memory uses of self must now sharpen, as we are about to
                 // no longer be a bulk memory.  Also find bulk
                 for( int i=0; i<nOuts(); i++ ) {
@@ -143,8 +152,10 @@ public class StoreNode extends MemOpNode {
                     }
                 }
                 if( _con != fld._t || _alias != fld._alias ) {
+                    unlock();   // Both fields participate in GVN semantics
                     _con = fld._t;
                     _alias = fld._alias;
+                    CodeGen.CODE.add(this);
                     return this;
                 }
             }
@@ -224,6 +235,18 @@ public class StoreNode extends MemOpNode {
         }
 
         return null;
+    }
+
+    // Alias #1 is the sole unresolved state.  Sharpen once, and thereafter
+    // every independent source of alias information must agree.
+    private boolean sharpenAlias( int alias ) {
+        assert alias != 1;
+        assert _alias == 1 || _alias == alias;
+        if( _alias == alias ) return false;
+        unlock();
+        _alias = alias;
+        CodeGen.CODE.add(this);
+        return true;
     }
 
     // Check that "mem" has no uses except "this"
