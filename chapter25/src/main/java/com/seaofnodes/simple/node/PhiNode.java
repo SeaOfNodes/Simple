@@ -45,6 +45,19 @@ public class PhiNode extends Node {
 
     @Override public String glabel() { return "&phi;_"+_label; }
 
+    // Memory Phis carry their structural alias in the parser-assigned label.
+    // Returns -1 for ordinary value Phis.
+    public int memAlias() {
+        if( _label==null || _label.length()<2 || _label.charAt(0)!='$' ) return -1;
+        int alias = 0;
+        for( int i=1; i<_label.length(); i++ ) {
+            char c = _label.charAt(i);
+            if( c<'0' || c>'9' ) return -1;
+            alias = alias*10 + c-'0';
+        }
+        return alias;
+    }
+
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         if( !(region() instanceof RegionNode r) || r.inProgress() )
