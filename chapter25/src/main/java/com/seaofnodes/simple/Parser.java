@@ -912,7 +912,7 @@ public class Parser {
 
         // Lift expression, based on type
         Type decl = def.type(); // Declared type
-        Node lift = liftExpr(expr.keep(), decl, true).keep();
+        Node lift = convertExpr(expr.keep(), decl).keep();
         // Update
         _scope.update(name,lift);
 
@@ -942,29 +942,11 @@ public class Parser {
 
     // Make finals deep; widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
-    private Node liftExpr( Node expr, Type t, boolean isLoad ) {
+    private Node convertExpr( Node expr, Type t ) {
         // Auto-widen array to i64 (cast ptr to raw int bits)
         if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
             expr = peep(new AddNode(peep(new CheckCastNode(t,ctrl(),expr)),off(tmp._obj,"[]")));
-        // Auto-widen int to float
-        expr = widenInt( expr, t );
-        // Auto-narrow wide ints to narrow ints.  For loads, emit code to force
-        // the loaded value to match the declared sign/zero bits.  For stores,
-        // just force the type, acting "as if" the store silently truncates.
-        // Language design question: should these be OK or errors?
-        //    byte b = 123456; // Currently silent, obviously sensible to error
-        //    b++;             // Currently silent, but the math overflows and stores an int
-        // Same issue for both: should storing an `int` into `byte` silently truncate or fail?
-        Type et = expr._type;
-        if( isLoad ) { expr = zsMask(expr,t); et = expr._type; }
-        else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
-
-        // Lift type to the declaration.  This will report as an error later if
-        // we cannot lift the type.
-        if( !et.isa(t) )
-            expr = peep(new CheckCastNode(t,null,expr));
-
-        return expr;
+        return peep(new ConvertNode(t,expr));
     }
 
     private Node widenInt( Node expr, Type t ) {
@@ -1074,7 +1056,7 @@ public class Parser {
         }
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr, t, true);
+        Node lift = convertExpr(expr, t);
 
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
@@ -1852,7 +1834,7 @@ public class Parser {
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return liftExpr(peep(op.widen()),t.glb(false),true);
+        return convertExpr(peep(op.widen()),t.glb(false));
     }
 
 
@@ -2099,7 +2081,7 @@ public class Parser {
             // Field assignment
             Node val = parseAsgn().keep();
             // Lift value for store
-            Node lift = new LiftNode(expr,name,val).peephole();
+            Node lift = fld==null ? val : new ConvertNode(fld._t,val).peephole();
             // Memory for store, post assignment expression
             Node mem = fld==null ? mem().merge() : memAlias(fld._alias);
             // Store to field
@@ -2150,7 +2132,7 @@ So... declaring a ptr-to-mut, passing thru R/O.  Getting Type from Parser.TYPES 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
         char ch = _lexer.matchOperAssign();
         if( ch!=0 ) {
-            if( decl == Type.BOTTOM ) throw TODO("Need LiftNode after opAssign");
+            if( decl == Type.BOTTOM ) throw TODO("Need ConvertNode after opAssign");
             Node op = opAssign(ch,load, decl );
             Node st = new StoreNode(loc(), name, alias, decl.glb(true), ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole();
             // For well known types, we can use sharp alias updates right now
