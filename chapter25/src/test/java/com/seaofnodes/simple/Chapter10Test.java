@@ -257,7 +257,6 @@ while(arg) {
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
-
 }
 return ret.v0;
 """);
