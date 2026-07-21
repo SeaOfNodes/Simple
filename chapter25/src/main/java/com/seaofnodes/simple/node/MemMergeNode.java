@@ -66,8 +66,11 @@ public class MemMergeNode extends Node {
 
 
     @Override public Type compute() {
-        if( !(in(1)._type instanceof TypeMem defmem) )
-            return in(1)._type;
+        Type tmem = in(1)._type;
+        if( !(tmem instanceof TypeMem defmem) )
+            // A MemMerge is structurally memory even while its default input
+            // is a weak, not-yet-specialized Phi.
+            return tmem.isHigh() ? TypeMem.TOP : TypeMem.BOT;
         // Is this a single private instance memory?
         if( defmem._one ) {
             if( !(defmem._t instanceof TypeStruct ts) )
