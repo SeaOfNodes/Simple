@@ -125,7 +125,7 @@ public class MemMergeNode extends Node {
         // Fold defaults into the default
         boolean progress=false, allDefault=true;
         for( int i=2; i<nIns(); i++ ) {
-            if( in(i) instanceof CastNode cast )
+            if( in(i) instanceof CheckCastNode cast )
                 { setDef(i,cast.in(1)); progress=true; }
             if( in(1) == in(i) && in(1) != null ) { setDef(i,null); progress=true; }
             else                                  { allDefault=false; }

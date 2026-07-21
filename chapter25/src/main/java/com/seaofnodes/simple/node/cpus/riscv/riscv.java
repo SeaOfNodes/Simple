@@ -336,7 +336,7 @@ public class riscv extends Machine {
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CallNode    call -> call(call);
-        case CastNode   cast  -> new CastMach(cast);
+        case CheckCastNode cast -> new CheckCastMach(cast);
         case GuardNode guard  -> new GuardMach(guard);
         case CallEndNode cend -> new CallEndMach(cend);
         case CProjNode      c -> new CProjNode(c);

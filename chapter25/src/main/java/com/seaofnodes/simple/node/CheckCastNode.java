@@ -10,23 +10,23 @@ import java.util.IdentityHashMap;
 
 // Upcast (join) the input to a t.  Used after guard test to lift an input.
 // Can also be used to make a type-assertion if ctrl is null.
-public class CastNode extends TypeNode {
-    public CastNode(Type t, Node ctrl, Node in) { super(t,ctrl, in); }
+public class CheckCastNode extends TypeNode {
+    public CheckCastNode(Type t, Node ctrl, Node in) { super(t,ctrl, in); }
 
-    public CastNode(CastNode c) {
+    public CheckCastNode(CheckCastNode c) {
         super(c);               // Call parent copy constructor
         setType(compute());     // Ensure type is recomputed
     }
-    @Override public Tag serialTag() { return Tag.Cast; }
+    @Override public Tag serialTag() { return Tag.CheckCast; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed2(types.get(_con)); // NPE if fails lookup
     }
-    static Node make( BAOS bais, Type[] types)  { return new CastNode(types[bais.packed2()], null, null); }
+    static Node make( BAOS bais, Type[] types)  { return new CheckCastNode(types[bais.packed2()], null, null); }
 
     @Override public String label() { return "("+_con.str()+")"; }
 
     @Override
-    public String uniqueName() { return "Cast_" + _nid; }
+    public String uniqueName() { return "CheckCast_" + _nid; }
 
     @Override public boolean isPinned() { return in(0)!=null; }
 
@@ -70,7 +70,7 @@ public class CastNode extends TypeNode {
         for( Node use : _outputs )
             if( (use instanceof StoreNode st && st._init && !((TypeMemPtr)st.ptr()._type)._obj._name.startsWith("class") ) )
                 init = st;
-            else if( (use instanceof StoreNode st && st.val() instanceof CastNode cast && cast.in(1)._type == Type.BOTTOM) )
+            else if( (use instanceof StoreNode st && st.val() instanceof CheckCastNode cast && cast.in(1)._type == Type.BOTTOM) )
                 /*bogus init store in constructor*/;
             else bad = true;
         if( !bad ) return null;

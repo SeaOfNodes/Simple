@@ -46,7 +46,7 @@ public class LiftNode extends Node {
         // Convert an array pointer to a raw integer for FFI calls
         if( t == TypeInteger.BOT && val._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
             throw TODO("Convert ary to int for FFI calls");
-            //val = peep(new AddNode(peep(new CastNode(t,ctrl(),val)),off(tmp._obj,"[]")));
+            //val = peep(new AddNode(peep(new CheckCastNode(t,ctrl(),val)),off(tmp._obj,"[]")));
 
         // Auto-widen int to float
         if( (val._type instanceof TypeInteger || val._type==Type.NIL) && t instanceof TypeFloat )

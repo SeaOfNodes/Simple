@@ -395,7 +395,7 @@ abstract public class Serialize {
             if( n instanceof ConstantNode con && !visit.get(con._nid) ) {
                 for( Node use : con.outs() ) {
                     // Special case for Cast:BOT which is basically a double-indirect constant
-                    if( use instanceof CastNode cast && cast.in(0)==null )
+                    if( use instanceof CheckCastNode cast && cast.in(0)==null )
                         for( Node useuse : cast.outs() )
                             conUsed(cast,useuse,visit,cons);
                     // Constant used by somebody, so flag for output

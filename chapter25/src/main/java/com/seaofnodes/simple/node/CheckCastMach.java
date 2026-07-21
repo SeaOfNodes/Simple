@@ -9,8 +9,8 @@ import com.seaofnodes.simple.util.SB;
 /**
  * Cast a pointer to read-only
  */
-public class CastMach extends CastNode implements MachNode {
-    public CastMach( CastNode n ) { super(n); }
+public class CheckCastMach extends CheckCastNode implements MachNode {
+    public CheckCastMach( CheckCastNode n ) { super(n); }
     @Override public String op() { return label(); }
     @Override public RegMask regmap(int i) { assert i==1; return RegMask.FULL; }
     @Override public RegMask outregmap() { return RegMask.FULL; }

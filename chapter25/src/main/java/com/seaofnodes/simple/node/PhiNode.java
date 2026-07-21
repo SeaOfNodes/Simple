@@ -137,8 +137,8 @@ public class PhiNode extends Node {
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
-            if( in(1) instanceof CastNode cast && addDep(cast.in(1))==in(2) ) return in(2);
-            if( in(2) instanceof CastNode cast && addDep(cast.in(1))==in(1) ) return in(1);
+            if( in(1) instanceof CheckCastNode cast && addDep(cast.in(1))==in(2) ) return in(2);
+            if( in(2) instanceof CheckCastNode cast && addDep(cast.in(1))==in(1) ) return in(1);
         }
         // If merging a null-checked null and the checked value, just use the value.
         // if( val ) ..; phi(Region,False=0/null,True=val);
@@ -149,7 +149,7 @@ public class PhiNode extends Node {
             if( in(2)._type == in(2)._type.makeZero() ) nullx = 2;
             if( nullx != -1 ) {
                 Node val = in(3-nullx);
-                if( val instanceof CastNode cast )
+                if( val instanceof CheckCastNode cast )
                     val = cast.in(1);
                 Node ridom = r.idom(this);
                 if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {

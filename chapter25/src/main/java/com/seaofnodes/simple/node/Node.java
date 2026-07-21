@@ -79,7 +79,7 @@ public abstract class Node implements Cloneable {
     // Disk/serialized opcode tags
     public enum Tag {
         AddF,Add,And,EQ,NE,LT,LE,EQF,LTF,LEF,ULT,
-        CallEnd,Call,Cast,ConFldOff,Con,CProj,
+        CallEnd,Call,CheckCast,ConFldOff,Con,CProj,
         DivF,Div,Escape,Extern,Fun,FunPtr,If,Load,Loop,
         MemMerge,MinusF,Minus,Mul,MulF,
         New,Never,Not,Or,Parm,Phi,Proj,
@@ -128,7 +128,7 @@ public abstract class Node implements Cloneable {
 
             case Call  ->      CallNode.make(bais);
             case CallEnd->  CallEndNode.make(bais     ,types);
-            case Cast  ->      CastNode.make(bais     ,types);
+            case CheckCast -> CheckCastNode.make(bais,types);
             case CProj ->     CProjNode.make(bais,strs);
             case Con   ->  ConstantNode.make(bais     ,types);
             case Escape->    EscapeNode.make(bais     ,types);

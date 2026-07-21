@@ -93,7 +93,7 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Node idealize() {
-        assert !(mem() instanceof CastNode);
+        assert !(mem() instanceof CheckCastNode);
 
         // Stores into structs do not need a ctrl edge, as null-ptr checking is
         // baked into the type system.  Stores into arrays DO need the ctrl

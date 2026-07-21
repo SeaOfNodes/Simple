@@ -171,7 +171,7 @@ public class LoadNode extends MemOpNode {
                 case CallEndNode cend: addDep(mproj); break outer; // TODO: Bypass no-alias call
                 default: throw Utils.TODO();
                 }
-            case CastNode cast: mem = cast.in(1); break;
+            case CheckCastNode cast: mem = cast.in(1); break;
             case MemMergeNode merge:  mem = merge.alias(_alias);  break;
             case EscapeNode esc:
                 if( esc.self()==ptr ) // Proved equal

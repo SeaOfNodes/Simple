@@ -377,7 +377,7 @@ public class x86_64_v2 extends Machine {
         case CProjNode      c -> new CProjNode(c);
         case CallEndNode cend -> new CallEndMach(cend);
         case CallNode    call -> call(call);
-        case CastNode    cast -> new CastMach(cast);
+        case CheckCastNode cast -> new CheckCastMach(cast);
         case GuardNode  guard -> new GuardMach(guard);
         case ConstantNode con -> con(con);
         case DivFNode    divf -> new DivFX86(divf);

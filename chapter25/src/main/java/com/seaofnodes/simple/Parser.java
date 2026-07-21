@@ -945,7 +945,7 @@ public class Parser {
     private Node liftExpr( Node expr, Type t, boolean isLoad ) {
         // Auto-widen array to i64 (cast ptr to raw int bits)
         if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            expr = peep(new AddNode(peep(new CastNode(t,ctrl(),expr)),off(tmp._obj,"[]")));
+            expr = peep(new AddNode(peep(new CheckCastNode(t,ctrl(),expr)),off(tmp._obj,"[]")));
         // Auto-widen int to float
         expr = widenInt( expr, t );
         // Auto-narrow wide ints to narrow ints.  For loads, emit code to force
@@ -962,7 +962,7 @@ public class Parser {
         // Lift type to the declaration.  This will report as an error later if
         // we cannot lift the type.
         if( !et.isa(t) )
-            expr = peep(new CastNode(t,null,expr));
+            expr = peep(new CheckCastNode(t,null,expr));
 
         return expr;
     }
@@ -1903,7 +1903,7 @@ public class Parser {
 
         // Call construct <init>($ctrl,$mem,NewNode.self,NewNode.#selfMem) and
         // encourage inlining
-        Node initSelf = self._type.isa(init.arg(0)) ? self : peep(new CastNode(init.arg(0),ctrl(),self));
+        Node initSelf = self._type.isa(init.arg(0)) ? self : peep(new CheckCastNode(init.arg(0),ctrl(),self));
         Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(mem().merge()); add(initSelf); add(smem); add(con(init)); }};
         Node selfMem = functionCall( args );
         // The returned value is a merge of private *Memory* and NOT some Scalar
