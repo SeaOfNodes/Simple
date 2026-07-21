@@ -56,7 +56,7 @@ public class StoreNode extends MemOpNode {
     @Override
     public Type compute() {
         Type val  = val()._type;
-        Type mem0 = mem()._type;
+        Type mem0 = aliasMem()._type;
         Type ptr0 = ptr()._type;
         // Validate argument types
         if( ptr0.isHigh() )
@@ -73,7 +73,7 @@ public class StoreNode extends MemOpNode {
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
         // which is never does in a constructor.
-        if( !_name.equals("[]") && (mem._one || !ptr._pub || (ptr._one && _loc==null)) )
+        if( !_name.equals("[]") && mem._one )
             // Just track the stored value
             return TypeMem.make(_alias,val,true,false,_init,null,null).escapesFrom(val);
 
@@ -185,6 +185,13 @@ public class StoreNode extends MemOpNode {
         }
         assert _alias!=1;
 
+        // Expose the same effective memory input already observed by compute.
+        Node aliasMem = aliasMem();
+        if( aliasMem != mem() ) {
+            setDef(1,aliasMem);
+            return this;
+        }
+
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
@@ -204,24 +211,6 @@ public class StoreNode extends MemOpNode {
             setDef(1,mem.alias(_alias));
             return this;
         }
-
-        // Move stores of new private instances into the private memory space.
-        // Lame EA by any other name.
-        if( mem() instanceof EscapeNode esc ) {
-            // Trivial bypass Escape; store either goes to the public side or the private side
-            if( ptr() == esc.self() &&
-                // Multiple users of same alias, one of them must be (eventually) dead.
-                esc.nOuts() == 1 ) {
-                if( _con==Type.BOTTOM ) throw Utils.TODO("sharpen first");
-                esc.setDef(2,new StoreNode( _loc, _name, _alias, _con, in(0), esc.priv(), ptr(), off(), val(), false ).peephole());
-                return esc;
-            } else {
-                for( Node use : esc._outputs )
-                    addDep(use); // Recheck once esc loses a use
-                // TODO: Trivial bypass Escape to public side
-            }
-        }
-
 
         // Value is automatically truncated by narrow store
         if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
@@ -276,6 +265,15 @@ public class StoreNode extends MemOpNode {
         return alias != 1 && mem instanceof MemMergeNode merge
             ? merge.alias(alias)
             : mem;
+    }
+
+    // Semantic memory input for this Store.  Compute defines behavior from
+    // this view; ideal exposes the same edge in the graph.
+    private Node aliasMem() {
+        Node mem = mem();
+        if( _alias != 1 && mem instanceof MemMergeNode merge )
+            mem = merge.alias(_alias);
+        return mem;
     }
 
     // Check that "mem" has no uses except "this"

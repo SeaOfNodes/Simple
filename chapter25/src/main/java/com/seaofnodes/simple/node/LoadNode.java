@@ -38,7 +38,8 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        Type tmem = mem()._type;
+        Node memNode = aliasMem();
+        Type tmem = memNode._type;
         if( !(tmem instanceof TypeMem mem) )
             return tmem; // No memory yet?  Assume TOP/BOT
         if( err() != null )
@@ -81,7 +82,7 @@ public class LoadNode extends MemOpNode {
     @Override
     public Node idealize() {
         Node ptr = ptr();
-        Node mem = mem();
+        Node mem = aliasMem();
 
         // Loads into structs do not need a ctrl edge, as null-ptr checking is
         // baked into the type system.  Loads into arrays DO need the ctrl
@@ -114,13 +115,12 @@ public class LoadNode extends MemOpNode {
             return extend(st.val());
         }
 
-        // Simple load-after-MemMerge to a known alias can bypass.  Happens when inlining.
-        if( mem instanceof MemMergeNode mem2 ) {
-            Node memA = mem2.alias(_alias);
-            for( Node ld : memA._outputs )
+        // Expose the same effective memory input already observed by compute.
+        if( mem != mem() ) {
+            for( Node ld : mem._outputs )
                 if( ld instanceof LoadNode )
                     CodeGen.CODE.add(ld);
-            setDef(1,memA);
+            setDef(1,mem);
             return this;
         }
 
@@ -211,6 +211,15 @@ public class LoadNode extends MemOpNode {
         }
 
         return null;
+    }
+
+    // Semantic memory input for this Load.  Compute defines behavior from
+    // this view; ideal merely exposes the same edge in the graph.
+    private Node aliasMem() {
+        Node mem = mem();
+        return _alias != 1 && mem instanceof MemMergeNode merge
+            ? merge.alias(_alias)
+            : mem;
     }
 
     private Node ld( int idx ) {

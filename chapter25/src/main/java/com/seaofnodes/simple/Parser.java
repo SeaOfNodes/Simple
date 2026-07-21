@@ -154,6 +154,20 @@ public class Parser {
     private void memAlias(int alias, Node st) {        _scope.mem(alias, st); }
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
+    // Ordinary parsing carries a whole-memory partition.  A resolved Store
+    // updates one explicit alias slot; an unresolved Store remains the bulk
+    // default until StoreNode's alias-resolution rewrite installs its slot.
+    private void storeMem( Node st, int alias, Node prior ) {
+        MemMergeNode next = new MemMergeNode(true);
+        if( alias == 1 )
+            next.alias(1,st);
+        else {
+            next.alias(1,prior);
+            next.alias(alias,st);
+        }
+        mem(next);
+    }
+
 
     public Ary<FRefNode> parse( CompUnit ref ) {
         assert _scope == null && _breakScope == null && _continueScope == null && _returnScope == null;
@@ -930,8 +944,11 @@ public class Parser {
             int alias = fld._alias;
             Node ptr = _scope.in(method._lexSize);
             Node off = fldoff(ptr,name);
-            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), memAlias(alias), ptr, off, lift, inExplicitConstructor()).peephole();
-            memAlias(alias,st);
+            Node prior = mem().merge().keep();
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), prior, ptr, off, lift, inExplicitConstructor()).peephole().keep();
+            storeMem(st,alias,prior);
+            st.unkeep();
+            prior.unkeep();
         }
         lift.unkill();
 
@@ -2083,21 +2100,19 @@ public class Parser {
             // Lift value for store
             Node lift = fld==null ? val : new ConvertNode(fld._t,val).peephole();
             // Memory for store, post assignment expression
-            Node mem = fld==null ? mem().merge() : memAlias(fld._alias);
+            Node mem = mem().merge();
             // Store to field
-            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), lift, false).peephole();
-
-            // For well known types, we can use sharp alias updates right now
-            if( fld != null )  memAlias(fld._alias, st);
-            // For unknown / forward-ref types, we default to the conservative
-            // alias#1, but this should clean up later as types are discovered.
-            else mem(new MemMergeNode(true,null,st));
+            mem.keep();
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), lift, false).peephole().keep();
+            storeMem(st,alias,mem);
+            st.unkeep();
+            mem.unkeep();
 
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
         // Memory for load
-        Node mem = fld==null ? mem().merge() : memAlias(fld._alias);
+        Node mem = mem().merge();
         // Loading from a constant array, the declared type is the
         // meet-over-elements and not the array itself.
         if( name=="[]" && decl instanceof TypeConAry conary )
@@ -2134,12 +2149,11 @@ So... declaring a ptr-to-mut, passing thru R/O.  Getting Type from Parser.TYPES 
         if( ch!=0 ) {
             if( decl == Type.BOTTOM ) throw TODO("Need ConvertNode after opAssign");
             Node op = opAssign(ch,load, decl );
-            Node st = new StoreNode(loc(), name, alias, decl.glb(true), ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole();
-            // For well known types, we can use sharp alias updates right now
-            if( fld != null )  memAlias(fld._alias, st);
-            // For unknown / forward-ref types, we default to the conservative
-            // alias#1, but this should clean up later as types are discovered.
-            else mem(new MemMergeNode(true,null,st));
+            mem.keep();
+            Node st = new StoreNode(loc(), name, alias, decl.glb(true), ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
+            storeMem(st,alias,mem);
+            st.unkeep();
+            mem.unkeep();
 
             load = postfix(ch) ? load.unkeep() : op;
             // And use the original loaded value as the result
