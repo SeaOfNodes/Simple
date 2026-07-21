@@ -455,27 +455,24 @@ public class ScopeNode extends MemMergeNode {
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : CodeGen.CODE.add(new NotNode(pred).peephole());
+        Node zeroPred = pred instanceof NotNode not ? not.in(1) : null;
         // This is a zero/null test.
         // Compute the positive test type.
-        Type tnz = pred._type.nonZero();
-        if( tnz!=null )
-            _addGuard(tnz,ctrl,pred);
+        _addGuard(true,ctrl,pred);
 
         // Compute the negative test type.
-        if( pred instanceof NotNode not ) {
-            Node npred = not.in(1);
-            Type tzero = npred._type.makeZero();
-            _addGuard(tzero,ctrl,npred);
-        }
+        if( zeroPred != null )
+            _addGuard(false,ctrl,zeroPred);
     }
 
-    private void _addGuard(Type guard, Node ctrl, Node pred) {
-        Type tcast = guard.join(pred._type);
-        if( tcast != pred._type && !tcast.isHigh() ) {
-            Node cast = new CastNode(tcast,ctrl,pred.keep()).peephole().keep();
+    private void _addGuard(boolean nonZero, Node ctrl, Node pred) {
+        Node guard = new GuardNode(nonZero,ctrl,pred).peephole();
+        if( guard != pred ) {
+            pred.keep();
+            guard.keep();
             _guards.add(pred);
-            _guards.add(cast);
-            replace(pred,cast);
+            _guards.add(guard);
+            replace(pred,guard);
         }
     }
 

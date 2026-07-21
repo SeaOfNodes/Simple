@@ -85,7 +85,7 @@ public abstract class Node implements Cloneable {
         New,Never,Not,Or,Parm,Phi,Proj,
         ReadOnly,Return,Region,RoundF32,
         Sar,Shl,Shr,Start,Stop,Store,Struct,Sub,SubF,ToFloat,
-        XCtrl,Xor,StartCU,StopCU;
+        XCtrl,Xor,StartCU,StopCU,Guard;
         public static final Tag[] VALS = values();
         public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
             return switch(this) {
@@ -115,6 +115,7 @@ public abstract class Node implements Cloneable {
             case ToFloat-> new ToFloatNode(null);
             case XCtrl  -> new XCtrlNode();
             case Xor    -> new   XorNode(null,null,null);
+            case Guard -> GuardNode.make(bais);
 
             case EQ    -> new  BoolNode.EQ (null,null);
             case NE    -> new  BoolNode.NE (null,null);

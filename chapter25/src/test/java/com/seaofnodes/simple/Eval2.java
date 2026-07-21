@@ -279,6 +279,7 @@ public abstract class Eval2 {
         case BoolNode.LE  le   -> x(le .in(1)) <= x(le .in(2)) ? 1L : 0L;
         case BoolNode.LT  lt   -> x(lt .in(1)) <  x(lt .in(2)) ? 1L : 0L;
         case CastNode    cast  -> val(cast.in(1));
+        case GuardNode   guard -> val(guard.in(1));
         case ConstantNode con  -> con(con._con);
         case DivFNode     dvf  -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
         case DivNode      div  -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));

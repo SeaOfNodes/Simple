@@ -305,6 +305,7 @@ public class Evaluator {
             case  OrNode      or    -> vall(or .in(1)) | vall(or .in(2));
             case XorNode      xor   -> vall(xor.in(1)) ^ vall(xor.in(2));
             case CastNode     cast  -> val(cast.in(1));
+            case GuardNode    guard -> val(guard.in(1));
             case ToFloatNode  cast  -> (double)vall(cast.in(1));
             case LoadNode     load  -> load(load);
             case StoreNode    store -> store(store);
