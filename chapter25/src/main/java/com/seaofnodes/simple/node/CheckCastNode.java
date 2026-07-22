@@ -37,10 +37,10 @@ public class CheckCastNode extends TypeNode {
 
     @Override
     public Type compute() {
-        // Cast array to int
+        //// Cast array to int
         Type t1 = in(1)._type;
-        if( _con == TypeInteger.BOT && t1 instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            return _con;
+        //if( _con == TypeInteger.BOT && t1 instanceof TypeMemPtr tmp && tmp._obj.isAry() )
+        //    return _con;
 
         // If unconditional, it must collapse (or error)
         if( in(0)==null )

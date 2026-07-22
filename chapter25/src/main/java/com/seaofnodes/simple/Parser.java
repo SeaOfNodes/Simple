@@ -957,12 +957,16 @@ public class Parser {
         return expr.unkeep();
     }
 
-    // Make finals deep; widen ints to floats; narrow wide int types.
+    // Widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
     private Node convertExpr( Node expr, Type t ) {
         // Auto-widen array to i64 (cast ptr to raw int bits)
         if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            expr = peep(new AddNode(peep(new CheckCastNode(t,ctrl(),expr)),off(tmp._obj,"[]")));
+            return peep(new AddNode(peep(new CheckCastNode(t,ctrl(),expr)),off(tmp._obj,"[]")));
+        // Null check has to eventually pass
+        if( t == Type.NIL && expr._type instanceof TypeMemPtr tmp && tmp.notNull() )
+           return peep(new CheckCastNode(t,null,expr));
+        // Widen ints to floats, narrow wide types
         return peep(new ConvertNode(t,expr));
     }
 
@@ -1934,7 +1938,7 @@ public class Parser {
         // bulk memory.
         selfMem.keep();
         for( Field fld : postinit._fields ) {
-            Node esc = peep( new EscapeNode( (Field) fld.glb( true ), self, selfMem, memAlias( fld._alias ) ) );
+            Node esc = peep( new EscapeNode( fld, self, selfMem, memAlias( fld._alias ) ) );
             memAlias( fld._alias, esc );
         }
 

@@ -65,7 +65,7 @@ else
 return v;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Test.Vector2D; return MEM[ 2:.x=0; 3:.y=0;]; ]", code.print());
+        assertEquals("return Test.Vector2D;", code.print());
     }
 
     @Test
@@ -103,7 +103,7 @@ while (arg) {
 return bar.a;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Loop,0,(Phi_a+2)); return MEM[ 2:.a=0;]; ]", code.print());
+        assertEquals("return Phi(Loop,0,(Phi_a+2));", code.print());
     }
 
     @Test
