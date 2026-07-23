@@ -4,7 +4,6 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.util.SB;
 
 import java.util.BitSet;
@@ -18,6 +17,13 @@ public class PhiNode extends Node {
     public PhiNode(String label, Type minType, Node... inputs) {
         super(inputs);
         _label = label;
+    }
+    public static PhiNode make(String label, Type minType, Node... inputs) {
+        return minType instanceof TypeMem mem
+            ? mem._alias==1
+                ? new BulkMemPhiNode(label,minType,inputs)
+                : new MemPhiNode(label,minType,mem._alias,inputs)
+            : new PhiNode(label,minType,inputs);
     }
     // Used by ParmNode
     public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; }
@@ -45,20 +51,6 @@ public class PhiNode extends Node {
     @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 
     @Override public String glabel() { return "&phi;_"+_label; }
-
-    // Memory Phis carry their structural alias in the parser-assigned label.
-    // Returns -1 for ordinary value Phis.
-    public int memAlias() {
-        if( _label == ScopeNode.MEM0 ) return 1;
-        if( _label==null || _label.length()<2 || _label.charAt(0)!='$' ) return -1;
-        int alias = 0;
-        for( int i=1; i<_label.length(); i++ ) {
-            char c = _label.charAt(i);
-            if( c<'0' || c>'9' ) return -1;
-            alias = alias*10 + c-'0';
-        }
-        return alias;
-    }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -135,37 +127,6 @@ public class PhiNode extends Node {
         for( int i=1; i<nIns(); i++ )
             if( r.in(i)._type == Type.XCONTROL )
                 return null;
-
-        // Simple Phi-after-MemMerge to a known alias can bypass.  Happens when inlining.
-        if( _type instanceof TypeMem tmem && tmem._alias!=1 ) {
-            for( int i=1; i<nIns(); i++ )
-                if( in(i) instanceof MemMergeNode mem ) {
-                    setDef(i,mem.alias(tmem._alias));
-                    return this;
-                }
-        }
-
-        // Can we split a bulk memory phi?
-        if( _type instanceof TypeMem tmem && tmem._alias==1 ) {
-            int alias = 0;
-            for( Node use : outs() ) {
-                if( use.nOuts()==0 ) {alias=0; addDep(use); break; }
-                if( use instanceof MemOpNode mop && mop._alias != 1 )
-                    alias=mop._alias;
-                if( use instanceof EscapeNode esc )
-                    throw Utils.TODO();
-                if( use instanceof MemMergeNode mmm ) {
-                    for( int i=2; i<mmm.nIns(); i++ )
-                        if( mmm.in(i)==this )
-                            throw Utils.TODO();
-                }
-            }
-            // Need to 1-time split a bulk-memory into a set of aliases and a
-            // "rest of memory" not included in this split.
-            if( alias != 0 ) {
-                throw Utils.TODO();
-            }
-        }
 
         // Generic "pull down op"
         Node progress;
@@ -255,7 +216,7 @@ public class PhiNode extends Node {
                 if( in(i).in(j) != x )
                     { needsPhi=true; break; }
             if( needsPhi ) {
-                x = new PhiNode(_label,op.in(j)._type.glb(false));
+                x = make(_label,op.in(j)._type.glb(false));
                 x.addDef(region());
                 for( int i=1; i<nIns(); i++ )
                     x.addDef(in(i).in(j));

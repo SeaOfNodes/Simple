@@ -75,7 +75,7 @@ public class LoopNode extends RegionNode {
                 // Nope, insert an aligned exit layer
                 RegionNode r = new RegionNode(_loc,null,ctrl).init();
                 ctrl = r;  r._ltree = stop._ltree;
-                mem  = new PhiNode(r,mem ).init();
+                mem  = new BulkMemPhiNode(r,mem ).init();
                 expr = new PhiNode(r,expr).init();
             }
             // Append new Never exit

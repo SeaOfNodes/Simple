@@ -706,6 +706,8 @@ public class arm extends Machine {
         case NotNode not     -> new NotARM(not);
         case OrNode or       -> or(or);
         case ParmNode parm   -> new ParmARM(parm);
+        case BulkMemPhiNode phi -> new BulkMemPhiNode(phi);
+        case MemPhiNode phi  -> new MemPhiNode(phi);
         case PhiNode phi     -> new PhiNode(phi);
         case ProjNode prj    -> prj(prj);
         case ReadOnlyNode read -> new ReadOnlyMach(read);

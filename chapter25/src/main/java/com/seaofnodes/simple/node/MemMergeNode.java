@@ -188,7 +188,7 @@ public class MemMergeNode extends Node {
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
                 Type phit = lhs._type.meet(rhs._type).glb(true);
-                alias(i, new PhiNode(Parser.memName(i), phit, r, lhs, rhs).peephole());
+                alias(i, new MemPhiNode(Parser.memName(i), phit, i, r, lhs, rhs).peephole());
             }
     }
 

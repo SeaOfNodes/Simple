@@ -305,7 +305,7 @@ public class ScopeNode extends MemMergeNode {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(v._idx,new PhiNode(v._name, v.type(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
+                : loop.setDef(v._idx,PhiNode.make(v._name, v.type(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
         //assert !v._final || st==null;
@@ -382,7 +382,7 @@ public class ScopeNode extends MemMergeNode {
                 Var v = var(i);
                 Node lhs = this.in(this.update(v,null));
                 Node rhs = that.in(that.update(v,null));
-                setDef(i, new PhiNode(v._name, v.type(), r, lhs, rhs).peephole());
+                setDef(i, PhiNode.make(v._name, v.type(), r, lhs, rhs).peephole());
             }
     }
 

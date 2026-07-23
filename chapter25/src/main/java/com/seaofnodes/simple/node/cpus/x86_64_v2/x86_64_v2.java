@@ -395,6 +395,8 @@ public class x86_64_v2 extends Machine {
         case NotNode      not -> new NotX86(not);
         case OrNode        or -> or(or);
         case ParmNode    parm -> new ParmX86(parm);
+        case BulkMemPhiNode phi-> new BulkMemPhiNode(phi);
+        case MemPhiNode  phi  -> new MemPhiNode(phi);
         case PhiNode      phi -> new PhiNode(phi);
         case ProjNode     prj -> prj(prj);
         case ReadOnlyNode read-> new ReadOnlyMach(read);
