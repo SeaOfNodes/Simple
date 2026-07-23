@@ -155,7 +155,7 @@ if( bar ) bar.a = 1;
 return bar.a;
 """);
         code.parse().opto();
-        assertEquals("return .a;", code.print());
+        assertEquals("return Phi(Region,1,.a);", code.print());
     }
 
     @Test
@@ -244,7 +244,7 @@ while(arg) {
 return ret;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Loop,Test.s0,Phi(Region,Test.s0,Phi_ret)); return MEM[ 2:.v0=0;]; ]", code.print());
+        assertEquals("return Phi(Loop,Test.s0,Phi(Region,Test.s0,Phi_ret));", code.print());
     }
 
     @Test
@@ -297,7 +297,7 @@ s0 b = new s0();
 return a.x * 100 + b.x * 10 + cnt;
 """);
         code.parse().iter().opto();
-        assertEquals("Stop[ return 112; return MEM[ 2:___ 3:.x=1;]; ]", code.print());
+        assertEquals("return 112;", code.print());
     }
 
 
@@ -340,7 +340,7 @@ else return new s0;
 if(new s0.f0) return 0;
     """);
         code.parse().iter().opto().typeCheck();
-        assertEquals("Stop[ return Test.s0; return MEM[ 2:.f0=0;]; ]", code.print());
+        assertEquals("return Test.s0;", code.print());
     }
 
     @Test
@@ -368,7 +368,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("Stop[ return (const)Test.s0; return MEM[ 2:.f0=0;]; ]", code.print());
+        assertEquals("return (const)Test.s0;", code.print());
     }
 
 

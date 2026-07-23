@@ -7,7 +7,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 
 // Convert a value to an authoritative destination type.  The destination is
-// known structurally from a declaration; the source family can sharpen later.
+// known structurally from a declaration; the source family might sharpen later.
 public class ConvertNode extends Node {
     private Type _dst;
 
@@ -63,7 +63,7 @@ public class ConvertNode extends Node {
     }
 
     @Override public Parser.ParseException err() {
-        return Parser.error("Type "+val()._type.str()+" cannot convert to "+_dst.str(),null);
+        return Parser.error("Type "+val()._type.str()+" is not of declared type "+_dst.str(),null);
     }
 
     @Override public boolean eq(Node n) { return _dst==((ConvertNode)n)._dst; }

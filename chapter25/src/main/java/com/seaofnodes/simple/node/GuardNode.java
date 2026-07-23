@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 
 import java.util.BitSet;
 import java.util.HashMap;
@@ -39,13 +40,15 @@ public class GuardNode extends Node {
     @Override public Type compute() {
         Type t = in(1)._type;
         if( t==Type.BOTTOM || t==Type.TOP ) return t;
-        Type guard = _nonZero ? t.nonZero() : t.makeZero();
-        return guard==null ? t : guard.join(t);
+        Type t2 = _nonZero ? t.nonZero() : t.makeZero();
+        return t2==null ? t : t2; // No sane answer for e.g. not-zero of a zero
     }
 
     @Override public Node idealize() {
         if( in(1)._type==Type.BOTTOM || in(1)._type==Type.TOP ) return null;
-        return compute()==in(1)._type ? in(1) : null;
+        if( _type.isHighOrConst() && in(1)._type.isa(_type) )
+            return in(1);
+        return null;
     }
 
     @Override public boolean eq(Node n) { return _nonZero==((GuardNode)n)._nonZero; }

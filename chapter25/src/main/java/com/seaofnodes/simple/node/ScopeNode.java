@@ -87,7 +87,7 @@ public class ScopeNode extends MemMergeNode {
 
 
     public Node ctrl() { return in(0); }
-    public MemMergeNode mem() { return (MemMergeNode)in(1); }
+    public Node mem() { return in(1); }
     public Var var(int i) { return _vars.at(i); }
 
     /**
@@ -258,10 +258,16 @@ public class ScopeNode extends MemMergeNode {
     }
 
 
-    // Read from memory
-    public Node mem( int alias ) { return mem()._mem(alias,null); }
-    // Write to memory
-    public void mem( int alias, Node st ) { mem()._mem(alias,st); }
+    // Parser state carries one complete, conservative memory value.  Precise
+    // alias partitions belong to the graph and are introduced by peepholes.
+    public Node mem( int alias ) {
+        assert alias == 1;
+        return in(update(var(1),null));
+    }
+    public void mem( int alias, Node st ) {
+        assert alias == 1;
+        update(var(1),st);
+    }
 
 
     /**
@@ -337,15 +343,9 @@ public class ScopeNode extends MemMergeNode {
                 n.keep();
         dup.addDef(ctrl());     // Control input is just copied
 
-        // Memory input is a shallow copy
-        MemMergeNode memdup = new MemMergeNode(true), mem = mem();
-        memdup.addDef(null);
-        memdup.addDef(loop ? this : mem.in(1));
-        for( int i=2; i<mem.nIns(); i++ )
-            // For lazy phis on loops we use a sentinel
-            // that will trigger phi creation on update
-            memdup.addDef(loop ? this : mem.in(i));
-        dup.addDef(memdup);
+        // Memory is one ordinary parser-state value.  At loop heads the
+        // Scope sentinel triggers the same lazy-Phi machinery as variables.
+        dup.addDef(loop ? this : mem());
 
         // Copy of other inputs
         for( int i=2; i<nIns(); i++ )
@@ -365,7 +365,6 @@ public class ScopeNode extends MemMergeNode {
      */
     public RegionNode mergeScopes(ScopeNode that, Parser.Lexer loc) {
         RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
-        mem()._merge(that.mem(),r);
         this ._merge(that      ,r);
         that.kill();            // Kill merged scope
         CodeGen.CODE.add(r);
@@ -376,7 +375,7 @@ public class ScopeNode extends MemMergeNode {
         _merge(that,r,nIns());
     }
     public void _merge(ScopeNode that, RegionNode r, int max ) {
-        for( int i = 2; i < max; i++)
+        for( int i = 1; i < max; i++)
             if( in(i) != that.in(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
@@ -416,21 +415,15 @@ public class ScopeNode extends MemMergeNode {
         assert ctrl instanceof LoopNode loop && loop.inProgress();
         ctrl.setDef(2,back.ctrl());
 
-        mem()._endLoopMem( this, back.mem(), exit.mem() );
         this ._endLoop   ( this, back      , exit       );
         back.kill();            // Loop backedge is dead
         // Now one-time do a useless-phi removal
-        mem()._useless();
         this ._useless();
-
-        // The exit mem's lazy default value had been the loop top,
-        // now it goes back to predating the loop.
-        exit.mem().setDef(1,mem().in(1));
     }
 
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
-        for( int i=2; i<nIns(); i++ ) {
+        for( int i=1; i<nIns(); i++ ) {
             if( var(i)._final ) continue; // Final vars did not get modified in the loop
             if( !var(i).type().isHighOrConst() && // Cannot lift higher than a constant, so no Phi
                 back.in(i) != scope ) {

@@ -202,11 +202,11 @@ public class JSViewer implements AutoCloseable {
             int lexStart = level==0 ? 0 : scope._kinds.at(level-1)._lexSize;
 
             // Special for memory ScopeMinNode
-            MemMergeNode n = scope.nIns()>1 ? scope.mem() : null;
-            if( level==0 && n!=null && n.nIns()>2 ) {
+            Node n = scope.nIns()>1 ? scope.mem() : null;
+            if( level==0 && n instanceof MemMergeNode merge && n.nIns()>2 ) {
                 sb.i().p("<TR>");
                 for( int m=2; m<n.nIns(); m++ )
-                    cell(sb,"#"+m,n.alias(m),"m"+m);
+                    cell(sb,"#"+m,merge.alias(m),"m"+m);
                 sb.p("</TR>\n"); // End scope level
             }
 
@@ -376,8 +376,7 @@ public class JSViewer implements AutoCloseable {
         }
 
         // Memory
-        if( scope.nIns()>1 ) {
-            MemMergeNode n = scope.mem();
+        if( scope.nIns()>1 && scope.mem() instanceof MemMergeNode n ) {
             for( int i=2; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
                 while( def instanceof ScopeNode lazy )

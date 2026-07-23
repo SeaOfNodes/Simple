@@ -144,28 +144,25 @@ public class Parser {
     private Node ctrl() { return _scope.ctrl(); }
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
     // Read and set Memory
-    private MemMergeNode mem() { return _scope.mem(); }
+    private Node mem() { return _scope.mem(1); }
     private void mem(Node mem) { _scope.mem(mem); }
-    // We set up memory aliases by inserting special vars in the scope these
-    // variables are prefixed by $ so they cannot be referenced in Simple code.
-    // Using vars has the benefit that all the existing machinery of scoping
-    // and phis work as expected
-    private Node memAlias(int alias         ) { return _scope.mem(alias    ); }
-    private void memAlias(int alias, Node st) {        _scope.mem(alias, st); }
+    // Structural label for precise memory Phis.  The '$' prefix cannot be
+    // referenced in Simple source.
     public static String memName(int alias) { return ("$"+alias).intern(); }
 
-    // Ordinary parsing carries a whole-memory partition.  A resolved Store
-    // updates one explicit alias slot; an unresolved Store remains the bulk
-    // default until StoreNode's alias-resolution rewrite installs its slot.
+    // Ordinary parsing carries one whole-memory value.  Alias partitioning is
+    // graph optimization, not parser state.
     private void storeMem( Node st, int alias, Node prior ) {
-        MemMergeNode next = new MemMergeNode(true);
-        if( alias == 1 )
-            next.alias(1,st);
-        else {
-            next.alias(1,prior);
-            next.alias(alias,st);
-        }
-        mem(next);
+        mem(alias==1 ? st : mergeAlias(prior,alias,st));
+    }
+
+    // A semantic graph partition representing the complete memory after a
+    // precise alias update.  ScopeNode treats this as one opaque value.
+    private Node mergeAlias(Node bulk, int alias, Node precise) {
+        assert bulk != null : "Missing bulk memory for alias #"+alias;
+        MemMergeNode merge = new MemMergeNode(false,null,bulk);
+        merge.alias(alias,precise);
+        return peep(merge);
     }
 
 
@@ -179,7 +176,7 @@ public class Parser {
         // Track active scopes for Graph display
         _xScopes.push(_scope);
         ctrl(_code.XCTRL);
-        mem(new MemMergeNode(false));
+        mem(con(TypeMem.BOT));
 
         // File-level struct declaration
         _ref = ref;
@@ -273,8 +270,7 @@ public class Parser {
         // Private mem alias tracking per function
         Node defaultMem = new ProjNode(_ref._start,1,ScopeNode.MEM0).peephole();
         Node privMem = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,defaultMem).peephole();
-        MemMergeNode mem = new MemMergeNode(true,null,privMem);
-        mem(mem);
+        mem(privMem);
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
@@ -318,7 +314,7 @@ public class Parser {
         // Build a return from the _returnScope.
         // Can be no returns for never-exit functions
         Node rctl = _returnScope==null ? _code.XCTRL      : _returnScope.ctrl().peephole();
-        Node rmem = rctl==_code.XCTRL  ? con(TypeMem.TOP) : _returnScope.mem ().merge().peephole();
+        Node rmem = rctl==_code.XCTRL  ? con(TypeMem.TOP) : _returnScope.mem();
         Node expr = rctl==_code.XCTRL  ? con(Type.TOP)    : _returnScope._inputs.last().peephole();
         ReturnNode ret = (ReturnNode)peep(new ReturnNode(rctl, rmem, expr, rpc, fun));
         fun.setRet(ret);
@@ -405,9 +401,7 @@ public class Parser {
         // A MemMerge to gather field updates as stores.  Classes update the
         // normal public memory.  <init> updates the private memory that got
         // passed in - is treated like a normal argument and not like memory.
-        MemMergeNode mmm = isClz
-            ? _returnScope.mem()                 // Public  memory update
-            : new MemMergeNode(false,null,smem); // Private memory update
+        Node mmm = isClz ? _returnScope.mem(1) : smem;
 
 
         // Store constructor results into fields
@@ -419,10 +413,11 @@ public class Parser {
             Var v = _scope.var(vidx);
             if( v._fref ) continue; // Forward refs not declared here
             Node val = _returnScope.in(vidx);
-            Node stmem = mmm.alias(fld._alias);
             // Store value into extended struct
-            Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, stmem, self, off(tself,fld._fname), val, fld._final));
-            mmm.alias(fld._alias, st);
+            Node prior = mmm.keep();
+            Node st = peep(new StoreNode(null, fld._fname, 1, fld._t, null, prior, self, off(tself,fld._fname), val, fld._final));
+            mmm = mergeAlias(prior,fld._alias,st);
+            prior.unkeep();
         }
 
         if( !isClz )
@@ -838,7 +833,7 @@ public class Parser {
         expr.keep();
         // Need default memory, since it can be lazy, need to force
         // a non-lazy Phi
-        mem().removeLazyAll();
+        mem();                 // Force a pending lazy bulk-memory Phi
         // For <init> and <clinit> - all fields in scope will be live-on-exit
         // and stored into `self` and need to have lazy-phi's inserted.
         int lexN = _scope.enclosingFuncOrDecl();
@@ -874,7 +869,6 @@ public class Parser {
             // And fields might not match.... will need matching Var/define with default values
             int rlen = _returnScope.nIns()-1;
             RegionNode r = ctrl(new RegionNode(null, null,_returnScope.ctrl(), _scope.ctrl()).init().keep());
-            _returnScope.mem()._merge(mem(),r);
             _returnScope      ._merge(_scope,      r, rlen);
             Node oldExpr = _returnScope.in(rlen);
             _returnScope.setDef(rlen,new PhiNode("$expr", oldExpr._type.meet(expr._type), r, oldExpr, expr).peephole());
@@ -944,8 +938,8 @@ public class Parser {
             int alias = fld._alias;
             Node ptr = _scope.in(method._lexSize);
             Node off = fldoff(ptr,name);
-            Node prior = mem().merge().keep();
-            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), prior, ptr, off, lift, inExplicitConstructor()).peephole().keep();
+            Node prior = mem().keep();
+            Node st = new StoreNode(loc(), name, 1, decl, ctrl(), prior, ptr, off, lift, inExplicitConstructor()).peephole().keep();
             storeMem(st,alias,prior);
             st.unkeep();
             prior.unkeep();
@@ -1907,7 +1901,7 @@ public class Parser {
         // Call construct <init>($ctrl,$mem,NewNode.self,NewNode.#selfMem) and
         // encourage inlining
         Node initSelf = self._type.isa(init.arg(0)) ? self : peep(new CheckCastNode(init.arg(0),ctrl(),self));
-        Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(mem().merge()); add(initSelf); add(smem); add(con(init)); }};
+        Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(mem()); add(initSelf); add(smem); add(con(init)); }};
         Node selfMem = functionCall( args );
         // The returned value is a merge of private *Memory* and NOT some Scalar
 
@@ -1938,8 +1932,9 @@ public class Parser {
         // bulk memory.
         selfMem.keep();
         for( Field fld : postinit._fields ) {
-            Node esc = peep( new EscapeNode( fld, self, selfMem, memAlias( fld._alias ) ) );
-            memAlias( fld._alias, esc );
+            Node prior = mem();
+            Node esc = peep(new EscapeNode(fld,self,selfMem,prior));
+            mem(mergeAlias(prior,fld._alias,esc));
         }
 
         if( selfMem.unkeep().isUnused() ) selfMem.kill();
@@ -1966,7 +1961,7 @@ public class Parser {
         Ary<Node> args = new Ary<>(Node.class);
         assert self._type.isa(ctor.arg(0));
         args.add(ctrl());
-        args.add(mem().merge());
+        args.add(mem());
         args.add(self);
         args.add(selfMem);
         for( Node arg : ctorArgs )
@@ -1979,7 +1974,7 @@ public class Parser {
         cend = (CallEndNode)cend.keep().peephole();
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
         Node pubmem = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
-        mem(new MemMergeNode(true,null,pubmem));
+        mem(pubmem);
         return new ProjNode(cend.unkeep(),2,"#selfMem").peephole();
     }
 
@@ -1999,12 +1994,16 @@ public class Parser {
         // Store length.  Rest of array is zero'd via CALLOC during CodeGen.
         // Length is casted to sanity.
         // TODO: Needs runtime check.
-        Node st = peep(new StoreNode(null, "#", lenFld._alias, TypeInteger.U32, null, smem, self, off(ts,"#"), len.unkeep(), true));
+        Node st = peep(new StoreNode(null, "#", 1, TypeInteger.U32, null, smem, self, off(ts,"#"), len.unkeep(), true));
 
         // TODO: Allow add-on "constructor" to init the array elements
 
-        memAlias( lenFld._alias,peep(new EscapeNode( lenFld,self,st  ,memAlias( lenFld._alias))));
-        memAlias(bodyFld._alias,peep(new EscapeNode(bodyFld,self,smem,memAlias(bodyFld._alias))));
+        Node prior = mem();
+        Node esc = peep(new EscapeNode(lenFld,self,st,prior));
+        mem(mergeAlias(prior,lenFld._alias,esc));
+        prior = mem();
+        esc = peep(new EscapeNode(bodyFld,self,smem,prior));
+        mem(mergeAlias(prior,bodyFld._alias,esc));
         smem.unkeep();
         return self.unkeep();
     }
@@ -2104,10 +2103,10 @@ public class Parser {
             // Lift value for store
             Node lift = fld==null ? val : new ConvertNode(fld._t,val).peephole();
             // Memory for store, post assignment expression
-            Node mem = mem().merge();
+            Node mem = mem();
             // Store to field
             mem.keep();
-            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), lift, false).peephole().keep();
+            Node st = new StoreNode(loc(), name, 1, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), lift, false).peephole().keep();
             storeMem(st,alias,mem);
             st.unkeep();
             mem.unkeep();
@@ -2116,7 +2115,7 @@ public class Parser {
         }
 
         // Memory for load
-        Node mem = mem().merge();
+        Node mem = mem();
         // Loading from a constant array, the declared type is the
         // meet-over-elements and not the array itself.
         if( name=="[]" && decl instanceof TypeConAry conary )
@@ -2154,7 +2153,7 @@ So... declaring a ptr-to-mut, passing thru R/O.  Getting Type from Parser.TYPES 
             if( decl == Type.BOTTOM ) throw TODO("Need ConvertNode after opAssign");
             Node op = opAssign(ch,load, decl );
             mem.keep();
-            Node st = new StoreNode(loc(), name, alias, decl.glb(true), ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
+            Node st = new StoreNode(loc(), name, 1, decl.glb(true), ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
             storeMem(st,alias,mem);
             st.unkeep();
             mem.unkeep();
@@ -2278,7 +2277,7 @@ So... declaring a ptr-to-mut, passing thru R/O.  Getting Type from Parser.TYPES 
         }
         // Control & memory after parsing args
         args.set(0,ctrl().keep());
-        args.set(1,mem().merge().keep());
+        args.set(1,mem().keep());
         args.push(fcn);        // Function pointer
         // Unkeep them all
         for( Node arg : args )
@@ -2305,7 +2304,7 @@ So... declaring a ptr-to-mut, passing thru R/O.  Getting Type from Parser.TYPES 
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
         // Memory from CallEnd
         Node mem = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
-        mem(new MemMergeNode(true,null,mem));
+        mem(mem);
         // Call result
         return new ProjNode(cend.unkeep(),2,"#2").peephole();
     }

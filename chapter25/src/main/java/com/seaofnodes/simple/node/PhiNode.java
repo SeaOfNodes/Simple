@@ -4,6 +4,7 @@ import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.util.SB;
 
 import java.util.BitSet;
@@ -48,6 +49,7 @@ public class PhiNode extends Node {
     // Memory Phis carry their structural alias in the parser-assigned label.
     // Returns -1 for ordinary value Phis.
     public int memAlias() {
+        if( _label == ScopeNode.MEM0 ) return 1;
         if( _label==null || _label.length()<2 || _label.charAt(0)!='$' ) return -1;
         int alias = 0;
         for( int i=1; i<_label.length(); i++ ) {
@@ -143,16 +145,39 @@ public class PhiNode extends Node {
                 }
         }
 
+        // Can we split a bulk memory phi?
+        if( _type instanceof TypeMem tmem && tmem._alias==1 ) {
+            int alias = 0;
+            for( Node use : outs() ) {
+                if( use.nOuts()==0 ) {alias=0; addDep(use); break; }
+                if( use instanceof MemOpNode mop && mop._alias != 1 )
+                    alias=mop._alias;
+                if( use instanceof EscapeNode esc )
+                    throw Utils.TODO();
+                if( use instanceof MemMergeNode mmm ) {
+                    for( int i=2; i<mmm.nIns(); i++ )
+                        if( mmm.in(i)==this )
+                            throw Utils.TODO();
+                }
+            }
+            // Need to 1-time split a bulk-memory into a set of aliases and a
+            // "rest of memory" not included in this split.
+            if( alias != 0 ) {
+                throw Utils.TODO();
+            }
+        }
+
         // Generic "pull down op"
         Node progress;
         if( same_op() && (progress = drop_same_op()) != null )
             return progress;
 
-        // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
+        // If merging Phi(ZERO, guardNZ(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
-            if( in(1) instanceof CheckCastNode cast && addDep(cast.in(1))==in(2) ) return in(2);
-            if( in(2) instanceof CheckCastNode cast && addDep(cast.in(1))==in(1) ) return in(1);
+            if( in(1) instanceof GuardNode cast && cast._nonZero && in(2)._type.makeZero()==in(2)._type )  return cast.in(1);
+            if( in(2) instanceof GuardNode cast && cast._nonZero && in(1)._type.makeZero()==in(1)._type )  return cast.in(1);
         }
+
         // If merging a null-checked null and the checked value, just use the value.
         // if( val ) ..; phi(Region,False=0/null,True=val);
         // then replace with plain val.
@@ -162,7 +187,7 @@ public class PhiNode extends Node {
             if( in(2)._type == in(2)._type.makeZero() ) nullx = 2;
             if( nullx != -1 ) {
                 Node val = in(3-nullx);
-                if( val instanceof CheckCastNode cast )
+                if( val instanceof GuardNode cast && cast._nonZero )
                     val = cast.in(1);
                 Node ridom = r.idom(this);
                 if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {

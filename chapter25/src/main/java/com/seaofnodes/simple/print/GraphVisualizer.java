@@ -163,7 +163,7 @@ public class GraphVisualizer {
             sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
             // Special for memory ScopeMinNode
             if( level==0 ) {
-                MemMergeNode n = scope.mem();
+                Node n = scope.mem();
                 sb.append("\t\t").append(n.uniqueName()).append(" [label=\"").append(n.glabel()).append("\"];\n");
             }
             sb.append("\t\t").append(scopeName).append(" [label=<\n");

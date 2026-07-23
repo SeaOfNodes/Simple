@@ -13,9 +13,8 @@ import java.util.*;
 public class MemMergeNode extends Node {
 
     /*
-     *  In-Progress means this is being used by the Parser to track memory
-     *  aliases.  No optimizations are allowed.  If not "in progress" then
-     *  normal peeps work.
+     *  In-Progress is the mutable construction form.  No optimizations are
+     *  allowed.  If not "in progress" then normal peeps work.
      */
     public final boolean _inProgress;
 
@@ -27,8 +26,8 @@ public class MemMergeNode extends Node {
     static Node make( BAOS bais )  { Node mem = new MemMergeNode(false); mem.setDefX(bais.packed1()-1,null); return mem; }
 
 
-    // If being used by a Scope, this is "in progress" from the Parser.
-    // Otherwise, it's a memory merge
+    // The mutable construction form is "in progress"; otherwise this is a
+    // graph-semantic memory merge.
     boolean inProgress() { return _inProgress; }
 
     @Override public String label() { return "ALLMEM"; }
@@ -168,19 +167,7 @@ public class MemMergeNode extends Node {
         // Memory projections are made lazily; if one does not exist
         // then it must be START.proj(1)
         Node old = alias(alias);
-        if( old instanceof ScopeNode loop ) {
-            MemMergeNode loopmem = loop.mem();
-            Node memdef = loopmem.alias(alias);
-            // Lazy phi!
-            old = memdef instanceof PhiNode phi && loop.ctrl()==phi.region()
-                // Loop already has a real Phi, use it
-                ? memdef
-                // Set real Phi in the loop head
-                // The phi takes its one input (no backedge yet) from a recursive
-                // lookup, which might have insert a Phi in every loop nest.
-                : loopmem.alias(alias, new PhiNode(Parser.memName(alias), TypeMem.make(alias,Type.BOTTOM,false,false,false,XInt.FULL,XInt.FULL),loop.ctrl(),loopmem._mem(alias,null),null).peephole() );
-            alias(alias,old);
-        }
+        assert !(old instanceof ScopeNode); // Parser lazy memory is handled by ScopeNode
         // Memory projections are made lazily; expand as needed
         return st==null ? old : alias(alias,st); // Not lazy, so this is the answer
     }
@@ -240,7 +227,7 @@ public class MemMergeNode extends Node {
 
     // Now one-time do a useless-phi removal
     void _useless( ) {
-        for( int i=2; i<nIns(); i++ ) {
+        for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi ) {
                 // Do an eager useless-phi removal
                 Node in = phi.peephole();

@@ -119,64 +119,17 @@ public class StoreNode extends MemOpNode {
         if( _con == Type.BOTTOM || _alias==1 ) {
             if(  ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null ) {
                 assert _alias == 1 || _alias == fld._alias;
-                // All memory uses of self must now sharpen, as we are about to
-                // no longer be a bulk memory.  Also find bulk
-                for( int i=0; i<nOuts(); i++ ) {
-                    Node use = out(i);
-                    boolean memUse = use.nIns()>1 && use.in(1)==this;
-                    if( use instanceof PhiNode phi )
-                        for( int j=1; !memUse && j<phi.nIns(); j++ )
-                            memUse = phi.in(j)==this;
-                    if( memUse ) {
-                        switch( use ) {
-                        case MemOpNode mem:
-                            if( mem._alias != 1 && mem._alias!=_alias ) {
-                                // Unaliased mem user moves to my bulk mem input
-                                mem.setDef(1,mem());
-                                CodeGen.CODE.add(mem);
-                                i--;
-                                break;
-                            } else
-                                throw Utils.TODO("sharpen bulk user");
-                        case MemMergeNode mem: {
-                            // Assert we are the source of bulk memory, then move self
-                            // to the precision alias.  Keeps self alive, in case
-                            // setting the bulk user memory is the last use of self.
-                            assert mem.alias(fld._alias)==this;
-                            mem.alias(fld._alias,this);
-                            // Merge bulk moves to my bulk mem input
-                            mem.alias(1,mem());
-                            CodeGen.CODE.add(mem);
-                            i--;
-                            break;
-                        }
-                        case PhiNode phi: {
-                            int palias = phi.memAlias();
-                            if( palias == -1 )
-                                throw Utils.TODO("Store used by a non-memory Phi");
-                            // The newly sharp Store remains on its own alias
-                            // thread.  Bulk and unrelated alias Phis bypass it
-                            // to the matching pre-Store memory slice.
-                            if( palias != fld._alias ) {
-                                Node prior = memSlice(mem(),palias);
-                                for( int j=1; j<phi.nIns(); j++ )
-                                    if( phi.in(j)==this )
-                                        phi.setDef(j,prior);
-                                CodeGen.CODE.add(phi);
-                                i--;
-                            }
-                            break;
-                        }
-                        default:
-                            throw Utils.TODO("should not reach here");
-                        }
-                    }
+                if( nOuts() > 0 ) {
+                    // Expand Store(bulkMem,alias#1) into MemMerge(bulkMem,#N:Store(bulkMem,alias#N))
+                    Node st = new StoreNode(_loc,_name,fld._alias,_con,in(0),mem(),ptr(),off(),val(),_init).peephole();
+                    MemMergeNode mmm = new MemMergeNode(false,null,mem());
+                    mmm.alias(fld._alias,st);
+                    return mmm;
                 }
                 if( _con != fld._t || _alias != fld._alias ) {
                     unlock();   // Both fields participate in GVN semantics
                     _con = fld._t;
                     _alias = fld._alias;
-                    CodeGen.CODE.add(this);
                     return this;
                 }
             }
