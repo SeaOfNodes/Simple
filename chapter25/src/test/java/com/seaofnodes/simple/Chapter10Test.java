@@ -271,8 +271,8 @@ return ret.v0;
 struct _s0 {int v0;};
 _s0 !ret = new _s0;
 while(arg < 10) {
-    _s0 !v0 = new _s0;
-    if (arg == 5) ret=v0;
+    _s0 !v1 = new _s0;
+    if (arg == 5) ret=v1;
     arg = arg + 1;
 }
 return ret.v0;

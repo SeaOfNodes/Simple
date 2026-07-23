@@ -6,11 +6,9 @@ import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
-import com.seaofnodes.simple.util.Utils;
 
 import static com.seaofnodes.simple.util.Utils.TODO;
 
-import java.text.ParseException;
 import java.util.*;
 
 /**
@@ -808,7 +806,7 @@ public class Parser {
 
         // Merge results
         RegionNode r = ctrl(tScope.mergeScopes(fScope,loc()));
-        Node ret = peep(new PhiNode("",lhs._type.meet(rhs._type).glb(false),r,lhs.unkeep(),rhs.unkeep()));
+        Node ret = peep(new PhiNode("",r,lhs.unkeep(),rhs.unkeep()));
         // Immediately fail e.g. `arg ? 7 : ptr`
         ParseException err;
         if( !fside.equals("else") && (err=ret.err()) !=null ) throw err;
@@ -869,9 +867,9 @@ public class Parser {
             // And fields might not match.... will need matching Var/define with default values
             int rlen = _returnScope.nIns()-1;
             RegionNode r = ctrl(new RegionNode(null, null,_returnScope.ctrl(), _scope.ctrl()).init().keep());
-            _returnScope      ._merge(_scope,      r, rlen);
+            _returnScope._merge(_scope, r, rlen);
             Node oldExpr = _returnScope.in(rlen);
-            _returnScope.setDef(rlen,new PhiNode("$expr", oldExpr._type.meet(expr._type), r, oldExpr, expr).peephole());
+            _returnScope.setDef(rlen,new PhiNode("$expr", r, oldExpr, expr).peephole());
             _code.add(r);
             _returnScope.ctrl(r.unkeep());
         }
@@ -1588,7 +1586,7 @@ public class Parser {
         ctrl(ifT);
         RegionNode r = fail.mergeScopes(_scope, loc()).init();
         _scope = fail;
-        return new PhiNode("",TypeInteger.BOOL,r,_code.ZERO,con(1)).peephole();
+        return new PhiNode("", r,_code.ZERO,con(1)).peephole();
     }
 
     private int parseCompDir() {

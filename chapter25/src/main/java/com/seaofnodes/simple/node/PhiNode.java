@@ -14,21 +14,21 @@ public class PhiNode extends Node {
 
     public final String _label;
 
-    public PhiNode(String label, Type minType, Node... inputs) {
+    public PhiNode( String label, Node... inputs) {
         super(inputs);
         _label = label;
     }
     public static PhiNode make(String label, Type minType, Node... inputs) {
         return minType instanceof TypeMem mem
             ? mem._alias==1
-                ? new BulkMemPhiNode(label,minType,inputs)
-                : new MemPhiNode(label,minType,mem._alias,inputs)
-            : new PhiNode(label,minType,inputs);
+                ? new BulkMemPhiNode(label,inputs)
+                : new MemPhiNode(label,mem._alias,inputs)
+            : new PhiNode(label, inputs);
     }
     // Used by ParmNode
-    public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; }
+    public PhiNode(PhiNode phi, String label) { super(phi); _label = label; }
     // Used by instruction Selection
-    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._type);  }
+    public PhiNode(PhiNode phi) { this(phi,phi._label);  }
     // Used by the infinite-loop exit breaker
     public PhiNode(RegionNode r, Node sample) {
         super(new Node[]{r});
@@ -41,11 +41,10 @@ public class PhiNode extends Node {
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(nIns());
         baos.packed2(_label==null ? 0 : strs.get(_label));
-        baos.packed2(types.get(_type));
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
-        return new PhiNode(strs[bais.packed2()], types[bais.packed2()], ins);
+        return new PhiNode(strs[bais.packed2()], ins);
     }
 
     @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }

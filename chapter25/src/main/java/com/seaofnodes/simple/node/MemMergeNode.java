@@ -187,8 +187,7 @@ public class MemMergeNode extends Node {
                 // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                Type phit = lhs._type.meet(rhs._type).glb(true);
-                alias(i, new MemPhiNode(Parser.memName(i), phit, i, r, lhs, rhs).peephole());
+                alias(i, new MemPhiNode(Parser.memName(i), i, r, lhs, rhs).peephole());
             }
     }
 

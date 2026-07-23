@@ -76,6 +76,7 @@ public class TypeMem extends Type {
     public static TypeMem makePrivate(Type t) { return make(1,t,true,false,false,escapeFIDX(XInt.EMPTY,t), escapeAlias(XInt.EMPTY,t)); }
 
     public TypeMem makeFrom(Type t) { return make(_alias,t,_one,_clz,_final,_escFs,_escAs); }
+    public TypeMem makeFrom(int alias) { return make(alias,_t,_one,_clz,_final,_escFs,_escAs); }
     public TypeMem makeFrom(int[] fidxes, int[] aliases) {
         return make(_alias,_t,_one,_clz,_final,fidxes,aliases);
     }

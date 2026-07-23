@@ -14,12 +14,12 @@ public class ParmNode extends PhiNode {
     public Type _declaredType;
 
     public ParmNode(String label, int idx, Type declaredType, Node... inputs) {
-        super(label,declaredType,inputs);
+        super(label, inputs);
         _idx = idx;
         _declaredType = declaredType;
         _type = declaredType;
     }
-    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._declaredType ); _idx = parm._idx; _declaredType = parm._declaredType; }
+    public ParmNode(ParmNode parm) { super(parm, parm._label ); _idx = parm._idx; _declaredType = parm._declaredType; }
     @Override public Tag serialTag() { return Tag.Parm; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(nIns());   // Number of linked calls

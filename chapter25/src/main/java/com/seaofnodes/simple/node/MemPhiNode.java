@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
@@ -11,14 +12,14 @@ public class MemPhiNode extends PhiNode {
 
     public final int _alias;
 
-    public MemPhiNode(String label, Type minType, int alias, Node... inputs) {
-        super(label,minType,inputs);
+    public MemPhiNode(String label, int alias, Node... inputs) {
+        super(label, inputs);
         assert alias > 1;
         _alias = alias;
     }
 
     public MemPhiNode(MemPhiNode phi) {
-        super(phi,phi._label,phi._type);
+        super(phi,phi._label);
         _alias = phi._alias;
     }
 
@@ -34,8 +35,16 @@ public class MemPhiNode extends PhiNode {
     static Node make(BAOS bais, String[] strs, Type[] types) {
         Node[] ins = new Node[bais.packed1()];
         String label = strs[bais.packed2()];
-        Type type = types[bais.packed2()];
-        return new MemPhiNode(label,type,bais.packed2(),ins);
+        return new MemPhiNode(label,bais.packed2(),ins);
+    }
+
+    @Override
+    public Type compute() {
+        Type t = super.compute();
+        if( !(t instanceof TypeMem tmem) ) return t;
+        if( tmem._alias==1 ) return tmem.makeFrom(_alias);
+        assert tmem._alias==_alias;
+        return t;
     }
 
     @Override

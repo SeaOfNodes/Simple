@@ -209,7 +209,7 @@ public class LoadNode extends MemOpNode {
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
                 Node ld1 = ld(1);
                 Node ld2 = ld(2);
-                return new PhiNode(_name,_con,memphi.region(),ld1,ld2);
+                return new PhiNode(_name, memphi.region(),ld1,ld2);
             }
         }
 

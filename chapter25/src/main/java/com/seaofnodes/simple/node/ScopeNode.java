@@ -365,7 +365,7 @@ public class ScopeNode extends MemMergeNode {
      */
     public RegionNode mergeScopes(ScopeNode that, Parser.Lexer loc) {
         RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
-        this ._merge(that      ,r);
+        this._merge(that,r);
         that.kill();            // Kill merged scope
         CodeGen.CODE.add(r);
         return r.unkeep();
