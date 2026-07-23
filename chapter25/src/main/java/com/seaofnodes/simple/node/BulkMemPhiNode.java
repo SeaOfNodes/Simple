@@ -96,89 +96,83 @@ public class BulkMemPhiNode extends PhiNode {
         if( nIns() <= 2 ) return null;
 
         // "Peek through" a MemMerge that covers this alias set on its default
-        for( int i=1; i<nIns(); i++ ) {
-            if( in(i) instanceof MemMergeNode mmm ) {
-                boolean peek = true;
-                for( int j=2; j<mmm.nIns(); j++ )
-                    if( mmm.in(j)!=null && !_aliases.get(j) )
-                        { peek=false; break; }
-                if( peek ) {    // Peek thru default memory
-                    setDef(i,mmm.in(1));
-                    return this;
-                }
+        for( int i=1; i<nIns(); i++ )
+            if( in(i) instanceof MemMergeNode mmm && canPeek(mmm) ) {
+                setDef(i,mmm.in(1));
+                return this;
             }
-        }
 
         // If any input or output uses or defines a specific alias we cover,
         // make a private MemPhi for it, and add it to the excluded list.
         for( int i=1; i<nIns(); i++ ) {
-            int alias = excludedInput(in(i));
+            int alias = inputAlias(in(i));
             if( alias!=0 )
                 return slice(alias);
         }
 
-        // If output defines a specific alias we cover,
         for( int i=0; i<nOuts(); i++ ) {
-            Node use = out(i);
-            switch(use) {
-            case ScopeNode scope: break;
-            case MemMergeNode mmm : {
-                if( mmm.in(1)==this ) {
-                    for( int j=2; j<mmm.nIns(); j++ )
-                        if( mmm.alias(j)!=this && mmm.in(j)!=this && !_aliases.get(j) )
-                            return slice(j);
-                }
-                break;
-            }
-            case BulkMemPhiNode bulk:
-                if( _aliases.equals(bulk._aliases) ) break;
-                // Does bulk user exclude a particular alias?  We should too
-                for( int alias = bulk._aliases.nextSetBit(0); alias >= 0; alias = _aliases.nextSetBit(alias+1) )
-                    if( !_aliases.get(alias) )
-                        return slice(alias);
-                break;
-            case MemOpNode mem:
-                return slice(mem._alias);
-            default:
-                assert use instanceof ReturnNode || use instanceof CallNode;
-                break;
-            };
+            int alias = outputAlias(out(i));
+            if( alias!=0 )
+                return slice(alias);
         }
 
         return super.idealize();
     }
 
-    // Return an alias not in the excluded set, or 0
-    private int excludedInput(Node n) {
+    // True if the MemMerge has no precise slice still covered by this Phi.
+    private boolean canPeek(MemMergeNode mmm) {
+        return missingAlias(mmm,false)==0;
+    }
+
+    // Return an alias required by an input but still covered by this Phi, or 0.
+    private int inputAlias(Node n) {
         return switch(n) {
-            // All simple bulk users
         case ParmNode p -> { assert p._idx==1; yield 0; }
         case ScopeNode scope -> 0;
         case ReturnNode ret -> 0;
         case ConstantNode con -> {
-            if( !(con._con instanceof TypeMem tmem) )
-                yield 0;
-            if( tmem._alias==1 ) yield 0;
-            throw Utils.TODO();
-        }
-        case MemMergeNode mmm -> {
-            // Bulk points to MemMerge and MemMerge has non-excluded not-default
-            for( int i=2; i<mmm.nIns(); i++ )
-                if( mmm.alias(i)!=mmm.in(1) && !_aliases.get(i) )
-                    yield i;
+            assert !(con._con instanceof TypeMem tmem && tmem._alias != 1);
             yield 0;
         }
+        case MemMergeNode mmm -> missingAlias(mmm,false);
         case MemOpNode mem -> mem._alias==1 ? 0 : mem._alias;
-        // Really, if self-set is missing bits in bulk, i.e. bulk is not a subset
-        case BulkMemPhiNode bulk -> {
-            if( _aliases.equals(bulk._aliases) ) yield 0;
-            for( int alias = bulk._aliases.nextSetBit(0); alias >= 0; alias = _aliases.nextSetBit(alias+1) )
-                if( !_aliases.get(alias) )
-                    yield alias;
-            yield 0;
-        }
+        case BulkMemPhiNode bulk -> missingAlias(bulk);
         default -> throw Utils.TODO();
         };
+    }
+
+    // Return an alias required by a user but still covered by this Phi, or 0.
+    private int outputAlias(Node use) {
+        return switch(use) {
+        case ScopeNode scope -> 0;
+        case MemMergeNode mmm -> mmm.in(1)==this ? missingAlias(mmm,true) : 0;
+        case BulkMemPhiNode bulk -> missingAlias(bulk);
+        case MemOpNode mem -> mem._alias==1 ? 0 : mem._alias;
+        default -> {
+            assert use instanceof ReturnNode || use instanceof CallNode;
+            yield 0;
+        }
+        };
+    }
+
+    // First alias excluded by the neighboring bulk Phi but not by this one.
+    private int missingAlias(BulkMemPhiNode bulk) {
+        for( int alias = bulk._aliases.nextSetBit(0); alias >= 0; alias = bulk._aliases.nextSetBit(alias+1) )
+            if( !_aliases.get(alias) )
+                return alias;
+        return 0;
+    }
+
+    // First precise MemMerge slice still covered by this Phi.  When inspecting
+    // a user, ignore slots which point back to this Phi.
+    private int missingAlias(MemMergeNode mmm, boolean user) {
+        for( int alias=2; alias<mmm.nIns(); alias++ )
+            if( mmm.in(alias)!=null &&
+                mmm.alias(alias)!=mmm.in(1) &&
+                (!user || mmm.in(alias)!=this) &&
+                !_aliases.get(alias) )
+                return alias;
+        return 0;
     }
 
     // Slice out given alias
