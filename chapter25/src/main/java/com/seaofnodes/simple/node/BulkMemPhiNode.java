@@ -79,12 +79,21 @@ public class BulkMemPhiNode extends PhiNode {
     }
 
     @Override
+    public Type compute() {
+        Type t = super.compute();
+        return t instanceof TypeMem mem ? mem :
+            t==Type.BOTTOM ? TypeMem.BOT :
+            TypeMem.TOP;
+    }
+
+    @Override
     public Node idealize() {
         if( !(region() instanceof RegionNode r ) )
             return in(1);       // Input has collapse to e.g. starting control.
         if( r.inProgress() || r.nIns()<=1 )
             return null;        // Input is in-progress
         if( nOuts()==0 ) return null;
+        if( nIns() <= 2 ) return null;
 
         // "Peek through" a MemMerge that covers this alias set on its default
         for( int i=1; i<nIns(); i++ ) {
@@ -108,8 +117,6 @@ public class BulkMemPhiNode extends PhiNode {
                 return slice(alias);
         }
 
-
-
         // If output defines a specific alias we cover,
         for( int i=0; i<nOuts(); i++ ) {
             Node use = out(i);
@@ -123,10 +130,15 @@ public class BulkMemPhiNode extends PhiNode {
                 }
                 break;
             }
-            case BulkMemPhiNode bulk: {
+            case BulkMemPhiNode bulk:
                 if( _aliases.equals(bulk._aliases) ) break;
-                throw Utils.TODO();
-            }
+                // Does bulk user exclude a particular alias?  We should too
+                for( int alias = bulk._aliases.nextSetBit(0); alias >= 0; alias = _aliases.nextSetBit(alias+1) )
+                    if( !_aliases.get(alias) )
+                        return slice(alias);
+                break;
+            case MemOpNode mem:
+                return slice(mem._alias);
             default:
                 assert use instanceof ReturnNode || use instanceof CallNode;
                 break;
@@ -146,6 +158,7 @@ public class BulkMemPhiNode extends PhiNode {
         case ConstantNode con -> {
             if( !(con._con instanceof TypeMem tmem) )
                 yield 0;
+            if( tmem._alias==1 ) yield 0;
             throw Utils.TODO();
         }
         case MemMergeNode mmm -> {
@@ -155,10 +168,14 @@ public class BulkMemPhiNode extends PhiNode {
                     yield i;
             yield 0;
         }
+        case MemOpNode mem -> mem._alias==1 ? 0 : mem._alias;
         // Really, if self-set is missing bits in bulk, i.e. bulk is not a subset
         case BulkMemPhiNode bulk -> {
             if( _aliases.equals(bulk._aliases) ) yield 0;
-            throw Utils.TODO();
+            for( int alias = bulk._aliases.nextSetBit(0); alias >= 0; alias = _aliases.nextSetBit(alias+1) )
+                if( !_aliases.get(alias) )
+                    yield alias;
+            yield 0;
         }
         default -> throw Utils.TODO();
         };
@@ -187,7 +204,7 @@ public class BulkMemPhiNode extends PhiNode {
     }
 
     private boolean hasDup( int alias ) {
-        for( Node use : outs() )
+        for( Node use : region().outs() )
             if( use instanceof MemPhiNode mphi && mphi._alias==alias )
                 return true;
         return false;

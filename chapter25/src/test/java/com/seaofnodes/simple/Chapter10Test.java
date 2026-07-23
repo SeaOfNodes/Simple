@@ -225,7 +225,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum)); return MEM[ 2:.x=0; 3:.len=0;]; ]", code.print());
+        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", code.print());
     }
 
 
@@ -278,7 +278,7 @@ while(arg < 10) {
 return ret.v0;
 """);
         code.parse().opto();
-        assertEquals("return .v0;", code.print());
+        assertEquals("return 0;", code.print());
     }
 
 

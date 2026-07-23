@@ -96,8 +96,8 @@ public class TypeMem extends Type {
         return make(_alias,_t,_one,_clz,_final, _escFs, escapeAlias(_escAs,t));
     }
 
-    public static final TypeMem TOP = make(1, Type.TOP   ,true ,true, true , XInt.EMPTY, XInt.EMPTY);
-    public static final TypeMem BOT = make(1, Type.BOTTOM,false,false,false, XInt.FULL , XInt.FULL );
+    public static final TypeMem TOP = make(1, Type.TOP   ,true ,true, false, XInt.EMPTY, XInt.EMPTY);
+    public static final TypeMem BOT = make(1, Type.BOTTOM,false,false,true , XInt.FULL , XInt.FULL );
     public static final TypeMem START= make(1,Type.BOTTOM,false,false,false, XInt.EMPTY, XInt.EMPTY);
     public static final TypeMem SELF_MEM = make(1, TypeStruct.BOT);
 

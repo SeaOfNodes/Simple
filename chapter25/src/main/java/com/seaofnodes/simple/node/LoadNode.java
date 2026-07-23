@@ -67,6 +67,8 @@ public class LoadNode extends MemOpNode {
             // Lift from declared type and memory input
             if( mfld != null )
                 t = t.join(mfld._t);
+        } else if( mem._alias==_alias ) {
+            t = mem._t;
         } else if( mem._t == Type.TOP ) {
             return Type.TOP;
         }
