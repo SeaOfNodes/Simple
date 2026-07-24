@@ -60,20 +60,21 @@ public class EscapeNode extends TypeNode {
         TypeMem mpub  = (TypeMem)pub ()._type;
         // Private memory comes from an allocation or other non-aliased source.
         // Public  memory comes from anywhere, might be bulk memory with a very weak mem type.
-        assert mpriv._alias==1 || mpriv._alias==fld()._alias;
-        assert mpub ._alias==1 || mpub ._alias==fld()._alias;
+        Field fld = fld();
+        assert mpriv._alias==1 || mpriv._alias==fld._alias;
+        assert mpub ._alias==1 || mpub ._alias==fld._alias;
         Type tpriv = mpriv._t instanceof TypeStruct ts
-            ? ts.at(ts.findAlias(fld()._alias))._t
+            ? ts.at(ts.findAlias(fld._alias))._t
             : mpriv._t;
         assert !(mpub._t instanceof TypeStruct); // Never expect this, but if it starts to happen, need to optimize
         Type tpub = mpub._t;
 
         // t is meet of pub & priv.  Pub memory can be very weak (e.g. alias 1)
         // and we're no worse than GLB of private
-        Type t = tpriv.meet(tpub).join(fld()._t);
+        Type t = tpriv.meet(tpub).join(fld._t);
         int[] fidxes  = XInt.meet(mpriv._escFs, mpub._escFs);
         int[] aliases = XInt.meet(mpriv._escAs, mpub._escAs);
-        return TypeMem.make(fld()._alias, t, false, false, fld()._final, fidxes, aliases).escapesFrom(t);
+        return TypeMem.make(fld._alias, t, false, false, fld._final, fidxes, aliases).escapesFrom(t);
     }
 
     @Override public Node idealize() {

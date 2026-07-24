@@ -278,7 +278,7 @@ while(arg < 10) {
 return ret.v0;
 """);
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return .v0;", code.print());
     }
 
 

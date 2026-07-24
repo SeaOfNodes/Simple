@@ -113,8 +113,7 @@ public class LoadNode extends MemOpNode {
 
         // Simple Load-after-Store on same address.
         if( mem instanceof StoreNode st &&
-            (ptr == st.ptr() ||
-             (st.ptr() instanceof GuardNode cast && cast._nonZero && ptr==cast.in(1))) &&
+            ptr == st.nnptr() &&
             off() == st.off() ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
             return extend(st.val());
@@ -267,7 +266,7 @@ public class LoadNode extends MemOpNode {
             // To avoid cyclic pushing a Load up then down, getting here means
             // the load *must* replace with the high/constant.
             return true;
-        if( px instanceof StoreNode st1 && ptr()==addDep(st1.ptr() )&& off()==st1.off() )
+        if( px instanceof StoreNode st1 && ptr()==addDep(st1.nnptr() )&& off()==st1.off() )
             // To avoid cyclic pushing a Load up then down, getting here means
             // the load *must* match against the Store
             return true;

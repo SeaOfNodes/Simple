@@ -1930,8 +1930,9 @@ public class Parser {
         // bulk memory.
         selfMem.keep();
         for( Field fld : postinit._fields ) {
+            Field fld2 = fld._final ? fld : (Field)fld.glb(true);
             Node prior = mem();
-            Node esc = peep(new EscapeNode(fld,self,selfMem,prior));
+            Node esc = peep(new EscapeNode(fld2,self,selfMem,prior));
             mem(mergeAlias(prior,fld._alias,esc));
         }
 

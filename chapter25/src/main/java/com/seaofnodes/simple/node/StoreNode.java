@@ -46,6 +46,7 @@ public class StoreNode extends MemOpNode {
     @Override public String glabel() { return "." +_name+"="; }
     @Override public boolean isMem() { return true; }
 
+    public Node nnptr() { return ptr() instanceof GuardNode cast && cast._nonZero ? cast.in(1) : ptr(); }
     public Node val() { return in(4); }
 
     @Override

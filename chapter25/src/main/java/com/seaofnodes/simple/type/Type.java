@@ -327,7 +327,7 @@ public class Type /*implements Cloneable*/ {
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
     public boolean isa( Type t ) { return meet(t)==t; }
 
-    public Type nonZero() { return TypePtr.NPTR; }
+    public Type nonZero() { return this==NIL ? TypePtr.XNPTR : TypePtr.NPTR; }
 
     // Make a zero version of this type, 0 for integers and null for pointers.
     public Type makeZero() { return Type.NIL; }
