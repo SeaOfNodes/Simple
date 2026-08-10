@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
@@ -29,7 +29,7 @@ abstract public class BoolNode extends Node implements ModeNode {
     }
 
     @Override
-    public TypeInteger compute() {
+    public Type compute() {
         Type t1 = in(1)._type;
         Type t2 = in(2)._type;
         if( t1==null || t2==null )
@@ -37,9 +37,11 @@ abstract public class BoolNode extends Node implements ModeNode {
         // Exactly equals?
         if( t1.isHigh() || t2.isHigh() )
             return (TypeInteger)BOOL.dual();
-        if( in(1)==in(2) )
-            // LT fails, both EQ and LE succeed
-            return this instanceof LT ? FALSE : TRUE;
+        if( t1==Type.BOTTOM || t2==Type.BOTTOM ) return Type.BOTTOM;
+        if( t1==TypeScalar.BOT || t2==TypeScalar.BOT ) return TypeScalar.BOT;
+        if( in(1)==in(2) && (t1 instanceof TypeInteger || t1 instanceof TypeNil) )
+            // Floating x==x is not true when x may be NaN.
+            return this instanceof EQ || this instanceof LE ? TRUE : FALSE;
         byte mode = _mode==0 ? ArithNode.mode(t1,t2) : _mode;
         if( mode==0 )
             return BOOL;
@@ -71,9 +73,7 @@ abstract public class BoolNode extends Node implements ModeNode {
 
     @Override
     public Node idealize() {
-        // Compare of same
-        if( in(1)==in(2) )
-            return this instanceof LT ? CodeGen.CODE.ZERO : ConstantNode.make(TRUE);
+        // Constant comparisons, including compare-of-same, belong in compute().
         // Can we decide int vs flt?
         Type t1 = in(1)._type, t2 = in(2)._type;
         if( t1==null || t2==null )
@@ -136,8 +136,8 @@ abstract public class BoolNode extends Node implements ModeNode {
         @Override public Tag serialTag() { return Tag.NE; }
         public String op() { return "!="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
-            if( i1==i2 && i1.isConstant() ) return TRUE;
-            if( i1._max < i2._min || i1._min > i2._max ) return FALSE;
+            if( i1==i2 && i1.isConstant() ) return FALSE;
+            if( i1._max < i2._min || i1._min > i2._max ) return TRUE;
             return BOOL;
         }
         @Override boolean doOp(double lhs, double rhs) { return lhs!=rhs; }

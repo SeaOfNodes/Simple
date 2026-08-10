@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.node.cpus.x86_64_v2.SubX86;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
 import com.seaofnodes.simple.type.TypeInteger;
 import static org.junit.Assert.*;
@@ -122,6 +123,30 @@ public class RegAllocTestSupport {
         new PhiNode("sum",region,add,a);
         code._cfg.add(region);
         assertTrue(BuildLRG.run(0,new RegAlloc(code)));
+    }
+
+    public static void commutativeLoop() {
+        for( String op : new String[]{"+","*","^","&","|"} )
+            for( boolean reversed : new boolean[]{false,true} ) {
+                String src = "return { u8[] data -> int h = 1; for(int i = 0; i < data#; i++) " +
+                    "h = ((h<<5)-h) "+op+" data[i]; return h; };";
+                CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LocalSched,"x86_64_v2","SystemV");
+                // Exercise both destructive operands regardless of ideal-node
+                // numbering. The shifted value overlaps the old loop hash.
+                int found = 0;
+                for( CFGNode bb : code._cfg )
+                    for( Node n : bb.outs() )
+                        if( n instanceof MachNode mach && mach.commutes() && mach.twoAddress()==1 &&
+                            (n.in(1) instanceof SubX86 || n.in(2) instanceof SubX86) ) {
+                            if( (n.in(1) instanceof SubX86)==reversed ) n.swap12();
+                            found++;
+                        }
+                assertEquals(op,1,found);
+                code.driver(CodeGen.Phase.RegAlloc,"x86_64_v2","SystemV");
+                checkRegisters(code);
+                assertEquals(op+" reversed="+reversed,8,code._regAlloc._spillScaled);
+                code.encode();
+            }
     }
 
     private static class CallOp extends CallNode implements MachNode {

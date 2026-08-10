@@ -77,7 +77,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 27](docs/chapter27/README.md): Escape Analysis and Unknown Callers
 * [Chapter 28a](docs/chapter28a/README.md): Modules and Lazy Class Initialization
 * [Chapter 28b](docs/chapter28b/README.md): Separate Compilation
-* Chapter 29: Tech Debt Cleanup, Partial Objects
+* [Chapter 29](docs/chapter29/README.md): Tech Debt Cleanup, Partial Objects
 * Chapter 30: Text Formatting and Diagnostics
 
 Appendices: [Native libraries](docs/appendices/native-libraries.md),

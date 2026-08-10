@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
@@ -13,12 +14,12 @@ import java.util.IdentityHashMap;
 
 public abstract class ArithNode extends Node implements ModeNode {
     // Source location for late reported errors
-    Parser.Lexer _loc;
+    Lexer _loc;
     // Mode is 0 for unknown, 1 for int, 2 for flt
     byte _mode;
 
-    public ArithNode( Parser.Lexer loc, Node lhs, Node rhs) { super(null, lhs, rhs); _loc = loc; }
-    public ArithNode( Parser.Lexer loc, Node lhs, Node rhs, byte mode) { this(loc,lhs,rhs); _mode=mode; }
+    public ArithNode( Lexer loc, Node lhs, Node rhs) { super(null, lhs, rhs); _loc = loc; }
+    public ArithNode( Lexer loc, Node lhs, Node rhs, byte mode) { this(loc,lhs,rhs); _mode=mode; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes) {
         baos.packed1(_mode);
     }
@@ -65,7 +66,7 @@ public abstract class ArithNode extends Node implements ModeNode {
     // Check that a settled mode agrees with all data inputs.  Takes the Node
     // instead of a varargs list both to avoid allocation and to keep this ready
     // to become shared mode-aware Node behavior later.
-    static Parser.ParseException nodeErr(Node n, Parser.Lexer loc, String op, byte mode, boolean allowFloat) {
+    static Parser.ParseException nodeErr(Node n, Lexer loc, String op, byte mode, boolean allowFloat) {
         Type bad = null;
         for( int i=1; i<n.nIns(); i++ ) {
             Type t = n.in(i)._type;
@@ -116,10 +117,13 @@ public abstract class ArithNode extends Node implements ModeNode {
         if( t2 instanceof TypeConAry ary ) t2 = ary.elem();
         if( t1==null || t2==null )        return Type.TOP;
         if( t1.isHigh() || t2.isHigh() )  return Type.TOP;
+        // Scalar.BOT is an unknown/uninitialized scalar, not an integer.
+        // Keep that family through arithmetic, including annihilators like *0.
         // Without numeric inputs, stay below both possible result families.
         // Pointer modes belong to comparisons, not arithmetic.
         if( !(t1 instanceof TypeInteger || t1 instanceof TypeFloat) ||
-            !(t2 instanceof TypeInteger || t2 instanceof TypeFloat) ) return Type.BOTTOM;
+            !(t2 instanceof TypeInteger || t2 instanceof TypeFloat) )
+            return t1.isa(TypeScalar.BOT) && t2.isa(TypeScalar.BOT) ? TypeScalar.BOT : Type.BOTTOM;
         byte mode = _mode==0 ? mode(t1,t2) : _mode;
         if( mode==1 ) {
             if( t1 instanceof TypeInteger x &&
@@ -127,7 +131,7 @@ public abstract class ArithNode extends Node implements ModeNode {
                 return x.isConstant() && y.isConstant()
                     ? con(x,y)
                     : doOp(x,y).makeWide( (byte)Math.max(x._widen,y._widen) );
-            return TypeInteger.BOT;
+            return TypeScalar.BOT;
         }
         // FP handling
         if( t1 instanceof TypeFloat f1 && t2 instanceof TypeFloat f2 &&
@@ -181,9 +185,9 @@ public abstract class ArithNode extends Node implements ModeNode {
                     Node[] ns = new Node[lhs.nIns()];
                     ns[0] = lhs.in(0);
                     for( int i=1; i<lhs.nIns(); i++ ) {
-                        ns[i] = isCon(lhs,rhs,i)
-                            ? ConstantNode.make(con(lhs.in(i)._type, rhs.in(i)._type)).peephole()
-                            : copy(lhs.in(i), rhs.in(i)).peephole();
+                        // Let the copied operation's compute handle constants
+                        // in its actual numeric family, including floats.
+                        ns[i] = copy(lhs.in(i), rhs.in(i)).peephole();
                     }
                     String label = lhs._label==rhs._label ? lhs._label : lhs._label + rhs._label;
                     return new PhiNode(label, ns).peephole();
