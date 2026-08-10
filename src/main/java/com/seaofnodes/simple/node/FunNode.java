@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Lexer;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
@@ -27,14 +28,14 @@ public class FunNode extends RegionNode {
     public CompUnit _compunit;  // Defined in source file
     public final boolean _extern; // External function; no code, name only
 
-    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, CompUnit compunit, boolean ext ) {
+    private FunNode( Lexer loc, Node[] nodes, TypeFunPtr sig, String name, CompUnit compunit, boolean ext ) {
         super(loc,nodes);
         _name   = name;
         _sig    = sig;
         _extern = ext;
         _compunit = compunit;
     }
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, CompUnit compunit, Node... nodes ) { this(loc,nodes,sig,name,compunit,false); }
+    public FunNode( Lexer loc, TypeFunPtr sig, String name, CompUnit compunit, Node... nodes ) { this(loc,nodes,sig,name,compunit,false); }
     public FunNode( FunNode fun ) {
         super( fun, fun._loc );
         _sig = fun.sig();
@@ -101,8 +102,10 @@ public class FunNode extends RegionNode {
     // uniform call syntax, including callbacks forwarded by another class.
     public Type defaultArg(int idx) {
         Type t = sig().arg(idx);
+        if( t instanceof TypeMemPtr ptr && ptr._partial &&
+            !(idx==0 && sig().nargs()>1 && sig().arg(1) instanceof TypeMem) ) return ptr.partialBound();
         if( idx!=0 || t!=TypePtr.PTR ) return t;
-        TypeStruct clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(_compunit._cname));
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(_compunit._cname));
         assert clz!=null;
         return TypeMemPtr.make((byte)2,clz,true);
     }
@@ -180,7 +183,7 @@ public class FunNode extends RegionNode {
         }
 
         // Upgrade inferred or user-written return type to actual
-        if( _ret!=null && _ret._type instanceof TypeTuple tt &&
+        if( _ret!=null && addDep(_ret)._type instanceof TypeTuple tt &&
             tt.ret() != _sig.ret() && tt.ret().isa(_sig.ret()) ) {
             setSig(_sig.makeFrom(tt.ret()));
             return this;
@@ -190,12 +193,19 @@ public class FunNode extends RegionNode {
         // - Must be past pessimistic Iter, which discovers and links calls
         //   through class-field loads and other initially imprecise values.
         // - FIDX is not in the escape set
-        // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
+        // Concrete callers keep the body alive; FinalizeIR retains surviving
+        // functions for emission without giving them unknown callers.
         if( !isRoot() && in(1) instanceof StartCUNode start ) {
             boolean preOpto = CodeGen.CODE._phase == null ||
                 CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
-            if( !preOpto && !start.escapedFIDX(_sig.fidx()) && nIns()<=2 && _ret!=null ) {
-                _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
+            if( !preOpto && !start.escapedFIDX(_sig.fidx()) && _ret!=null ) {
+                // CLInit has a call edge but no Return edge. Keep a called
+                // body's Return rooted even after dropping unknown callers.
+                if( !isClz() || nIns()<=2 ) {
+                    StopCUNode stop = _compunit._stop;
+                    CODE.add(stop).delDef(stop._inputs.find(ret()));
+                    CODE.addAll(stop._outputs); // The outer Stop can drop an empty unit.
+                }
                 return removeDeadPath(1);
             } else {
                 addDep(start);

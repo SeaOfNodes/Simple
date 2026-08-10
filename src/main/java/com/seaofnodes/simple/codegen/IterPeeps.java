@@ -1,7 +1,5 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.Opto;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -76,9 +74,9 @@ public class IterPeeps {
             // Pick an inline candidate, no real heuristic, first come, first served
             boolean inlined = false;
             CallEndNode cend;
-            while( (cend=_workInline.pop()) != null) {
+            while( (cend = _workInline.pop()) != null) {
                 if( cend.isDead() ) continue;
-                if( cend.loadForInline() ) { inlined=true; break; }
+                if( cend.loadForInline() ) { inlined = true; break; }
                 byte inline = cend.maybeInline();
                 if( inline == -1 ) defer.add(cend);
                 if( inline > 0 ) {
@@ -102,7 +100,7 @@ public class IterPeeps {
         assert !CodeGen.expensiveAssert(0) || (progressOnList(code, _work) && schedulableUses(code));
 
         Node n;
-        while( (n=_work.pop()) != null ) {
+        while( (n = _work.pop()) != null ) {
             if( n.isDead() )  continue;
             _cnt++;              // Useful for debugging, searching which peephole broke things
             var obs = code._obs; // Collect peephole neighbors for graph display
@@ -167,7 +165,7 @@ public class IterPeeps {
         Node changed = code._stop.walk( n -> {
             // Ignore most in-progress things
             if( n.iskeep() ) return null;
-            // Types must be forwards, even if on the worklist.
+            // Types must lift, even if on the worklist.
             Type nval = n.compute();
             assert nval.isa(n._type) : "Non-monotonic peep: "+n+"#"+n._nid+" old="+n._type+" new="+nval+" inputs="+inputTypes(n)+" peep="+n;
             if( list.on(n) )
@@ -230,7 +228,7 @@ public class IterPeeps {
             return null;
         if( use instanceof PhiNode phi ) {
             CFGNode found = null;
-            for( int i=1; i<phi.nIns(); i++ )
+            for( int i = 1; i<phi.nIns(); i++ )
                 if( phi.in(i)==n ) {
                     if( i >= phi.region().nIns() )
                         return null;
@@ -247,7 +245,7 @@ public class IterPeeps {
             .append(" early=").append(cfg(early))
             .append(" use-lca=").append(cfg(lca))
             .append(" node=").append(n).append("\ninputs:");
-        for( int i=0; i<n.nIns(); i++ ) {
+        for( int i = 0; i<n.nIns(); i++ ) {
             Node in = n.in(i);
             sb.append("\n  in").append(i).append(": ").append(node(in))
               .append(" cfg=").append(cfg(CFGNode.safeCFG(in)));

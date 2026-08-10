@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Var;
+import com.seaofnodes.simple.parser.Parser;
+import com.seaofnodes.simple.parser.Var;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.codegen.ParseAll;
@@ -24,6 +25,10 @@ public class ScopeNode extends MemMergeNode {
     public static final String CTRL = "$ctrl";
     public static final String ARG0 = "arg";
     public static final String MEM0 = "$mem";
+
+    // Structural label for a precise memory alias. The '$' prefix cannot be
+    // referenced in Simple source.
+    public static String memName(int alias) { return ("$"+alias).intern(); }
 
     // All active/live variables in all nested scopes, all run together.
     // Maps 1-to-1 to the _inputs array.
@@ -204,9 +209,8 @@ public class ScopeNode extends MemMergeNode {
         return kx == -1 ? null : _kinds.at(kx);
     }
 
-    // Final fields are writable local values inside their own initializer or
-    // constructor. Final parameters, local variables, and captured bindings
-    // remain final. Use the same rule when deciding which loop Phis to build.
+    // Final fields are writable inside their own initializer or constructor.
+    // Final parameters, local variables, and captured bindings remain final.
     public boolean canInit(Var v) {
         int fx=enclosingFuncOrDecl();
         Kind.Func fun=(Kind.Func)_kinds.at(fx);
@@ -232,7 +236,7 @@ public class ScopeNode extends MemMergeNode {
     /**
      * Create a new variable name in the current scope
      */
-    public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
+    public boolean define( String name, Type declaredType, boolean xfinal, Node init, Lexer loc ) {
         assert _kinds.isEmpty() || name!=MEM0 ; // Later scopes do not define memory
         if( depth() > 0 )
             for( int i=_vars.size()-1; i>=klast()._lexSize; i-- ) {
@@ -260,7 +264,7 @@ public class ScopeNode extends MemMergeNode {
     // lexical scope.  Scope pops promote it outwards "as if" the final constant
     // had been declared before the using scope.
 
-    public Var defineFRef( String id, Type t, boolean xfinal, Parser.Lexer loc ) {
+    public Var defineFRef( String id, Type t, boolean xfinal, Lexer loc ) {
         Var var = new Var(nIns(),id,t,xfinal,loc,true);
         FRefNode fref = new FRefNode(id,loc).init();
         fref._type = fref._con = t;
@@ -375,7 +379,7 @@ public class ScopeNode extends MemMergeNode {
      * @param that The ScopeNode to be merged into this
      * @return A new node representing the merge point
      */
-    public RegionNode mergeScopes(ScopeNode that, Parser.Lexer loc) {
+    public RegionNode mergeScopes(ScopeNode that, Lexer loc) {
         RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
         this._merge(that,r);
         that.kill();            // Kill merged scope
@@ -423,7 +427,6 @@ public class ScopeNode extends MemMergeNode {
             Var n = scope.var(i);
             if( n.isFRef() ) {  // Loop body has forward refs
                 Var v = new Var(nIns(),n._name,n.type(),n._final,n._loc,true);
-                v._uninit = n._uninit;
                 _vars.add(v);
                 addDef(scope.in(i));
             }

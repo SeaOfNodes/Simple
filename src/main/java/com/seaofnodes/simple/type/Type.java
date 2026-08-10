@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.util.*;
 import java.util.*;

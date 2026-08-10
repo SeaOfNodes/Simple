@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeScalar;
 
 // Truncate toward zero, saturating overflow; NaN converts to zero.
 public class ToIntegerNode extends Node {
@@ -14,6 +15,7 @@ public class ToIntegerNode extends Node {
     @Override public Type compute() {
         Type t = in(1)._type;
         if( t.isHigh() ) return TypeInteger.TOP;
+        if( t==Type.BOTTOM || t==TypeScalar.BOT ) return t;
         if( t instanceof TypeFloat tf && tf.isConstant() )
             return TypeInteger.constant((long)tf.value());
         return TypeInteger.BOT;

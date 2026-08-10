@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
@@ -40,16 +41,16 @@ public abstract class MemOpNode extends TypeNode {
     // Field name.
     public final String _name;
     // Source location for late reported errors
-    public final Parser.Lexer _loc;
+    public final Lexer _loc;
 
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off) {
+    public MemOpNode(Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off) {
         super(decl, ctrl, mem, ptr, off);
         _name  = name;
         _alias = alias;
         _loc = loc;
         _isLoad = isLoad;
     }
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value) {
+    public MemOpNode(Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value) {
         this(loc, name, alias, isLoad, decl, ctrl, mem, ptr, off);
         addDef(value);
     }
@@ -122,6 +123,9 @@ public abstract class MemOpNode extends TypeNode {
         // Already an error, but better error messages come from elsewhere
         if( ptr == Type.BOTTOM ) return null;
         if( ptr.isHigh() ) return null; // Assume it will fall to not-null
+        if( !_isLoad && ptr instanceof TypeMemPtr p && p._partial &&
+            !(mem()._type instanceof TypeMem m && m._one && !m._clz) )
+            return Parser.error("Cannot access field '"+_name+"' through an incomplete object",_loc);
         // Better be a not-nil TMP
         if( !(ptr instanceof TypeMemPtr tmp && tmp.notNull()) )
             return Parser.error( "Might be null accessing '" + _name + "'",_loc);

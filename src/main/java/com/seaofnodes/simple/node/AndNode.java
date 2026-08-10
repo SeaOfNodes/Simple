@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Lexer;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class AndNode extends ArithNode {
-    public AndNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs, (byte)1); }
+    public AndNode(Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs, (byte)1); }
     @Override public Tag serialTag() { return Tag.And; }
 
     @Override public String op() { return "&"; }

@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.fuzzer;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.node.ScopeNode;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.ArrayList;
@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
-import static com.seaofnodes.simple.Parser.KEYWORDS;
+import static com.seaofnodes.simple.parser.Parser.KEYWORDS;
 
 
 /**

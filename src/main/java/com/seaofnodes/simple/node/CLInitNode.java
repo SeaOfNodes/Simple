@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
@@ -14,22 +14,22 @@ import java.util.*;
 // also - dead code does not force class init.
 //
 public class CLInitNode extends CFGNode implements MultiNode {
-    public Parser.Lexer _loc;          // For error reporting
+    public Lexer _loc;          // For error reporting
 
     // Inputs: control, whole memory, class pointer, loaded $init flag
     // Results: control, whole memory, known-true flag alias memory, call control.
     // For field references, the ptr might be the dst clz ptr or not.
-    public CLInitNode(Parser.Lexer loc, Node ctrl, Node mem, Node ptr, Node ready) {
+    public CLInitNode(Lexer loc, Node ctrl, Node mem, Node ptr, Node ready) {
         super(ctrl,mem,ptr,ready);
         _loc = loc;
     }
 
-    CLInitNode(BAOS bais, String[] strs) { super(null,null,null,null); _loc=Parser.Lexer.unpack(bais,strs); }
+    CLInitNode(BAOS bais, String[] strs) { super(null,null,null,null); _loc=Lexer.unpack(bais,strs); }
     @Override public Tag serialTag() { return Tag.CLInit; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
-        Parser.Lexer.packed(_loc,baos,strs);
+        Lexer.packed(_loc,baos,strs);
     }
-    @Override public void gather(HashMap<String,Integer> strs) { Parser.Lexer.gather(_loc,strs); }
+    @Override public void gather(HashMap<String,Integer> strs) { Lexer.gather(_loc,strs); }
 
     public CLInitNode(CLInitNode init) {
         super(init);
@@ -42,14 +42,14 @@ public class CLInitNode extends CFGNode implements MultiNode {
 
     // The field/alias can be unresolved until forward references are loaded.
     public Field flag() {
-        return ptr()._type instanceof TypeMemPtr tmp && Parser.startsClzPrefix(tmp._obj._name)
+        return ptr()._type instanceof TypeMemPtr tmp && TypeStruct.startsClzPrefix(tmp._obj._name)
             ? tmp._obj.field("$init") : null;
     }
     @Override public String label() { return "CLInit"; }
 
     // Best effort dst compunit, based on ptr - or null
     public CompUnit cu() {
-        if( !(ptr()._type instanceof TypeMemPtr ptr && Parser.startsClzPrefix(ptr._obj._name)) )
+        if( !(ptr()._type instanceof TypeMemPtr ptr && TypeStruct.startsClzPrefix(ptr._obj._name)) )
             return null;
         // Convert "class:sys.ary" into "sys/ary" and lookup CompUnit
         String fname = ptr._obj._name.substring(6).replace(".","/");
@@ -69,7 +69,7 @@ public class CLInitNode extends CFGNode implements MultiNode {
         return ptr()._type==Type.NIL ||
             (ptr()._type instanceof TypeMemPtr tmp && tmp._obj!=TypeStruct.BOT &&
              !tmp._obj.isHigh() && !tmp._obj._open && !tmp._obj._fref &&
-             !Parser.startsClzPrefix(tmp._obj._name));
+             !TypeStruct.startsClzPrefix(tmp._obj._name));
     }
 
     public boolean bypass() { return instance() || ready()._type==TypeInteger.TRUE; }
@@ -221,6 +221,6 @@ public class CLInitNode extends CFGNode implements MultiNode {
         dep.addDep(init.ptr());
         Field flag = init.flag();
         if( flag==null || flag._alias!=alias ) return mem;
-        return new ProjNode(init,2,Parser.memName(alias)).peephole();
+        return new ProjNode(init,2,ScopeNode.memName(alias)).peephole();
     }
 }

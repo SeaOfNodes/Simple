@@ -79,6 +79,7 @@ return f(s);
     @Test public void testAllocatorUnion() { com.seaofnodes.simple.codegen.RegAllocTestSupport.union(); }
     @Test public void testAllocatorCopyClobber() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.copyClobber(); }
     @Test public void testAllocatorCommutativePhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.commutativePhi(); }
+    @Test public void testAllocatorCommutativeLoop() { com.seaofnodes.simple.codegen.RegAllocTestSupport.commutativeLoop(); }
     @Test public void testAllocatorKills() { com.seaofnodes.simple.codegen.RegAllocTestSupport.killWithoutResult(); }
     @Test public void testAllocatorDependencies() { com.seaofnodes.simple.codegen.RegAllocTestSupport.nullUseMask(); }
     @Test public void testAllocatorCloneClass() { com.seaofnodes.simple.codegen.RegAllocTestSupport.cloneRegisterClass(); }
@@ -255,6 +256,7 @@ val hashCode = { !String self ->
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
+
 """;
         // Return the public hashCode wrapper; keep its helper private.
         testCPU(src,"x86_64_v2", "SystemV",12,null);

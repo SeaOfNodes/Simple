@@ -9,6 +9,30 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ArithNodeTest {
+    @Test public void testConstantFoldsRequireInitializedInputs() {
+        new CodeGen("return 0;");
+        Node x = ConstantNode.seed(TypeScalar.BOT);
+        Node zero = ConstantNode.seed(TypeInteger.ZERO);
+        for( Node op : new Node[]{new MulNode(x,zero,(byte)1),new AndNode(null,x,zero),
+                new SubNode(x,x,(byte)1),new BoolNode.EQ(x,x,(byte)1),
+                new BoolNode.NE(x,x,(byte)1),new BoolNode.ULT(x,x),new NotNode(x),
+                new ConvertNode(TypeInteger.BOT,x),new ToIntegerNode(x),new ToFloatNode(x),new PtrToIntNode(x)} ) {
+            assertSame(op.label(),TypeScalar.BOT,op.compute());
+            Node replacement = op.idealize();
+            assertTrue(op.label(),replacement==null || !replacement.compute().isConstant());
+        }
+        // Once the family is known, compute owns the annihilator fold.
+        x._type = TypeInteger.BOT;
+        assertSame(TypeInteger.ZERO,new MulNode(x,zero,(byte)1).compute());
+        assertSame(TypeInteger.TRUE,new BoolNode.EQ(x,x,(byte)1).compute());
+        assertSame(TypeInteger.FALSE,new BoolNode.NE(x,x,(byte)1).compute());
+        assertSame(TypeInteger.FALSE,new BoolNode.ULT(x,x).compute());
+        x._type = TypeFloat.F64;
+        assertSame(TypeInteger.BOOL,new BoolNode.EQ(x,x,(byte)2).compute());
+        x._type = TypeFloat.constant(Double.NaN);
+        assertSame(TypeInteger.FALSE,new BoolNode.EQ(x,x,(byte)2).compute());
+    }
+
     @Test public void testUnresolvedInput() {
         new CodeGen("return 0;").driver(CodeGen.Phase.Opto);
         Node lhs = ConstantNode.seed(TypeInteger.TRUE);
@@ -16,9 +40,9 @@ public class ArithNodeTest {
         ArithNode add = new AddNode(lhs,rhs);
         assertSame(TypeInteger.constant(2),add.compute());
         lhs._type = TypeScalar.BOT;
-        assertSame(Type.BOTTOM,add.compute());
+        assertSame(TypeScalar.BOT,add.compute());
         add.setMode((byte)1);
-        assertSame(Type.BOTTOM,add.compute());
+        assertSame(TypeScalar.BOT,add.compute());
     }
 
     @Test public void testFloatPrecision() {
@@ -26,6 +50,10 @@ public class ArithNodeTest {
         assertEquals("1.6777217E7",Eval2.eval(code,16777216));
         code = new CodeGen("f32 x = arg; f32 y = x+1.0; return y;").driver(CodeGen.Phase.TypeCheck);
         assertEquals("1.6777216E7",Eval2.eval(code,16777216));
+        code = new CodeGen("flt x = 0.0; flt y = 0.0; if(arg) { x = 1.5; y = 3.5; } else { x = 2.5; y = 4.5; } return x+y;")
+            .driver(CodeGen.Phase.TypeCheck);
+        assertEquals("7.0",Eval2.eval(code,0));
+        assertEquals("5.0",Eval2.eval(code,1));
     }
 
     @Test public void testMonotoneCompute() {

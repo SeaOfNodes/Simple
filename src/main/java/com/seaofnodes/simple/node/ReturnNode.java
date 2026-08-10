@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
@@ -77,22 +77,6 @@ public class ReturnNode extends CFGNode {
         if( ctrl()._type == Type.CONTROL &&
             expr()._type == TypeScalar.BOT )
             return Parser.error("Cannot return generic scalar",null);
-        // With no user constructor, <init> doubles as the public no-arg
-        // constructor.  Required fields remain TOP in its private memory: a
-        // typed parser poison which deliberately emitted no Store or code.
-        if( ctrl()._type == Type.CONTROL && _fun.isInstance() ) {
-            TypeStruct self = ((TypeMemPtr)_fun.sig().arg(0))._obj;
-            if( !CodeGen.hasUserConstructor(self) && expr()._type instanceof TypeMem mem )
-                for( Field fld : self._fields ) {
-                    if( !(fld._t instanceof TypeNil tn && tn.notNull()) ) continue;
-                    Type actual = mem._alias==1 && mem._t instanceof TypeStruct ts
-                        ? ts.field(fld._fname)._t
-                        : mem._alias==fld._alias ? mem._t : Type.TOP;
-                    if( actual==Type.TOP || actual instanceof TypeNil atn && atn.nullable() )
-                        return Parser.error("'"+self._name+"' is not fully initialized, field '"+
-                                            fld._fname+"' is only partially set in the constructor",null);
-                }
-        }
         return null;
     }
 

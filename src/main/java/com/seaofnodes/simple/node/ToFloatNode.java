@@ -4,6 +4,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeScalar;
 
 
 public class ToFloatNode extends Node {
@@ -15,6 +16,7 @@ public class ToFloatNode extends Node {
     @Override
     public Type compute() {
         if( in(1)._type.isHigh() ) return TypeFloat.F64.dual();
+        if( in(1)._type==Type.BOTTOM || in(1)._type==TypeScalar.BOT ) return in(1)._type;
         if( in(1)._type == Type.NIL ) return TypeFloat.FZERO;
         if( in(1)._type instanceof TypeInteger i0 && i0.isConstant() )
             return TypeFloat.constant(i0.value());

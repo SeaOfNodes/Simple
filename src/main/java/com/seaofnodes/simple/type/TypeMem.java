@@ -79,6 +79,15 @@ public class TypeMem extends Type {
     public static TypeMem makePrivate(Type t) { return make(1,t,true,false,false,escapeFIDX(XInt.EMPTY,t), escapeAlias(XInt.EMPTY,t)); }
 
     public TypeMem makeFrom(int alias) { return make(alias,_t,_one,_clz,_final,_escFs,_escAs); }
+    // Widen numeric fields at cyclic memory merges just as scalar Phis do.
+    public TypeMem widen() {
+        if( !_one || !(_t instanceof TypeStruct ts) ) return this;
+        TypeStruct wide = ts;
+        for( Field fld : ts._fields )
+            if( fld._t instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
+                wide = wide.replace(fld.makeFrom(ti.same_but_slightly_wider_than()));
+        return wide==ts ? this : make(_alias,wide,_one,_clz,_final,_escFs,_escAs);
+    }
     public TypeMem makeFrom(int[] fidxes, int[] aliases) {
         return make(_alias,_t,_one,_clz,_final,fidxes,aliases);
     }

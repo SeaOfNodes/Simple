@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -21,6 +21,12 @@ public class ConFldOffNode extends ConstantNode {
     public TypeStruct _ts;      // Struct holding field
     public final String _fname; // Field name
     public ConFldOffNode( TypeStruct ts, String fname ) { super(TypeInteger.BOT); _ts = ts; _fname = fname; }
+
+    // Field offset for a known type (but unknown offset).
+    public static Node make( TypeStruct ts, String fname ) {
+        return new ConFldOffNode(ts,fname).peephole();
+    }
+
     @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
 
     @Override public String label() {
@@ -31,20 +37,22 @@ public class ConFldOffNode extends ConstantNode {
         return p.p(label());
     }
 
-    @Override public Node idealize() {
+    @Override public boolean isConst() { return false; }
+
+    @Override public Type compute() {
         // Some array offsets are known early
         if( _ts.isAry() ) {
             // Length always at offset zero
             if( _fname==" len" )
-                return CodeGen.CODE.ZERO;
+                return TypeInteger.ZERO;
             // The shift depends on the element
             if( _fname=="<<" )
-                return Node.con(_ts.aryScale());
+                return TypeInteger.constant(_ts.aryScale());
             // The base depends on the layout (alignment for large elements may
             // involve padding) and MAY depend on the length if I go for
             // smaller array lengths.
         }
-        return null;
+        return _con;
     }
 
     // Convert field offset to an integer

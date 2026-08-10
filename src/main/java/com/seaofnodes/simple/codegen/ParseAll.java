@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.IterPeeps;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
@@ -118,50 +117,7 @@ public abstract class ParseAll {
             Parser.TYPES.put(ts._name,ts);
         for( CompUnit cu : code._compunits.values() )
             if( cu._ext==null )
-                cu._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cu._cname));
-
-        // Walk over all Nodes, and upgrade the internal constants to the
-        // closed-over types.
-        code._stop.walk( (Node n) -> {
-                n.upgradeType(Parser.TYPES);
-                if( n instanceof FRefNode fref ) {
-                    boolean alloc = fref._name.endsWith(".<new>");
-                    String clzName = alloc
-                        ? fref._name.substring(0,fref._name.length()-".<new>".length()).intern()
-                        : fref._name;
-                    TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
-                    if( clz == null )
-                        return null;
-                    Node con;
-                    if( alloc ) {
-                        Field ctor = clz.field("<new>");
-                        if( ctor == null || !(ctor._t instanceof TypeFunPtr tfp) ) {
-                            String name = clzName.startsWith(Parser.CLZ)
-                                ? clzName.substring(Parser.CLZ.length()) : clzName;
-                            int dot = name.lastIndexOf('.');
-                            throw Parser.error("Unknown struct type '"+(dot==-1 ? name : name.substring(dot+1))+"'",fref._loc);
-                        }
-                        FunNode fun = code.link(tfp);
-                        if( fun == null ) return null;
-                        con = new FunPtrNode(tfp,code._start,fun.ret()).peephole();
-                    } else {
-                        // Class pointer constant:
-                        TypeMemPtr clzptr = TypeMemPtr.make((byte)2,clz,true);
-                        con = code.con(clzptr);
-                    }
-                    // Replace and optimize
-                    fref.addDef(con);
-                    code.add(fref);
-                }
-                // Adds sort by NIDs, which just got shuffled
-                if( n instanceof AddNode add )
-                    code.add(add);
-                // All imported bodies are loaded; link them before Iter checks types.
-                if( n instanceof CallNode call && !NEEDS_LOAD.isEmpty() )
-                    code.add(call).idealize();
-                return null;
-            } );
-
+                cu._clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(cu._cname));
     }
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.
@@ -181,7 +137,7 @@ public abstract class ParseAll {
                     xcunit = findCUnitExternalSimple(code,fref._name);
                 if( xcunit != null ) {
                     // Replace the FRef with the discovered class name.
-                    fref._name = Parser.addClzPrefix(xcunit._cname);
+                    fref._name = TypeStruct.addClzPrefix(xcunit._cname);
                     cunit.addDep(xcunit);
                 } else {
                     throw new RuntimeException("Undefined name '" + fref._name +"'");
@@ -258,7 +214,7 @@ public abstract class ParseAll {
 
     private static File externalObj(CodeGen code, CompUnit par, String name) {
         String cname = par==null ? name : par._cname + "." + name;
-        ElfReader elf = code.findExternalSimple(Parser.addClzPrefix(cname));
+        ElfReader elf = code.findExternalSimple(TypeStruct.addClzPrefix(cname));
         return elf == null ? null : elf._file;
     }
 
@@ -283,7 +239,7 @@ public abstract class ParseAll {
         ProjNode oldMem = oldStart==null ? null : oldStart.proj(1);
         if( oldMem!=null ) code.releaseReplacedNode(oldMem);
         elf.loadSimple(code);
-        cunit._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cunit._cname));
+        cunit._clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(cunit._cname));
         StartNode lstart = (StartNode)elf._nodes.at(0);
         StopNode  lstop  = ( StopNode)elf._nodes.last();
 
@@ -334,9 +290,11 @@ public abstract class ParseAll {
 
         // Add the new top-level loaded class
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
-        Field inst = cunit._clz.field(cunit._name);
-        if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMem mem )
-            Parser.TYPES.put(cunit._cname,mem._t);
+        // Layout belongs to the allocator's object result. An initializer's
+        // private-memory return no longer promises initialized field values.
+        Field inst = cunit._clz.field("<new>");
+        if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMemPtr ptr )
+            Parser.TYPES.put(cunit._cname,ptr._obj);
     }
 
     // Symbol not found in source code (or we would not be here).
@@ -416,8 +374,8 @@ public abstract class ParseAll {
     // Search external Simple objects only.  C linkage uses explicit "C"
     // declarations, which produce ExternNodes and are resolved by the linker.
     public static CompUnit findCUnitExternalSimple( CodeGen code, String symbol ) {
-        String clzName = symbol.startsWith(Parser.CLZ) ? symbol : Parser.addClzPrefix(symbol);
-        String cname = clzName.substring(Parser.CLZ.length());
+        String clzName = symbol.startsWith(TypeStruct.CLZ) ? symbol : TypeStruct.addClzPrefix(symbol);
+        String cname = clzName.substring(TypeStruct.CLZ.length());
         String fname = cname.replace('.','/');
 
         CompUnit cunit = code._compunits.get(fname);

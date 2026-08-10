@@ -11,9 +11,10 @@ public class NotNode extends Node {
     @Override protected String format() { return "(!%1)"; }
 
     @Override
-    public TypeInteger compute() {
+    public Type compute() {
         Type t0 = in(1)._type;
         if( t0.isHigh() )  return (TypeInteger)TypeInteger.BOOL.dual();
+        if( t0==Type.BOTTOM || t0==TypeScalar.BOT ) return t0;
         if( t0 == Type.NIL || t0 == TypeInteger.ZERO ) return TypeInteger.TRUE;
         if( t0 instanceof TypeNil tn && tn.notNull() ) return TypeInteger.FALSE;
         if( t0 instanceof TypeInteger i && (i._min > 0 || i._max < 0) ) return TypeInteger.FALSE;

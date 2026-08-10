@@ -11,36 +11,12 @@ public abstract class Iter {
         assert code._globalEscapes==null;
         code._globalEscapes = new GlobalEscapeNode();
         code._start.setDef(2,code._globalEscapes);
-        // The phase shift closes all parser-in-progress states and freezes
-        // unknown external inputs.  Imported nodes carry post-Opto escape
-        // precision, but Iter is a fresh pessimistic solve: memory escape
-        // summaries must restart at FULL so newly discovered private escapes
-        // can only be removed, never added.  Seed the complete graph once.
-        boolean hasImports = code._externPaths != null;
-        code._start.walk(n -> {
-            // Type import can reconcile a constant's declaration.
-            n._type = n instanceof ConstantNode ? n.compute()
-                : hasImports ? iterImportReset(n._type) : iterEscapeReset(n._type);
-            code.add(n);
-            return null;
-        });
+        // Parsing queues initialized nodes and phase-sensitive peepholes.
+        // Only the new escape summary needs seeding here.
+        code.add(code._globalEscapes);
         code._iter.iterate(code);
         // Expensive assert.
         assert !CodeGen.expensiveAssert() || Opto.fixedPointCheck(code);
-    }
-
-    private static Type iterEscapeReset(Type t) {
-        if( t instanceof TypeMem mem )
-            return mem._one ? mem : mem.makeFrom(XInt.FULL,XInt.FULL);
-        if( t instanceof TypeTuple tt ) {
-            TypeTuple rez = tt;
-            for( int i=0; i<tt._types.length; i++ ) {
-                Type tx = iterEscapeReset(tt._types[i]);
-                if( tx != tt._types[i] ) rez = rez.makeFrom(i,tx);
-            }
-            return rez;
-        }
-        return t;
     }
 
     private static Type iterImportReset(Type t) {
@@ -69,17 +45,13 @@ public abstract class Iter {
         for( Node n : nodes )
             if( !n.isDead() )
                 n._type = n instanceof ConstantNode ? n.compute() : iterImportReset(n._type);
-        // Recompute each imported unit's contribution from its reset inputs.
-        for( Node n : nodes )
-            if( n instanceof StopCUNode && !n.isDead() ) n._type = n.compute();
         code.addAll(nodes);
         repair(code);
     }
 
-    // Repair the monotonicity assert after loading new nodes (from a file via
-    // Serialize).  Only widening types here makes it safe to resume the usual
-    // lifting peeps.  The worklist already contains changed edges and their
-    // neighbors.
+    // Loading a body or linking a call changes the graph and can widen
+    // existing bounds. Repair only queued nodes and affected neighbors before
+    // resuming the usual lifting peeps; this does not walk the graph.
     public static void repair(CodeGen code) {
         // Gather changes for a normal IterPeeps once the graph has its
         // monotonicity property back.

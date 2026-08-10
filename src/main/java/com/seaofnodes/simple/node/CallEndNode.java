@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;

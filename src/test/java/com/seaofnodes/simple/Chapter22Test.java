@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.isa.eval.EvalRisc5;
 
 import com.seaofnodes.isa.eval.EvalArm64;

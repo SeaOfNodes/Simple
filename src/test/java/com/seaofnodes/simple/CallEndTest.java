@@ -7,6 +7,60 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class CallEndTest {
+    // An unknown value can become a private object or callback. Both escape
+    // sinks must reserve those possibilities before the value is known.
+    @Test public void testUnknownEscapesRefineToPrivateValues() {
+        CodeGen code = new CodeGen("return 0;").parse();
+        code._phase = CodeGen.Phase.IterPostOpto;
+        StopCUNode stop = code.compunit()._stop;
+        stop._type = TypeTuple.make(Type.CONTROL,TypeMem.START,Type.BOTTOM);
+        ReturnNode ret = (ReturnNode)stop.in(0);
+        TypeFunPtr callback = TypeFunPtr.make1((byte)2,true,TypeFunPtr.TEMPTY,TypeInteger.BOT,100);
+        TypeMemPtr object = TypeMemPtr.make(TypeStruct.make("_Private",false,
+            Field.make("callback",callback,100,false)));
+        code.externFunc(101,"retain");
+        TypeFunPtr retain = TypeFunPtr.make1((byte)2,true,
+            new Type[]{TypeScalar.BOT},TypeInteger.BOT,101);
+        Node value = ConstantNode.raw(TypeScalar.BOT);
+        CallNode call = new CallNode(null,ConstantNode.raw(Type.CONTROL),
+            ConstantNode.raw(TypeMem.START),value,ConstantNode.raw(retain));
+        call._type = Type.CONTROL;
+        GlobalEscapeNode global = new GlobalEscapeNode();
+        global._type = TypeMem.START;
+        for( Type broad : new Type[]{Type.BOTTOM,TypeScalar.BOT} ) {
+            value._type = broad;
+            ret._type = TypeTuple.make(Type.CONTROL,TypeMem.START,broad);
+            TypeTuple unknownStop = stop.compute();
+            TypeMem unknownGlobal = global.compute();
+            assertSame(XInt.FULL,((TypeMem)unknownStop.mem())._escFs);
+            assertSame(XInt.FULL,((TypeMem)unknownStop.mem())._escAs);
+            assertSame(XInt.FULL,unknownGlobal._escFs);
+            assertSame(XInt.FULL,unknownGlobal._escAs);
+            for( Type precise : new Type[]{object,callback} ) {
+                assertTrue(precise.isa(broad));
+                value._type = precise;
+                ret._type = TypeTuple.make(Type.CONTROL,TypeMem.START,precise);
+                assertTrue(stop.compute().isa(unknownStop));
+                assertTrue(global.compute().isa(unknownGlobal));
+            }
+        }
+    }
+
+    @Test public void testUnresolvedOffsetInInlineBody() {
+        CodeGen code = new CodeGen("val f = { int[] data -> return data#; }; return f;").parse();
+        for( FunNode fun : code._linker )
+            if( fun!=null && "f".equals(fun._name) ) {
+                // Keep the offset unresolved: an early inline must copy it
+                // with its data parameter, not share it with the old body.
+                FldOffNode off = new FldOffNode(fun.parm(3),"<<",null).init();
+                fun.ret().setDef(2,off);
+                assertSame(Type.BOTTOM,off._type);
+                assertTrue("Unresolved field offset belongs to the function",fun.body().get(off._nid));
+                return;
+            }
+        fail("Missing test function");
+    }
+
     @Test public void testReturnWideningMonotonicity() {
         new CodeGen("return 0;").parse();
         TypeFunPtr sig = TypeFunPtr.make1((byte)2,true,TypeFunPtr.TEMPTY,TypeInteger.I32,100);
