@@ -1,0 +1,11 @@
+// Newtons approximation to the square root
+val _sqrt = { flt x ->
+    flt guess = x;
+    while( 1 ) {
+        flt next = (x/guess + guess)/2;
+        if( next == guess ) return guess;
+        guess = next;
+    }
+};
+flt farg = arg;
+return _sqrt(farg) + _sqrt(farg+2.0);

@@ -2,14 +2,16 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.XInt;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.TypeRPC;
+import com.seaofnodes.simple.type.XInt;
 import com.seaofnodes.simple.util.Utils;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  *  Call
@@ -18,14 +20,10 @@ public class CallNode extends CFGNode {
 
     // Source location for late reported errors
     public final Parser.Lexer _loc;
-    // A forward field call records its receiver before its declaration tells
-    // us whether this is a method or an ordinary function stored in a field.
-    public String _method;
 
-    public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; CodeGen.CODE._calls.add(this); }
-    public CallNode(CallNode call) { super(call); _loc = call._loc; _method=call._method; }
+    public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc=loc; CodeGen.CODE._calls.add(this); }
+    public CallNode(CallNode call) { super(call); _loc = call._loc; }
 
-    @Override public String label() { return "Call"; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         String fname = name();
@@ -40,11 +38,10 @@ public class CallNode extends CFGNode {
         if( fptr()._type instanceof TypeFunPtr tfp && tfp._isConstant() && tfp.notNull() ) {
             FunNode fun = CodeGen.CODE._link(tfp);
             if( fun !=null ) return fun._name;
-            return CodeGen.CODE.externFunc(tfp);
+            if( fptr() instanceof ExternNode ex )  return ex._extern;
         }
         return null;
     }
-
 
 
     Node ctrl() { return in(0); }
@@ -63,12 +60,12 @@ public class CallNode extends CFGNode {
         if( !(fptr()._type instanceof TypeFunPtr tfp) ) return false;
         if( XInt.isHigh(tfp.fidxs()) ) return true;
         for( int fidx=XInt.next(tfp.fidxs(),-1); fidx>=0; fidx=XInt.next(tfp.fidxs(),fidx) )
-            if( CodeGen.CODE.externFunc(tfp.makeFrom(fidx))!=null ) return true;
+            if( CodeGen.CODE.externFunc(fidx)!=null ) return true;
         return false;
     }
 
-    // Unknown code can retain arguments without ever returning. Stop uses
-    // this summary directly as well as through the call's memory result.
+    // As in the escape chapter, native code may retain an argument even if
+    // this path never returns. StopCU reads this independently of CallEnd.
     TypeMem exposed(Node dep) {
         dep.addDepForwards(this);
         dep.addDepForwards(fptr());
@@ -76,7 +73,7 @@ public class CallNode extends CFGNode {
         Type input=dep.addDepForwards(mem())._type;
         TypeMem escaped=input instanceof TypeMem m ? m : input.isHigh() ? TypeMem.TOP : TypeMem.BOT;
         for( int i=2; i<nIns()-1; i++ ) escaped=escaped.escapes(dep.addDepForwards(arg(i))._type);
-        return escaped.withContents(1,Type.BOTTOM);
+        return TypeMem.make(1,Type.BOTTOM,false,false,false,escaped._escFs,escaped._escAs);
     }
 
 
@@ -111,17 +108,11 @@ public class CallNode extends CFGNode {
 
     @Override
     public Node idealize() {
+        // Lowering may introduce calls after the call graph has been analyzed.
+        // These use the callee interface without reopening its parameter flow.
+        if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Lower.ordinal() ) return null;
         CallEndNode cend = cend();
         if( cend==null ) return null; // Still building
-        if( _method!=null ) {
-            if( !(arg(2)._type instanceof com.seaofnodes.simple.type.TypeMemPtr ptr) ) return null;
-            var field=ptr._obj.field(_method);
-            if( field==null ) return null;
-            if( !(fptr()._type instanceof TypeFunPtr sig) ) return null;
-            if( !field._final || CodeGen.CODE.externFunc(sig)!=null ) delDef(2);
-            _method=null;
-            return this;
-        }
 
         // Link: call calls target function.  Linking makes the target FunNode
         // point to this Call, and all his Parms point to the call arguments;
@@ -131,11 +122,9 @@ public class CallNode extends CFGNode {
             // If fidxs is negative, then infinite unknown functions
             int[] fidxs = tfp.fidxs();
             if( !XInt.isHigh(fidxs) ) {
-                // Wipe out the return which matching in the linker table
-                // Walk the function identities and link each possible callee.
-                for( int fidx=XInt.next(fidxs,-1); fidx>=0; fidx=XInt.next(fidxs,fidx) ) {
-                    TypeFunPtr tfp0 = tfp.makeFrom(fidx);
-                    FunNode fun = CodeGen.CODE.link(tfp0);
+                // Walk the bits and link
+                for( int fidx = XInt.next(fidxs,0); fidx > 0; fidx = XInt.next(fidxs,fidx) ) {
+                    FunNode fun = CodeGen.CODE.link(fidx);
                     if( fun!=null && !fun._folding && !linked(fun) )
                         progress = link(fun);
                 }
@@ -156,35 +145,58 @@ public class CallNode extends CFGNode {
     // Link so this calls fun
     public Node link( FunNode fun ) {
         assert !linked(fun);
-        fun.addDef(this);
+        CodeGen.CODE.add(fun).addDef(this);
         for( Node use : fun._outputs )
-            if( use instanceof ParmNode parm )
-                parm.addDef(parm._idx==0 ? new ConstantNode(cend()._rpc).peephole() : arg(parm._idx));
+            if( use instanceof ParmNode parm ) {
+                Node def = parm._idx==0 ? ConstantNode.seed(cend()._rpc).peephole() : arg(parm._idx);
+                CodeGen.CODE.add(parm).addDef(def);
+                // Linking can happen during post-SCCP inlining.  Keep an RPC
+                // Parm's cached finite set synchronized with its newly added
+                // input instead of waiting for the next worklist visit.
+                if( parm._idx==0 && parm._type instanceof TypeRPC )
+                    parm._type = parm._type.meet(def._type);
+            }
         // Call end points to function return
         CodeGen.CODE.add(cend()).addDef(fun.ret());
         return this;
     }
 
+    // Unlink a single function
+    public void unlink( FunNode fun, int path ) {
+        assert linked(fun);
+        for( Node use : fun._outputs )
+            if( use instanceof ParmNode )
+                use.delDef(path);
+        fun.delDef(path);
+        CodeGen.CODE.add(fun);
+        CallEndNode cend = cend();
+        ReturnNode ret = fun.ret();
+        if( cend != null ) {
+            ret.keep();
+            cend.delDef(cend._inputs.find(ret));
+            CodeGen.CODE.add(cend);
+            ret.unkeep();
+        }
+        assert !linked(fun);
+    }
+
+
     // Unlink all linked functions
     public void unlink_all() {
         for( int i=0; i<_outputs._len; i++ )
             if( out(i) instanceof FunNode fun ) {
-                assert linked(fun);
-                int idx = fun._inputs.find(this);
-                for( Node use : fun._outputs )
-                    if( use instanceof ParmNode )
-                        use.delDef(idx);
-                fun.delDef(idx);
-                cend().delDef(cend()._inputs.find(fun.ret()));
-                assert !linked(fun);
+                int path = fun._inputs.find(this);
+                unlink(fun,path);
                 i--;
             }
     }
 
     @Override
     public Parser.ParseException err() {
+        if( fptr()._type == Type.BOTTOM )
+            return null;        // Wrong, but failing earlier
         if( !(fptr()._type instanceof TypeFunPtr tfp) )
-            throw Utils.TODO();
+            return Parser.error("Expected a function, but found " + fptr()._type, _loc);
         if( !tfp.notNull() )
             return Parser.error( "Might be null calling "+tfp, _loc);
         if( nargs() != tfp.nargs() )
@@ -193,11 +205,13 @@ public class CallNode extends CFGNode {
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
             if( !arg(i+2)._type.isa(tfp.arg(i)) || !arg(i+2)._type.accessISA(tfp.arg(i)) ) {
-                cend().addDep(arg(i+2)); // Upgrading arg type may allow inlining
-                return Parser.error( "Argument #" + i + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
+                // Constructors return private memory and carry hidden self and
+                // selfMem arguments ahead of the source-level arguments.
+                int argno = i - (tfp.ret() instanceof TypeMem ? 2 : 0);
+                return Parser.error( "Argument #" + argno + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
             }
 
-        if( XInt.isHigh(tfp.fidxs()) )
+        if( tfp.isHigh() )
             throw Utils.TODO(); // Infinite unknown TFPs?  Should be fairly precise CG
 
         return null;

@@ -56,6 +56,10 @@ public class LRG {
     // Adjacent Live Range neighbors.  Only valid during coloring
     Ary<LRG> _adj;
 
+    // Function fully containing the live range; used to find the stack frame
+    // layout, for spill op offsets.
+    final public FunNode _fun;
+
     public int nadj() { return _adj==null ? 0 : _adj._len; }
 
     public RegMask useMask() { return _machUse==null ? null : _machUse.regmap(_uidx); }
@@ -80,7 +84,7 @@ public class LRG {
     // More registers than neighbors
     boolean lowDegree() { return nadj() < _mask.size(); }
 
-    LRG( short lrg ) { _lrg = lrg; _reg = -1; }
+    LRG( short lrg, FunNode fun ) { _lrg = lrg; _reg = -1; _fun = fun; }
 
     boolean leader() { return _leader == null; }
 
@@ -116,6 +120,7 @@ public class LRG {
     }
     // Union `this` and `lrg`, folding together all stats.
     private LRG _union( LRG lrg ) {
+        assert _fun == lrg._fun;
         // Set U-F leader
         lrg._leader = this;
         // Fold together stats

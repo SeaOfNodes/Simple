@@ -1,11 +1,13 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
+
+import static com.seaofnodes.simple.util.Utils.TODO;
+
 import java.util.*;
 
 /**
@@ -17,16 +19,32 @@ import java.util.*;
  */
 public class Parser {
 
-    public static ConstantNode ZERO; // Very common node, cached here
-    public static ConstantNode NIL;  // Very common node, cached here
-    public static XCtrlNode XCTRL;   // Very common node, cached here
-
     // Compile driver
     public final CodeGen _code;
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private Lexer _lexer;
 
+    // Class prefix string; TODO: use something short: "%"
+    public static final String CLZ = "class:";
+    private static final String clzPrefix = CLZ;
+    public static String addClzPrefix( String x ) {
+        assert !x.startsWith(clzPrefix);
+        return (clzPrefix+x).intern();
+    }
+    public static boolean startsClzPrefix( String s ) {
+        return s.startsWith(clzPrefix);
+    }
+    public static boolean isPublicClassName( String name ) {
+        if( startsClzPrefix(name) ) name = name.substring(clzPrefix.length());
+        return !name.isEmpty() && name.charAt(0)!='_' && name.indexOf("._")==-1;
+    }
+
+    // Source file for compilation
+    public CompUnit _ref;
+
+    // Current classname being parsed
+    private String _nestedType;
     /**
      * Current ScopeNode - ScopeNodes change as we parse code, but at any point of time
      * there is one current ScopeNode. The reason the current ScopeNode can change is to do with how
@@ -78,34 +96,23 @@ public class Parser {
      */
     public final Stack<ScopeNode> _xScopes = new Stack<>();
 
-    ScopeNode _continueScope;
-    ScopeNode _breakScope;      // Merge all the while-breaks here
-    FunNode _fun;               // Current function being parsed
+    ScopeNode _breakScope;      // Merge all the while-breaks    here
+    ScopeNode _continueScope;   // Merge all the while-continues here
+    ScopeNode _returnScope;     // Merge all the function exits  here
+    Ary<FRefNode> _frefs;       // Forward refs created during this parse
+    // Layouts needed by field accesses in this source file.  Resolve after
+    // parsing, since a later local struct declaration can satisfy the use.
+    public final LinkedHashSet<String> _requiredTypes = new LinkedHashSet<>();
+    TypeStruct _ctorOpenStruct; // Open struct being initialized by an allocation constructor block.
+    // Constructor exit types survive scope teardown until all fields are known.
+    // A null entry denotes a constructor with no returning path.
+    private ArrayList<IdentityHashMap<Var,Type>> _ctorExits;
 
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.
-    public static HashMap<String, Type> TYPES = defaultTypes();
-
-    // Mapping from a type name to the constructor for a Type.
-    public final HashMap<String, StructNode> INITS;
-
-
-    public Parser(CodeGen code, TypeInteger arg) {
-        _code = code;
-        _scope = new ScopeNode();
-        _continueScope = _breakScope = null;
-        ZERO  = con(TypeInteger.ZERO).keep();
-        NIL  = con(Type.NIL).keep();
-        XCTRL= new XCtrlNode().peephole().keep();
-        TYPES = defaultTypes();
-        INITS = new HashMap<>();
-    }
-
-    @Override
-    public String toString() { return _lexer.toString(); }
-
-    public static HashMap<String, Type> defaultTypes() {
-        return new HashMap<>() {{
+    public static final HashMap<String, Type> TYPES = new HashMap<>();
+    public static final HashMap<String, Type> INIT_TYPES =
+        new HashMap<>() {{
             put("bool",TypeInteger.U1 );
             put("byte",TypeInteger.U8 );
             put("f32" ,TypeFloat  .F32);
@@ -123,241 +130,442 @@ public class Parser {
             put("val" ,Type.TOP);    // Marker type, indicates type inference
             put("var" ,Type.BOTTOM); // Marker type, indicates type inference
         }};
+
+
+    public Parser(CodeGen code ) {
+        _code = code;
     }
+
+    @Override
+    public String toString() { return _lexer==null ? "" : _lexer.toString(); }
 
     // Debugging utility to find a Node by index
     public Node f(int nid) { return _code.f(nid); }
 
+    // Read and set CTRL
     private Node ctrl() { return _scope.ctrl(); }
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
+    // Read and set Memory
+    private Node mem() { return _scope.mem(1); }
+    private void mem(Node mem) { _scope.mem(mem); }
+    // Structural label for precise memory Phis.  The '$' prefix cannot be
+    // referenced in Simple source.
+    public static String memName(int alias) { return ("$"+alias).intern(); }
 
-    public void parse() {
-        // Graph callbacks during scope setup need a source position.
-        _lexer = new Lexer(sys.SYS);
+    // Ordinary parsing carries one whole-memory value.  Alias partitioning is
+    // graph optimization, not parser state.
+    private void storeMem( Node st, int alias, Node prior ) {
+        mem(alias==1 ? st : mergeAlias(prior,alias,st));
+    }
 
+    // A semantic graph partition representing the complete memory after a
+    // precise alias update.  ScopeNode treats this as one opaque value.
+    private Node mergeAlias(Node bulk, int alias, Node precise) {
+        assert bulk != null : "Missing bulk memory for alias #"+alias;
+        MemMergeNode merge = new MemMergeNode(null,bulk);
+        merge.alias(alias,precise);
+        return peep(merge);
+    }
+
+
+    public Ary<FRefNode> parse( CompUnit ref ) {
+        assert _scope == null && _breakScope == null && _continueScope == null && _returnScope == null;
+        assert _frefs == null;
+        _lexer = new Lexer(ref);
+        _frefs = new Ary<>(FRefNode.class);
+        _requiredTypes.clear();
+        // Starting Scope has control, memory, initial arguments
+        _scope = new ScopeNode();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
-
-        ctrl(XCTRL);
-        _scope.mem(con(TypeMem.BOT));
-
-        // Parse the sys import
-        while( !_lexer.isEOF() ) {
-            parseStatement();
-            _lexer.skipWhiteSpace();
-        }
-
-        // Reset lexer for program text
-        _lexer = new Lexer(_code._src);
+        // Track active scopes for Graph display
         _xScopes.push(_scope);
+        ctrl(_code.XCTRL);
+        mem(con(TypeMem.BOT));
 
-        // Parse whole program, as-if function header "{ int arg -> body }"
-        parseFunctionBody( _code._main,loc(),"arg");
+        // File-level struct declaration
+        _ref = ref;
+        _nestedType = ref._cname;
+        String typeName = addClzPrefix(ref._cname);
 
-        // Kill an empty default main.  Keep only if it was explicitly defined
-        // (programmer asked for a "main") or it has stuff (i.e. beginner
-        // default main).
-        FunNode main = _code.link(_code._main);
-        StopNode stop = _code._stop;
-        // Gather an explicit main
-        FunNode xmain = null;
-        for( Node n : stop._inputs )
-            if( n instanceof ReturnNode ret && "main".equals(ret.fun()._name) )
-                if( xmain != null ) throw Utils.TODO();
-                else xmain = ret.fun();
-
-        if( main.ret().expr()._type==Type.TOP && main.uctrl()==null ) {
-            // Kill an empty default main; so it does not attempt to put a
-            // "main" in any final ELF file
-            main.setDef(1,XCTRL); // Delete default start input
-            stop.delDef(stop._inputs.find(main.ret()));
-            if( xmain != null )
-                _code.setMain(xmain);
-
-        } else {
-            // We have a non-empty default main.
-            if( xmain != null )
-                // Found an explicit "main" AND we have a default "main"
-                throw error("Cannot define both an explicit main and a default main");
-            main._name = "main";
-        }
+        ReturnNode clzret = parseStruct( true, typeName );
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
+
+        // All still-unresolved forward refs
+        // should immediately resolve to a file-based name which is a Simple
+        // class type.
+        Ary<FRefNode> frefs = new Ary<>(FRefNode.class);
+        for( FRefNode fref : _frefs ) {
+            if( fref.nIns() != 1 && fref._con == FRefNode.FREF_TYPE ) continue;
+            CompUnit cu = ParseAll.findCompUnitOrThrow(_code,_ref,fref._name);
+            fref._con = TypeMemPtr.make((byte)2,TypeStruct.make(addClzPrefix(cu._cname),true),true);
+            frefs.push(fref);
+        }
+
+        // The class being published
+        ref._clz = (TypeStruct)TYPES.get(typeName);
 
         // Clean up and reset
         _xScopes.pop();
         _scope.kill();
-        for( StructNode init : INITS.values() )
-            init.unkeep().kill();
-        INITS.clear();
-        for( Ary<Node> captures : CAPTURES.values() )
-            for( Node value : captures ) value.unkill();
-        CAPTURES.clear();
-        stop.peephole();
-        // Helpers are built with init(), so their complete call graph exists
-        // before any inlining. Seed those nodes now along with the parsed body.
-        _code._start.walk(n -> { _code.add(n); return null; });
+        _scope = null;
+        _frefs = null;
+
+        return frefs;
     }
+
 
     /**
      *  Parses a function body, assuming the header is parsed.
      */
-    private ReturnNode parseFunctionBody( TypeFunPtr sig, Lexer loc, String... ids) {
+    private ReturnNode parseFunctionBody( TypeFunPtr sig, Lexer loc, String[] ids) {
         return parseFunctionBody(sig, loc, null, ids);
     }
 
-    private FunNode _privateFun;
-    private HashMap<String,Var> _fieldVars;
-    private record Constructor(TypeFunPtr sig, Lexer loc, int body, String[] ids, java.util.BitSet finals) {}
-    private Constructor _constructor;
-    private final HashMap<String,TypeFunPtr> ALLOCS = new HashMap<>();
-    private final HashMap<String,ReturnNode> INITIALIZERS = new HashMap<>();
-    private final HashMap<String,Ary<Node>> CAPTURES = new HashMap<>();
-    private Ary<Node> _captures;
+    private ReturnNode parseFunctionBody( TypeFunPtr sig, Lexer loc, java.util.BitSet finals, String[] ids) {
+        // Record & restore the existing scope vars.  The function parse might
+        // update fields, so when the parse is done reset back to the pre-parse
+        // state.
+        Node[] preParse = _scope.save();
 
-    private ReturnNode parseFunctionBody(TypeFunPtr sig, Lexer loc, java.util.BitSet finals, String... ids) {
-        return parseFunctionBody(sig,loc,finals,false,ids);
+        // Parse function body normally
+        ReturnNode ret = _parseFunctionBody(null, sig,loc,finals,ids);
+
+        // Reset all fields to pre-parse days
+        _scope.restore(preParse);
+        return ret;
     }
 
-    private ReturnNode parseFunctionBody(TypeFunPtr sig, Lexer loc, java.util.BitSet finals, boolean initializer, String... ids) {
-        // If this is a method, record & restore the existing struct fields,
-        // which are also the struct initializers.  The method might update
-        // mutable fields, so when the function parse is done reset back to
-        // pre-function-parse values.
-        Node[] preParse = new Node[_scope.nIns()];
-        for( int i=0; i<_scope.nIns(); i++ )
-            preParse[i] = _scope.in(i)==null ? null : _scope.in(i).keep();
+
+    // Parse a function body
+
+    // Stack the {break,continue,return} scopes and a new lexical scope.
+    // Build a FunNode and parameters, extending scope by parm names.
+    // Parse the function body
+    // - while( not end-of-function )
+    // - - parseStatement
+    // - - If isInit, also incrementally extend the self-type.
+    // If isInit
+    // - upgrade and close the self-type
+    // - Gather fields and store values
+    // - <init> returns self, not last
+    // Unstack the {break,continue,return} scopes.
+
+    private ReturnNode _parseFunctionBody( String funName, TypeFunPtr sig, Lexer loc, String[] ids) {
+        return _parseFunctionBody(funName, sig, loc, null, ids);
+    }
+
+    private ReturnNode _parseFunctionBody( String funName, TypeFunPtr sig, Lexer loc, java.util.BitSet finals, String[] ids) {
+        Constructor outerCtor=_pendingCtor;
+        _pendingCtor=null;
+        boolean isInit = FunNode.isInit(funName);
+        boolean isCtor = isInit || isExplicitConstructorName(funName);
+        String typeName = isCtor ? ((TypeMemPtr)sig._sig[0])._obj._name : null;
 
         // Stack parser state on the local Java stack, and unstack it later
-        FunNode oldfun  = _fun;
-        FunNode oldPrivate = _privateFun;
-        HashMap<String,Var> oldFields = _fieldVars;
-        Constructor oldConstructor = _constructor;
-        _fieldVars = new HashMap<>();
-        _constructor = null;
-        Ary<Node> oldCaptures = _captures;
-        _captures = initializer ? new Ary<>(Node.class) : null;
-        ScopeNode breakScope = _breakScope; _breakScope = null;
+        _scope.push(new Kind.Func(funName,isCtor && !funName.endsWith(".<clinit>")));
+        ScopeNode    breakScope =    _breakScope;    _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
+        ScopeNode   returnScope =   _returnScope;   _returnScope = null;
 
-        FunNode fun = _fun = (FunNode)peep(new FunNode(loc(),sig,_nestedType,null,_code._start));
+        int oldUID = _code.UID(); // Used to approximate function size
+        FunNode fun = (FunNode)peep(new FunNode(loc(),sig, funName, _ref, null, _ref._start));
         // Once the function header is available, install in linker table -
         // allowing recursive functions.  Linker matches on declared args and
         // exact fidx, and ignores the return (because the fidx will only match
         // the exact single function).
         _code.link(fun);
-        _privateFun = sig.ret() instanceof TypeMem ? fun : null;
-        fun._constructor = _privateFun!=null;
 
-        Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,con(TypeRPC.BOT)).peephole();
-
-        // Build a multi-exit return point for all function returns
-        RegionNode r = new RegionNode( null,null,null).init();
-        assert r.inProgress();
-        PhiNode rmem = new BulkMemPhiNode(ScopeNode.MEM0,r,null).init();
-        PhiNode rrez = (sig.ret() instanceof TypeMem
-            ? new BulkMemPhiNode("#selfMem",r,null) : new PhiNode(ScopeNode.ARG0,r,null)).init();
-        ReturnNode ret = new ReturnNode(r, rmem, rrez, rpc, fun).init();
-        fun.setRet(ret);
-        assert ret.inProgress();
-        _code._stop.addDef(ret);
-
+        Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,ConstantNode.seed(TypeRPC.BOT).peephole()).peephole();
 
         // Pre-call the function from Start, with worse-case arguments.  This
         // represents all the future, yet-to-be-parsed functions calls and
         // external calls.
-        _scope.push(new Kind.Func(_privateFun!=null));
-        ctrl(fun);              // Scope control from function
-        // Unknown callers supply whole memory; field aliases are discovered lazily.
-        _scope.mem(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,new ProjNode(_code._start,1,ScopeNode.MEM0).peephole()).peephole());
+        _scope.ctrl(fun);              // Scope control from function
+        // Private mem alias tracking per function
+        Node defaultMem = new ProjNode(_ref._start,1,ScopeNode.MEM0).peephole();
+        Node privMem = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,defaultMem).peephole();
+        mem(privMem);
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
-            _scope.define(ids[i], t, finals==null ? t instanceof TypeNil : finals.get(i), new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
+            // Args take a default input if called from Start/external-world
+            _scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole(), loc);
         }
 
-        // Fields stay in Scope as ordinary SSA values throughout the body.
-        // Private memory is read at helper entry and written once at exit.
-        int fields = _scope.nIns();
-        if( initializer )
-            _scope.push(new Kind.Define((TypeMemPtr)TYPES.get(_nestedType)));
-        else if( _privateFun==fun ) {
-            TypeStruct shape=((TypeMemPtr)TYPES.get(_nestedType))._obj;
-            StructNode defaults=INITS.get(_nestedType);
-            for( int i=0; i<shape._fields.length; i++ ) {
-                Field f=shape._fields[i];
-                Var v=null;
-                for( int j=preParse.length-1; j>=0; j-- )
-                    if( _scope.var(j)._name.equals(f._fname) ) { v=_scope.var(j); break; }
-                assert v!=null;
-                _fieldVars.put(f._fname,v);
-                if( !f._one ) {
-                    Node value=missingInit(defaults.in(i),new java.util.BitSet()) ? con(Type.BOTTOM)
-                        : new LoadNode(loc(),f._fname,f._alias,privateMem(),self(),off(shape,f._fname),true).peephole();
-                    _scope.update(v,value);
-                }
+        if( isCtor && !isInit ) {
+            int lex=_scope.klast()._lexSize;
+            TypeStruct shape=(TypeStruct)TYPES.get(typeName);
+            for( Field fld : shape._fields ) {
+                int idx=fieldVarIdxBefore(lex,fld._fname);
+                if( idx<0 ) continue;
+                Var v=_scope.var(idx);
+                if( v._fref || v._extern!=0 || v._uninit || _scope.in(v)._type.isConstant() ) continue;
+                Node value=convertExpr(
+                    new LoadNode(loc,fld._fname,fld._alias,ctrl(),fun.parm(3),fun.parm(2),off(shape,fld._fname)).peephole(),v.type());
+                _scope.update(v,value);
             }
         }
-        Node last=ZERO;
+
+        // The initializer owns its run-once flag store. Parent initialization
+        // is a structural requirement, executed before this body by CLInit lowering.
+        if( fun.isClz() ) {
+            Node self = fun.parm(2);
+            Field flag = ((TypeMemPtr)self._type)._obj.field("$init");
+            Node prior = mem().keep();
+            Node st = peep(new StoreNode(loc,"$init",flag._alias,flag._t,ctrl(),prior,self,
+                                        fldoff(self,"$init"),con(1),false));
+            storeMem(st,flag._alias,prior);
+            prior.unkeep();
+        }
+
+        // Parse the function body.
+        Node last=_code.ZERO;   // Last statement as the default result
+
+        int nvar = 0;
         while (!peek('}') && !_lexer.isEOF()) {
-            last = parseStatement();
-            if( initializer ) fields = initFields(fields);
+            // Parse a statement; record last statement as default return
+            last = _code.add(parseStatement());
+            // For <init> and <clinit>, local vars are really struct fields and
+            // get exposed as discovered.  This allows late local functions to
+            // use early declared fields.
+            if( isInit )
+                nvar = updateSelfAsFieldsDiscovered( typeName, nvar );
         }
-        if( initializer ) {
-            finishFields();
-            CAPTURES.put(_nestedType,_captures);
-            if( _constructor!=null ) {
-                Constructor ctor=_constructor;
-                int end=pos(ctor.body());
-                ReturnNode body=parseFunctionBody(ctor.sig(),ctor.loc(),ctor.finals(),ctor.ids());
-                body.fun().setName(shortName(_nestedType));
-                require("}");
-                pos(end);
+
+        if( isInit ) finishConstructor();
+        _pendingCtor=outerCtor;
+
+        ParmNode self = fun.parm(2);
+        // Last expression is the return
+        if( ctrl()._type==Type.CONTROL ) {
+            // Constructors get special return types
+            if( fun.isClz() ) {
+                assert last!=null;
+            } else if( isCtor ) {
+                last = fun.parm(3);
             }
+            addReturn(last);
+            // exit path is now dead (nothing live after a "return")
         }
-        if( _privateFun==fun ) last = storeFields(initializer);
+        if( isCtor )
+            upgradeSelfTypeAndStoreFields( typeName, fun.isClz(), self, fun.parm(3), isInit );
 
-        // Last expression is the return except for the top-level main
-        if( ctrl()._type==Type.CONTROL )
-            if( fun.sig() != _code._main )
-                fun.addReturn(ctrl(), _scope.mem(), last);
-            else {
-                fun.setDef(1,XCTRL); // Kill default main
-                _code.addAll(fun._outputs);
-            }
+        // Build a return from the _returnScope.
+        // Can be no returns for never-exit functions
+        Node rctl = _returnScope==null ? _code.XCTRL      : _returnScope.ctrl().peephole();
+        Node rmem = rctl==_code.XCTRL  ? con(TypeMem.TOP) : _returnScope.mem();
+        Node expr = rctl==_code.XCTRL  ? con(Type.TOP)    : _returnScope._inputs.last().peephole();
+        ReturnNode ret = (ReturnNode)peep(new ReturnNode(rctl, rmem, expr, rpc, fun));
+        fun.setRet(ret);
+        // Approximate function size, for inlining heuristics
+        fun._approxUIDs = _code.UID() - oldUID;
+        for( Node cend : ret.outs() )
+            if( cend instanceof CallEndNode )
+                throw TODO(); //_code.add(cend); // have call ends ALREADY? just barely made the Return
 
-        // Pop off the inProgress node on the multi-exit Region merge
-        assert r.inProgress();
-        r   ._inputs.pop();
-        rmem._inputs.pop();
-        rrez._inputs.pop();
-        r._loc = loc();         // Final position
-        assert !r.inProgress();
+        // Export (and keep-alive) functions until prove dead
+        _ref.addFun(_code,fun);
 
-        // Force peeps, which have been avoided due to inProgress
-        ret.setDef(1,rmem.peephole());
-        ret.setDef(2,rrez.peephole());
-        ret.setDef(0,r.peephole());
-        ret = (ReturnNode)ret.peephole();
-
-        // Function scope ends
-        if( initializer ) _scope.pop();
-        _scope.pop();
-        _fun = oldfun;
-        _privateFun = oldPrivate;
-        _fieldVars = oldFields;
-        _constructor = oldConstructor;
-        _captures = oldCaptures;
-        _breakScope = breakScope;
+        // Unstack parser state
+        if( _returnScope != null ) _returnScope.kill();
+        _returnScope   =   returnScope;
         _continueScope = continueScope;
-
-        // Reset all fields to pre-parse days
-        for( int i=0; i<preParse.length; i++ )
-            _scope.setDef(i,preParse[i]==null ? null : preParse[i].unkeep());
+        _breakScope    =    breakScope;
+        _scope.pop();
 
         return ret;
     }
+
+    private int updateSelfAsFieldsDiscovered( String typeName, int nvar ) {
+        int lex = _scope.klast()._lexSize + 2/*Skip self and selfMem*/;
+        // Load self type in and out of the TYPES hashtable.
+        TypeStruct tself = (TypeStruct)TYPES.get(typeName);
+        // Start looking for newly declared vars at the lexical scope start,
+        // skipping two ("self" and "selfmem") and fields seen already.
+        while( lex + nvar < _scope.nIns() ) {
+            Var v = _scope.var(lex + nvar++);
+            // Field with sharper type
+            Field old = tself.field(v._name);
+            Field fld = v._extern!=0
+                ? Field.make(v._name,v.type(),v._extern,false,true)
+                : old == null
+                ? Field.make(v._name,v.type(),_code.alias(_ref._cname),v._final)
+                : old.makeFrom(v.type());
+            tself = tself.addOrUpdate(fld);
+        }
+        TYPES.put(typeName,tself);
+        return nvar;
+    }
+
+
+    void upgradeSelfTypeAndStoreFields( String typeName, boolean isClz, ParmNode self, ParmNode smem, boolean upgrade ) {
+        int lex = _scope.klast()._lexSize;
+        assert _scope.var(lex)._name=="self";
+        TypeStruct tself = (TypeStruct)TYPES.get(typeName);
+        int base = lex+2;       // Skip ctrl, mem
+        if( upgrade ) {
+            // Default <init>/<clinit> defines the struct and can sharpen fields.
+            // A named constructor only initializes the already-closed struct.
+            for( int i=0; i<tself.nkids(); i++ ) {
+                Field tfld = tself._fields[i];
+                int vidx = fieldVarIdx(base,tfld._fname);
+                if( vidx == -1 )
+                    continue;
+                Var v = _scope.var(vidx);
+                // Forward-ref fields where placed in tself but will get promoted
+                // to an outer scope - and should not be in tself.
+                if( v._fref )
+                    tself = tself.remove(i--);
+                else if( v.type() != tfld._t ) {
+                    assert v.type().isa(tfld._t);
+                    tself = tself.replace( tfld.makeFrom( v.type() ) );
+                }
+            }
+
+            // Close Struct type after parsing struct body.
+            TYPES.put( tself._name, tself = tself.close() );
+            // Improve self, selfMem types in scope.
+            // Class self-type is a singleton pointer.  Instance <init> receives the
+            // broad allocation pointer, while private memory tracks initialized fields.
+            self._declaredType = self._type = isClz ? TypeMemPtr.make((byte)2,tself,true) : TypeMemPtr.make(constructorRecv(tself));
+            FunNode fun = self.fun();
+            fun.setSig(fun.sig().makeFrom(self._type,0));
+            if( !isClz )        // <init> returns upgraded private memory
+                smem._declaredType = smem._type = TypeMem.makePrivate(tself);
+        }
+
+        if( !upgrade ) {
+            IdentityHashMap<Var,Type> exit = null;
+            if( _returnScope!=null && !_returnScope.ctrl()._type.isHigh() ) {
+                exit = new IdentityHashMap<>();
+                int first = _scope._kinds.at(_scope.depth()-2)._lexSize+2;
+                for( int i=first; i<lex; i++ )
+                    exit.put(_scope.var(i),_returnScope.in(i)._type);
+            }
+            _ctorExits.add(exit);
+        } else if( !isClz ) {
+            checkInitFields(tself,base);
+        }
+
+        // When can _returnScope be null here? A never-exit constructor will
+        // not have any returns, and thus no need to gather values and store
+        // them into the (never) constructed object
+        if( _returnScope==null )
+            return;
+
+        // A MemMerge to gather field updates as stores.  Classes update the
+        // normal public memory.  <init> updates the private memory that got
+        // passed in - is treated like a normal argument and not like memory.
+        Node mmm = isClz ? _returnScope.mem(1) : smem;
+
+
+        // Store constructor results into fields
+        for( int i=0; i<tself.nkids(); i++ ) {
+            Field fld = tself._fields[i];
+            int vidx = upgrade
+                ? fieldVarIdx(base,fld._fname)
+                : fieldVarIdxBefore(lex,fld._fname);
+            if( vidx == -1 )
+                continue;
+            Var v = _scope.var(vidx);
+            if( v._fref || v._extern!=0 ) continue; // C storage has no Simple initializer
+            // NewNode's TOP field is the zero-code poison for a required
+            // field. Leave it alone unless the declaration body supplied a
+            // value; otherwise a user constructor must initialize it.
+            Node val = _returnScope.in(vidx);
+            if( upgrade && v._uninit &&
+                !initialized(val._type) ) continue;
+            // A numeric merge can still be untyped while parsing. Retain its
+            // declared conversion at the helper boundary, as assignments do.
+            if( fld._t instanceof TypeInteger || fld._t instanceof TypeFloat )
+                val=convertExpr(val,fld._t);
+            // Store value into extended struct
+            Node prior = mmm.keep();
+            Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, prior, self, off(tself,fld._fname), val, fld._final));
+            mmm = mergeAlias(prior,fld._alias,st);
+            prior.unkeep();
+        }
+        mmm = mmm.peephole();
+
+        if( !isClz )
+            // Stuff private mem into normal expression return value.
+            _returnScope.setDef(_returnScope.nIns()-1,mmm);
+        else
+            // Parser memory is one opaque whole-memory edge.  Publish the
+            // completed class-field aggregate as the <clinit> return memory.
+            _returnScope.mem(mmm);
+            //_code.add(mmm);
+    }
+
+    // Validate each user constructor, or an implicit empty one, before the
+    // declaration scope goes away. Later fields use their declaration defaults.
+    private static boolean initialized(Type t) {
+        return t!=Type.BOTTOM && !t.isHigh() && (!(t instanceof TypeNil tn) || tn.notNull());
+    }
+
+    private void checkInitFields(TypeStruct ts, int base) {
+        if( _returnScope==null || _returnScope.ctrl()._type.isHigh() ) return;
+        boolean implicit = _ctorExits.isEmpty();
+        if( implicit ) _ctorExits.add(new IdentityHashMap<>());
+        for( IdentityHashMap<Var,Type> exit : _ctorExits ) {
+            if( exit==null ) continue;
+            for( Field fld : ts._fields ) {
+                int idx = fieldVarIdx(base,fld._fname);
+                if( idx == -1 ) continue;
+                Var v = _scope.var(idx);
+                if( !v._uninit || v._fref ) continue;
+                Type t = exit.getOrDefault(v,_returnScope.in(idx)._type);
+                if( !initialized(t) )
+                    throw error("'"+ts._name+"' is not fully initialized, field '"+fld._fname+
+                                (implicit ? "' needs to be set in a constructor" :
+                                            "' is only partially set in the constructor"),v._loc);
+            }
+        }
+    }
+
+    private int fieldVarIdx( int base, String name ) {
+        for( int i=base; i<_scope.nIns(); i++ )
+            if( _scope.var(i)._name == name )
+                return i;
+        return -1;
+    }
+
+    // Named constructors update field Vars from the enclosing initializer
+    // scope.  Constructor arguments and locals begin at limit and must not
+    // shadow the field state gathered into private memory.
+    private int fieldVarIdxBefore( int limit, String name ) {
+        for( int i=limit-1; i>=0; i-- )
+            if( _scope.var(i)._name == name )
+                return i;
+        return -1;
+    }
+
+    private boolean isConstructorDecl(String name) {
+        TypeStruct self = _scope.constructorSelf();
+        return self != null && name == initFieldName(self._name);
+    }
+
+    private boolean inExplicitConstructor() {
+        Kind.Func func = (Kind.Func)_scope._kinds.at(_scope.enclosingFuncOrDecl());
+        return isExplicitConstructorName(func._name);
+    }
+
+    private boolean isExplicitConstructorName(String funName) {
+        TypeStruct self = _scope.constructorSelf();
+        return self != null && funName == (self._name+"."+initFieldName(self._name)).intern();
+    }
+
+    private static TypeStruct constructorRecv(TypeStruct self) {
+        Field[] fs = new Field[self._fields.length];
+        for( int i=0; i<fs.length; i++ ) {
+            Field fld = self._fields[i];
+            fs[i] = fld.makeFrom(fld._t.makeStorage());
+        }
+        return TypeStruct.make(self._name,self._open,fs);
+    }
+
 
     /**
      * Parses a block
@@ -371,9 +579,11 @@ public class Parser {
     private Node parseBlock(Kind kind) {
         // Enter a new scope
         _scope.push(kind);
-        Node last = ZERO;
-        while (!peek('}') && !_lexer.isEOF())
+        Node last = _code.ZERO;
+        while (!peek('}') && !_lexer.isEOF()) {
+            _code.add(last);
             last = parseStatement();
+        }
         // Exit scope
         last.keep();
         _scope.pop();
@@ -396,8 +606,8 @@ public class Parser {
         else if (matchx("break")   ) return parseBreak();
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
-        else if (_scope.inConstructor() && matchx("new")) return parseConstructorDeclaration();
-        else if (matchx(";")       ) return null; // Empty statement
+        else if (inStructDeclaration() && matchx("new")) return parseConstructorDeclaration();
+        else if (matchx(";")       ) return _code.ZERO; // Empty statement
         // Break ambiguity around leading function types and starting a block
         else if (peek('{') && !isTypeFun() ) {
             match("{");
@@ -407,22 +617,69 @@ public class Parser {
         else return parseDeclarationStatement();
     }
 
-    // In a struct declaration, new names the constructor. Its body still
-    // parses as a function; in expressions, new allocates and calls it.
+    private boolean inStructDeclaration() {
+        return _scope.klast() instanceof Kind.Func fun && FunNode.isInstance(fun._name);
+    }
+
+    // Constructor declaration: new TypeName = { args -> body };
+    private record Constructor(String name, Lexer body) {}
+    private Constructor _pendingCtor;
+
     private Node parseConstructorDeclaration() {
-        Lexer loc=loc();
-        String name=requireId();
-        String expect=shortName(_nestedType);
-        if( !name.equals(expect) )
-            throw error("Constructor name '"+name+"' must match type name '"+expect+"'");
+        TypeStruct self = _scope.constructorSelf();
+        assert self != null;
+        String name = requireId();
+        String expect = initFieldName(self._name);
+        if( name != expect )
+            throw error("Constructor name '" + name + "' must match type name '" + expect + "'");
         require("=");
-        Node ctor=constructorFunc();
-        TypeFunPtr sig=(TypeFunPtr)ctor._type;
-        Node lift=liftExpr(ctor,sig,true);
-        if( !_scope.define(name,sig,true,lift,loc) )
-            throw error("Redefining constructor '"+name+"'");
-        _scope.lookup(name)._init=true;
-        return require(lift,";");
+        if( _pendingCtor!=null ) throw error("Redefining constructor '"+name+"'");
+        _pendingCtor=new Constructor(name,loc());
+        // Parse the body after all field declarations are known, so self.x
+        // and x share a local slot even when x is declared below this body.
+        require("{");
+        int depth=1;
+        while( depth>0 ) {
+            _lexer.skipWhiteSpace();
+            if( _lexer.isEOF() ) throw error("Unclosed constructor body");
+            char ch=_lexer.nextChar();
+            if( ch=='{' ) depth++;
+            else if( ch=='}' ) depth--;
+            else if( ch=='"' || ch=='\'' ) {
+                char quote=ch;
+                while( !_lexer.isEOF() ) {
+                    ch=_lexer.nextChar();
+                    if( ch=='\\' ) _lexer.nextChar();
+                    else if( ch==quote ) break;
+                }
+            }
+        }
+        require(";");
+        return _code.ZERO;
+    }
+
+    private void finishConstructor() {
+        if( _pendingCtor==null ) return;
+        Constructor ctor=_pendingCtor;
+        _pendingCtor=null;
+        Lexer after=_lexer;
+        _lexer=new Lexer(ctor.body());
+        defineConstructor(ctor.name());
+        _lexer=after;
+    }
+
+    private void defineConstructor(String name) {
+        TypeStruct self=_scope.constructorSelf();
+        Node ctor = constructorFunc(name);
+        TypeFunPtr sig = (TypeFunPtr)ctor._type;
+        String clzName = addClzPrefix(self._name);
+        TypeStruct clz = (TypeStruct)TYPES.get(clzName);
+        Field old = clz==null ? null : clz.field("<ctor>");
+        if( old != null )
+            throw error("Redefining constructor '" + name + "'");
+        Field fld = Field.make("<ctor>",sig,_code.alias(_ref._cname),true);
+        TYPES.put(clzName,clz==null ? TypeStruct.make(clzName,true,fld) : clz.add(fld));
+        require(ctor,";");
     }
 
     /**
@@ -475,7 +732,7 @@ public class Parser {
         // used as an indicator to switch off peepholes of the region and
         // associated phis; see {@code inProgress()}.
 
-        ctrl(new LoopNode(loc(),ctrl()).peephole()); // Note we set back edge to null here
+        ctrl(new LoopNode(loc(),null,ctrl()).peephole()); // Note we set back edge to null here
 
         // At loop head, we clone the current Scope (this includes all
         // names in every nesting level within the Scope).
@@ -494,8 +751,8 @@ public class Parser {
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred.keep()).peephole();
         // Setup projection nodes
-        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+        CFGNode ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        CFGNode ifF = (CFGNode)new CProjNode(ifNode.unkeep(), 1, "False").peephole();
 
         // for( ;;next ) body
         int nextPos = -1, nextEnd = -1;
@@ -548,6 +805,8 @@ public class Parser {
         // it sets the second input to the corresponding input from the back
         // edge.  If the phi is redundant, it is replaced by its sole input.
         var exit = _breakScope;
+        head.balanceLoopFRefs(_scope);
+        exit.balanceLoopFRefs(_scope);
         head.endLoop(_scope, exit);
         head.unkeep().kill();
 
@@ -565,12 +824,12 @@ public class Parser {
             _xScopes.push( exit );
         }
         _scope = exit;
-        return ZERO;
+        return _code.ZERO;
     }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
         ScopeNode cur = _scope.dup();
-        ctrl(XCTRL); // Kill current scope
+        ctrl(_code.XCTRL); // Kill current scope
         // Prune nested lexical scopes that have depth > than the loop head
         // We use _breakScope as a proxy for the loop head scope to obtain the depth
         while( cur.depth() > _breakScope.depth() )
@@ -588,7 +847,7 @@ public class Parser {
 
     private void checkLoopActive() { if (_breakScope == null) throw error("No active loop for a break or continue"); }
 
-    private Node parseContinue() { checkLoopActive(); _continueScope = require(jumpTo( _continueScope ),";"); return ZERO; }
+    private Node parseContinue() { checkLoopActive(); _continueScope = require(jumpTo( _continueScope ),";"); return _code.ZERO; }
     private Node parseBreak   () {
         checkLoopActive();
         // At the time of the break, and loop-exit conditions are only valid if
@@ -596,8 +855,8 @@ public class Parser {
         // conditions here, not the union.
         _breakScope.removeGuards(_breakScope.ctrl());
         _breakScope = require(jumpTo(_breakScope ),";");
-        _breakScope.addGuards(_breakScope.ctrl(), null, false);
-        return ZERO;
+        _breakScope.addGuards((CFGNode)_breakScope.ctrl(), null, false);
+        return _code.ZERO;
     }
 
     // Look for an unbalanced `)`, skipping balanced
@@ -607,7 +866,7 @@ public class Parser {
             // Next X char handles skipping complex comments
             switch( _lexer.nextXChar() ) {
             case Character.MAX_VALUE:
-                throw Utils.TODO();
+                throw TODO();
             case ')':
                 if( --paren<0 ) {
                     posT( pos() - 1 );
@@ -641,8 +900,8 @@ public class Parser {
         pred.keep();
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
+        CFGNode ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        CFGNode ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         ScopeNode fScope = _scope.dup(); // Duplicate current scope
@@ -658,7 +917,7 @@ public class Parser {
         case ":"    -> parseAsgn();      //     pred ?  asgn;
         case "&&"   -> parseLogical();   //     pred && expr
         case "||"   -> pred;             //     pred || expr_is_ignored
-        default     -> throw Utils.TODO();
+        default     -> throw TODO();
         };
         lhs.keep();
         _scope.removeGuards(ifT);
@@ -681,12 +940,14 @@ public class Parser {
         Node rhs = switch( fside ) {
         case "else" -> (doRHS=match(fside)) ? parseStatement() : con(lhs._type.makeZero());
         case ":"    -> (doRHS=match(fside)) ? parseAsgn()      : con(lhs._type.makeZero());
-        case "&&"   -> rhs = pred;
-        case "||"   -> rhs = parseLogical();
-        default     -> throw Utils.TODO();
+        case "&&"   -> con(lhs._type.makeZero()); // pred && expr_is_ignored
+        case "||"   -> parseLogical();            // pred || expr
+        default     -> throw TODO();
         };
         rhs.keep();
         _scope.removeGuards(ifF);
+        // The RHS of `||` is parsed on the false side, so retain its updated
+        // control, memory and locals just as an explicit else arm does.
         if( doRHS || fside.equals("||") )
             fScope = _scope;
         pred.unkeep();
@@ -709,9 +970,10 @@ public class Parser {
         Node ret = peep(new PhiNode("",r,lhs.unkeep(),rhs.unkeep()));
         // Immediately fail e.g. `arg ? 7 : ptr`
         ParseException err;
-        if( !fside.equals("else") && (err=ret.err()) !=null )  throw err;
+        if( !fside.equals("else") && (err=ret.err()) !=null ) throw err;
+        ret.keep();
         r.peephole();
-        return ret;
+        return ret.unkeep();
     }
 
     /**
@@ -725,22 +987,69 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseAsgn(), ";");
-        // Force the lazy whole-memory Phi before closing this exit.
-        if( _privateFun==_fun )
-            throw error("A constructor cannot return a value");
-        _fun.addReturn(ctrl(), _scope.mem(), expr);
-        ctrl(XCTRL);            // Kill control
-        return expr;
+        return addReturn(expr);
     }
+    private Node addReturn(Node expr) {
+        expr.keep();
+        // Need default memory, since it can be lazy, need to force
+        // a non-lazy Phi
+        mem();                 // Force a pending lazy bulk-memory Phi
+        // For <init> and <clinit> - all fields in scope will be live-on-exit
+        // and stored into `self` and need to have lazy-phi's inserted.
+        int lexN = _scope.enclosingFuncOrDecl();
+        Kind.Func k = (Kind.Func)_scope._kinds.at(lexN);
+        if( FunNode.isInit(k._name) ) {
+            int nestedLexSize = lexN+1 < _scope.depth() ? _scope._kinds.at(lexN+1)._lexSize : _scope.nIns();
+            for( int i=k._lexSize; i<nestedLexSize; i++ )
+                _scope.update(_scope.var(i),null);
+            if( _returnScope != null ) {
+                Var vexpr = _returnScope._vars.pop();
+                Node oldX = _returnScope.removeLast();
+                int rlen = _returnScope.nIns();
+                while( rlen  < nestedLexSize ) {
+                    _returnScope._vars.add(_scope.var(rlen));
+                    _returnScope.addDef(con(_scope.var(rlen++).type().makeZero()));
+                }
+                _returnScope._vars.add(vexpr);
+                _returnScope.addDef(oldX);
+            }
+        } else if( isExplicitConstructorName(k._name) ) {
+            // Field bindings live in the enclosing declaration, not among the
+            // constructor's arguments/locals. Force lazy Phis on every exit.
+            int first = _scope._kinds.at(lexN-1)._lexSize+2;
+            for( int i=first; i<k._lexSize; i++ )
+                _scope.update(_scope.var(i),null);
+        }
 
+        // No prior merge point?  Just clone and hang on to it
+        if( _returnScope == null ) {
+            _returnScope = _scope.dup();
+            while( lexN+1 < _returnScope.depth() )
+                _returnScope._pop(); // Pop a nested block scope until we hit the function scope
+            _returnScope.define("$expr", inferredReturnType(expr._type), true, expr, null);
 
+        } else {
+            // For <init> and <clinit> - ALL FIELDS IN LAST SCOPE are live
+            // and need to have lazy-phi's inserted.
+
+            // And fields might not match.... will need matching Var/define with default values
+            int rlen = _returnScope.nIns()-1;
+            RegionNode r = ctrl(new RegionNode(null, null,_returnScope.ctrl(), _scope.ctrl()).init().keep());
+            _returnScope._merge(_scope, r, rlen);
+            Node oldExpr = _returnScope.in(rlen);
+            _returnScope.setDef(rlen,new PhiNode("$expr", r, oldExpr, expr).peephole());
+            _code.add(r);
+            _returnScope.ctrl(r.unkeep());
+        }
+        ctrl(_code.XCTRL);      // Kill control
+        return expr.unkeep();
+    }
 
     /** Parse: [name '='] expr
      */
     private Node parseAsgn() {
         int old = pos();
         String name = _lexer.matchId();
-        int old_pre_equals = pos();
         // Just a plain expression, no assignment.
         // Distinguish `var==expr` from `var=expr`
         if( name==null || KEYWORDS.contains(name) || !matchOpx('=','=') )
@@ -749,16 +1058,12 @@ public class Parser {
         // Find variable to update
         Var def = _scope.lookup(name);
         if( def==null )
+            def = defineOpenConstructorField(name);
+        if( def==null )
             throw error("Undefined name '" + name + "'");
 
-        // If a method var, allow nested blocks and methods, but not fcns or other structs.
-        // Else safety check for accessing fields out of function scope.
-        if( instance(def) ) {
-            pos(old_pre_equals);  // setup for `self.name = expr`
-            Var selfVar = _scope.lookup("self");
-            Node self = liftExpr(_scope.in(selfVar),selfVar.type(),true);
-            return parsePostfixName(self,name);
-        }
+        if( def._extern!=0 )    // Parse the C binding as a memory lvalue
+            {  pos(old);  return parseExpression();  }
 
         // TOP fields are for late-initialized fields; these have never
         // been written to, and this must be the final write.  Other writes
@@ -768,32 +1073,98 @@ public class Parser {
             // The alloc() call added the allocation scope
             !_scope.canInit(def) )
             throw error("Cannot reassign final '"+name+"'");
-        checkSharedField(def);
+        checkSharedFunction(def);
 
         // Parse assignment expression
-        checkCaptureWrite(def);
         Node expr = parseAsgn();
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr.keep(), def.type(), true);
+        Type decl = def.type(); // Declared type
+        Node lift = convertExpr(expr.keep(), decl).keep();
         // Update
         _scope.update(name,lift);
+
+        // Check for storing into an instance field instead of a local var
+        int kx = _scope.kindx(def); // Declaration scope
+        int fx = _scope.enclosingFunction(); // Enclosing function scope
+        Kind kk = _scope._kinds.at(kx);
+        Kind fk = _scope._kinds.at(fx);
+        // Access instance field from 'self'
+        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) &&
+            fk instanceof Kind.Func method && !inExplicitConstructor() ) {
+            // Named field offset on an unknown struct type
+            TypeMemPtr self = (TypeMemPtr)_scope.var(fk._lexSize).type();
+            TypeStruct sobj = (TypeStruct)TYPES.get(self._obj._name);
+            Field fld = sobj.field(name);
+            int alias = fld._alias;
+            Node ptr = _scope.in(method._lexSize);
+            Node off = fldoff(ptr,name);
+            Node prior = mem().keep();
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), prior, ptr, off, lift, inExplicitConstructor()).peephole().keep();
+            storeMem(st,alias,prior);
+            st.unkeep();
+            prior.unkeep();
+        }
+        lift.unkill();
+
+
         // Return un-lifted expr
         return expr.unkeep();
     }
 
-    // Apply declared access permissions; widen floats and narrow integers.
+    // Widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
-    private Node liftExpr(Node expr, Type t, boolean isLoad) {
-        if( t==Type.BOTTOM || t==Type.TOP ) return expr;
-        // Constructor sentinels record missing initialization, not a value
-        // needing conversion. Keep them visible to the completion check.
-        if( expr instanceof ConstantNode && !(expr instanceof FRefNode) &&
-            (expr._type==Type.TOP || expr._type==Type.BOTTOM) ) return expr;
+    private Node convertExpr( Node expr, Type t ) {
+        if( !expr._type.accessISA(t) )
+            throw error("Type "+expr._type.str()+" is not of declared type "+t.str());
         if( t instanceof TypeMemPtr tmp && tmp.isFinal() )
             expr = peep(new ReadOnlyNode(expr));
-        if( expr instanceof FunPtrNode && t instanceof TypeFunPtr ) return expr;
+        // A FunPtr carries the semantic edge to its function's Return.  Do not
+        // hide that edge behind a Convert which can fold to a plain constant.
+        if( expr instanceof FunPtrNode && t instanceof TypeFunPtr )
+            return expr;
+        // Auto-widen array to i64 (cast ptr to raw int bits)
+        if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
+            return peep(new AddNode(peep(new PtrToIntNode(expr)),off(tmp._obj,"[]")));
+        // Widen ints to floats, narrow wide types
         return peep(new ConvertNode(t,expr));
+    }
+
+    // Inferred `var` declarations describe writable slots, not the exact
+    // value used to initialize them.  Explicitly typed locals retain the
+    // user's nullability and numeric-width guarantees; `val` retains the
+    // initializer's precise type.
+    private static Type mutableInferredType(Type t) {
+        return switch( t ) {
+        case TypeInteger ti -> TypeInteger.BOT;
+        case TypeFloat   tf -> TypeFloat.F64;
+        case TypeMemPtr tmp -> tmp.makeVar();
+        case TypeFunPtr tfp -> tfp;
+        case TypeConAry<?> a -> a;
+        case TypePtr     ptr -> TypePtr.PTR;
+        case TypeScalar  ts -> TypeScalar.BOT;
+        default             -> t;
+        };
+    }
+
+    private Type constructorFieldType(Type t) {
+        if( t instanceof TypeMemPtr ptr && ptr._obj.isConAry() ) {
+            TypeStruct declared=(TypeStruct)TYPES.get(ptr._obj._name);
+            TypeStruct shape=typeAry(declared._fields[1]._t,ptr._obj._fields[1]._final);
+            return TypeMemPtr.make((byte)2,shape,false).withAccess(ptr._ro);
+        }
+        return mutableInferredType(t);
+    }
+
+    // Seed an inferred return merge with the declared numeric family instead
+    // of a transient constant/range.  Pointer nullability remains part of the
+    // inferred function result and is combined by the later Phi.
+    private static Type inferredReturnType(Type t) {
+        return switch( t ) {
+        case TypeInteger ti -> TypeInteger.BOT;
+        case TypeFloat   tf -> TypeFloat.F64;
+        default             -> t;
+        };
     }
 
     private Node widenInt( Node expr, Type t ) {
@@ -822,23 +1193,6 @@ public class Parser {
         return require(n,";");
     }
 
-    // Widen a reassignable binding without discarding the initializer's
-    // permissions. Lattice glb includes readonly memory and is too broad here.
-    private Type inferredType(Type t) {
-        if( t instanceof TypeMemPtr tmp ) {
-            if( tmp._obj.isAry() ) {
-                Type elem = tmp._obj._fields[1]._t;
-                if( elem instanceof TypeConAry )
-                    elem = ((TypeMemPtr)TYPES.get(tmp._obj._name))._obj._fields[1]._t;
-                return typeAry(elem,tmp._obj._fields[1]._final).withAccess(tmp._ro).makeNullable();
-            }
-            Type base = TYPES.get(tmp._obj._name);
-            TypeMemPtr ptr = (TypeMemPtr)base;
-            return ptr.withAccess(tmp._ro).makeNullable();
-        }
-        return t.glb(false);
-    }
-
     // The binding modifier sits immediately before the name. It never
     // changes permissions on the referenced object.
     private boolean bindingFinal(Type t) {
@@ -857,35 +1211,50 @@ public class Parser {
         Lexer loc = loc();
         String name = requireId();
         // Optional initializing expression follows
-        boolean fld_final = false; // Fixed field independent of pointee access
-        boolean initialized = match("=");
+        boolean fld_final = false; // Field is final, but not deeply final
+        boolean uninit = false;    // Required non-null constructor field
         Node expr;
-        if( initialized ) {
-            expr = isExternDecl() ? externDecl(name,t)
-                : _scope.inConstructor() && name.equals(shortName(_nestedType))
-                ? constructorFunc() : parseAsgn();
+        if( match("=") ) {
+            if( isExternDecl() ) {
+                if( !(t instanceof TypeFunPtr) ) {
+                    Node ptr = externData(name,t);
+                    // The lexical binding is a fixed address; its contents are mutable.
+                    if( !_scope.define(name,t,true,ptr,loc) )
+                        throw error("Redefining name '"+name+"'",loc);
+                    _scope.lookup(name)._extern = _code.externAlias(name);
+                    return _code.ZERO;
+                }
+                expr = externDecl(name,t);
+                t = expr._type; // Upgrade declared type to the exact extern decl type
+            } else if( isConstructorDecl(name) ) {
+                expr = constructorFunc(name);
+            } else {
+                expr = parseAsgn();
+            }
             // var/val, then type comes from expression
             if( inferType ) {
                 if( expr._type==Type.NIL )
                     throw error("a not-null/non-zero expression");
                 t = expr._type;
-                if( !xfinal ) t = inferredType(t);  // Widen if not final
-                // A final field is still a local variable during construction.
-                // Its constant default is a value, not a one-value declaration
-                // type: later assignments and loop Phis may change it.
-                else if( _scope.inConstructor() && !(t instanceof TypeFunPtr) ) {
-                    Type wide=inferredType(t);
-                    t = t instanceof TypeMemPtr ptr && ptr.notNull()
-                        ? TypeMemPtr.make((byte)2,((TypeMemPtr)wide)._obj,false).withAccess(ptr._ro) : wide;
-                }
+                if( !xfinal ) t = mutableInferredType(t);
+                // Instance fields may change until the constructor finishes.
+                // Keep the declared family/access, not the default's constant
+                // value or string contents. Class constants remain static.
+                else if( _scope.klast() instanceof Kind.Func fun && FunNode.isInstance(fun._name) && !(t instanceof TypeFunPtr) )
+                    t = constructorFieldType(t);
             }
+
             // expr is a constant function
-            if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
-                if( expr instanceof ExternNode ) t = expr._type; // Upgrade declared type to exact function
-                else if( _code._link(tfp)!=null ) _code.link(tfp).setName(name); // Assign debug name to Simple function
+            if( t instanceof TypeFunPtr decl && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+                t = decl.makeFrom(tfp.fidx());
+                FunNode fun = _code.link(tfp);
+                if( fun != null )
+                    fun.setName(name); // Assign debug name to Simple function
             }
 
         } else {
+            // Since no initializer, not-final but might need an initializer
+
             // Need an expression to infer the type.
             // Also, if not-null then need an initializing expression.
             // Allowed in a class def, because type/init will happen in the constructor.
@@ -893,33 +1262,35 @@ public class Parser {
                 throw errorSyntax("=expression");
             // Initial value for uninitialized struct fields.
             expr = switch( t ) {
-                // Nullable pointers get a NIL; not-null get a TOP which
-                // signals that they *must* be initialized in the constructor.
-            case TypeNil tn -> tn.nullable() ? NIL : con(Type.TOP);
-            case TypeInteger ti -> xfinal ? con(Type.TOP) : ZERO;
-            case TypeFloat tf -> con(xfinal ? Type.TOP : TypeFloat.FZERO);
+                // Required pointers retain their declared shape, but include
+                // null until every constructor path assigns them.
+            case TypeNil tn -> tn.nullable() ? con(Type.NIL) : con(t.meet(Type.NIL));
+            case TypeInteger ti -> xfinal ? con(Type.BOTTOM) : _code.ZERO;
+            case TypeFloat tf -> con(xfinal ? Type.BOTTOM : TypeFloat.FZERO);
             // Bottom signals type inference: they must be initialized in
             // the constructor and that's when we'll discover the type.
             case Type tt -> { assert tt==Type.BOTTOM; yield con(tt); }
             };
-            // Nullable fields are set in the constructor, but remain shallow final.
-            // e.g. final pointer to a r/w array
-            if( t instanceof TypeNil tn && !tn.nullable() && xfinal )
-                fld_final = true;
+            // Every non-null pointer without a default is constructor-required.
+            // Without `!` it is also shallow-final; mutability and definite
+            // initialization are independent properties.
+            if( (xfinal && !(t instanceof TypeNil)) || (t instanceof TypeNil tn && !tn.nullable()) ) {
+                uninit = true;
+                if( xfinal ) fld_final = true;
+            }
         }
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr, t, true);
+        // Do not let an authoritative Convert hide the nullable
+        // not-yet-initialized state from constructor-local type flow.
+        Node lift = uninit ? expr : convertExpr(expr, t);
 
-        // Lift type to the declaration.  This will report as an error later if
-        // we cannot lift the type.
         // Define a new name
         if( !_scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw error("Redefining name '" + name + "'", loc);
-        _scope.lookup(name)._init = initialized;
+        _scope.lookup(name)._uninit = uninit;
         return lift;
     }
-
 
 
     /**
@@ -928,207 +1299,215 @@ public class Parser {
      *
      * @return zero
      */
-    private String _nestedType;
-    private static String shortName(String name) { return name.substring(name.lastIndexOf('.')+1); }
+    private Node parseStruct( ) {
+        // keyword "struct" already parsed, so expect the struct name next.
+        String typeName = requireId();
+        require("{");
 
-    private Node parseStruct() {
+        // create type class:NESTED.typeName; no fields.
+
         String old = _nestedType;
-        String name = requireId();
-        if( old!=null ) name=old+"."+name;
-        _nestedType=name;
-        TypeMemPtr ptr = TYPES.get(name) instanceof TypeMemPtr p ? p : TypeMemPtr.make(TypeStruct.open(name));
-        TYPES.put(name,ptr);
-        require("{");
-        TypeFunPtr sig = _code.makeFun(TypeFunPtr.make(false,false,new Type[]{ptr,TypeMem.BOT},TypeMem.BOT));
-        ReturnNode init = parseFunctionBody(sig,loc(),null,true,"self","#selfMem");
-        init.fun()._name=name+".<init>";
-        INITIALIZERS.put(name,init);
-        TypeStruct shape = ((TypeMemPtr)TYPES.get(name))._obj;
-        ALLOCS.put(name,makeAllocator(shape,init));
-        _nestedType=old;
+        String fullName = _scope.depth()==1 && _nestedType.endsWith(typeName) ? old : (old+"."+typeName).intern();
+        _nestedType = fullName; // Recursive structs start with this as their basename
+
+        ReturnNode ret = parseStruct( false, fullName );
+
+        _nestedType = old;
+
+        // Insert a field into class:NESTED.typeName of "val typeName = fcn-ptr-to-init"
+        // Function does malloc internally.
+        // Future self: means subtyping has to deal with "who does the malloc"
+        String clzName = addClzPrefix(fullName);
+        TypeFunPtr sig = ret.fun().sig();
+        TypeStruct ts = (TypeStruct)TYPES.get(clzName);
+        String initName = initFieldName(fullName);
+        Field oldFld = ts==null ? null : ts.field(initName);
+        Field fld = oldFld==null
+            ? Field.make(initName,sig,_code.alias(_ref._cname),true)
+            : oldFld.makeFrom(sig);
+        Field ctorFld = ts==null ? null : ts.field("<ctor>");
+        // A same-named struct shares its file's class object and flag.
+        Field flag = ts==null ? null : ts.field("$init");
+        ts = ctorFld==null
+            ? TypeStruct.make(clzName,false,fld)
+            : TypeStruct.make(clzName,false,fld,ctorFld);
+        if( flag!=null ) ts=ts.add(flag);
+        TypeFunPtr alloc = makeAllocator((TypeStruct)TYPES.get(fullName),ret,ctorFld);
+        ts = ts.add(Field.make("<new>",alloc,_code.alias(_ref._cname),true));
+        TYPES.put(clzName,ts);
+
+        // Insert a field in the containing class with the nested class type.
+        // This is basically sugar for "val CLZNAME = <init>"
+        // and is a nicer version of updateSelfAsFieldsDiscovered.
+        _scope.define(typeName, sig, true, new FunPtrNode(sig,_code._start,ret).peephole(), loc());
+
         require("}");
-        require(";");
-        return ZERO;
+        return require(_code.ZERO,";");
     }
 
-    private int initFields(int index) {
-        TypeStruct shape = ((TypeMemPtr)TYPES.get(_nestedType))._obj;
-        while( index<_scope.nIns() ) {
-            Var v = _scope.var(index++);
-            if( v.isFRef() ) continue;
-            Node value = _scope.in(v);
-            // Only function declarations are shared across instances. A final
-            // data field can change in a named or inline constructor, so a
-            // constant default does not justify folding every future read.
-            boolean constant = v._final && v._init && value._type instanceof TypeFunPtr && value._type.isConstant();
-            Field field = Field.make(v._name,v.type(),_code.getALIAS(),v._final,constant);
-            shape=shape.add(field);
-            TYPES.put(_nestedType,TypeMemPtr.make(shape));
-            _fieldVars.put(v._name,v);
-        }
-        return index;
-    }
+    // Build the declaration-side allocation helper.  Allocation sites only
+    // call this function; all layout, initialization and publication choices
+    // are made here, where the complete struct and constructor are known.
+    private TypeFunPtr makeAllocator(TypeStruct ts, ReturnNode initRet, Field ctorFld) {
+        TypeFunPtr ctor = ctorFld==null ? null : (TypeFunPtr)ctorFld._t;
+        int nargs = ctor==null ? 0 : ctor.nargs()-2; // Hide self and selfMem
+        Type[] atypes = new Type[nargs];
+        for( int i=0; i<nargs; i++ ) atypes[i] = ctor.arg(i+2);
+        TypeMemPtr ptr = TypeMemPtr.make(ts);
+        TypeFunPtr sig = TypeFunPtr.make1((byte)2,true,atypes,ptr,_code.fidx(_ref._cname));
+        String name = (ts._name+".<new>").intern();
 
-    private void finishFields() {
-        TypeStruct shape = ((TypeMemPtr)TYPES.get(_nestedType))._obj.close();
-        TYPES.put(_nestedType,TypeMemPtr.make(shape));
-        StructNode constants = new StructNode(shape);
-        int first = _scope._kinds.last()._lexSize;
-        for( int i=first; i<_scope.nIns(); i++ )
-            if( !_scope.var(i).isFRef() ) constants.addDef(_scope.in(i));
-        constants.setType(constants.compute());
-        INITS.put(_nestedType,constants.keep());
-    }
-
-    private Node self() { return _scope.in(_scope.lookup("self")); }
-    private Node privateMem() { return _scope.in(_scope.lookup("#selfMem")); }
-
-    private boolean privateSelf(Node ptr) {
-        if( _privateFun!=_fun || _privateFun==null ) return false;
-        while( ptr instanceof ConvertNode || ptr instanceof ReadOnlyNode || ptr instanceof GuardNode ) ptr=ptr.in(1);
-        Node self=self();
-        while( self instanceof ConvertNode || self instanceof ReadOnlyNode || self instanceof GuardNode ) self=self.in(1);
-        return ptr==self;
-    }
-    private boolean mayBeSelf(Node ptr, java.util.BitSet seen) {
-        if( _privateFun==null || _privateFun!=_fun || seen.get(ptr._nid) ) return false;
-        seen.set(ptr._nid);
-        if( privateSelf(ptr) ) return true;
-        if( ptr instanceof ConvertNode || ptr instanceof ReadOnlyNode || ptr instanceof GuardNode )
-            return mayBeSelf(ptr.in(1),seen);
-        if( ptr instanceof PhiNode && !(ptr instanceof ParmNode) )
-            for( int i=1; i<ptr.nIns(); i++ )
-                if( ptr.in(i)!=null && mayBeSelf(ptr.in(i),seen) ) return true;
-        return false;
-    }
-    private void checkPublication(Node value) {
-        // Private stores can replace a field only while no public alias can
-        // observe it. Early publication needs the next chapter's escape state.
-        if( mayBeSelf(value,new java.util.BitSet()) )
-            throw error("Cannot publish self before the constructor finishes");
-    }
-    // The only writes to the new object's fields are at helper exits. Branches
-    // and loops above this point merge values, not private-memory snapshots.
-    private Node storeFields(boolean initializer) {
-        TypeStruct shape=((TypeMemPtr)TYPES.get(_nestedType))._obj;
-        Node priv=privateMem().keep();
-        for( Field f : shape._fields ) {
-            if( f._one ) continue;
-            Var v=_fieldVars.get(f._fname);
-            Node value=_scope.in(_scope.update(v,null)); // Force a lazy value Phi.
-            if( initializer && missingInit(value,new java.util.BitSet()) ) continue;
-            if( !initializer && ctrl()._type!=Type.XCONTROL && missingInit(value,new java.util.BitSet()) )
-                throw error("'"+shape._name+"' is not fully initialized, field '"+f._fname+"' needs to be set in a constructor");
-            checkPublication(value);
-            Node next=fieldStore(f,ctrl(),priv,self(),off(shape,f._fname),value);
-            priv.unkeep(); priv=next.keep();
-        }
-        return priv.unkeep();
-    }
-
-    private Node fieldStore(Field f, Node ctrl, Node priv, Node ptr, Node off, Node value) {
-        Node st=new StoreNode(loc(),f._fname,f._alias,f._t,priv,ptr,off,value,true);
-        st.setDef(0,ctrl);
-        return new MemMergeNode(priv,f._alias,st.peephole()).peephole();
-    }
-
-    private Node constructorFunc() {
-        require("{");
-        Ary<Type> types = new Ary<>(Type.class);
-        Ary<String> names = new Ary<>(String.class);
-        types.add(TYPES.get(_nestedType)); names.add("self");
-        types.add(TypeMem.BOT); names.add("#selfMem");
-        java.util.BitSet finals = new java.util.BitSet();
-        finals.set(0); // Rebinding self would detach the pointer from its private memory.
-        while( true ) {
-            Type t=type();
-            if( t==null ) break;
-            finals.set(names.size(),bindingFinal(t));
-            types.add(t); names.add(requireId());
-            match(",");
-        }
-        require("->");
-        TypeFunPtr sig = _code.makeFun(TypeFunPtr.make(false,false,types.asAry(),TypeMem.BOT));
-        // Bind the signature now, but parse the body after the field list is
-        // closed. Then even a later field has a local SSA slot before branches
-        // and loops are parsed. Strings/comments must not affect brace depth.
-        _constructor=new Constructor(sig,loc(),pos(),names.asAry(),finals);
-        int depth=1;
-        while( depth>0 ) {
-            if( peek('"') ) { parseString(); continue; }
-            if( match("'") ) { parseChar(); continue; }
-            char ch=_lexer.nextXChar();
-            if( ch==Character.MAX_VALUE ) throw errorSyntax("}");
-            if( ch=='{' ) depth++;
-            if( ch=='}' ) depth--;
-        }
-        return con(sig);
-    }
-
-    private CallEndNode rawCall(Node ctrl, Node pub, ReturnNode target, Node... args) {
-        Node[] inputs = new Node[args.length+3];
-        inputs[0]=ctrl; inputs[1]=pub;
-        System.arraycopy(args,0,inputs,2,args.length);
-        inputs[inputs.length-1]=new FunPtrNode(target.fun().sig(),target).peephole();
-        // Keep the complete declaration-side caller set before any inlining.
-        CallNode call = new CallNode(loc(),inputs).init();
-        CallEndNode end = new CallEndNode(call).init();
-        call.link(target.fun());
-        return end;
-    }
-
-    private Node publish(TypeStruct shape, Node ctrl, Node pub, Node priv, Node ptr) {
-        priv.keep(); ptr.keep();
-        for( Field f : shape._fields ) if( !f._one ) {
-            pub.keep();
-            Node esc = new EscapeNode(loc(),f,ctrl,pub,priv,ptr).peephole();
-            Node next = new MemMergeNode(pub,f._alias,esc).peephole();
-            pub.unkeep(); pub=next;
-        }
-        ptr.unkeep(); priv.unkill();
-        return pub;
-    }
-
-    private TypeFunPtr makeAllocator(TypeStruct shape, ReturnNode init) {
-        Field cf=shape.field(shortName(shape._name));
-        TypeFunPtr ctor=cf!=null && cf._t instanceof TypeFunPtr f ? f : null;
-        int nargs=ctor==null ? 0 : ctor.nargs()-2;
-        Ary<Node> captures=CAPTURES.get(shape._name);
-        Type[] types=new Type[nargs+captures.size()];
-        for( int i=0; i<nargs; i++ ) types[i]=ctor.arg(i+2);
-        for( int i=0; i<captures.size(); i++ ) types[nargs+i]=captures.at(i)._type;
-        TypeMemPtr ptr=TypeMemPtr.make(shape);
-        TypeFunPtr sig=_code.makeFun(TypeFunPtr.make(false,false,types,ptr));
-        FunNode fun=new FunNode(loc(),sig,shape._name,null,_code._start).init();
-        fun._name=shape._name+".<new>"; fun._constructor=true;
+        int oldUID = _code.UID();
+        FunNode fun = (FunNode)new FunNode(loc(),sig,name,_ref,null,_ref._start).peephole();
         _code.link(fun);
-        Node rpc=new ParmNode("$rpc",0,TypeRPC.BOT,fun,con(TypeRPC.BOT)).init();
-        Node pub=new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,new ProjNode(_code._start,1,ScopeNode.MEM0).peephole()).init();
-        Node[] args=new Node[nargs+2];
-        for( int i=0; i<nargs; i++ ) args[i+2]=new ParmNode("arg"+i,i+2,types[i],fun,con(types[i])).init();
-        Node alloc=new NewNode(ptr,fun,null,off(shape," len")).init();
-        Node self=new ProjNode(alloc,0,shape._name).init();
-        Node priv=new ProjNode(alloc,1,"#selfMem").init();
-        Node[] initArgs=new Node[captures.size()+2];
-        initArgs[0]=self; initArgs[1]=priv;
-        for( int i=0; i<captures.size(); i++ )
-            initArgs[i+2]=new ParmNode("capture"+i,nargs+i+2,types[nargs+i],fun,con(types[nargs+i])).init();
-        CallEndNode end=rawCall(fun,pub,init,initArgs);
-        Node ctl=new CProjNode(end,0,ScopeNode.CTRL).init();
-        pub=new ProjNode(end,1,ScopeNode.MEM0).init();
-        priv=new ProjNode(end,2,"#selfMem").init();
-        if( ctor!=null ) {
-            args[0]=self; args[1]=priv;
-            end=rawCall(ctl,pub,_code.link(ctor).ret(),args);
-            ctl=new CProjNode(end,0,ScopeNode.CTRL).init();
-            pub=new ProjNode(end,1,ScopeNode.MEM0).init();
-            priv=new ProjNode(end,2,"#selfMem").init();
+        Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,ConstantNode.seed(TypeRPC.BOT).peephole()).peephole();
+        Node pub = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,
+                                new ProjNode(_ref._start,1,ScopeNode.MEM0).peephole()).peephole();
+        Node[] parms = new Node[nargs];
+        for( int i=0; i<nargs; i++ )
+            parms[i] = new ParmNode("arg"+i,i+2,atypes[i],fun,ConstantNode.seed(atypes[i]).peephole()).peephole();
+
+        NewNode nnn = new NewNode(ts,fun,off(ts," len")).init();
+        Node self = new ProjNode(nnn,0,ts.str()).init();
+        Node priv = new ProjNode(nnn,1,"#selfMem").init();
+        Node[] initArgs = new Node[]{fun,pub,self,priv,
+            new FunPtrNode(initRet.fun().sig(),_code._start,initRet).peephole()};
+        CallEndNode cend = rawCall(initArgs,initRet.fun());
+        Node ctl = new CProjNode(cend,0,ScopeNode.CTRL).peephole();
+        pub = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
+        priv = new ProjNode(cend,2,"#selfMem").peephole();
+
+        if( ctor != null ) {
+            Node[] cargs = new Node[nargs+5];
+            cargs[0]=ctl; cargs[1]=pub; cargs[2]=self; cargs[3]=priv;
+            for( int i=0; i<nargs; i++ ) cargs[i+4]=parms[i];
+            FunNode cfun = _code.link(ctor);
+            cargs[cargs.length-1] = new FunPtrNode(ctor,_code._start,cfun.ret()).peephole();
+            cend = rawCall(cargs,cfun);
+            ctl = new CProjNode(cend,0,ScopeNode.CTRL).peephole();
+            pub = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
+            priv = new ProjNode(cend,2,"#selfMem").peephole();
         }
-        pub=publish(shape,ctl,pub,priv,self);
-        ReturnNode ret=new ReturnNode(ctl,pub,self,rpc,fun).init();
-        fun.setRet(ret); _code._stop.addDef(ret);
+
+        priv.keep();
+        for( Field field : ts._fields ) {
+            Type storage = field._t.makeStorage();
+            Field escaped = field._final ? field : field.makeFrom(storage).makeFrom(true);
+            pub.keep();
+            Node esc = new EscapeNode(escaped,self,priv,pub).peephole();
+            MemMergeNode merge = new MemMergeNode(null,pub);
+            merge.alias(field._alias,esc);
+            Node next = merge.peephole();
+            pub.unkeep();
+            pub = next;
+        }
+        priv.unkill();
+        ReturnNode ret = (ReturnNode)new ReturnNode(ctl,pub,self,rpc,fun).peephole();
+        fun.setRet(ret);
+        fun._approxUIDs = _code.UID() - oldUID;
+        _ref.addFun(_code,fun);
         return sig;
     }
+
+    private CallEndNode rawCall(Node[] args, FunNode target) {
+        // Establish this known declaration-side edge immediately, but do not
+        // peephole or inline it while the surrounding factory is being built.
+        // IterPeeps therefore starts with the complete initializer caller set.
+        CallNode call = new CallNode(loc(),args).init();
+        CallEndNode cend = new CallEndNode(call,TypeRPC.constant(_code.rpc(_ref._cname))).init();
+        call.link(target);
+        return cend;
+    }
+
+    // Parse a struct declaration (not an allocation); file-level is a class-init, and scope structs are normal
+    private ReturnNode parseStruct( boolean isClz, String typeName ) {
+        var oldExits = _ctorExits;
+        _ctorExits = new ArrayList<>();
+        // Record & restore global state set during parsing the <init> code
+        Node oldCtrl= _scope.ctrl().keep();
+        Node oldMem = _scope.mem ().keep();
+
+        // Make the future clazz/instance struct.
+        TypeStruct tself = (TypeStruct)TYPES.get(typeName);
+        if( tself==null )
+            TYPES.put(typeName, tself = TypeStruct.make(typeName,true));
+        else {
+            assert tself._open;
+            TYPES.put(typeName,tself = tself.defined());
+        }
+
+        // Class object keeps a runtime flag to signal the <clinit> has run.
+        if( isClz )
+            TYPES.put(typeName,tself=tself.add(Field.make("$init",TypeInteger.BOOL,_code.alias(_ref._cname),false)));
+
+        // Signature of the default constructor
+        TypeFunPtr sig = structInitSig(isClz,tself);
+        // Function and argument names of default constructor
+        String fname = (typeName + (isClz ? ".<clinit>" : ".<init>")).intern();
+        String[] ids = new String[]{"self", isClz ? "arg" : "#selfMem"};
+
+        // Struct decls look like function bodies.  Parse function body normally.
+        ReturnNode ret = _parseFunctionBody(fname,sig,loc(),ids);
+        _ctorExits = oldExits;
+        // Unwind global state.
+        ctrl(oldCtrl.unkeep());
+        mem (oldMem .unkeep());
+        return ret;
+    }
+
+        // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
+        // Self-memory is the rare *private* (never aliased) memory for the new object.
+    private TypeFunPtr structInitSig( boolean isClz, TypeStruct tself ) {
+        // Private uninitialized memory from new object, no escaped values.
+        TypeMem privMem = isClz ? null : TypeMem.make(1,tself,true,isClz,false,null,null);
+        Type targ = isClz ? TypeInteger.BOT : privMem;
+        // Return for private memory has to name all escaped fields, which are not known yet.
+        // Escape ALL fields, and sharpen later.
+        Type tret = isClz ? Type.BOTTOM     : TypeMem.makePrivate(tself);
+        Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
+        // FIDX for FREFs is in the global namespace, needs the correct clz name.
+        String clzBare = tself._name;
+        int order = 3; // 3 is always the <init> order, 2nd in the file just behind the <clinit>
+        if( isClz ) {
+            assert startsClzPrefix( clzBare );
+            clzBare = clzBare.substring(clzPrefix.length()).intern();
+            order = 2; // 2 is always the <clinit> order, first in file and skipping reserved #1
+        }
+        return TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx(clzBare,order));
+    }
+
+    private static String initFieldName( String typeName ) {
+        if( startsClzPrefix(typeName) )
+            typeName = typeName.substring(clzPrefix.length());
+        int idx = typeName.lastIndexOf('.');
+        return (idx == -1 ? typeName : typeName.substring(idx+1)).intern();
+    }
+
+    private TypeStruct latestStruct( TypeStruct ts ) {
+        Type t = TYPES.get(ts._name);
+        return t instanceof TypeStruct ts2 ? ts2 : ts;
+    }
+
+    private Field fieldOrOpen( TypeStruct ts, String name, boolean xfinal ) {
+        ts = latestStruct(ts);
+        Field fld = ts.field(name);
+        if( fld != null ) return fld;
+        if( !ts._open || !ts._fref ) return null;
+        fld = Field.make(name,Type.BOTTOM,_code.alias(_ref._cname),xfinal);
+        TYPES.put(ts._name,ts = ts.add(fld));
+        if( _ctorOpenStruct != null && _ctorOpenStruct._name == ts._name )
+            _ctorOpenStruct = ts;
+        return fld;
+    }
+
+    private Var defineOpenConstructorField( String name ) {
+        if( _ctorOpenStruct==null ) return null;
+        Field fld = fieldOrOpen(_ctorOpenStruct,name,true);
+        if( fld == null ) return null;
+        _scope.define(name,fld._t,fld._final,con(Type.TOP),loc());
+        return _scope.lookup(name);
+    }
+
 
     // Parse and return a type or null.  Valid types always are followed by an
     // 'id' which the caller must parse.  This lets us distinguish forward ref
@@ -1136,38 +1515,135 @@ public class Parser {
     // ref type position.
 
     // t = int|i8|i16|i32|i64|u8|u16|u32|u64|byte|bool | flt|f32|f64 | val | var | struct[?]
+
+    // Structs have nested names, and can be discovered with a partial name
+    // match.  Example, searching for a type name "C.D" in the namespace "A.B".
+    // This will match "A.B.C.D", then "A.C.D", then "C.D".
+
+    // Will also match external names like "sys.io" or "externModule.subtype.subtype"
+
     private Type type() {
-        int old1 = pos();
-        boolean writable = match("!");
-        boolean readonly = !writable && match("~");
         // Only type with a leading `{` is a function pointer...
         if( peek('{') ) return typeFunPtr();
 
         // Otherwise you get a type name
+        int old1 = pos();
+        boolean writable = match("!");
+        boolean readonly = !writable && match("~");
         String tname = _lexer.matchId();
         if( tname==null ) return posT(old1);
 
         // Convert the type name to a type.
-        Type t0 = TYPES.get(tname);
+        Type t0 = TYPES.get(tname), t1 = t0;
         // No new types as keywords
-        if( t0 == null && KEYWORDS.contains(tname) )
-            return posT(old1);
-        if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
+        if( KEYWORDS.contains(tname) ) {
+            if( t0 == null ) return posT(old1);
+            // Something like "int" or "f64" or "var".
+            // Can be "int[]" so still need to check array-ness
+        } else {
+            if( t0 == Type.BOTTOM || t0 == Type.TOP ) return t0; // var/val type inference
 
-        // Check for subtype.
-        while( true ) {
-            int old2 = pos();
-            if( !match(".") )  break;
-            String sname = _lexer.matchId();
-            if( sname==null ) { pos(old2); break; }
-            String tsname = tname+"."+sname;
-            t0 = TYPES.get(tsname);
-            if( t0==null ) { pos(old2); t0 = TYPES.get(tname); break; }
-            tname = tsname;
+            if( t0 != null ) {
+                while( true ) {
+                    int old2 = pos();
+                    if( !match(".") ) break;
+                    String sname = matchId();
+                    if( sname==null ) { pos(old2); break; }
+                    sname = tname+"."+sname;
+                    Type t = TYPES.get(sname);
+                    if( t==null ) { pos(old2); break; }
+                    tname = sname;
+                    t0 = t;
+                }
+            } else {
+                // Type A.B.C starts with just A.  Search our nested type path,
+                // e.g. path "X.Y.Z", in order:
+
+                // If A==X its now a local type.
+                //   If another dot, repeat for B==Y then C==Z
+                //   Else if AX.B exists, done
+                //   Else AX.B is a local forward ref.
+                //
+                // Else its a short cut form, one of:
+                //   X.Y.Z.A
+                //   X.Y.A
+                //   X.A
+                // Else this all failed, assume a forward ref with A as an external symbol:
+                //   A
+
+                String root = _nestedType;
+                int ridx = root.indexOf('.');
+                if( ridx != -1 ) root = root.substring(0,ridx);
+                if( tname.equals(root) ) {
+                    boolean localForward = false;
+                    while( true ) {
+                        int old2 = pos();
+                        if( !match(".") ) break;
+                        String sname = matchId();
+                        if( sname==null ) { pos(old2); break; }
+                        sname = tname+"."+sname;
+                        Type t = TYPES.get(sname);
+                        if( t==null && !(_nestedType.equals(tname) || _nestedType.startsWith(tname+".")) && !localForward ) {
+                            pos(old2);
+                            break;
+                        }
+                        tname = sname;
+                        t0 = t;
+                        localForward |= t==null;
+                    }
+                } else {
+                    String nest = _nestedType, fullq = tname;
+                    while( true ) {
+                        fullq = nest+"."+tname; // Full qualified name
+                        t0 = TYPES.get(fullq);
+                        if( t0 != null )
+                            { tname = fullq; break; } // Search succeeded
+                        // Subtract a layer from nested typenames
+                        int idx = nest.lastIndexOf('.');
+                        if( idx== -1 ) break; // Search failed; leave as an external symbol
+                        nest = nest.substring(0,idx);
+                    }
+                    if( t0==null ) {
+                        CompUnit cu = ParseAll.findCompUnit(_code,_ref,tname);
+                        if( cu != null ) {
+                            tname = cu._cname;
+                            t0 = TYPES.get(tname);
+                        }
+                        while( true ) {
+                            int old2 = pos();
+                            if( !match(".") ) break;
+                            String sname = matchId();
+                            if( sname==null ) { pos(old2); break; }
+                            tname = tname+"."+sname;
+                            t0 = TYPES.get(tname);
+                        }
+                    } else {
+                        while( true ) {
+                            int old2 = pos();
+                            if( !match(".") ) break;
+                            String sname = matchId();
+                            if( sname==null ) { pos(old2); break; }
+                            sname = tname+"."+sname;
+                            Type t = TYPES.get(sname);
+                            if( t==null ) { pos(old2); break; }
+                            tname = sname;
+                            t0 = t;
+                        }
+                    }
+                }
+            }
+
+            tname = tname.intern();
+            // Still no type found?  Assume forward reference
+            t1 = t0 == null
+                ? TypeStruct.forward(tname) // Null: assume a forward ref type
+                : t0;
         }
 
-        // Still no type found?  Assume forward reference
-        Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.open(tname)) :t0; // Null: assume a forward ref type
+        // Structs are always actually references
+        if( t1 instanceof TypeStruct ts1 )
+            t1 = TypeMemPtr.make(ts1);
+
         // A qualifier before the name applies to the struct reference, not
         // to an enclosing array. Arrays have their own [] / [~] qualifier.
         if( t1 instanceof TypeMemPtr tmp ) {
@@ -1179,14 +1655,15 @@ public class Parser {
         Type t2 = t1;
         while( true ) {
             if( match("?") ) {
-                if( !(t2 instanceof TypeMemPtr tmp) )
+                if( t2 instanceof TypeMemPtr tmp ) {
+                    if( tmp.nullable() ) throw error("Type "+t2+" already allows null");
+                    t2 = tmp.makeNullable();
+                } else
                     throw error("Type "+t0+" cannot be null");
-                if( tmp.nullable() ) throw error("Type "+t2+" already allows null");
-                t2 = tmp.makeNullable();
             } else if( match("[~]") ) {
-                t2 = typeAry(t2,true).makeRO();
+                t2 = TypeMemPtr.make(typeAry(t2,true)).makeRO();
             } else if( match("[]") ) {
-                t2 = typeAry(t2,false);
+                t2 = TypeMemPtr.make(typeAry(t2,false));
             } else
                 break;
         }
@@ -1198,27 +1675,67 @@ public class Parser {
         int old2 = pos();
         if( !match("!") ) match("~");
         String id = _lexer.matchId();
-        if( !(peek(',') || peek(';') || match("->")) || id==null )
+        if( !(peek(',') || peek(';') || peek('=') || match("->")) || id==null )
             return posT(old1);  // Reset lexer to reparse
         pos(old2);              // Reset lexer to reparse
         // Yes a forward ref, so declare it
-        TYPES.put(tname,((TypeMemPtr)t1).withAccess(false));
+        forwardRefType(tname,(TypeStruct)((TypeMemPtr)t1)._obj);
         // Return the (array, final) type
         return t2;
     }
 
-    // Make an array type of t
-    private TypeMemPtr typeAry( Type t, boolean efinal ) {
-        if( t instanceof TypeMemPtr tmp && tmp.notNull()  )
-            throw error("Arrays of reference types must always be nullable");
-        String tname = "[]"+t.str();
-        TypeMemPtr ta = (TypeMemPtr)TYPES.get(tname);
-        if( ta==null )
-            // Remember final version
-            TYPES.put(tname, ta = TypeMemPtr.make( TypeStruct.makeAry(tname,TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS(),true) ));
-        // Reuse aliases, but preserve this occurrence's element permissions.
-        TypeStruct ary = ta._obj;
-        return TypeMemPtr.make(TypeStruct.makeAry(tname,TypeInteger.U32,ary._fields[0]._alias,t,ary._fields[1]._alias,efinal));
+    private TypeMemPtr forwardRefType( String tname, TypeStruct tself ) {
+        TYPES.put(tname,tself);
+        String clzName = addClzPrefix( tname );
+        // Only a struct declaration publishes an instance initializer.  A
+        // forward type may name a file with just <clinit>, so do not invent
+        // a constructor field (or overwrite an already parsed class).
+        TYPES.putIfAbsent(clzName,TypeStruct.make(clzName,true));
+        return TypeMemPtr.make(tself);
+    }
+
+    private TypeMemPtr forwardRefType( String tname ) {
+        tname = fullTypeName(tname);
+        return forwardRefType(tname,TypeStruct.forward(tname));
+    }
+
+    private String fullTypeName( String tname ) {
+        String nest = _nestedType, fullq;
+        while( true ) {
+            fullq = nest+"."+tname;
+            if( TYPES.get(fullq) != null )
+                return fullq.intern();
+            int idx = nest.lastIndexOf('.');
+            if( idx== -1 ) return fullq.intern();
+            nest = nest.substring(0,idx);
+        }
+    }
+
+    // Make an array type of t.  Always record a mutable version,
+    // but return the requested version.
+    private TypeStruct typeAry( Type t, boolean efinal ) {
+        // Non-null reference arrays are valid types, even though an ordinary
+        // zero-filled `new T[len]` cannot construct one.  Allocation retains
+        // that check in alloc(); trusted runtimes (notably argv construction)
+        // may fill the private array completely before publishing it.
+        String tname = ("[]"+t.str()).intern();
+        TypeStruct ta = (TypeStruct)TYPES.get(tname);
+        if( ta==null ) {
+            // Primitive arrays use the null compunit
+            String rcname = TYPES.get(t) instanceof TypeStruct ? _ref._cname : ("_."+t).intern();
+            ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.alias(rcname),t,_code.alias(rcname), false );
+            TYPES.put(tname,ta);
+        }
+        // Already have the aliases, just efinal is wrong
+        return TypeStruct.makeAry(tname,TypeInteger.U32,ta._fields[0]._alias,t,ta._fields[1]._alias,efinal );
+    }
+
+    private Type implicitSelfType() {
+        TypeStruct self = _scope.constructorSelf();
+        // Ordinary instance methods accept the declared object shape.  The
+        // constructor-only receiver starts at the low/default field values,
+        // and is built explicitly by constructorFunc().
+        return self == null ? TypePtr.PTR : TypeMemPtr.make(self);
     }
 
     // A function type is `{ type... -> type }` or `{ type }`.
@@ -1227,16 +1744,19 @@ public class Parser {
         match("{");             // Skip already-peeked '{'
         Type t0 = type();       // Either return or first arg
         if( t0==null ) return posT(old); // Not a function
-        if( match("}") )                 // No-arg function { -> type }
-            return TypeFunPtr.make(match("?"),false,TypeFunPtr.TEMPTY,t0);
         Ary<Type> ts = new Ary<>(Type.class);
+        // Always reserve a receiver slot.  Outside constructor scopes it is
+        // broad and unused, so call sites can uniformly pass their self.
+        ts.push(implicitSelfType());
+        if( match("}") )                 // No-arg function { -> type }
+            return TypeFunPtr.make(match("?"),ts.asAry(),t0);
         ts.push(t0);            // First argument
         while( true ) {
             if( match("->") ) { // End of arguments, parse return
                 Type ret = type();
                 if( ret==null || !match("}") )
                     return posT(old); // Not a function
-                return TypeFunPtr.make(match("?"),false,ts.asAry(),ret);
+                return TypeFunPtr.make(match("?"),ts.asAry(),ret);
             }
             Type t1 = type();
             if( t1==null ) return posT(old); // Not a function
@@ -1298,7 +1818,6 @@ public class Parser {
         }
         return lhs;
     }
-
 
 
     /**
@@ -1480,7 +1999,7 @@ public class Parser {
             String name = _lexer.matchId();
             Var var = name==null ? null : _scope.lookup(name);
             if( var!=null && !(var.type() instanceof TypeMemPtr) ) {
-                if( var._final && !_scope.canInit(var) )
+                if( var._extern==0 && var._final && !_scope.canInit(var) )
                     throw error("Cannot reassign final '"+var._name+"'");
                 // Resolve fields just as a read or postfix update does. Updating
                 // their declaration's local slot would silently lose the Store.
@@ -1502,7 +2021,7 @@ public class Parser {
      * <pre>
      *     primaryExpr : integerLiteral | "string" | 'char' | true | false | null |
      *                   new Type | '(' expression ')' | Id['++','--'] |
-     *                   [static.]* Id
+     *                   type['.' Id]*
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */
@@ -1511,144 +2030,118 @@ public class Parser {
     // pre is +/-1 for a prefix update of a known name, zero otherwise.
     private Node parsePrimary(int pre) {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
-        if( _lexer.peek('"') ) return newString(parseString());
+        if( _lexer.peek('"') ) return parsePostfix(newString(parseString()));
         if( matchx("true" ) ) return con(1);
-        if( matchx("false") ) return ZERO;
-        if( matchx("null" ) ) return NIL;
+        if( matchx("false") ) return _code.ZERO;
+        if( matchx("null" ) ) return con(Type.NIL);
         if( match ("'"    ) ) return parseChar();
         if( match ("("    ) ) return parsePostfix(require(parseAsgn(), ")"));
         if( matchx("new"  ) ) return parsePostfix(alloc());
         if( match ("{"    ) ) return parsePostfix(require(func(),"}"));
 
-        // Parse static variable lookup: `type.fld` in the type namespace
-        // CNC: not a full type parse, just a typename parse
         int pos = pos();
-        Type t = type();
-        if( t!=null ) {
-            if( peek('.') )
-                // A namespace lookup is not a reference declaration.
-                return parsePostfix(con(TYPES.get(((TypeMemPtr)t)._obj._name)));
-            //pos(pos); // TODO: not a `type.fld`
-            //return null;
-            throw Utils.TODO();
-        }
-
         // Expect an identifier now
-
-        // - if null, make fref, normal var handling
-        // - if final constant, normal var handling
-        // - if method var, scan skipping blocks & methods, must hit correct struct no fcns
-        // - if normal var, scan skipping blocks, allowing last fcn
-        // - NO fcns nested in methods, NO methods nested in fcns
-
         String id = _lexer.matchId();
         if( id == null || KEYWORDS.contains(id) )
             throw errorSyntax("an identifier or expression");
+        int pos2 = pos();
+        // Attempt a local var lookup first
         Var var = _scope.lookup(id);
-
         if( var==null ) {
-            // If missing, assume a forward reference
-            _scope.define(id, FRefNode.FREF_TYPE, true, XCTRL, loc());
-            var = _scope.lookup(id);
-        }
+            // Not a local var, try again as a type name
+            pos(pos);
+            Type t = type();
+            if( t!=null ) {
+                // Static <clinit> typename lookup
+                if( peek('.') ) // type.fld, which is really a field lookup in the class object
+                    return parsePostfix(con(t));
+                // Direct reference to a <clinit> type.  Convert the instance
+                // type to a class type name
+                if( !(t instanceof TypeMemPtr tmp) ) {
+                    //return new FRefNode(addClzPrefix(tmp._obj._name), loc()).peephole();
+                    // Not a local var, but yes a bare type... disallow a local
+                    // FREF and return null, not-a-primary parse.
+                    pos(pos);
+                    return null;
+                }
+            }
 
-        // If a method var, allow nested blocks and methods, but not fcns or other structs.
-        // Else safety check for accessing fields out of function scope.
-        if( instance(var) ) {
-            Var selfVar = _scope.lookup("self");
-            Node self = liftExpr(_scope.in(selfVar),selfVar.type(),true);
-            return parsePostfixName(self,id,pre);
+            // Insert FREF outside enclosing Kind.Func scope.
+            pos(pos2);
+            t = FRefNode.FREF_TYPE;
+            // Check if this is a class.
+            CompUnit cu = ParseAll.findCompUnit(_code,_ref,id);
+            if( cu!=null ) {
+                // Must be a final class-type
+                String clzName = addClzPrefix(cu._cname);
+                TypeStruct clz = (TypeStruct)TYPES.get(clzName);
+                if( clz == null )
+                    TYPES.put(clzName,clz = TypeStruct.make(clzName,true));
+                t = TypeMemPtr.make((byte)2,clz,true);
+            }
+            // Define the FRef
+            var = _scope.defineFRef(id,t,true,loc());
+            _frefs.push((FRefNode)_scope.in(var));
         }
 
         // Load local value
-        Node oldValue = _scope.in(var);
-        if( oldValue instanceof ConstantNode && !(oldValue instanceof FRefNode) && oldValue._type==Type.BOTTOM )
-            throw error("Cannot read uninitialized field '"+id+"'");
-        Node rvalue = liftExpr(oldValue,var.type(),true);
-        if( rvalue!=oldValue ) _scope.update(var,rvalue);
-        if( rvalue instanceof ConstantNode && rvalue._type == Type.BOTTOM )
-            if( rvalue instanceof FRefNode )
-                return parsePostfix(rvalue);
-            else throw error("Cannot read uninitialized field '"+id+"'");
+        Node rvalue = _scope.in(var);
+        if( var._extern!=0 )
+            return parsePostfixName(rvalue,id,pre);
+        if( var._fref )
+            return parsePostfix(rvalue);
+        // A constructor may read the unfinished object, but each field it
+        // reads must already be initialized on every path. Read the current
+        // local value; other fields may still be waiting for their first write.
+        if( inExplicitConstructor() && var._uninit && missingInit(rvalue,new BitSet()) )
+            throw error("Field '"+id+"' might not be initialized",var._loc);
+
+        // Check for an instance field load
+        int kx = _scope.kindx(var); // Declaration scope
+        int fx = _scope.enclosingFunction(); // Enclosing function scope
+        Kind kk = _scope._kinds.at(kx);
+        Kind fk = _scope._kinds.at(fx);
+        // Access instance field from 'self'
+        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method && !inExplicitConstructor() )
+            return parsePostfixName(_scope.in(method._lexSize),id,pre);
+
+        // Check for a function-escaping variable; these require true
+        // closures.  Final constants are OK; final vars require a hidden var
+        // argument; not-final fields can just use an explicit struct arg.
+        if( kx < fx && !inExplicitConstructor() && // Out of scope
+            !(var._final && rvalue._type.isConstant()) ) { // Not a final constant
+            if( kx > 0  ) // Global scope is OK, only ever one of these (not one per function invoke)
+                throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
+
+            // var.idx==2 is self argument, 3 is args, 4 or more are now static globals
+            if( var._idx >= 4 ) {
+                // Read from global scope.
+                // Surely a nicer way to get the top-level scope compile name?
+                Var clzptr = _scope.var( 2 );
+                // Get the most recent sharpen global
+                TypeStruct clz = (TypeStruct) TYPES.get( ((TypeMemPtr) clzptr.type())._obj._name );
+                TypeMemPtr clztmp = TypeMemPtr.make( (byte) 2, clz, true );
+                return parsePostfixName( con( clztmp ), id,pre );
+                //return parsePostfixName(_scope.in(2),id);
+            }
+        }
 
         // Check for assign-update, x += e0;
         char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
-        if( ch==0  )            // Normal primary, check for postfix updates
-            return parsePostfix(rvalue);
+        if( ch==0  ) {          // Normal primary, check for postfix updates
+            int selfx = _scope.kindFcn(var)._lexSize;
+            // Might be a method call from inside a method, so no explicit "self".
+            // Pass the in-scope "self"
+            return parsePostfixMethod(rvalue,_scope.in(_scope.update(_scope.var(selfx),null)));
+        }
         // Assign-update direct into Scope
         if( var._final && !_scope.canInit(var) )
             throw error("Cannot reassign final '"+var._name+"'");
-        checkSharedField(var);
-        checkCaptureWrite(var);
+        checkSharedFunction(var);
         Node op = opAssign(ch,rvalue, var.type() );
         _scope.update(var,op);
         if( postfix(ch) ) rvalue.unkeep();
         return pre==0 && postfix(ch) ? rvalue : op;
-    }
-
-    // true if instance variable lookup (var is in any number of nested blocks,
-    // then an instance function then inside a struct declaration).
-    private boolean instance(Var var ) {
-        // If a method var, allow nested blocks and methods, but not fcns or other structs
-        Kind kind = _scope.kind(var);
-        if( kind instanceof Kind.Define ) {
-            if( var.isFRef() ) return false; // Promote an unresolved lexical name, not self.name.
-            if( _privateFun==_fun && _privateFun!=null ) return true;
-            for( int i = _scope.depth()-1; i>=0 && var._idx < _scope._kinds.at(i)._lexSize; i-- ) {
-                Kind xkind = _scope._kinds.at(i);
-                if( xkind instanceof Kind.Block ) continue;
-                if( xkind instanceof Kind.Func ) {
-                    if( _scope._kinds.at(i-1)==kind )
-                        return true; // Instance variable: lookup in a method in a decl
-                }
-                throw Utils.TODO();
-            }
-        } else {
-            // If a normal var, allow any nested blocks, and a last fcn -
-            // but not functions further out (which involves capture).
-            Node def = _scope.in(var._idx);
-            if( _captures!=null && _scope.kind(var) instanceof Kind.Func &&
-                !(var._final && def._type.isConstant()) && !(def instanceof FRefNode) ) {
-                if( !(def instanceof ParmNode parm && parm.fun()==_fun) ) {
-                    _captures.add(def.keep());
-                    Type type=def._type;
-                    int index=_fun.sig().nargs();
-                    _fun.addParseArg(type);
-                    _scope.update(var,new ParmNode(var._name,index+2,type,_fun,con(type)).init());
-                }
-                return false;
-            }
-            for( int i = _scope.depth()-1; i>=0 && var._idx < _scope._kinds.at(i)._lexSize; i-- )
-                if( _scope._kinds.at(i) instanceof Kind.Func &&
-                    !(def instanceof FRefNode) && !(var._final && def._type.isConstant()) )
-                    throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
-        }
-        return false;
-    }
-
-    private void checkCaptureWrite(Var var) {
-        if( _captures==null ) return;
-        for( int i=_scope.depth()-1; i>=0 && var._idx<_scope._kinds.at(i)._lexSize; i-- )
-            if( _scope._kinds.at(i) instanceof Kind.Func )
-                throw error("Cannot assign captured variable '"+var._name+"' in an initializer");
-    }
-
-    // Inline constructors have local field slots too, but shared function
-    // declarations have no instance slot to publish. Do not silently discard
-    // an assignment to one of those declarations.
-    private void checkSharedField(Var var) {
-        if( !_scope.canInit(var) ) return;
-        if( _scope.kind(var) instanceof Kind.Define ) {
-            checkPrivateWrite(var._name);
-            return;
-        }
-        for( int i=_scope.depth()-1; i>0; i-- )
-            if( _scope._kinds.at(i) instanceof Kind.Alloc alloc ) {
-                Field field=alloc._tmp._obj.field(var._name);
-                if( field!=null && field._one )
-                    throw error("Cannot reassign shared function '"+var._name+"'");
-                return;
-            }
     }
 
     // Check for assign-update, "x += e0".
@@ -1673,17 +2166,17 @@ public class Parser {
         case '-'        -> new SubNode(lhs,rhs);
         case '*'        -> new MulNode(lhs,rhs);
         case '/'        -> new DivNode(lhs,rhs);
-        case '&'        -> new AndNode(loc(),lhs,rhs);
-        case '|'        -> new  OrNode(loc(),lhs,rhs);
+        case '|'        -> new  OrNode(null,lhs,rhs);
+        case '&'        -> new AndNode(null,lhs,rhs);
         case '^'        -> new XorNode(loc(),lhs,rhs);
         case Lexer.SHL  -> new ShlNode(loc(),lhs,rhs);
         case Lexer.SAR  -> new SarNode(loc(),lhs,rhs);
         case Lexer.SHR  -> new ShrNode(loc(),lhs,rhs);
-        default         -> throw Utils.TODO();
+        default         -> throw TODO();
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return liftExpr(peep(op),t,true);
+        return convertExpr(peep(op),t);
     }
 
 
@@ -1692,159 +2185,117 @@ public class Parser {
      */
     private Node alloc() {
         Type t = type();
-        if( t==null ) throw error("Expected a type");
+        if( t==null ) {
+            String tname = _lexer.matchId();
+            if( tname==null || KEYWORDS.contains(tname) )
+                throw error("Expected a type");
+            t = forwardRefType(tname);
+        }
         // Parse ary[ length_expr ]
         if( match("[") ) {
             if( !t.makeZero().isa(t) )
-                throw error("Cannot allocate a non-nullable, since arrays always zero/null fill");
-            Node len = parseAsgn();
-            if( !(len._type instanceof TypeInteger) )
-                throw error("Cannot allocate an array with length "+len._type);
+                throw error("Cannot allocate a non-nullable, since arrays are always zero/null filled");
+            Node len = parseAsgn().keep();
             require("]");
-            TypeMemPtr tmp = typeAry(t,false);
-            return newArray(tmp._obj,len);
+            return allocArray(typeAry(t,false),len);
+        } else {
+            if( !(t instanceof TypeMemPtr tmp) )
+                throw error("Cannot allocate a "+t.str());
+            return allocStruct(tmp._obj);
         }
-
-        if( !(t instanceof TypeMemPtr tmp) )
-            throw error("Cannot allocate a "+t.str());
-
-        TypeStruct shape=tmp._obj;
-        TypeFunPtr sig=ALLOCS.get(shape._name);
-        if( sig==null ) throw error("Unknown struct type '"+shape._name+"'");
-        if( !peek('{') ) {
-            // Obvious missing defaults can still be diagnosed here. A user
-            // constructor or a merge needs the later publication check.
-            if( shape.field(shortName(shape._name))==null ) {
-                StructNode defaults=INITS.get(shape._name);
-                Type initial=INITIALIZERS.get(shape._name).expr()._type;
-                for( int i=0; i<shape._fields.length; i++ ) {
-                    Field f=shape._fields[i];
-                    Field written=initial instanceof TypeMem m && m._t instanceof TypeStruct ts ? ts.field(f._fname) : null;
-                    if( missingInit(defaults.in(i),new java.util.BitSet()) && (written==null || written._t==Type.BOTTOM) )
-                        throw error("'"+shape._name+"' is not fully initialized, field '"+f._fname+"' needs to be set in a constructor");
-                }
-            }
-            Node fptr=new FunPtrNode(sig,_code.link(sig).ret()).peephole();
-            Ary<Node> args=new Ary<>(Node.class);
-            if( match("(") ) {
-                while( !peek(')') ) {
-                    Node arg=parseAsgn();
-                    checkPublication(arg);
-                    args.add(arg.keep());
-                    if( !match(",") ) break;
-                }
-                require(")");
-            }
-            for( Node capture : CAPTURES.get(shape._name) ) {
-                checkPublication(capture);
-                args.add(capture.keep());
-            }
-            if( args.size()!=sig.nargs() ) throw error("Wrong number of constructor arguments for '"+shape._name+"'");
-            for( Node arg : args ) arg.unkeep();
-            return callWithArgs(fptr,args.asAry());
-        }
-        require("{");
-        Node alloc=new NewNode(TypeMemPtr.make(shape),ctrl(),null,off(shape," len")).init();
-        Node ptr=new ProjNode(alloc,0,shape._name).init().keep();
-        Node priv=new ProjNode(alloc,1,"#selfMem").init();
-        Ary<Node> captures=CAPTURES.get(shape._name);
-        Node[] args=new Node[captures.size()+2];
-        args[0]=ptr; args[1]=priv;
-        for( int i=0; i<captures.size(); i++ ) {
-            checkPublication(captures.at(i));
-            args[i+2]=captures.at(i);
-        }
-        CallEndNode end=rawCall(ctrl(),mem(),INITIALIZERS.get(shape._name),args).keep();
-        ctrl(new CProjNode(end,0,ScopeNode.CTRL).peephole());
-        mem(new ProjNode(end,1,ScopeNode.MEM0).peephole());
-        priv=new ProjNode(end,2,"#selfMem").peephole().keep();
-        end.unkeep();
-        int first=_scope.nIns();
-        _scope.push(new Kind.Block());
-        StructNode constants=INITS.get(shape._name);
-        for( int i=0; i<shape._fields.length; i++ ) {
-            Field f=shape._fields[i];
-            Type initial=INITIALIZERS.get(shape._name).expr()._type;
-            Field written=initial instanceof TypeMem m && m._t instanceof TypeStruct ts ? ts.field(f._fname) : null;
-            boolean missing=missingInit(constants.in(i),new java.util.BitSet()) &&
-                (written==null || written._t==Type.BOTTOM);
-            Node value=f._one ? constants.in(i)
-                : missing ? con(Type.BOTTOM)
-                : new LoadNode(loc(),f._fname,f._alias,priv,ptr,off(shape,f._fname),true).peephole();
-            _scope.define(f._fname,f._t,f._final,value,loc());
-        }
-        require(parseBlock(new Kind.Alloc(tmp)),"}");
-        for( int i=0; i<shape._fields.length; i++ ) {
-            Field f=shape._fields[i];
-            if( f._one ) continue;
-            Node value=_scope.in(first+i);
-            checkPublication(value);
-            if( ctrl()._type!=Type.XCONTROL && missingInit(value,new java.util.BitSet()) )
-                throw error("'"+shape._name+"' is not fully initialized, field '"+f._fname+"' needs to be set in a constructor");
-            Node next=fieldStore(f,ctrl(),priv,ptr,off(shape,f._fname),value);
-            priv.unkeep(); priv=next.keep();
-        }
-        _scope.pop();
-        mem(publish(shape,ctrl(),mem(),priv.unkeep(),ptr));
-        return ptr.unkeep();
     }
 
-    // The old constructor model requires each field on every path. An
-    // unresolved expression also has BOTTOM now, so inspect the actual
-    // sentinel and merges instead of mistaking an unknown type for no write.
-    private boolean missingInit(Node n, java.util.BitSet visit) {
-        if( n==null || visit.get(n._nid) || n instanceof FRefNode ) return false;
-        visit.set(n._nid);
-        if( n instanceof ConstantNode ) return n._type==Type.BOTTOM || n._type==Type.TOP;
-        if( n instanceof ConvertNode || n instanceof ReadOnlyNode ) return missingInit(n.in(1),visit);
-        if( n instanceof PhiNode phi )
-            for( int i=1; i<n.nIns(); i++ )
-                if( phi.region().in(i)!=null && phi.region().in(i)._type!=Type.XCONTROL && missingInit(n.in(i),visit) ) return true;
-        return false;
+    private Node allocStruct(TypeStruct ts) {
+        Ary<Node> ctorArgs = constructorArgs();
+        // A field declaration can leave a short forward type name in TYPES.
+        // Allocation happens in lexical context, so resolve that short name
+        // to the completed nested type before selecting its class helper.
+        String typeName = ts._name.indexOf('.') == -1 ? fullTypeName(ts._name) : ts._name;
+        Type resolved = TYPES.get(typeName);
+        if( resolved instanceof TypeStruct rts ) ts = rts;
+        TypeStruct clz = (TypeStruct)TYPES.get(addClzPrefix(typeName));
+        if( clz==null )
+            throw error("Unknown struct type '" + ts._name + "'");
+        Field afld = clz.field("<new>");
+        Node alloc;
+        if( afld != null ) {
+            TypeFunPtr tfp = (TypeFunPtr)afld._t;
+            FunNode fun = _code.link(tfp);
+            alloc = fun==null
+                ? new FRefNode((addClzPrefix(typeName)+".<new>").intern(),loc())
+                : new FunPtrNode(tfp,_code._start,fun.ret()).peephole();
+        } else {
+            if( !ts._fref )
+                throw error("Constructor arguments for '" + ts._name + "' but no constructor is defined");
+            Type[] sig = new Type[ctorArgs._len];
+            for( int i=0; i<ctorArgs._len; i++ )
+                sig[i] = ctorArgs.at(i)._type;
+            alloc = new FRefNode((addClzPrefix(typeName)+".<new>").intern(),loc(),
+                                 TypeFunPtr.make(false,sig,TypeMemPtr.make(ts)));
+        }
+        Ary<Node> args = new Ary<>(Node.class);
+        args.add(ctrl()); args.add(mem());
+        for( Node arg : ctorArgs ) args.add(arg.unkeep());
+        args.add(alloc);
+        return functionCall(args);
     }
 
-
-    private Node newArray(TypeStruct ary, Node len) {
-        ConFldOffNode base=off(ary,"[]");
-        Node size=peep(new AddNode(base,peep(new ShlNode(null,len.keep(),con(ary.aryScale())))));
-        Node alloc=new NewNode(TypeMemPtr.make(ary),ctrl(),null,size).init();
-        Node ptr=new ProjNode(alloc,0,ary._name).init().keep();
-        Node priv=new ProjNode(alloc,1,"#selfMem").init();
-        // calloc supplied the zero elements; initialize the length before
-        // either alias becomes visible to the public heap.
-        Field length=ary.field("#");
-        priv=fieldStore(length,ctrl(),priv,ptr,off(ary,"#"),len.unkeep());
-        mem(publish(ary,ctrl(),mem(),priv,ptr));
-        return ptr.unkeep();
+    private Ary<Node> constructorArgs() {
+        Ary<Node> args = new Ary<>(Node.class);
+        if( !match("(") )
+            return args;
+        while( !peek(')') ) {
+            Node arg = parseAsgn();
+            if( arg==null ) break;
+            args.push(arg.keep());
+            if( !match(",") ) break;
+        }
+        require(")");
+        return args;
     }
+
+    private Node allocArray(TypeStruct ts, Node len) {
+        Field  lenFld = ts.field("#" );
+        Field bodyFld = ts.field("[]");
+
+        ConFldOffNode base = off(ts, "[]");
+        int scale = ts.aryScale();
+        Node size = peep(new AddNode(base,peep(new ShlNode(null,len,con(scale)))));
+
+        // Build a NewNode; takes in and puts out all aliases.
+        NewNode nnn = new NewNode(ts, ctrl(), size ).init();
+        ProjNode self = new ProjNode(nnn,0,ts.str()).init().keep();
+        ProjNode smem = new ProjNode(nnn,1,"#selfMem").init().keep();
+
+        // Store length.  Rest of array is zero'd via CALLOC during CodeGen.
+        // Length is casted to sanity.
+        // TODO: Needs runtime check.
+        Node st = peep(new StoreNode(null, "#", 1, TypeInteger.U32, null, smem, self, off(ts,"#"), len.unkeep(), true));
+
+        // TODO: Allow add-on "constructor" to init the array elements
+
+        Node prior = mem();
+        Node esc = peep(new EscapeNode(lenFld,self,st,prior));
+        mem(mergeAlias(prior,lenFld._alias,esc));
+        prior = mem();
+        esc = peep(new EscapeNode(bodyFld,self,smem,prior));
+        mem(mergeAlias(prior,bodyFld._alias,esc));
+        smem.unkeep();
+        return self.unkeep();
+    }
+
     private Node newString(String s) {
-        TypeMemPtr tmp = typeAry(TypeInteger.U8,true);
-        int  lenAlias = tmp._obj.field("#" )._alias;
-        int elemAlias = tmp._obj.field("[]")._alias;
-        TypeConAryB con = TypeConAryB.make(s);
-        Type elem = con.elem();
+        TypeStruct ts = typeAry(TypeInteger.U8,true);
+        int  lenAlias = ts.field("#" )._alias;
+        int elemAlias = ts.field("[]")._alias;
+        TypeConAryB body = TypeConAryB.make(s);
+        TypeInteger slen = TypeInteger.constant(s.length());
         // Make a TMP, not-null (byte)2, singleton (true) (requires text
         // strings are hash-interned), with a TypeStruct having a constant
         // array body.
-        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8", TypeInteger.constant(s.length()), lenAlias, con, elemAlias, true),true);
+        TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8", slen, lenAlias, body, elemAlias, true),true);
         assert str.isConstant();
         return con(str.makeRO());
-    }
-
-    // Memory is one hidden SSA variable, including across branches and loops.
-    private Node mem() { return _scope.mem(); }
-    private void mem(Node n) { _scope.mem(n); }
-
-    private void store(String name, int alias, Type glb, Node ptr, Node off, Node val, boolean init, Node ctrl) {
-        if( !init && ptr._type instanceof TypeMemPtr view && view._ro && ctrl()._type!=Type.XCONTROL )
-            throw error("Cannot modify final field '"+name+"'");
-        checkPublication(val);
-        Node prior = mem().keep();
-        Node st = new StoreNode(loc(),name,alias,glb,prior,ptr,off,val,init);
-        st.setDef(0,ctrl);
-        st = st.peephole();
-        mem(new MemMergeNode(prior,alias,st).peephole());
-        prior.unkill();
     }
 
     /**
@@ -1859,15 +2310,87 @@ public class Parser {
      *     expr '(' [args,]* ')'              // Function call
      * </pre>
      */
+    private Node parsePostfixMethod(Node expr, Node self) {
+        // TODO: This is too broad because the parser lacks strong types here.
+        // Some normal functions can end up with a "self" argument.
+
+        // Self method call?  Self is a TMP-not-CLZ, then assume and pass self.
+        if( match("(") ) {
+            expr = parsePostfix(require(functionCall(expr,self),")"));
+        } else if( expr != self )
+            self.isKill();      // Not a method call, no need for self
+        return parsePostfix(expr);
+    }
     private Node parsePostfix(Node expr) {
+        _lexer.skipWhiteSpace();
+        Lexer site = loc();
         String name;
         if( match(".") )      name = requireId();
         else if( match("#") ) name = "#";
         else if( match("[") ) name = "[]";
-        else if( match("(") ) return parsePostfix(require(functionCall(expr,null),")"));
+        // Can get here without an explicit receiver: "f()" or
+        // "self.method()(next)(next)(next)".  Pass the current function self.
+        else if( match("(") ) return parsePostfix(require(functionCall(expr,defaultSelf()),")"));
         else return expr;       // No postfix
 
-        return parsePostfixName(expr,name);
+        return parsePostfixName(expr,name,0,site);
+    }
+
+    private boolean privateSelf(Node ptr) {
+        while( ptr instanceof ConvertNode || ptr instanceof ReadOnlyNode || ptr instanceof GuardNode ) ptr=ptr.in(1);
+        Node self=defaultSelf();
+        while( self instanceof ConvertNode || self instanceof ReadOnlyNode || self instanceof GuardNode ) self=self.in(1);
+        return ptr==self;
+    }
+
+    // An explicit self.x read sees the same current value as bare x. Loading
+    // the allocation here would miss updates still held in local SSA values.
+    private Node privateField(String name, int pre) {
+        int idx=fieldVarIdxBefore(_scope._kinds.at(_scope.enclosingFuncOrDecl())._lexSize,name);
+        if( idx<0 ) throw error("Cannot resolve field '"+name+"'");
+        Var v=_scope.var(idx);
+        if( pre==0 && matchOpx('=','=') ) {
+            checkSharedFunction(v);
+            Node value=parseAsgn().keep();
+            _scope.update(v,convertExpr(value,v.type()));
+            return value.unkeep();
+        }
+        Node value=_scope.in(_scope.update(v,null));
+        if( v._uninit && missingInit(value,new BitSet()) )
+            throw error("Field '"+name+"' might not be initialized",v._loc);
+        char ch=pre==0 ? _lexer.matchOperAssign() : (char)pre;
+        if( ch!=0 ) {
+            checkSharedFunction(v);
+            Node op=opAssign(ch,value,v.type());
+            _scope.update(v,op);
+            if( pre!=0 && postfix(ch) ) value.unkeep();
+            return pre==0 && postfix(ch) ? value.unkeep() : op;
+        }
+        return parsePostfixMethod(value,defaultSelf());
+    }
+
+    private void checkSharedFunction(Var v) {
+        if( _scope.canInit(v) && v._final && v.type() instanceof TypeFunPtr t && t.isConstant() )
+            throw error("Cannot reassign shared function '"+v._name+"'");
+    }
+
+    // A loop Phi is temporarily bottom before its backedge is parsed. That is
+    // not an unwritten field: follow its live inputs to the actual defaults.
+    private boolean missingInit(Node value, BitSet seen) {
+        if( value==null || seen.get(value._nid) ) return false;
+        seen.set(value._nid);
+        if( value instanceof PhiNode phi && !(value instanceof ParmNode) ) {
+            for( int i=1; i<phi.nIns(); i++ )
+                if( phi.region().in(i)!=null && phi.region().in(i)._type!=Type.XCONTROL && missingInit(phi.in(i),seen) )
+                    return true;
+            return false;
+        }
+        return !initialized(value._type);
+    }
+
+    private Node defaultSelf() {
+        int selfx = _scope._kinds.at(_scope.enclosingFuncOrDecl())._lexSize;
+        return _scope.in(_scope.update(_scope.var(selfx),null));
     }
 
     /**
@@ -1880,189 +2403,127 @@ public class Parser {
      *     expr ('[' expr ']')* [ [op]= expr ] // Array reference
      * </pre>
      */
-    private Node parsePostfixName(Node expr, String name) { return parsePostfixName(expr,name,0); }
 
+    // pre is +/-1 for a prefix update, otherwise parse a postfix operation.
     private Node parsePostfixName(Node expr, String name, int pre) {
-        if( privateSelf(expr) ) return parsePrivateField(name,pre);
-        if( !privateSelf(expr) && mayBeSelf(expr,new java.util.BitSet()) )
-            throw error("Cannot access self through a merged alias during construction");
+        return parsePostfixName(expr,name,pre,loc());
+    }
 
-        if( expr._type==Type.NIL )
-            throw error("Accessing unknown field '" + name + "' from 'null'");
-
-        // Sanity check expr for being a reference
-        if( !(expr._type instanceof TypeMemPtr ptr) )
-            return parseUnknownField(expr,name,pre);
-
-        // Find the field from the Type.  Lookup in the base object field names.
-        TypeMemPtr ptr2 = (TypeMemPtr)TYPES.get(ptr._obj._name);
-        if( !ptr._obj.isAry() )
-            ptr = ptr.makeFrom(ptr2._obj); // The declaration fixes the field shape; retain this view's access.
-        TypeStruct base = ptr._obj;
-        int fidx = base.find(name);
-        if( fidx==-1 && base._open ) return parseUnknownField(expr,name,pre);
-        if( fidx == -1 )
-            throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
-
-        // Get field type and layout offset from base type and field index fidx
-        Field f = base._fields[fidx];  // Field from field index
-        Type tf = f._t;
-        if( tf instanceof TypeFunPtr ctor && ctor.ret() instanceof TypeMem )
-            throw error("A constructor is only called by new");
-        if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
-            tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
-        if( base.isAry() && tf instanceof TypeConAry con )
-            tf = con.elem();
-
+    private Node parsePostfixName(Node expr, String name, int pre, Lexer site) {
+        if( inExplicitConstructor() && privateSelf(expr) ) return privateField(name,pre);
+        // Keep expr across possible updates
         expr.keep();
+
+        // Get the best known TypeStruct from a pointer type.
+        TypeStruct ts = null, ts2;
+        if( expr._type instanceof TypeMemPtr tmp && (ts2=((TypeStruct)TYPES.get(tmp._obj._name))) != null )
+            ts = (TypeStruct)tmp._obj.join(ts2);
+        // A Load's flow type is intentionally not promised during parsing,
+        // but its declaring field type is still known.  Recover that static
+        // type for chained accesses such as `_grow(1).buf[len++]`; otherwise
+        // the array Store is parsed as alias #1 and can hide the independent
+        // side effect of the postfix `len++`.
+        if( ts==null && expr instanceof LoadNode load ) {
+            TypeStruct ots = load.off() instanceof ConFldOffNode coff ? coff._ts : null;
+            if( ots==null && load.ptr()._type instanceof TypeMemPtr owner ) {
+                Type owner0 = TYPES.get(owner._obj._name);
+                ots = owner0 instanceof TypeStruct obj ? obj : owner._obj;
+            }
+            if( ots != null ) {
+                Field loaded = ots.field(load._name);
+                if( loaded != null && loaded._t instanceof TypeMemPtr ltmp ) {
+                    Type loaded0 = TYPES.get(ltmp._obj._name);
+                    ts = loaded0 instanceof TypeStruct obj ? obj : ltmp._obj;
+                }
+            }
+        }
+
+        Field fld = ts==null ? null : ts.field(name);
+        if( fld==null && ts!=null && !startsClzPrefix(ts._name) ) {
+            Type clz0 = TYPES.get(addClzPrefix(ts._name));
+            if( clz0 instanceof TypeStruct clz && (fld = latestStruct(clz).field(name)) != null ) {
+                expr.unkeep();
+                ts = latestStruct(clz);
+                expr = con(TypeMemPtr.make((byte)2,ts,true)).keep();
+            }
+        }
+        if( fld==null && ts!=null )
+            fld = fieldOrOpen(ts,name,false);
+        if( fld==null && ts!=null && !latestStruct(ts)._open )
+            throw error("Accessing unknown field '"+name+"' from '*"+ts._name+"'");
+
+        // We have to record "active touches" of a new class, to track when we
+        // need to force class initialization.  Basically, we insert an CLInit,
+        // and if it does not fold away it'll turn into a runtime check.
+        Kind.Func func = (Kind.Func)_scope._kinds.at(_scope.enclosingFuncOrDecl());
+        if( (ts==null || ts==TypeStruct.BOT || ts.isHigh() || startsClzPrefix(ts._name)) &&
+            !(ts!=null && (ts._name+".<clinit>").equals(func._name)) )
+            classInit(site,expr);
+
+        // With no field, we will update the bulk memory
+        int alias = fld==null ?  1          : fld._alias;
+        Type decl = fld==null ? Type.BOTTOM : fld._t;
+
         // Field offset; fixed for structs, computed for arrays
-        Node off = (name.equals("[]")       // If field is an array body
-            // Array index math
-            ? peep(new AddNode(off(base,"[]"),peep(new ShlNode(null,require(parseAsgn(),"]"),con(base.aryScale())))))
-            // Struct field offsets are hardwired
-            : off(base,name)).keep();
+        Node off = (name=="[]"
+            // Array element math, with unknown base offset and shift amount.
+            ? peep(new AddNode(fldoff(expr,"[]"),peep(new ShlNode(null,require(parseAsgn(),"]"),fldoff(expr,"<<")))))
+            // Named field offset on an unknown struct type
+            : fldoff(expr,name)).keep();
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( pre==0 && matchOpx('=','=') ) {
+            // Field assignment
             Node val = parseAsgn().keep();
-            Node lift = liftExpr( val, tf, false );
+            // Lift value for store
+            Node lift = fld==null ? val : new ConvertNode(fld._t,val).peephole();
+            // Memory for store, post assignment expression
+            Node mem = mem();
+            // Store to field
+            mem.keep();
+            if( expr._type instanceof TypeMemPtr view && view._ro && ctrl()._type!=Type.XCONTROL )
+                throw error("Cannot modify final field '"+name+"'");
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), lift, false).peephole().keep();
+            storeMem(st,alias,mem);
+            st.unkeep();
+            mem.unkeep();
 
-            store(name,f._alias,tf,expr.unkeep(),off.unkeep(),lift,false,base.isAry() ? ctrl() : null);
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
+        // Memory for load
+        Node mem = mem();
+        // Loading from a constant array, the declared type is the
+        // meet-over-elements and not the array itself.
+        if( name=="[]" && decl instanceof TypeConAry conary )
+            decl = conary.elem();
+
         // Load field
-        Node load = f._one && INITS.containsKey( base._name )
-            ? INITS.get(base._name).in(base.find(name))
-            : new LoadNode(loc(),name, f._alias, mem(), expr, off);
-        // Arrays include control, as a proxy for a safety range check
-        // Structs don't need this; they only need a NPE check which is
-        // done via the type system.
-        if( base.isAry() && !name.equals("#") ) load.setDef(0,ctrl());
-        load = peep(load);
+        Node load = peep(new LoadNode(loc(),name, alias, ctrl(), mem, expr, off));
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
         char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
-            Node op = opAssign(ch,load,tf);
-            // A narrow Store may drop its conversion; prefix still returns it.
-            if( pre!=0 ) op.keep();
-            store(name,f._alias,tf,expr.unkeep(),off.unkeep(),op,false,base.isAry() ? ctrl() : null);
-            if( pre!=0 ) op.unkeep();
+            if( fld!=null && decl==Type.BOTTOM )
+                throw error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
+            Node op = opAssign(ch,load, decl ).keep();
+            mem.keep();
+            if( expr._type instanceof TypeMemPtr view && view._ro && ctrl()._type!=Type.XCONTROL )
+                throw error("Cannot modify final field '"+name+"'");
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
+            storeMem(st,alias,mem);
+            st.unkeep();
+            mem.unkeep();
+
+            op.unkeep(); // A narrow Store may have folded away the expression's conversion.
             if( postfix(ch) ) load.unkeep();
-            // Prefix returns the new value; postfix returns the old load.
             return pre==0 && postfix(ch) ? load : op;
-        } else {
-            off.unkill();
-            // Method call: Loaded a function from a named field, AND the base
-            // field type is final.
-            if( load._type instanceof TypeFunPtr && name!="[]" &&
-                _code.externFunc((TypeFunPtr)load._type)==null &&
-                ((TypeMemPtr)TYPES.get(base._name))._obj.field(name)._final &&
-                // And calling a function
-                match("(") ) {
-                return parsePostfix(require(functionCall(load,expr),")"));
-            }
-
-            // Drop expr, keeping load alive
-            load.keep();
-            expr.unkill();
-            load.unkeep();
         }
-
-        return parsePostfix(load);
-    }
-
-
-    // Syntax fixes the access even when a forward definition or a loop
-    // leaves the receiver untyped. Resolve its alias and layout in the graph.
-    private Node parseUnknownField(Node expr, String name, int pre) {
-        expr.keep();
-        Node off = new FldOffNode(expr,name).peephole();
-        if( name.equals("[]") ) {
-            Node index = require(parseAsgn(),"]");
-            Node scale = new FldOffNode(expr,"<<").peephole();
-            off = peep(new AddNode(off,peep(new ShlNode(loc(),index,scale))));
-        }
-        off.keep();
-        if( pre==0 && matchOpx('=','=') ) {
-            Node value = parseAsgn().keep();
-            unknownStore(name,expr,off,value);
-            expr.unkill();
-            off.unkill();
-            return value.unkeep();
-        }
-        Node load = new LoadNode(loc(),name,1,mem(),expr,off);
-        load.setDef(0,ctrl());
-        load = peep(load);
-        char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
-        if( ch!=0 ) {
-            Node op = opAssign(ch,load,Type.BOTTOM).keep();
-            unknownStore(name,expr,off,op);
-            // The field width is not known yet. A compound assignment returns
-            // the stored value after conversion; postfix returns the old load.
-            // Reading our own Store folds once its alias and width are known.
-            if( postfix(ch) ) load.unkeep();
-            if( pre!=0 || !postfix(ch) ) {
-                load = new LoadNode(loc(),name,1,mem(),expr,off);
-                load.setDef(0,ctrl());
-                load = peep(load);
-            }
-            load.keep();
-            op.unkill();
-        } else if( !name.equals("[]") && match("(") ) {
-            Node result=functionCall(load,expr,name);
-            off.unkill();
-            return parsePostfix(require(result,")"));
-        } else load.keep();
-        expr.unkill();
         off.unkill();
-        return pre==0 ? parsePostfix(load.unkeep()) : load.unkeep();
+        // Might be a method call, so pass expr as 'self'
+        return parsePostfixMethod(load,expr.unkeep());
     }
 
-    private void unknownStore(String name, Node ptr, Node off, Node value) {
-        checkPublication(value);
-        Node st=new StoreNode(loc(),name,1,Type.BOTTOM,mem(),ptr,off,value,false);
-        st.setDef(0,ctrl());
-        mem(st.peephole());
-    }
-
-    // Explicit self.x and an unqualified field name use the same local slot.
-    // The map also keeps self.x distinct from a parameter/local named x.
-    private Node parsePrivateField(String name, int pre) {
-        Var v=_fieldVars.get(name);
-        if( v==null ) throw error("Cannot resolve field '"+name+"'");
-        if( v.type() instanceof TypeFunPtr ctor && ctor.ret() instanceof TypeMem )
-            throw error("A constructor is only called by new");
-        if( pre==0 && matchOpx('=','=') ) {
-            checkPrivateWrite(name);
-            Node value=parseAsgn().keep();
-            checkPublication(value);
-            _scope.update(v,liftExpr(value,v.type(),false));
-            return value.unkeep();
-        }
-        Node value=_scope.in(_scope.update(v,null));
-        if( value instanceof ConstantNode && (value._type==Type.BOTTOM || value._type==Type.TOP) )
-            throw error("Cannot read uninitialized field '"+name+"'");
-        char ch=pre==0 ? _lexer.matchOperAssign() : (char)pre;
-        if( ch!=0 ) {
-            checkPrivateWrite(name);
-            Node op=opAssign(ch,value,v.type());
-            checkPublication(op);
-            _scope.update(v,op);
-            if( postfix(ch) ) value.unkeep();
-            return pre==0 && postfix(ch) ? value : op;
-        }
-        if( value._type instanceof TypeFunPtr && match("(") )
-            return parsePostfix(require(functionCall(value,self()),")"));
-        return parsePostfix(value);
-    }
-
-    private void checkPrivateWrite(String name) {
-        Field field=((TypeMemPtr)TYPES.get(_nestedType))._obj.field(name);
-        if( field!=null && field._one )
-            throw error("Cannot reassign shared function '"+name+"'");
-    }
 
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
     // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
@@ -2097,15 +2558,9 @@ public class Parser {
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
         java.util.BitSet finals = new java.util.BitSet();
-
-        // Defined in constructor?  Add `self` argument.  "static" calls still
-        // add a `self` they just ignore it.
-        if( _scope._kinds.last() instanceof Kind.Define define ) {
-            // Upgrade defined struct to latest fields
-            TypeMemPtr tmp = (TypeMemPtr)TYPES.get(define._tmp._obj._name);
-            ts .push(tmp);
-            ids.push("self");
-        }
+        Type self = implicitSelfType();
+        ts.push(self);
+        ids.push(self == TypePtr.PTR ? "#self" : "self");
 
         // Parse other arguments
         _lexer.skipWhiteSpace();
@@ -2121,9 +2576,44 @@ public class Parser {
         }
         require("->");
         // Make a concrete function type, with a fidx
-        TypeFunPtr tfp = _code.makeFun(TypeFunPtr.make(false,false,ts.asAry(),Type.BOTTOM));
+        TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),Type.BOTTOM,_code.fidx(_ref._cname));
         ReturnNode ret = parseFunctionBody(tfp,loc,finals,ids.asAry());
-        return new FunPtrNode(ret._fun.sig(),ret).peephole();
+        return new FunPtrNode(tfp,_code._start,ret).peephole();
+    }
+
+    private Node constructorFunc(String name) {
+        require("{");
+        Ary<Type> ts = new Ary<>(Type.class);
+        Ary<String> ids = new Ary<>(String.class);
+        java.util.BitSet finals = new java.util.BitSet();
+        TypeStruct self = _scope.constructorSelf();
+        assert self != null;
+        ts.push(TypeMemPtr.make(constructorRecv(self)));
+        ids.push("self");
+        // Explicit constructors use the same hidden allocation arguments as
+        // <init>: public memory is the call memory edge (index 1), followed by
+        // self (index 2) and the private, unescaped object memory (index 3).
+        ts.push(TypeMem.makePrivate(self));
+        ids.push("#selfMem");
+
+        _lexer.skipWhiteSpace();
+        Lexer loc = loc();
+        while( true ) {
+            Type t = type();
+            if( t==null ) break;
+            finals.set(ids.size(),bindingFinal(t));
+            String id = requireId();
+            ts .push(t );
+            ids.push(id);
+            match(",");
+        }
+        require("->");
+        TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),TypeMem.makePrivate(self),_code.fidx(_ref._cname));
+        Node[] preParse = _scope.save();
+        ReturnNode ret = _parseFunctionBody((self._name+"."+name).intern(),tfp,loc,finals,ids.asAry());
+        _scope.restore(preParse);
+        require("}");
+        return new FunPtrNode(tfp,_code._start,ret).peephole();
     }
 
     /**
@@ -2133,35 +2623,38 @@ public class Parser {
      * </pre>
      */
     private Node functionCall(Node fcn, Node self) {
-        return functionCall(fcn,self,null);
-    }
-    private Node functionCall(Node fcn, Node self, String method) {
+        Lexer site = loc();
+        site._position--; // Opening '('; arguments can contain nested calls.
         if( fcn._type == Type.NIL )
             throw error("Calling a null function pointer");
-        if( !(fcn instanceof FRefNode) && fcn._type!=Type.BOTTOM && fcn._type!=TypeScalar.BOT && !fcn._type.isa(TypeFunPtr.BOT) )
-            throw error("Expected a function but got "+fcn._type.glb(false).str());
         fcn.keep();            // Keep while parsing args
 
         Ary<Node> args = new Ary<>( Node.class );
         args.push(null);        // Space for ctrl,mem
         args.push(null);
-        if( self != null ) checkPublication(self);
         if( self != null )      // Method call has a self
-            args.push(self);
+            args.push(self.keep());
         while( !peek(')') ) {
             Node arg = parseAsgn();
             if( arg==null ) break;
-            checkPublication(arg);
             args.push(arg.keep());
             if( !match(",") ) break;
         }
         // Control & memory after parsing args
         args.set(0,ctrl().keep());
-        args.set(1,_scope.mem().keep());
+        args.set(1,mem().keep());
         args.push(fcn);        // Function pointer
         // Unkeep them all
         for( Node arg : args )
             arg.unkeep();
+        return functionCall(args,site);
+    }
+
+    private Node functionCall( Ary<Node> args ) {
+        return functionCall(args,loc());
+    }
+
+    private Node functionCall( Ary<Node> args, Lexer site ) {
         // Dead into the call?  Skip all the node gen
         if( ctrl()._type == Type.XCONTROL ) {
             for( Node arg : args )
@@ -2171,33 +2664,18 @@ public class Parser {
         }
 
         // Into the call
-        CallNode call = new CallNode(loc(), args.asAry());
-        call._method=method;
-        call=(CallNode)call.peephole();
+        CallNode call = (CallNode)new CallNode(site, args.asAry()).peephole();
         // Post-call setup
-        CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
+        CallEndNode cend = (CallEndNode)new CallEndNode(call,TypeRPC.constant(_code.rpc(_ref._cname))).peephole();
         call.peephole();        // Rerun peeps after CallEnd, allows early inlining
+        cend = (CallEndNode)cend.keep().peephole(); // TODO: Might inline
         // Control from CallEnd
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
-        // A call may update any alias, so its memory result is the new whole state.
-        _scope.mem(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
+        // Memory from CallEnd
+        Node mem = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
+        mem(mem);
         // Call result
-        return new ProjNode(cend,2,"#2").peephole();
-    }
-
-    private Node callWithArgs(Node fptr, Node[] args) {
-        Node[] inputs=new Node[args.length+3];
-        inputs[0]=ctrl(); inputs[1]=mem();
-        System.arraycopy(args,0,inputs,2,args.length);
-        inputs[inputs.length-1]=fptr;
-        CallNode call=new CallNode(loc(),inputs).init();
-        CallEndNode end=new CallEndNode(call).init().keep();
-        if( fptr._type instanceof TypeFunPtr sig && _code.link(sig)!=null ) call.link(_code.link(sig));
-        ctrl(new CProjNode(end,0,ScopeNode.CTRL).peephole());
-        mem(new ProjNode(end,1,ScopeNode.MEM0).peephole());
-        Node result=new ProjNode(end,2,"#2").peephole();
-        end.unkeep();
-        return result;
+        return new ProjNode(cend.unkeep(),2,"#2").peephole();
     }
 
     // Just after parsing "type foo = " can parse `"C"`
@@ -2209,10 +2687,27 @@ public class Parser {
         return false;
     }
     // External linked constant
-    private Node externDecl( String ex, Type t ) {
-        if( t instanceof TypeFunPtr tfp ) // Generic TFP from type parse
-            t  = _code.makeFun(tfp);      // Get a FIDX, becomes a constant
-        return new ExternNode(t,ex).peephole();
+    private ConstantNode externDecl( String ex, Type t ) {
+        if( t instanceof TypeFunPtr tfp ) {  // Generic TFP from type parse
+            int fidx = _code.fidx(_ref._cname); // Get a FIDX
+            tfp = tfp.makeFrom(fidx);           // Become a constant
+            _code.externFunc(fidx,ex);          // Map fidx to extern name
+            t = tfp;
+        }
+        return (ExternNode)(new ExternNode(t,ex).peephole());
+    }
+
+    // A lexical C binding has a singleton namespace with one external field.
+    // The namespace occupies no storage; its field offset supplies the address.
+    private Node externData(String name, Type t) {
+        if( !(t instanceof TypeInteger) && !(t instanceof TypeFloat) )
+            throw error("C data binding requires an integer or float type");
+        String cname = ("C:"+name).intern();
+        TypeStruct ts = TypeStruct.make(cname,false,Field.make(name,t,_code.externAlias(name),false,true));
+        Type old = TYPES.putIfAbsent(cname,ts);
+        if( old!=null && old!=ts )
+            throw error("Conflicting types for C data '"+name+"'");
+        return con(TypeMemPtr.make((byte)2,ts,true));
     }
 
     /**
@@ -2220,13 +2715,38 @@ public class Parser {
      *
      * <pre>
      *     integerLiteral: [1-9][0-9]* | [0]
-     *     floatLiteral: [digits].[digits]?[e [digits]]?
+     *     floatLiteral: [digits].[digits]?[e [digits]]?[f]?
      * </pre>
      */
     private ConstantNode parseLiteral() { return con(_lexer.parseNumber()); }
-    public static Node con( long con ) { return con==0 ? ZERO : con(TypeInteger.constant(con));  }
-    public static ConstantNode con( Type t ) { return (ConstantNode)new ConstantNode(t).peephole();  }
-    public static ConFldOffNode off( TypeStruct base, String fname ) { return (ConFldOffNode)(new ConFldOffNode(base._name,fname).peephole()); }
+    ConstantNode con( long con ) { return _code.con(con); }
+    ConstantNode con( Type t   ) { return _code.con(t  ); }
+    private void classInit(Lexer site, Node ptr) {
+        // Ordinary load machinery resolves the flag alias and offset when
+        // the receiver is still a forward reference.
+        Field flag = ptr._type instanceof TypeMemPtr tmp ? tmp._obj.field("$init") : null;
+        int alias = flag==null ? 1 : flag._alias;
+        Node ready = new LoadNode(site,"$init",alias,null,mem(),ptr,fldoff(ptr,"$init")).peephole();
+        CLInitNode init = new CLInitNode(site,ctrl(),mem(),ptr,ready).peephole().keep();
+        ctrl(new CProjNode(init,0,ScopeNode.CTRL).peephole());
+        Node bulk = new ProjNode(init,1,ScopeNode.MEM0).peephole().keep();
+        flag = init.flag();
+        mem(flag==null ? bulk : mergeAlias(bulk,flag._alias,
+            new ProjNode(init,2,memName(flag._alias)).peephole()));
+        bulk.unkeep();
+        init.unkeep();
+    }
+
+    // Field offset for a known type (but unknown offset)
+    public static ConFldOffNode off( TypeStruct ts, String fname ) {
+        return (ConFldOffNode)(new ConFldOffNode(ts,fname).peephole());
+    }
+    // Field offset for an unknown type
+    public Node fldoff( Node n, String name ) {
+        if( n._type instanceof TypeMemPtr ptr && ptr._obj._fref )
+            _requiredTypes.add(ptr._obj._name);
+        return new FldOffNode(n,name,loc()).peephole();
+    }
     public Node peep( Node n ) {
         // Peephole, then improve with lexically scoped guards
         return _scope.upcastGuard(n.peephole());
@@ -2275,6 +2795,14 @@ public class Parser {
         }
         return require(con(TypeInteger.constant(c)),"'");
     }
+
+    private boolean noLowerCase(String s) {
+        for( int i=0; i<s.length(); i++ )
+            if( Character.isLowerCase(s.charAt(i)) )
+                return false;
+        return true;
+    }
+
 
     //////////////////////////////////
     // Utilities for lexical analysis
@@ -2340,17 +2868,22 @@ public class Parser {
 
         // Input buffer; an array of text bytes read from a file or a string
         private final byte[] _input;
+        public final CompUnit _cu; // Original source, retained across inlining.
         // Tracks current position in input buffer
         private int _position = 0;
-
-        public boolean before(Lexer that) {
-            return that!=null && _input==that._input && _position<that._position;
-        }
 
         //
         private int _line_number = 1;
         // Start of current line
         private int _line_start = 0;
+
+        /** True when this location precedes {@code that} in the same source. */
+        public boolean before(Lexer that) {
+            return that != null && (_cu!=null ? _cu==that._cu : _input==that._input) && _position < that._position;
+        }
+
+        public String position() { return _line_number+":"+(_position-_line_start+1); }
+        public int pos() { return _position; }
 
         /**
          * Record the source text for lexing
@@ -2364,13 +2897,28 @@ public class Parser {
          */
         public Lexer(byte[] buf) {
             _input = buf;
+            _cu = null;
         }
+
+        private Lexer(CompUnit cu) {
+            _input = cu._src.getBytes();
+            _cu = cu;
+        }
+
+        // Imported location: source text is only needed when reporting an error.
+        private Lexer(CompUnit cu, int pos) {
+            _input = null;
+            _cu = cu;
+            _position = pos;
+        }
+
 
         /**
          *  Copy a lexer from a lexer
          */
         private Lexer(Lexer l) {
             _input = l._input;
+            _cu = l._cu;
             _position = l._position;
             _line_number = l._line_number;
             _line_start = l._line_start;
@@ -2379,7 +2927,7 @@ public class Parser {
         // Very handy in the debugger, shows the unparsed program
         @Override
         public String toString() {
-            return new String(_input, _position, _input.length - _position);
+            return _input==null ? _cu._cname+"@"+_position : new String(_input, _position, _input.length - _position);
         }
 
         // True if at EOF
@@ -2498,7 +3046,7 @@ public class Parser {
 
         // Used for errors
         String getAnyNextToken() {
-            if (isEOF()) return "";
+            if (isEOF()) return "EOF";
             if (isIdStart(peek())) return parseId();
             if (isNumber(peek())) return parseNumberString();
             if (isPunctuation(peek())) return parsePunctuation();
@@ -2512,17 +3060,26 @@ public class Parser {
         private Type parseNumber() {
             int old = _position;
             int len = isLongOrDouble();
+            boolean f32 = peek()=='f';
+            if( f32 ) nextChar();
+            int n = Math.abs(len);
+            if( f32 )
+                return TypeFloat.constant(Float.parseFloat(new String(_input,old,n)));
             if( len > 0 ) {
                 if( len > 1 && _input[old]=='0' )
                     throw error("Syntax error: integer values cannot start with '0'",this);
                 long i = Long.parseLong(new String(_input,old,len));
                 return TypeInteger.constant(i);
             }
-            return TypeFloat.constant(Double.parseDouble(new String(_input,old,-len)));
+            return TypeFloat.constant(Double.parseDouble(new String(_input,old,n)));
         }
         private String parseNumberString() {
             int old = _position;
             int len = Math.abs(isLongOrDouble());
+            if( peek()=='f' ) {
+                nextChar();
+                len++;
+            }
             return new String(_input,old,len);
         }
 
@@ -2552,7 +3109,7 @@ public class Parser {
         private String parseId() {
             int start = _position;
             while (isIdLetter(nextChar())) ;
-            return new String(_input, start, --_position - start);
+            return new String(_input, start, --_position - start).intern();
         }
 
         //
@@ -2587,9 +3144,9 @@ public class Parser {
         }
     }
 
-    ParseException errorSyntax(String syntax) { return _errorSyntax("expected "+syntax);  }
+    ParseException errorSyntax(String syntax) { return _errorSyntax("expected `"+syntax+"`");  }
     private ParseException _errorSyntax(String msg) {
-        return error("Syntax error, "+msg+": " + _lexer.getAnyNextToken());
+        return error("Syntax error, "+msg+" but found `" + _lexer.getAnyNextToken()+"`");
     }
     ParseException error(String msg) { return error(msg,_lexer); }
     public static ParseException error(String msg, Lexer loc) { return new ParseException(msg,loc); }
