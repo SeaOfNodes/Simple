@@ -1,11 +1,15 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  * Convenience common base for Load and Store.
@@ -16,84 +20,95 @@ import java.util.BitSet;
  * 3 - Offset, integer types
  * 4 - Value, for Stores only
  */
-public abstract class MemOpNode extends Node {
+public abstract class MemOpNode extends TypeNode {
 
     // The equivalence alias class
-    public final int _alias;
+    public int _alias;
 
     // True if load-like, false if store-like.
+    // Used on CPU-specific combined memory+arithmetic ops.
     //
     // Stores produce memory (maybe as part of a tuple with other things),
     // loads do not.
     //
-    // Loads might pick up anti-dependences on prior Stores, and never cause an
+    // Loads might pick up anti-dependencies on prior Stores, and never cause an
     // anti-dependence themselves.
     //
     // Stores must maximally sink to the least dominator use.  Loads can be
     // opportunistically hoisted.
     public final boolean _isLoad;
 
-    // Declared type; not final because it might be a forward-reference
-    // which will be lazily improved when the reference is declared.
-    public Type _declaredType;
-
-    // A debug name, no semantic meaning
+    // Field name.
     public final String _name;
     // Source location for late reported errors
     public final Parser.Lexer _loc;
 
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node mem, Node ptr, Node off) {
-        super(null, mem, ptr, off);
+    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off) {
+        super(decl, ctrl, mem, ptr, off);
         _name  = name;
         _alias = alias;
-        _declaredType = glb;
         _loc = loc;
         _isLoad = isLoad;
     }
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node mem, Node ptr, Node off, Node value) {
-        this(loc,name, alias, isLoad, glb, mem, ptr, off);
+    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value) {
+        this(loc, name, alias, isLoad, decl, ctrl, mem, ptr, off);
         addDef(value);
     }
-    public MemOpNode( Node mach, MemOpNode mop ) {
-        super(mach);
-        _name  = mop==null ? null : mop._name;
-        _alias = mop==null ? 0    : mop._alias;
-        _loc   = mop==null ? null : mop._loc;
-        _isLoad= mop==null ? true : mop._isLoad;
-        _declaredType = mop==null ? Type.BOTTOM : mop._declaredType;
-        if( mop==null )
-            throw Utils.TODO("Load or not");
+    public MemOpNode( Node ideal, MemOpNode mop ) {
+        super(ideal,mop instanceof LoadNode ld ? ld.declaredType() : mop._con);
+        _name  = mop._name;
+        _alias = mop._alias;
+        _loc   = mop._loc;
+        _isLoad= mop._isLoad;
     }
 
-    // Used by M2 when translating graph to Simple
-    public MemOpNode( boolean isLoad ) {
-        super((Node)null);
-        _name         = null;
-        _alias        = 0;
-        _loc          = null;
-        _isLoad       = isLoad;
-        _declaredType = Type.BOTTOM;
+    MemOpNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases, boolean isLoad ) {
+        this(null,
+             strs[bais.packed2()],
+             mapAlias(bais,fileAliases,aliases),isLoad,
+             types[bais.packed2()],null,null,null,null);
     }
 
-    static String mlabel(String name) { return "[]".equals(name) ? "ary" : ("#".equals(name) ? "len" : name); }
+    private static int mapAlias( BAOS bais, GlobalBits fileAliases, GlobalBits aliases ) {
+        int alias = bais.packed2();
+        return alias < GlobalBits.RESERVED ? alias : aliases.map(fileAliases,alias);
+    }
+
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+        baos.packed2(_alias);
+        baos.packed2(types.get(_con));                // NPE if fails lookup
+        assert _isLoad == this instanceof LoadNode; // No machine ops
+    }
+
+    static String mlabel(String name) { return "[]"==name ? "ary" : ("#"==name ? "len" : name); }
     String mlabel() { return mlabel(_name); }
 
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
     public Node off() { return in(3); }
 
+    // Current declared field type.  This is deliberately a live lookup:
+    // cyclic/forward types can sharpen by replacing the pointer's struct.
+    public Type declaredType() {
+        if( !(ptr()._type instanceof TypeMemPtr tmp) )
+            return Type.BOTTOM;
+        Field fld = tmp._obj.field(_name);
+        return fld == null || fld._t == null ? Type.BOTTOM : fld._t;
+    }
+
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
-    public int log_size() { return _declaredType.log_size();  }
+    //public int log_size() { return _con.log_size();  }
 
     @Override
     public boolean eq(Node n) {
         MemOpNode mem = (MemOpNode)n; // Invariant
-        return _alias==mem._alias;    // When comparing types error to use "equals"; always use "=="
+        return _alias==mem._alias && super.eq(mem);
     }
 
     @Override
-    int hash() { return _alias; }
+    int hash() { return _alias ^ super.hash(); }
 
     @Override
     public Parser.ParseException err() {
@@ -102,8 +117,15 @@ public abstract class MemOpNode extends Node {
         if( ptr == Type.BOTTOM ) return null;
         if( ptr.isHigh() ) return null; // Assume it will fall to not-null
         // Better be a not-nil TMP
-        if( ptr instanceof TypeMemPtr tmp && tmp.notNull() )
-            return null;
-        return Parser.error( "Might be null accessing '" + _name + "'",_loc);
+        if( !(ptr instanceof TypeMemPtr tmp && tmp.notNull()) )
+            return Parser.error( "Might be null accessing '" + _name + "'",_loc);
+        if( tmp._obj.field(_name)==null &&
+            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
+            return Parser.error("Accessing unknown field '"+_name+"' from '*"+tmp._obj._name+"'",_loc);
+        // Sane field
+        if( off() instanceof ConFldOffNode && CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
+            return Parser.error("Accessing unknown field '"+_name+"' from '*"+tmp._obj._name+"'",_loc);
+        return null;
+
     }
 }

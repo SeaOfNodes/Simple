@@ -2,14 +2,12 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.print.JSViewer;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFloat;
-import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 import java.util.function.Function;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
@@ -78,8 +76,81 @@ public abstract class Node implements Cloneable {
         _hash = 0;
     }
 
+    // Disk/serialized opcode tags
+    public enum Tag {
+        Add,And,EQ,NE,LT,LE,ULT,
+        CallEnd,Call,ConFldOff,Con,CProj,
+        Div,Escape,Extern,Fun,FunPtr,If,Load,Loop,
+        MemMerge,Minus,Mul,
+        New,Never,Not,Or,Parm,Phi,Proj,
+        ReadOnly,Return,Region,RoundF32,
+        Sar,Shl,Shr,Start,Stop,Store,Sub,ToFloat,
+        XCtrl,Xor,StartCU,StopCU,Guard,MemPhi,BulkMemPhi,PtrToInt;
+        public static final Tag[] VALS = values();
+        public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
+            return switch(this) {
+            case Add    -> new   AddNode(null,null,(byte)bais.packed1());
+            case And    -> { int mode=bais.packed1(); assert mode==1; yield new AndNode(null,null,null); }
+            case Div    -> new   DivNode(null,null,(byte)bais.packed1());
+            case If     -> new    IfNode(null,null);
+            case Loop   -> new  LoopNode(null,null,null);
+            case Minus  -> new MinusNode(null,(byte)bais.packed1());
+            case Mul    -> new   MulNode(null,null,(byte)bais.packed1());
+            case Never  -> new NeverNode(1.2f, null);
+            case Not    -> new   NotNode(null);
+            case Or     -> { int mode=bais.packed1(); assert mode==1; yield new OrNode(null,null,null); }
+            case ReadOnly-> new ReadOnlyNode((Node)null);
+            case Return ->new ReturnNode(null,null,null,null,null);
+            case RoundF32-> new RoundF32Node(null);
+            case PtrToInt-> new PtrToIntNode((Node)null);
+            case Sar    -> { int mode=bais.packed1(); assert mode==1; yield new SarNode(null,null,null); }
+            case Shl    -> { int mode=bais.packed1(); assert mode==1; yield new ShlNode(null,null,null); }
+            case Shr    -> { int mode=bais.packed1(); assert mode==1; yield new ShrNode(null,null,null); }
+            case Start  -> new StartNode(null,null,TypeInteger.BOT);
+            case Sub    -> new   SubNode(null,null,(byte)bais.packed1());
+            case ToFloat-> new ToFloatNode(null);
+            case XCtrl  -> new XCtrlNode();
+            case Xor    -> { int mode=bais.packed1(); assert mode==1; yield new XorNode(null,null,null); }
+            case Guard -> GuardNode.make(bais);
+
+            case EQ    -> new  BoolNode.EQ (null,null,(byte)bais.packed1());
+            case NE    -> new  BoolNode.NE (null,null,(byte)bais.packed1());
+            case LT    -> new  BoolNode.LT (null,null,(byte)bais.packed1());
+            case LE    -> new  BoolNode.LE (null,null,(byte)bais.packed1());
+            case ULT   -> new  BoolNode.ULT(null,null,(byte)bais.packed1());
+
+            case Call  ->      CallNode.make(bais);
+            case CallEnd->  CallEndNode.make(bais     ,types);
+            case CProj ->     CProjNode.make(bais,strs);
+            case Con   ->  ConstantNode.make(bais     ,types);
+            case Escape->    EscapeNode.make(bais     ,types);
+            case Extern->    ExternNode.make(bais,strs,types);
+            case FunPtr->   FunPtrNode.make(bais,     types);
+            case Fun   ->       FunNode.make(bais,strs,types);
+            case Load  ->       new LoadNode(bais,strs,types,fileAliases,aliases);
+            case MemMerge->MemMergeNode.make(bais);
+            case MemPhi->  MemPhiNode.make(bais,strs,types,fileAliases,aliases);
+            case BulkMemPhi-> BulkMemPhiNode.make(bais,strs,types,fileAliases,aliases);
+            case New   ->       NewNode.make(bais     ,types);
+            case Parm  ->      ParmNode.make(bais,strs,types);
+            case Phi   ->       PhiNode.make(bais,strs,types);
+            case Proj  ->      ProjNode.make(bais,strs);
+            case Store ->      new StoreNode(bais,strs,types,fileAliases,aliases);
+            case Stop ->       StopNode.make(bais);
+            case StartCU->  StartCUNode.make(bais,strs,types);
+            case StopCU ->   StopCUNode.make(bais);
+            case Region->    RegionNode.make(bais);
+
+            default -> throw Utils.TODO("Should not reach here");
+            };
+        }
+    };
+    public Tag serialTag() { throw Utils.TODO(); }
+    // Serialize extra data, including input counts
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {}
+
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
-    public abstract String label();
+    public String label() { return serialTag().toString(); }
 
     // Unique label for graph visualization, e.g. "Add12" or "Region30" or "EQ99"
     public String uniqueName() {
@@ -115,7 +186,7 @@ public abstract class Node implements Cloneable {
     // This is the common print: check for repeats, check for DEAD and print
     // "DEAD" else call the per-Node print1.
     public final StringBuilder _print0(StringBuilder sb, BitSet visited) {
-        if (visited.get(_nid) && !(this instanceof ConstantNode) )
+        if( visited.get(_nid) && !(this instanceof ConstantNode) )
             return sb.append(label());
         visited.set(_nid);
         return isDead()
@@ -229,7 +300,8 @@ public abstract class Node implements Cloneable {
     }
 
     // Breaks the edge invariants, used temporarily
-    protected <N extends Node> void addUse(N n) { _outputs.add(n); }
+    @SuppressWarnings("unchecked")
+    protected <N extends Node> N addUse(Node n) { _outputs.add(n); return (N)this; }
 
     // Remove node 'use' from 'def's (i.e. our) output list, by compressing the list in-place.
     // Return true if the output list is empty afterward.
@@ -249,6 +321,12 @@ public abstract class Node implements Cloneable {
                 old_def.delUse(this) ) // If we removed the last use, the old def is now dead
                 old_def.kill();        // Kill old def
         }
+    }
+    public Node removeLast() {
+        Node old_def = _inputs.pop();
+        if( old_def != null )
+            old_def.delUse(this);
+        return old_def;
     }
 
     /**
@@ -284,11 +362,13 @@ public abstract class Node implements Cloneable {
 
     // Shortcuts to stop DCE mid-parse
     // Add bogus null use to keep node alive
-    @SuppressWarnings("unchecked")
-    public <N extends Node> N keep() { addUse(null); return (N)this; }
+    public <N extends Node> N keep() { return addUse(null); }
     // Remove bogus null.
     @SuppressWarnings("unchecked")
-    public <N extends Node> N unkeep() { delUse(null); return (N)this; }
+    public <N extends Node> N unkeep() {
+        delUse(null);
+        return (N)this;
+    }
     // Test "keep" status
     public boolean iskeep() { return _outputs.find(null) != -1; }
     public void unkill() {
@@ -415,7 +495,15 @@ public abstract class Node implements Cloneable {
         // node.  If peeps are disabled, still allow high Phis to collapse;
         // they typically come from dead Regions, and we want the Region to
         // collapse, which requires the Phis to die first.
-        if( !isConst() && _type.isHighOrConst() )
+        if( !isConst() && !(this instanceof ParmNode parm && parm.inProgress()) &&
+            // A high Load through a bad pointer still owns the source error;
+            // do not replace it with an unlocated constant before typeCheck.
+            !(this instanceof LoadNode && err()!=null) &&
+            // A CallEnd can be temporarily high while optimistic call-graph
+            // linking is still discovering its target Returns.  Its result
+            // projections must remain attached so they can sharpen later.
+            !(this instanceof ProjNode proj && proj.in(0) instanceof CallEndNode && _type.isHigh()) &&
+            _type.isHighOrConst() )
             return ConstantNode.make(_type).peephole();
 
         // Global Value Numbering
@@ -483,7 +571,8 @@ public abstract class Node implements Cloneable {
     // If changing, add users to worklist.
     public Type setType(Type type) {
         Type old = _type;
-        assert old == null || type.isa(old) : "Monotonicity test failed";
+        assert old == null || type.isa(old) : "Monotonicity test failed: "+this+"#"+_nid+" old="+old+" new="+type;
+        //assert !type.hasClosedBuilder0(); // New types should not have closed builders
         if( old == type ) return old;
         _type = type;       // Set _type late for easier assert debugging
         CODE.addAll(_outputs);
@@ -549,19 +638,30 @@ public abstract class Node implements Cloneable {
     // revisit them if `this` changes.
     Ary<Node> _deps;
 
+    private boolean addDepImpl( Node dep ) {
+        // Running peepholes during the big assert cannot have side effects
+        // like adding dependencies.
+        if( CODE._midAssert ) return false;
+        if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
+        if( dep._deps   .find(this) != -1 ) return false; // Already on list
+        if( dep._outputs.find(this) != -1 ) return false;
+        return true;
+    }
+
     /**
      * Add a node to the list of dependencies.  Only add it if it's not an input
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */
-    <N extends Node> N addDep( N dep ) {
-        // Running peepholes during the big assert cannot have side effects
-        // like adding dependencies.
-        if( CODE._midAssert ) return dep;
-        if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
-        if( dep._deps   .find(this) != -1 ) return dep; // Already on list
+    public <N extends Node> N addDep( N dep ) {
+        if( !addDepImpl(dep) ) return dep;
         if( dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors
-        if( dep._outputs.find(this) != -1 ) return dep;
+        dep._deps.add(this);
+        return dep;
+    }
+
+    public <N extends Node> N addDepForwards( N dep ) {
+        if( !addDepImpl(dep) ) return dep;
         dep._deps.add(this);
         return dep;
     }
@@ -573,6 +673,7 @@ public abstract class Node implements Cloneable {
         iter.addAll(_deps);
         _deps.clear();
     }
+
 
     // Two nodes are equal if they have the same inputs and the same "opcode"
     // which means the same Java class, plus same internal parts.
@@ -630,27 +731,6 @@ public abstract class Node implements Cloneable {
     /** Pinned in the schedule; these are data nodes whose input#0 is not allowed to change */
     public boolean isPinned() { return false; }
 
-    // Semantic change to the graph (so NOT a peephole), used by the Parser.
-    // If any input is a float, flip to a float-flavored opcode and widen any
-    // non-float input.
-    public final Node widen() {
-        if( !hasFloatInput() ) return this;
-        Node flt = copyF();
-        if( flt==null ) return this;
-        for( int i=1; i<nIns(); i++ )
-            flt.setDef(i, in(i)._type instanceof TypeFloat ? in(i) : new ToFloatNode(in(i)).peephole());
-        kill();
-        return flt;
-    }
-    private boolean hasFloatInput() {
-        for( int i=1; i<nIns(); i++ )
-            if( in(i)._type instanceof TypeFloat )
-                return true;
-        return false;
-    }
-    Node copyF() { return null; }
-
-
     // ------------------------------------------------------------------------
     // Peephole utilities
 
@@ -699,7 +779,7 @@ public abstract class Node implements Cloneable {
     public Parser.ParseException err() { return null; }
 
     // Common integer constants
-    public static ConstantNode con(long x) { return (ConstantNode)(new ConstantNode(TypeInteger.constant(x)).peephole()); }
+    public static ConstantNode con(long x) { return (ConstantNode)ConstantNode.make(TypeInteger.constant(x)).peephole(); }
 
     // Utility to walk the entire graph applying a function; return the first
     // not-null result.
@@ -718,6 +798,20 @@ public abstract class Node implements Cloneable {
         for( Node def : _inputs  )  if( def != null && (x = def._walk(pred)) != null ) return x;
         for( Node use : _outputs )  if( use != null && (x = use._walk(pred)) != null ) return x;
         return null;
+    }
+
+    public void gather(HashMap<String,Integer> strs ) { }
+
+    // If a Type upgrade happens, put on worklist
+    boolean _upgradeType( HashMap<String,Type> TYPES ) { return false; }
+    public final void upgradeType( HashMap<String,Type> TYPES ) {
+        Type old = _type;  _type = _type.upgradeType(TYPES);
+        boolean progress = _upgradeType(TYPES);
+        if( progress || old != _type ) {
+            CODE.add(this);
+            CODE.addAll(_outputs);
+            if( _deps!=null ) CODE.addAll(_deps);
+        }
     }
 
     /**

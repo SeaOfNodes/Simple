@@ -2,107 +2,70 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
- *  Allocation!  Allocate a chunk of memory, and pre-zero it.
- *  The inputs include control and size, and ALL aliases being set.
- *  The output is large tuple, one for every alias plus the created pointer.
- *  New is expected to be followed by projections for every alias.
- */
+ * Allocation!  Allocate a chunk of memory, no init.
+ * Takes in ctrl and size, and TypeStruct.
+ * Produces a ptr and private memory.
+*/
 public class NewNode extends Node implements MultiNode {
+    public TypeStruct _ts;
+    public NewNode( TypeStruct ts, Node ctrl, Node size ) { super(ctrl,size); _ts = ts; }
 
-    public final TypeMemPtr _ptr;
-    public final int _len;
-
-    public NewNode(TypeMemPtr ptr, Node... nodes) {
-        super(nodes);
-        assert !ptr.nullable();
-        _ptr = ptr;
-        _len = ptr._obj._fields.length;
-        // Control in slot 0
-        assert nodes[0]._type==Type.CONTROL || nodes[0]._type == Type.XCONTROL;
-        // Malloc-length in slot 1
-        assert nodes[1]._type instanceof TypeInteger || nodes[1]._type==Type.NIL;
-        for( int i=0; i<_len; i++ )
-          assert ptr._obj._fields[i]._one || nodes[2 + i]._type.isa( TypeMem.BOT );
-    }
-
-    public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; _len = nnn._len; }
-
-    public Node mem (int idx) { return in(idx+2); }
-
-    @Override public String label() { return "new_"+glabel(); }
-    @Override public String glabel() {
-        return _ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._t.str() : _ptr._obj.str();
-    }
-
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("new ");
-        return sb.append(_ptr._obj.str());
-    }
-
-    int findAlias(int alias) {
-        int idx = _ptr._obj.findAlias(alias);
-        assert idx!= -1;        // Error, caller should be calling
-        return idx+2;           // Skip ctrl, size
-    }
-
-    // 0 - ctrl
-    // 1 - byte size
-    // 2-len+2 - aliases, one per field
-    // len+2 - 2*len+2 - initial values, one per field
+    public Node ctrl() { return in(0); }
     public Node size() { return in(1); }
 
-    @Override
-    public TypeTuple compute() {
-        Field[] fs = _ptr._obj._fields;
-        Type[] ts = new Type[fs.length+2];
-        if( in(0)._type.isHigh() ) {
-            ts[0] = Type.XCONTROL;
-            ts[1] = _ptr.makeHigh();
-            for( int i=0; i<fs.length; i++ )
-                ts[i+2] = Type.TOP;
-        } else {
-            ts[0] = Type.CONTROL;
-            ts[1] = _ptr;
-            for( int i=0; i<fs.length; i++ ) {
-                if( _ptr._obj._fields[i]._one ) {
-                    // Once-only fields use the declared type
-                    ts[i+2] = _ptr._obj._fields[i]._t;
-                } else {
-                    // Others take from the inputs
-                    Type mt = in(i+2)._type;
-                    TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
-                    //Type tfld = mem._t.meet(mem._t.makeZero());
-                    Type tfld = mem._t;
-                    Type tfld2 = tfld.join(fs[i]._t );
-                    ts[i+2] = TypeMem.make(fs[i]._alias,tfld2);
-                }
-            }
-        }
-        return TypeTuple.make(ts);
+    // --- Serialization
+    public NewNode(NewNode nnn) { super(nnn); _ts = nnn._ts; }
+    @Override public Tag serialTag() { return Tag.New; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed2(types.get(_ts));
+    }
+    static Node make( BAOS bais, Type[] types)  {
+        TypeStruct ts = (TypeStruct)types[bais.packed2()];
+        return new NewNode(ts,null,null);
     }
 
-    @Override
-    public Node idealize() {
-        Node progress=null;
-        for( int i=1; i<nIns(); i++ ) {
-            if( in(i) instanceof CastNode cast )
-                progress = setDef(i,cast.in(1));
-        }
-        return progress == null ? null : this;
+    @Override public String glabel() {
+        return _ts.isAry() ? "ary_"+_ts._fields[1]._t.str() : _ts.str();
+    }
+    @Override public String label() { return "new_"+glabel(); }
+
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        sb.append("new ");
+        return sb.append(_ts.str());
     }
 
-    @Override
-    public boolean eq(Node n) { return this == n; }
+    @Override public TypeTuple compute() {
+        if( ctrl()._type.isHigh() )
+            return TypeTuple.DEAD_NEW;
+        TypeStruct ts = _ts.isAry() ? _ts : _ts.makeInit();
+        return TypeTuple.make(TypeMemPtr.make(_ts),
+                              // Arrays get pre-zeroed by constructor.
+                              // Objects start with default-zero memory for
+                              // fields that can be zero-initialized.  This is
+                              // still private memory, so no aliases escape yet.
+                              TypeMem.make(1,ts,true,false,false,null,null));
+    }
 
-    @Override
-    int hash() { return _ptr.hashCode(); }
+    @Override public Node idealize() { return null; }
+
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        Type old = _ts; _ts = (TypeStruct)_ts.upgradeType(TYPES);  return old != _ts;
+    }
+
+    // Two NewNodes are never equal; NewNodes always make independent pointers
+    // so they are not functional - they internally bump-ptr allocate always a
+    // new pointer.
+    @Override public boolean eq(Node n) { return this==n; }
+
+    @Override int hash() { return _ts.hashCode(); }
 
     // ------------
     // MachNode specifics, shared across all CPUs
@@ -111,19 +74,19 @@ public class NewNode extends Node implements MultiNode {
     private RegMask _retMask;
     private RegMask _kills;
     public void cacheRegs(CodeGen code) {
-        _arg2Reg  = code._mach.callArgMask(TypeFunPtr.CALLOC,2,0).firstReg();
-        _arg3Mask = code._mach.callArgMask(TypeFunPtr.CALLOC,3,0);
+        _arg2Reg  = code._mach.callArgMask(TypeFunPtr.CALLOC,2,0,code._cCallingConv).firstReg();
+        _arg3Mask = code._mach.callArgMask(TypeFunPtr.CALLOC,3,0,code._cCallingConv);
         // Return mask depends on TFP (either GPR or FPR)
         _retMask = code._mach.retMask(TypeFunPtr.CALLOC);
         // Kill mask is all caller-saves, and any mirror stack slots for args
         // in registers.
-        RegMaskRW kills = code._callerSave.copy();
+        RegMaskRW kills = code._cCallerSave.copy();
         // Start of stack slots
         int maxReg = code._mach.regs().length;
         // Incoming function arg slots, all low numbered in the RA
         int fslot = cfg0().fun()._maxArgSlot;
         // Killed slots for this calls outgoing args
-        int xslot = code._mach.maxArgSlot(TypeFunPtr.CALLOC);
+        int xslot = code._mach.maxArgSlot(TypeFunPtr.CALLOC,code._cCallingConv);
         _xslot = (maxReg+fslot)+xslot;
         for( int i=0; i<xslot; i++ )
             kills.set((maxReg+fslot)+i);
@@ -132,9 +95,10 @@ public class NewNode extends Node implements MultiNode {
     public String op() { return "alloc"; }
     public RegMask regmap(int i) { return i==1 ? _arg3Mask : null; }
     public RegMask outregmap() { return null; }
-    public RegMask outregmap(int idx) { return idx==1  ? _retMask : null; }
+    public RegMask outregmap(int idx) { return idx==0  ? _retMask : null; }
     public RegMask killmap() { return _kills; }
     public void asm(CodeGen code, SB sb) {
-        sb.p("#calloc, ").p(code.reg(size()));
+        sb.p("#malloc, ").p(code.reg(size()));
     }
+
 }

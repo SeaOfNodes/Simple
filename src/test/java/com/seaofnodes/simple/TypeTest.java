@@ -7,24 +7,20 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
-    // Test basic properties and GLB
+    // Test basic type properties
     @Test
     public void testTypeAdHoc() {
-        Assert.assertEquals( Type.BOTTOM, TypeInteger.TRUE.meet(TypeNil.NIL) );
-        Assert.assertEquals( Type.BOTTOM, TypeInteger.TOP .meet(TypeNil.NIL) );
+        Assert.assertEquals( TypeScalar.BOT, TypeInteger.TRUE.meet(TypeNil.NIL) );
+        Assert.assertEquals( TypeScalar.BOT, TypeInteger.TOP .meet(TypeNil.NIL) );
 
         TypeStruct s1 = TypeStruct.make("s1",false,
-                Field.make("a", TypeInteger.BOT,-1, false, false),
-                Field.make("b", TypeInteger.BOT,-2, false, false) );
+                Field.make("a", TypeInteger.BOT,-1, false),
+                Field.make("b", TypeInteger.BOT,-2, false) );
         TypeStruct s2 = TypeStruct.make("s2",false,
-                Field.make("a", TypeInteger.BOT,-3, false, false),
-                Field.make("b", TypeInteger.BOT,-4, false, false) );
-        TypeStruct x1ro = (TypeStruct)s1.makeRO();
+                Field.make("a", TypeInteger.BOT,-3, false),
+                Field.make("b", TypeInteger.BOT,-4, false) );
         TypeMemPtr p1 = TypeMemPtr.make(s1);
-        Assert.assertEquals(x1ro, ((TypeMemPtr)p1.glb(false))._obj);
         Assert.assertNotEquals(s1, s1.dual());
-        TypeStruct s1dglb = ((TypeMemPtr)p1.dual().glb(false))._obj;
-        Assert.assertTrue(x1ro.isa(s1dglb));
 
         TypeMem m1 = TypeMem.make(2,TypeNil.NIL);
         TypeMem m2 = TypeMem.make(3,TypeInteger.U16);
@@ -36,13 +32,12 @@ public class TypeTest {
         Assert.assertNotEquals(m3, m4);
 
         Assert.assertEquals(TypeStruct.BOT, s1.meet(s2));
-        Assert.assertEquals(TypeMem   .BOT, m1.meet(m2));
-        Assert.assertEquals(TypeMem.make(1,Type.BOTTOM), m1.meet(m3));
-        Assert.assertEquals(TypeMem   .BOT, m3.meet(m4));
+        TypeMem scalarMemBot = TypeMem.make(1,TypeScalar.BOT,false,false,false,XInt.FULL,XInt.FULL);
+        Assert.assertEquals(scalarMemBot, ((TypeMem)m1.meet(m2)).makeFrom( XInt.FULL, XInt.FULL));
+        Assert.assertEquals(TypeMem.make(1,TypeScalar.BOT), m1.meet(m3));
+        Assert.assertEquals(scalarMemBot, ((TypeMem)m3.meet(m4)).makeFrom( XInt.FULL, XInt.FULL));
 
-        Assert.assertEquals(TypeMem.make(2,Type.BOTTOM), m1.glb(false));
-        Assert.assertEquals(TypeMem.make(2,Type.XNIL), m1.dual());
-        Assert.assertEquals(m4.dual(), m4.glb(false).dual());
+        Assert.assertEquals(TypeMem.make(2,Type.XNIL,true,true,true, XInt.FULL, XInt.FULL), m1.dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);
         Assert.assertEquals(s1, ptr1._obj);
@@ -57,15 +52,8 @@ public class TypeTest {
         Assert.assertEquals(s2, ptr2nil._obj);
 
         Assert.assertNotEquals(ptr1, ptr2);
-        Type p1glb = ptr1.glb(false);
-        Assert.assertNotEquals(ptr1, p1glb );
-        Type p1nro = ptr1nil.makeRO();
-        Assert.assertEquals(p1nro, p1glb);
-
         Assert.assertEquals(ptr1, ptr1.dual().dual());
-        Assert.assertTrue(p1glb.makeRO().isa( ptr1.dual().glb(false)));
         Assert.assertEquals(TypeMemPtr.makeNullable(TypeStruct.BOT), ptr1.meet(ptr2nil));
-        Assert.assertEquals(p1glb, ptr1.meet(TypeNil.NIL).makeRO());
 
         TypeMemPtr TOP = TypeMemPtr.TOP;
         TypeMemPtr BOT = TypeMemPtr.makeNullable(TypeStruct.BOT);
@@ -83,7 +71,7 @@ public class TypeTest {
         Type nullableptr1_dual = ptr1nil.dual();
 
         // Cyclic check
-        TypeStruct S1 = ((TypeMemPtr)TypeStruct.SFLT2.field("s1")._t)._obj;
+        TypeStruct S1 = ((TypeMemPtr)TypeStruct.SFLT1.field("s1")._t)._obj.close();
         Assert.assertFalse(s1.isFinal());
         Type s1ro  = S1.makeRO();
         Type s1ro2 = S1.makeRO();
@@ -91,9 +79,6 @@ public class TypeTest {
         Assert.assertTrue(s1ro.isFinal());
 
         Assert.assertFalse(S1.isConstant());
-        Type s1glb  = S1.field("s2")._t.glb(false);
-        Type s1glb2 = S1.field("s2")._t.glb(false);
-        Assert.assertSame(s1glb,s1glb2);
     }
 
     // Test theoretical properties.
@@ -126,7 +111,7 @@ public class TypeTest {
                         Type t02 = t0.join(t2);
                         Type t12 = t1.join(t2);
                         Type mt  = t02.meet(t12);
-                        assertSame(mt,t12);
+                        assertSame(t0+" isa "+t1+" joined "+t2, mt,t12);
                     }
     }
 
@@ -152,8 +137,8 @@ public class TypeTest {
         Type d1 = t1.dual();
         Type ta = dm.meet(d1);
         Type tb = dm.meet(d0);
-        assertSame(ta,d1);
-        assertSame(tb,d0);
+        assertSame(t0+" & "+t1+" mt="+mt, ta,d1);
+        assertSame(t0+" & "+t1+" mt="+mt, tb,d0);
     }
 
     private static void assoc( Type t0, Type t1, Type t2 ) {
@@ -161,31 +146,23 @@ public class TypeTest {
         Type t12   = t1 .meet(t2 );
         Type t01_2 = t01.meet(t2 );
         Type t0_12 = t0 .meet(t12);
-        assertSame(t01_2,t0_12);
+        assertSame(t0+" & "+t1+" & "+t2, t01_2,t0_12);
     }
 
     // Test cyclic types and meets
     @Test
     public void testCyclic0() {
-        Type d0 = TypeStruct.SFLT2.dual();
+        Type d0 = TypeStruct.SFLT1.dual();
         Type d1 = d0.dual();
-        assertSame(TypeStruct.SFLT2,d1);
-    }
-
-    @Test
-    public void testGLB() {
-        Type[] ts = Type.gather();
-        for( Type t0 : ts )
-            if( !(t0 instanceof Field || t0 instanceof TypeStruct || t0 instanceof TypeTuple || t0 instanceof TypeConAry ) )
-                Assert.assertTrue(t0.isa(t0.glb(false)));
+        assertSame(TypeStruct.SFLT1,d1);
     }
 
     @Test
     public void testList() {
         TypeStruct list = TypeStruct.open("List");
         TypeMemPtr plist = TypeMemPtr.makeNullable(list);
-        list = list.add(Field.make("next", plist, 2, false, false ) );
-        list = list.add(Field.make("x", TypeInteger.BOT, 3, false, false));
+        list = list.add(Field.make("next", plist, 2, false) );
+        list = list.add(Field.make("x", TypeInteger.BOT, 3, false));
         // Make a cyclic type
         list = list.close();
         // Fields are mutable
@@ -193,6 +170,17 @@ public class TypeTest {
         TypeStruct flist = (TypeStruct)list.makeRO();
         Assert.assertTrue(flist.isFinal());
         Assert.assertNotSame( list, flist );
+    }
 
+    @Test
+    public void testOpen() {
+        TypeStruct open = TypeStruct.make("List",false);
+        TypeMemPtr plist = TypeMemPtr.makeNullable(open);
+        TypeStruct list = open.add(Field.make("next", plist, 2, false) );
+        list = list.add(Field.make("x", TypeInteger.BOT, 3, false));
+        // Make a cyclic type
+        list = list.close();
+        Type mt = open.meet(list);
+        Assert.assertEquals(list,mt);
     }
 }

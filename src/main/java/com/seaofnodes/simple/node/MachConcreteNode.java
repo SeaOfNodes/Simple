@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.util.Utils;
 import java.io.ByteArrayOutputStream;
 import java.util.BitSet;
 
@@ -13,8 +12,8 @@ public abstract class MachConcreteNode extends Node implements MachNode {
     public MachConcreteNode(Node[]nodes) { super(nodes); }
 
     @Override public String label() { return op(); }
-    @Override public Type compute () { throw Utils.TODO(); }
-    @Override public Node idealize() { throw Utils.TODO(); }
+    @Override public Type compute () { throw new AssertionError("Do not call compute on "+getClass().getSimpleName()); }
+    @Override public Node idealize() { throw new AssertionError("Do not call idealize on "+getClass().getSimpleName()); }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("(").append(op()).append(",");

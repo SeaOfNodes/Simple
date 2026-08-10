@@ -5,9 +5,9 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class XorNode extends ArithNode {
-    public XorNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
+    public XorNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs, (byte)1); }
+    @Override public Tag serialTag() { return Tag.Xor; }
 
-    @Override public String label() { return "Xor"; }
     @Override public String op() { return "^"; }
     @Override public String glabel() { return "^"; }
 
@@ -20,12 +20,13 @@ public class XorNode extends ArithNode {
     public Node idealize() {
         Node lhs = in(1);
         Node rhs = in(2);
+
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
         // Xor of 0.  We do not check for (0^x) because this will already
         // canonicalize to (x^0)
-        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 && forceInt(lhs) )
             return lhs;
 
         // Move constants to RHS: con*arg becomes arg*con

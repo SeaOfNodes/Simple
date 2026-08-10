@@ -4,6 +4,8 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
+
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,78 +19,146 @@ public abstract class TestC {
     public static final String OS  = System.getProperty("os.name");
     public static final String CPU = System.getProperty("os.arch");
 
-    public static final String CALL_CONVENTION = OS.startsWith("Windows") ? "Win64" : "SystemV";
+    public static final String CALL_CONVENTION = OS.startsWith("Windows") ? "win64" : "SystemV";
     public static final String CPU_PORT = switch( CPU ) {
         case "amd64" -> "x86_64_v2";
         default -> throw Utils.TODO("Map Yer CPU Port Here");
     };
+    public static final String CPU_ABI = CPU_PORT+"_"+CALL_CONVENTION;
+    public static final String RELEASE_SYS_DIR = "build/release/"+CPU_ABI;
 
-    public static void run( String file, int spills ) throws IOException { run(file,"",spills); }
-
-    public static void run( String file, String expected, int spills ) throws IOException {
-        run("src/test/java/com/seaofnodes/simple/progs",file,expected,spills);
+    public static String runtimeObject() {
+        String home = System.getenv("SIMPLE_HOME");
+        String root = home==null || home.isEmpty() ? "build/release" : home;
+        return Path.of(root,CPU_ABI,"simple_crt.o").toString();
     }
 
-    // Compile and run a simple program
-    public static void run( String dir, String file, TypeInteger arg, String expected, int spills, boolean standalone) throws IOException {
-        // Files
-        String  cfile = dir+"/"+file+".c"  ;
-        String  sfile = dir+"/"+file+".smp";
-        String  efile = "build/objs/"+file;
+    public static final String C_DRIVERS_DIR = "src/test/java/com/seaofnodes/simple/progs/";
 
-        // Compile and export Simple
-        String src = Files.readString(Path.of(sfile));
-        run(src,CALL_CONVENTION,arg, "",standalone? null: cfile,efile,"S",expected,spills);
+    /**
+     * Compile, link and run
+     * - WITH a C driver
+     * - using the default OS/CPU calling convention.
+     * - no lib sys
+     */
+    public static void runC( String src, String base, String expected, int spills) throws IOException {
+        String cfile = C_DRIVERS_DIR+base+".c";
+        run(src, base, null, CALL_CONVENTION, "", cfile, expected, spills);
     }
 
-    // link with c and also inline
-    public static void run(String src, String file, TypeInteger arg, String expected, int spills) throws IOException {
-            String dir = "src/test/java/com/seaofnodes/simple/progs";
-            String cfile = dir+"/"+file+".c";
-            String efile = "build/objs/"+file;
-            run(src, CALL_CONVENTION, arg, "", cfile, efile, "S", expected, spills);
+    /**
+     * Compile, link and run
+     * - withOUT a C driver
+     * - using the default OS/CPU calling convention.
+     * - no lib sys
+     */
+    public static void runSF( String src, String base, String expected, int spills ) throws IOException {
+        run(src, base, null, CALL_CONVENTION, null,null, expected,spills);
     }
 
-    public static void run(String dir, String file, String expected, int spills ) throws IOException {
-        run(dir, file,null, expected, spills, false);
-    }
-
-    // Do not link with c file - no inline.
-    public static void runS(String file, String expected, int spills ) throws IOException {
-        run("src/test/java/com/seaofnodes/simple/progs", file, null, expected, spills, true);
-    }
-
-
-    // Do not link with c file - just inline with source.
-    public static void runSF(String name, String src, TypeInteger arg, String expected, int spills ) throws IOException {
-        String efile = "build/objs/"+name;
-        run(src,CALL_CONVENTION,arg, "",null,efile,"S",expected,spills);
-    }
-
-    public static void runS(String file, TypeInteger arg, String expected, int spills ) throws IOException {
-        run("src/test/java/com/seaofnodes/simple/progs", file, arg, expected, spills, true);
+    /**
+     * Compile, link and run
+     * - withOUT a C driver
+     * - using the default OS/CPU calling convention.
+     * - WITH a test lib sys
+     */
+    public static void runSYS( String src, String base, String expected, int spills ) throws IOException {
+        Ary<String> externPaths = new Ary<>(new String[]{RELEASE_SYS_DIR});
+        run(src, base, externPaths, CALL_CONVENTION, null,null, expected,spills);
     }
 
 
-    public static void run( String src, String simple_conv, TypeInteger arg, String c_conv, String cfile, String efile, String xtn, String expected, int spills ) throws IOException {
-        String bin = efile+xtn;
-        String obj = bin+".o";
-        String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
-        // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj);
+    /**
+     * Compile, link and run - general case
+     *
+     * @param src         Program source to compile
+     * @param base        Compiled binary final base name
+     * @param externPaths External symbol search path
+     * @param simple_conv Argument convention when calling Simple code
+     * @param c_conv      Argument convention when calling C code, or null if not
+     *                    linking against a C driver program
+     * @param cfile       Associated C program which will drive the Simple program,
+     *                    or null if not linking against a C driver program
+     * @param expected    Expected stdout string
+     * @param spills      Expected limit on spill code, used to validate the
+     *                    register allocation is reasonable
+     */
+    public static void run( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv, String cfile, String expected, int spills ) throws IOException {
+        run(src, base, externPaths, simple_conv, c_conv, cfile, null, expected, spills);
+    }
 
-        String result = gcc(obj, c_conv, cfile, false, exe );
+    public static void runArgs( String src, String base, Ary<String> externPaths, String simple_conv,
+                                String expected, int spills, String... programArgs ) throws IOException {
+        run0(src,base,externPaths,simple_conv,null,null,null,expected,spills,programArgs);
+    }
+
+    public static void run( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv, String cfile, String stdin, String expected, int spills ) throws IOException {
+        run0(src,base,externPaths,simple_conv,c_conv,cfile,stdin,expected,spills,new String[0]);
+    }
+
+    private static void run0( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv,
+                              String cfile, String stdin, String expected, int spills, String[] programArgs ) throws IOException {
+        String exe = compile(src,base,externPaths,simple_conv,c_conv,cfile,spills);
+
+        String[] execArgs = new String[programArgs.length+1];
+        execArgs[0] = exe;
+        System.arraycopy(programArgs,0,execArgs,1,programArgs.length);
+        String result = execStdin(stdin, execArgs );
         assertEquals(expected,result);
+    }
+
+    public static String compile( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv,
+                                  String cfile, int spills ) throws IOException {
+        // Simple file base-name example:
+        // foo.smp ->
+        //   build/objs/foo.o   - object file
+        //   build/objs/foo.exe - linked executable Windows
+        //   build/objs/foo     - linked executable Linux
+        String pathBase = "build/objs/"+base;
+        String obj = pathBase+".o";
+        String exe = pathBase+(OS.startsWith("Windows") ? ".exe" : "");
+        // Compile simple, emit ELF
+        CodeGen code = new CodeGen(null,"build/objs",externPaths,base,src,126L,true,TypeInteger.BOT);
+        code.driver( CPU_PORT, simple_conv, false, cfile==null );
+
+        linkExe(obj, c_conv, cfile, linkObjs(externPaths), exe);
 
         // Allocation quality not degraded
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
-        if( spills != -1 )
+        if( spills != -1 && !CodeGen.iterSeedOverridden() )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        return exe;
     }
 
-    public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {
+    // Link with gcc, and execute the resulting binary, returning stdout as a
+    // String.  Any errors *assert* instead of returning some error code; this
+    // utility is meant to execute inside a JUnit test which will catch the
+    // assert and flag the test as failed.
+    public static String gcc( String main, double ignore, String... objs ) throws IOException {
+        String BLDDIR = "build/objs/test0/";
+        String exe = BLDDIR+main+(OS.startsWith("Windows") ? ".exe" : "");
+        return gcc(objs[0],null,null,false,exe);
+    }
 
+    // Link with gcc, and execute the resulting binary, returning stdout as a
+    // String.  Any errors *assert* instead of returning some error code; this
+    // utility is meant to execute inside a JUnit test which will catch the
+    // assert and flag the test as failed.
+    public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {
+        return gcc(obj,c_conv,cfile,stdin ? "" : null,null,args);
+    }
+
+    public static String gcc( String obj, String c_conv, String cfile, String stdin, String... args ) throws IOException {
+        return gcc(obj,c_conv,cfile,stdin,null,args);
+    }
+
+    public static String gcc( String obj, String c_conv, String cfile, String stdin, Ary<String> linkObjs, String... args ) throws IOException {
+        linkExe(obj,c_conv,cfile,linkObjs,args[0]);
+        return execStdin(stdin,args);
+    }
+
+    public static void linkExe( String obj, String c_conv, String cfile, Ary<String> linkObjs, String exe ) throws IOException {
         // Compile the C program.  Compiling code and constants in the low
         // 2Gig.  Pointers are 64b BUT since always in the low 2G all the
         // high bits are zero - and Simple code can be emitted treating
@@ -96,12 +166,18 @@ public abstract class TestC {
         var params = new Ary<>(String.class);
         params.add("gcc");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
+        params.add(obj);
+        // Standalone Simple programs export `simple_main`; the small C
+        // runtime owns the native main symbol and converts argc/argv into a
+        // normal Simple array before making the ABI-qualified call.
+        if( cfile==null ) params.add(runtimeObject());
+        if( linkObjs != null )
+            params.addAll(linkObjs.asAry());
         params.addAll(new String[] {
-                obj,
-                "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
-                "-g",
-                "-o",
-                args[0],
+            "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
+            "-g",
+            "-o",
+            exe,
         });
         // Calling convention for C calls, if any
         if( cfile!=null ) {
@@ -126,14 +202,52 @@ public abstract class TestC {
         assertEquals( 0, exit );
         //assertTrue(result.isEmpty()); // No data in error stream
 
+    }
+
+    public static String exec( String... args ) throws IOException {
+        return execStdin(null,args);
+    }
+
+    private static String execStdin( String stdin, String... args ) throws IOException {
         // Execute results
         ProcessBuilder smp = new ProcessBuilder(args);
-        if( stdin ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
+        File stdinFile = null;
+        File stdoutFile = File.createTempFile("simple-stdout",".txt");
+        smp.redirectOutput(stdoutFile);
+        if( stdin!=null && stdin.isEmpty() ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
+        else if( stdin!=null ) {
+            stdinFile = File.createTempFile("simple-stdin",".txt");
+            Files.writeString(stdinFile.toPath(),stdin);
+            smp.redirectInput(stdinFile);
+        }
         Process p = smp.start();
+        if( stdin==null )
+            p.getOutputStream().close();
+        int exit;
         try { exit = (byte)p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
-        result = new String(p.getInputStream().readAllBytes());
+        String result = Files.readString(stdoutFile.toPath());
+        if( stdinFile != null )
+            stdinFile.delete();
+        stdoutFile.delete();
         if( exit!=0 )
-            System.err.println("exec exit code: "+exit);
+            return "exec exit code: "+exit;
         return result;
+    }
+
+    static Ary<String> linkObjs(Ary<String> externPaths) {
+        if( externPaths == null )
+            return null;
+        Ary<String> objs = new Ary<>(String.class);
+        for( String path : externPaths ) {
+            File file = new File(path);
+            if( file.isFile() && file.getName().endsWith(".o") )
+                objs.add(file.toString());
+            else if( file.isDirectory() ) {
+                File sys = new File(file,"sys.o");
+                if( sys.isFile() )
+                    objs.add(sys.toString());
+            }
+        }
+        return objs.isEmpty() ? null : objs;
     }
 }

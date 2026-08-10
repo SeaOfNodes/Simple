@@ -70,7 +70,7 @@ public class x86_64_v2 extends Machine {
     public static int REX_WB = 0x49;
 
     public enum MOD {
-        INDIRECT,               //  [mem]
+        INDIRECT,               // [mem]
         INDIRECT_disp8,         // [mem + 0x12]
         INDIRECT_disp32,        // [mem + 0x12345678]
         DIRECT,                 // mem
@@ -188,22 +188,29 @@ public class x86_64_v2 extends Machine {
     // Map from function signature and argument index to register.
     // Used to set input registers to CallNodes, and ParmNode outputs.
     @Override public RegMask callArgMask( TypeFunPtr tfp, int idx, int maxArgSlot ) { return callInMask(tfp,idx,maxArgSlot); }
+    @Override public RegMask callArgMask( TypeFunPtr tfp, int idx, int maxArgSlot, String conv ) { return callInMask(tfp,idx,maxArgSlot,conv); }
     static RegMask callInMask( TypeFunPtr tfp, int idx, int maxArgSlot ) {
+        return callInMask(tfp,idx,maxArgSlot,CodeGen.CODE._callingConv);
+    }
+    static RegMask callInMask( TypeFunPtr tfp, int idx, int maxArgSlot, String conv ) {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
-        return switch( CodeGen.CODE._callingConv ) {
+        return switch( conv ) {
         case "SystemV" -> callSys5 (tfp,idx,maxArgSlot);
-        case "Win64"   -> callWin64(tfp,idx,maxArgSlot);
+        case "win64"   -> callWin64(tfp,idx,maxArgSlot);
         default -> throw Utils.TODO();
         };
     }
 
     // Maximum stack args used by this signature
     @Override public short maxArgSlot( TypeFunPtr tfp ) {
-        return switch( CodeGen.CODE._callingConv ) {
+        return maxArgSlot(tfp,CodeGen.CODE._callingConv);
+    }
+    @Override public short maxArgSlot( TypeFunPtr tfp, String conv ) {
+        return switch( conv ) {
         case "SystemV" -> maxArgSlotSys5 (tfp);
-        case "Win64"   -> maxArgSlotWin64(tfp);
+        case "win64"   -> maxArgSlotWin64(tfp);
         default -> throw Utils.TODO();
         };
     }
@@ -236,14 +243,22 @@ public class x86_64_v2 extends Machine {
     static RegMask callWin64(TypeFunPtr tfp, int idx, int maxArgSlot ) {
         // idx 2,3,4,5 passed in registers, with stack slot mirrors.
         // idx >= 6 passed on stack, starting at slot#1 (#0 reserved for RPC).
-        if( idx >= 6 )
-            return new RegMask(MAX_REG+maxArgSlot+(idx-2));
+        int sigidx = idx-2;
+        if( hiddenSelf(tfp) ) {
+            if( sigidx==0 ) return null;
+            sigidx--;
+        }
+        if( sigidx >= 4 )
+            return new RegMask(MAX_REG+maxArgSlot+sigidx);
         return tfp.arg(idx-2) instanceof TypeFloat
-            ? XMMS8     [idx-2]
-            : WIN64_CALL[idx-2];
+            ? XMMS8     [sigidx]
+            : WIN64_CALL[sigidx];
     }
     static short maxArgSlotWin64(TypeFunPtr tfp) {
-        return (short)tfp.nargs();
+        return (short)Math.max(4,tfp.nargs() - (hiddenSelf(tfp) ? 1 : 0));
+    }
+    static short maxIncomingArgSlotWin64(TypeFunPtr tfp) {
+        return (short)Math.max(0,tfp.nargs() - (hiddenSelf(tfp) ? 1 : 0) - 4);
     }
 
     // Sys5: max 6 GPRs and 8 FPRS filled first.  Extra args land in increasing
@@ -277,9 +292,14 @@ public class x86_64_v2 extends Machine {
     static RegMask callSys5(TypeFunPtr tfp, int idx, int maxArgSlot ) {
         // First 6 integers passed in registers: rdi,rsi,rdx,rcx,r08,r09
         // First 8 floats passed in registers: xmm0-xmm7
+        int sigidx = idx-2;
+        if( hiddenSelf(tfp) ) {
+            if( sigidx==0 ) return null;
+            sigidx--;
+        }
         int icnt=0, fcnt=0;     // Count of ints, floats
-        for( int i=2; i<idx; i++ ) {
-            if( tfp.arg(i-2) instanceof TypeFloat ) fcnt++;
+        for( int i=hiddenSelf(tfp) ? 1 : 0; i<idx-2; i++ ) {
+            if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
             else icnt++;
         }
         int nstk = Math.max(icnt-6,0)+Math.max(fcnt-8,0);
@@ -289,12 +309,15 @@ public class x86_64_v2 extends Machine {
     }
     static short maxArgSlotSys5(TypeFunPtr tfp) {
         int icnt=0, fcnt=0;     // Count of ints, floats
-        for( int i=0; i<tfp.nargs(); i++ ) {
+        for( int i=hiddenSelf(tfp) ? 1 : 0; i<tfp.nargs(); i++ ) {
             if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
             else icnt++;
         }
         int nstk = Math.max(icnt-6,0)+Math.max(fcnt-8,0);
         return (short)nstk;
+    }
+    private static boolean hiddenSelf(TypeFunPtr tfp) {
+        return tfp.nargs() > 0 && tfp.arg(0) == TypePtr.PTR;
     }
 
     static final long SYSTEM5_CALLER_SAVE =
@@ -314,11 +337,17 @@ public class x86_64_v2 extends Machine {
         (1L<<XMM4) | (1L<<XMM5) ;
 
     @Override public long callerSave() {
-        return switch (CodeGen.CODE._callingConv) {
+        return callerSave(CodeGen.CODE._callingConv);
+    }
+    @Override public long callerSave(String conv) {
+        return switch (conv) {
         case "SystemV" -> SYSTEM5_CALLER_SAVE;
-        case "Win64"   ->   WIN64_CALLER_SAVE;
-        default -> throw new IllegalArgumentException("Unknown calling convention: " + CodeGen.CODE._callingConv);
+        case "win64"   ->   WIN64_CALLER_SAVE;
+        default -> throw new IllegalArgumentException("Unknown calling convention: " + conv);
         };
+    }
+    @Override public String cCallingConv(String callingConv) {
+        return callingConv;
     }
     @Override public long neverSave() { return 1L<<RSP; }
     @Override public RegMask retMask( TypeFunPtr tfp ) {
@@ -328,8 +357,8 @@ public class x86_64_v2 extends Machine {
 
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round, LRG lrg) {
-        return new SplitX86(kind, round);
+    @Override public SplitNode split(LRG lrg, String kind, byte round ) {
+        return new SplitX86(lrg,kind, round);
     }
 
     // Return a MachNode unconditional branch
@@ -341,28 +370,33 @@ public class x86_64_v2 extends Machine {
     @Override
     public Node instSelect(Node n) {
         return switch (n) {
-        case AddFNode    addf -> addf(addf);
         case AddNode      add -> add(add);
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CProjNode      c -> new CProjNode(c);
         case CallEndNode cend -> new CallEndMach(cend);
         case CallNode    call -> call(call);
-        case CastNode    cast -> new CastMach(cast);
+        case PtrToIntNode  ptr -> new PtrToIntMach(ptr);
+        case GuardNode  guard -> new GuardMach(guard);
         case ConstantNode con -> con(con);
-        case DivFNode    divf -> new DivFX86(divf);
-        case DivNode      div -> new DivX86(div);
+        case DivNode      div -> div.mode()==2 ? new DivFX86(div) : new DivX86(div);
+        case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunX86(fun);
+        case FunPtrNode  fptr -> fptr(fptr);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
-        case MinusNode    neg -> new NegX86(neg);
-        case MulFNode    mulf -> new MulFX86(mulf);
-        case MulNode      mul -> mul(mul);
+        case MinusNode    neg -> {
+            if( neg.mode()==2 ) throw Utils.TODO();
+            yield new NegX86(neg);
+        }
+        case MulNode      mul -> mul.mode()==2 ? new MulFX86(mul) : mul(mul);
         case NewNode      nnn -> new NewX86(nnn);
         case NotNode      not -> new NotX86(not);
         case OrNode        or -> or(or);
         case ParmNode    parm -> new ParmX86(parm);
+        case BulkMemPhiNode phi-> new BulkMemPhiNode(phi);
+        case MemPhiNode  phi  -> new MemPhiNode(phi);
         case PhiNode      phi -> new PhiNode(phi);
         case ProjNode     prj -> prj(prj);
         case ReadOnlyNode read-> new ReadOnlyMach(read);
@@ -370,13 +404,14 @@ public class x86_64_v2 extends Machine {
         case SarNode      sar -> sar(sar);
         case ShlNode      shl -> shl(shl);
         case ShrNode      shr -> shr(shr);
+        case StartCUNode start -> new StartCUNode(start);
+        case StopCUNode  stop -> new StopCUNode(stop);
         case StartNode  start -> new StartNode(start);
         case StopNode    stop -> new StopNode(stop);
         case StoreNode     st -> st(st);
-        case SubFNode    subf -> new SubFX86(subf);
-        case SubNode      sub -> sub(sub);
+        case SubNode      sub -> sub.mode()==2 ? new SubFX86(sub) : sub(sub);
         case ToFloatNode  tfn -> i2f8(tfn);
-        case XCtrlNode      x -> new ConstantNode(Type.XCONTROL);
+        case XCtrlNode      x -> ConstantNode.raw(Type.XCONTROL);
         case XorNode      xor -> xor(xor);
 
         case LoopNode loop -> new LoopNode(loop);
@@ -391,15 +426,12 @@ public class x86_64_v2 extends Machine {
 
     // Attempt a full LEA-style break down.
     private Node add(AddNode add) {
+        if( add.mode()==2 )
+            return new AddFX86(add);
         Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld.declaredType().log_size() >= 3)
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, 0, rhs);
-
-//        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3) {
-//            throw Utils.TODO(); // Swap load sides
-//        }
-
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS
         if( rhs instanceof ConstantNode off2 && off2._con instanceof TypeInteger toff ) {
@@ -419,17 +451,6 @@ public class x86_64_v2 extends Machine {
             return new AddIX86(add, (int)imm);
         }
         return _lea(add, lhs, rhs, 0);
-    }
-
-
-    private Node addf(AddFNode addf) {
-        if(addf.in(1) instanceof LoadNode ld && ld.nOuts() == 1)
-            return new AddFMemX86(addf, address(ld), ld.ptr(), idx, off, scale, addf.in(2));
-
-//        if(addf.in(2) instanceof LoadNode ld && ld.nOuts() == 1)
-//            throw Utils.TODO(); // Swap load sides
-
-        return new AddFX86(addf);
     }
 
 
@@ -456,8 +477,10 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node call(CallNode call) {
-        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
-            ? new CallX86(call, tfp)
+        return call.fptr() instanceof FunPtrNode con
+            ? new CallX86(call, (TypeFunPtr)con._type)
+            : call.fptr() instanceof ConstantNode con && con._type instanceof TypeFunPtr
+            ? new CallX86(call, (TypeFunPtr)con._type)
             : new CallRX86(call);
     }
 
@@ -482,12 +505,13 @@ public class x86_64_v2 extends Machine {
         // Since cmp does not record a BOP, SetX/Jmp need to know if the CMP is swapped.
 
         // Vs memory
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && rhs._type.isa(ld._declaredType) )
+        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && rhs._type.isa(ld.declaredType()) )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
         // Operands swap in the encoding directly, no need for Set/Jmp to swap `bop`
-        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld._declaredType) &&
-            (val!=null || bool.op()=="==" || bool.op()=="!=") )
+        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld.declaredType()) &&
+            (!(lhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value())) ||
+             bool.op()=="==" || bool.op()=="!=") )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
 
         // Vs immediate
@@ -504,16 +528,21 @@ public class x86_64_v2 extends Machine {
 
     private Node con( ConstantNode con ) {
         if( !con._con.isConstant() )
-            return new ConstantNode(con); // Default unknown caller inputs
+            return ConstantNode.raw(con); // Default unknown caller inputs
+        String ext = con instanceof ExternNode ext0 ? ext0._extern : null;
         return switch (con._con) {
-        case TypeInteger ti -> new IntX86(con);
-        case TypeFloat   tf -> new FltX86(con);
-        case TypeFunPtr tfp -> new TFPX86(con);
-        case TypeMemPtr tmp -> new TMPX86(con);
+        case TypeInteger ti -> new IntX86(con,ext);
+        case TypeFloat   tf -> new FltX86(con,ext);
+        case TypeMemPtr tmp -> new TMPX86(con,ext);
+        case TypeFunPtr tfp -> new TFPX86(tfp,ext);
         case TypeNil tn -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> t == Type.NIL ? new IntX86(con) : new ConstantNode(con);
+        case Type t -> t == Type.NIL ? new IntX86(con,null) : ConstantNode.raw(con);
         };
+    }
+
+    private Node fptr( FunPtrNode con ) {
+        return new TFPX86(con);
     }
 
     private Node i2f8(ToFloatNode tfn) {
@@ -528,7 +557,9 @@ public class x86_64_v2 extends Machine {
         String op = "!=";
         if( iff.in(1) instanceof BoolNode bool ) op = swap ? IfNode.swap(bool.op()) : bool.op();
         else if( iff.in(1)==null ) op = "=="; // Never-node cutout
-        else iff.setDef(1, new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
+        else iff.setDef(1, new BoolNode.NE(iff.in(1),
+                                           ConstantNode.raw(TypeInteger.ZERO),
+                                           (byte)(iff.in(1)._type instanceof TypeFloat ? 2 : 1)));
         return new JmpX86(iff, op);
     }
 
@@ -549,7 +580,7 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node prj( ProjNode prj ) {
-        return new ProjX86(prj);
+        return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjX86(prj);
     }
 
     private Node sar(SarNode sar) {
@@ -636,7 +667,7 @@ public class x86_64_v2 extends Machine {
 
     private int imm( Node xval ) {
         assert val == null && imm == 0;
-        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti && ti.isConstant() && imm32(ti.value()) ) {
             val = null;
             imm = (int) ti.value();
             assert imm == ti.value(); // In 32-bit range

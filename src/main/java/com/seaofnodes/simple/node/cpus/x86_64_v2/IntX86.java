@@ -5,15 +5,17 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 // Integer constants
 public class IntX86 extends ConstantNode implements MachNode {
-    IntX86( ConstantNode con ) { super(con); }
+    final String _ext;
+    IntX86( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() {
         return _con == Type.NIL || _con == TypeInteger.ZERO ? "xor" : "ldi";
     }
     @Override public boolean isClone() { return true; }
-    @Override public Node copy() { return new IntX86(this); }
+    @Override public Node copy() { return new IntX86(this,_ext); }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     // Zero-set uses XOR kills flags
@@ -33,6 +35,7 @@ public class IntX86 extends ConstantNode implements MachNode {
             return;
         }
 
+        if( _ext!=null ) throw Utils.TODO();
         // Simply move the constant into a GPR
         // Conditional encoding based on 64 or 32 bits
         //REX.W + C7 /0 id	MOV r/m64, imm32

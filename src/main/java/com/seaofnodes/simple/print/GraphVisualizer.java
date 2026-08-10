@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.print;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.node.*;
 import java.util.*;
 import static com.seaofnodes.simple.util.Utils.TODO;
@@ -21,16 +22,16 @@ public class GraphVisualizer {
     public GraphVisualizer(boolean separateControlCluster) { this._separateControlCluster = separateControlCluster; }
     public GraphVisualizer() { this(false); }
 
-    public String generateDotOutput(Parser parse) { return generateDotOutput(parse._code._stop,parse._scope,parse._xScopes); }
-    public String generateDotOutput(StopNode stop, Node scope, Stack<ScopeNode> xScopes) {
+    public String generateDotOutput(Parser parse) { return generateDotOutput(parse._ref,parse._scope,parse._xScopes); }
+    public String generateDotOutput(CompUnit cu, Node scope, Stack<ScopeNode> xScopes) {
 
         // Since the graph has cycles, we need to create a flat list of all the
         // nodes in the graph.
-        Collection<Node> all = findAll(xScopes, stop, scope);
+        Collection<Node> all = findAll(xScopes, cu._stop, scope);
         StringBuilder sb = new StringBuilder();
         sb.append("digraph chapter18 {\n");
         sb.append("/*\n");
-        sb.append(stop._src);
+        sb.append(cu._src);
         sb.append("\n*/\n");
 
         // To keep the Scopes below the graph and pointing up into the graph we
@@ -80,7 +81,7 @@ public class GraphVisualizer {
         // Just the Nodes first, in a cluster no edges
         sb.append(doCtrl ? "\tsubgraph cluster_Controls {\n" : "\tsubgraph cluster_Nodes {\n"); // Magic "cluster_" in the subgraph name
         for (Node n : all) {
-            if (n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode || n==Parser.XCTRL)
+            if( n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode || n instanceof XCtrlNode )
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
             if( _separateControlCluster &&  doCtrl && !(n instanceof CFGNode) ) continue;
             if( _separateControlCluster && !doCtrl &&  (n instanceof CFGNode) ) continue;
@@ -162,7 +163,7 @@ public class GraphVisualizer {
             sb.append("\tsubgraph cluster_").append(scopeName).append(" {\n"); // Magic "cluster_" in the subgraph name
             // Special for memory ScopeMinNode
             if( level==0 ) {
-                MemMergeNode n = scope.mem();
+                Node n = scope.mem();
                 sb.append("\t\t").append(n.uniqueName()).append(" [label=\"").append(n.glabel()).append("\"];\n");
             }
             sb.append("\t\t").append(scopeName).append(" [label=<\n");
@@ -195,7 +196,7 @@ public class GraphVisualizer {
             // Do not display the Constant->Start edge;
             // ProjNodes handled by Multi;
             // ScopeNodes are done separately
-            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeNode || n==Parser.XCTRL )
+            if( n instanceof ConstantNode || n instanceof ProjNode || n instanceof CProjNode || n instanceof ScopeNode || n instanceof XCtrlNode )
                 continue;
             for( int i=0; i<n.nIns(); i++ ) {
                 Node def = n.in(i);

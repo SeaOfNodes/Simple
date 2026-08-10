@@ -1,9 +1,7 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -23,24 +21,24 @@ val brain_fuck = { ->
 
     for( int pc = 0; pc < program#; pc++ ) {
         var command = program[pc];
-        if (command == 62) {
+        if (command == '>') {
             d++;
-        } else if (command == 60) {
+        } else if (command == '<') {
             d--;
-        } else if (command == 43) {
+        } else if (command == '+') {
             data[d]++;
-        } else if (command == 45) {
+        } else if (command == '-') {
             data[d]--;
-        } else if (command == 46) {
+        } else if (command == '.') {
             // Output a byte; increase the output array size
             var old = output;
             output = new u8[output# + 1];
             for( int i = 0; i < old#; i++ )
                 output[i] = old[i];
             output[old#] = data[d]; // Add the extra byte on the end
-        } else if (command == 44) {
+        } else if (command == ',') {
             data[d] = 42;
-        } else if (command == 91) {
+        } else if (command == '[') {
             if (data[d] == 0) {
                 for( int d = 1; d > 0; ) {
                     command = program[++pc];
@@ -48,7 +46,7 @@ val brain_fuck = { ->
                     if (command == 93) d--;
                 }
             }
-        } else if (command == 93) {
+        } else if (command == ']') {
             if (data[d]) {
                 for( int d = 1; d > 0; ) {
                     command = program[--pc];
@@ -61,9 +59,9 @@ val brain_fuck = { ->
     return output;
 };
 """;
-        TestC.run(src,"brain_fuck", null, brain_fuck, 40);
+        TestC.runC(src,"brain_fuck", brain_fuck, 40);
 
-        EvalRisc5 R5 = TestRisc5.build("brain_fuck", src, 0, 28, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "brain_fuck", 0, 25, false);
         int trap = R5.step(100000);
         assertEquals(0,trap);
         int ptr = (int)R5.regs[com.seaofnodes.simple.node.cpus.riscv.riscv.A0];
