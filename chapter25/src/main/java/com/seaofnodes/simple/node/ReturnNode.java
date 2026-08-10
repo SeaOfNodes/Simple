@@ -60,15 +60,6 @@ public class ReturnNode extends CFGNode {
         if( ret != fcn.ret() && ret.isa(fcn.ret()) )
             _fun.setSig(fcn.makeFrom(ret));
 
-        // If dead (cannot be reached; infinite loop), kill the exit values
-        if( ctrl()._type==Type.XCONTROL &&
-            !(mem() instanceof ConstantNode && expr() instanceof ConstantNode) ) {
-            Node top = ConstantNode.make(Type.TOP).peephole();
-            setDef(1,top);
-            setDef(2,top);
-            return this;
-        }
-
         return null;
     }
 

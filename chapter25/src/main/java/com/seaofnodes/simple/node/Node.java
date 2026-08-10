@@ -501,6 +501,10 @@ public abstract class Node implements Cloneable {
             // A high Load through a bad pointer still owns the source error;
             // do not replace it with an unlocated constant before typeCheck.
             !(this instanceof LoadNode && err()!=null) &&
+            // A CallEnd can be temporarily high while optimistic call-graph
+            // linking is still discovering its target Returns.  Its result
+            // projections must remain attached so they can sharpen later.
+            !(this instanceof ProjNode proj && proj.in(0) instanceof CallEndNode && _type.isHigh()) &&
             _type.isHighOrConst() )
             return ConstantNode.make(_type).peephole();
 

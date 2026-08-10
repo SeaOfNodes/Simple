@@ -99,7 +99,7 @@ public abstract class TestC {
         // Allocation quality not degraded
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
-        if( spills != -1 )
+        if( spills != -1 && !CodeGen.iterSeedOverridden() )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
     }
 

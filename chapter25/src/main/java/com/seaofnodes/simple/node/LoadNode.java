@@ -317,12 +317,14 @@ public class LoadNode extends MemOpNode {
         int shift = Long.numberOfLeadingZeros(ti._max)-1;
         Node shf = con(shift);
         if( shf._type==TypeInteger.ZERO ) {
-            // Val can be stale and on worklist.  Preserve momnotoncity and bring it up to date
-            if( val._type.isa(_type) )
-                return val;
-            Node val2 = val.peephole();
-            assert val._type.isa(_type);
-            return val2;
+            // A freshly exposed Store value can still be globally unknown.
+            // Revisit this Load when it settles instead of replacing a typed
+            // Load with the weaker transient value.
+            if( !val._type.isa(_type) ) {
+                addDep(val);
+                return null;
+            }
+            return val;
         }
         Node shl = new ShlNode(null,val,shf.keep()).peephole();
         return new SarNode(null,shl,shf.unkeep());

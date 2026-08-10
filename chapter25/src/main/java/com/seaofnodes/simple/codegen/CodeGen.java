@@ -42,6 +42,9 @@ public class CodeGen {
     }
     public Phase _phase;
 
+    /** True when tests deliberately randomize Iter worklist order. */
+    public static boolean iterSeedOverridden() { return System.getProperty("simple.iter.seed") != null; }
+
     // ---------------------------
     // Module Source Root
     public final String _modDir;
@@ -196,7 +199,10 @@ public class CodeGen {
         _phase = null;
         // Start GVN table
         _gvn = new HashMap<>();
-        _iter = new IterPeeps(workListSeed);
+        // Allow whole-suite worklist-order sweeps without rewriting the many
+        // explicit seeds used by tests and command-line compilation.
+        String iterSeed = System.getProperty("simple.iter.seed");
+        _iter = new IterPeeps(iterSeed == null ? workListSeed : Long.parseLong(iterSeed));
         // End points of graph
         _stop = new StopNode().init();
         _start = new StartNode(null,_stop,arg).init();

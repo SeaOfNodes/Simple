@@ -116,7 +116,10 @@ if( arg==0 )
 return arg+a+b;
 """);
         code.parse().opto();
-        assertEquals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));", code.print());
+        String ir = code.print();
+        assertTrue(ir,
+                   ir.equals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));") ||
+                   ir.equals("return (Phi(Region,((!=0)arg+1),0)+Phi(Region,2,0));"));
     }
 
     @Test

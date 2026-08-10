@@ -140,6 +140,7 @@ public class BulkMemPhiNode extends PhiNode {
         return true;
     }
 
+
     // True if the MemMerge has no precise slice still covered by this Phi.
     private boolean canPeek(MemMergeNode mmm) {
         return missingAlias(mmm,false)==0;
@@ -165,7 +166,11 @@ public class BulkMemPhiNode extends PhiNode {
 
     // Return an alias required by a user but still covered by this Phi, or 0.
     private int outputAlias(Node use) {
-        use = addDep(use);      // User alias sharpening changes this decision
+        // This decision depends backwards on an immediate user's alias/set.
+        // Normal graph-neighbor enqueueing flows from defs to uses, so retain
+        // an explicit forward dependency to revisit this Phi when the user
+        // sharpens.
+        use = addDepForwards(use);
         return switch(use) {
         case ScopeNode scope -> 0;
         case ParmNode parm -> 0;
@@ -217,6 +222,11 @@ public class BulkMemPhiNode extends PhiNode {
         for( int i=0; i<nIns(); i++ ) mphi.addDef(in(i));
         Node mem = mphi.peephole();
         assert ((TypeMem)mem._type)._alias==alias;
+        // The precise Phi is a new alias-sensitive user of every memory
+        // input.  Revisit those defs: a predecessor BulkMemPhi may now need
+        // to split this alias even though none of its inputs or types changed.
+        for( int i=1; i<mphi.nIns(); i++ )
+            CodeGen.CODE.add(mphi.in(i));
 
         BitSet aliases = ((BitSet)_aliases.clone());
         aliases.set(alias);
@@ -271,9 +281,20 @@ public class BulkMemPhiNode extends PhiNode {
         if( found==null ) {
             MemPhiNode mphi = new MemPhiNode("$"+alias,alias);
             mphi.addDef(region());
+            // Publishing the Phi on the Region makes it visible to recursive
+            // precisePhi lookups before all loop inputs have been installed.
+            // Give that recursion a valid lattice value until peephole computes
+            // the completed precise-memory Phi.
+            mphi.setType(TypeMem.BOT.makeFrom(alias));
             for( int i=1; i<nIns(); i++ )
                 mphi.addDef(preciseInput(in(i),alias));
             found = mphi.peephole();
+            // A newly reconstructed precise Phi also creates new users of
+            // its memory inputs.  In particular, a BulkMemPhi input may now
+            // need to split this alias, a backwards (user-to-def) change not
+            // covered by processing the new Phi itself.
+            for( int i=1; i<mphi.nIns(); i++ )
+                CodeGen.CODE.add(mphi.in(i));
             CodeGen.CODE.add(found);
         }
         return found;

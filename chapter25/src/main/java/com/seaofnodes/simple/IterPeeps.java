@@ -81,11 +81,14 @@ public class IterPeeps {
                     // Everybody gets a free "go again" in case they didn't get
                     // made in their final form.
                     _work.push(x);
+                    // A self-returning peephole can have rewritten its input
+                    // edges.  The new defs gained a user and may have
+                    // backwards, user-sensitive peepholes of their own.
+                    for( Node z : x._inputs ) _work.push(z);
                     // If the result is not self, revisit all inputs (because
                     // there's a new user), and replace in the graph.
                     if( x != n ) {
                         for( Node z : n. _inputs ) _work.push(z);
-                        for( Node z : x. _inputs ) _work.push(z);
                         for( Node z : x._outputs ) _work.push(z);
                         n.subsume(x);
                     }

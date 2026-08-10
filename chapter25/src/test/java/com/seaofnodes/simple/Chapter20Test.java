@@ -19,7 +19,7 @@ public class Chapter20Test {
         code.driver(CodeGen.Phase.RegAlloc,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
-        if( spills != -1 )
+        if( spills != -1 && !CodeGen.iterSeedOverridden() )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
             assertEquals(stop, code.print());
