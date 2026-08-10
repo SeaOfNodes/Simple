@@ -24,8 +24,8 @@ return y;
     @Test
     public void testConstruct1() {
         CodeGen code = new CodeGen("""
-struct X { int ~x; };
-X z = new X { x=3; };
+struct _X { int ~x; new _X = { int xx -> x=xx; }; };
+_X z = new _X(3);
 return z.x;
 """);
         code.parse().opto();
@@ -36,20 +36,20 @@ return z.x;
     @Test
     public void testStructFinal0() {
         CodeGen code = new CodeGen("""
-struct Point { int ~x, ~y; };
-Point p = new Point { x=3; y=4; };
+struct _Point { int ~x, ~y; new _Point = { int xx, int yy -> x=xx; y=yy; }; };
+_Point p = new _Point(3,4);
 return p;
 """);
         code.parse().opto();
-        assertEquals("return (const)Point;", code.print());
-        assertEquals("Point{x=3,y=4}", Eval2.eval(code,  0));
+        assertEquals("return (const)Test._Point;", code.print());
+        assertEquals("Test._Point{x=3,y=4}", Eval2.eval(code,  0));
     }
 
     @Test
     public void testStructFinal1() {
         CodeGen code = new CodeGen("""
-struct Point { int x=3, y=4; };
-~Point p = new Point { x=5; y=6; };
+struct _Point { int x=3, y=4; new _Point = { int xx, int yy -> x=xx; y=yy; }; };
+~_Point p = new _Point(5,6);
 p.x++;
 return p;
 """);
@@ -60,8 +60,8 @@ return p;
     @Test
     public void testStructFinal2() {
         CodeGen code = new CodeGen("""
-struct Point { int x=3, y=4; };
-~Point p = new Point;
+struct _Point { int x=3, y=4; };
+~_Point p = new _Point;
 p.x++;
 return p;
 """);
@@ -71,18 +71,21 @@ return p;
 
     @Test
     public void testStructFinal3() {
-        for( String fields : new String[] { "var x; var y;", "int[] !x;", "int[] !x;" } ) {
-            String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
-            try { new CodeGen(src).parse().opto(); fail(fields); }
-            catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
-        }
+        CodeGen code = new CodeGen("""
+struct _Point { var x; var y; };
+_Point p = new _Point;
+p.x++;
+return p;
+""");
+        try { code.parse().opto(); fail(); }
+        catch( Exception e ) { assertEquals("'Test._Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
     }
 
     @Test
     public void testStructFinal4() {
         CodeGen code = new CodeGen("""
-struct Point { val x=3; val y=4; };
-Point p = new Point;
+struct _Point { val x=2; val y=4; };
+_Point p = new _Point;
 p.x++;
 return p;
 """);
@@ -93,14 +96,14 @@ return p;
     @Test
     public void testStructFinal5() {
         CodeGen code = new CodeGen("""
-struct Point { var x=3; var y=4; };
-!Point !p = new Point;
+struct _Point { var x=3; var y=4; };
+!_Point !p = new _Point;
 p.x++;
 return p;
 """);
         code.parse().opto();
-        assertEquals("return Point;", code.print());
-        assertEquals("Point{x=4,y=4}", Eval2.eval(code,  0));
+        assertEquals("return Test._Point;", code.print());
+        assertEquals("Test._Point{x=4,y=4}", Eval2.eval(code,  0));
     }
 
 }

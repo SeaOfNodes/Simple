@@ -1,13 +1,14 @@
 package com.seaofnodes.simple.type;
 
-import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Represents a constant array of primitives
  */
-public abstract class TypeConAry<A> extends Type {
+public abstract class TypeConAry<A> extends TypeScalar {
     boolean _any;
     byte _widen;
     // One of byte or int array
@@ -55,8 +56,7 @@ public abstract class TypeConAry<A> extends Type {
 
     @Override public boolean isHigh() { return this==TOP; }
     @Override boolean _isConstant() { return true; }
-    @Override Type _glb(boolean mem) { return this; }
-    @Override boolean _isGLB(boolean mem) { return true; }
+    @Override Type _makeStorage() { return this; }
 
     // Meet-over-elements type
     public Type elem() {
@@ -74,6 +74,17 @@ public abstract class TypeConAry<A> extends Type {
     public abstract long at8(int idx);
     public abstract int len();
     @Override public abstract int log_size();
-    public void write( ByteArrayOutputStream baos ) { throw Utils.TODO("Should not reach here: abstract constant array cannot be written"); }
+    public void write( BAOS baos ) { throw Utils.TODO("Should not reach here: abstract constant array cannot be written"); }
 
+    // Reserve tags for u8 array
+    @Override int TAGOFF() { return 1; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        assert log_size()==0 && !_any;
+        baos.write(TAGOFFS[TCONARY]+0);
+        baos.packed4(len());
+        baos.write((byte[])_ary);
+    }
+    static TypeConAry packed( int tag, BAOS bais ) {
+        return TypeConAryB.make(bais.read(new byte[bais.packed4()]));
+    }
 }

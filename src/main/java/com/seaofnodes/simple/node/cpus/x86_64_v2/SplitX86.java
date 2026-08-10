@@ -12,8 +12,7 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 public class SplitX86 extends SplitNode {
-    SplitX86( String kind, byte round ) { super(kind,round, new Node[2]); }
-    @Override public String op() { return "mov"; }
+    SplitX86( LRG lrg, String kind, byte round ) { super(lrg,kind,round, new Node[2]); }
     @Override public RegMask regmap(int i) { return x86_64_v2.SPLIT_MASK; }
     @Override public RegMask outregmap() { return x86_64_v2.SPLIT_MASK; }
 
@@ -26,10 +25,10 @@ public class SplitX86 extends SplitNode {
         boolean dstX=dst>=x86_64_v2.XMM_OFFSET, srcX=src>=x86_64_v2.XMM_OFFSET;
         // Stack spills
         if( dst >= x86_64_v2.MAX_REG ) {
-            int off = enc._fun.computeStackOffset(enc._code,dst);
+            int off = fun(enc).computeStackOffset(enc._code,dst);
             if( src >= x86_64_v2.MAX_REG ) {
                 // Rare stack-stack move.  push [RSP+soff]; pop [RSP+doff]
-                int soff = enc._fun.computeStackOffset(enc._code,src);
+                int soff = fun(enc).computeStackOffset(enc._code,src);
                 X86.stackCopy(enc,soff,off);
                 return;
             }
@@ -37,18 +36,12 @@ public class SplitX86 extends SplitNode {
             return;
         }
         if( src >= x86_64_v2.MAX_REG ) {
-            int off = enc._fun.computeStackOffset(enc._code,src);
+            int off = fun(enc).computeStackOffset(enc._code,src);
             LoadX86.enc(enc, dstX ? TypeFloat.F64 : TypeInteger.BOT, dst, (short)x86_64_v2.RSP, (short)-1, off, 0);
             return;
         }
 
         X86.move(enc,dstX,srcX,dstX ? dst-x86_64_v2.XMM_OFFSET : dst,
                  srcX ? src-x86_64_v2.XMM_OFFSET : src);
-    }
-
-    // General form: "mov  dst = src"
-    @Override public void asm(CodeGen code, SB sb) {
-        FunNode fun = code._encoding==null ? null : code._encoding._fun;
-        sb.p(code.reg(this,fun)).p(" = ").p(code.reg(in(1),fun));
     }
 }

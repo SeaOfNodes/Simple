@@ -62,7 +62,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第22章](docs/chapter22/README.ja.md)：Simple の Hello, World!
 * [第23章](docs/chapter23/README.ja.md)：メソッドと型の再検討。
 * [第24章](docs/chapter24/README.ja.md)：連鎖した条件分岐と SCCP。
-* 第25章：モジュール、分割コンパイル、不完全な型を使う SSA の構築。
+* [第25章](docs/chapter25/README.ja.md)：モジュール、分割コンパイル、不完全な型を使う SSA の構築。
 
 ## 章をまたぐビルド
 

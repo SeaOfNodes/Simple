@@ -1,0 +1,459 @@
+package com.seaofnodes.simple;
+
+import com.seaofnodes.isa.eval.EvalRisc5;
+
+import com.seaofnodes.isa.eval.EvalArm64;
+
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
+import com.seaofnodes.simple.codegen.ElfReader;
+import com.seaofnodes.simple.codegen.ParseAll;
+import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.Ary;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.Ignore;
+import org.junit.Test;
+
+import static org.junit.Assert.*;
+
+public class Chapter25Test {
+
+    @Ignore
+    @Test
+    public void testJig() {
+        String src = "int x = arg/17; if( arg == 0 ) return arg + x; return arg + x;";
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return (arg+3);", code.print());
+        assertEquals("3",Eval2.eval(code,0));
+    }
+
+    @Test public void testNeverReturnPointerRiscV() {
+        new CodeGen("""
+            struct _S { int x; };
+            !_S !s = new _S;
+            if(arg) while(1) { s.x += arg; }
+            return s;
+            """).driver(CodeGen.Phase.Encoding,"riscv","SystemV");
+    }
+
+    @Test
+    public void testExternData() throws IOException {
+        String src = """
+            i32 counter="C";
+            i8 small="C";
+            f64 fraction="C";
+            {int} bump="C";
+            val test_global={ ->
+                val before=counter;
+                counter=before;
+                counter=++counter+1;
+                counter+=1;
+                val mid=bump();
+                small++;
+                fraction=fraction+0.5;
+                return before*10000+mid*100+counter;
+            };
+            """;
+        TestC.runC(src,"extern_data","",-1);
+    }
+
+    @Test
+    public void testExternDataEncoding() {
+        for( String cpu : new String[]{"arm","riscv"} ) {
+            CodeGen code = new CheckedCodeGen("i32 counter=\"C\"; counter=counter+3; return counter;");
+            // Exercise signed low-12 relocation arithmetic, past the first page.
+            int addr = 0x3800;
+            code._externDataAddresses.put("counter",addr);
+            code.driver(cpu,"SystemV",true,false);
+            byte[] image = new byte[1<<20];
+            var bits = code._encoding._bits;
+            System.arraycopy(bits.buf(),0,image,0,bits.size());
+            if( cpu.equals("arm") ) {
+                EvalArm64 arm = new EvalArm64(image,1<<16);
+                arm.st4(addr,-7);
+                assertEquals(0,arm.step(1000));
+                assertEquals(-4,arm.regs[0]);
+                assertEquals(-4,arm.ld4s(addr));
+            } else {
+                EvalRisc5 r5 = new EvalRisc5(image,1<<16);
+                r5.st4(addr,-7);
+                assertEquals(0,r5.step(1000));
+                assertEquals(-4,r5.regs[10]);
+                assertEquals(-4,r5.ld4s(addr));
+            }
+        }
+    }
+
+    @Test
+    public void testExternDataImports() throws IOException {
+        Path dir = Files.createTempDirectory(Path.of("build/objs"),"extern_data_");
+        String globals = "i32 counter=\"C\"; val read={ -> counter; };";
+        CodeGen globalCode = new CodeGen(null,dir.toString(),null,"Globals",globals,126,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+        var clz = globalCode.compunit()._clz;
+        int counter = clz.find("counter");
+        assertTrue(clz._fields[counter]._extern);
+        assertEquals(-1,clz.offset(counter));
+        assertEquals(clz.remove(counter).size(),clz.size());
+        // Load the serialized declaration and ideal graph from Globals.o.
+        String src = """
+            i32 counter="C";
+            val test_global={ ->
+                val before=Globals.counter;
+                Globals.counter=before+1;
+                counter+=2;
+                return before*100+Globals.read();
+            };
+            """;
+        Ary<String> paths = new Ary<>(new String[]{dir.toString()});
+        for( boolean imported : new boolean[]{true,false} ) {
+            Path root = dir.resolve(imported ? "binary" : "source");
+            Files.createDirectories(root.resolve("Main"));
+            if( !imported ) Files.writeString(root.resolve("Main/Globals.smp"),globals);
+            new CodeGen(root.toString(),root.toString(),imported ? paths : null,"Main",src,126,true,TypeInteger.BOT)
+                .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+            assertEquals("",TestC.gcc(root+"/Main.o","",TestC.C_DRIVERS_DIR+"extern_data_import.c",
+                (String)null,new Ary<>(new String[]{dir+"/Globals.o"}),root+"/program"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
+        }
+    }
+
+    @Test public void testPrintingConstantPool() throws Exception {
+        com.seaofnodes.simple.codegen.PrintRegTestSupport.checkConstantPool();
+    }
+
+    private static final String SYS_BLDDIR = "build/objs/lib_"+TestC.CPU_ABI;
+    private static final File SYS_FILE = new File(SYS_BLDDIR+"/sys.o");
+
+    @Test
+    public void testForwardConstructor() {
+        CodeGen code = new CodeGen("src/test/java/com/seaofnodes/simple/test_smp/forward_ctor",
+                                   "build/objs/forward_ctor_parse",null,
+                                   "m",null,123L,true,TypeInteger.BOT);
+        code.driver(CodeGen.Phase.TypeCheck);
+    }
+
+
+    @Test
+    public void testPostfixFieldUpdate() {
+        String src = """
+            struct V {
+                u32 !len = 0;
+                i64[] !buf;
+                new V = { i64[] b -> buf=b; };
+                val grow = { i64 n -> self; };
+                val add = { i64 x -> grow(1).buf[len++] = x; self; };
+            };
+            return new V(new i64[1]).add(7).len;
+            """;
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("1",Eval2.eval(code,0));
+    }
+
+    @Test
+    public void testStringEscapes() {
+        String src = "u8[~] s=\"A\\n\\t\\r\\\\\\\"B\"; " +
+            "return s#==7 && s[0]=='A' && s[1]==10 && s[2]==9 && s[3]==13 && " +
+            "s[4]==92 && s[5]==34 && s[6]=='B';";
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("1",Eval2.eval(code,0));
+    }
+
+    @Test
+    public void testCharacterEscapes() {
+        CodeGen code = new CodeGen("return '\\n'==10 && '\\t'==9 && '\\r'==13;")
+            .driver(CodeGen.Phase.TypeCheck);
+        assertEquals("1",Eval2.eval(code,0));
+    }
+
+    @Test
+    public void testFuzzerUnresolvedNumericLoop() {
+        CodeGen code = new CodeGen("""
+            arg=0;
+            while(arg+0)
+                while(-arg)
+                    arg=0;
+            """).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return 0;",code.print());
+    }
+
+    @Test
+    public void testFuzzerBadLCA() {
+        new CodeGen("""
+            int v0=arg;
+            if(v0&&--v0?0:arg) {}
+            """).driver(CodeGen.Phase.LocalSched);
+    }
+
+    @Test @Ignore
+    public void testModule0() throws IOException {
+        String MODDIR = "src/test/java/com/seaofnodes/simple/test0";
+        String BLDDIR = "build/objs/test0";
+        String a_obj  = BLDDIR+"/A.o";
+        String ab_obj = BLDDIR+"/A/B.o";
+        // Remove any prior results so the test runs from scratch.
+        delELFiles(new File(BLDDIR));
+        writeB(MODDIR,5);
+
+        // Compile MODDIR/A.smp into MODDIR/A.o
+        // Since A refers to B also:
+        // Compile MODDIR/A/B.smp into MODDIR/A/B.o
+        CodeGen code1 = new CodeGen(MODDIR, BLDDIR,null,
+                                    "A",null,123L,true,TypeInteger.BOT);
+        code1.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
+
+        // Verify produces A.o, A/B.o
+        File  a_file = new File( a_obj);
+        File ab_file = new File(ab_obj);
+        assertTrue(  a_file.exists() );
+        assertTrue( ab_file.exists() );
+        long  a_msec1 =  a_file.lastModified();
+        long ab_msec1 = ab_file.lastModified();
+
+        // Link and execute: arg is true, so compute "5+1" as the exit code
+        String rez1 = TestC.gcc("A", 1.2, a_obj, ab_obj);
+        assertEquals("exec exit code: 6",rez1);
+
+        // Compile again A, expecting both A.o and A/B.o to be up-to-date and not compiled
+        CodeGen code2 = new CodeGen(MODDIR, BLDDIR, null,
+                                    "A",null,123L,true,TypeInteger.BOT);
+        code2.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
+
+        assertTrue(  a_file.exists() );
+        assertTrue( ab_file.exists() );
+        long  a_msec2 =  a_file.lastModified();
+        long ab_msec2 = ab_file.lastModified();
+
+        assertEquals(  a_msec1,  a_msec2 );
+        assertEquals( ab_msec1, ab_msec2 );
+
+        // Touch A.smp and recompile.  A/B.o should not recompile.
+        new File(MODDIR+"/A.smp").setLastModified(System.currentTimeMillis());
+        CodeGen code3 = new CodeGen(MODDIR, BLDDIR,null,
+                                    "A",null,123L,true,TypeInteger.BOT);
+        code3.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
+
+        long  a_msec3 =  a_file.lastModified();
+        long ab_msec3 = ab_file.lastModified();
+        assertTrue  (  a_msec1 < a_msec3 );
+        assertEquals( ab_msec1, ab_msec3 );
+
+        // Link and execute: arg is true, so compute "5+1" as the exit code
+        String rez3 = TestC.gcc("A", 1.2, a_obj, ab_obj);
+        assertEquals("exec exit code: 6",rez3);
+
+
+        // Modify B.smp and recompile A/B.o; it should recompile and A.o should not.
+        writeB(MODDIR,7);
+        CodeGen code4 = new CodeGen(MODDIR, BLDDIR,null,
+                                    "A/B",null,123L,true,TypeInteger.BOT);
+        code4.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
+
+        long  a_msec4 =  a_file.lastModified();
+        long ab_msec4 = ab_file.lastModified();
+        assertEquals(  a_msec3,   a_msec4 );
+        assertTrue  ( ab_msec3 < ab_msec4 );
+
+        // Link and execute: uses stale A.o, so remains '6' not '7+1' == 8
+        String rez4 = TestC.gcc("A", 1.2, a_obj, ab_obj);
+        assertEquals("exec exit code: 6",rez4);
+
+        // Recompile A.o, it should recompile despite not being touched because
+        // it depends on A/B.o which recompiled in the prior step.
+        CodeGen code5 = new CodeGen(MODDIR, BLDDIR,null,
+                                    "A",null,123L,true,TypeInteger.BOT);
+        code5.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
+
+        long  a_msec5 =  a_file.lastModified();
+        long ab_msec5 = ab_file.lastModified();
+        assertTrue  (  a_msec4 < a_msec5 );
+        assertEquals( ab_msec4, ab_msec5 );
+
+        // Link and execute: updates A.o from B.o inlining, without compiling B.o
+        String rez5 = TestC.gcc("A", 1.2, a_obj, ab_obj);
+        assertEquals("exec exit code: 8",rez5);
+        // Reset for next time
+        writeB(MODDIR,5);
+    }
+
+    private void writeB(String MODDIR, int x) throws IOException {
+        var bsmp = new FileWriter(MODDIR+"/A/B.smp");
+        bsmp.write("val x="+x+";\n");
+        bsmp.close();
+    }
+
+
+    // Recursive search (TODO: gzip, archives) and delete all .o files
+    private void delELFiles( File dir) {
+        if( dir.isDirectory() )
+            for( File f : dir.listFiles() )
+                delELFiles(f);
+        else if( dir.getName().endsWith(".o") )
+            dir.delete();
+    }
+
+
+    @Test
+    public void testSys() {
+        assertTrue("Missing "+SYS_FILE+"; run make tests_sys", SYS_FILE.exists());
+
+        // Can read the ELF files
+        CodeGen code1 = new CodeGen("return 0;");
+        ElfReader sys_elf = ElfReader.load(SYS_FILE, null);
+        sys_elf.loadPublicTypes(code1);
+
+        // Elf files are sane
+
+        // Sys depends on io, libc, char, collections, and array utilities.
+        assertEquals(10,sys_elf._deps.length);
+        assertSame("sys/aryu8" ,sys_elf._deps[0]);
+        assertSame("sys/char"  ,sys_elf._deps[1]);
+        assertSame("sys/io"    ,sys_elf._deps[2]);
+        assertSame("sys/ary"   ,sys_elf._deps[3]);
+        assertSame("sys/aryi64",sys_elf._deps[4]);
+        assertSame("sys/adt/bitset",sys_elf._deps[5]);
+        assertSame("sys",       sys_elf._deps[6]);
+        assertSame("sys/scan"  ,sys_elf._deps[7]);
+        assertSame("sys/adt"   ,sys_elf._deps[8]);
+        assertSame("sys/libc"  ,sys_elf._deps[9]);
+        assertSame("class:sys" ,sys_elf._clz._name);
+    }
+
+    @Test
+    public void testConstantClassInitialization() throws IOException {
+        TestC.runSF("val x = 42; return 0;","constantClassInt","",0);
+        TestC.runSF("val f = { -> 7; }; return 0;","constantClassFunction","",0);
+    }
+
+    @Test
+    public void testHelloWorld() throws IOException {
+        String expected = "Hello, World!\n";
+        String prog = "return sys.io.p(\""+expected+"\") - "+expected.length()+";";
+        // tests_raw1 concurrently builds Chapter22Test's helloWorld executable.
+        TestC.run(prog,"helloWorldSys",new Ary<>(new String[]{SYS_BLDDIR}),
+                  TestC.CALL_CONVENTION, null, null, expected,0);
+    }
+
+    @Test
+    public void testHelloWorldDriver() throws Exception {
+        String out = "build/objs/helloWorldDriver/";
+        Simple.main(new String[]{"-L",SYS_BLDDIR,"-o",out,"--norun","docs/examples/A_helloWorld.smp"});
+        assertTrue(Files.isRegularFile(Path.of(out,"A_helloWorld.o")));
+    }
+
+    @Test
+    public void testHelloWorldDriverLibFile() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrintStream saved = System.out;
+        try( PrintStream capture = new PrintStream(output,true,StandardCharsets.UTF_8) ) {
+            System.setOut(capture);
+            Simple.main(new String[]{"-L",SYS_FILE.toString(),"-o","build/objs/helloWorldDriverLibFile/",
+                                    "docs/examples/A_helloWorld.smp"});
+        } finally {
+            System.setOut(saved);
+        }
+        assertEquals("Hello, World!\n",output.toString(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    public void testHelloWorldNoInline() throws Exception {
+        String base = "helloWorldNoInline";
+        String expected = "Hello, World!\n";
+        String prog = "return sys.io.p_noInline(\""+expected+"\") - "+expected.length()+";";
+        CodeGen code = new CheckedCodeGen(null,"build/objs",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   base,prog,123L,true,TypeInteger.BOT);
+        code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,true);
+
+        String obj = "build/objs/"+base+".o";
+        String exe = "build/objs/"+base+(TestC.OS.startsWith("Windows") ? ".exe" : "");
+        String syms = TestC.exec(TestC.TEST_TIMEOUT_SECONDS,"nm",obj);
+        assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
+
+        TestC.linkExe(obj,null,null,new Ary<>(new String[]{SYS_FILE.toString()}),exe);
+        String rez = TestC.exec(TestC.TEST_TIMEOUT_SECONDS,exe);
+        assertEquals(expected,rez);
+    }
+
+    @Test
+    public void testRedirectedRead() throws IOException {
+        String src = """
+u8[] buf = new u8[10];
+i64 ptr = buf;
+int rez = sys.libc.read(0,ptr,buf#);
+return  rez < buf# ? 0 : sys.libc._exit(-2);
+""";
+        TestC.run(src,"redirectedRead",new Ary<>(new String[]{SYS_BLDDIR}),
+                  TestC.CALL_CONVENTION, null, null,
+                  "abc", "", -1);
+    }
+
+    @Test
+    public void testErrnoAccessor() throws IOException {
+        String src = "val status=sys.libc.close(-1); return status != -1 || sys.libc.errno()==0;";
+        TestC.run(src,"errnoAccessor",new Ary<>(new String[]{SYS_BLDDIR}),
+                  TestC.CALL_CONVENTION,null,null,"",-1);
+    }
+
+    @Test
+    public void testBubbles() throws IOException {
+        String src = Files.readString( Path.of("docs/examples/BubbleSort.smp"));
+        String exe = TestC.compile(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("[-17, 2, 3, 999]\n",
+                     TestC.exec(exe,"[3,  2,-17, 999 ]"));
+        assertEquals("[1, 2, 3, 4, 4, 5]\n",
+                     TestC.exec(exe,"[4, 5, 3, 1, 4, 2]"));
+        assertEquals("[1, 2, 3, 4, 5]\n",
+                     TestC.exec(exe,"[1, 2, 3, 4, 5]"));
+        assertEquals("[1, 2, 3, 4, 5, 6, 7, 8, 9]\n",
+                     TestC.exec(exe,"[9, 8, 7, 6, 5, 4, 3, 2, 1]"));
+
+        String usage = "Usage: please provide a list of at least two integers to sort in the format \"[1, 2, 3, 4, 5]\"\n";
+        assertEquals(usage,TestC.exec(exe));
+        assertEquals(usage,TestC.exec(exe,""));
+        assertEquals(usage,TestC.exec(exe,"[1]"));
+        assertEquals(usage,TestC.exec(exe,"[4 5 3]"));
+    }
+
+    @Test
+    public void testCapitalize() throws IOException {
+        String src = Files.readString(Path.of("docs/examples/Capitalize.smp"));
+        String exe = TestC.compile(src,"Capitalize",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("Hello world\n",TestC.exec(exe,"hello world"));
+        assertEquals("Hello World\n",TestC.exec(exe,"Hello World"));
+        assertEquals("123 apples\n",TestC.exec(exe,"123 apples"));
+        assertEquals("Usage: please provide a string\n",TestC.exec(exe));
+        assertEquals("Usage: please provide a string\n",TestC.exec(exe,""));
+        assertEquals("Use quotes around multiple strings.\n",TestC.exec(exe,"hello","world"));
+    }
+
+    @Test
+    public void testDijkstra() throws IOException {
+        String src = Files.readString(Path.of("docs/examples/Dijkstra.smp"));
+        String matrix = "[0, 2, 0, 6, 0, 2, 0, 3, 8, 5, 0, 3, 0, 0, 7, 6, 8, 0, 0, 9, 0, 5, 7, 9, 0]";
+        String exe = TestC.compile(src,"Dijkstra",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("2\n",TestC.exec(exe,matrix,"0","1"));
+        String usage = "Usage: please provide three inputs: a serialized matrix, a source node and a destination node\n";
+        assertEquals("7\n",TestC.exec(exe,matrix,"0","4"));
+        assertEquals(usage,TestC.exec(exe));
+        assertEquals(usage,TestC.exec(exe,"","",""));
+        assertEquals(usage,TestC.exec(exe,"[1, 0, 3, 0, 5, 1]","1","2"));
+        assertEquals(usage,TestC.exec(exe,"[0, 0, 0, 0]","0","1"));
+    }
+
+    @Test
+    public void testFileIO() throws IOException {
+        String src = Files.readString(Path.of("docs/examples/FileIO.smp"));
+        String exe = TestC.compile(src,"FileIO",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("File I/O succeeded\n",TestC.exec(exe));
+    }
+}

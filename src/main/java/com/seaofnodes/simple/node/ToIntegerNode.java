@@ -7,6 +7,7 @@ import com.seaofnodes.simple.type.TypeInteger;
 // Truncate toward zero, saturating overflow; NaN converts to zero.
 public class ToIntegerNode extends Node {
     public ToIntegerNode(Node lhs) { super(null,lhs); }
+    @Override public Tag serialTag() { return Tag.ToInteger; }
     @Override public String label() { return "ToInteger"; }
     @Override protected String format() { return "(int)%1"; }
 

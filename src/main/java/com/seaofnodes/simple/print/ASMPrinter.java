@@ -9,6 +9,8 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.util.ArrayList;
 import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.util.BAOS;
+import java.util.HashMap;
 
 /** Machine-specific facts; traversal, columns and byte display live in print/. */
 public final class ASMPrinter extends AssemblyAdapter<Node> {
@@ -24,7 +26,7 @@ public final class ASMPrinter extends AssemblyAdapter<Node> {
     }
     @Override public ArrayList<Node> blocks() {
         var blocks=new ArrayList<Node>();
-        var cfg=_code._cfg;
+        var cfg=_enc==null ? _code._cfg : _enc._cfg;
         if( cfg!=null ) for( Node n : cfg ) blocks.add(n);
         return blocks;
     }
@@ -50,26 +52,24 @@ public final class ASMPrinter extends AssemblyAdapter<Node> {
             if( n._type instanceof TypeMem || n._type instanceof TypeRPC ) return true;
         if( postAlloc() && n instanceof CalleeSaveNode ) return true;
         if( n instanceof MemMergeNode ) return true;
+        if( n instanceof EscapeNode ) return true;
         return n.getClass()==ConstantNode.class;
     }
-    @Override public boolean postAlloc() { return _code._phase.ordinal()>CodeGen.Phase.RegAlloc.ordinal(); }
+    @Override public boolean postAlloc() { return _code._phase.ordinal()>CodeGen.Phase.RegAlloc.ordinal() ||
+        (_code._phase==CodeGen.Phase.RegAlloc && _code._regAlloc!=null && _code._regAlloc.done()); }
     @Override public boolean encoded() { return _enc!=null && _code._phase.ordinal()>=CodeGen.Phase.Encoding.ordinal(); }
     @Override public int defaultSize() { return _code._mach==null ? 2 : _code._mach.defaultOpSize(); }
     @Override public boolean littleEndian() { return _code._asmLittle; }
     @Override public boolean prologue(Node n) { return ((FunNode)n)._frameAdjust!=0; }
     @Override public byte[] bytes() { return encoded() ? _enc._bits.buf() : null; }
-    @Override public int offset(Node n) {
-        return encoded() && _enc._opStart!=null && n._nid<_enc._opStart.length ? _enc._opStart[n._nid] : -1;
-    }
-    @Override public int size(Node n) {
-        return encoded() && _enc._opLen!=null && n._nid<_enc._opLen.length ? _enc._opLen[n._nid]&255 : 0;
-    }
-    private static ArrayList<Data> entries(Iterable<Encoding.Relo> relos) {
+    @Override public int offset(Node n) { return encoded() ? _enc.opStart(n) : -1; }
+    @Override public int size(Node n) { return encoded() ? _enc.opLen(n)&255 : 0; }
+    private static ArrayList<Data> entries(Iterable<Encoding.Relo> relos, boolean ro) {
         var data=new ArrayList<Data>();
         for( Encoding.Relo r : relos ) {
+            if( r.readOnly()!=ro ) continue;
             int align=1<<r._align;
             int size=r._t instanceof TypeStruct ? (r._structSize+align-1)&-align : align;
-            if( r._t instanceof TypeTuple t ) size=align*t._types.length;
             data.add(new Data(r._t,r._t.str(),r._align,size));
         }
         return data;
@@ -78,8 +78,24 @@ public final class ASMPrinter extends AssemblyAdapter<Node> {
         var pools=new ArrayList<Pool>();
         if( !encoded() ) return pools;
         int base=(codeEnd+15)&-16;
-        if( !_enc._bigCons.isEmpty() && base<_enc._bits.size() )
-            pools.add(new Pool("Constant Pool",_enc._bits.buf(),base,base,entries(_enc._bigCons.values())));
+        if( _enc._cpool.size()>0 )
+            pools.add(new Pool("Constant Pool",_enc._cpool.buf(),0,base,objects(true)));
+        base=(base+_enc._cpool.size()+15)&-16;
+        if( _enc._sdata.size()>0 )
+            pools.add(new Pool("Static Data",_enc._sdata.buf(),0,base,objects(false)));
         return pools;
+    }
+    private ArrayList<Data> objects(boolean ro) {
+        var data=new ArrayList<Data>();
+        for( var obj : _enc._data.entries() )
+            if( !obj.external && obj.readOnly==ro )
+                data.add(new Data(obj,obj.symbol+": "+obj.type.str(),obj.alignment,obj.size));
+        return data;
+    }
+    // Retain this diagnostic entry point for checking that pool printing never lays out types.
+    static int printConstantPool(int address, SB sb, BAOS bits, HashMap<Node,Encoding.Relo> relos,
+                                 boolean ro, String name) {
+        sb.p(com.seaofnodes.print.ASMPrinter.pool(new Pool(name,bits.buf(),0,address,entries(relos.values(),ro))));
+        return address+bits.size();
     }
 }

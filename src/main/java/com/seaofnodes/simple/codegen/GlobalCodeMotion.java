@@ -27,16 +27,15 @@ public abstract class GlobalCodeMotion {
         breakUpGlobalConstants(code._start);
 
         code._visit.clear();
-        schedLate (code);
+        schedLate(code);
     }
 
     // Post-Order of CFG
     private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
-        if( def instanceof ReturnNode && use instanceof CallEndNode )
-            return;
-        assert !( def instanceof CallNode && use instanceof FunNode ); // All calls unwired now
+        assert !( def instanceof ReturnNode && use instanceof CallEndNode ); // All calls unwired now
+        assert !( def instanceof   CallNode && use instanceof     FunNode ); // All calls unwired now
         visit.set(cfg._nid);
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);
@@ -50,7 +49,7 @@ public abstract class GlobalCodeMotion {
         var cons = new ArrayList<Node>();
         for( Node con : start._outputs )
             if( con!=null && !(con instanceof CFGNode) &&
-                (con.isConst() || (con instanceof MachNode mach && mach.outregmap()!=null)) ) {
+                (con.isConst() || con instanceof MachNode mach && mach.outregmap()!=null) ) {
                 globals.put(con,true);
                 cons.add(con.keep()); // Preserve original inputs while rewiring users.
             }
@@ -61,6 +60,7 @@ public abstract class GlobalCodeMotion {
                 if( use==null || globals.containsKey(use) ) continue;
                 FunNode fun = useFun(use);
                 if( fun==null ) continue; // Global metadata has no function owner.
+                assert CodeGen.CODE.owns(fun);
                 var local = copies.computeIfAbsent(fun,f -> new IdentityHashMap<>());
                 Node copy = cloneGlobal(con,fun,globals,local);
                 for( int i=0; i<use.nIns(); i++ )
@@ -207,7 +207,6 @@ public abstract class GlobalCodeMotion {
         if( n instanceof MemOpNode load && load._isLoad )
             lca = find_anti_dep(lca,load,early,late,anti);
 
-
         // Walk up from the LCA to the early, looking for best place.  This is
         // the lowest execution frequency, approximated by least loop depth and
         // deepest control flow.
@@ -224,7 +223,8 @@ public abstract class GlobalCodeMotion {
     // Block of use.  Normally from late[] schedule, except for Phis, which go
     // to the matching Region input.
     private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
-        if( use instanceof ParmNode ) return late[use._nid];
+        if( use instanceof ParmNode parm )
+            return late[use._nid];
         if( !(use instanceof PhiNode phi) )
             return late[use._nid];
         CFGNode found=null;
@@ -245,7 +245,7 @@ public abstract class GlobalCodeMotion {
             best instanceof IfNode;
     }
 
-    // An allocation may consume a load's memory through a partial aggregate.
+    // A writer may consume a load's memory through an aggregate.
     private static void wakeLoads(Node def, CFGNode[] late, WorkList<Node> work, BitSet visit) {
         if( visit.get(def._nid) ) return;
         visit.set(def._nid);
@@ -259,7 +259,7 @@ public abstract class GlobalCodeMotion {
     private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late, int[] anti) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
-        for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
+        for( CFGNode cfg=lca; cfg!=early.idom(); cfg = cfg.idom() )
             anti[cfg._nid] = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
         for( Node mem : load.antiDeps() ) {
@@ -268,9 +268,13 @@ public abstract class GlobalCodeMotion {
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;
-            case CallNode st:
+            case EscapeNode st:
                 assert late[st._nid]!=null;
                 lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
+                break;
+            case CallNode call:
+                assert late[call._nid]!=null;
+                lca = anti_dep(load,late[call._nid],call.cfg0(),lca,call,anti);
                 break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.
@@ -279,11 +283,7 @@ public abstract class GlobalCodeMotion {
                     if( phi.in(i)==load.mem() )
                         lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null,anti);
                 break;
-            case NewNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
-                break;
-            default: throw Utils.TODO();
+            default: throw Utils.TODO("Should not reach here");
             }
         }
         return lca;

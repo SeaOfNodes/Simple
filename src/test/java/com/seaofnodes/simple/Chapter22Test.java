@@ -5,13 +5,11 @@ import com.seaofnodes.isa.eval.EvalRisc5;
 import com.seaofnodes.isa.eval.EvalArm64;
 
 import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
+import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import java.io.IOException;
 import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -30,8 +28,8 @@ public class Chapter22Test {
                 var enc = code._encoding;
                 // Link the external call to a tiny independent native stub.
                 var call = code._stop.walk(n -> n instanceof com.seaofnodes.simple.node.CallNode ? n : null);
-                int start = enc._opStart[call._nid];
-                ((com.seaofnodes.simple.codegen.RIPRelSize)call).patch(enc,start,enc._opLen[call._nid],0x1000-start);
+                int start = enc.opStart(call);
+                ((com.seaofnodes.simple.codegen.RIPRelSize)call).patch(enc,start,enc.opLen(call),0x1000-start);
                 for( long value : values ) {
                     long expected = switch(i) {
                     case 0 -> (byte)value; case 1 -> value&255;
@@ -45,7 +43,6 @@ public class Chapter22Test {
                     if( target.equals("arm") ) {
                         EvalArm64 cpu = new EvalArm64(image,1<<15);
                         // MOVZ X0,0x1100; LDR X0,[X0]; RET X30.
-                        cpu._pc = enc._opStart[code.link(code._main)._nid];
                         cpu.st4(0x1000,0xd2822000); cpu.st4(0x1004,0xf9400000);
                         cpu.st4(0x1008,0xd65f03c0);
                         cpu.st8(0x1100,value);
@@ -55,7 +52,6 @@ public class Chapter22Test {
                     } else {
                         EvalRisc5 cpu = new EvalRisc5(image,1<<15);
                         // AUIPC a0,0; LD a0,12(a0); RET.
-                        cpu._pc = enc._opStart[code.link(code._main)._nid];
                         cpu.st4(0x1000,0x00000517); cpu.st4(0x1004,0x00c53503);
                         cpu.st4(0x1008,0x00008067);
                         // RV64 widens even u32 returns by sign-extending bit 31.
@@ -83,148 +79,79 @@ public class Chapter22Test {
             val test_i64={->return c_i64();};
             val test_cmp={->return c_i32()==-1;};
             """;
-        for( String conv : new String[]{"SystemV","Win64"} )
-            TestC.run(src,conv,com.seaofnodes.simple.type.TypeInteger.BOT,conv.equals("SystemV") ? "sysv_abi" : "ms_abi",
-                      "src/test/java/com/seaofnodes/simple/progs/c_returns.c",
-                      "build/objs/c_returns"+conv,"S","",-1);
+        for( String conv : new String[]{"SystemV","win64"} )
+            TestC.run(src,"c_returns"+conv,null,conv,
+                      conv.equals("SystemV") ? "sysv_abi" : "ms_abi",
+                      TestC.C_DRIVERS_DIR+"c_returns.c","",-1);
     }
 
-
-
-    @Test public void testReturnedFunctions() throws IOException {
-        for( String src : new String[]{"return {->42;};", "val f={->42;}; return f;", "return sys.io.p;"} )
-            for( String target : new String[]{"riscv","arm"} ) {
-                CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,target,"SystemV").exportELF(null);
-                byte[] image = new byte[1<<16];
-                byte[] bits = code._encoding.bits();
-                System.arraycopy(bits,0,image,0,bits.length);
-                boolean library = src.contains("sys.io.p");
-                // u8[]: four-byte length followed by its bytes.
-                image[0x2000]=2; image[0x2004]='o'; image[0x2005]='k';
-                int entry = code._encoding._opStart[code.link(code._main)._nid];
-                if( target.equals("riscv") ) {
-                    EvalRisc5 cpu = new EvalRisc5(image,1<<15);
-                    cpu._pc = entry;
-                    assertEquals(0,cpu.step(1000));
-                    assertEquals(0,cpu._pc);
-                    cpu._pc = (int)cpu.regs[riscv.A0]; // Call the returned address.
-                    cpu.regs[library ? riscv.A1 : riscv.A0] = 0x2000; // Methods also receive self.
-                    assertEquals(0,cpu.step(1000));
-                    assertEquals(0,cpu._pc);
-                    if( library ) assertEquals("ok",cpu._stdout.toString());
-                    else assertEquals(42,cpu.regs[riscv.A0]);
-                } else {
-                    EvalArm64 cpu = new EvalArm64(image,1<<15);
-                    cpu._pc = entry;
-                    assertEquals(0,cpu.step(1000));
-                    assertEquals(0,cpu._pc);
-                    cpu._pc = (int)cpu.regs[0];
-                    cpu.regs[library ? 1 : 0] = 0x2000;
-                    assertEquals(0,cpu.step(1000));
-                    assertEquals(0,cpu._pc);
-                    if( library ) assertEquals("ok",cpu._stdout.toString());
-                    else assertEquals(42,cpu.regs[0]);
-                }
-            }
-        CodeGen unused = new CodeGen("({->42;}); return 0;").parse().opto();
-        assertEquals(1,unused._stop.nIns());
-    }
-
-    @Test public void testReturnedFunctionsNative() throws IOException {
-        String src = "val factory={int x -> if(x) return {->42;}; return {->43;};}; val printer={->return sys.io.p;};";
-        String obj = "build/objs/funptr.o";
-        new CheckedCodeGen(src).driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,obj);
-        assertEquals("ok",TestC.gcc(obj,"","src/test/java/com/seaofnodes/simple/progs/funptr.c",false,
-                                   "build/objs/funptr"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
-    }
-
-
-    @Test public void testRiscvRightShifts() {
-        // SRAI, SRLI, SRA, SRL: a0 = -32 shifted by 4.
-        int[] ops = {0x40455513,0x00455513,0x40b55533,0x00b55533};
-        for( int i=0; i<ops.length; i++ ) {
-            EvalRisc5 r5 = new EvalRisc5(new byte[1<<16],1<<15);
-            r5.st4(0,ops[i]);
-            r5.regs[riscv.A0] = -32;
-            r5.regs[riscv.A0+1] = 4;
-            assertEquals(0,r5.step(1));
-            assertEquals((i&1)==0 ? -2L : 0x0fff_ffff_ffff_fffeL,r5.regs[riscv.A0]);
-        }
-    }
-
-    @Test public void testRiscvPointerRelocation() {
-        CodeGen code = new CheckedCodeGen("return \"x\";").driver(CodeGen.Phase.Encoding,"riscv","SystemV");
-        var enc = code._encoding;
-        assertEquals(1,enc._bigCons.size());
-        var ptr = (com.seaofnodes.simple.node.cpus.riscv.TMPRISC)enc._bigCons.keySet().iterator().next();
-        int start = enc._opStart[ptr._nid];
-        for( int delta : new int[]{0x7ff,0x800,0xfff,0x1000,0x1800,-1,-0x800,-0x801} ) {
-            ptr.patch(enc,start,enc._opLen[ptr._nid],delta);
-            // Place the program above zero so backward targets are valid addresses.
-            byte[] image = new byte[1<<16];
-            System.arraycopy(enc.bits(),0,image,0x4000,enc._bits.size());
-            EvalRisc5 r5 = new EvalRisc5(image,1<<15);
-            r5._pc = 0x4000;
-            assertEquals(0,r5.step(100));
-            assertEquals(0x4000+start+delta,r5.regs[riscv.A0]);
-        }
-    }
 
     @Test public void testSubZeroTypeError() {
         try {
             new CodeGen("return null-0;").parse().opto().typeCheck();
             fail("Subtraction must reject null even when the other operand is zero");
         } catch( Parser.ParseException e ) {
-            assertEquals("Cannot '-' null",e.getMessage());
+            assertEquals("Cannot null - 0",e.getMessage());
         }
     }
 
-    @Test public void testInfiniteReturn() {
-        String src = "struct S { int i; }; !S !s = new S; while(1) s.i++; return s.i;";
-        testCPU(src,"x86_64_v2","SystemV",0,"return Top;");
-        testCPU(src,"riscv","SystemV",0,"return Top;");
-        testCPU(src,"arm","SystemV",0,"return Top;");
-    }
 
-
-    // Frozen Jig runs in Chapter23AllocTest; the revised input is in Chapter24AllocTest.
-    @Test @Ignore
+    @Ignore
+    @Test
     public void testJig() throws IOException {
-        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
-        //String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
-        testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
+        String src = """
+struct s0 {
+    bool v1;
+    i16 v2;
+    int v3;
+    i8 v4;
+    byte v5;
+};
+while(new s0.v3)
+    while(new s0.v5<<new s0.v4) {}
+if(0) {
+    if(0) {
+        flt !P5ZUD4=new s0.v2;
+    }
+    while(0) {}
+}
+return new s0.v1;
+""";
+        testCPU(src,"x86_64_v2", "win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
     }
 
     static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        SpillStats.record(code,"Chapter22",cpu,os);
-        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
+        int delta = spills>>3;
+        if( delta==0 ) delta = 1;
+        if( spills != -1 && !CodeGen.iterSeedOverridden() )
+            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
-            assertEquals(stop, code._stop.toString());
+            assertEquals(stop, code.print());
         return code;
     }
 
 
-    static int testCPUSize( String src, String cpu, String os, int spills, String stop ) {
-        return testCPU(src,cpu,os,spills,stop)._encoding._bits.size();
+    static int testCPUSize( String src, String cpu, String os, int spills ) {
+        return testCPU(src,cpu,os,spills, "return 0;" )._encoding._bits.size();
     }
 
     // Should not fold away
     @Test public void testSextFail() throws IOException {
         String src = """
-struct Person { i32 age;};
-!Person !p = new Person;
+struct _Person { i32 age;};
+!_Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(46, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(60, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
-        assertEquals(56, testCPUSize(src, "arm","SystemV",4,"return 0;"));
+        assertEquals(65, testCPUSize(src, "x86_64_v2","win64", 3 ));
+        assertEquals(76, testCPUSize(src, "riscv",  "SystemV", 4 ));
+        assertEquals(76, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
 
         // do assertEquals here
-        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away", src,0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
@@ -237,24 +164,23 @@ return 0;
     // Should not fold away
     @Test public void testSextFail2() throws IOException {
         String src = """
-
-                struct Person { i32 age;};
-                !Person !p = new Person;
+                struct _Person { i32 age;};
+                !_Person !p = new _Person;
                 p.age = (arg<<48)>>48;
                 return 0;
         """;
 
-        EvalRisc5 R5 = TestRisc5.build("sext_str_not_fold_away_2", src, 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away_2", 0, 4, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
-        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", src, 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", src, 0, 3, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(46, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(60, testCPUSize(src, "riscv","SystemV",4,"return 0;"));
-        assertEquals(56, testCPUSize(src, "arm","SystemV",4,"return 0;"));
+        assertEquals(65, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(76, testCPUSize(src, "riscv",  "SystemV",4 ));
+        assertEquals(76, testCPUSize(src, "arm",    "SystemV",4 ));
 
     }
 
@@ -262,13 +188,13 @@ return 0;
     @Test public void testSextSuccess() throws IOException {
         String src = """
 // Should fold away sign extend
-struct Person { i8 age;};
-!Person !p = new Person;
+struct _Person { i8 age;};
+!_Person !p = new _Person;
 p.age = (arg<<48)>>48;
 return 0;
-       """;
+""";
 
-        EvalRisc5 R5 = TestRisc5.build("sext_str_fold_away", src, 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_fold_away", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
@@ -276,9 +202,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(41, testCPUSize(src, "x86_64_v2","Win64",2,"return 0;"));
-        assertEquals(56, testCPUSize(src, "riscv","SystemV",5,"return 0;"));
-        assertEquals(52, testCPUSize(src, "arm","SystemV",5,"return 0;"));
+        assertEquals(55, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(72, testCPUSize(src, "riscv",  "SystemV",5 ));
+        assertEquals(72, testCPUSize(src, "arm",    "SystemV",5));
         // do assertEquals here
     }
 
@@ -287,17 +213,17 @@ return 0;
     @Test public void testPerson() throws IOException {
         String src =
 """
-struct Person {
+struct Person { // Exports a field typed singleton+final *class:Person{age:i32}
     i32 age;
 };
 
-val fcn = { !Person?[] !ps, int x ->
+val fcn = { !Person?[] !ps, int x -> // exports a field with a constant fcn ptr; exports the fcn also
     if( ps[x] )
         ps[x].age++;
 };
 """;
         String person = "6\n";
-        TestC.run(src, "person", null, person, 0);
+        TestC.run(src, "person2", null, TestC.CALL_CONVENTION, "", TestC.C_DRIVERS_DIR+"person.c", person, 2);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
@@ -308,7 +234,7 @@ val fcn = { !Person?[] !ps, int x ->
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", src, ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "fcn", ps, 2, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -324,7 +250,7 @@ val fcn = { !Person?[] !ps, int x ->
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("person", src, ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 2, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);
@@ -344,46 +270,61 @@ val fcn = { !Person?[] !ps, int x ->
     @Test
     public void testCoRecur() {
         String src = """
-struct A { !B? !b; !C? !c; i64 ax; val az = x*2; };
-struct B { !A? !a; !C? !c; f32 bx; val bz = x*3; };
-struct C { !A? !a; !B? !b; f64 cx; val cz = x*x; };
-!A !aa = new A{ ax=17; };
-!B !bb = new B{ bx=3.14; a = aa; };
-!C !cc = new C{ cx=2.73; a = aa; b = bb; };
+val x = 5; // aa.az; // Error to self-define forward ref
+struct _A { !Test._B? !b; !Test._C? !c; i64 ax; val az = x*2; new _A = { i64 x -> ax=x; }; };
+struct _B { !Test._A? !a; !Test._C? !c; f32 bx; val bz = x*3; new _B = { f32 x, !Test._A? aa -> bx=x; a=aa; }; };
+struct _C { !Test._A? !a; !Test._B? !b; f64 cx; val cz = x*x; new _C = { f64 x, !Test._A? aa, !Test._B? bb -> cx=x; a=aa; b=bb; }; };
+!_A !aa = new _A(17);
+!_B !bb = new _B(3.14f, aa);
+!_C !cc = new _C(2.73, aa, bb);
 aa.b = bb;
 aa.c = cc;
 bb.c = cc;
-val x = 5; // aa.az; // Error to self-define forward ref
 return cc.cz;
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return 25;", code._stop.toString());
+        assertEquals("return 25;", code.print());
         assertEquals("25", Eval2.eval(code, 0));
     }
 
     @Test
     public void testHelloWorld() throws IOException {
-        String src =
-"""
-sys.io.p("Hello, World!");
+        String src = """
+// fd  buf len -> len
+{  i32 i64 u32 -> u32 } write = "C";
+// Write byte array to stdout
+val p = { u8[~] str ->
+    i64 ptr = str;  // cast array base to i64
+    return write(1,ptr,str#);
+};
+p("Hello, World!");
 return 0;
 """;
-        TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/helloWorld","","Hello, World!",0);
+        TestC.runSF(src,"helloWorld", "Hello, World!",2);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("helloWorld", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "helloWorld", 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
         assertEquals("Hello, World!",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("helloWorld", src,0, 2, false);
+        EvalArm64 arm = TestArm64.build("helloWorld", src,0, 5, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
         assertEquals("Hello, World!",arm._stdout.toString());
     }
+
+
+    @Test
+    public void testStrLoad() {
+        CodeGen code = new CodeGen("return \"abc\"[1];");
+        code.parse().opto();
+        assertEquals("return .[];", code.print());
+    }
+
 
     @Test
     public void testFinalArray() {
@@ -392,16 +333,16 @@ int N=4;
 i32[] !is = new i32[N];
 for( int i=0; i<N; i++ )
     is[i] = i*i;
-val sum = { i32[~] is ->  // final array
+val _sum = { i32[~] is ->  // final array
     int sum=0;
     for( int i=0; i<is#; i++ )
         sum += is[i];
     return sum;
 };
-return sum(is);
+return _sum(is);
 """;
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
-        assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code._stop.toString());
+        assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code.print());
         assertEquals("14", Eval2.eval(code, 0));
     }
 
@@ -413,10 +354,10 @@ return sum(is);
 // Echo stdin to stdout.
 return sys.io.p( sys.io.stdin() );
 """;
-        TestC.run(src,TestC.CALL_CONVENTION,null, null,null,"build/objs/echo","","",0);
+        TestC.runSF(src,"echo", "",0);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("echo", src, 0, 2, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "echo", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);

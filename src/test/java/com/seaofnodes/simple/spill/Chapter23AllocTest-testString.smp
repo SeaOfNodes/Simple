@@ -1,0 +1,34 @@
+// -*- mode: java;  -*-
+struct _String {
+    u8[] cs;
+    int _hashCode;
+    new _String = { u8[] data -> cs=data; };
+};
+
+// Compare two Strings
+val equals = { !_String !self, !_String s ->
+    if( self == s ) return true;
+    if( self.cs# != s.cs# ) return false;
+    for( int i=0; i< self.cs#; i++ )
+        if( self.cs[i] != s.cs[i] )
+            return false;
+    return true;
+};
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { !_String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+val _hashCodeString = { !_String self ->
+    int hash=0;
+    for( int i=0; i< self.cs#; i++ )
+        hash = hash*31 + self.cs[i];
+    if( !hash ) hash = 123456789;
+    return hash;
+};
+
+// This fixture exports its API, not the last declaration as a result.
+return 0;

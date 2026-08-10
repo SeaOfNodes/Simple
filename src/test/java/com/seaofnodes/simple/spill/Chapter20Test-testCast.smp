@@ -1,0 +1,1 @@
+struct _Bar { int x; }; var b = arg ? new _Bar;  return b ? b.x++ + b.x++ : -1;

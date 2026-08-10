@@ -7,8 +7,7 @@ import com.seaofnodes.simple.type.TypeFloat;
 
 public class RoundF32Node extends Node {
     public RoundF32Node(Node lhs) { super(null, lhs); }
-
-    @Override public String label() { return "RoundF32"; }
+    @Override public Tag serialTag() { return Tag.RoundF32; }
 
     @Override protected String format() { return "((f32)%1)"; }
 

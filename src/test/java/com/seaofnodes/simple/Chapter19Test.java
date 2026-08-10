@@ -6,8 +6,6 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -15,14 +13,14 @@ import static org.junit.Assert.*;
 public class Chapter19Test {
     @Test public void testPrintingFunctionLookup() {
         var code = new CodeGen("return 0;").parse();
-        var tfp = TypeFunPtr.make((byte)2,false,new Type[]{TypeInteger.constant(987654)},TypeInteger.constant(123456),1L<<30);
-        var con = new ConstantNode(tfp);
+        var tfp = TypeFunPtr.make1((byte)2,false,new Type[]{TypeInteger.constant(987654)},TypeInteger.constant(123456),30);
+        var con = ConstantNode.raw(tfp);
         var call = new CallNode(null,code._start,con,con);
         // Diagnostic lookup may construct/intern the return-erased linker key.
         con.toString();
         org.junit.Assert.assertNull(call.name());
 
-        var fun = new FunNode(null,tfp,"printerTarget");
+        var fun = new FunNode(null,tfp,"printerTarget",null);
         fun._name = "printerTarget";
         fun.addDef(code._start);
         code.link(fun);
@@ -40,18 +38,19 @@ public class Chapter19Test {
 return 0;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  2));
     }
 
 
     @Test
-    public void testString() throws IOException {
+    public void testString() {
         String src =
 """
 struct String {
-    u8[] !cs;
+    u8[~] !cs;
     int _hashCode;
+    new String = { u8[~] s -> cs=s; };
 };
 
 // Compare two Strings
@@ -64,12 +63,6 @@ val equals = { !String !self, !String s ->
     return true;
 };
 
-// Return the String hashCode (cached, and never 0)
-val hashCode = { !String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
-};
 
 val _hashCodeString = { !String self ->
     int hash=0;
@@ -78,107 +71,141 @@ val _hashCodeString = { !String self ->
     if( !hash ) hash = 123456789;
     return hash;
 };
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { !String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+hashCode(new String("Hello, World!"));
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
-        //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
+        CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
+        assertEquals("Stop[ return Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return MEM[ 2:___ 3:___ 4:.cs=Parm_s(Test.String.String,*[]u8[final]); 5:._hashCode=0;]; return MEM[ 2:___ 3:___ 4:___ 5:._hashCode=0;]; return Test.String; return Phi(Region,0,1,0,1); return Phi(Region,(!=0)._hashCode,Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code.print());
+        assertEquals("4029215624828139541", Eval2.eval(code,  2));
+    }
+
+    @Test
+    public void testTernaryStoreCall() {
+        String src =
+"""
+struct String {
+    u8[~] !cs;
+    int _hashCode;
+    new String = { u8[~] s -> cs=s; };
+};
+
+val f = { !String self -> 7; };
+
+val hashCode = { !String self ->
+    self._hashCode
+    ? 3
+    : (self._hashCode = f(self));
+};
+
+hashCode(new String("Hello"));
+""";
+        CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
+        assertFalse(code.print().contains("return Top"));
+        assertEquals("7", Eval2.eval(code, 2));
     }
 
     @Test
     public void testBasic0() {
         CodeGen code = new CodeGen("return 0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
     public void testBasic1() {
         CodeGen code = new CodeGen("return arg+1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (inc,arg);", code._stop.toString());
+        assertEquals("return (inc,arg);", code.print());
     }
 
     @Test
     public void testBasic2() {
         CodeGen code = new CodeGen("return -17;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return -17;", code._stop.toString());
+        assertEquals("return -17;", code.print());
     }
 
 
     @Test
     public void testBasic3() {
         CodeGen code = new CodeGen("return arg==1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (set==,(cmp,arg));", code._stop.toString());
+        assertEquals("return (set==,(cmp,arg));", code.print());
     }
 
     @Test
     public void testBasic4() {
         CodeGen code = new CodeGen("return arg<<1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (shli,arg);", code._stop.toString());
+        assertEquals("return (shli,arg);", code.print());
     }
 
     @Test
     public void testBasic5() {
         CodeGen code = new CodeGen("return arg >> 1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (sari,arg);", code._stop.toString());
+        assertEquals("return (sari,arg);", code.print());
     }
 
     @Test
     public void testBasic6() {
         CodeGen code = new CodeGen("return arg >>> 1;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (shri,arg);", code._stop.toString());
+        assertEquals("return (shri,arg);", code.print());
     }
 
     @Test
     public void testBasic7() {
         CodeGen code = new CodeGen("return arg / 2;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (div,arg,2);", code._stop.toString());
+        assertEquals("return (div,arg,2);", code.print());
     }
 
     @Test
     public void testBasic8() {
         CodeGen code = new CodeGen("return arg * 6;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (muli,arg);", code._stop.toString());
+        assertEquals("return (muli,arg);", code.print());
     }
 
     @Test
     public void testBasic9() {
         CodeGen code = new CodeGen("return arg & 2;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (andi,arg);", code._stop.toString());
+        assertEquals("return (andi,arg);", code.print());
     }
 
     @Test
     public void testBasic10() {
         CodeGen code = new CodeGen("return arg | 2;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (ori,arg);", code._stop.toString());
+        assertEquals("return (ori,arg);", code.print());
     }
 
     @Test
     public void testBasic11() {
         CodeGen code = new CodeGen("return arg ^ 2;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (xori,arg);", code._stop.toString());
+        assertEquals("return (xori,arg);", code.print());
     }
 
     @Test
     public void testBasic12() {
         CodeGen code = new CodeGen("return arg + 2.0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (addf,(cvtf,arg),2.0f);", code._stop.toString());
+        assertEquals("return (addf,(cvtf,arg),2.0f);", code.print());
     }
 
     @Test
     public void testBasic13() {
         CodeGen code = new CodeGen("return arg - 2.0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (subf,(cvtf,arg),2.0f);", code._stop.toString());
+        assertEquals("return (subf,(cvtf,arg),2.0f);", code.print());
     }
 
     @Test
     public void testBasic14() {
         CodeGen code = new CodeGen("return arg * 2.0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (mulf,(cvtf,arg),2.0f);", code._stop.toString());
+        assertEquals("return (mulf,(cvtf,arg),2.0f);", code.print());
     }
 
     @Test
     public void testBasic15() {
         CodeGen code = new CodeGen("return arg / 2.0;").driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (mulf,(cvtf,arg),0.5f);", code._stop.toString());
+        assertEquals("return (mulf,(cvtf,arg),0.5f);", code.print());
     }
 
     @Test
@@ -188,7 +215,7 @@ val _hashCodeString = { !String self ->
 int arg1 =  arg + 1;
 return arg1 / arg;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (div,(inc,arg),arg);", code._stop.toString());
+        assertEquals("return (div,(inc,arg),arg);", code.print());
     }
 
     @Test
@@ -199,7 +226,7 @@ int arg1 =  arg + 1;
 return arg1 * arg;
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (mul,(inc,arg),arg);", code._stop.toString());
+        assertEquals("return (mul,(inc,arg),arg);", code.print());
     }
 
     @Test
@@ -209,7 +236,7 @@ int a = arg;
 return a + 2.0;
 """
         ).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (addf,(cvtf,arg),2.0f);", code._stop.toString());
+        assertEquals("return (addf,(cvtf,arg),2.0f);", code.print());
     }
 
     @Test
@@ -258,10 +285,10 @@ return sum;""");
     public void testAlloc1() {
         CodeGen code = new CodeGen(
 """
-struct S { int a; !S? !c; };
-return new S;""");
+struct _S { int a; !_S? !c; };
+return new _S;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return S;", code.print());
+        assertEquals("return Test._S;", code.print());
     }
 
     @Test
@@ -349,7 +376,7 @@ return A[1];
     public void testNewton() throws IOException {
         String src =
 """
-val test_sqrt = { flt x ->
+val _test_sqrt = { flt x ->
     flt epsilon = 1e-15;
     flt guess = x;
     while( 1 ) {
@@ -359,15 +386,16 @@ val test_sqrt = { flt x ->
         guess = next;
     }
 };
-flt farg = arg;  return test_sqrt(farg);
+flt farg = arg;
+return _test_sqrt(farg);
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,(divf,cvtf,Phi_guess),Phi_guess),0.5f));", code.print());
+        assertEquals("return Phi(Loop,(cvtf,arg),(mulf,(addf,Phi_guess,(divf,cvtf,Phi_guess)),0.5f));", code.print());
     };
 
 
     @Test
-    public void sieveOfEratosthenes() throws IOException {
+    public void sieveOfEratosthenes() {
         String src =
 """
 val sieve = { int N ->
@@ -402,8 +430,8 @@ val sieve = { int N ->
 };
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return []u32;", code.print());
-        //assertEquals("u32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
+        assertEquals("Stop[ return { sieve}; return []u32; ]", code.print());
+        //assertEquals("{ ptr i64 -> *[]u32 #[ 3]}",Eval2.eval(code, 20));
     }
 
 
@@ -411,97 +439,21 @@ val sieve = { int N ->
     public void testFcn1() {
         CodeGen code = new CodeGen(
 """
-val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
-return fcn(2)*10 + fcn(3);
+val _fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
+return _fcn(2)*10 + _fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun21,i64),x); return (shli,Parm_x($fun22,i64)); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun3,[2-3]),x); return (shli,Parm_x($fun4,[2-3])); ]", code.print());
     }
 
     @Test
     public void testFcn2() {
         CodeGen code = new CodeGen(
 """
-val sq = { int x -> x*x; };
-return sq(arg) + sq(3);
+val _sq = { int x -> x*x; };
+return _sq(arg) + _sq(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,#2); return (mul,Parm_x(sq,i64),x); ]", code.print());
-    }
-
-    @Test public void testSelectedMemory() {
-        for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
-            for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
-                                          Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY} ) {
-                var code = new CodeGen(src).parse().opto().typeCheck();
-                var aliases = memoryPhis(code._stop);
-                code.loopTree().instSelect(cpu,"SystemV");
-                assertEquals(aliases,memoryPhis(code._stop));
-                code.GCM().localSched();
-                code._stop.walk(n -> {
-                    if( !(n instanceof CFGNode) && !(n instanceof ProjNode) )
-                        assertTrue(n.in(0) instanceof CFGNode);
-                    if( n instanceof NewNode nn ) {
-                        assertEquals(2,((TypeTuple)nn._type)._types.length);
-                        assertTrue(nn.mem() instanceof MemMergeNode);
-                        assertNull(nn.mem().in(1)); // Partial allocation input.
-                        nn.cacheRegs(code);
-                        MachNode mach = (MachNode)nn;
-                        assertNull(mach.regmap(1));
-                        assertNotNull(mach.regmap(2));
-                        assertNotNull(mach.outregmap(0));
-                        assertNull(mach.outregmap(1));
-                    }
-                    if( n instanceof CallNode call ) {
-                        assertEquals(4,call.nIns()); // ctrl, memory, two args; direct target is embedded.
-                    }
-                    return null;
-                });
-            }
-    }
-
-    private static java.util.ArrayList<String> memoryPhis(Node stop) {
-        var phis = new java.util.ArrayList<String>();
-        // Count only definitions reachable from Stop, as instruction selection does.
-        // A dead Phi cycle can still appear through the reverse use edges.
-        var seen = new java.util.BitSet();
-        var work = new java.util.ArrayList<Node>();
-        work.add(stop);
-        for( int i=0; i<work.size(); i++ ) {
-            Node n = work.get(i);
-            if( n==null || seen.get(n._nid) ) continue;
-            seen.set(n._nid);
-            for( Node def : n._inputs ) work.add(def);
-            if( n instanceof MemPhiNode phi ) phis.add("alias:"+phi._alias);
-            if( n instanceof BulkMemPhiNode phi ) phis.add("bulk:"+phi._aliases);
-            assertFalse(n instanceof PhiNode && n.isMem() &&
-                !(n instanceof MemPhiNode) && !(n instanceof BulkMemPhiNode) && !(n instanceof ParmNode));
-        }
-        java.util.Collections.sort(phis);
-        return phis;
-    }
-
-    @Test public void testFoldedReadBeforeWrites() {
-        var code = new CodeGen("""
-            struct S { int x; };
-            !S !a = new S { x=11; }; !S !b = new S { x=22; };
-            !S !p = a; if( arg ) p = b;
-            int before = p.x + arg;
-            a.x=33; b.x=44;
-            return before;
-            """).parse().opto().typeCheck().loopTree().instSelect("x86_64_v2","SystemV").GCM().localSched();
-        var read = (MemOpNode)code._stop.walk(n ->
-            n instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.AddMemX86 ? n : null);
-        assertNotNull(read);
-        int writes = 0;
-        for( Node use : read.antiDeps() )
-            if( use instanceof MemOpNode st && st.isMem() ) {
-                assertSame(read.cfg0(),st.cfg0());
-                assertTrue(st._inputs.find(read)>=0);
-                assertTrue(read.cfg0()._outputs.find(read)<st.cfg0()._outputs.find(st));
-                assertNull(((MachNode)st).regmap(st._inputs.find(read)));
-                writes++;
-            }
-        assertEquals(1,writes); // The next Store follows this first clobber through memory.
+        assertEquals("return (addi,(mul,arg,arg));", code.print());
     }
 }

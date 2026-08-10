@@ -2,10 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
 
 public class RegionNode extends CFGNode {
@@ -15,9 +15,9 @@ public class RegionNode extends CFGNode {
     public RegionNode(Parser.Lexer loc, Node...   nodes) { super(nodes); _loc = loc; }
     public RegionNode(RegionNode r, Parser.Lexer loc) { super(r); _loc = loc; }
     public RegionNode(RegionNode r) { super(r); if( r!=null ) _loc = r._loc; }
-
-    @Override
-    public String label() { return "Region"; }
+    @Override public Tag serialTag() { return Tag.Region; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
+    static Node make( BAOS bais ) { return new RegionNode(null,new Node[bais.packed1()]); }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         return p.p(label());
@@ -47,10 +47,10 @@ public class RegionNode extends CFGNode {
 
         // If a CFG diamond with no merging, delete: "if( pred ) {} else {};"
         if( !hasPhi() && nIns()>3 &&  // No Phi users, just a control user
-            in(1) instanceof CProjNode p1 &&
-            in(2) instanceof CProjNode p2 &&
-            addDepForwards(p1).in(0)==addDepForwards(p2).in(0) &&
-            p1.in(0) instanceof IfNode iff ) {
+                in(1) instanceof CProjNode p1 &&
+                in(2) instanceof CProjNode p2 &&
+                addDepForwards(p1).in(0)==addDepForwards(p2).in(0) &&
+                p1.in(0) instanceof IfNode iff ) {
             // Replace with the iff.ctrl directly
             if( nIns()==3 ) return iff.ctrl();
             // Just delete the path for fat Regions
@@ -76,7 +76,7 @@ public class RegionNode extends CFGNode {
                     // Fold Region
                     for( int j=1; j<region.nIns(); j++ )
                         addDef(region.in(j));
-                    setDef(i,Parser.XCTRL);
+                    setDef(i,CodeGen.CODE.XCTRL);
                     return this;
                 }
         }
@@ -112,7 +112,8 @@ public class RegionNode extends CFGNode {
                     CodeGen.CODE.addAll(phi.delDef(path)._outputs);
                 }
         }
-        return isDead() ? Parser.XCTRL : delDef(path);
+        if( !isDead() ) delDef(path);
+        return isDead() ? CodeGen.CODE.XCTRL : this;
     }
 
     private int findDeadInput(int startIdx) {
