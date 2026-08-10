@@ -25,10 +25,13 @@ public class MemPhiNode extends PhiNode {
             return (region()._type==Type.XCONTROL || region()._type==Type.TOP) ? TypeMem.TOP : _type;
         if( r.inProgress() ) return r instanceof LoopNode ? TypeMem.make(_alias,Type.BOTTOM) : TypeMem.BOT;
         Type t = Type.TOP;
+        TypeMem escapes=TypeMem.START;
         for( int i=1; i<nIns(); i++ )
-            if( addDep(r.in(i))._type!=Type.XCONTROL && r.in(i)._type!=Type.TOP )
+            if( addDep(r.in(i))._type!=Type.XCONTROL && r.in(i)._type!=Type.TOP ) {
                 t = t.meet(MemMergeNode.contents(in(i),_alias,this));
-        return TypeMem.make(_alias,t);
+                escapes=escapes.escapes(in(i)._type);
+            }
+        return escapes.withContents(_alias,t);
     }
 
     @Override public Node idealize() {

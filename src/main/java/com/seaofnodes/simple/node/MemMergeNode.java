@@ -84,10 +84,14 @@ public class MemMergeNode extends Node {
             }
             return TypeMem.makePrivate(TypeStruct.make(shape._name,shape._open,fields));
         }
-        for( Node n : _inputs )
-            if( n != null && !n._type.isHigh() )
-                return TypeMem.BOT;
-        return TypeMem.TOP;
+        TypeMem mem=in(1)==null ? TypeMem.START : in(1)._type instanceof TypeMem m ? m :
+            in(1)._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+        // Only memory visible outside this graph contributes to the external
+        // summary. Newly exposed aliases feed back through Start on the next
+        // SCCP visit, including chains of pointers stored in other objects.
+        for( int i=2; i<nIns(); i++ )
+            if( in(i)!=null && XInt.bit(mem._escAs,i) ) mem=mem.escapes(in(i)._type);
+        return mem;
     }
 
     @Override public Node idealize() {
