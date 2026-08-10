@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -37,7 +38,21 @@ public class CallEndNode extends CFGNode implements MultiNode {
         super(new Node[nIns]);
         _rpc = rpc;
     }
-
+    @Override public Tag serialTag() { return Tag.CallEnd; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(Serialize.nIns(this,anodes));
+        // Linked CallEnds depend on Return types which depend on CallEnds;
+        // break the cycle
+        baos.packed2(types.get(_type));
+        baos.packed2(types.get(_rpc));
+    }
+    static Node make( BAOS bais, Type[] types )  {
+        int nIns = bais.packed1();
+        Type type = types[bais.packed2()];
+        Node cend = new CallEndNode(nIns,(TypeRPC)types[bais.packed2()]);
+        cend._type = type;
+        return cend;
+    }
 
     @Override public boolean blockHead() { return true; }
 
@@ -60,83 +75,51 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     @Override
     public Type compute() {
+        // Something is dead or busted, early exit with high/dead result
         if( !(in(0) instanceof CallNode call) || call._type != Type.CONTROL )
             return TypeTuple.STATE.dual();
-        // Grab the TFP and use the functions declared return type.
-        // If the call.fptr() is a FRef, return will be BOTTOM.
+        // The function pointer carries a result type even without a body.
         Type ftype = addDep(call.fptr())._type;
+        // Something is dead or busted, early exit with high/dead result
         if( !(ftype instanceof TypeFunPtr tfp) )
             return ftype.isHigh() ? TypeTuple.STATE.dual() : TypeTuple.STATE;
-        // Mid-fold, just take the one single callers' return type
-        if( _folding ) {
-            TypeTuple tt = (TypeTuple)in(1)._type;
-            return tt.makeFrom(2,tt.ret());
-        }
+        // Mid-fold, just take the inlined callee's return.
+        if( _folding ) return in(1)._type;
 
-        // Here, if I can figure out I've linked *all* callers, then I can meet
-        // across the linked returns and join with the function return type.
+        // Unknown targets can change any memory and return the declared type.
+        if( XInt.isHigh(tfp.fidxs()) )
+            return TypeTuple.make(Type.CONTROL,TypeMem.BOT,tfp.ret());
 
-        // External functions have an exact FIDX but deliberately no local
-        // FunNode/Return edge.  They conservatively crush public memory and
-        // produce their declared return type.  A missing non-external target
-        // is still an unresolved/error call.
+        // Check for making a "C" call
         int externs = 0;
-        // The signature bounds widening (e.g. an i32 result stays i32).
-        // Use the callee signature, not FunPtrNode's live recursive range.
-        Type bound = tfp.ret();
-        if( !XInt.isHigh(tfp.fidxs()) ) {
-            bound = Type.TOP;
-            for( int fidx = XInt.next(tfp.fidxs(),0); fidx >= 0; fidx = XInt.next(tfp.fidxs(),fidx) ) {
-                if( CodeGen.CODE.externFunc(fidx)!=null )
-                    externs++;
-                FunNode fun = CodeGen.CODE._link(fidx);
-                bound = bound.meet(fun==null ? tfp.ret() : addDep(fun).sig().ret());
-            }
-        }
-        boolean hasExtern = externs != 0;
-
-        // If we have an error-call, e.g. wrong args, then we never link.
-        // Pre-Opto this looks like a missing target fcn, and we assume it will
-        // appear later - meanwhile, we use a conservative approx of memory
-        // effects.
-        if( (nIns()-1)+externs < tfp.nfcns() ) {
-            // If during Opto, assume call won't be called and thus won't return anything.
-            // Lowered calls deliberately have no links into optimized bodies.
-            boolean opto = CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() &&
-                           CodeGen.CODE._phase.ordinal() <  CodeGen.Phase.Lower.ordinal();
-            Type tmem = opto ? TypeMem.TOP : TypeMem.BOT;
-            Type ret  = opto ? Type.TOP    : tfp.ret();
-            // Use the same widening before and after linking a callee.
-            return TypeTuple.make(Type.CONTROL,tmem,widenResult(ret,bound));
+        for( int fidx = XInt.next(tfp.fidxs(),0); fidx >= 0; fidx = XInt.next(tfp.fidxs(),fidx) )
+            if( CodeGen.CODE.externFunc(fidx)!=null ) externs++;
+        if( externs!=0 ) {
+            // C calls have no Return edges. Simple calls have an extra self
+            // argument, so the two cannot be targets of the same valid call.
+            assert externs==tfp.nfcns();
+            return TypeTuple.make(Type.CONTROL,call.exposed(this),tfp.ret());
         }
 
-        // A linked function for every concrete function
-        TypeTuple state = hasExtern
-            ? TypeTuple.make(Type.CONTROL,call.exposed(this),tfp.ret())
-            : TypeTuple.STATE.dual();
+        // An unlinked target may have effects, so early conservative return.
+        // This also covers invalid calls (e.g. wrong arity), which never link.
+        // SCCP links valid finite targets as soon as they become known, before
+        // computing their CallEnd, so this check does not trigger during SCCP.
+        if( nIns()-1 < tfp.nfcns() )
+            return TypeTuple.make(Type.CONTROL,TypeMem.BOT,tfp.ret());
+
+        // Start at a high tuple (matching Returns' tuple)
+        TypeTuple state = TypeTuple.STATE.dual();
+        // Meet over all Returns
         for( int i=1; i<nIns(); i++ )
             state = (TypeTuple)state.meet(in(i)._type);
-        // A reachable call whose presently linked exits are all unreachable
-        // keeps a conservative continuation.  In particular, do not let a
-        // transient no-return result tear down the caller before/during SCCP.
-        // If the call remains out-of-line, its continuation can conservatively
-        // contribute class-init dependencies even though it never executes.
+        // Keep a live continuation even before any callee exit is reachable.
+        // Otherwise a transient no-return result can tear down the caller
+        // and lose class-init dependencies before SCCP finds those exits.
         if( state.ctl()==Type.XCONTROL )
             return TypeTuple.make(Type.CONTROL,TypeMem.TOP,Type.TOP);
-        // Join before widening: FunPtrNode follows the live Return type, so
-        // joining it afterward would undo the widening.
-        return state.makeFrom(2,widenResult(state.ret().join(tfp.ret()),bound));
-    }
-
-    private static Type widenResult(Type ret, Type bound) {
-        // Recursion is a loop in disguise. For f(x-1)+1, the result
-        // flows Return -> CallEnd -> Add -> Phi -> Return, without
-        // crossing ParmNode.compute's widening point. Widen here too,
-        // using the loop rule in PhiNode.compute. Keep constants and
-        // above-center ranges narrow.
-        if( ret instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
-            ret = ti.same_but_slightly_wider_than().join(bound);
-        return ret;
+        // Final JOIN over the signature guarentee and meet-over-returns
+        return state.makeFrom(2,state.ret().join(tfp.ret()));
     }
 
     @Override
@@ -145,7 +128,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     }
 
     public byte maybeInline() {
-        byte inline = inlineCandidate();
+        byte inline = inlineCandidate(false);
         if( CodeGen.CODE._midAssert )
             return inline;
         _inline = inline;
@@ -155,8 +138,23 @@ public class CallEndNode extends CFGNode implements MultiNode {
         return _inline;
     }
 
-    // Check if candidate right now, sets no flags
-    private byte inlineCandidate() {
+    // This CallEnd might be an inline candidate, but the actual code is in
+    // another CompUnit and needs loading to decide. Called at an empty worklist.
+    public boolean loadForInline() {
+        CodeGen code = CodeGen.CODE;
+        if( code._phase!=CodeGen.Phase.IterPostOpto || nIns()!=2 ||
+            !(in(1) instanceof ReturnNode ret) || ret.fun().summary()==null ) return false;
+        // Fetch bodies only for calls in functions compiled from source here.
+        // Calls inside imported functions become eligible when inlined into one.
+        if( !(in(0) instanceof CallNode call) || !call.fun().isFromSource() ||
+            inlineCandidate(true)<=0 ) return false;
+        code.loadForInline(ret.fun()._compunit);
+        return true;
+    }
+
+    // Check if candidate right now, sets no flags. Loading uses the same
+    // policy, but can only estimate the size of a summarized body.
+    private byte inlineCandidate(boolean loading) {
         if( _inline < -2 ) return -2; // Never
         if( _folding ) return -2;     // No, and will collapse anyways
         if( !(in(0) instanceof CallNode call) ) return -2; // malformed because mid-death
@@ -195,9 +193,11 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // A large parse can leave only a tiny initializer.  Recognize that
         // and await cleanup to shrink the body.
         if( fun._approxUIDs >= maxSize ) {
-            if( !smallBody(fun) ) return -1;
-        } else if( fun.body().cardinality() >= maxSize ) // Expensive size check
+            if( fun.summary()!=null || !smallBody(fun) ) return -1;
+        } else if( fun.summary()==null && fun.body().cardinality() >= maxSize ) // Expensive size check
             return -1;          // Try later (if cleanup makes the real body small enough)
+
+        if( fun.summary()!=null ) return loading ? (byte)1 : (byte)-1;
 
         // Can be cloned but not trivial
         if( fun.nIns() > 2 ) { addDep(fun); return 2; }

@@ -300,7 +300,7 @@ A x = new A;
         for( String fields : new String[] {
             "!B !b; new A = { -> if (arg) b = new B; };",
             "!B !b; new A = { -> if (arg) return 0; b = new B; };",
-            "!B !b; new A = { !B !b -> b = new B; };", // Mutable argument shadows field
+            "!B !b; new A = { !B !b -> b = new B; };", // Argument shadows field
             "new A = { -> }; !B !b;",              // Field declared later
         } ) {
             CodeGen code = new CodeGen("struct B {}; struct A { "+fields+" }; return 0;");
@@ -536,6 +536,7 @@ for(;;arg++;) {}
         try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
         catch( Exception e ) { assertEquals("Syntax error, expected `Unexpected code after expression` but found `;`",e.getMessage()); }
     }
+
 
 
     // ---------------------------------------------------------------

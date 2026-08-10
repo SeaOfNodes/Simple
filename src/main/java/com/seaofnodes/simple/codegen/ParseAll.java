@@ -28,21 +28,34 @@ public abstract class ParseAll {
     // Worklist of symbols to search and files to parse
     private static final Ary<CompUnit> WORK = new Ary<>(CompUnit.class);
 
+    private static final Ary<CompUnit> NEEDS_LOAD = new Ary<>(CompUnit.class);
 
     // Return a compilation unit (cached or new).  If new, it does not necessarily
     // need to be compiled.
     public static CompUnit makeCUnit( CodeGen code, CompUnit par, String name ) throws IOException {
-        int idx=name.indexOf('/');
-        if( idx>=0 ) return makeCUnit(code,makeCUnit(code,par,name.substring(0,idx)),name.substring(idx+1));
-        String fname=par==null ? name : par._fname+"/"+name;
-        CompUnit cu=code._compunits.get(fname);
-        if( cu==null ) {
-            String cname=par==null ? name : par._cname+"."+name;
-            code._compunits.put(fname,cu=new CompUnit(par,fname,cname,name));
-        }
-        return cu;
+        return makeCUnit(code,par,name,null,false);
     }
 
+    private static CompUnit makeCUnit( CodeGen code, CompUnit par, String name, File obj ) throws IOException {
+        return makeCUnit(code,par,name,obj,obj!=null);
+    }
+
+    private static CompUnit makeCUnit( CodeGen code, CompUnit par, String name, File obj, boolean external ) throws IOException {
+        // Slashed file name?  Move leading parts into parent CUs.
+        int idx = name.indexOf("/");
+        if( idx >= 0 ) {
+            String head = name.substring(0,idx);
+            CompUnit sub = makeCUnit(code,par,head,external ? externalObj(code,par,head) : null,external);
+            return makeCUnit(code,sub,name.substring(idx+1).intern(),obj,external);
+        }
+
+        String fname = par==null ? name : (par._fname + "/" + name).intern();
+        CompUnit cunit = code._compunits.get(fname);
+        if( cunit != null ) return cunit;
+        String cname = par==null ? name : (par._cname + "." + name).intern();
+        code._compunits.put(fname, cunit = external ? new CompUnit(obj,par,fname,cname,name) : new CompUnit(par,fname,cname,name));
+        return cunit;
+    }
 
     // Parse a top-level string, used for e.g. testing
     static void parseSource( CodeGen code, String src ) {
@@ -69,21 +82,28 @@ public abstract class ParseAll {
     }
 
     private static void enqueue(CompUnit cu) {
-        if( cu._par!=null ) enqueue(cu._par);
+        if( cu._par!=null && (cu._par._src!=null || (cu._par._obj!=null && cu._par._obj.exists())) ) enqueue(cu._par);
         if( cu._start==null && WORK.find(cu)==-1 ) WORK.add(cu);
     }
 
     private static void parseAll(CodeGen code, CompUnit cunit) {
         WORK.clear();           // Cleanup from prior tests
+        NEEDS_LOAD.clear();
         // Prime the pump with the first CompUnit
         enqueue(cunit);
         // Work through all unparsed compilation units and parse
         while( !WORK.isEmpty() ) {
             CompUnit cu = WORK.remove(0);
-            if( cu._src==null )
-                throw new RuntimeException("Missing source file '"+cu._fname+".smp'");
-            parseOne(code,cu);
+            // No source code?  Means we do not need to parse, but instead need to load the symbols as-if we parsed
+            if( cu._src==null || cu._src.isEmpty() )
+                loadDeps(code,cu); // Load recursive dependents
+            else
+                parseOne( code, cu ); // Parse
         }
+
+        // Load all pre-compiled CompUnits
+        for( CompUnit cu : NEEDS_LOAD )
+            loadSummaries(code,cu);
 
         // Many types will have been declared cyclically either internally or
         // across multiple compilation units.
@@ -97,7 +117,8 @@ public abstract class ParseAll {
         for( TypeStruct ts : tss )
             Parser.TYPES.put(ts._name,ts);
         for( CompUnit cu : code._compunits.values() )
-            cu._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cu._cname));
+            if( cu._ext==null )
+                cu._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cu._cname));
 
         // Walk over all Nodes, and upgrade the internal constants to the
         // closed-over types.
@@ -135,6 +156,9 @@ public abstract class ParseAll {
                 // Adds sort by NIDs, which just got shuffled
                 if( n instanceof AddNode add )
                     code.add(add);
+                // All imported bodies are loaded; link them before Iter checks types.
+                if( n instanceof CallNode call && !NEEDS_LOAD.isEmpty() )
+                    code.add(call).idealize();
                 return null;
             } );
 
@@ -157,6 +181,8 @@ public abstract class ParseAll {
             // Search the module for the fref
             try {
                 CompUnit xcunit = findCUnitModule(code,cunit,fref._name);
+                if( xcunit == null )
+                    xcunit = findCUnitExternalSimple(code,fref._name);
                 if( xcunit != null ) {
                     // Replace the FRef with the discovered class name.
                     fref._name = Parser.addClzPrefix(xcunit._cname);
@@ -196,9 +222,126 @@ public abstract class ParseAll {
             if( xcunit != null )
                 return xcunit;
         }
-        return null;
+        return findCUnitExternalSimple(code,typeName);
     }
 
+    // Load the public symbols for this CompUnit, and add dependent CompUnits to the NEEDS_LOAD list.
+    private static void loadDeps(CodeGen code, CompUnit cunit) {
+        // Load IR after parsing
+        if( NEEDS_LOAD.find(cunit) != -1 )
+            return;             // Already on the to-be-loaded list?
+        for( CompUnit loaded : NEEDS_LOAD )
+            if( loaded._obj.equals(cunit._obj) ) return; // Another class in the same object.
+        try {
+            NEEDS_LOAD.add(cunit);
+            // Load dependent classes
+            ElfReader elf = code.getElf(cunit._obj);
+            elf.loadPublicSymbols();
+            // Register bundled definitions before resolving dependencies or IR.
+            for( String fname : elf._units )
+                makeCUnit(code,null,fname,cunit._obj);
+            for( String fname : elf._deps ) {
+                // Check CompUnit for being up to date
+                CompUnit sub = code._compunits.get(fname);
+                if( sub==null ) sub=makeCUnit(code,null,fname,depObj(code,cunit,fname));
+                // If not seen before or out of date, parse the new nested cunit
+                if( sub._clz == null && WORK.find(sub)==-1 && NEEDS_LOAD.find(sub)==-1 )
+                    enqueue(sub);
+            }
+        } catch( IOException ioe ) {
+            throw new RuntimeException(ioe);
+        }
+    }
+
+    private static File depObj(CodeGen code, CompUnit cunit, String fname) {
+        File obj = CompUnit.dependencyObj(fname,cunit._smp!=null);
+        if( obj == null )
+            throw new RuntimeException("Cannot find Simple dependency '"+fname+"'");
+        return cunit._smp!=null && obj.equals(new File(code._buildDir+"/"+fname+".o")) ? null : obj;
+    }
+
+    private static File externalObj(CodeGen code, CompUnit par, String name) {
+        String cname = par==null ? name : par._cname + "." + name;
+        ElfReader elf = code.findExternalSimple(Parser.addClzPrefix(cname));
+        return elf == null ? null : elf._file;
+    }
+
+    private static void loadSummaries(CodeGen code, CompUnit cu) {
+        ElfReader elf = code.getElf(cu._obj);
+        elf.loadPublicTypes(code);
+        cu._clz = elf._clz;
+        cu.setStart(code);
+        new ProjNode(cu._start,1,"$mem").init();
+        for( FunctionSummary summary : elf._functions ) summary.install(code,cu);
+    }
+
+    public static void loadCompUnit(CodeGen code, CompUnit cunit) {
+        // Expecting a previously compiled object file
+        assert cunit._obj != null;
+        // Extract published symbols and put them in the internal tables;
+        // cross-references will pick them up there.
+        ElfReader elf = code.getElf(cunit._obj);
+        if( elf._nodes!=null ) return;
+        StartCUNode oldStart = cunit._start;
+        StopCUNode oldStop = cunit._stop;
+        ProjNode oldMem = oldStart==null ? null : oldStart.proj(1);
+        if( oldMem!=null ) code.releaseReplacedNode(oldMem);
+        elf.loadSimple(code);
+        cunit._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cunit._cname));
+        StartNode lstart = (StartNode)elf._nodes.at(0);
+        StopNode  lstop  = ( StopNode)elf._nodes.last();
+
+        // Add all new loaded functions to the linker table
+        for( Node n : lstop._inputs ) {
+            StopCUNode  stop = (StopCUNode)n;
+            StartCUNode start = stop.start();
+            CompUnit cu = code._compunits.get(start._fname);
+            cu._start = start;
+            cu._stop  = stop ;
+
+            for( Node ret : stop._inputs ) {
+                FunNode fun = ((ReturnNode)ret).fun();
+                FunNode old = code._link(fun.sig().fidx());
+                code.link(fun);
+                if( old!=null && old.summary()!=null && !old.isDead() ) {
+                    old.ret().keep();
+                    for( int i = 1; i<old.nIns(); i++ )
+                        if( old.in(i) instanceof CallNode call ) {
+                            call.unlink(old,i--);
+                            call.link(fun);
+                        } else if( old.in(i) instanceof CProjNode proj && proj.in(0) instanceof CLInitNode init ) {
+                            init.unlink();
+                            init.link();
+                            i--;
+                        }
+                    old.ret().unkeep().subsume(fun.ret());
+                }
+            }
+        }
+
+        // Hook the new code into the existing code graph
+        for( Node lstopcu : lstop._inputs )
+            code._stop.addDef(lstopcu);
+        lstart.subsume(code._start);
+        if( oldStart!=null && oldStart!=cunit._start ) {
+            code.releaseReplacedNode(oldStart);
+            int idx = code._stop._inputs.find(oldStop);
+            if( idx!=-1 ) code._stop.delDef(idx);
+            oldStart.subsume(cunit._start);
+        }
+        // Saved types describe the library's original compilation.  Repair
+        // only the newly loaded graph; ordinary dependencies carry changes
+        // into its callers without restarting whole-program analysis.
+        ProjNode startMem = cunit._start.proj(1);
+        if( startMem!=null ) code.keepUntilFinalize(startMem);
+        Iter.imports(code,elf._nodes);
+
+        // Add the new top-level loaded class
+        Parser.TYPES.put(cunit._clz._name,cunit._clz);
+        Field inst = cunit._clz.field(cunit._name);
+        if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMem mem )
+            Parser.TYPES.put(cunit._cname,mem._t);
+    }
 
     // Symbol not found in source code (or we would not be here).
     // Search the module for the fref
@@ -215,7 +358,7 @@ public abstract class ParseAll {
             CompUnit local = findCUnitModule(code,cu,symbol);
             if( local != null )
                 return local;
-            return null;
+            return findCUnitExternalSimple(code,symbol);
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
         }
@@ -231,12 +374,8 @@ public abstract class ParseAll {
     // However if A/B contains "Y", the search would be for A.B.Y then A.Y both of
     // which do not exist.
     private static CompUnit findCUnitModule( CodeGen code, CompUnit cunit, String symbol ) throws IOException {
-        if( cunit == null ) {
-            if( !symbol.equals("sys") || !CompUnit.source("sys").exists() ) return null;
-            CompUnit sys=makeCUnit(code,null,"sys");
-            enqueue(sys);
-            return sys;
-        }
+        if( cunit == null )     // Ran off top of module scope?
+            return null;        // Failed search
 
         // Check self
         if( cunit._name.equals(symbol) )
@@ -252,10 +391,11 @@ public abstract class ParseAll {
             String pre = symbol.substring(0,dotIdx);
             String rest = symbol.substring(dotIdx+1 );
             String fname = cunit._fname + "/" + pre;
-            File f = CompUnit.source(fname);
+            File f = new File( code._modDir + "/" + fname + ".smp" );
             if( f.exists() ) {
                 CompUnit sub = makeCUnit(code,cunit,pre);
-                // enqueue also parses parents: their initialization must precede a child.
+                // Note that "sub" itself is not put on the to-be-parsed-list.  We're
+                // referring to a child class and do not need to parse the middles.
                 CompUnit dcunit = findCUnitModule(code,sub,rest);
                 if( dcunit != null )
                     return dcunit; // Nested dot search found cunit
@@ -264,7 +404,7 @@ public abstract class ParseAll {
 
         // Look in mod / fname / name / symbol.smp
         String fname = cunit._fname + "/" + symbol;
-        File f = CompUnit.source(fname);
+        File f = new File( code._modDir + "/" + fname + ".smp" );
         if( f.exists() ) {
             CompUnit sub = makeCUnit(code,cunit,symbol);
             // If not seen before or out of date, parse the new nested cunit
@@ -277,5 +417,34 @@ public abstract class ParseAll {
         return findCUnitModule( code, cunit._par, symbol );
     }
 
+    // Search external Simple objects only.  C linkage uses explicit "C"
+    // declarations, which produce ExternNodes and are resolved by the linker.
+    public static CompUnit findCUnitExternalSimple( CodeGen code, String symbol ) {
+        String clzName = symbol.startsWith(Parser.CLZ) ? symbol : Parser.addClzPrefix(symbol);
+        String cname = clzName.substring(Parser.CLZ.length());
+        String fname = cname.replace('.','/');
 
+        CompUnit cunit = code._compunits.get(fname);
+        if( cunit != null )
+            return cunit;
+
+        ElfReader elf = code.findExternalSimple(clzName);
+        if( elf == null )
+            return null;
+
+        try {
+            cunit = makeCUnit(code,null,fname,elf._file);
+        } catch( IOException ioe ) {
+            throw new RuntimeException(ioe);
+        }
+        ElfReader typedElf = code.getElf(cunit._obj);
+        if( typedElf != null ) typedElf.loadPublicTypes(code);
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
+        if( clz == null )
+            Parser.TYPES.put(clzName,clz = TypeStruct.make(clzName,true));
+        cunit._clz = clz;
+        if( WORK.find(cunit) == -1 && NEEDS_LOAD.find(cunit) == -1 )
+            enqueue(cunit);
+        return cunit;
+    }
 }

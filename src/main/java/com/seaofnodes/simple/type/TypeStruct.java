@@ -528,7 +528,22 @@ public class TypeStruct extends Type {
     // Tags 5   - closed(+ nflds  +name)
     // Tags 6-10- open   +#nflds (+name)
     // Tags 11  - open  (+ nflds  +name)
-
+    @Override int TAGOFF() { return 24; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        baos.write(TAGOFFS[_type]+ (_fref ? 12 : 0) + (_open ? 6 : 0) + Math.min(5,_fields.length));
+        if( _fields.length >= 5 )
+            baos.packed2(_fields.length);
+        baos.packed2(strs.get(_name));
+        // TODO: Write aliases summary
+    }
+    static TypeStruct packed( int tag, BAOS bais, String[] strs ) {
+        boolean fref = tag >= 12;
+        if( fref ) tag -= 12;
+        int ntag = tag >= 6 ? tag-6 : tag;
+        int nflds = ntag < 5 ? ntag : bais.packed2();
+        String name = strs[bais.packed2()];
+        return malloc(name,ntag!=tag,fref,new Field[nflds]);
+    }
 
     @Override
     SB _print(SB sb, BitSet visit, boolean html ) {

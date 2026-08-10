@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 
 import java.util.ArrayList;
@@ -39,6 +40,17 @@ public class TypeScalar extends Type {
     @Override public boolean isHigh() { return this == TOP; }
     @Override Type _makeStorage() { return BOT; }
 
+    // Reserve tags for both lattice endpoints.  Unlike most concrete scalar
+    // families, generic scalar TOP can survive into a serialized graph.
+    @Override int TAGOFF() { return 2; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs) {
+        assert this == BOT || this == TOP;
+        baos.write(TAGOFFS[_type] + (this == BOT ? 0 : 1));
+    }
+    static TypeScalar packed(int tag) {
+        assert tag == 0 || tag == 1;
+        return tag == 0 ? BOT : TOP;
+    }
 
     @Override public String str() { return isHigh() ? "~scalar" : "scalar"; }
     @Override SB _print(SB sb, BitSet visit, boolean html) { return sb.p(str()); }

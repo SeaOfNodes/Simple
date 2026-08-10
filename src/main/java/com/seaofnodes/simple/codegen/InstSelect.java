@@ -14,7 +14,7 @@ class InstSelect {
     static CodeGen select(CodeGen code, String cpu, String callingConv, String base) {
         // Ideal evaluation schedules the ideal graph without a CPU port.
         if( cpu==null ) return code;
-        return code.phase(CodeGen.Phase.Select, code._phase==CodeGen.Phase.LoopTree,
+        return code.phase(CodeGen.Phase.Select, code._phase==CodeGen.Phase.Unlink,
                           () -> new InstSelect(code).run(cpu,callingConv,base));
     }
 

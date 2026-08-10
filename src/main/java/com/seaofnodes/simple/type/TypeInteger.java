@@ -2,6 +2,7 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -176,7 +177,38 @@ public class TypeInteger extends TypeScalar {
         if( _isConstant() ) return BOT;
         return isHigh() ? dual() : this;
     }
+    // Reserve tags for I64,I32,U32,0,constant,generic
+    @Override int TAGOFF() { return 7; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        if(      this==BOT ) baos.write(TAGOFFS[_type] + 0);
+        else if( this==I32 ) baos.write(TAGOFFS[_type] + 1);
+        else if( this==U32 ) baos.write(TAGOFFS[_type] + 2);
+        else if( this==BOOL) baos.write(TAGOFFS[_type] + 3);
+        else if( this==ZERO) baos.write(TAGOFFS[_type] + 4);
+        else if( isConstant() ) {
+            baos.write(TAGOFFS[_type] + 5);
+            baos.packed8(_min);
+        } else {
+            baos.write(TAGOFFS[_type] + 6);
+            baos.packed8(_min);
+            baos.packed8(_max);
+            assert -3 <= _widen && _widen <= 3;
+            baos.packed1(_widen + 3);
+        }
+    }
 
+    static Type packed( int tag, BAOS bais ) {
+        return switch( tag ) {
+        case 0 -> BOT;
+        case 1 -> I32;
+        case 2 -> U32;
+        case 3 -> BOOL;
+        case 4 -> ZERO;
+        case 5 -> constant(bais.packed8());
+        case 6 -> make(bais.packed8(),bais.packed8(),(byte)(bais.packed1()-3));
+        default -> throw Utils.TODO("Should not reach here: unknown integer type tag");
+        };
+    }
 
     @Override int hash() { return Utils.fold(_min) * Utils.fold(_max) + _widen; }
     @Override public boolean eq( Type t ) {

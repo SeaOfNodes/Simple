@@ -35,6 +35,13 @@ public class EscapeNode extends TypeNode {
     public Node pub () { return in(3); }
     public Field fld() { return (Field)_con; }
 
+    @Override public Tag serialTag() { return Tag.Escape; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed2(types.get(_con));
+    }
+    static Node make( BAOS bais, Type[] types)  {
+        return new EscapeNode((Field)types[bais.packed2()], null,null,null);
+    }
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {

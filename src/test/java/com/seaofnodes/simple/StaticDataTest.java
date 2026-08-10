@@ -69,7 +69,7 @@ public class StaticDataTest {
     @Test public void testNativeImage() throws Exception {
         Path dir=Path.of("build/objs/static-data");
         Files.createDirectories(dir);
-        CodeGen code=new CodeGen(null,dir.toString(),"Test",SRC,123L,true,
+        CodeGen code=new CodeGen(null,dir.toString(),null,"Test",SRC,123L,true,
                                 TypeInteger.BOT)
             .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
         TypeStruct ts=(TypeStruct)root(code).type;
@@ -102,7 +102,7 @@ public class StaticDataTest {
         for( int i=0; i<2; i++ ) {
             String name=i==0 ? "A" : "B";
             String src="{ i32 -> i32 } abs = \"C\"; val get"+name+"={ -> abs; }; return 0;";
-            CodeGen code=new CodeGen(null,dir.toString(),name,src,123L,true,TypeInteger.BOT)
+            CodeGen code=new CodeGen(null,dir.toString(),null,name,src,123L,true,TypeInteger.BOT)
                 .driver(CodeGen.Phase.TypeCheck);
             assertNull("The native address is initialized in the static image",
                        code._stop.walk(n -> n instanceof StoreNode st && st._name.equals("abs") ? n : null));
@@ -140,18 +140,19 @@ public class StaticDataTest {
         }
     }
 
-    // Two source files must reference the same mutable class object.
+    // Two separately compiled users must reference the same mutable class object.
     @Test public void testSharedClass() throws Exception {
         Path dir=Path.of("build/objs/static-data-shared");
         Files.createDirectories(dir);
-        Files.createDirectories(dir.resolve("Main"));
+        Path lib=dir.resolve("lib");
+        Files.createDirectories(lib);
+        var paths=new Ary<>(new String[]{lib.toString()});
         String[] names={"Globals","A","B"};
         String[] sources={"int count=0;",
                           "val a={ -> Globals; };", "val b={ -> Globals; };"};
         for( int i=0; i<names.length; i++ )
-            Files.writeString(dir.resolve("Main/"+names[i]+".smp"),sources[i]);
-        new CodeGen(dir.toString(),dir.toString(),"Main","val a={ -> A.a(); }; val b={ -> B.b(); };",123L,true,TypeInteger.BOT)
-            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+            new CodeGen(null,(i==0?lib:dir).toString(),i==0?null:paths,names[i],sources[i],123L,true,TypeInteger.BOT)
+                .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
         Path driver=dir.resolve("driver.c");
         Files.writeString(driver,"""
             #include <stdint.h>
@@ -164,9 +165,9 @@ public class StaticDataTest {
             }
             """);
         String exe=dir.resolve(TestC.OS.startsWith("Windows")?"test.exe":"test").toString();
-        TestC.linkExe(dir.resolve("Main.o").toString(),
+        TestC.linkExe(lib.resolve("Globals.o").toString(),
                       TestC.CALL_CONVENTION.equals("win64")?"ms_abi":"sysv_abi",
-                      driver.toString(),null,exe);
+                      driver.toString(),new Ary<>(new String[]{dir+"/A.o",dir+"/B.o"}),exe);
         assertEquals("",TestC.exec(TestC.TEST_TIMEOUT_SECONDS,exe));
     }
 }

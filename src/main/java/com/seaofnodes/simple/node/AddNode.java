@@ -7,7 +7,7 @@ public class AddNode extends ArithNode {
     @Override boolean allowFloat() { return true; }
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public AddNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs, mode); }
-
+    @Override public Tag serialTag() { return Tag.Add; }
 
     @Override public String label() { return "Add"; }
     @Override public String op() { return "+"; }

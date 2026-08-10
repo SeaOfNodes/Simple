@@ -3,8 +3,10 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeTuple;
+import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -23,7 +25,14 @@ public class CProjNode extends CFGNode implements Proj {
         _label = label;
     }
     public CProjNode(CProjNode c) { super(c); _idx = c._idx; _label = c._label; }
-
+    @Override public Tag serialTag() { return Tag.CProj; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(_idx);
+        baos.packed2(_label==null ? 0 : strs.get(_label));
+    }
+    static Node make( BAOS bais, String[] strs ) {
+        return new CProjNode(null, bais.packed1(), strs[bais.packed2()] );
+    }
 
     @Override public String label() { return _label; }
 
@@ -70,4 +79,7 @@ public class CProjNode extends CFGNode implements Proj {
 
     @Override public int idx() { return _idx; }
 
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_label);
+    }
 }

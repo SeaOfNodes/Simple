@@ -4,6 +4,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
 
 import static com.seaofnodes.simple.util.Utils.TODO;
@@ -308,9 +309,18 @@ public class Parser {
             }
         }
 
-        // The initializer owns its run-once flag store. Parent initialization
-        // is a structural requirement, executed before this body by CLInit lowering.
+        // Each initializer establishes its parent before setting its own
+        // run-once flag. Keep this in the body so every execution strategy
+        // shares the same ordering, including direct entry into a child.
         if( fun.isClz() ) {
+            if( _ref._par!=null ) {
+                String pname = addClzPrefix(_ref._par._cname);
+                TypeStruct parent = (TypeStruct)TYPES.get(pname);
+                if( parent==null ) parent=TypeStruct.make(pname,true);
+                Node ptr = con(TypeMemPtr.make((byte)2,parent,true)).keep();
+                classInit(loc,ptr);
+                ptr.unkeep();
+            }
             Node self = fun.parm(2);
             Field flag = ((TypeMemPtr)self._type)._obj.field("$init");
             Node prior = mem().keep();
@@ -2912,6 +2922,32 @@ public class Parser {
             _position = pos;
         }
 
+
+        public static void gather(Lexer loc, HashMap<String,Integer> strs) {
+            if( loc==null || loc._cu==null ) return;
+            Serialize.gather(strs,loc._cu._cname);
+            String file=loc._cu.sourceFile();
+            if( file!=null ) Serialize.gather(strs,file);
+        }
+
+        public static void packed(Lexer loc, BAOS out, HashMap<String,Integer> strs) {
+            if( loc==null || loc._cu==null ) { out.packed4(0); return; }
+            out.packed4(loc._position+1);
+            out.packed4(strs.get(loc._cu._cname));
+            String file=loc._cu.sourceFile();
+            out.packed4(file==null ? 0 : strs.get(file));
+        }
+
+        public static Lexer unpack(BAOS in, String[] strs) {
+            int pos=in.packed4();
+            if( pos==0 ) return null;
+            String owner=strs[in.packed4()];
+            String file=strs[in.packed4()];
+            CompUnit cu=CodeGen.CODE._compunits.get(owner.replace('.','/'));
+            assert cu!=null : owner;
+            if( !file.isEmpty() ) cu._sourceFile=file;
+            return new Lexer(cu,pos-1);
+        }
 
         /**
          *  Copy a lexer from a lexer

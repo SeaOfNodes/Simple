@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.Arrays;
@@ -41,7 +42,24 @@ public class FunNode extends RegionNode {
         _compunit = fun._compunit;
         _extern = fun._extern;
     }
-
+    @Override public Tag serialTag() { return Tag.Fun; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes ) {
+        assert !_folding;
+        baos.packed1(Serialize.nIns(this,anodes)); // Object-local linked calls
+        baos.packed2(types.get(_sig)); // NPE if fails lookup
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+        baos.packed2(_approxUIDs);
+        // _compunit set from context on loading, do not write
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
+        String name = strs[bais.packed2()];
+        FunNode fun = new FunNode(null,sig,name,null,ins);
+        fun._approxUIDs = bais.packed2();
+        // _compunit set from context on loading, do not read
+        return fun;
+    }
 
     @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
 
@@ -64,6 +82,13 @@ public class FunNode extends RegionNode {
     }
     public ParmNode rpc() { return parm(0); }
 
+    // An unloaded body's Summary is constructed before every other user.
+    public SummaryNode summary() { return nOuts()>0 && out(0) instanceof SummaryNode summary ? summary : null; }
+
+    // This invocation compiles the defining CompUnit from source. Imported
+    // functions still belong to a CompUnit, but its _src is null.
+    public boolean isFromSource() { return _compunit!=null && _compunit._src!=null; }
+
     // Cannot create the Return and Fun at the same time; one has to be first.
     // So setting the return requires a second step.
     public void setRet(ReturnNode ret) { _ret=ret; }
@@ -75,6 +100,8 @@ public class FunNode extends RegionNode {
         assert sig.isa(_sig) || resolvesForwardSelf(sig,_sig);
         if( _sig != sig ) {
             CODE.add(this);
+            // Return uses the signature to bound recursive-result widening.
+            CODE.add(_ret);
             // Changing the signature can allow more inlining
             if( _ret != null )
                 for( Node use : ret().outs() )
@@ -142,7 +169,7 @@ public class FunNode extends RegionNode {
         }
 
         // Upgrade inferred or user-written return type to actual
-        if( _ret!=null && addDep(_ret)._type instanceof TypeTuple tt &&
+        if( _ret!=null && _ret._type instanceof TypeTuple tt &&
             tt.ret() != _sig.ret() && tt.ret().isa(_sig.ret()) ) {
             setSig(_sig.makeFrom(tt.ret()));
             return this;
@@ -153,8 +180,7 @@ public class FunNode extends RegionNode {
         //   through class-field loads and other initially imprecise values.
         // - FIDX is not in the escape set
         // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
-        // Opaque CLInit obligations need their bodies even without Call edges.
-        if( !isClz() && in(1) instanceof StartCUNode start ) {
+        if( !isRoot() && in(1) instanceof StartCUNode start ) {
             boolean preOpto = CodeGen.CODE._phase == null ||
                 CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
             if( !preOpto && !start.escapedFIDX(_sig.fidx()) && nIns()<=2 && _ret!=null ) {
@@ -193,6 +219,12 @@ public class FunNode extends RegionNode {
 
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
+
+    // The starting initializer and public source classes are external entry
+    // points. Privacy stops at the first private class in the name's path.
+    public boolean isRoot() {
+        return isClz() && (CODE.entryClinitName().equals(_name) || (isFromSource() && isPublic()));
+    }
 
     public boolean isModInit( ) {
         // The one top-level <clinit> with no internal dots:
@@ -460,4 +492,7 @@ public class FunNode extends RegionNode {
         return slotRotate*8;
     }
 
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_name);
+    }
 }

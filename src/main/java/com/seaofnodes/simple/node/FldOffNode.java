@@ -19,7 +19,7 @@ public class FldOffNode extends TypeNode {
     public final String _fname; // Field name
     public final Parser.Lexer _loc;   //
     public FldOffNode( Node base, String fname, Parser.Lexer loc ) { super(TypeInteger.BOT,base); _fname = fname; _loc=loc; }
-
+    @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
 
     @Override public String label() {
         return _fname == " len" ? "sizeof()" : "#"+_fname;

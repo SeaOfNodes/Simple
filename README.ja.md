@@ -67,7 +67,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第26章](docs/chapter26/README.ja.md)：構築とプライベートメモリ
 * [第27章](docs/chapter27/README.ja.md)：エスケープ解析と未知の呼び出し元
 * [第28a章](docs/chapter28a/README.ja.md)：モジュールと遅延クラス初期化
-* 第28b章：分離コンパイル
+* [第28b章](docs/chapter28b/README.ja.md)：分離コンパイル
 
 付録：[ネイティブライブラリ](docs/appendices/native-libraries.md)、
 [最適化とバックエンドの調整](docs/appendices/optimizer-tuning.ja.md)。

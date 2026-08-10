@@ -1,0 +1,12 @@
+// A library can keep shared state and publish instance constructors.
+int calls=0;
+val next_noInline={ -> calls++; return calls; };
+
+struct Counter {
+    val value=1;
+    new Counter={int n ->
+        value=0;
+        for(int i=0; i<n; i++) value=value*2+1;
+    };
+    val get={ -> value; };
+};

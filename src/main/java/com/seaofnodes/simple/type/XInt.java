@@ -196,18 +196,48 @@ public abstract class XInt {
     }
 
 
+    public static void packed(BAOS baos, int[] xs) {
+        baos.packed1(xs.length);
+        for( int i=1; i<xs.length; i++ )
+            baos.packed4(xs[i]);
+    }
+    public static int[] packed(BAOS bais) {
+        int len = bais.packed1();
+        int[] xs = free(len);
+        for( int i=1; i<len; i++ )
+            xs[i] = bais.packed4();
+        return intern(xs);
+    }
+
     // Next set bit, or -1
     // for( int bit = XInt.next(bits,0); bit >=0; bit = XInt.next(bits,bit) ) {...bit...}
     public static int next(int[] xs, int x) {
         assert !isHigh(xs);     // No iterating infinite bitsets
-        x++;                    // Skip current
-        for( ; !bit(xs,x); x++ )
+        return next(xs,x,Integer.MAX_VALUE);
+    }
+
+    // Next set bit below limit, or -1. Allows bounded walks of infinite sets.
+    public static int next(int[] xs, int x, int limit) {
+        while( ++x < limit ) {
+            if( bit(xs,x) ) return x;
             if( idx(x)>=xs.length )
                 return -1;
-        return x;
+        }
+        return -1;
     }
 
     // Remap all bits
+    public static int[] remap( int[] xs, AryInt map ) {
+        if( xs==FULL ) return xs;
+        assert !isHigh(xs);
+        int[] ys = free(xs.length);
+        for( int bit = next(xs,0); bit >=0; bit = next(xs,bit) ) {
+            int bat = map.at(bit);
+            ys[idx(bat)] |= mask(bat);
+        }
+        return intern(ys);
+    }
+
 
 
     public static String str(int[] xs) { return str(new SB(),xs).toString(); }

@@ -36,17 +36,19 @@ abstract public class Opto {
         // OPTIMISTIC INTERPROCEDURAL SCCP
         sccp(code, oldTypes, changes, deps);
 
-        // Settle modes, then resume SCCP on affected nodes without resetting types.
-        // Any further type changes must still fall; BOTTOM results stay BOTTOM.
+        // Settle unresolved modes using SCCP's int/float evidence.  Some
+        // computes wait at TOP until a mode is known; others already return
+        // BOTTOM and stay there.  Resume SCCP only on the affected nodes;
+        // types are not reset, and any further changes must still fall.
         resolveNumericModes(code,modes);
 
         if( !code._iter._work.isEmpty() )
             sccp(code, oldTypes, changes, deps);
+        Node dep;
+        while( (dep=deps.pop())!=null ) code.add(dep);
 
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
-        Node dep;
-        while( (dep=deps.pop())!=null ) code.add(dep);
         moveChangesToWorklist(code, oldTypes, changes);
     }
 
@@ -56,7 +58,8 @@ abstract public class Opto {
                 // Opto ends Parm.inProgress(), enabling constant folding even
                 // when a parameter's type was already constant before SCCP.
                 if( x instanceof ParmNode && x._type.isHighOrConst() ) deps.push(x);
-                // SCCP adds call edges and default arguments, not numeric operations.
+                // SCCP adds call edges and default arguments, not numeric
+                // operations. Gather unresolved modes on this required walk.
                 if( x instanceof ModeNode mode && mode.mode()==0 ) modes.push(x);
                 oldTypes.setX(x._nid,x._type); // Compare the final SCCP type with Iter's type
                 x._type = Type.TOP;            // Reset all Nodes to TOP
@@ -66,28 +69,22 @@ abstract public class Opto {
     }
 
 
-    // If wholeWorld, remove the Start inputs to functions - they are not
-    // called unless they get linked (hence go dead and can be removed).  If
-    // not wholeWorld, keep only public methods (and not the std lib).
+    // Only entry initializers start with unknown callers. Discover every
+    // other function through calls or escaping values during SCCP.
     private static void unlinkStart(CodeGen code) {
-        // Keep the Start & Start.ProjMem alive even as we remove all uses
+        // CodeGen owns these until FinalizeIR; linkStart may need them again.
         for( CompUnit cu : code._compunits.values() ) {
             ProjNode mem = cu._start.proj(1);
-            if( mem!=null ) mem.keep();
+            if( mem!=null ) code.keepUntilFinalize(mem);
         }
 
-        // Iterate the Stop-of-Stops
+        // Iterate all functions.
+        // TODO: use CodeGen _link list
         for( Node stop : code._stop._inputs ) {
             for( int i=0; i<stop.nIns(); i++ ) {
                 ReturnNode ret = (ReturnNode)stop.in(i);
                 FunNode fun = ret.fun();
-                // Start is a semantic unknown-caller edge.  Public functions
-                // keep it; closed-world functions must be reached by a
-                // concrete Call edge discovered during SCCP. Initializers,
-                // including private ones, are called by opaque CLInit
-                // obligations whose Call edges are introduced only in Lower.
-                if( !fun.isClz() &&
-                    !code.publicFIDX(fun.sig().fidx()) &&
+                if( !fun.isRoot() &&
                     fun.in(1) instanceof StartNode ) {
                     fun.removeDeadPath(1);
                     // Unhook from Stop without treating the ReturnNode as
@@ -152,7 +149,7 @@ abstract public class Opto {
 
     // Function is now reachable by unknown callers through Start.  The
     // default inputs must therefore use conservative declared types.
-    private static void linkStart( CodeGen code, FunNode fun ) {
+    static void linkStart( CodeGen code, FunNode fun ) {
         assert !fun.isDead();
         StartCUNode start = fun._compunit._start;
         if( !fun.unknownCallers() ) {
@@ -181,7 +178,9 @@ abstract public class Opto {
             if( n.isDead() ) continue;
             count++;
             Type oval = n._type, nval = n.compute();
-            // Filter candidates against the final SCCP type after convergence.
+            if( n instanceof CLInitNode init ) init.link();
+            // Remember possible peephole work without walking the graph again.
+            // SCCP can still fall back to the old type, so filter at the end.
             if( nval!=oldTypes.atX(n._nid) || n.isUnlocked() ) changes.push(n);
             if( oval == nval ) continue;
             assert oval.isa(nval) : "Non-monotonic SCCP: "+n.getClass().getSimpleName()+"#"+n._nid+" "+n+" old="+oval+" new="+nval;    // Types start high and always fall
@@ -259,8 +258,9 @@ abstract public class Opto {
         return true;
     }
 
-    // After SCCP add everything changed to the worklist and see if peepholes
-    // can make more progress.
+    // Types can stay unchanged while SCCP edits edges or numeric modes. Such
+    // edits unlock the node from GVN. Revisit both kinds of change and their
+    // neighbors; distant dependencies consumed by SCCP were saved separately.
     private static void moveChangesToWorklist(CodeGen code, Ary<Type> oldTypes, WorkList<Node> changes) {
         Node n;
         while( (n=changes.pop())!=null ) {
@@ -269,8 +269,7 @@ abstract public class Opto {
             Type old = oldTypes.atX(n._nid);
             assert old==null || n._type.isa(old);
             if( n._type!=old || n.isUnlocked() ) {
-                code.add(n);
-                code.addAll(n._inputs);
+                code.addAll(n);
                 code.addAll(n._outputs);
                 n.moveDepsToWorklist();
             }

@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -14,8 +15,13 @@ public class FunPtrNode extends TypeNode {
         super(tfp,start,ret);
     }
     public FunPtrNode(FunPtrNode fptr) { super(fptr); }
-
-
+    @Override public Tag serialTag() { return Tag.FunPtr; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes) {
+        baos.packed2(types.get(_con));
+    }
+    static Node make(BAOS bais, Type[] types) {
+        return new FunPtrNode((TypeFunPtr)types[bais.packed2()],null,null);
+    }
     public ReturnNode ret() { return (ReturnNode)in(1); }
     public FunNode fun() { return ret().fun(); }
 
