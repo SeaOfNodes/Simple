@@ -14,6 +14,8 @@ public final class IRPrinter extends IRAdapter<Node> {
     @Override public String type(Node n) { return n._type==null ? "" : n._type.str(); }
     @Override public String inputMark(Node n, Node def) { return n instanceof MemMergeNode && def instanceof MemMergeNode ? "^" : " "; }
     @Override public Kind kind(Node n) {
+        if( n instanceof StartCUNode ) return Kind.UNIT;
+        if( n instanceof StopCUNode ) return Kind.UNIT;
         if( n instanceof StartNode ) return Kind.START;
         if( n instanceof StopNode ) return Kind.STOP;
         if( n instanceof FunNode ) return Kind.FUN;
@@ -47,15 +49,12 @@ public final class IRPrinter extends IRAdapter<Node> {
 
     public static String prettyPrint(CodeGen code) {
         var units=new ArrayList<com.seaofnodes.print.IRPrinter.Unit<Node>>();
-        var funs=new ArrayList<Node>();
-        for( Node n : code._start._outputs ) if( n instanceof FunNode ) funs.add(n);
-        units.add(new com.seaofnodes.print.IRPrinter.Unit<>(null,null,null,funs));
+        for( var cu : code._compunits.values() ) {
+            var funs=new ArrayList<Node>();
+            for( FunNode fun : code._linker )
+                if( fun!=null && fun._compunit==cu ) funs.add(fun);
+            units.add(new com.seaofnodes.print.IRPrinter.Unit<>(cu._cname,cu._start,cu._stop,funs));
+        }
         return PRINT.program(code._start,code._stop,units);
-    }
-    public static String _prettyPrint(CodeGen code) {
-        if( code._cfg==null ) return prettyPrint(code);
-        var blocks=new ArrayList<Node>();
-        for( Node n : code._cfg ) blocks.add(n);
-        return PRINT.scheduled(blocks);
     }
 }
