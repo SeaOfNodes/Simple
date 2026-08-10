@@ -2396,11 +2396,27 @@ public class Parser {
     private String parseString() {
         if( !peek('"') ) return null;
         _lexer.inc();
-        int start = pos();
-        while( !_lexer.isEOF() && _lexer.nextChar()!= '"' ) ;
-        if( _lexer.isEOF() )
-            throw error("Unclosed string");
-        return new String(_lexer._input,start,pos()-start-1);
+        StringBuilder sb = new StringBuilder();
+        while( !_lexer.isEOF() ) {
+            char c = _lexer.nextChar();
+            if( c=='"' ) return sb.toString();
+            if( c!='\\' ) {
+                sb.append(c);
+                continue;
+            }
+            if( _lexer.isEOF() )
+                throw error("Unclosed string");
+            char esc = _lexer.nextChar();
+            sb.append(switch( esc ) {
+            case 'n'  -> '\n';
+            case 't'  -> '\t';
+            case 'r'  -> '\r';
+            case '\\' -> '\\';
+            case '"'  -> '"';
+            default -> throw error("Unknown string escape \\\\"+esc);
+            });
+        }
+        throw error("Unclosed string");
     }
 
     // Already parsed "'"

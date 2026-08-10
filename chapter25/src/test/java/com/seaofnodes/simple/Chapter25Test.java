@@ -38,6 +38,15 @@ public class Chapter25Test {
         assertEquals("1",Eval2.eval(code,0));
     }
 
+    @Test
+    public void testStringEscapes() {
+        String src = "u8[~] s=\"A\\n\\t\\r\\\\\\\"B\"; " +
+            "return s#==7 && s[0]=='A' && s[1]==10 && s[2]==9 && s[3]==13 && " +
+            "s[4]==92 && s[5]==34 && s[6]=='B';";
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("1",Eval2.eval(code,0));
+    }
+
 
     @Test @Ignore
     public void testModule0() throws IOException {
@@ -197,7 +206,7 @@ public class Chapter25Test {
         File sys_file = buildTestSys(false);
         assertTrue("Missing "+sys_file+"; testHelloWorld depends on testSys building it",  sys_file.exists());
 
-        String expected = "Hello, World!";
+        String expected = "Hello, World!\n";
         String prog = "return sys.io.p(\""+expected+"\") - "+expected.length()+";";
         TestC.run(prog,"helloWorld",new Ary<>(new String[]{SYS_BLDDIR}),
                   TestC.CALL_CONVENTION, null, null, expected,0);
@@ -223,7 +232,7 @@ public class Chapter25Test {
         assertTrue("Missing "+sys_file+"; testHelloWorldNoInline depends on testSys building it",  sys_file.exists());
 
         String base = "helloWorldNoInline";
-        String expected = "Hello, World!";
+        String expected = "Hello, World!\n";
         String prog = "return sys.io.p_noInline(\""+expected+"\") - "+expected.length()+";";
         CodeGen code = new CodeGen(null,"build/objs",new Ary<>(new String[]{SYS_BLDDIR}),
                                    base,prog,123L,TypeInteger.BOT);

@@ -35,6 +35,7 @@ Options:
   -L path                  - add an external Simple object search path
   --eval                   - (slowly) evaluate the compiled code in emulator
   --run                    - run the compiled code natively; this is the default
+  --main                   - export the top-level initializer as C `main`
   --cpu <cpu-name>         - use specific CPU (x86_64_v2, riscv, arm)
   --abi <abi-name>         - use specific ABI variant (SystemV)
   --target                 - print native CPU and ABI
@@ -89,6 +90,7 @@ Options:
         boolean do_eval = false;
         boolean do_run = true;
         boolean do_codegen = false;
+        boolean emit_main = false;
         boolean dump_dot = false;
         boolean print_time = false;
         boolean print_size = false;
@@ -129,6 +131,7 @@ Options:
             case "--eval":                    do_eval = true ; do_run = false; break;
             case "--run":                     do_run  = true ; break;
             case "--norun":                   do_run  = false; break;
+            case "--main":                    emit_main = true; break;
             case "--dump-size":               print_size = true; break;
             case "--dump-time":               print_time = true; break;
             case "-o":                        if (out != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
@@ -221,7 +224,7 @@ Options:
         // Compilation pipeline
         Ary<String> externPaths = libPaths.isEmpty() ? null : new Ary<>(libPaths.toArray(new String[0]));
         CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, TypeInteger.BOT );
-        code.driver(Phase.LastPhase,cpu,abi, false, do_run || do_eval, dump);
+        code.driver(Phase.LastPhase,cpu,abi, false, emit_main || do_run || do_eval, dump);
 
         if( do_codegen && print_asm )
             System.out.println(code.asm());

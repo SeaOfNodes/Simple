@@ -146,7 +146,7 @@ CPU_ABI:= $(CPU_PORT)_$(CALL_CONV)
 RELEASE:= build/release
 RELEASE_SYS:= $(RELEASE)/$(CPU_ABI)/sys.o
 
-$(OBJS)/lib_$(CPU_ABI)/sys.o:	$(CLZDIR)/main/.mtag $(SYS_SMPS)
+$(OBJS)/lib_$(CPU_ABI)/sys.o:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(SYS_SMPS)
 	@echo "simping " $@
 	@$(JVM) com.seaofnodes.simple.Simple --cpu $(CPU_PORT) --abi $(CALL_CONV) --norun -o $@ src/main/smp/sys.smp
 
