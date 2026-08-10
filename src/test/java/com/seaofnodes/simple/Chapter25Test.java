@@ -475,9 +475,9 @@ public class Chapter25Test {
 
         // Elf files are sane
 
-        // Sys depends on io, libc, text, char, collections, and array utilities.
+        // Software drawing and the optional native graphics interface.
         assertArrayEquals(new String[]{"sys/adt", "sys/ary",
-            "sys/aryi64", "sys/aryu8", "sys/char", "sys/io", "sys/libc", "sys/rt", "sys/scan", "sys/text"},sys_elf._deps);
+            "sys/aryi64", "sys/aryu8", "sys/audio", "sys/char", "sys/draw", "sys/gfx", "sys/io", "sys/libc", "sys/rt", "sys/scan", "sys/text"},sys_elf._deps);
         assertArrayEquals(new String[]{"sys"},sys_elf._units);
         assertSame("class:sys" ,sys_elf._clz._name);
     }

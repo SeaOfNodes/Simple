@@ -70,7 +70,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第28b章](docs/chapter28b/README.ja.md)：分離コンパイル
 * [第29章](docs/chapter29/README.ja.md)：技術的負債の整理
 * [第30章](docs/chapter30/README.ja.md)：テキスト整形と診断
-* 第31章：ソフトウェア描画とグラフィカルゲーム（作業中）
+* [第31章](docs/chapter31/README.ja.md)：ソフトウェア描画とグラフィカルゲーム（作業中）
 
 付録：[ネイティブライブラリ](docs/appendices/native-libraries.md)、
 [最適化とバックエンドの調整](docs/appendices/optimizer-tuning.ja.md)。

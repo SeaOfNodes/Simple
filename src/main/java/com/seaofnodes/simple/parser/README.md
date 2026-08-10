@@ -2,7 +2,7 @@
 
 The parser builds Sea-of-Nodes IR directly. Each component shares the cursor,
 active scope, and compilation state through its `Parser P` reference; there is no intermediate
-AST. The [grammar map](../../../../../../../docs/chapter30/30-grammar.md) connects language
+AST. The [grammar map](../../../../../../../docs/chapter31/31-grammar.md) connects language
 productions to their entry points.
 
 | File | Responsibility |

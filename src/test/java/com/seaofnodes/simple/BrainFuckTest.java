@@ -1,19 +1,21 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.isa.eval.EvalRisc5;
-
 import com.seaofnodes.isa.eval.EvalArm64;
-
 import java.io.IOException;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 public class BrainFuckTest {
 
     @Test public void testBrainFuckAryu8() throws IOException {
+
+
         String brain_fuck = "Hello World!\n";
         String src =
 """

@@ -1,0 +1,29 @@
+// Optional background audio. All API calls belong on the game/main thread.
+int OK = 0;
+int ERROR = -1;
+int BOOP = 1;
+int WIN = 2;
+int LOSE = 3;
+int RATE = 48000;
+{ i32 } simple_audio_open = "C";
+{ i64 u32 -> i32 } simple_audio_load = "C";
+{ i32 -> i32 } simple_audio_play = "C";
+{ i32 } simple_audio_stop = "C";
+{ i32 } simple_audio_playing = "C";
+{ i32 } simple_audio_close = "C";
+// Missing/disabled backend returns ERROR quietly; the game may remain silent.
+val open = { -> simple_audio_open(); };
+// Mono signed 16-bit PCM at RATE, up to ten seconds. Copies into native memory.
+// Load at startup: up to 28 custom handles, valid until close, then reload.
+val load = { i16[~] samples ->
+    i64 ptr = samples;
+    simple_audio_load(ptr,samples#);
+};
+// Starts/restarts immediately, replacing the previous sound; never waits for it.
+val play = { int sound -> simple_audio_play(sound); };
+val boop = { -> simple_audio_play(BOOP); };
+val win = { -> simple_audio_play(WIN); };
+val lose = { -> simple_audio_play(LOSE); };
+val stop = { -> simple_audio_stop(); };
+val playing = { -> simple_audio_playing(); };
+val close = { -> simple_audio_close(); };

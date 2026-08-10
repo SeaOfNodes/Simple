@@ -531,7 +531,8 @@ val sieve = { int N ->
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.runC(src, "sieve", sprimes,344);
+        // Load/Phi hoisting now requires the pointer before the loop entry.
+        TestC.runC(src, "sieve", sprimes,216);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
