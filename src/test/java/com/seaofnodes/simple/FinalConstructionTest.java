@@ -7,7 +7,7 @@ import static org.junit.Assert.*;
 
 public class FinalConstructionTest {
     private static final String LOOP = """
-        val step={int x -> x*2+1;};
+        val step={i64 x -> x*2+1;};
         struct C {
             val x=1;
             new C={int n ->
@@ -16,7 +16,7 @@ public class FinalConstructionTest {
             };
             val get={->x;};
         };
-        return new C(arg).get();
+        return new C(((arg<<32)>>32)).get();
         """;
 
     @Test public void testFinalConstructorFields() throws java.io.IOException {
@@ -27,10 +27,10 @@ public class FinalConstructionTest {
         // Writes are ordinary Stores and may remain inside the loop.
         String[] sources={
             "struct C { val x=1; new C={->x=1; x=2;}; }; return new C().x;",
-            "struct C { int ~x; new C={int n -> self.x=1; for(int i=0;i<n;i++) self.x*=2;}; }; return new C(arg).x;",
-            "struct C { val x=1; new C={int n -> for(int i=0;i<n;i++) ++x;}; }; return new C(arg).x;",
+            "struct C { int ~x; new C={int n -> self.x=1; for(int i=0;i<n;i++) self.x*=2;}; }; return new C(((arg<<32)>>32)).x;",
+            "struct C { val x=1; new C={int n -> for(int i=0;i<n;i++) ++x;}; }; return new C(((arg<<32)>>32)).x;",
             "struct C { val x=1.5; new C={->x=2.5;}; }; return new C().x;",
-            "struct C { val x=\"a\"; new C={int n -> for(int i=0;i<n;i++) x=\"b\";}; }; return new C(arg).x[0];",
+            "struct C { val x=\"a\"; new C={int n -> for(int i=0;i<n;i++) x=\"b\";}; }; return new C(((arg<<32)>>32)).x[0];",
             "struct C { val x=new int[1]; new C={->x=new int[2]; x=new int[3];}; }; return new C().x#;"
         };
         String[] results={"2","8","4","2.5","98","3"};

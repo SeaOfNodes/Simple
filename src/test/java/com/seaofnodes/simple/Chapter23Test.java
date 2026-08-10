@@ -279,7 +279,7 @@ return _s.peek('q');
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Phi(Region,0,1);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "win64",23,null);
+        testCPU(src,"x86_64_v2", "win64",31,null);
     };
 
     @Test

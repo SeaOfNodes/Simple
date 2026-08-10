@@ -7,7 +7,7 @@
  * use-side name/field resolution; Allocations, ControlFlow, and Conversions
  * contain their shared IR construction. Lexer also supplies location snapshots.
  *
- * <p>See {@code chapter29/docs/29-grammar.md} for the production-to-method map.
+ * <p>See {@code chapter30/docs/30-grammar.md} for the production-to-method map.
  * Evaluation order and scope lifetimes are explicit: loop updates and declared
  * constructor bodies are the two deferred source fragments. There is no AST.
  */

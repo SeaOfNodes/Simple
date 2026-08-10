@@ -70,7 +70,7 @@ val main = { ->
         // Retain the original workload for cross-target allocation comparisons.
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/spill/BrainFuckTest-testBrainFuck.smp"));
         String brain_fuck = "Hello World!\n";
-        TestC.runC(src,"brain_fuck", brain_fuck, 40);
+        TestC.runC(src,"brain_fuck", brain_fuck,165);
 
         EvalRisc5 R5 = TestRisc5.build( src, "brain_fuck", 0, 25, false);
         int trap = R5.step(100000);

@@ -188,7 +188,7 @@ public class ClassInitDependenciesTest {
                           "B","int value=A.value;"),"A -> B -> A");
         cycle("A",Map.of("A","int value=get(); val get={ -> B.value; };",
                           "B","int value=A.value;"),"A -> B -> A");
-        cycle("A",Map.of("A","int value=0; if(arg) value=B.value;",
+        cycle("A",Map.of("A","int value=0; if(((arg<<32)>>32)) value=B.value;",
                           "B","int value=A.value;"),"A -> B -> A");
         cycle("A",Map.of("A","val f=arg ? { -> B.value; } : { -> 0; }; int value=f();",
                           "B","int value=A.value;"),"A -> B -> A");
@@ -237,7 +237,7 @@ public class ClassInitDependenciesTest {
     }
 
     @Test public void testRecursionAndNativeCalls() throws Exception {
-        CodeGen code=compile("A",Map.of("A","val f={int n -> n ? f(n-1) : B.value; }; int value=f(arg);",
+        CodeGen code=compile("A",Map.of("A","val f={int n -> n ? f(--n) : B.value; }; int value=f(((arg<<32)>>32));",
                                        "B","int value=arg|1;"),123);
         assertTrue(touches(code,new ClassInitDependencies(code),"Root/A","Root/B"));
         code=compile("A",Map.of("A","{int} native=\"C\"; return native();"),123);
@@ -386,8 +386,8 @@ public class ClassInitDependenciesTest {
                 String message=ex.getMessage();
                 assertCycle(message,"Root.A -> Root.B -> Root.A");
                 // Inlining must keep Helper's source identity, not substitute A.
-                assertTrue(message,message.contains("Helper.smp:2:4"));
-                assertTrue(message,message.contains("  B.value;\n    ---^"));
+                assertTrue(message,message.contains("Helper.smp:2:5"));
+                assertTrue(message,message.contains("  B.value;\n    ____^"));
                 if( name.endsWith("noInline") ) {
                     assertTrue(message,message.contains("A.smp:1:31"));
                     assertTrue(message,message.contains("int value=Helper.read_noInline();"));
@@ -401,7 +401,7 @@ public class ClassInitDependenciesTest {
         CodeGen code=new CodeGen(src).driver(CodeGen.Phase.Parse);
         CompUnit cu=code._compunits.get("Test");
         int pos=src.substring(0,src.indexOf('1')).getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
-        assertEquals("Test.smp:2:9: error: example\n            return 1;\n    ---------------^",SourceError.format(cu,pos,"example"));
+        assertEquals("Test.smp:2:16: error: example\n            return 1;\n    _______________^",SourceError.format(cu,pos,"example"));
         assertEquals("Test.smp:3:1: error: example\n    \n    ^",SourceError.format(cu,src.getBytes(java.nio.charset.StandardCharsets.UTF_8).length,"example"));
     }
 
@@ -414,8 +414,8 @@ public class ClassInitDependenciesTest {
     @Test public void testInitializationMemory() throws Exception {
         String[] sources={
             "int value=B.value+B.value;",
-            "int value; if(arg) value=B.value; else value=B.value+1; value=value+B.value;",
-            "int value; if(arg) value=B.value; value=value+B.value;"
+            "int value; if(((arg<<32)>>32)) value=B.value; else value=B.value+1; value=value+B.value;",
+            "int value; if(((arg<<32)>>32)) value=B.value; value=value+B.value;"
         };
         int[] counts={1,2,2};
         for( long seed : new long[]{1,123,987654321} )

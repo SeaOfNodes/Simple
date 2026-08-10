@@ -18,7 +18,7 @@ import static org.junit.Assert.*;
 public class Chapter22Test {
 
     @Test public void testNarrowCReturnsEmulated() {
-        String[] types = {"i8","u8","i16","u16","i32","u32","int"};
+        String[] types = {"i8","u8","i16","u16","i32","u32","i64","int"};
         long[] values = {0xa5a5a5a500000000L,0xa5a5a5a50000007fL,0xa5a5a5a500000080L,
             0xa5a5a5a500007fffL,0xa5a5a5a500008000L,0xa5a5a5a57fffffffL,
             0xa5a5a5a580000000L,0xa5a5a5a5ffffffffL};
@@ -35,7 +35,7 @@ public class Chapter22Test {
                     long expected = switch(i) {
                     case 0 -> (byte)value; case 1 -> value&255;
                     case 2 -> (short)value; case 3 -> value&65535;
-                    case 4 -> (int)value; case 5 -> value&0xffffffffL;
+                    case 4, 7 -> (int)value; case 5 -> value&0xffffffffL;
                     default -> value;
                     };
                     byte[] image = new byte[1<<16];
@@ -70,7 +70,7 @@ public class Chapter22Test {
             {i8} c_i8="C"; {u8} c_u8="C";
             {i16} c_i16="C"; {u16} c_u16="C";
             {i32} c_i32="C"; {u32} c_u32="C";
-            {int} c_i64="C";
+            {i64} c_i64="C";
             val test_i8={->return c_i8();};
             val test_u8={->return c_u8();};
             val test_i16={->return c_i16();};
@@ -344,7 +344,7 @@ val _sum = { i32[~] is ->  // final array
 return _sum(is);
 """;
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
-        assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code.print());
+        assertEquals("return Phi(Loop,0,(((Phi_sum+.[])<<32)>>32));", code.print());
         assertEquals("14", Eval2.eval(code, 0));
     }
 
@@ -354,7 +354,8 @@ return _sum(is);
         String src =
 """
 // Echo stdin to stdout.
-return sys.io.p( sys.io.stdin() );
+val input=sys.io.stdin();
+return input ? sys.io.p(input) : -1;
 """;
         TestC.runSF(src,"echo", "",0);
 

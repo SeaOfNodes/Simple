@@ -14,28 +14,30 @@ final class Allocations {
        Parse an allocation
      */
     Node parseNew() {
+        P._lexer.skipWhiteSpace();
+        Lexer site=P.loc();
         Type t = P.types.parseType();
         if( t==null ) {
             String tname = P._lexer.matchId();
             if( tname==null || Parser.KEYWORDS.contains(tname) )
-                throw P.error("Expected a type");
+                throw Parser.error("Expected a type after 'new'",site);
             t = P.types.forwardRefType(tname);
         }
         // Parse ary[ length_expr ]
         if( P.match("[") ) {
             if( !t.makeZero().isa(t) )
-                throw P.error("Cannot allocate a non-nullable, since arrays are always zero/null filled");
+                throw Parser.error("Cannot allocate a non-nullable, since arrays are always zero/null filled",site);
             Node len = P.expressions.parseAssignment().keep();
             P.require("]");
             return allocArray(P.types.typeAry(t,false),len);
         } else {
             if( !(t instanceof TypeMemPtr tmp) )
-                throw P.error("Cannot allocate a "+t.str());
-            return allocStruct(tmp._obj);
+                throw Parser.error("Cannot allocate a "+t.str(),site);
+            return allocStruct(tmp._obj,site);
         }
     }
 
-    private Node allocStruct(TypeStruct ts) {
+    private Node allocStruct(TypeStruct ts, Lexer site) {
         Ary<Node> ctorArgs = constructorArgs();
         // A field declaration can leave a short forward type name in TYPES.
         // Allocation happens in lexical context, so resolve that short name
@@ -45,7 +47,7 @@ final class Allocations {
         if( resolved instanceof TypeStruct rts ) ts = rts;
         TypeStruct clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(typeName));
         if( clz==null )
-            throw P.error("Unknown struct type '" + ts._name + "'");
+            throw Parser.error("Unknown struct type '" + ts._name + "'",site);
         Field afld = clz.field("<new>");
         Node alloc;
         if( afld != null ) {
@@ -56,7 +58,7 @@ final class Allocations {
                 : new FunPtrNode(tfp,P._code._start,fun.ret()).peephole();
         } else {
             if( !ts._fref )
-                throw P.error("Constructor arguments for '" + ts._name + "' but no constructor is defined");
+                throw Parser.error("Constructor arguments for '" + ts._name + "' but no constructor is defined",site);
             Type[] sig = new Type[ctorArgs._len];
             for( int i = 0; i<ctorArgs._len; i++ )
                 sig[i] = ctorArgs.at(i)._type;
@@ -111,12 +113,12 @@ final class Allocations {
         return self.unkeep();
     }
 
-    Node newString(String s) {
+    Node newString(byte[] s) {
         TypeStruct ts = P.types.typeAry(TypeInteger.U8,true);
         int  lenAlias = ts.field("#" )._alias;
         int elemAlias = ts.field("[]")._alias;
         TypeConAryB body = TypeConAryB.make(s);
-        TypeInteger slen = TypeInteger.constant(s.length());
+        TypeInteger slen = TypeInteger.constant(s.length);
         // Make a TMP, not-null (byte)2, singleton (true) (requires text
         // strings are hash-interned), with a TypeStruct having a constant
         // array body.

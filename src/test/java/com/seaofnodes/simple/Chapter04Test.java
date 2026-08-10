@@ -127,14 +127,14 @@ public class Chapter04Test {
     public void testBug1() {
         CodeGen code = new CodeGen("int a=arg+1; int !b=a; b=1; return a+2; ");
         code.parse();
-        assertEquals("return (arg+3);", code.print());
+        assertEquals("return ((((arg+1)<<32)>>32)+2);", code.print());
     }
 
     @Test
     public void testBug2() {
         CodeGen code = new CodeGen("int !a=arg+1; a=a; return a; ");
         code.parse();
-        assertEquals("return (arg+1);", code.print());
+        assertEquals("return (((arg+1)<<32)>>32);", code.print());
     }
 
     @Test
