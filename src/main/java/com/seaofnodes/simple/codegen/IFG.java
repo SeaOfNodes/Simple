@@ -172,6 +172,16 @@ abstract public class IFG {
             // Check use-side for self-conflict; if so we MUST split
             selfConflict(alloc,def,lrg1);
 
+            // All operands are live together, regardless of their input order.
+            TMP.put(lrg1,def);
+        }
+
+        // Check fixed-register uses after gathering every operand. An indirect
+        // call's target comes after its arguments, but must also avoid their
+        // fixed registers (and may need to move from its incoming register).
+        for( int i=1; i<n.nIns(); i++ ) {
+            Node def = n.in(i);
+            if( def==null || alloc.lrg(def)==null ) continue;
             // Look for a must-use single register conflicting with some other must-def.
             if( n instanceof MachNode m ) {
                 RegMask ni_mask = m.regmap(i);
@@ -190,10 +200,6 @@ abstract public class IFG {
                     }
                 }
             }
-
-            // All inputs live - except in self conflicts, where we keep the prior def alive
-            // until it goes.
-            TMP.put(lrg1,def);
         }
     }
 

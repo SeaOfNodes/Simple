@@ -124,6 +124,20 @@ public class TypeTuple extends Type {
     @Override public Type at( int idx ) { return _types[idx]; }
     @Override public void set( int idx, Type t ) { _types[idx] = t; }
 
+    // Reserve tags for tuples with 2,3,generic
+    @Override int TAGOFF() { return 4; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        if( _types.length==2 ) baos.write(TAGOFFS[_type] + 0);
+        else if( _types.length==3 ) baos.write(TAGOFFS[_type] + 1);
+        else if( _types.length==4 ) baos.write(TAGOFFS[_type] + 2);
+        else baos.write(TAGOFFS[_type] + 3).packed2(_types.length);
+    }
+    static TypeTuple packed( int tag, BAOS bais ) {
+        if( tag==0 ) return malloc(new Type[2]);
+        if( tag==1 ) return malloc(new Type[3]);
+        if( tag==2 ) return malloc(new Type[4]);
+        return malloc(new Type[bais.packed2()]);
+    }
 
     @Override SB _print(SB sb, BitSet visit, boolean html ) {
         if( this==TOP ) return sb.p("[TOP]");

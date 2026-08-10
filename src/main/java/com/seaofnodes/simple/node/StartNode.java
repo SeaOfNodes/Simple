@@ -29,7 +29,7 @@ public class StartNode extends LoopNode implements MultiNode {
 
     public StartNode(StartNode start, StopNode stop, Type arg) { super(null,start,stop); _arg = arg;  }
     public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
-
+    @Override public Tag serialTag() { return Tag.Start; }
     public Type arg() { return _arg; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
@@ -55,16 +55,10 @@ public class StartNode extends LoopNode implements MultiNode {
     }
 
     boolean escapedFIDX(int fidx) {
-        // Public class fields are callable by the unknown external world
-        // regardless of the current SCCP approximation of Start memory.
-        if( CodeGen.CODE.publicFIDX(fidx) ) return true;
         if( !(_type instanceof TypeTuple tt) )
             return !_type.isHigh(); // TOP never escapes, BOTTOM always escapes
         TypeMem tmem = (TypeMem)tt._types[1];
-        if( tmem == TypeMem.BOT ) return false;
         if( tmem == TypeMem.TOP ) return false;
-        if( XInt.isHigh(tmem._escFs) )
-            return false;
         return XInt.bit(tmem._escFs,fidx);
     }
 

@@ -20,7 +20,7 @@ public class SpillStats extends RunListener {
     @Override public void testFinished(Description test) { _test = null; }
 
     public static void record25(CodeGen code) {
-        if( ACTIVE==null || ACTIVE._test==null || ACTIVE._test.getTestClass()!=ModulesTest.class ) return;
+        if( ACTIVE==null || ACTIVE._test==null || ACTIVE._test.getTestClass()!=Chapter25Test.class ) return;
         ACTIVE.record(code,"Chapter25",ACTIVE._test.getMethodName(),code._mach.getClass().getSimpleName(),code._callingConv);
     }
 
@@ -54,7 +54,7 @@ public class SpillStats extends RunListener {
             String[] row = line.split("\t");
             try {
                 String src = Files.readString(dir.resolve(row[5]));
-                CodeGen code = new CheckedCodeGen(null,null,null,src,123L,true,TypeInteger.BOT)
+                CodeGen code = new CheckedCodeGen(null,null,null,null,src,123L,true,TypeInteger.BOT)
                     .driver(CodeGen.Phase.RegAlloc,row[2],row[3]);
                 ACTIVE.record(code,row[0],row[1],row[2],row[3]);
             } catch( Throwable error ) {
@@ -65,7 +65,7 @@ public class SpillStats extends RunListener {
         }
         // Include the library's allocation even when make's sys.o is up to date.
         try {
-            CodeGen code = new CheckedCodeGen("src/main/smp","build/spill-sys","sys",
+            CodeGen code = new CheckedCodeGen("src/main/smp","build/spill-sys",null,"sys",
                 Files.readString(Path.of("src/main/smp/sys.smp")),456L,true,TypeInteger.BOT)
                 .driver(CodeGen.Phase.Encoding,TestC.CPU_PORT,TestC.CALL_CONVENTION);
             ACTIVE.record(code,"Chapter25","sys",TestC.CPU_PORT,TestC.CALL_CONVENTION);
@@ -75,7 +75,7 @@ public class SpillStats extends RunListener {
         }
         JUnitCore junit = new JUnitCore();
         junit.addListener(ACTIVE);
-        Result result = junit.run(ModulesTest.class);
+        Result result = junit.run(Chapter25Test.class);
         for( Failure failure : result.getFailures() ) System.err.println(failure.getTrace());
         failures += result.getFailureCount();
         if( failures!=0 ) System.out.println("FAILED: totals are not a complete comparison.");

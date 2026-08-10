@@ -3,6 +3,7 @@ package com.seaofnodes.simple.type;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
 
 /**
@@ -162,6 +163,19 @@ public class TypeMemPtr extends TypeNil {
     @Override public Type at( int idx ) { return _obj; }
     @Override public void set( int idx, Type t ) { _obj = (TypeStruct)t; }
 
+    // Reserve tags for null/not, one/general, public/private and read-only access
+    @Override int TAGOFF() { return 16; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        assert _nil>=2;
+        baos.write(TAGOFFS[_type]
+                   + (_nil==2 ? 0 : 1)
+                   + (!_one   ? 0 : 2)
+                   + (!_pub    ? 0 : 4)
+                   + (!_ro     ? 0 : 8) );
+    }
+    static TypeMemPtr packed( int tag, BAOS bais ) {
+        return malloc((byte)((tag&1)+2),null,(tag&2)==2,(tag&4)==4).access((tag&8)==8);
+    }
 
     @Override public String str() {
         if( this==BOT ) return "PtrBot";

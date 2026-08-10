@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.util.*;
 import java.util.*;
 
@@ -510,6 +511,123 @@ public class Type /*implements Cloneable*/ {
         return recurOpen()._upgradeType(TYPES).recurClose();
     }
     Type _upgradeType(HashMap<String,Type> TYPES) { assert is_nokids(); return this;  }
+
+
+    // Recursively gather all types
+    public void gather(HashMap<Type,Integer> types ) {
+        if( types.containsKey(this) ) return; // TEST
+        types.put(this,types.size());      // SET
+        int nkids = nkids();
+        for( int i=0; i<nkids; i++ )
+            at(i).gather(types);
+    }
+
+    // Compute serialization byte tag compression space
+    final static int[] TAGOFFS = new int[TMAX+1];
+    public static int[] TAGOFFS() {
+        if( TAGOFFS[TMAX-1]==0 )
+            // One entry per unique tag-space, using the BOT value from that
+            // tag-space except for the first tag-space which uses 1 tag for
+            // multiple Types instead of 1 Type having multiple tags.  Has to
+            // be ordered to match _type enum.
+            for( Type t : new Type[]{Type.XNIL,TypeScalar.BOT,TypePtr.PTR,TypeInteger.BOT,TypeFloat.F64,TypeConAryB.ABC,TypeRPC.BOT,TypeMemPtr.BOT,TypeFunPtr.BOT,TypeMem.BOT,Field.BOT,TypeStruct.BOT,TypeTuple.BOT} )
+                TAGOFFS[t._type+1] = TAGOFFS[t._type] + t.TAGOFF();
+        assert TAGOFFS[TMAX] <= 255;
+        return TAGOFFS;
+    }
+    // Reserve 6 tags, 0-5, for plain Types
+    int TAGOFF() { assert is_simple(); return 6; }
+
+    public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        assert is_simple();
+        baos.write(_type);
+    }
+    static Type packed( int tag ) {
+        return switch( tag ) {
+        case TBOT  -> BOTTOM;
+        case TTOP  -> TOP;
+        case TCTRL -> CONTROL;
+        case TXCTRL->XCONTROL;
+        case TNIL  -> NIL;
+        default -> throw Utils.TODO("Should not reach here: unknown simple type tag");
+        };
+    }
+
+    // Produce a type with null child types
+    static Type packed( BAOS bais, String[] strs ) {
+        int x = bais.read();
+        int type = Arrays.binarySearch( TAGOFFS, x );
+        if( type < 0 ) type = -(type+1)-1;
+        int off = x - TAGOFFS[type];
+        return switch( type ) {
+        case 0, 1, 2, 3, 4, 5 -> Type.packed( off );
+        case TSCALAR ->   TypeScalar .packed( off );
+        case TPTR    ->   TypePtr    .packed( off );
+        case TINT    ->   TypeInteger.packed( off, bais );
+        case TFLT    ->   TypeFloat  .packed( off, bais );
+        case TCONARY ->   TypeConAry .packed( off, bais );
+        case TRPC    ->   TypeRPC    .packed( off, bais );
+        case TMEMPTR ->   TypeMemPtr .packed( off, bais );
+        case TFUNPTR ->   TypeFunPtr .packed( off, bais );
+        case TMEM    ->   TypeMem    .packed( off, bais );
+        case TFLD    ->   Field      .packed( off, bais, strs );
+        case TSTRUCT ->   TypeStruct .packed( off, bais, strs );
+        case TTUPLE  ->   TypeTuple  .packed( off, bais );
+        default -> throw Utils.TODO("Should not reach here: unknown packed type tag");
+        };
+    }
+
+    // Read a packed Type array
+    public static Type[] packed( BAOS bais, String[] strs, int ntypes, HashMap<String,Type> existingTypes,
+                                 GlobalBits fileAliases, GlobalBits aliases,
+                                 GlobalBits fileFidxs  , GlobalBits fidxs  ,
+                                 GlobalBits fileRpcs   , GlobalBits rpcs   ) {
+        Type[] types = new Type[ntypes];
+        // Read Types in ID# order, no children
+        for( int i=0; i<ntypes; i++ )
+            types[i] = Type.packed(bais,strs);
+        // Start possibly recursive type collection
+        BOTTOM.recurOpen();
+        // Read Types in ID# order, only children
+        for( int i=0; i<ntypes; i++ ) {
+            VISIT.put(types[i]._uid,types[i]);
+            int nkids = types[i].nkids();
+            for( int j=0; j<nkids; j++ )
+                types[i].set(j,types[bais.packed4()]);
+        }
+        // Remap file-local aliases/fidxs/rpcs into this compilation unit's
+        // local dense indexes via their global identities.
+        for( int i=0; i<ntypes; i++ ) {
+            if( types[i] instanceof Field fld ) {
+                if( fld._alias >= GlobalBits.RESERVED )
+                    fld._alias = aliases.map(fileAliases,fld._alias);
+            }
+            if( types[i] instanceof TypeFunPtr tfp )
+                tfp._fidxs = remapBits(fileFidxs,fidxs,tfp._fidxs,GlobalBits.RESERVED);
+            if( types[i] instanceof TypeRPC rpc )
+                rpc._rpcs = remapBits(fileRpcs,rpcs,rpc._rpcs,GlobalBits.RESERVED);
+            if( types[i] instanceof TypeMem mem ) {
+                if( mem._alias >= GlobalBits.RESERVED )
+                    mem._alias = aliases.map(fileAliases,mem._alias);
+                mem._escFs = remapBits(fileFidxs  ,fidxs  ,mem._escFs,GlobalBits.RESERVED);
+                mem._escAs = remapBits(fileAliases,aliases,mem._escAs,GlobalBits.RESERVED);
+            }
+        }
+
+        // Intern them all at once
+        BOTTOM.recurClose(types);
+        return types;
+    }
+
+    private static int[] remapBits(GlobalBits fileBits, GlobalBits bits, int[] fileLocals, int firstMapped ) {
+        if( fileLocals == XInt.EMPTY || fileLocals == XInt.FULL )
+            return fileLocals;
+        assert !XInt.isHigh(fileLocals);
+        int[] locals = XInt.EMPTY;
+        for( int fileLocal = XInt.next(fileLocals,-1); fileLocal >=0; fileLocal = XInt.next(fileLocals,fileLocal) )
+            locals = XInt.make(locals,fileLocal < firstMapped ? fileLocal : bits.map(fileBits,fileLocal));
+        return locals;
+    }
 
 
     // ----------------------------------------------------------

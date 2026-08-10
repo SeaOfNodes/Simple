@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 
 import java.util.HashMap;
@@ -18,7 +19,9 @@ public abstract class ArithNode extends Node implements ModeNode {
 
     public ArithNode( Parser.Lexer loc, Node lhs, Node rhs) { super(null, lhs, rhs); _loc = loc; }
     public ArithNode( Parser.Lexer loc, Node lhs, Node rhs, byte mode) { this(loc,lhs,rhs); _mode=mode; }
-
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes) {
+        baos.packed1(_mode);
+    }
     abstract String op();
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {

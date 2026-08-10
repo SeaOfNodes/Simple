@@ -10,10 +10,12 @@ import com.seaofnodes.simple.util.Ary;
 abstract class TypeCheck {
     static void run(CodeGen code) {
         // Check for class-init cycles first; such a cycle can prevent other
-        // things from resolving types. The dependency graph is temporary.
-        String clzInitCycle = new ClassInitDependencies(code).check();
-        if( clzInitCycle != null )
-            throw Parser.error(clzInitCycle,null);
+        // things from resolving types. Use the graph and summaries left by
+        // optimization; do not load more bodies to disprove a possible cycle.
+        ClassInitDependencies deps = new ClassInitDependencies(code);
+        String cycle = deps.check();
+        if( cycle!=null ) throw Parser.error(cycle,null);
+        code._classInitDependencies = deps; // Serialize reuses this checked graph.
 
         Ary<Node> errs = new Ary<>(Node.class);
         code._stop.walk( n -> {

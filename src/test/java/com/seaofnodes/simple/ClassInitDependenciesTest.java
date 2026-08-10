@@ -25,6 +25,31 @@ import org.junit.runners.model.Statement;
 import static org.junit.Assert.*;
 
 public class ClassInitDependenciesTest {
+    @Test public void testPrivateInitializerCallEdges() throws Exception {
+        for( long seed : new long[]{1,123,987654321} ) {
+            Path root = tempDir("private-roots-");
+            Path classes = Files.createDirectories(root.resolve("Root"));
+            Files.writeString(root.resolve("Root.smp"),"val _dead = _Dead; val read = { -> _Live.value; }; return 0;");
+            Files.writeString(classes.resolve("_Live.smp"),"int value = 17+arg;");
+            Files.writeString(classes.resolve("_Dead.smp"),"val child = Child; int value = 99;");
+            Path children = Files.createDirectories(classes.resolve("_Dead"));
+            Files.writeString(children.resolve("Child.smp"),"int value = 42;");
+            CodeGen code = new CodeGen(root.toString(),root.resolve("obj").toString(),null,
+                "Root",null,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            FunNode live = code.link(code._compunits.get("Root/_Live"));
+            assertNotNull(live);
+            assertFalse("A local init call is not an unknown caller",live.unknownCallers());
+            assertTrue(live.in(1) instanceof CProjNode call && call.in(0) instanceof CLInitNode);
+            for( FunNode fun : code._linker )
+                assertTrue(fun==null || fun.isDead() ||
+                    fun._compunit!=code._compunits.get("Root/_Dead") &&
+                    fun._compunit!=code._compunits.get("Root/_Dead/Child"));
+            assertEquals("0",Eval2.eval(code,99));
+            new CodeGen(root.toString(),root.resolve("obj").toString(),null,
+                "Root",null,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.Encoding,"x86_64_v2","SystemV");
+        }
+    }
+
     private final ArrayList<Path> dirs = new ArrayList<>();
 
     @Rule public final TestRule cleanup = (test, description) -> new Statement() {
@@ -57,7 +82,7 @@ public class ClassInitDependenciesTest {
             Files.createDirectories(path.getParent());
             Files.writeString(path,source.getValue());
         }
-        return new CodeGen(root.toString(),root.resolve("obj").toString(),
+        return new CodeGen(root.toString(),root.resolve("obj").toString(),null,
                            "Root",null,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
     }
 
@@ -194,26 +219,118 @@ public class ClassInitDependenciesTest {
         assertTrue(touches(code,new ClassInitDependencies(code),"Root/A","Root/B"));
         code=compile("A",Map.of("A","{int} native=\"C\"; return native();"),123);
 
+        Path dir=tempDir("import-");
+        new CodeGen(null,dir.toString(),null,"B","int value=1;",123,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+        code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                         "A","return B.value;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertTrue(touches(code,new ClassInitDependencies(code),"A","B"));
     }
 
-    private void object(Path dir, Path unused, String name, String source) throws Exception {
-        Path file=dir.resolve("Root/"+name+".smp");
-        Files.createDirectories(file.getParent());
-        Files.writeString(file,source);
+    private CodeGen object(Path dir, Path imports, String name, String source) {
+        return new CodeGen(null,dir.toString(),new Ary<>(new String[]{imports.toString()}),
+                           name,source,123,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
     }
 
-    private void module(Path dir, Path unused, String name, Map<String,String> sources) throws Exception {
-        for( var entry : sources.entrySet() ) object(dir,dir,entry.getKey(),entry.getValue());
+    private CodeGen module(Path dir, Path imports, String name, Map<String,String> sources) throws Exception {
+        Path src=tempDir("import-");
+        for( var entry : sources.entrySet() ) {
+            Path file=src.resolve(entry.getKey()+".smp");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file,entry.getValue());
+        }
+        return new CodeGen(src.toString(),dir.toString(),new Ary<>(new String[]{imports.toString()}),
+            name,null,123,true,TypeInteger.BOT).driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
     }
 
-    private CodeGen entry(Path dir, String source, long seed) throws Exception {
-        Files.writeString(dir.resolve("Root.smp"),"");
-        object(dir,dir,"Main",source);
-        return new CodeGen(dir.toString(),dir.toString(),"Root/Main",null,seed,true,TypeInteger.BOT);
+    @Test public void testImportedInitialization() throws Exception {
+        Path dir=tempDir("import-"), stubs=tempDir("import-");
+        object(stubs,stubs,"A","int value=arg;");
+        object(stubs,stubs,"B","int value=arg;");
+        // Each object is independently acyclic. Combining their summaries
+        // must recheck the graph rather than trust either object's local order.
+        String asrc="int value=arg;\nvalue=B.value;";
+        CodeGen acode=module(dir,stubs,"A",Map.of("A",asrc));
+        String afile=acode._compunits.get("A").sourceFile();
+        module(dir,stubs,"B",Map.of("B","int value=arg; value=A.value;"));
+        for( String entry : new String[]{"A","B"} ) {
+            CodeGen code = new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                                      "Main","return "+entry+".value;",123,true,TypeInteger.BOT);
+            try {
+                code.driver(CodeGen.Phase.TypeCheck);
+                fail("Expected imported initialization cycle");
+            } catch( Parser.ParseException ex ) {
+                assertCycle(ex.getMessage(),"A -> B -> A");
+                assertNull(code.getElf(code._compunits.get("A")._obj)._nodes);
+                assertNull(code.getElf(code._compunits.get("B")._obj)._nodes);
+            }
+        }
+        // The summary reports the dependency chain even without source files.
+        Files.delete(Path.of(afile));
+        try {
+            new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                        "Main","return A.value;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            fail("Expected imported initialization cycle");
+        } catch( Parser.ParseException ex ) {
+            assertCycle(ex.getMessage(),"A -> B -> A");
+        }
     }
 
-    private CodeGen emit(Path dir, String name, String source) throws Exception {
-        return entry(dir,source,123).driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+    @Test public void testImportedDiamondAndHelpers() throws Exception {
+        Path diamond=tempDir("import-");
+        CodeGen dcode=object(diamond,diamond,"D","int value=arg;");
+        var data=dcode._encoding._data.entries().stream().filter(obj -> obj.symbol.equals("D.$class")).findFirst().orElseThrow();
+        var dclz=dcode._compunits.get("D")._clz;
+        assertEquals(0,dcode._encoding._sdata.buf()[data.offset+dclz.offset(dclz.find("$init"))]);
+        object(diamond,diamond,"B","int value=D.value;");
+        object(diamond,diamond,"C","int value=D.value;");
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code=new CodeGen(null,diamond.toString(),new Ary<>(new String[]{diamond.toString()}),
+                "Main","int value=B.value+C.value;",seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            CompUnit b=code._compunits.get("B"), d=code._compunits.get("D");
+            ClassInitDependencies deps=new ClassInitDependencies(code);
+            assertTrue(touches(code,deps,"B","D"));
+            assertTrue(touches(code,deps,"C","D"));
+            assertTrue(touches(code,deps,"Main","B"));
+            assertTrue(touches(code,deps,"Main","C"));
+            Field flag=d._clz.field("$init");
+            assertSame(TypeInteger.U1,flag._t);
+            assertFalse(flag._final);
+            assertNotEquals(flag._alias,b._clz.field("$init")._alias);
+            // Loading just the header/types uses the same alias identity and
+            // does not require allocating any graph nodes.
+            ElfReader elf=ElfReader.load(diamond.resolve("D.o").toFile(),d);
+            assertEquals(flag._alias,elf.loadPublicTypes(code).field("$init")._alias);
+            assertNull(elf._nodes);
+        }
+        object(diamond,diamond,"Helper","val get={ -> D.value; }; val get_noInline={ -> D.value; };");
+        for( String name : new String[]{"get","get_noInline"} ) {
+            CodeGen code=new CodeGen(null,diamond.toString(),new Ary<>(new String[]{diamond.toString()}),
+                "Main","return Helper."+name+"();",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            ClassInitDependencies deps=new ClassInitDependencies(code);
+            assertTrue(touches(code,deps,"Main","D"));
+            assertFalse(touches(code,deps,"Helper","D"));
+        }
+        object(diamond,diamond,"Wrapper","val get_noInline={ -> Helper.get_noInline(); };");
+        CodeGen wrapped=new CodeGen(null,diamond.toString(),new Ary<>(new String[]{diamond.toString()}),
+            "Main","return Wrapper.get_noInline();",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertTrue(touches(wrapped,new ClassInitDependencies(wrapped),"Main","D"));
+    }
+
+    @Test public void testInterleavedModules() throws Exception {
+        // Two objects, each providing a parent and children. Their orders
+        // must interleave: P.B precedes Q.A, which precedes P.A.
+        Path modules=tempDir("import-"), qstub=tempDir("import-");
+        module(qstub,qstub,"Q",Map.of("Q","val A=A;", "Q/A","int value=arg;"));
+        module(modules,qstub,"P",Map.of("P","val A=A; val B=B;",
+            "P/A","int value=arg; value=Q.A.value;", "P/B","int value=arg;"));
+        module(modules,modules,"Q",Map.of("Q","val A=A;", "Q/A","int value=arg; value=P.B.value;"));
+        CodeGen combined=new CodeGen(null,modules.toString(),new Ary<>(new String[]{modules.toString()}),
+            "Main","return P.A.value;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        ClassInitDependencies deps=new ClassInitDependencies(combined);
+        assertTrue(touches(combined,deps,"Q/A","P/B"));
+        assertTrue(touches(combined,deps,"P/A","Q/A"));
     }
 
     @Test public void testCycleReportDirection() throws Exception {
@@ -346,59 +463,87 @@ public class ClassInitDependenciesTest {
         object(dir,dir,"B","State.count++; int value=17+arg;");
         String src="int value=arg ? B.value+B.value : 0; return value+100*State.count;";
         for( long seed : new long[]{1,123,987654321} ) {
-            CodeGen code=entry(dir,src,seed).driver(CodeGen.Phase.TypeCheck);
+            CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                "Main",src,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
             assertNotNull(code._stop.walk(n -> n instanceof CLInitNode ? n : null));
             assertEquals("0",Eval2.eval(code,0));
-            assertNull(code._stop.walk(n -> n instanceof CLInitNode ? n : null));
+            assertNotNull("Eval executes CLInit without lowering it",code._stop.walk(n -> n instanceof CLInitNode ? n : null));
             assertEquals("134",Eval2.eval(code,1));
         }
 
-        emit(dir,"Main","val run={int take -> "+src.replace("arg ?","take ?")+" };");
+        object(dir,dir,"Main","val run={int take -> "+src.replace("arg ?","take ?")+" };");
         Path cfile=dir.resolve("check.c");
         Files.writeString(cfile,"""
             #include <stdint.h>
-            __attribute__((CALL_CONV)) extern int64_t run(int64_t take) __asm__("Root.Main.run");
+            __attribute__((CALL_CONV)) extern int64_t run(int64_t take);
             int main(void) {
                 return run(0)!=0 || run(1)!=134 || run(1)!=134 || run(0)!=100;
             }
             """);
         String exe=dir.resolve(TestC.OS.startsWith("Windows") ? "check.exe" : "check").toString();
-        TestC.linkExe(dir.resolve("Root/Main.o").toString(),TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",
-            cfile.toString(),null,exe);
+        TestC.linkExe(dir.resolve("Main.o").toString(),TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",
+            cfile.toString(),new Ary<>(new String[]{dir.resolve("B.o").toString(),dir.resolve("State.o").toString()}),exe);
         assertEquals("",TestC.exec(exe));
         for( String cpu : new String[]{"arm","riscv"} )
-            entry(dir,src,123).driver(CodeGen.Phase.Encoding,cpu,"SystemV");
+            new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                "Main",src,123,true,TypeInteger.BOT).driver(CodeGen.Phase.Encoding,cpu,"SystemV");
     }
 
     @Test public void testParentInitializationExecution() throws Exception {
         Path dir=tempDir("execution-");
         object(dir,dir,"State","int count=0;");
-        module(dir,dir,"P",Map.of("P","val C=C; State.count=State.count*10+1;",
-            "P/C","State.count=State.count*10+2; int value=arg;"));
+        CodeGen library = module(dir,dir,"P",Map.of("P","val C=C; State.count=State.count*10+1;",
+            "P/C","State.count=State.count*10+2; int value=arg; return State.count;"));
+        // Direct entry into the child has no surrounding CLInit call/check.
+        // Its body must establish the parent itself, including an imported parent.
+        CodeGen child = new CodeGen(library._modDir,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+            "P/C",null,123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("12",Eval2.eval(child,99));
         for( long seed : new long[]{1,123,987654321} ) {
-            CodeGen code=entry(dir,"return P.C.value+State.count;",seed).driver(CodeGen.Phase.TypeCheck);
+            CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                "Main","return P.C.value+State.count;",seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
             assertEquals("12",Eval2.eval(code,99));
         }
-        emit(dir,"Main","val run={ -> P.C.value+State.count; };");
+        object(dir,dir,"Main","val run={ -> P.C.value+State.count; };");
         Path cfile=dir.resolve("check.c");
         Files.writeString(cfile,"""
             #include <stdint.h>
-            __attribute__((CALL_CONV)) extern int64_t run(void) __asm__("Root.Main.run");
+            __attribute__((CALL_CONV)) extern int64_t run(void);
             int main(void) { return run()!=12 || run()!=12; }
             """);
         String exe=dir.resolve(TestC.OS.startsWith("Windows") ? "check.exe" : "check").toString();
-        TestC.linkExe(dir.resolve("Root/Main.o").toString(),TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",
-            cfile.toString(),null,exe);
+        TestC.linkExe(dir.resolve("Main.o").toString(),TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",
+            cfile.toString(),new Ary<>(new String[]{dir.resolve("P.o").toString(),dir.resolve("P/C.o").toString(),
+                dir.resolve("State.o").toString()}),exe);
         assertEquals("",TestC.exec(exe));
     }
 
     @Test public void testNonreturningObject() throws Exception {
         Path dir=tempDir("nonreturning-");
         object(dir,dir,"Spin","val spin_noInline={ -> while(1) {} return 7; };");
-        CodeGen code=entry(dir,"Spin.spin_noInline(); return 7;",123).driver(CodeGen.Phase.TypeCheck);
+        CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+            "Main","Spin.spin_noInline(); return 7;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
         assertNull(Eval2.eval(code,0,10));
     }
 
+    @Test public void testImportedPrivateInitializer() throws Exception {
+        Path dir=tempDir("private-");
+        module(dir,dir,"Library",Map.of("Library","val read={ -> _Hidden.value; };",
+            "Library/_Hidden","int value=17+arg;"));
+        CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+            "Main","return Library.read();",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("17",Eval2.eval(code,99));
+        // Even a request stopping at Select must drop imported bodies. They
+        // remain available only to the ideal evaluator above, not this object.
+        for( String cpu : new String[]{"x86_64_v2","arm","riscv"} ) {
+            CodeGen selected=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                "Main","return Library.read();",123,true,TypeInteger.BOT).driver(CodeGen.Phase.Select,cpu,"SystemV");
+            assertNull(selected._serial);
+            for( CompUnit cu : selected._compunits.values() )
+                if( cu._src==null ) assertNull(cu._stop);
+            selected.driver(CodeGen.Phase.Encoding,cpu,"SystemV");
+        }
+    }
 
     @Test public void testOverlappingFunctionAndClassCycles() throws Exception {
         // Fixed function graph: Opto/inlining must not erase the overlap that
@@ -431,5 +576,9 @@ public class ClassInitDependenciesTest {
                    forward!=null && reverse!=null);
         assertCycle(forward,"Root.A -> Root.B -> Root.A");
         assertCycle(reverse,"Root.A -> Root.B -> Root.A");
+        // A failed check leaves an SCC on the stack. A later check must start
+        // fresh, and must not treat edges into completed SCCs as back edges.
+        deps._edgess[b]=null;
+        assertNull(deps.check());
     }
 }

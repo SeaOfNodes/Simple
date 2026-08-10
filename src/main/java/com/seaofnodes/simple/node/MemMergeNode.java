@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Utils;
 
@@ -17,7 +18,9 @@ public class MemMergeNode extends Node {
 
     public MemMergeNode( Node ...nodes) { super(nodes); _type = TypeMem.BOT; }
     public MemMergeNode(MemMergeNode mem) { super(mem); }
-
+    @Override public Tag serialTag() { return Tag.MemMerge; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
+    static Node make( BAOS bais )  { Node mem = new MemMergeNode(); mem.setDefX(bais.packed1()-1,null); return mem; }
 
     @Override public String label() { return "ALLMEM"; }
     @Override public boolean isMem() { return true; }

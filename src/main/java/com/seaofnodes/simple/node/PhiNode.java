@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 import java.util.HashMap;
@@ -35,7 +36,15 @@ public class PhiNode extends Node {
         while( nIns() < r.nIns() )
             addDef(sample);
     }
-
+    @Override public Tag serialTag() { return Tag.Phi; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(nIns());
+        baos.packed2(_label==null ? 0 : strs.get(_label));
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        return new PhiNode(strs[bais.packed2()], ins);
+    }
 
     @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 
@@ -272,4 +281,7 @@ public class PhiNode extends Node {
         return Parser.error(sb.unchar(5).toString(),null);
     }
 
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_label);
+    }
 }

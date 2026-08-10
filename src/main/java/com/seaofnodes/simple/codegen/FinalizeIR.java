@@ -31,10 +31,10 @@ abstract class FinalizeIR {
                 }
                 code.keepInCompUnit(fun);
             }
-        for( CompUnit cu : code._compunits.values() ) {
-            ProjNode mem = cu._start.proj(1);
-            if( mem != null ) code.add(mem.unkeep());
-        }
+        // Hand off the wrapper lifetime before releasing its memory projection.
+        for( CompUnit cu : code._compunits.values() )
+            code.keepUntilUnlink(cu._start);
+        code.releaseFinalizedNodes();
         // Stable print order: initializers first, then other Returns by NID.
         for( Node stop : code._stop._inputs )
             Arrays.sort(stop._inputs._es,0,stop.nIns(),
