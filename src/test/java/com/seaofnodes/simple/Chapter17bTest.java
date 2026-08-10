@@ -289,7 +289,7 @@ A x = new A {
     b = new B;
 };
 """);
-        try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Cannot read uninitialized field 'b'",e.getMessage()); }
     }
 
@@ -302,7 +302,7 @@ return new A {
     if (arg) b = new B; // Constructor ends with partial init of b
 }.b;
 """);
-        try { code.parse(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("'A' is not fully initialized, field 'b' needs to be set in a constructor",e.getMessage()); }
     }
 

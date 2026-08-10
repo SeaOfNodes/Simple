@@ -8,21 +8,22 @@ import java.util.BitSet;
 
 
 /**
- * Represents a slice of memory corresponding to a set of aliases
+ * Public memory holds one field alias; private memory holds one whole object.
  */
 public class TypeMem extends Type {
 
     // Which slice of memory?
     //  1 and TOP means no slice.
     //  1 and BOT means all memory.
+    //  1 and TypeStruct means current fields of the private allocation.
     //  N means alias slice#N.
     public int _alias;
-    public Type _t;       // Memory contents, some scalar type
+    public Type _t;       // Scalar public contents, or private field values.
 
     private static final Ary<TypeMem> FREE = new Ary<>(TypeMem.class);
     private TypeMem(int alias, Type t) { super(TMEM); init(alias,t); }
     private TypeMem init(int alias, Type t) {
-        assert alias>1 || (t==Type.TOP || t==Type.BOTTOM);
+        assert alias>1 || (t==null || t==Type.TOP || t==Type.BOTTOM || t instanceof TypeStruct);
         _alias = alias;
         _t = t;
         return this;
@@ -47,10 +48,34 @@ public class TypeMem extends Type {
         return VISIT.isEmpty() ? f2.free(f) : f2.delayFree(f);
     }
 
+    // Private memory describes one allocation. It is passed explicitly to
+    // initializers; it never joins the public heap until EscapeNode.
+    public static TypeMem makePrivate(TypeStruct shape) { return make(1,shape); }
+
+    public static TypeStruct empty(TypeStruct shape) {
+        Field[] fields = new Field[shape._fields.length];
+        for( int i=0; i<fields.length; i++ )
+            fields[i] = shape._fields[i].makeFrom(Type.BOTTOM);
+        return TypeStruct.make(shape._name,shape._open,fields);
+    }
+
+    public static TypeStruct zeroed(TypeStruct shape) {
+        Field[] fields=new Field[shape._fields.length];
+        for( int i=0; i<fields.length; i++ ) {
+            Field f=shape._fields[i];
+            Type zero=f._t.makeZero();
+            fields[i]=f.makeFrom(!f._final && f._t!=Type.BOTTOM && zero.isa(f._t) ? zero : Type.BOTTOM);
+        }
+        return TypeStruct.make(shape._name,shape._open,fields);
+    }
+
     public static final TypeMem TOP = make(1, Type.TOP   );
     public static final TypeMem BOT = make(1, Type.BOTTOM);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT); }
+    public static void gather(ArrayList<Type> ts) {
+        ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT);
+        ts.add(makePrivate(TypeStruct.TEST)); ts.add(makePrivate(empty(TypeStruct.TEST)));
+    }
 
     @Override
     TypeMem xmeet(Type t) {
@@ -82,8 +107,8 @@ public class TypeMem extends Type {
     @Override public boolean isHigh() { return _t.isHigh(); }
     @Override public int log_size() { throw Utils.TODO(); }
     @Override boolean _isFinal() { return _t._isFinal(); }
-    @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
-    @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true)); }
+    @Override boolean _isGLB(boolean mem) { return _t instanceof TypeStruct s ? s.isGLB2() : _t._isGLB(true); }
+    @Override public Type _glb(boolean mem) { return make(_alias,_t instanceof TypeStruct s ? s.glb2() : _t._glb(true)); }
 
     @Override int hash() { return 9876543 + _alias + _t.hashCode(); }
 
@@ -112,6 +137,18 @@ public class TypeMem extends Type {
     @Override public String str() { return toString(); }
 
     @Override Type _upgradeType(java.util.HashMap<String,Type> types) {
+        if( _t instanceof TypeStruct old && types.get(old._name) instanceof TypeMemPtr ptr ) {
+            // This struct records current contents, not a forward declaration.
+            // Complete its field list without replacing writes with declared
+            // types (or turning an unwritten field into an initialized one).
+            TypeStruct shape=old.isAry() ? old : ptr._obj;
+            Field[] fields=new Field[shape._fields.length];
+            for( int i=0; i<fields.length; i++ ) {
+                Field field=shape._fields[i], value=old.field(field._fname);
+                fields[i]=field.makeFrom(value==null ? Type.BOTTOM : value._t._upgradeType(types));
+            }
+            return makePrivate(TypeStruct.make(shape._name,shape._open,fields));
+        }
         return make(_alias,_t._upgradeType(types));
     }
 }
