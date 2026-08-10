@@ -8,9 +8,10 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 
-/** Allocate a zeroed object. Inputs {ctrl, $mem, size};
- *  results {ptr, $mem}.
- *  The memory input and result cover only the aliases in the allocated struct.
+/** Allocate a zeroed object. Inputs {ctrl, null, size}; results {ptr, private memory}.
+ *  It starts outside the public heap. Helper exits store the field values, and
+ *  Escape publishes the completed fields. Slot 1 remains reserved for memory;
+ *  a non-null input supports the preceding chapter's graph fixtures.
  */
 public class NewNode extends Node implements MultiNode {
 
@@ -22,7 +23,7 @@ public class NewNode extends Node implements MultiNode {
         _ptr = ptr;
         assert nodes.length==3;
         assert nodes[0]._type==Type.CONTROL || nodes[0]._type==Type.XCONTROL;
-        assert nodes[1]._type instanceof TypeMem;
+        assert nodes[1]==null || nodes[1]._type instanceof TypeMem;
         assert nodes[2]._type instanceof TypeInteger || nodes[2]._type==Type.NIL;
     }
 
@@ -56,7 +57,7 @@ public class NewNode extends Node implements MultiNode {
     public TypeTuple compute() {
         return in(0)._type.isHigh()
             ? TypeTuple.make(_ptr.makeHigh(),TypeMem.TOP)
-            : TypeTuple.make(_ptr,TypeMem.BOT);
+            : TypeTuple.make(_ptr,mem()==null ? TypeMem.makePrivate(TypeMem.zeroed(_ptr._obj)) : TypeMem.BOT);
     }
 
     @Override

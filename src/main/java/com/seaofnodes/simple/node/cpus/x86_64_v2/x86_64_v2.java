@@ -101,6 +101,7 @@ public class x86_64_v2 extends Machine {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        if( tfp.arg(idx-2) instanceof TypeMem ) return null; // Hidden private memory
         return switch( CodeGen.CODE._callingConv ) {
         case "SystemV" -> callSys5 (tfp,idx,maxArgSlot);
         case "Win64"   -> callWin64(tfp,idx,maxArgSlot);
@@ -231,7 +232,7 @@ public class x86_64_v2 extends Machine {
     }
     @Override public long neverSave() { return 1L<<RSP; }
     @Override public RegMask retMask( TypeFunPtr tfp ) {
-        return tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
+        return tfp.ret() instanceof TypeMem ? null : tfp.ret() instanceof TypeFloat ? XMM0_MASK : RAX_MASK;
     }
     @Override public int rpc() { return RPC; }
 

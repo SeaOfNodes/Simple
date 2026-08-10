@@ -278,7 +278,8 @@ public abstract class Eval2 {
         case ProjNode     proj -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
         case ReadOnlyNode read -> val(read.in(1));
         case SarNode      sar  -> x(sar.in(1)) >> x(sar.in(2));
-        case MemMergeNode merge-> "$mem";
+        case EscapeNode esc -> "$mem";
+            case MemMergeNode merge-> "$mem";
         case ShlNode      shl  -> x(shl.in(1)) << x(shl.in(2));
         case ShrNode      shr  -> x(shr.in(1)) >>>x(shr.in(2));
         case StoreNode    st   -> store(st);

@@ -13,6 +13,7 @@ import java.util.BitSet;
  * in chapter 10 this means Struct fields.
  */
 public class LoadNode extends MemOpNode {
+    private final boolean _private;
 
     /**
      * Load a value from a ptr.field.
@@ -23,9 +24,13 @@ public class LoadNode extends MemOpNode {
      * @param off   The offset inside the struct base
      */
     public LoadNode(Parser.Lexer loc, String name, int alias, Node mem, Node ptr, Node off) {
+        this(loc,name,alias,mem,ptr,off,false);
+    }
+    public LoadNode(Parser.Lexer loc, String name, int alias, Node mem, Node ptr, Node off, boolean priv) {
         // The field declaration will supply storage width once the receiver
         // is known. A parser guess must not bound the value of this Load.
         super(loc, name, alias, true, Type.BOTTOM, mem, ptr, off);
+        _private=priv;
     }
 
     @Override boolean canDrop(MemOpNode other, Node dep) {
@@ -62,9 +67,18 @@ public class LoadNode extends MemOpNode {
         if( ptr.nullable() ) return Type.BOTTOM;
         Field field = ptr._obj.field(_name);
         if( field==null ) return TypeScalar.BOT;
+        if( field._t instanceof TypeFunPtr ctor && ctor.ret() instanceof TypeMem ) return TypeScalar.BOT;
         Type t = field._t;
         if( t instanceof TypeConAry ary ) t=ary.elem();
         if( _alias!=1 ) t=t.join(MemMergeNode.contents(mem(),_alias,this));
+        // An unknown helper result does not mean the field is unwritten.
+        // Keep its declared bound until private memory proves otherwise;
+        // this Load can be forwarded into an ordinary typed value Phi.
+        if( uninitialized() ) t=Type.BOTTOM;
+        if( m instanceof TypeMem pm && pm._t instanceof TypeStruct shape ) {
+            Field value = shape.field(_name);
+            t = value==null ? Type.BOTTOM : value._t;
+        }
         if( ptr.isFinal() ) t=t.makeRO();
         return t==Type.TOP ? TypeScalar.TOP : t==Type.BOTTOM ? TypeScalar.BOT : t;
     }
@@ -87,6 +101,9 @@ public class LoadNode extends MemOpNode {
             }
         }
         if( _alias==1 ) return null;
+        // A required field has no value yet. In particular, do not turn a
+        // read of its calloc bytes into a legal null/zero value.
+        if( uninitialized() ) return null;
 
         if( mem() instanceof CastNode cast ) {
             setDef(1,cast.in(1));
@@ -146,6 +163,24 @@ public class LoadNode extends MemOpNode {
         return null;
     }
 
+    private boolean uninitialized() {
+        if( !_private || _alias==1 ) return false;
+        Node mem=mem();
+        if( mem instanceof MemMergeNode merge ) mem=merge.alias(_alias);
+        return mem._type instanceof TypeMem m &&
+            ((m._alias==_alias && m._t==Type.BOTTOM) ||
+             (m._t instanceof TypeStruct s && s.field(_name)!=null && s.field(_name)._t==Type.BOTTOM));
+    }
+
+    @Override public Parser.ParseException err() {
+        if( ptr()._type instanceof TypeMemPtr ptr ) {
+            Field f=ptr._obj.field(_name);
+            if( f!=null && f._t instanceof TypeFunPtr ctor && ctor.ret() instanceof TypeMem )
+                return Parser.error("A constructor is only called by new",_loc);
+        }
+        return uninitialized() ? Parser.error("Cannot read uninitialized field '"+_name+"'",_loc) : super.err();
+    }
+
     // Load a flavored zero from a New
     private Node zero(NewNode nnn) {
         TypeStruct ts = nnn._ptr._obj;
@@ -165,6 +200,9 @@ public class LoadNode extends MemOpNode {
             switch( mem ) {
             case MemMergeNode merge: mem=merge.alias(_alias); break;
             case CastNode cast: mem=cast.in(1); break;
+            case EscapeNode esc:
+                mem = ptr==address(esc.self()) ? esc.priv() : esc.pub();
+                break;
             case StoreNode st:
                 // A symbolic Store may write this field. Wait for its alias;
                 // skipping it can make a compound assignment read the old value.
@@ -182,7 +220,11 @@ public class LoadNode extends MemOpNode {
                 break;
             case ProjNode proj:
                 if( !(proj.in(0) instanceof NewNode nnn) ) return null;
-                if( ptr instanceof ProjNode p && p.in(0)==nnn ) return nnn;
+                if( ptr instanceof ProjNode p && p.in(0)==nnn ) {
+                    if( nnn.mem()==null && proj._type instanceof TypeMem m &&
+                        m._t instanceof TypeStruct shape && shape.field(_name)._t==Type.BOTTOM ) return null;
+                    return nnn;
+                }
                 if( !(ptr instanceof ProjNode p && p.in(0) instanceof NewNode) ) return null;
                 mem=nnn.mem(); // Distinct allocations cannot overlap.
                 break;
@@ -227,7 +269,7 @@ public class LoadNode extends MemOpNode {
             }
             return folded(win).peephole();
         }
-        LoadNode ld=new LoadNode(_loc,_name,_alias,mem,ptr,off());
+        LoadNode ld=new LoadNode(_loc,_name,_alias,mem,ptr,off(),_private);
         ld.setDef(0,in(0));
         return ld.peephole();
     }
@@ -260,10 +302,12 @@ public class LoadNode extends MemOpNode {
 
     // Read-Only is a deep property, and cannot be cast-away
     private Node castRO(Node rez) {
-        if( (ptr()._type.isFinal() || _declaredType.isFinal()) && !rez._type.isFinal() )
+        if( (ptr()._type.isFinal() || (_declaredType instanceof TypeMemPtr p && p._ro)) && !rez._type.isFinal() )
             return new ReadOnlyNode(rez).peephole();
         return rez;
     }
+
+    @Override public boolean eq(Node n) { return _private==((LoadNode)n)._private && super.eq(n); }
 
     // When a load bypasses a store, the store might truncate bits - and the
     // load will need to zero/sign-extend.

@@ -55,7 +55,10 @@ public class ReturnNode extends CFGNode {
         // Upgrade signature based on return type
         Type ret = expr()._type;
         TypeFunPtr fcn = _fun.sig();
-        if( ret != fcn.ret() && ret.isa(fcn.ret()) )
+        // Private field contents flow on the linked Return/CallEnd edges.
+        // Keep the helper's interface at MemBot; a current memory snapshot
+        // is not a new declaration for its self type or its methods.
+        if( !(ret instanceof TypeMem) && ret != fcn.ret() && ret.isa(fcn.ret()) )
             _fun.setSig(fcn.makeFrom(ret));
 
         // If dead (cannot be reached; infinite loop), kill the exit values
@@ -92,7 +95,7 @@ public class ReturnNode extends CFGNode {
         RegionNode r = (RegionNode)ctrl();
         // Assert that the Phis are in particular outputs; not reordered or shuffled
         PhiNode mem = (PhiNode)r.out(0); assert mem.isMem();
-        PhiNode rez = (PhiNode)r.out(1); assert !rez.isMem();
+        PhiNode rez = (PhiNode)r.out(1); assert !rez.isMem() || fun().sig().ret() instanceof TypeMem;
         // Pop "inProgress" null off
         r  ._inputs.pop();
         mem._inputs.pop();
@@ -108,6 +111,7 @@ public class ReturnNode extends CFGNode {
     }
 
     @Override public Parser.ParseException err() {
+        if( expr()._type instanceof TypeMem ) return null; // Hidden initializer result.
         if( ctrl()._type != Type.CONTROL ) return null; // Exit path is dead
         if( expr()._type==TypeScalar.BOT ) {
             int kinds = returnKinds(expr(),new java.util.BitSet());

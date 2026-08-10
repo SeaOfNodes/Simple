@@ -225,6 +225,7 @@ public class arm extends Machine {
         if( idx==1 ) return null;
         // Count floats in signature up to index
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        if( tfp.arg(idx-2) instanceof TypeMem ) return null; // Hidden private memory
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=2; i<idx; i++ )
@@ -266,7 +267,7 @@ public class arm extends Machine {
     @Override public long callerSave() { return CALLER_SAVE; }
     @Override public long neverSave() { return 1L<<RSP; }
     @Override public RegMask retMask( TypeFunPtr tfp ) {
-        return tfp.ret() instanceof TypeFloat ? D0_MASK : X0_MASK;
+        return tfp.ret() instanceof TypeMem ? null : tfp.ret() instanceof TypeFloat ? D0_MASK : X0_MASK;
     }
     @Override public int rpc() { return X30; }
 

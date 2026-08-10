@@ -89,6 +89,7 @@ class InstSelect {
 
 
     private Node select(Node n) {
+        if( n instanceof EscapeNode esc ) return new EscapeMach(esc);
         if( n instanceof GuardNode guard ) return new GuardMach(guard);
         if( n instanceof PtrToIntNode ptr ) return new PtrToIntMach(ptr);
         Node op = n;

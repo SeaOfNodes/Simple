@@ -277,7 +277,7 @@ public abstract class GlobalCodeMotion {
         visit.set(def._nid);
         for( Node out : def._outputs )
             if( out instanceof MemOpNode ld && ld._isLoad && late[ld._nid]==null ) work.push(ld);
-        if( def instanceof MemMergeNode )
+        if( def instanceof MemMergeNode || def instanceof EscapeNode )
             for( int i=1; i<def.nIns(); i++ )
                 if( def.in(i)!=null ) wakeLoads(def.in(i),late,work,visit);
     }

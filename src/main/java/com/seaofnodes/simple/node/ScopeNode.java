@@ -39,7 +39,10 @@ public class ScopeNode extends Node {
         // Basic block scoping
         public static class Block  extends Kind { }
         // Function scope
-        public static class Func   extends Kind { }
+        public static class Func   extends Kind {
+            public final boolean _constructor;
+            public Func(boolean constructor) { _constructor=constructor; }
+        }
         // Struct definition, mapping types  to fields
         public static class Define extends Kind { public Define(TypeMemPtr tmp) { _tmp=tmp; } public final TypeMemPtr _tmp; }
         // Struct allocation, mapping values to fields
@@ -137,13 +140,23 @@ public class ScopeNode extends Node {
     }
 
 
-    // Allocation fields live in the scope immediately outside the constructor
-    // block. Nested blocks retain that permission; surrounding bindings do not.
+    // Fields are writable local values until construction ends, even when the
+    // published field is final. Ordinary methods and final local variables do
+    // not inherit that permission. This also decides which loop Phis we need.
     public boolean canInit(Var v) {
-        for( int i=_kinds._len-1; i>0; i-- )
-            if( _kinds.at(i) instanceof Kind.Alloc )
+        for( int i=_kinds._len-1; i>=0; i-- ) {
+            Kind k=_kinds.at(i);
+            if( k instanceof Kind.Alloc )
                 return v._idx >= _kinds.at(i-1)._lexSize && v._idx < _kinds.at(i)._lexSize;
+            if( k instanceof Kind.Define ) return kind(v)==k;
+            if( k instanceof Kind.Func fun )
+                return fun._constructor && i>0 && _kinds.at(i-1) instanceof Kind.Define def && kind(v)==def;
+        }
         return false;
+    }
+
+    private boolean loopVar(Var v) {
+        return !v._final || (canInit(v) && !v.type().isHighOrConst());
     }
 
     public boolean inConstructor() { return _kinds.last() instanceof Kind.Define; }
@@ -294,7 +307,7 @@ public class ScopeNode extends Node {
 
         // Memory is one binding, with the same lazy loop Phi as scalar names.
         for( int i=1; i<nIns(); i++ )
-            dup.addDef(loop && !_vars.at(i)._final ? this : in(i));
+            dup.addDef(loop && loopVar(var(i)) ? this : in(i));
         return dup;
     }
 
@@ -356,7 +369,7 @@ public class ScopeNode extends Node {
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
         for( int i=1; i<nIns(); i++ ) {
-            if( _vars.at(i)._final ) continue; // Final vars did not get modified in the loop
+            if( !loopVar(var(i)) ) continue;
             if( _vars.at(i).type().isHighOrConst() ) continue; // Cannot lift higher than a constant, so no Phi
             if( back.in(i) != scope ) {
                 PhiNode phi = (PhiNode)in(i);

@@ -45,6 +45,10 @@ public class StoreNode extends MemOpNode {
     public Type compute() {
         if( _alias==1 ) return TypeMem.BOT;
         Type val = val()._type;
+        // Initializing Stores are emitted at helper exits for a fresh object.
+        // They replace this private field; Escape later joins it with public
+        // memory. Keep an unwritten BOTTOM visible to the completion check.
+        if( _init ) return TypeMem.make(_alias,val);
         assert !_declaredType.isFRef();
         Type t = val.join(_declaredType).meet(MemMergeNode.contents(mem(),_alias,this));
         return TypeMem.make(_alias,t);
@@ -72,6 +76,10 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
+        if( _init && mem() instanceof ProjNode p && p.in(0) instanceof NewNode &&
+            val()._type.isConstant() && MemMergeNode.contents(mem(),_alias,this)==val()._type )
+            return mem(); // calloc already supplied this legal default.
+
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
@@ -87,7 +95,9 @@ public class StoreNode extends MemOpNode {
         }
 
         // Value is automatically truncated by narrow store
-        if( val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
+        // Private summaries describe the converted field value, so retain
+        // its conversion here. Public memory only needs the declared bound.
+        if( !_init && val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
             int log = _declaredType.log_size();
             if( log<3 ) {       // And-mask vs narrow store
                 long mask = ((TypeInteger)and.in(2)._type).value();
@@ -100,7 +110,7 @@ public class StoreNode extends MemOpNode {
         }
 
         // Store will chop high order bits off; math to change those bits can be dropped.
-        if( val() instanceof SarNode shr &&
+        if( !_init && val() instanceof SarNode shr &&
             shr.in(1) instanceof ShlNode shl &&
             shr.in(2)._type.isConstant() &&
             shl.in(2)._type.isConstant() ) {
