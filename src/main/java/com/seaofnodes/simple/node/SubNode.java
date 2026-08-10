@@ -10,6 +10,7 @@ public class SubNode extends ArithNode {
     public SubNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public SubNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs,mode); }
 
+
     @Override public String op() { return "-"; }
 
     @Override long   doOp( long  x,  long  y ) { return x - y; }

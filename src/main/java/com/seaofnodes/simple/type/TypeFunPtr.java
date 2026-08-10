@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
-import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 
 /**
@@ -21,26 +19,25 @@ public class TypeFunPtr extends TypeNil {
     // A TypeFunPtr is Signature and a set of functions.
     public Type[] _sig;
     public Type _ret;
-    // TODO:
-    boolean _open;              // Extra args are true:BOTTOM, false:TOP
-    // Hidden initializers and allocators can exceed a machine word's worth
-    // of functions. Use the expandable sets from the later chapters, without
-    // adding their escape summaries or cross-file identity remapping.
+    boolean _open;              // Extra args are true:scalar BOT, false:scalar TOP
+    // Set of functions.  Bit zero is used for mutable/immutable safety.  Sign
+    // bit repeats infinitely.
     public int[] _fidxs;
 
     private static final Ary<TypeFunPtr> FREE = new Ary<>(TypeFunPtr.class);
-    private TypeFunPtr(byte nil, boolean open, Type[] sig, Type ret, int[] fidxs) { super(TFUNPTR,nil); init(nil,open,sig,ret,fidxs); }
+    private TypeFunPtr(byte nil) { super(TFUNPTR,nil); }
     private TypeFunPtr init(byte nil, boolean open, Type[] sig, Type ret, int[] fidxs ) {
         assert sig != null;
         _nil  = nil;
         _open = open;
         _sig  = sig;
         _ret  = ret;
+        assert _fidxs == null;
         _fidxs= XInt.intern(fidxs);
         return this;
     }
     static TypeFunPtr malloc( byte nil, boolean open, Type[] sig, Type ret, int[] fidxs ) {
-        return FREE.isEmpty() ? new TypeFunPtr(nil,open,sig,ret,fidxs) : FREE.pop().init(nil,open,sig,ret,fidxs);
+        return (FREE.isEmpty() ? new TypeFunPtr(nil) : FREE.pop()).init(nil,open,sig,ret,fidxs);
     }
     @Override TypeFunPtr free(Type t) {
         TypeFunPtr fun = (TypeFunPtr)t;
@@ -49,78 +46,106 @@ public class TypeFunPtr extends TypeNil {
         fun._ret = null;
         fun._dual = null;
         fun._hash = 0;
+        fun._fidxs = null;
         FREE.push(fun);
         return this;
     }
     @Override boolean isFree() { return _sig==null; }
 
     // All fields directly listed
-    public static TypeFunPtr make(byte nil, boolean open, Type[] sig, Type ret, long bits) {
-        int[] set=bits<0 ? XInt.FULL : XInt.EMPTY;
-        if( bits>=0 ) for( int bit=0; bit<63; bit++ )
-            if( (bits&(1L<<bit))!=0 ) set=XInt.make(set,bit);
-        return make(nil,open,sig,ret,set);
-    }
     public static TypeFunPtr make( byte nil, boolean open, Type[] sig, Type ret, int[] fidxs ) {
-        // Trim trailing args which match the implicit default.
-        Type def = open ? Type.BOTTOM : Type.TOP;
-        int nargs = sig.length;
-        while( nargs > 0 && sig[nargs-1] == def )
-            nargs--;
-        if( nargs != sig.length )
-            sig = nargs == 0 ? TEMPTY : Arrays.copyOf(sig,nargs);
         TypeFunPtr fun = malloc(nil,open,sig,ret,fidxs);
         TypeFunPtr f2  = fun.intern();
         if( f2==fun ) return fun;
         return VISIT.isEmpty() ? f2.free(fun) : f2.delayFree(fun);
     }
-    public static TypeFunPtr make( boolean nil, boolean open, Type[] sig, Type ret ) { return make((byte)(nil ? 3 : 2),open,sig,ret,-1); }
+    // Trim trailing args which match the default.
+    private static TypeFunPtr makeAdjusted( byte nil, boolean open, Type[] sig, Type ret, int[] fidxs ) {
+        Type def = open ? TypeScalar.BOT : TypeScalar.TOP;
+        int nargs = sig.length;
+        while( nargs > 0 && sig[nargs-1] == def )
+            nargs--;
+        if( nargs != sig.length )
+            sig = nargs == 0 ? ARG_EMPTY : Arrays.copyOf(sig,nargs);
+        return make(nil,open,sig,ret,fidxs);
+    }
+    public static TypeFunPtr make( boolean nil, Type[] sig, Type ret ) { return makeAdjusted((byte)(nil ? 3 : 2),true,sig,ret, XInt.FULL); }
+    public static TypeFunPtr make1( byte nil, boolean open, Type[] sig, Type ret, int fidx ) {
+        return makeAdjusted(nil,open,sig,ret,XInt.make(fidx));
+    }
 
 
     @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil ? this : make(  nil,_open,_sig,_ret, _fidxs); }
     public    TypeFunPtr makeFrom( Type ret ) { return  ret ==_ret ? this : make( _nil,_open,_sig, ret, _fidxs); }
-    public    TypeFunPtr makeFrom( int fidx ) { return make((byte)2, _open, _sig,_ret,XInt.make(fidx) ); }
-
+    public    TypeFunPtr makeFrom( int fidx ) { return make1(_nil,_open,_sig,_ret,fidx); }
+    public    TypeFunPtr makeFrom( Type arg, int idx ) {
+        // Alter named arg
+        Type[] sig = _sig.clone();
+        sig[idx] = arg;
+        return make(_nil,_open,sig,_ret,_fidxs);
+    }
+    @Override public Type nonZero() { return makeFrom((byte)(_nil <= 1 ? 1 : 2)); }
 
     public static final Type[] TEMPTY = new Type[0];
     static final Type[] TINT    = new Type[]{TypeInteger.BOT};
     static final Type[] TINTMEM = new Type[]{TypeInteger.BOT,TypeFloat.F32};
     static final Type[] TINTINT = new Type[]{TypeInteger.BOT,TypeInteger.BOT};
-    public static TypeFunPtr BOT   = make((byte)3,true ,TEMPTY,Type.BOTTOM,-1);
-    public static TypeFunPtr TEST  = make((byte)2,false,TINTMEM,TypeInteger.BOT, 1);
-    public static TypeFunPtr TEST0 = make((byte)3,false,TINTMEM,TypeInteger.BOT, 3);
-    public static TypeFunPtr MAIN  = make((byte)3,false,TINT   ,Type.BOTTOM,-1); // Main can return anything
-    public static TypeFunPtr CALLOC= make((byte)3,false,TINTINT,TypeMemPtr .BOT,-1);
+    public static TypeFunPtr BOT   = make((byte)3,true,TEMPTY,Type.BOTTOM, XInt.FULL);
+    public static TypeFunPtr TEST  = make((byte)2,true,TINTMEM,TypeInteger.BOT, XInt.SET1);
+    public static TypeFunPtr TEST0 = make((byte)3,true,TINTMEM,TypeInteger.BOT, XInt.SET3);
+    public static TypeFunPtr MAIN  = make((byte)3,true,TINT   ,Type.BOTTOM, XInt.FULL); // Main can return anything
+    public static TypeFunPtr CALLOC= make((byte)3,true,TINTINT,TypeMemPtr .BOT, XInt.FULL);
     public static void gather(ArrayList<Type> ts) {
-        ts.add(TEST); ts.add(TEST0); ts.add(BOT); ts.add(MAIN); ts.add(CALLOC);
+        ts.add(TEST);
+        ts.add(TEST0);
+        ts.add(BOT);
+        ts.add(MAIN);
+        ts.add(CALLOC);
+        ts.add(make((byte)2,false,TINT,TypeInteger.I32, XInt.SET1));
+        ts.add(make((byte)2,true ,TINT,TypeInteger.BOT, XInt.SET3));
+        ts.add(make1((byte)2,true,
+                     new Type[]{TypeInteger.BOT},
+                     TypeInteger.BOT, 65));
+        ts.add(make1((byte)2,true,
+                     new Type[]{TypeInteger.BOT, TypeScalar.BOT},
+                     TypeInteger.BOT, 65));
         // Explicit trailing defaults must agree with the implicit argument tail.
         for( boolean open : new boolean[]{false,true} ) {
-            Type def = open ? Type.BOTTOM : Type.TOP;
-            ts.add(make((byte)2,open,TINT,TypeInteger.I32,1));
-            ts.add(make((byte)2,open,new Type[]{TypeInteger.BOT,def,def},TypeInteger.I32,1));
-            ts.add(make((byte)2,open,new Type[]{def,def},TypeInteger.I32,1));
-            ts.add(make((byte)2,open,new Type[]{def,TypeInteger.BOT},TypeInteger.I32,1));
+            Type def = open ? TypeScalar.BOT : TypeScalar.TOP;
+            ts.add(make1((byte)2,open,TINT,TypeInteger.I32,1));
+            ts.add(make1((byte)2,open,new Type[]{TypeInteger.BOT,def,def},TypeInteger.I32,1));
+            ts.add(make1((byte)2,open,new Type[]{def,def},TypeInteger.I32,1));
+            ts.add(make1((byte)2,open,new Type[]{def,TypeInteger.BOT},TypeInteger.I32,1));
         }
     }
 
+    private static final Type[] ARG_EMPTY = new Type[0];
     @Override
     Type xmeet(Type t) {
         TypeFunPtr that = (TypeFunPtr) t;
-        // if equal, no matters.
-        // if short is BOT, chop     ; recurPre on short.
-        // if short is TOP, copy long; recurPre on long.
-        TypeFunPtr min = _sig.length < that._sig.length ? this : that;
-        if( _sig.length != that._sig.length && (min._open ^ min==this) )
-            return that.xmeet(this);
-        // Recurse all common fields
-        Type[] args = new Type[_sig.length];
-        for( int i=0; i<min._sig.length; i++ )
-            args[i] = _sig[i].meet(that._sig[i]);
-        // Handle extra args
-        for( int i=min._sig.length; i<_sig.length; i++ )
-            args[i] = _sig[i];
-        return make(xmeet0(that),_open | that._open, args, _ret.meet(that._ret), XInt.meet(_fidxs,that._fidxs));
+        boolean open = _open | that._open;
+        Type def0 = this._open ? TypeScalar.BOT : TypeScalar.TOP;
+        Type def1 = that._open ? TypeScalar.BOT : TypeScalar.TOP;
+        Type def  =       open ? TypeScalar.BOT : TypeScalar.TOP;
+
+        int nargs = Math.max(_sig.length,that._sig.length);
+        Type[] args = new Type[nargs];
+
+        for( int i=0; i<nargs; i++ ) {
+            Type t0 = i < this._sig.length ? this._sig[i] : def0;
+            Type t1 = i < that._sig.length ? that._sig[i] : def1;
+            args[i] = t0.meet(t1);
+        }
+
+        while( nargs>0 && args[nargs-1] == def )
+            nargs--;
+
+        if( nargs != args.length )
+            args = nargs == 0 ? ARG_EMPTY : Arrays.copyOf(args,nargs);
+
+        return make(xmeet0(that), open, args, _ret.meet(that._ret), XInt.meet(_fidxs,that._fidxs));
     }
+
     static Type[] xmeet( Type[] ts0, Type[] ts1) {
         if( ts0==ts1 ) return ts0;
         assert ts0.length==ts1.length;
@@ -142,7 +167,7 @@ public class TypeFunPtr extends TypeNil {
         if( _dual!=null ) return dual();
         assert !_terned;
         Type[] sigs = new Type[_sig.length];
-        TypeFunPtr d = malloc(dual0(),!_open,sigs,null,XInt.dual(_fidxs));
+        TypeFunPtr d = malloc(dual0(),!_open,sigs,null, XInt.dual(_fidxs));
         (_dual = d)._dual = this; // Cross link duals
         // Return rdual
         d._ret = _ret._terned ? _ret.dual() : _ret.rdual();
@@ -152,24 +177,39 @@ public class TypeFunPtr extends TypeNil {
         return d;
     }
 
-    // RHS is NIL; do not deep-dual when crossing the centerline
-    @Override public Type meet0() { return _nil==3 ? this : make((byte)3,_open,_sig,_ret,_fidxs); }
+    // RHS is NIL; deep-dual when crossing the centerline
+    @Override public Type meet0() {
+        if( _nil==3 ) return this;
+        if( _nil==2 ) return make((byte)3,_open,_sig,_ret,_fidxs);
 
-    @Override public boolean isHigh() { return _nil <= 1 || (_nil==2 && _fidxs==XInt.EMPTY); }
+        return make((byte)3,_open,_sig,_ret,_fidxs);
+    }
 
-    @Override public boolean _isConstant() { return (_nil==2 && XInt.isConstant(_fidxs)) || (_nil==3 && _fidxs==XInt.EMPTY); }
+    @Override public boolean isHigh() { return _nil <= 1 || (_nil==2 && _fidxs== XInt.EMPTY); }
+
+    @Override public boolean _isConstant() { return (_nil==2 && XInt.isConstant(_fidxs)) || (_nil==3 && _fidxs== XInt.EMPTY); }
 
     @Override boolean _isFinal() { return true; }
-    @Override boolean _isGLB(boolean mem) { return true; }
-    @Override TypeFunPtr _glb(boolean mem) { return this; }
-    @Override TypeFunPtr _close(java.util.HashMap<String,Type> types) {
-        Type[] sig = new Type[_sig.length];
-        TypeFunPtr fun = malloc(_nil,false,sig,null,_fidxs);
-        // Now start the recursion
-        fun._ret = _ret._close(types);
-        for( int i=0; i<sig.length; i++ )
-            sig[i] = _sig[i]._close(types);
+    @Override TypeFunPtr _makeStorage() { return this; }
 
+    @Override TypeFunPtr _close( String name, HashMap<String, Type> TYPES ) {
+        Type[] sig = new Type[_sig.length];
+        TypeFunPtr fun = malloc(_nil,true,sig,null,_fidxs);
+        // Now start the recursion
+        fun._ret = _ret._close(name, TYPES );
+        for( int i=0; i<sig.length; i++ )
+            sig[i] = _sig[i]._close(name, TYPES );
+        return fun;
+    }
+
+    // Replace recursively all TypeBuilders with cyclic TypeStructs
+    @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        Type[] sig = new Type[_sig.length];
+        TypeFunPtr fun = malloc(_nil,_open,sig,null,_fidxs);
+        // Now start the recursion
+        fun._ret = _ret._upgradeType(TYPES);
+        for( int i=0; i<sig.length; i++ )
+            sig[i] = _sig[i]._upgradeType(TYPES);
         return fun;
     }
 
@@ -179,7 +219,7 @@ public class TypeFunPtr extends TypeNil {
     public int[] fidxs() { return _fidxs; }
     public Type ret() { return _ret; }
     public int nargs() { return _sig.length; }
-    public int fidx() { assert XInt.isConstant(_fidxs); return XInt.onlyBit(_fidxs); }
+    public int fidx() { return XInt.onlyBit(_fidxs); }
     public int nfcns() {
         if( XInt.isHigh(_fidxs) ) return Integer.MAX_VALUE; // Infinite choices
         return XInt.bitCount(_fidxs);
@@ -187,14 +227,15 @@ public class TypeFunPtr extends TypeNil {
 
 
     // Used to walk over type structures
-    @Override int nkids() { return _sig.length+1; }
-    @Override Type at( int idx ) {
+    @Override public int nkids() { return _sig.length+1; }
+    @Override public Type at( int idx ) {
         return idx == _sig.length ? _ret : _sig[idx];
     }
-    @Override void set( int idx, Type t ) {
+    @Override public void set( int idx, Type t ) {
         if( idx == _sig.length ) _ret = t;
         else _sig[idx] = t;
     }
+
 
     @Override
     int hash() {
@@ -247,36 +288,26 @@ public class TypeFunPtr extends TypeNil {
         return "{"+printFIDX()+"}";
     }
 
+    @Override
     SB _print(SB sb, BitSet visit, boolean html ) {
         if( this==BOT ) return sb.p("FunBot");
         if( this==BOT.dual() ) return sb.p("FunTop");
         sb.p(x()).p("{ ");
         if( _sig!=null )
             for( Type t : _sig )
-                sb.p(t.str()).p(" "); // Short form in signature
+                sb.p(t==null ? "---" : t.str()).p(" "); // Short form in signature
+        if( !_open ) sb.p("^ ");
         _ret.print(sb.p(html ? "&rarr; " : "-> "),visit,html).p(" #");
         // Print fidxs
         return sb.p(printFIDX()).p("}").p(q());
     }
     String printFIDX() {
         String tilde = isHigh() ? "~" : "";
-        int[] fidxs = isHigh() ? XInt.dual(_fidxs) : _fidxs;
-        String fidx = fidxs==XInt.EMPTY ? "" : XInt.isConstant(fidxs) ? ""+XInt.onlyBit(fidxs)
-            : fidxs==XInt.FULL ? "ALL" : XInt.str(fidxs);
+        String fidx = XInt.str(_fidxs);
         return tilde+fidx;
     }
 
+    // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) ) { int fidx = Long.numberOfTrailingZeros(fidxs); ... }
+    //public static long nextFIDX(long fidxs) { return fidxs & (fidxs-1); }
 
-
-
-    @Override Type _upgradeType(java.util.HashMap<String,Type> types) {
-        TypeFunPtr old = (TypeFunPtr)VISIT.get(_uid);
-        if( old!=null ) return old;
-        Type[] sig = new Type[_sig.length];
-        TypeFunPtr fun = malloc(_nil,_open,sig,null,_fidxs);
-        VISIT.put(_uid,fun);
-        fun._ret = _ret._upgradeType(types);
-        for( int i=0; i<sig.length; i++ ) sig[i] = _sig[i]._upgradeType(types);
-        return fun;
-    }
 }

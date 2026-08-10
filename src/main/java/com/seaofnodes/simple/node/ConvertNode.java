@@ -77,7 +77,13 @@ public class ConvertNode extends Node {
         return null;
     }
 
-
+    @Override boolean _upgradeType(HashMap<String,Type> TYPES) {
+        Type dst = _dst.upgradeType(TYPES);
+        if( dst==_dst ) return false;
+        unlock();
+        _dst = dst;
+        return true;
+    }
 
     @Override public Parser.ParseException err() {
         if( val()._type==Type.BOTTOM ||
@@ -92,12 +98,4 @@ public class ConvertNode extends Node {
 
     @Override public boolean eq(Node n) { return _dst==((ConvertNode)n)._dst; }
     @Override int hash() { return _dst.hashCode(); }
-
-    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
-        Type next = _dst.upgradeType(types);
-        if( next==_dst ) return false;
-        unlock();
-        _dst=next;
-        return true;
-    }
 }

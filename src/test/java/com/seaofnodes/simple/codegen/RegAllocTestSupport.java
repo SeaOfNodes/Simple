@@ -22,11 +22,6 @@ public class RegAllocTestSupport {
         @Override public Node copy() { return new Op(_def,_use,_kill,_clone,(Node)null); }
         @Override public void encoding(Encoding enc) { throw new AssertionError(); }
     }
-    private static SplitNode testSplit(CodeGen code, MachNode def) {
-        LRG lrg = new LRG((short)0);
-        lrg._machDef = def;
-        return code._mach.split("test",(byte)0,lrg);
-    }
     private static CodeGen graph() {
         CodeGen code = new CodeGen("");
         code._mach = new x86_64_v2(code);
@@ -34,12 +29,18 @@ public class RegAllocTestSupport {
         return code;
     }
 
+    private static SplitNode testSplit(CodeGen code, MachNode def) {
+        LRG lrg = new LRG((short)0,null);
+        lrg._machDef = def;
+        return code._mach.split(lrg,"test",(byte)0);
+    }
+
     public static void uncoloredFixedNeighbor() throws Exception {
         CodeGen code = graph();
         RegAlloc alloc = new RegAlloc(code);
         Op def = new Op(new RegMask(3L),null,null,false,code._start);
-        LRG lrg = alloc.newLRG(def);
-        LRG neighbor = new LRG((short)99);
+        LRG lrg = alloc.newLRG(def,null);
+        LRG neighbor = new LRG((short)99,null);
         neighbor._mask = A;
         lrg.addNeighbor(neighbor); // Uncolored, but its only possible color is A.
         var bias = IFG.class.getDeclaredMethod("biasColorNeighbors",RegAlloc.class,Node.class,RegMask.class);
@@ -64,7 +65,7 @@ public class RegAllocTestSupport {
     public static void union() {
         CodeGen code = graph();
         Op use = new Op(null,B,null,false,code._start);
-        LRG a = new LRG((short)1), b = new LRG((short)2);
+        LRG a = new LRG((short)1,null), b = new LRG((short)2,null);
         a._mask = new RegMask(3L);
         b._mask = new RegMask(6L);
         b.machUse(use,(short)2,true);
@@ -136,7 +137,7 @@ public class RegAllocTestSupport {
             RegAlloc alloc = new RegAlloc(code);
             RegionNode block = new RegionNode(null,code._start,code._start);
             Op def = new Op(new RegMask(7L),null,null,false,block);
-            LRG lrg = alloc.newLRG(def);
+            LRG lrg = alloc.newLRG(def,null);
             lrg._machDef = def;
             lrg._mask = new RegMask(0L);
             Op ab = new Op(null,new RegMask(3L),null,false,block,def);
@@ -168,10 +169,14 @@ public class RegAllocTestSupport {
     // Check the scheduled graph before encoding adds untyped branches or rewrites tail calls.
     public static class CheckedCodeGen extends CodeGen {
         public CheckedCodeGen(String src) { super(src); }
-        public CheckedCodeGen(String src, TypeInteger arg) { super(src,arg); }
+        public CheckedCodeGen(String modDir, String buildDir,
+                              String srcName, String src, long seed, boolean reset, TypeInteger arg) {
+            super(modDir,buildDir,srcName,src,seed,reset,arg);
+        }
         @Override public CodeGen regAlloc() {
             super.regAlloc();
             checkRegisters(this);
+            com.seaofnodes.simple.SpillStats.record25(this);
             return this;
         }
     }
@@ -225,14 +230,14 @@ public class RegAllocTestSupport {
             CodeGen code = graph();
             RegAlloc alloc = new RegAlloc(code);
             Op def = new Op(A,null,null,false,code._start);
-            alloc.newLRG(def)._reg=0;
+            alloc.newLRG(def,null)._reg=0;
             SplitNode hi = testSplit(code,def);
             hi.setDef(0,code._start); hi.setDef(1,def);
-            alloc.newLRG(hi)._reg=1;
+            alloc.newLRG(hi,null)._reg=1;
             new Op(null,null,killed ? A : null,false,code._start);
             SplitNode lo = testSplit(code,hi);
             lo.setDef(0,code._start); lo.setDef(1,hi);
-            alloc.newLRG(lo)._reg=0;
+            alloc.newLRG(lo,null)._reg=0;
             Op use = new Op(null,A,null,false,code._start,lo);
             var post = RegAlloc.class.getDeclaredMethod("postColor");
             post.setAccessible(true); post.invoke(alloc);
@@ -241,9 +246,9 @@ public class RegAllocTestSupport {
         CodeGen pre = graph();
         RegAlloc uncolored = new RegAlloc(pre);
         Op def0 = new Op(A,null,null,false,pre._start);
-        uncolored.newLRG(def0)._mask=A;
+        uncolored.newLRG(def0,null)._mask=A;
         Op fixed = new Op(A,null,null,false,pre._start);
-        uncolored.newLRG(fixed)._mask=A;
+        uncolored.newLRG(fixed,null)._mask=A;
         SplitNode copy = testSplit(pre,def0);
         copy.setDef(0,pre._start); copy.setDef(1,def0);
         assertFalse("A fixed definition clobbers even before coloring",uncolored.sameBlockNoClobber(copy));
@@ -254,13 +259,14 @@ public class RegAllocTestSupport {
             CodeGen code = graph();
             RegAlloc alloc = new RegAlloc(code);
             Op init = new Op(A,null,null,false,code._start);
-            LoopNode loop = new LoopNode(null,code._start);
+            LoopNode loop = new LoopNode(null,null,code._start);
             PhiNode phi = new PhiNode("loop",loop,init,null);
+            phi._type = TypeInteger.BOT;
             Op back = new Op(A,A,null,false,loop,phi);
             phi.setDef(2,back);
             Op use = new Op(null,A,null,false,loop,phi);
             loop.setDef(2,loop);
-            LRG lrg = alloc.newLRG(phi);
+            LRG lrg = alloc.newLRG(phi,null);
             lrg._mask = A;
             alloc.union(lrg,init); alloc.union(lrg,back);
             lrg.selfConflict(back);
@@ -283,10 +289,10 @@ public class RegAllocTestSupport {
             CodeGen code = graph();
             RegAlloc alloc = new RegAlloc(code);
             Op def = new Op(A,null,null,false,code._start);
-            alloc.newLRG(def)._reg=0;
+            alloc.newLRG(def,null)._reg=0;
             SplitNode copy = testSplit(code,def);
             copy.setDef(0,code._start); copy.setDef(1,def);
-            alloc.newLRG(copy)._reg=1;
+            alloc.newLRG(copy,null)._reg=1;
             if( kind==3 ) new Op(null,null,A,false,code._start);
             int twoAddress = kind==2 ? 1 : 0;
             RegMask mask = kind==1 ? B : kind==5 ? null : new RegMask(3L);
@@ -310,12 +316,12 @@ public class RegAllocTestSupport {
             SplitNode copy = testSplit(code,def);
             copy.setDef(0,code._start); copy.setDef(1,def);
             Op use = new Op(null,new RegMask(3L),null,false,code._start,copy);
-            LRG from = alloc.newLRG(def), to = alloc.newLRG(copy);
+            LRG from = alloc.newLRG(def,null), to = alloc.newLRG(copy,null);
             from._mask = kind==1 ? A : new RegMask(3L);
             to._mask = kind==1 ? B : new RegMask(3L);
             from.machDef(def,false); from.machUse(copy,(short)1,false);
             to.machDef(copy,false); to.machUse(use,(short)1,false);
-            LRG left = new LRG((short)100), right = new LRG((short)101);
+            LRG left = new LRG((short)100,null), right = new LRG((short)101,null);
             if( kind==2 ) { from.addNeighbor(to); to.addNeighbor(from); }
             if( kind>=3 ) {
                 from.addNeighbor(left); left.addNeighbor(from);

@@ -18,6 +18,7 @@ public class PtrToIntNode extends Node {
     public PtrToIntNode(Node ptr) { super(null,ptr); }
     public PtrToIntNode(PtrToIntNode ptr) { super(ptr); }
 
+
     @Override protected String format() { return "(i64*)%1"; }
 
     @Override public Type compute() {

@@ -2,13 +2,14 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeTuple;
-import com.seaofnodes.simple.util.Utils;
 
-public class CProjNode extends CFGNode {
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+
+public class CProjNode extends CFGNode implements Proj {
 
     // Which slice of the incoming multipart value
     public int _idx;
@@ -22,6 +23,7 @@ public class CProjNode extends CFGNode {
         _label = label;
     }
     public CProjNode(CProjNode c) { super(c); _idx = c._idx; _label = c._label; }
+
 
     @Override public String label() { return _label; }
 
@@ -41,17 +43,17 @@ public class CProjNode extends CFGNode {
     public Node idealize() {
         if( ctrl()._type instanceof TypeTuple tt ) {
             if( tt._types[_idx]==Type.XCONTROL )
-                return Parser.XCTRL; // We are dead
+                return CodeGen.CODE.XCTRL; // We are dead
             if( ctrl() instanceof IfNode && tt._types[1-_idx]==Type.XCONTROL ) // Only true for IfNodes
                 return ctrl().in(0);               // We become our input control
         }
 
         // Flip a negating if-test, to remove the not
-        if( ctrl() instanceof IfNode iff && addDep(iff.pred()) instanceof NotNode not )
+        if( ctrl() instanceof IfNode iff && iff.pred() != null && addDep(iff.pred()) instanceof NotNode not )
             return new CProjNode(new IfNode(iff.ctrl(),not.in(1)).peephole(),1-_idx,_idx==0 ? "False" : "True");
 
         // Copy of some other input
-        return ((MultiNode)ctrl()).pcopy(_idx);
+        return ((MultiNode)ctrl()).pcopy(_idx,this);
     }
 
     // Only called during basic-block layout, inverts a T/F CProj
@@ -65,5 +67,7 @@ public class CProjNode extends CFGNode {
 
     @Override
     int hash() { return _idx; }
+
+    @Override public int idx() { return _idx; }
 
 }

@@ -20,8 +20,8 @@ public class CmpMemX86 extends MemOpX86 {
         short ptr=enc.reg(ptr()), idx=enc.reg(idx()), src=enc.reg(val());
         if( src==-1 ) {
             assert !_swap;
-            X86.cmpImm(enc,_declaredType.log_size(),_imm,ptr,idx,_off,_scale);
-        } else encVal(enc,_declaredType,ptr,idx,src,_off,_scale,_swap);
+            X86.cmpImm(enc,_con.log_size(),_imm,ptr,idx,_off,_scale);
+        } else encVal(enc,_con,ptr,idx,src,_off,_scale,_swap);
     }
 
     static void encVal(Encoding enc, Type decl, short ptr, short idx, short src, int off, int scale, boolean _swap) {

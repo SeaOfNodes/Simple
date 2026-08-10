@@ -3,24 +3,30 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class PhiNode extends Node {
 
     public final String _label;
 
-    int lattice_drop;
-
-    public PhiNode(String label, Node... inputs) {
+    public PhiNode( String label, Node... inputs) {
         super(inputs);
         _label = label;
     }
+    public static PhiNode make(String label, Type minType, Node... inputs) {
+        return minType instanceof TypeMem mem
+            ? mem._alias==1
+                ? new BulkMemPhiNode(label,inputs)
+                : new MemPhiNode(label,mem._alias,inputs)
+            : new PhiNode(label, inputs);
+    }
     // Used by ParmNode
-    public PhiNode(PhiNode phi, String label, Type type) { super(phi); _label = label; _type = type; }
+    public PhiNode(PhiNode phi, String label) { super(phi); _label = label; }
     // Used by instruction Selection
-    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._type );  }
+    public PhiNode(PhiNode phi) { this(phi,phi._label);  }
     // Used by the infinite-loop exit breaker
     public PhiNode(RegionNode r, Node sample) {
         super(new Node[]{r});
@@ -30,9 +36,6 @@ public class PhiNode extends Node {
             addDef(sample);
     }
 
-    public static PhiNode make(String label, Type type, Node... inputs) {
-        return type instanceof TypeMem ? new BulkMemPhiNode(label,inputs) : new PhiNode(label,inputs);
-    }
 
     @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 
@@ -47,20 +50,17 @@ public class PhiNode extends Node {
 
     public CFGNode region() { return (CFGNode)in(0); }
     @Override public boolean isMem() { return _type instanceof TypeMem; }
-    boolean isRPC() { return false; }
 
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+            return Type.TOP;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() || in(nIns()-1)==null )
-            // The backedge has not been parsed. Declarations belong on
-            // Convert/Parm nodes; an unfinished value Phi knows no bound.
             return Type.BOTTOM;
         // Set type to local top of the starting type
         Type t = Type.TOP;
-        for (int i = 1; i < nIns(); i++) {
+        for( int i = 1; i < nIns(); i++ ) {
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
             Type ctrl = addDep(r.in(i))._type;
@@ -70,7 +70,6 @@ public class PhiNode extends Node {
                 t = t.meet(in(i)._type);
             }
         }
-        Type newt = t;
 
         // Widen loop Phis so integer ranges cannot grow one step per trip forever.
         // Recursion is a loop in disguise: ParmNode.compute widens arguments,
@@ -78,98 +77,75 @@ public class PhiNode extends Node {
         // recursive result can feed itself without passing through a Parm.
         // Above-center ranges may still fall to unwidened constants.
         // Widen only below-center ranges to preserve monotonicity.
-        if( region() instanceof LoopNode && // Only around loops
-            newt  instanceof TypeInteger newi &&
-            // Types changed and are falling (the optimistic case, expected to fall forever)
-            newi != _type ) {
-            if( !newi.isHigh() && !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
-                return newi.same_but_slightly_wider_than(TypeInteger.BOT);
+        if( r instanceof LoopNode && // Only around loops
+            t instanceof TypeInteger ti && // Only widen integers
+            !ti.isHigh() && !ti.isConstant() ) {  // Only widen live ranges
+            // Widen, to prevent infinite falling of TypeIntegers
+            return ti.same_but_slightly_wider_than();
         }
 
-        return newt;
+        return t;
     }
 
     @Override
     public Node idealize() {
-        if( !(region() instanceof RegionNode r ) )
-            return in(1);       // Input has collapse to e.g. starting control.
-        if( r.inProgress() || inProgress() || r.nIns()<=1 )
+        RegionNode r = (RegionNode)region();
+        if( r.inProgress() || nOuts()==0 )
             return null;        // Input is in-progress
 
         // If we have only a single unique input, become it.
         Node live = singleUniqueInput();
-        if( live != null ) return live;
+        if( live != null )
+            return live;
 
         // No bother if region is going to fold dead paths soon
         for( int i=1; i<nIns(); i++ )
             if( r.in(i)._type == Type.XCONTROL )
                 return null;
 
-        // Phi(op(a,b,...),op(c,d,...)) -> op(Phi(a,c),Phi(b,d),...).
-        Node down;
-        if( same_op() && (down=drop_same_op())!=null ) return down;
+        // Generic "pull down op"
+        Node progress;
+        if( same_op() && (progress = drop_same_op()) != null )
+            return progress;
 
-        if( nIns()==3 ) {
-            Node merge = matchingGuardMerge(r,1);
-            if( merge!=null ) return merge;
-            merge = matchingGuardMerge(r,2);
-            if( merge!=null ) return merge;
-        }
-
-        // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
-        if( nIns()==3 ) {
-            if( in(1) instanceof CastNode cast && addDep(cast.in(1))==in(2) ) return in(2);
-            if( in(2) instanceof CastNode cast && addDep(cast.in(1))==in(1) ) return in(1);
-        }
-        // If merging a null-checked null and the checked value, just use the value.
-        // if( val ) ..; phi(Region,False=0/null,True=val);
-        // then replace with plain val.
-        if( nIns()==3 ) {
-            int nullx = -1;
-            if( in(1)._type == in(1)._type.makeZero() ) nullx = 1;
-            if( in(2)._type == in(2)._type.makeZero() ) nullx = 2;
-            if( nullx != -1 ) {
-                Node val = in(3-nullx);
-                if( val instanceof CastNode cast )
-                    val = cast.in(1);
-                Node ridom = r.idom(this);
-                if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {
-                    // Must walk the idom on the null side to make sure we hit False.
-                    CFGNode idom = (CFGNode)r.in(nullx);
-                    while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
-                    if( idom instanceof CProjNode proj && proj._idx==1 )
-                        return val;
-                } else if( ridom != null ) addDep(ridom);
-            }
-        }
+        // If merging Phi(ZERO, guardNZ(N)) at the matching `if(N)` join, the
+        // Phi is exactly N.  The guard arm proves N is non-zero, and the other
+        // arm contributes N's zero value.  This is only legal if N is already
+        // available at the Phi region; otherwise a return-scope/live-on-exit
+        // Phi can lose the zero arm and export a branch-local value upward.
+        Node unguard;
+        if( (unguard=matchingGuardMerge(r,1)) != null ) return unguard;
+        if( (unguard=matchingGuardMerge(r,2)) != null ) return unguard;
 
         return null;
     }
 
     private Node matchingGuardMerge(RegionNode r, int nzIdx) {
         Node zero = in(3-nzIdx);
-        if( !(in(nzIdx) instanceof GuardNode guard && guard._nonZero) ||
-            zero==null || zero._type.makeZero()!=zero._type || guard.in(1)==this )
+        if( !(in(nzIdx) instanceof GuardNode cast && cast._nonZero) ||
+            zero._type.makeZero()!=zero._type ||
+            cast.in(1)==this )
             return null;
         if( !(r.in(nzIdx) instanceof CProjNode nz && nz._idx==0 && nz.ctrl() instanceof IfNode iff) )
             return null;
         if( !(r.in(3-nzIdx) instanceof CProjNode z && z._idx==1 && z.ctrl()==iff) )
             return null;
-        Node n=guard.in(1), tested=null;
+        // Predicate was guarded?
+        Node n = cast.in(1), tested = null;
         while( true ) {
-            if( iff.pred()==n ) tested=n;
-            if( !(n instanceof GuardNode g && g._nonZero) ) break;
-            n=g.in(1);
+            if( iff.pred()==n ) tested = n;
+            if( !(n instanceof GuardNode guard && guard._nonZero) ) break;
+            n = guard.in(1);
         }
-        // The source must exist before the join, not just on its guarded arm.
-        return tested!=null && ScopeNode.availableAt(n,r,new java.util.BitSet()) ? n : null;
+        CFGNode early = CFGNode.earlyCFG(n);
+        return tested!=null && (early==null || early.dominates(r,this)) ? n : null;
     }
 
     // Same op on all Phi paths; all ops have only the Phi as a use.
     // None have a control input.
     private boolean same_op() {
         Node op = in(1);
-        if( op instanceof CFGNode || op instanceof ConstantNode || op instanceof PhiNode ||
+        if( op instanceof EscapeNode || op instanceof CFGNode || op instanceof ConstantNode || op instanceof PhiNode ||
             op instanceof ProjNode || op instanceof NewNode || op instanceof ScopeNode || op instanceof MemMergeNode ) return false;
         // A bulk Phi must split its aliases before factoring precise Stores.
         if( this instanceof BulkMemPhiNode ) return false;
@@ -221,7 +197,7 @@ public class PhiNode extends Node {
                     ins[i] = in(i).in(j);
                     t = t.meet(ins[i]._type);
                 }
-                // Not accepts both pointers and integers, but a Phi cannot mix them.
+                // Do not introduce an operand Phi mixing incompatible type families.
                 if( t==Type.BOTTOM ) {
                     for( int i=1; i<ins.length; i++ ) addDep(ins[i]);
                     cp.kill();
@@ -229,7 +205,7 @@ public class PhiNode extends Node {
                 }
                 PhiNode phi = j==1 && op instanceof MemOpNode mem
                     ? new MemPhiNode(_label,mem._alias,ins)
-                    : PhiNode.make(_label,t.glb(false),ins);
+                    : PhiNode.make(_label,t,ins);
                 x = phi.peephole();
             }
             cp.addDef(x);
@@ -276,31 +252,24 @@ public class PhiNode extends Node {
     }
 
     // Never equal if inProgress.
-    // Also, joins
-    @Override public boolean eq(Node n) { return !inProgress(); }
+    @Override public boolean eq( Node n ) {
+        return !inProgress() && super.eq(n);
+    }
 
     @Override
     public Parser.ParseException err() {
-        if( inProgress() ) return null;
-        // A scalar union is useful for truth tests, e.g. !(ptr || integer).
-        // A typed consumer reports an invalid use of that union itself.
         if( _type != Type.BOTTOM ) return null;
 
-        // BOTTOM means we mixed e.g. int and ptr
+        // Global BOTTOM retains the same role for non-scalar families.
         for( int i=1; i<nIns(); i++ )
             // Already an error, but better error messages come from elsewhere
             if( in(i)._type == Type.BOTTOM )
                 return null;
 
-        // Gather a minimal set of types that "cover" all the rest
-        boolean ti=false, tf=false, tp=false, tn=false;
-        for( int i=1; i<nIns(); i++ ) {
-            Type t = in(i)._type;
-            ti |= t instanceof TypeInteger x;
-            tf |= t instanceof TypeFloat   x;
-            tp |= t instanceof TypeMemPtr  x;
-            tn |= t==Type.NIL;
-        }
-        return ReturnNode.mixerr(ti,tf,tp,tn, ((RegionNode)region())._loc);
+        SB sb = new SB().p("No common type amongst ");
+        for( int i=1; i<nIns(); i++ )
+            sb.p(in(i)._type.toString()).p(" and ");
+        return Parser.error(sb.unchar(5).toString(),null);
     }
+
 }

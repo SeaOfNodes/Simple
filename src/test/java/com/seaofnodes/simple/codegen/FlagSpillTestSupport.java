@@ -26,7 +26,7 @@ public class FlagSpillTestSupport {
         @Override public void encoding(Encoding enc) { throw new AssertionError(); }
     }
 
-    public static void run() throws Exception {
+    public static void run() throws IOException {
         StringBuilder asm = new StringBuilder(".text\n");
         for( boolean isArm : new boolean[]{false,true} )
             for( boolean stack : new boolean[]{false,true} ) {
@@ -59,10 +59,12 @@ public class FlagSpillTestSupport {
                 assertTrue(splits>=2);
                 assertEquals(stack,slots!=0);
 
-                code._regAlloc=alloc;
-                FunNode frame = new FunNode(null,null,"flags",(Node)null);
+                // Keep the allocated registers, supplying a frame for encoding stack offsets.
+                FunNode frame = new FunNode(null,null,"flags",null,(Node)null);
+                code._regAlloc=new RegAlloc(code);
+                for( Node n : block._outputs )
+                    if( alloc.regnum(n)>=0 ) code._regAlloc.newLRG(n,frame)._reg=alloc.regnum(n);
                 Encoding save = new Encoding(code), restore = new Encoding(code);
-                save._fun=restore._fun=frame;
                 Encoding enc = save;
                 for( Node n : block._outputs ) {
                     if( n==kill ) enc=restore;
@@ -124,15 +126,9 @@ public class FlagSpillTestSupport {
             }
             """);
         String exe=dir.resolve(TestC.OS.startsWith("Windows") ? "flags.exe" : "flags").toString();
-        exec("gcc","-DCALL_CONV="+(TestC.OS.startsWith("Windows") ? "ms_abi" : "sysv_abi"),
+        TestC.exec("gcc","-DCALL_CONV="+(TestC.OS.startsWith("Windows") ? "ms_abi" : "sysv_abi"),
             "-o",exe,dir.resolve("flags.c").toString(),dir.resolve("flags.s").toString());
-        exec(exe);
-    }
-
-    private static void exec(String... command) throws Exception {
-        Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-        String output = new String(process.getInputStream().readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);
-        assertEquals(String.join(" ",command)+"\n"+output,0,process.waitFor());
+        TestC.exec(exe);
     }
 
     private static void bytes(Encoding dst,Encoding src) {

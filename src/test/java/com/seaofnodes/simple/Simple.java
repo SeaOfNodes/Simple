@@ -1,74 +1,66 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.print.*;
+import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 public class Simple {
-    public static final String PORTS = "com.seaofnodes.simple.node.cpus";
-
-    static final int DUMP_AFTER_PARSE = 1<<Phase.Parse.ordinal();
-    static final int DUMP_AFTER_ITER = 1<<Phase.Iter.ordinal();
-    static final int DUMP_AFTER_OPTO = 1<<Phase.Opto.ordinal();
-    static final int DUMP_AFTER_ITER_POST_OPTO = 1<<Phase.IterPostOpto.ordinal();
-    static final int DUMP_AFTER_FINALIZE_IR = 1<<Phase.FinalizeIR.ordinal();
-    static final int DUMP_AFTER_TYPE_CHECK = 1<<Phase.TypeCheck.ordinal();
-    static final int DUMP_AFTER_LOOP_TREE = 1<<Phase.LoopTree.ordinal();
-    static final int DUMP_AFTER_SELECT = 1<<Phase.Select.ordinal();
-    static final int DUMP_AFTER_GCM = 1<<Phase.Schedule.ordinal();
-    static final int DUMP_AFTER_LOCAL_SCHED = 1<<Phase.LocalSched.ordinal();
-    static final int DUMP_AFTER_REG_ALLOC = 1<<Phase.RegAlloc.ordinal();
-    static final int DUMP_AFTER_ENCODE = 1<<Phase.Encoding.ordinal();
-
-    static final int DUMP_FINAL              = 1<<16;
-
-    static final int DUMP_PASS_NAME          = 1<<30;
-    static final int DUMP_AFTER_ALL = ((1<<Phase.values().length)-1) | DUMP_PASS_NAME;
-
-    static final int DUMP_DISASSEMBLE        = 1<<31;
-
     static void usage() {
         System.out.println(
 """
-simple [options] <input-file> ...args...
+simple [options] input-file.smp ...program args...
+Options are applied in-order.
 Options:
-  --dump                   - dump final intermediate representation
-  --dump-after-parse           - dump intermediate representation after parsing
-  --dump-after-iter            - dump intermediate representation after Iter
-  --dump-after-opto            - dump intermediate representation after Opto
-  --dump-after-iter-post-opto  - dump intermediate representation after IterPostOpto
-  --dump-after-finalize-ir     - dump intermediate representation after FinalizeIR
-  --dump-after-type-check      - dump intermediate representation after type checking
-  --dump-after-loop-tree       - dump intermediate representation after loop-tree construction
-  --dump-after-select          - dump intermediate representation after instruction selection
-  --dump-after-gcm             - dump intermediate representation after GCM
-  --dump-after-local-sched     - dump intermediate representation after local scheduling
-  --dump-after-reg-alloc       - dump intermediate representation after register allocation
-  --dump-after-encode          - dump intermediate representation after encoding
-  --dump-after-all             - dump intermediate representation after all passes
-  -S                       - dump generated assembler code
-  --eval                   - evaluate the compiled code in emulator
+  --help - This text
+
+  --root root/ - Project root directory; this must end in a '/' and input
+         files are relative paths to this.  If missing, the one input
+         file path is treated as its own root directory.
+
+  -o output - Project output directory; similar to --root, if 'output' ends in a
+     '/', then all result files use relative paths to 'output', using a input file
+     root-relative path.  If --root is missing, the one result file is named 'output'
+
+  --eval                   - (slowly) evaluate the compiled code in emulator
   --run                    - run the compiled code natively; this is the default
-  --dump-size              - print the size of generated code
-  --dump-time              - print compilation and execution times
+  --main                   - export the top-level initializer as C `main`
   --cpu <cpu-name>         - use specific CPU (x86_64_v2, riscv, arm)
-  --abi <abi-name>         - use speific ABI variant (SystemV)
+  --abi <abi-name>         - use specific ABI variant (SystemV)
   --target                 - print native CPU and ABI
   --version
-  --help
+  -S                       - dump generated assembler code
+  --dump-size              - print the size of generated code
+  --dump-time              - print compilation and execution times
+  --dump-after-parse       - dump intermediate representation after parse
+  --dump-after-iter        - dump intermediate representation after pessimistic iter pass
+  --dump-after-opto        - dump intermediate representation after SCCP
+  --dump-after-iter-post-opto - dump after SCCP-driven peepholes and inlining
+  --dump-after-finalize-ir - dump after field layout and IR finalization
+  --dump-after-type-check  - dump intermediate representation after type check pass
+  --dump-after-lower       - dump expanded class initialization before loop trees
+  --dump-after-select      - dump intermediate representation after instruction selection pass
+  --dump-after-gcm         - dump intermediate representation after GCM pass
+  --dump-after-local-sched - dump intermediate representation after local scheduling pass
+  --dump-after-reg-alloc   - dump intermediate representation after register allocation pass
+  --dump-after-encode      - dump intermediate representation after encoding pass
+  --dump-after-all         - dump intermediate representation after all passes
+  --dump                   - dump final intermediate representation only
 """
 );
         System.exit(0);
     }
 
-    static void bad_usage() { bad("Invalid usage (use --help)"); }
+    static void bad_usage() { throw bad("Invalid usage (use --help)"); }
     static RuntimeException bad(String err) {
         System.err.println("ERROR: "+err);
         System.exit(1);
@@ -81,40 +73,37 @@ Options:
         System.out.println(TestC.CALL_CONVENTION);
     }
 
-    static void dump(CodeGen code, int dump, int pass) {
-        if( (dump & pass)==0 ) return;
-        if( (dump & DUMP_PASS_NAME)!=0 ) System.err.println("Final:");
-        System.err.println(code);
-    }
-
     static void print_compilation_times(CodeGen code) {
-        long total=0;
-        for( Phase phase : Phase.values() ) {
-            long time=code._times[phase.ordinal()];
-            total+=time;
-            System.out.printf("%-24s %.3f sec%n",phase+" Time:",time/1e3);
-        }
-        System.out.printf("TOTAL COMPILATION TIME:   %.3f sec%n",total/1e3);
+        long[] times = code._times;
+        for( int i=0; i<code._times.length; i++ )
+            System.out.printf("%20s %.3f sec%n", Phase.values()[i], times[i]);
     }
 
-    static String getInput() throws IOException {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
-            return reader.lines().collect(Collectors.joining("\n"));
-        }
+    static String getInput() {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        StringBuilder text=new StringBuilder();
+        try {
+            for( String line; (line=reader.readLine())!=null; ) text.append(line).append('\n');
+        } catch( IOException e ) { throw new RuntimeException(e); }
+        return text.toString();
     }
 
     public static void main(String[] args) throws Exception {
+        String root = null;
         String input_filename = null;
         boolean do_eval = false;
         boolean do_run = true;
         boolean do_codegen = false;
-        boolean do_print_size = false;
-        boolean do_print_time = false;
+        boolean emit_main = false;
+        boolean print_time = false;
+        boolean print_size = false;
+        boolean print_asm = false;
         int dump = 0;
         int first_arg = 0;
         String src = null;
         String cpu = null;
         String abi = null;
+        String out = null;
 
         // Parse command line
         int i; for( i = 0; i < args.length; i++ ) {
@@ -126,26 +115,35 @@ Options:
 
             switch (arg) {
             case "-":                         input_filename=""; break;
-            case "--dump":                    dump |= DUMP_FINAL; break;
-            case "--dump-after-parse":          dump |= DUMP_AFTER_PARSE; break;
-            case "--dump-after-finalize-ir":    dump |= DUMP_AFTER_FINALIZE_IR; break;
-            case "--dump-after-iter-post-opto": dump |= DUMP_AFTER_ITER_POST_OPTO; break;
-            case "--dump-after-iter":           dump |= DUMP_AFTER_ITER; break;
-            case "--dump-after-opto":           dump |= DUMP_AFTER_OPTO; break;
-            case "--dump-after-type-check":     dump |= DUMP_AFTER_TYPE_CHECK; break;
-            case "--dump-after-loop-tree":      dump |= DUMP_AFTER_LOOP_TREE; break;
-            case "--dump-after-select":         dump |= DUMP_AFTER_SELECT; break;
-            case "--dump-after-gcm":            dump |= DUMP_AFTER_GCM; break;
-            case "--dump-after-local-sched":    dump |= DUMP_AFTER_LOCAL_SCHED; break;
-            case "--dump-after-reg-alloc":      dump |= DUMP_AFTER_REG_ALLOC; break;
-            case "--dump-after-encode":         dump |= DUMP_AFTER_ENCODE; break;
-            case "--dump-after-all":            dump |= DUMP_AFTER_ALL; break;
-            case "-S":                        dump |= DUMP_DISASSEMBLE; break;
+            case "--dump-after-parse":        dump |=  1<<Phase.Parse     .ordinal()   ; break;
+            case "--dump-after-iter":         dump |=  1<<Phase.Iter      .ordinal()   ; break;
+            case "--dump-after-opto":         dump |=  1<<Phase.Opto      .ordinal()   ; break;
+            case "--dump-after-iter-post-opto": dump |= 1<<Phase.IterPostOpto.ordinal(); break;
+            case "--dump-after-finalize-ir":  dump |=  1<<Phase.FinalizeIR.ordinal()   ; break;
+            case "--dump-after-type-check":   dump |=  1<<Phase.TypeCheck .ordinal()   ; break;
+            case "--dump-after-lower":        dump |=  1<<Phase.Lower     .ordinal()   ; break;
+            case "--dump-after-loop-tree":    dump |=  1<<Phase.LoopTree  .ordinal()   ; break;
+            case "--dump-after-select":       dump |=  1<<Phase.Select    .ordinal()   ; break;
+            case "--dump-after-gcm":          dump |=  1<<Phase.Schedule  .ordinal()   ; break;
+            case "--dump-after-local-sched":  dump |=  1<<Phase.LocalSched.ordinal()   ; break;
+            case "--dump-after-reg-alloc":    dump |=  1<<Phase.RegAlloc  .ordinal()   ; break;
+            case "--dump-after-encode":       dump |=  1<<Phase.Encoding  .ordinal()   ; break;
+            case "--dump-after-export":       dump |=  1<<Phase.Export    .ordinal()   ; break;
+            case "--dump":                    dump |=  1<<Phase.LastPhase .ordinal()   ; break;
+            case "--dump-after-all":          dump |= (2<<Phase.LastPhase .ordinal())-1; break;
+            case "-S":                        print_asm = true; break;
             case "--eval":                    do_eval = true ; do_run = false; break;
             case "--run":                     do_run  = true ; break;
             case "--norun":                   do_run  = false; break;
-            case "--dump-size":               do_print_size = true; break;
-            case "--dump-time":               do_print_time = true; break;
+            case "--main":                    emit_main = true; break;
+            case "--dump-size":               print_size = true; break;
+            case "--dump-time":               print_time = true; break;
+            case "-o":                        if (out != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
+                                              out = args[++i];  do_codegen=true;
+                                              break;
+            case "--root":                    if( root!=null || i+1>=args.length ) bad_usage();
+                                              root=args[++i];
+                                              break;
             case "--cpu":                     if (cpu != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
                                               cpu = args[++i];
                                               break;
@@ -159,58 +157,97 @@ Options:
             }
         }
 
+        // Break the paths into these parts:
+        // - A module path, given from "--root" or inferred from the one input file
+        // - Some sources [modpath/relpath/file.smp]*, all relative to the module path.
+        // - A build path, given from "-o" or inferred from the one input file
+        //
+        // All the sources are compiled, with outputs in [buildpath/relpath/file.o]*
+
         if (input_filename == null) throw bad("no input file' (use --help)");
         if( !input_filename.isEmpty() && !input_filename.endsWith(".smp") )
             throw bad("File extension must be .smp");
-        String base = input_filename.substring(0,input_filename.length()-4);
+        Path inPath = Path.of(input_filename);
 
-        if (do_run || (dump & DUMP_DISASSEMBLE) != 0 || do_print_size) {
+        // Figure out the module path
+        Path modPath;
+        if( root == null ) {
+            modPath = inPath.getParent();
+            if( modPath == null )
+                modPath = Path.of(".");
+        } else {
+            modPath=Path.of(root);
+            inPath=modPath.resolve(inPath);
+        }
+
+        // Compute the module-relative paths for all sources
+        Path srcRelPath = modPath.relativize(inPath);
+        int n = srcRelPath.getNameCount();
+        Path relPath = n==1 ? null : srcRelPath.subpath(0,n-1);
+        // Compute source/class name
+        String srcNameExt = srcRelPath.getName(n-1).toString();
+        String srcName = srcRelPath.toString().replace('\\','/');
+        srcName=srcName.substring(0,srcName.length()-4);
+
+        // Compute the build path.
+        Path outPath;
+        if( out == null ) {
+            // If no output given, the build dir is the modPath
+            outPath = modPath;
+        } else {
+            // If the output is a directory, that is our out path
+            outPath = Path.of(out);
+            if( !out.endsWith("/") ) {
+                // If the output is a file, the directory is our outPath
+                Path fullOut = outPath;
+                outPath = outPath.getParent();
+                if( outPath == null )
+                    outPath = Path.of(".");
+                Path foo = outPath.relativize(fullOut);
+                if( !foo.toString().equals(srcName+".o") )
+                    throw bad("Output path needs to be of the form "+srcName+".o");
+            }
+        }
+        String outBase = outPath.resolve(srcName).toString();
+
+        if( do_run || print_asm || print_size ) {
             if (cpu == null) cpu = TestC.CPU_PORT;
             if (abi == null) abi = TestC.CALL_CONVENTION;
             do_codegen = true;
         }
+        if( cpu == null ) cpu = TestC.CPU_PORT;
+        if( abi == null ) abi = TestC.CALL_CONVENTION;
 
         // Read input file
-        try {
-            src = input_filename.isEmpty() ? getInput() : Files.readString(Path.of(input_filename));
-        } catch( IOException e ) { throw bad("Cannot read input file: "+input_filename);  }
+        src = input_filename.isEmpty() ? getInput() : null;
 
         // Compilation pipeline
-        CodeGen code = new CodeGen(src);
+        CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), srcName, src, 456, true, TypeInteger.BOT );
+        code.driver(do_eval && !do_codegen ? Phase.TypeCheck : Phase.LastPhase,
+                    cpu,abi, false, emit_main || do_run || do_eval, dump);
 
-        code.driver(do_codegen ? Phase.Encoding : Phase.LocalSched,
-                    do_codegen ? cpu : null, abi, dump);
-        if( do_codegen ) code.exportELF(base+".o");
-
-        dump(code, dump, DUMP_FINAL);
-
-        if (do_codegen && (dump & DUMP_DISASSEMBLE) != 0) {
+        if( do_codegen && print_asm )
             System.out.println(code.asm());
-        }
 
-        if (do_print_size) {
-             System.out.printf( "Code Size: %d%n", code._encoding._bits.size());
-        }
+        if( print_size )
+            System.out.printf( "Code Size: %d%n", code._encoding._bits.size());
 
-        if (do_print_time) {
+        if( print_time )
             print_compilation_times(code);
-        }
 
-        if (do_eval) {
+        if( do_eval ) {
             // TODO: Support for evaluation of functions with different argument numbers and types
             long t = System.currentTimeMillis();
             long arg = (i+1 < args.length) ? Integer.parseInt(args[i+1]) : 0;
             System.out.println(Eval2.eval(code, arg, 100000));
-            if (do_print_time) {
-                System.out.printf( "EXECUTION TIME:             %.3f sec%n",
-                    (System.currentTimeMillis() - t) / 1e3);
-            }
+            if( print_time )
+                System.out.printf( "EXECUTION TIME:             %.3f sec%n", (System.currentTimeMillis() - t) / 1e3);
         }
-        if (do_run) {
+        if( do_run ) {
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
-            String exe = TestC.OS.startsWith("Windows") ? base+".exe" : base;
-            String result = TestC.gcc(base+".o", null, null, true, exe);
+            String exe = TestC.OS.startsWith("Windows") ? outBase+".exe" : outBase;
+            String result = TestC.gcc(outBase+".o", null, null, "", TestC.linkObjs(null), exe);
             System.out.print(result);
         }
     }

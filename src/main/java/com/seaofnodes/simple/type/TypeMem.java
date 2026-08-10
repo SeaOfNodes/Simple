@@ -1,37 +1,51 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 
 
 /**
- * Public memory holds one field alias; private memory holds one whole object.
+ * Represents a slice of memory corresponding to a set of aliases
  */
 public class TypeMem extends Type {
 
     // Which slice of memory?
     //  1 and TOP means no slice.
     //  1 and BOT means all memory.
-    //  1 and TypeStruct means current fields of the private allocation.
     //  N means alias slice#N.
     public int _alias;
-    public Type _t;       // Scalar public contents, or private field values.
+    public Type _t;       // Memory contents, some scalar type
+    public boolean _one;  // Singleton memory, corresponding to TypeMemPtr._one.
+    public boolean _clz;  // Class-object singleton memory; true singletons stay constant after construction.
+    public boolean _final;// Memory is only set in the constructor
 
-    // Addresses reachable through this memory. EMPTY means no exposed address;
-    // FULL means any address. These discovery sets join by union, independently
-    // of the field contents. They use the same interned sets as function types.
-    public int[] _escFs, _escAs;
+    // Escaped aliases and functions - escaped into this memory.  These are
+    // reachable from some chain of indirections from `_t`.  Bit zero is
+    // used for mutable/immutable safety.  Sign bit repeats infinitely.
+    public int[] _escFs;
+    public int[] _escAs;
+
+    static public int CNT;
 
     private static final Ary<TypeMem> FREE = new Ary<>(TypeMem.class);
-    private TypeMem(int alias, Type t, int[] fs, int[] as) { super(TMEM); init(alias,t,fs,as); }
-    private TypeMem init(int alias, Type t, int[] fs, int[] as) {
-        assert alias>1 || (t==null || t==Type.TOP || t==Type.BOTTOM || t instanceof TypeStruct);
+
+    private TypeMem() { super(TMEM); CNT++; }
+    private TypeMem init(int alias, Type t, boolean one, boolean clz, boolean xfinal, int[] fidxs, int[] aliases) {
         _alias = alias;
         _t = t;
-        _escFs=fs; _escAs=as;
+        _one = one;
+        _clz = clz;
+        // Public bulk memory is an aggregate of otherwise-unsplit aliases;
+        // a single final bit cannot describe it.  Keep the lattice-dual high
+        // form distinct, and retain finality for private singleton memory and
+        // precise alias slices.
+        _final = t!=null && alias==1 && !one && !t.isHigh() ? false : xfinal;
+
+        assert _escFs == null && _escAs == null;
+        _escFs = XInt.intern(fidxs);
+        _escAs = XInt.intern(aliases);
         return this;
     }
     @Override TypeMem free(Type t) {
@@ -39,82 +53,61 @@ public class TypeMem extends Type {
         mem._alias= -99;
         mem._dual = null;
         mem._hash = 0;
+        mem._t = null;
+        mem._one = false;
+        mem._clz = false;
+        mem._final = false;
+        mem._escFs = null;
+        mem._escAs = null;
         FREE.push(mem);
         return this;
     }
     @Override boolean isFree() { return _alias == -99; }
 
-    public static TypeMem malloc(int alias, Type t, int[] fs, int[] as) {
-        return FREE.isEmpty() ? new TypeMem(alias,t,fs,as) : FREE.pop().init(alias,t,fs,as);
+    public static TypeMem malloc(int alias, Type t, boolean one, boolean clz, boolean xfinal, int[] fidxs, int[] aliases) {
+        return (FREE.isEmpty() ? new TypeMem() : FREE.pop()).init(alias,t,one,clz,xfinal,fidxs,aliases);
     }
-    public static TypeMem make(int alias, Type t) {
-        return make(alias,t,t.isHigh() ? XInt.EMPTY : XInt.FULL,t.isHigh() ? XInt.EMPTY : XInt.FULL);
-    }
-    public static TypeMem make(int alias, Type t, int[] fs, int[] as) {
-        TypeMem f = malloc(alias,t,fs,as);
+    public static TypeMem make(int alias, Type t, boolean one, boolean clz, boolean xfinal, int[] fidxs, int[] aliases) {
+        if( fidxs  ==null ) fidxs  = XInt.EMPTY;
+        if( aliases==null ) aliases= XInt.EMPTY;
+        TypeMem f = malloc(alias,t,one,clz,xfinal, fidxs, aliases);
         TypeMem f2 = f.intern();
         if( f2==f ) return f;
         return VISIT.isEmpty() ? f2.free(f) : f2.delayFree(f);
     }
+    public static TypeMem make(int alias, Type t) { return make(alias,t,false,false,false,null,null); }
+    // Make a private memory
+    public static TypeMem makePrivate(Type t) { return make(1,t,true,false,false,escapeFIDX(XInt.EMPTY,t), escapeAlias(XInt.EMPTY,t)); }
 
-    // Private memory describes one allocation. It is passed explicitly to
-    // initializers; it never joins the public heap until EscapeNode.
-    public static TypeMem makePrivate(TypeStruct shape) {
-        return make(1,shape,XInt.EMPTY,XInt.EMPTY).escapes(shape);
+    public TypeMem makeFrom(int alias) { return make(alias,_t,_one,_clz,_final,_escFs,_escAs); }
+    public TypeMem makeFrom(int[] fidxes, int[] aliases) {
+        return make(_alias,_t,_one,_clz,_final,fidxes,aliases);
+    }
+    // Existing escapes plus `t` escapes
+    public TypeMem escapes(Type t) {
+        return make(_alias,_t,_one,_clz,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
+    }
+    // Existing escapes plus `t` escapes
+    public TypeMem escapesFrom(Type t) {
+        return make(_alias,_t,_one,_clz,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
+    }
+    public TypeMem escapesAliases(Type t) {
+        return make(_alias,_t,_one,_clz,_final, _escFs, escapeAlias(_escAs,t));
     }
 
-    public TypeMem escapes(Type value) {
-        int[] fs=_escFs, as=_escAs;
-        if( value instanceof TypeMem m ) {
-            fs=XInt.meet(fs,m._escFs); as=XInt.meet(as,m._escAs);
-        } else if( value instanceof TypeFunPtr f ) {
-            fs=XInt.meet(fs,f.fidxs());
-        } else if( value instanceof TypeMemPtr p ) {
-            return escapes(p._obj);
-        } else if( value instanceof TypeStruct s ) {
-            if( s._open && !s.isAry() ) return make(_alias,_t,XInt.FULL,XInt.FULL);
-            for( Field f : s._fields ) {
-                // A constructor has a hidden memory result, never a public
-                // callable address. Constant methods need no memory Store.
-                if( f._t instanceof TypeFunPtr fn && fn.ret() instanceof TypeMem ) continue;
-                as=XInt.make(as,f._alias);
-                if( f._one && f._t instanceof TypeFunPtr fn ) fs=XInt.meet(fs,fn.fidxs());
-            }
-        } else if( value==Type.BOTTOM || value==TypeScalar.BOT ) {
-            fs=XInt.FULL; as=XInt.FULL;
-        }
-        return make(_alias,_t,fs,as);
-    }
-
-    public TypeMem withContents(int alias, Type contents) {
-        return make(alias,contents,_escFs,_escAs);
-    }
-
-    public static TypeStruct empty(TypeStruct shape) {
-        Field[] fields = new Field[shape._fields.length];
-        for( int i=0; i<fields.length; i++ )
-            fields[i] = shape._fields[i].makeFrom(Type.BOTTOM);
-        return TypeStruct.make(shape._name,shape._open,fields);
-    }
-
-    public static TypeStruct zeroed(TypeStruct shape) {
-        Field[] fields=new Field[shape._fields.length];
-        for( int i=0; i<fields.length; i++ ) {
-            Field f=shape._fields[i];
-            Type zero=f._t.makeZero();
-            fields[i]=f.makeFrom(!f._final && f._t!=Type.BOTTOM && zero.isa(f._t) ? zero : Type.BOTTOM);
-        }
-        return TypeStruct.make(shape._name,shape._open,fields);
-    }
-
-    public static final TypeMem TOP = make(1, Type.TOP   );
-    public static final TypeMem BOT = make(1, Type.BOTTOM);
-    public static final TypeMem START = make(1,Type.BOTTOM,XInt.EMPTY,XInt.EMPTY);
+    public static final TypeMem TOP = make(1, Type.TOP   ,true ,true, true , XInt.EMPTY, XInt.EMPTY);
+    public static final TypeMem BOT = make(1, Type.BOTTOM,false,false,true , XInt.FULL , XInt.FULL );
+    public static final TypeMem START= make(1,Type.BOTTOM,false,false,false, XInt.EMPTY, XInt.EMPTY);
+    public static final TypeMem SELF_MEM = make(1, TypeStruct.BOT);
 
     public static void gather(ArrayList<Type> ts) {
-        ts.add(make(2,Type.NIL)); ts.add(make(2,TypeInteger.ZERO)); ts.add(BOT);
-        ts.add(START); ts.add(make(2,TypeInteger.ZERO,XInt.make(3),XInt.make(5)));
-        ts.add(makePrivate(TypeStruct.TEST)); ts.add(makePrivate(empty(TypeStruct.TEST)));
+        ts.add(make(2,Type.NIL));
+        ts.add(make(2,TypeInteger.ZERO));
+        ts.add(BOT);
+        ts.add(SELF_MEM);
+        ts.add(START);
+        ts.add(make(2,TypeInteger.ZERO,true,false,true,XInt.EMPTY,XInt.make(2)));
+        ts.add(make(2,TypeInteger.BOT,false,false,false,XInt.EMPTY,XInt.FULL));
     }
 
     @Override
@@ -124,74 +117,113 @@ public class TypeMem extends Type {
         if( that==TOP ) return this;
         if( this==BOT ) return BOT;
         if( that==BOT ) return BOT;
-        // Different slices lose their alias and contents together. Their
-        // scalar meet alone cannot describe the unsplit bulk memory.
-        int alias = _alias==that._alias ? _alias :
-            (_alias==1 && _t==Type.TOP) ? that._alias :
-            (that._alias==1 && that._t==Type.TOP) ? _alias : 1;
-        Type mt = _alias==that._alias || alias!=1 ? _t.meet(that._t) : Type.BOTTOM;
-        return make(alias,mt,XInt.meet(_escFs,that._escFs),XInt.meet(_escAs,that._escAs));
+        // Treat a alias-1 has either very-high or very-low, according to "_t"
+        int alias = _alias==that._alias ? _alias // Same-same
+            : this._alias==1 && this._t.isHigh() ? that._alias // this is high-1 alias, so take that
+            : that._alias==1 && that._t.isHigh() ? this._alias // that is high-1 alias, so take this
+            : 1;
+        Type mt = _t.meet(that._t);
+        int[] fidxs  = XInt.meet( _escFs, that._escFs );
+        int[] aliases= XInt.meet( _escAs, that._escAs );
+        // Singleton and class facts are kept only when both sides agree.
+        // Finality is a low-side fact, and flips on the dual side.
+        boolean highAlias1 = (this._alias==1 && this._t.isHigh()) || (that._alias==1 && that._t.isHigh());
+        boolean xfinal = highAlias1 ? (_final & that._final) : (_final | that._final);
+        return make(alias, mt, _one & that._one, _clz & that._clz, xfinal, fidxs, aliases);
     }
 
     @Override
-    Type xdual() { return malloc(_alias,_t.dual(),XInt.dual(_escFs),XInt.dual(_escAs)); }
+    Type xdual() { return malloc(_alias,_t.dual(),!_one,!_clz,!_final, XInt.dual(_escFs), XInt.dual(_escAs)); }
 
     @Override TypeMem rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        TypeMem d = malloc(_alias,null,XInt.dual(_escFs),XInt.dual(_escAs));
+        TypeMem d = malloc(_alias,null,!_one,!_clz,!_final, XInt.dual(_escFs), XInt.dual(_escAs));
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
+        if( d._alias==1 && !d._one ) { assert !d._t.isHigh(); d._final = false; }
         return d;
     }
 
+    @Override public TypeMem makeZero() { return TOP; }
     @Override public boolean isHigh() { return _t.isHigh(); }
-    @Override public int log_size() { throw Utils.TODO(); }
-    @Override boolean _isFinal() { return _t._isFinal(); }
-    @Override boolean _isGLB(boolean mem) { return _t instanceof TypeStruct s ? s.isGLB2() : _t._isGLB(true); }
-    @Override public Type _glb(boolean mem) { return make(_alias,_t instanceof TypeStruct s ? s.glb2() : _t._glb(true)); }
+    @Override boolean _isConstant() { return _one && _clz && _alias!= 1 && _t._isConstant(); }
+    @Override public int log_size() { throw Utils.TODO("Should not reach here: memory has no scalar storage size"); }
+    @Override boolean _isFinal() { throw Utils.TODO("Should not reach here"); }
+    @Override TypeMem _makeStorage() { throw Utils.TODO("Should not reach here"); /*return make(_alias,_t._makeStorage(),_one,_clz,_final,_escFs,_escAs);*/ }
 
-    @Override int hash() { return 9876543 + _alias + _t.hashCode() + XInt.hash(_escFs) + XInt.hash(_escAs); }
+    @Override TypeMem _close( String name, HashMap<String, Type> TYPES ) { return malloc(_alias,_t._close(name, TYPES ),_one,_clz,_final,_escFs,_escAs); }
+
+    @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        return make(_alias,_t._upgradeType(TYPES),_one,_clz,_final,_escFs,_escAs);
+    }
+
+    @Override int hash() { return 9876543 + _alias + _t.hashCode() + (_one ? 8196 : 0) + (_clz ? 4098 : 0) + (_final ? 16392 : 0) + XInt.hash(_escFs) + XInt.hash(_escAs); }
 
     @Override boolean eq(Type t) {
         TypeMem that = (TypeMem) t; // Invariant
-        return _alias == that._alias && _t == that._t && _escFs==that._escFs && _escAs==that._escAs;
+        return _alias == that._alias && _t == that._t && _one == that._one && _clz == that._clz && _final == that._final && _escFs == that._escFs && _escAs == that._escAs;
     }
 
     @Override boolean cycle_eq(Type t) {
         TypeMem that = (TypeMem) t; // Invariant
-        return _alias == that._alias && _escFs==that._escFs && _escAs==that._escAs && _t.cycle_eq(that._t);
+        return _alias == that._alias && _one == that._one && _clz == that._clz && _final == that._final && _escFs == that._escFs && _escAs == that._escAs && _t.cycle_eq(that._t);
     }
 
-    @Override int nkids() { return 1; }
-    @Override Type at( int idx ) { return _t; }
-    @Override void set( int idx, Type t ) { _t = t; }
+    @Override public int nkids() { return 1; }
+    @Override public Type at( int idx ) { return _t; }
+    @Override public void set( int idx, Type t ) { _t = t; }
+
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {
         if( this==BOT ) return sb.p("MemBot");
         if( this==TOP ) return sb.p("MemTop");
-        sb.p("#");
+        sb.p('#');
+        if( !_final ) sb.p('!'); // Mutable memory
+        if( _one ) sb.p(_clz ? 'z' : '-');
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
-        _t.print(sb.p(_alias).p(":"),visit,html);
-        XInt.str(sb.p(" f="),_escFs);
-        return XInt.str(sb.p(" a="),_escAs);
+        sb.p(_alias).p(":[");
+        _t.print(sb,visit,html).p(",");
+        XInt.str(sb,_escFs).p(",");
+        return XInt.str(sb,_escAs).p("]");
     }
 
-    @Override public String str() { return toString(); }
+    @Override public String str() {
+        if( this==BOT ) return "MemBot";
+        if( this==TOP ) return "MemTop";
+        SB sb = new SB().p('#');
+        if( !_final ) sb.p('!'); // Mutable memory
+        if( _one ) sb.p(_clz ? 'z' : '-');
+        if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT").toString();
+        sb.p(_alias).p(":[").p(_t.str()).p(",");
+        XInt.str(sb,_escFs).p(",");
+        return XInt.str(sb,_escAs).p("]").toString();
+    }
 
-    @Override Type _upgradeType(java.util.HashMap<String,Type> types) {
-        if( _t instanceof TypeStruct old && types.get(old._name) instanceof TypeMemPtr ptr ) {
-            // This struct records current contents, not a forward declaration.
-            // Complete its field list without replacing writes with declared
-            // types (or turning an unwritten field into an initialized one).
-            TypeStruct shape=old.isAry() ? old : ptr._obj;
-            Field[] fields=new Field[shape._fields.length];
-            for( int i=0; i<fields.length; i++ ) {
-                Field field=shape._fields[i], value=old.field(field._fname);
-                fields[i]=field.makeFrom(value==null ? Type.BOTTOM : value._t._upgradeType(types));
-            }
-            return makePrivate(TypeStruct.make(shape._name,shape._open,fields));
-        }
-        return make(_alias,_t._upgradeType(types),_escFs,_escAs);
+
+    // Tracking bulk escaped aliases and fidxs
+
+    // Escape all FIDXs from t
+    private static int[] escapeFIDX( int[] xs, Type t ) {
+        return switch(t) {
+        case TypeMemPtr tmp -> escapeFIDX(xs,tmp._obj);
+        case TypeStruct ts  -> ts._open && !ts.isAry()
+                ? XInt.FULL         // Open structs can have any fields
+                : XInt.meet(xs,ts.fidxs());
+        case TypeFunPtr tfp -> XInt.meet(xs,tfp.fidxs());
+        case TypeMem    mem -> XInt.meet(xs,mem._escFs);
+        case Type tt -> tt == BOTTOM ? XInt.FULL : xs;
+        };
+    }
+
+    private static int[] escapeAlias( int[] xs, Type t ) {
+        return switch(t) {
+        case TypeMemPtr tmp -> escapeAlias(xs,tmp._obj);
+        case TypeStruct ts  -> ts._open && !ts.isAry()
+            ? XInt.FULL         // Open structs can have any fields
+            : XInt.meet(xs,ts.aliases());
+        case TypeMem    mem -> XInt.meet(xs,mem._escAs);
+        case Type tt -> tt == BOTTOM ? XInt.FULL : xs;
+        };
     }
 }

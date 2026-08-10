@@ -4,6 +4,7 @@ import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
@@ -27,7 +28,7 @@ public class StoreRISC extends MemOpRISC {
         if( i==1 ) return null; // mem
         if( i==2 ) return riscv.RMASK; // ptr
         // 2 - index
-        if( i==4 ) return _sz >= '4'
+        if( i==4 ) return _bytes >= 4
                        ? riscv.MEM_MASK   // Word/dword value in GPR or FPR
                        : riscv.RMASK;     // Byte/short stores require a GPR
         return null; // Anti-dependence
@@ -40,6 +41,11 @@ public class StoreRISC extends MemOpRISC {
         int op = val >= riscv.F_OFFSET ? RiscV.OP_STOREFP : RiscV.OP_STORE;
         if( val >= riscv.F_OFFSET  ) val -= riscv.F_OFFSET;
         enc.add4(RiscV.s_type(op, func3()&7, ptr, val == -1 ? riscv.ZERO : val, _off));
+    }
+
+    // func3 is based on load/store size and extend
+    @Override int func3() {
+        return Integer.numberOfTrailingZeros(_bytes);
     }
 
     @Override public void asm(CodeGen code, SB sb) {

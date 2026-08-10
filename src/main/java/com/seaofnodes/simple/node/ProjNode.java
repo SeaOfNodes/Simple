@@ -5,9 +5,10 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeTuple;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
-
-public class ProjNode extends Node {
+public class ProjNode extends Node implements Proj {
 
     // Which slice of the incoming multipart value
     public final int _idx;
@@ -21,6 +22,7 @@ public class ProjNode extends Node {
         _label = label;
     }
     public ProjNode(ProjNode p) { super(p); _idx = p._idx; _label = p._label; }
+
 
     @Override public String label() { return _label; }
 
@@ -44,11 +46,14 @@ public class ProjNode extends Node {
         return t instanceof TypeTuple tt ? tt._types[_idx] : t.oob();
     }
 
-    @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx); }
+    @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx,this); }
 
     @Override
     public boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }
 
     @Override
     int hash() { return _idx; }
+
+    @Override public int idx() { return _idx; }
+
 }

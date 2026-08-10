@@ -27,8 +27,8 @@ public class StoreX86 extends MemOpX86 {
     @Override public RegMask outregmap() { return null; }
     @Override public void encoding( Encoding enc ) {
         short ptr=enc.reg(ptr()), idx=enc.reg(idx()), src=enc.reg(val());
-        if( src==-1 ) X86.storeImm(enc,_declaredType.log_size(),_imm,ptr,idx,_off,_scale);
-        else encVal(enc,_declaredType,ptr,idx,src,_off,_scale);
+        if( src==-1 ) X86.storeImm(enc,Integer.numberOfTrailingZeros(_sz-'0'),_imm,ptr,idx,_off,_scale);
+        else encVal(enc,_con,ptr,idx,src,_off,_scale);
     }
 
     // Non-immediate encoding
