@@ -12,9 +12,7 @@ public class IfNode extends CFGNode implements MultiNode {
         CodeGen.CODE.add(this); // Because idoms are complex, just add it
     }
     public IfNode(IfNode iff) { super(iff); }
-
-    @Override
-    public String label() { return "If"; }
+    @Override public Tag serialTag() { return Tag.If; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -45,7 +43,7 @@ public class IfNode extends CFGNode implements MultiNode {
         // If constant is 0 then false branch is reachable
         // Else true branch is reachable
         if( t.isConstant() )
-            return (t==Type.NIL || t==TypeInteger.ZERO || (t instanceof TypeFunPtr tfp && tfp._fidxs==0) ) ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
+            return (t==Type.NIL || t==TypeInteger.ZERO || (t instanceof TypeFunPtr tfp && tfp._fidxs== XInt.EMPTY) ) ? TypeTuple.IF_FALSE : TypeTuple.IF_TRUE;
         // If adding a zero makes a difference, the predicate must not have a zero/null
         if( !t.makeZero().isa(t) )
             return TypeTuple.IF_TRUE;
@@ -58,15 +56,14 @@ public class IfNode extends CFGNode implements MultiNode {
         // Hunt up the immediate dominator tree.  If we find an identical if
         // test on either the true or false branch, that side wins.
         if( !pred()._type.isHighOrConst() )
-            for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() ) {
-                if( addDep(dom) instanceof IfNode iff && addDep(iff.pred())==pred() && prior instanceof CProjNode prj ) {
+            for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
+                if( addDep(dom) instanceof IfNode iff &&
+                    prior instanceof CProjNode prj &&
+                    (addDep(iff.pred())==pred() ||
+                     pred() instanceof GuardNode cast && cast._nonZero && iff.pred()==cast.in(1) ) ) {
                     setDef(1,con( prj._idx==0 ? 1 : 0 ));
                     return this;
                 }
-                if( dom instanceof RegionNode r )
-                    for( Node c : r._inputs )
-                        if( c!= null ) addDep(c); // If region loses input, idom changes
-            }
         return null;
     }
 

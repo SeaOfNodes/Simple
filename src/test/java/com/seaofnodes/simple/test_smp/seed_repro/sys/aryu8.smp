@@ -1,0 +1,50 @@
+struct aryu8 {
+    u32 !len = 0;
+    u8[] !buf;
+
+    new aryu8 = { u8[] b -> buf = b; };
+
+    val _grow = { int len2 ->
+        if( len+len2 < buf# ) return self;
+        int newlen = buf# * 2;
+        while( len+len2 >= newlen ) newlen *= 2;
+        u8[] !buf2 = new u8[newlen];
+        Ary.copy(buf2,0,buf,0,buf#);
+        buf = buf2;
+        self;
+    };
+
+    val clear = { -> len = 0; self; };
+
+    val add = { u8 c ->
+        _grow(1).buf[len++] = c;
+        self;
+    };
+
+    val addAry = { u8[~] ary ->
+        _grow(ary#);
+        Ary.copy(buf,len,ary,0,ary#);
+        len += ary#;
+        self;
+    };
+
+    val undo = { int x ->
+        len = len >= x ? len-x : 0;
+        self;
+    };
+
+    val num = { i64 x ->
+        if( !x ) { add('0'); return self; }
+        if( x < 0 ) { add('-'); x = -x; }
+        i64 ten = 1, log = 0;
+        while( ten <= x ) { ten *= 10; log++; }
+        for( int i=0; i<log; i++ ) {
+            ten /= 10;
+            i64 q = x/ten;
+            u8 digit = q+'0';
+            add(digit);
+            x -= q*ten;
+        }
+        self;
+    };
+};

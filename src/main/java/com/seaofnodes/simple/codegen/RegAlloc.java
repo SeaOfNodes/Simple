@@ -56,6 +56,8 @@ public class RegAlloc {
 
     public int _spills, _spillScaled;
 
+    private boolean _done;
+
     // -----------------------
     // Live ranges with self-conflicts or no allowed registers
     private final IdentityHashMap<LRG,String> _failed = new IdentityHashMap<>();
@@ -64,6 +66,7 @@ public class RegAlloc {
         _failed.put(lrg,"");
     }
     boolean success() { return _failed.isEmpty(); }
+    public boolean done() { return _done; }
 
 
     // -----------------------
@@ -72,16 +75,16 @@ public class RegAlloc {
     short _lrg_num;
 
     // Define a new LRG, and assign n
-    LRG newLRG( Node n ) {
+    LRG newLRG( Node n, FunNode fun ) {
         LRG lrg = lrg(n);
         if( lrg!=null ) return lrg;
-        lrg = new LRG(_lrg_num++);
+        lrg = new LRG(_lrg_num++, fun);
         LRG old = _lrgs.put(n,lrg); assert old==null;
         return lrg;
     }
 
     // LRG for n
-    LRG lrg( Node n ) {
+    public LRG lrg( Node n ) {
         LRG lrg = _lrgs.get(n);
         if( lrg==null ) return null;
         LRG lrg2 = lrg.find();
@@ -130,18 +133,19 @@ public class RegAlloc {
     }
 
     // Printable register number for node n
-    String reg( Node n ) { return reg(n,null); }
-    String reg( Node n, FunNode fun ) {
+    String reg( Node n ) {
         LRG lrg = lrg(n);
-        if( lrg==null ) return null;
+        return lrg==null ? null : reg(lrg);
+    }
+    String reg( LRG lrg ) {
         // No register yet, use LRG
         if( lrg._reg == -1 ) return "V"+lrg._lrg;
         // Chosen machine register unless stack-slot and past RA
         String[] regs = _code._mach.regs();
-        if( lrg._reg < regs.length || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || fun==null )
+        if( lrg._reg < regs.length || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || lrg._fun==null )
             return RegMask.reg(regs,lrg._reg);
         // Stack-slot past RA uses the frame layout logic
-        return "[rsp+"+fun.computeStackOffset(_code,lrg._reg)+"]";
+        return "[rsp+"+lrg._fun.computeStackOffset(_code,lrg._reg)+"]";
     }
 
     // -----------------------
@@ -177,6 +181,7 @@ public class RegAlloc {
             round++;
         }
         postColor();                       // Remove no-op spills
+        _done = true;
     }
 
     private boolean graphColor(byte round) {
@@ -245,6 +250,8 @@ public class RegAlloc {
         // single-register.  Split after the def and before the use.  Does not
         // require a full pass.
 
+        // Compute def nOuts *before* replacing those uses with a split
+        int defNouts = ((Node)lrg._machDef).nOuts();
         // Split just after def
         if( lrg._1regDefCnt==1 && !lrg._machDef.isClone() )
             // Force must-split, even if a prior split same block because register
@@ -256,7 +263,7 @@ public class RegAlloc {
             //   st4 [V1],len - No good, must split around
             insertAfterAndReplace( makeSplit("def/empty1",round,lrg), (Node)lrg._machDef, false/*true*/);
         // Split just before use
-        if( lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && ((Node)lrg._machDef).nOuts()==1) )
+        if( lrg._machUse!=null && (lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && defNouts==1)) )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
         return true;
     }
@@ -483,8 +490,8 @@ public class RegAlloc {
     void findAllLRG( LRG lrg ) {
         _ns.clear();
         int wd = 0;
-        _ns.push((Node)lrg._machDef);
-        _ns.push((Node)lrg._machUse);
+        if( lrg._machDef != null ) _ns.push((Node)lrg._machDef);
+        if( lrg._machUse != null ) _ns.push((Node)lrg._machUse);
         while( wd < _ns._len ) {
             Node n = _ns.at(wd++);
             if( lrg(n)!=lrg ) continue;
@@ -543,12 +550,12 @@ public class RegAlloc {
         // Clone simple constants if possible
         Node split = def instanceof MachNode mach && mach.isClone() && (umask==null || mach.outregmap().overlap(umask))
             ? mach.copy()
-            : _code._mach.split(kind,round,lrg);
+            : _code._mach.split(lrg,kind,round);
         _lrgs.put(split,lrg);
         return split;
     }
     private SplitNode makeSplit( String kind, byte round, LRG lrg ) {
-        SplitNode split = _code._mach.split(kind,round,lrg);
+        SplitNode split = _code._mach.split(lrg,kind,round);
         _lrgs.put(split,lrg);
         return split;
     }

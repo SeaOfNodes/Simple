@@ -1,32 +1,26 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.HashSet;
+import com.seaofnodes.simple.util.BAOS;
+import java.util.*;
 
 /**
  *  Return Program Control or Return PC or RPC
  */
 public class TypeRPC extends Type {
 
-    // A set of CallEndNode IDs (or StopNode); commonly just one.
-    // Basically a sparse bit set
-    HashSet<Integer> _rpcs;
-
-    // If true, invert the meaning of the bits
-    boolean _any;
+    // A set of CallEndNode IDs (or StopNode); commonly just one.  High-bit
+    // XInt sets represent complements/infinite sets.
+    public int[] _rpcs;
 
     private static final Ary<TypeRPC> FREE = new Ary<>(TypeRPC.class);
-    private TypeRPC init(boolean any, HashSet<Integer> rpcs) { _any=any; _rpcs=rpcs; return this; }
+    private TypeRPC init(int[] rpcs) { _rpcs = XInt.intern(rpcs); return this; }
     private TypeRPC() { super(TRPC); }
-    private static TypeRPC malloc(boolean any, HashSet<Integer> rpcs) {
-        return (FREE.isEmpty() ? new TypeRPC() : FREE.pop()).init(any,rpcs);
+    private static TypeRPC malloc(int[] rpcs) {
+        return (FREE.isEmpty() ? new TypeRPC() : FREE.pop()).init(rpcs);
     }
-    private static TypeRPC make(boolean any, HashSet<Integer> rpcs) {
-        TypeRPC rpc = (FREE.isEmpty() ? new TypeRPC() : FREE.pop()).init(any,rpcs);
+    private static TypeRPC make(int[] rpcs) {
+        TypeRPC rpc = malloc(rpcs);
         TypeRPC t2 = rpc.intern();
         return t2==rpc ? rpc : t2.free(rpc);
     }
@@ -41,71 +35,72 @@ public class TypeRPC extends Type {
     @Override boolean isFree() { return _rpcs==null; }
 
     public static TypeRPC constant(int cend) {
-        HashSet<Integer> rpcs = new HashSet<>();
-        rpcs.add(cend);
-        return make(false,rpcs);
+        return make(XInt.make(cend));
     }
 
-    public  static final TypeRPC BOT = make(true,new HashSet<>());
+    public int rpc() {
+        return XInt.onlyBit(_rpcs);
+    }
+
+
+    public  static final TypeRPC BOT = make(XInt.FULL);
     private static final TypeRPC TEST2 = constant(2);
     private static final TypeRPC TEST3 = constant(2);
+    public  static final TypeRPC EMPTY = make(XInt.EMPTY);
 
     public static void gather(ArrayList<Type> ts) { ts.add(BOT); ts.add(TEST2); ts.add(TEST3); }
 
+    @Override public TypeRPC makeZero() { return EMPTY; }
+
+
     @Override public String str() {
-        if( _rpcs.isEmpty() )
-            return _any ? "$[ALL]" : "$[]";
-        if( _rpcs.size()==1 )
-            for( Integer rpc : _rpcs )
-                return _any ? "$[-"+rpc+"]" : "$["+rpc+"]";
-        return "$["+(_any ? "-" : "")+_rpcs+"]";
+        if( _rpcs == XInt.FULL  ) return "$[ALL]";
+        if( _rpcs == XInt.EMPTY ) return "$[]";
+        return "$"+XInt.str(_rpcs);
     }
 
     @Override
     public TypeRPC xmeet(Type other) {
         TypeRPC rpc = (TypeRPC)other;
-        // If the two sets are equal, the _any must be unequal (invariant),
-        // so they cancel and all bits are set.
-        if( _rpcs.equals(rpc._rpcs) )
-            return BOT;
-        // Classic union of bit sets (which might be infinite).
-        HashSet<Integer> lhs = _rpcs, rhs = rpc._rpcs;
-        // Smaller on left
-        if( lhs.size() > rhs.size() ) { lhs = rpc._rpcs; rhs = _rpcs; }
-
-        HashSet<Integer> rpcs = new HashSet<>();
-        boolean any = true;
-        // If both sets are infinite, intersect.
-        if( _any && rpc._any ) {
-            for( Integer i : lhs )  if( rhs.contains(i) )  rpcs.add(i);
-
-        } else if( !_any && !rpc._any ) {
-            // if neither set is infinite, union.
-            rpcs.addAll( lhs );
-            rpcs.addAll( rhs );
-            any = false;
-        } else {
-            // If one is infinite, subtract the other from it.
-            HashSet<Integer> sub = _any ? rpc._rpcs : _rpcs;
-            HashSet<Integer> inf = _any ? _rpcs : rpc._rpcs;
-            for( Integer i : inf )
-                if( inf.contains(i) && !sub.contains(i) )
-                    rpcs.add(i);
-        }
-        return make(any,rpcs);
+        return make(XInt.meet(_rpcs,rpc._rpcs));
     }
 
-    @Override Type xdual() { return malloc(!_any,_rpcs); }
+    @Override TypeRPC xdual() { return malloc(XInt.dual(_rpcs)); }
+    @Override Type rdual() {
+        TypeRPC d = xdual();
+        (_dual = d)._dual = this;
+        return d;
+    }
 
-    @Override boolean _isConstant() { return !_any && _rpcs.size()==1; }
+    @Override boolean _isConstant() { return XInt.isConstant(_rpcs); }
     @Override boolean _isGLB(boolean mem) { return true; }
 
+    // Reserve tags for ALL, singleton, generic
+    @Override int TAGOFF() { return 3; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        if( this==BOT ) {
+            baos.write( TAGOFFS[_type] + 0 );
+        } else if( XInt.isConstant(_rpcs) ) { // Singleton
+            baos.write(TAGOFFS[_type] + 1);
+            baos.packed2(rpc());
+        } else {                // Generic
+            assert !XInt.isHigh(_rpcs); // Not serializing above-center RPC
+            baos.write(TAGOFFS[_type] + 2);
+            XInt.packed(baos,_rpcs);
+        }
+    }
+    static TypeRPC packed( int tag, BAOS bais ) {
+        if( tag==0 ) return BOT;
+        if( tag==1 ) return malloc(XInt.make(bais.packed2()));
+        return malloc(XInt.packed(bais));
+    }
+
     @Override
-    int hash() { return _rpcs.hashCode() ^ (_any ? -1 : 0) ; }
+    int hash() { return XInt.hash(_rpcs); }
     @Override
     public boolean eq( Type t ) {
         TypeRPC rpc = (TypeRPC)t; // Contract
-        return _any==rpc._any && _rpcs.equals(rpc._rpcs);
+        return _rpcs==rpc._rpcs;
     }
 
 }

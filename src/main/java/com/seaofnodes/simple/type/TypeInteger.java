@@ -1,14 +1,16 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Integer Type
  */
-public class TypeInteger extends Type {
+public class TypeInteger extends TypeScalar {
     /**
      * Describes an integer *range* - everything from min to max; both min and
      * max are inclusive.  If min==max, this is a constant.
@@ -116,14 +118,17 @@ public class TypeInteger extends Type {
         if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes
         if( this==I32 || this==U32              ) return 2; // 1<<2 == 4 bytes
         if( this==BOT                           ) return 3; // 1<<3 == 8 bytes
-        if( isConstant() ) {                                // just const here
-            if (-0xFF <= _min && _min <= 0xFF)                    return 0;
-            else if (-0xFFFF <= _min && _min <= 0xFFFF)           return 1;
-            else if (-0xFFFFFFFFL <= _min && _min <= 0xFFFFFFFFL) return 2;
-            else return 3;
-        }
-        if( -128 <= _min && _max < 128 ) return 0; // 1 byte
-        throw Utils.TODO();
+        if( isConstant() ) return log(_min);                // just const here
+        int lo = log(_min);
+        int hi = log(_max);
+        return Math.max(lo,hi);
+    }
+
+    private static int log(long x) {
+        if(      -0xFFL <= x && x <=       0xFFL) return 0;
+        if(    -0xFFFFL <= x && x <=     0xFFFFL) return 1;
+        if(-0xFFFFFFFFL <= x && x <= 0xFFFFFFFFL) return 2;
+        return 3;
     }
 
     public long value() { assert isConstant(); return _min; }
@@ -147,7 +152,6 @@ public class TypeInteger extends Type {
 
     @Override
     public Type xmeet(Type other) {
-        if( other instanceof TypeConAry ary ) return ary.imeet(this);
         // Invariant from caller: 'this' != 'other' and same class (TypeInteger)
         TypeInteger i = (TypeInteger)other; // Contract
         return make(Math.min(_min,i._min), Math.max(_max,i._max), (byte)Math.max(_widen,i._widen));
@@ -160,8 +164,8 @@ public class TypeInteger extends Type {
     @Override public TypeInteger nonZero() {
         if( isHigh() ) return this;
         if( this==ZERO ) return null;                  // No sane answer
-        if( _min==0 ) return make(1,Math.max(_max,1)); // specifically good on BOOL
-        if( _max==0 ) return make(_min,-1);
+        if( _min==0 ) return make(1,Math.max(_max,1),_widen); // specifically good on BOOL
+        if( _max==0 ) return make(_min,-1,_widen);
         return this;
     }
     @Override public Type makeZero() { return ZERO; }
@@ -172,6 +176,39 @@ public class TypeInteger extends Type {
         // GLB is not well-defined in memory; depends on the size of the memory field
         if( _isConstant() ) return BOT;
         return isHigh() ? dual() : this;
+    }
+
+    // Reserve tags for I64,I32,U32,0,constant,generic
+    @Override int TAGOFF() { return 7; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        if(      this==BOT ) baos.write(TAGOFFS[_type] + 0);
+        else if( this==I32 ) baos.write(TAGOFFS[_type] + 1);
+        else if( this==U32 ) baos.write(TAGOFFS[_type] + 2);
+        else if( this==BOOL) baos.write(TAGOFFS[_type] + 3);
+        else if( this==ZERO) baos.write(TAGOFFS[_type] + 4);
+        else if( isConstant() ) {
+            baos.write(TAGOFFS[_type] + 5);
+            baos.packed8(_min);
+        } else {
+            baos.write(TAGOFFS[_type] + 6);
+            baos.packed8(_min);
+            baos.packed8(_max);
+            assert -3 <= _widen && _widen <= 3;
+            baos.packed1(_widen + 3);
+        }
+    }
+
+    static Type packed( int tag, BAOS bais ) {
+        return switch( tag ) {
+        case 0 -> BOT;
+        case 1 -> I32;
+        case 2 -> U32;
+        case 3 -> BOOL;
+        case 4 -> ZERO;
+        case 5 -> constant(bais.packed8());
+        case 6 -> make(bais.packed8(),bais.packed8(),(byte)(bais.packed1()-3));
+        default -> throw Utils.TODO();
+        };
     }
 
     @Override int hash() { return Utils.fold(_min) * Utils.fold(_max) + _widen; }

@@ -2,7 +2,10 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
+
 import java.util.*;
 
 /**
@@ -12,18 +15,21 @@ import java.util.*;
 public class MemMergeNode extends Node {
 
     /*
-     *  In-Progress means this is being used by the Parser to track memory
-     *  aliases.  No optimizations are allowed.  When no longer "in progress"
-     *  normal peeps work.
+     *  In-Progress is the mutable construction form.  No optimizations are
+     *  allowed.  If not "in progress" then normal peeps work.
      */
     public final boolean _inProgress;
 
     public MemMergeNode( boolean inProgress) { _type = TypeMem.BOT; _inProgress = inProgress; }
+    public MemMergeNode( boolean inProgress, Node ...nodes) { super(nodes); _type = TypeMem.BOT; _inProgress = inProgress; }
     public MemMergeNode(MemMergeNode mem) { super(mem); _inProgress = false; }
+    @Override public Tag serialTag() { return Tag.MemMerge; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
+    static Node make( BAOS bais )  { Node mem = new MemMergeNode(false); mem.setDefX(bais.packed1()-1,null); return mem; }
 
 
-    // If being used by a Scope, this is "in progress" from the Parser.
-    // Otherwise, it's a memory merge
+    // The mutable construction form is "in progress"; otherwise this is a
+    // graph-semantic memory merge.
     boolean inProgress() { return _inProgress; }
 
     @Override public String label() { return "ALLMEM"; }
@@ -61,29 +67,82 @@ public class MemMergeNode extends Node {
 
 
     @Override public Type compute() {
-        for( Node n : _inputs )
-            if( n != null && !n._type.isHigh() )
-                return TypeMem.BOT;
-        return TypeMem.TOP;
+        Type tmem = in(1)._type;
+        if( !(tmem instanceof TypeMem defmem) )
+            // A MemMerge is structurally memory even while its default input
+            // is a weak, not-yet-specialized Phi.
+            return tmem.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+        // Is this a single private instance memory?
+        if( defmem._one ) {
+            if( !(defmem._t instanceof TypeStruct ts) )
+                return defmem;
+            // Perfect singleton memory, so all updates are parallel and
+            // independent and stack.
+            for( int i=2; i<nIns(); i++ ) {
+                Node in = in(i);
+                while( true ) {
+                    if( in !=null && in._type.isHigh() )
+                        return TypeMem.TOP;
+                    if( in instanceof MemMergeNode mem ) {
+                        in = mem.in(i);
+                    } else break;
+                }
+                if( in instanceof StoreNode st ) {
+                    Type val = ((TypeMem)st._type)._t;
+                    Field old = ts.field(st._name);
+                    // Lazy add an expected field for open structs.
+                    if( old == null && ts._open ) {
+                        old = Field.make(st._name,Type.BOTTOM,st._alias,st._init);
+                        ts = ts.add(old);
+                    }
+                    Field fld = old.makeFrom(val);
+                    // TODO: val leaks into perfect singleton memory, along with its fidxs and aliases
+                    ts = ts.replace(fld);
+                }
+            }
+            return TypeMem.makePrivate(ts);
+
+        } else {
+            // Default mixed mem is just BOT
+            TypeMem mem = defmem;
+            boolean progress = true;
+            while( progress ) {
+                progress = false;
+                for( int i=2; i<nIns(); i++ ) {
+                    // Has this alias escaped already?
+                    if( XInt.bit(mem._escAs,i) ) {
+                        Node n = in(i);
+                        if( n != null && !n._type.isHigh() ) {
+                            TypeMem mem2 = (TypeMem)mem.meet(n._type);
+                            // More escape aliases
+                            if( mem2 != mem )
+                                { mem = mem2; progress = true; }
+                        }
+                    }
+                }
+            }
+            return mem;
+        }
     }
 
     @Override public Node idealize() {
         if( inProgress() ) return null;
+        if( nIns()==0 ) return null;
 
         // Fold defaults into the default
         boolean progress=false, allDefault=true;
         for( int i=2; i<nIns(); i++ ) {
-            if( in(i) instanceof CastNode cast )
+            if( in(i) instanceof CheckCastNode cast )
                 { setDef(i,cast.in(1)); progress=true; }
-            if( in(1) == in(i) ) { setDef(i,null); progress=true; }
-            else                 { allDefault=false; }
+            if( in(1) == in(i) && in(1) != null ) { setDef(i,null); progress=true; }
+            else                                  { allDefault=false; }
         }
 
         // If not merging any memory (all memory is just the default)
         if( allDefault )
             return in(1);       // Become default memory
 
-        // Collapse stacked all-mem
+        // Collapse stacked merged-mem
         if( in(1) instanceof MemMergeNode mem ) {
             // Goal is to swap my default mem with mem's default mem
             for( int i=2; i<mem.nIns(); i++ ) {
@@ -93,6 +152,7 @@ public class MemMergeNode extends Node {
                         setDefX(i,mem.in(i));
                 }
             }
+            CodeGen.CODE.add(mem.in(1));
             setDef(1,mem.in(1));
             return this;
         }
@@ -104,13 +164,12 @@ public class MemMergeNode extends Node {
     public Node in( Var v ) { return in(v._idx); }
 
     public Node alias( int alias ) {
+        assert !(in(1) instanceof BulkMemPhiNode bulk && bulk.isSplit(alias) &&
+                 (alias >= nIns() || in(alias)==null));
         return alias < nIns() && in(alias)!=null ? in(alias) : in(1);
     }
 
-    Node alias( int alias, Node st ) {
-        while( alias >= nIns() ) addDef(null);
-        return setDef(alias,st);
-    }
+    public Node alias( int alias, Node st ) { return setDefX(alias,st); }
 
     // Read or update from memory.
     // A shared implementation allows us to create lazy phis both during
@@ -119,25 +178,19 @@ public class MemMergeNode extends Node {
         // Memory projections are made lazily; if one does not exist
         // then it must be START.proj(1)
         Node old = alias(alias);
-        if( old instanceof ScopeNode loop ) {
-            MemMergeNode loopmem = loop.mem();
-            Node memdef = loopmem.alias(alias);
-            // Lazy phi!
-            old = memdef instanceof PhiNode phi && loop.ctrl()==phi.region()
-                // Loop already has a real Phi, use it
-                ? memdef
-                // Set real Phi in the loop head
-                // The phi takes its one input (no backedge yet) from a recursive
-                // lookup, which might have insert a Phi in every loop nest.
-                : loopmem.alias(alias, new PhiNode(Parser.memName(alias), TypeMem.make(alias,Type.BOTTOM),loop.ctrl(),loopmem._mem(alias,null),null).peephole() );
-            alias(alias,old);
-        }
+        assert !(old instanceof ScopeNode); // Parser lazy memory is handled by ScopeNode
         // Memory projections are made lazily; expand as needed
         return st==null ? old : alias(alias,st); // Not lazy, so this is the answer
     }
 
+    // Remove lazy Phis on all aliases
+    public void removeLazyAll() {
+        for( int i = 1; i < nIns(); i++)
+            _mem(i,null);
+    }
 
-    void _merge( MemMergeNode that, RegionNode r) {
+    public void _merge( MemMergeNode that, RegionNode r) {
+        assert _inProgress;
         int len = Math.max(nIns(),that.nIns());
         for( int i = 1; i < len; i++)
             if( alias(i) != that.alias(i) ) { // No need for redundant Phis
@@ -145,13 +198,33 @@ public class MemMergeNode extends Node {
                 // by alias as it will trigger a phi creation
                 Node lhs = this._mem(i,null);
                 Node rhs = that._mem(i,null);
-                alias(i, new PhiNode(Parser.memName(i), lhs._type.meet(rhs._type).glb(true), r, lhs, rhs).peephole());
+                alias(i, new MemPhiNode(Parser.memName(i), i, r, lhs, rhs).peephole());
             }
     }
 
-    // Fill in the backedge of any inserted Phis
+    // Fill in the backedge of any inserted Phis.  Keep precise aliases for
+    // what is known at the loop head.  For aliases discovered in the loop
+    // body, gather them into a actual (not inProgress) MemMerge and merge into
+    // the default alias.
     void _endLoopMem( ScopeNode scope, MemMergeNode back, MemMergeNode exit ) {
+        assert _inProgress && back._inProgress && exit._inProgress;
         Node exit_def = exit.alias(1);
+        MemMergeNode more = null; // Dont often need the "more discovered" merge, make it lazy
+        int len = Math.max(nIns(),back.nIns());
+        for( int i=2; i<len; i++ ) {
+            if( !(i < this.nIns() && this.in(i)!=null) &&  // Alias is not known to loop head
+                 (i < back.nIns() && back.in(i)!=null) ) { // Alias IS     known to loop back
+                // Gather
+                if( more==null ) {
+                    more = new MemMergeNode(false);
+                    more.alias(1,back.in(1));
+                    back.alias(1,more);
+                }
+                more.alias(i,back.in(i));
+                back.setDef(i,null);
+            }
+        }
+
         for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi && phi.region()==scope.ctrl() ) {
                 assert phi.in(2)==null;
@@ -164,7 +237,7 @@ public class MemMergeNode extends Node {
 
     // Now one-time do a useless-phi removal
     void _useless( ) {
-        for( int i=2; i<nIns(); i++ ) {
+        for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof PhiNode phi ) {
                 // Do an eager useless-phi removal
                 Node in = phi.peephole();

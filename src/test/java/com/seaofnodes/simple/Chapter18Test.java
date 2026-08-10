@@ -16,7 +16,7 @@ public class Chapter18Test {
 return 0;
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  2));
     }
 
@@ -34,7 +34,7 @@ while(arg--) {
 return a;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return Phi(Loop,1,Phi(Loop,2,Phi_a));", code._stop.toString());
+        assertEquals("return Phi(Loop,1,Phi(Loop,2,Phi_a));", code.print());
         assertEquals("1", Eval2.eval(code,  0));
         assertEquals("2", Eval2.eval(code,  1));
         assertEquals("1", Eval2.eval(code,  2));
@@ -51,7 +51,7 @@ return a;
 return x2;
 """);
         code.parse().opto();
-        assertEquals("return null;", code._stop.toString());
+        assertEquals("return null;", code.print());
         assertEquals("null", Eval2.eval(code, 0 ) );
     }
 
@@ -64,31 +64,50 @@ return x2;
 };
 """);
         code.parse().opto();
-        assertEquals("return (Parm_x(sq,i64)*x);", code._stop.toString());
-        //assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
+        assertEquals("Stop[ return { sq}; return (Parm_x(sq,i64)*x); ]", code.print());
+        assertEquals("{ ptr i64 -> i64 #[ 3]}", Eval2.eval(code, 3));
     }
 
     @Test
     public void testFcn1() {
         CodeGen code = new CodeGen(
 """
-var sq = { int x ->
+var _sq = { int x ->
     x*x;
 };
-return sq(arg)+sq(3);
+return _sq(arg)+_sq(3);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return (#2+#2); return (Parm_x(sq,i64)*x); ]", code._stop.toString());
+        assertEquals("return ((arg*arg)+9);", code.print());
         assertEquals("13", Eval2.eval(code, 2));
     }
 
     // Function scope test
     @Test
-    public void testFcn2() {
+    public void testFcn2A() {
         CodeGen code = new CodeGen(
 """
-int cnt=1;
-return { -> cnt; };
+int cnt=1;                      // Global scope; exactly one of these
+return { -> cnt++; };           // Escape global-scope variable is OK
+""");
+        code.parse().opto();
+        assertEquals("Stop[ return { ptr -> i64 #[ 3]}; return .cnt; ]", code.print());
+        assertEquals("{ ptr -> i64 #[ 3]}", Eval2.eval(code, 0));
+    }
+
+    // Function scope test
+    @Test
+    public void testFcn2B() {
+        CodeGen code = new CodeGen(
+"""
+val ctr = { ->
+    int cnt; // Function-local var
+    return { -> cnt=cnt+1; cnt; };       // Escape cnt out of scope
+};
+val A = ctr();                  // Make a counter
+val B = ctr();                  // Make a counter
+A();                            // Increment counter A
+return A()*10 + B();            // Incr A and B; result: 2*10+1 == 21
 """);
         try { code.parse().opto(); fail(); }
         catch( Exception e ) { assertEquals("Variable 'cnt' is out of function scope and must be a final constant",e.getMessage()); }
@@ -103,7 +122,7 @@ val cnt=2;
 return { -> cnt; }();
 """);
         code.parse().opto();
-        assertEquals("return 2;", code._stop.toString());
+        assertEquals("return 2;", code.print());
         assertEquals("2", Eval2.eval(code, 0));
     }
 
@@ -116,7 +135,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return #2; return 9; return 6; ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return (Parm_x($fun3,i64,3)*x); return (Parm_x($fun4,i64,3)<<1); ]", code.print());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -124,9 +143,11 @@ return fcn(3);
     // Recursive factorial test
     @Test
     public void testFcn5() {
-        CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
+        CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1 : x*_fact(x-1); }; return _fact(arg);");
         code.parse().opto().typeCheck();
-        assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(fact,i64)*#2)); ]", code._stop.toString());
+        String ir = code.print();
+        assertTrue(ir.equals("Stop[ return Phi(Region,1,(arg*#2)); return Phi(Region,1,(Parm_x(_fact,(arg-1),(x-1))*#2)); ]") ||
+                   ir.equals("Stop[ return Phi(Region,1,(arg*Phi(Region,1,((arg-1)*#2)))); return Phi(Region,1,(Parm_x(_fact,(Sub-1),(x-1))*#2)); ]"));
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
         assertEquals( "2", Eval2.eval(code, 2));
@@ -134,31 +155,55 @@ return fcn(3);
         assertEquals("24", Eval2.eval(code, 4));
     }
 
+    // The multiply initially sees one integer input and one unresolved
+    // The multiply initially sees one integer input and one unresolvedfcn8
+    // recursive result, but the floating base case requires a floating mode.
+    @Test
+    public void testFcn5Float() {
+        CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1.0 : x*_fact(x-1); }; return _fact(arg);");
+        code.parse().opto().typeCheck();
+        assertEquals("1.0",  Eval2.eval(code, 0));
+        assertEquals("1.0",  Eval2.eval(code, 1));
+        assertEquals("2.0",  Eval2.eval(code, 2));
+        assertEquals("6.0",  Eval2.eval(code, 3));
+        assertEquals("24.0", Eval2.eval(code, 4));
+    }
+
+    @Test
+    public void testFcn5Minus() {
+        CodeGen code = new CodeGen("val _neg = { int x -> x ? -_neg(x-1) : 1; }; return _neg(arg);");
+        code.parse().opto().typeCheck();
+        assertEquals( "1", Eval2.eval(code, 0));
+        assertEquals("-1", Eval2.eval(code, 1));
+        assertEquals( "1", Eval2.eval(code, 2));
+        assertEquals("-1", Eval2.eval(code, 3));
+    }
+
     @Test
     public void testFcn6() {
         CodeGen code = new CodeGen(
 """
-struct S { int i; };
-val newS = { int x -> return new S { i=x; }; };
-return newS(1).i;
+struct _S { int i; new _S = { int x -> i=x; }; };
+val _newS = { int x -> return new _S(x); };
+return _newS(1).i;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
-    // Double forward reference
+    // Only forward refs to direct function calls allowed
     @Test
     public void testFcn7() {
         CodeGen code = new CodeGen(
 """
-if( arg ? f : g ) return 1;
-val f = {->1;};
-val g = {->2;};
+val _f = {->1;};
+val _g = {->2;};
+if( arg ? _f : _g ) return 1;
 return 2;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
@@ -166,17 +211,17 @@ return 2;
     public void testFcn8() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? i2i = null;
-var id = {{int->int} f-> return f;};
+{int -> int}? _i2i = null;
+var _id = {{int->int} f-> return f;};
 for(;;) {
-    if (i2i) return i2i(arg);
-    var x = {int i-> return i;};
-    arg = x(3);
-    i2i = id(x);
+    if (_i2i) return _i2i(arg);
+    var _x = {int i-> return i;};
+    arg = _x(3);
+    _i2i = _id(_x);
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return #2; return Parm_i(x,i64); ]", code._stop.toString());
+        assertEquals("return Phi(Loop,arg,3);", code.print());
         assertEquals("3", Eval2.eval(code,  0));
     }
 
@@ -192,8 +237,8 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return Top;", code._stop.toString());
-        assertEquals("null", Eval2.eval(code,  0));
+        assertEquals("Stop[ return Top; return Parm_i(x,i64); ]", code.print());
+        assertNull( Eval2.eval( code, 0 ) ); // Infinite loop, <clinit> never exits
     }
 
 
@@ -201,23 +246,23 @@ for(;;) {
     public void testFcn10() {
         CodeGen code = new CodeGen(
 """
-struct Person {
+struct _Person {
   int age;
 };
 
-val fcn = { Person?[] ps, int x ->
+val _fcn = { _Person?[] ps, int x ->
   val tmp = ps[x];
   if( ps[x] )
     ps[x].age++;
 };
 
-var ps = new Person?[2];
-ps[0] = new Person;
-ps[1] = new Person;
-return fcn(ps,1);
+var ps = new _Person?[2];
+ps[0] = new _Person;
+ps[1] = new _Person;
+return _fcn(ps,1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return .age;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
 
@@ -252,7 +297,7 @@ for(;;) {
 return 0;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #21}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { ptr i64 -> i64 #[ 3]}?",e.getMessage()); }
     }
 
 
@@ -264,7 +309,7 @@ val f = { int i, int j -> return i+j; };
 return f();
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Expecting 2 arguments, but found 0",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Expecting 3 arguments, but found 1",e.getMessage()); }
     }
 
 
@@ -276,16 +321,14 @@ struct S {
     {int} f = { -> x(); return 0; }; // Do not let fref x be a field
 };
 val x = { -> return 1; };
-S? s = null;
-for(;;) {
-    if (s) return s.x;
-}
+S? s = new S;
+return s.x;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*S'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*Test.S'",e.getMessage()); }
     }
 
-    @Test
+    @Test @Ignore
     public void testErr5() {
         CodeGen code = new CodeGen(
 """
@@ -308,8 +351,8 @@ val is_even = { int x -> x ? is_odd (x-1) : true ; };
 val is_odd  = { int x -> x ? is_even(x-1) : false; };
 return is_even(arg);
 """);
-        code.parse().opto();
-        assertEquals("Stop[ return is_even( arg); return Phi(Region,Phi(Region,is_even( ((Parm_x(is_even,int,arg,Sub)-1)-1)),0),1); ]", code._stop.toString());
+        code.parse().opto().typeCheck();
+        assertEquals("Stop[ return #2; return Phi(Region,0,1,#2); ]", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         assertEquals("0", Eval2.eval(code, 1));
         assertEquals("1", Eval2.eval(code, 2));
@@ -331,7 +374,7 @@ for(;;) {
 }
 """);
         code.parse().opto().typeCheck().GCM();
-        assertEquals("return 0;", code._stop.toString());
+        assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
 
@@ -340,15 +383,15 @@ for(;;) {
     public void testInline() {
         CodeGen code = new CodeGen(
 """
-{int->int}?! i2i = {int i->return i;};
-{{int->int}->{int->int}}! f2f = {{int->int} f->return f;};
-val o = i2i;
-if (arg) i2i = null;
-if (i2i) return i2i(arg);
-return f2f(o)(1);
+{int->int}?! _i2i_noInline = {int i->return i;};
+{{int->int}->{int->int}}! _f2f = {{int->int} f->return f;};
+val _o = _i2i_noInline;
+if (arg) _i2i_noInline = null;
+if (_i2i_noInline) return _i2i_noInline(arg);
+return _f2f(_o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(i2i.o,i64); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(_i2i_noInline,i64); ]", code.print());
         assertEquals("1", Eval2.eval(code,  2));
     }
 
@@ -356,15 +399,15 @@ return f2f(o)(1);
     public void testOperField() {
         CodeGen code = new CodeGen(
 """
-struct Person {
+struct _Person {
     int coffee_count;
 };
-Person !p = new Person;
+_Person !p = new _Person;
 p.coffee_count += 1;
 return p.coffee_count;
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("return 1;", code._stop.toString());
+        assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

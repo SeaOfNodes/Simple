@@ -8,7 +8,7 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 public class SplitARM extends SplitNode {
-    SplitARM(String kind, byte round) { super(kind,round,new Node[2]);}
+    SplitARM(LRG lrg, String kind, byte round) { super(lrg,kind,round,new Node[2]);}
     @Override public RegMask regmap(int i) { return arm.SPLIT_MASK; }
     @Override public RegMask outregmap() { return arm.SPLIT_MASK; }
 
@@ -24,7 +24,7 @@ public class SplitARM extends SplitNode {
             if(src >= arm.MAX_REG) {
                 throw Utils.TODO();
             }
-            int off = enc._fun.computeStackOffset(enc._code,dst);
+            int off = fun(enc).computeStackOffset(enc._code,dst);
             if( srcX ) src -= arm.D_OFFSET;
             enc.add4(arm.load_str_imm(arm.OP_STORE_IMM_64, off, arm.RSP, src, 8));
             return;
@@ -32,7 +32,7 @@ public class SplitARM extends SplitNode {
 
         if(src >= arm.MAX_REG) {
             // Load from SP
-            int off = enc._fun.computeStackOffset(enc._code,src);
+            int off = fun(enc).computeStackOffset(enc._code,src);
             if( dstX ) dst -= arm.D_OFFSET;
             enc.add4(arm.load_str_imm(arm.OP_LOAD_IMM_64, off, arm.RSP, dst, 8));
             return;
@@ -55,11 +55,5 @@ public class SplitARM extends SplitNode {
             // FMOV(general) DOUBLE-PRECISION to 64 bits
             enc.add4(arm.f_mov_general(arm.OP_FMOV, 0b01, 0, 0b110, src - arm.D_OFFSET, dst));
         }
-    }
-
-    // General form: "mov  dst = src"
-    @Override public void asm(CodeGen code, SB sb) {
-        FunNode fun = code._encoding==null ? null : code._encoding._fun;
-        sb.p(code.reg(this,fun)).p(" = ").p(code.reg(in(1),fun));
     }
 }

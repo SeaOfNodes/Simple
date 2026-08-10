@@ -1,0 +1,70 @@
+// -*- mode: java;  -*-
+
+// Ary/Vector of i64s
+struct aryi64 {
+    u32 !len = 0;
+    i64[] !buf;
+
+    new aryi64 = { i64[] b ->
+        buf = b;
+    };
+
+    // Grow as needed
+    val _grow = { int len2 ->
+        if( len+len2 < buf# ) return self;
+        int newlen = buf# * 2;
+        while( len+len2 >= newlen ) newlen *= 2;
+        i64[] !buf2 = new i64[newlen];
+        for( int i=0; i<buf#; i++ )
+            buf2[i] = buf[i];
+        buf = buf2;
+        self;
+    };
+
+    // Add a i64 to aryu8
+    val add = { i64 c ->
+        _grow(1).buf[len++] = c;
+        self;
+    };
+
+    // Write to aryu8
+    val str = { ->
+        // TODO: clunky default constructor syntax
+        var str = new aryu8(new u8[1]).add('[');
+        for( int i=0; i<len; i++ )
+            str.num(buf[i]).add(',').add(' ');
+        str.undo(2).add(']');
+    };
+
+    val swap = { int i, int j ->
+        i64 tmp = buf[i];
+        buf[i] = buf[j];
+        buf[j] = tmp;
+        self;
+    };
+};
+
+
+// Parse a comma-separated list of numbers, wrapped with square brackets,
+// with optional whitespace  e.g. "[ -17, 0,99,12456789   ]  ".
+// parseAryI64 & aryi64.str are bijections modulo whitespace.
+// Returns null if the parse failed, without giving a clue as to why.
+val parseAryI64 = { u8[~] str ->
+    Scan !s = new Scan(str);
+    if( !s.match('[') ) return null;
+    // Array of parsed results
+    var nums = new aryi64(new i64[1]);
+
+    // Parse a list of numbers
+    if( s.match(']') )          // Handle the empty list
+        return nums;
+
+    // Parse number commas "123, " until something else
+    while( s.x < s.buf# ) {
+        nums.add(s.number());
+        if( !s.match(',') )
+            break;
+    };
+    // Close the list
+    return s.match(']') ? nums : null;
+};

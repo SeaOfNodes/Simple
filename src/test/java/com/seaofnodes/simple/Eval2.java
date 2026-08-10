@@ -117,7 +117,7 @@ public abstract class Eval2 {
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
         if( code._start.uctrl()==null ) return ""; // The empty program
-        SB trace = null; // = new SB(); // TRACE, set to null for off, new SB() for on
+        SB trace = null; // new SB(); // TRACE, set to null for off, new SB() for on
         // Force local scheduling phase
         code.driver(CodeGen.Phase.LocalSched);
         // Set global, so don't have to pass everywhere
@@ -134,6 +134,14 @@ public abstract class Eval2 {
         CFGNode BB = code._start, prior = null;
         // Return from main hits Stop
         F.put(BB,new Closure(code._stop,F));
+        // For all <clinit> / Clazzes, install their uninitialized memory
+        for( FunNode fun : code._linker )
+            if( fun!=null && fun.isClz() ) {
+                TypeStruct clz = ((TypeMemPtr)fun.sig().arg(0))._obj;
+                // Map from the <clinit> self parameter to the
+                // singleton class structure.
+                F.put(fun.parm(2),alloc(clz));
+            }
 
 
         // ------------
@@ -182,28 +190,37 @@ public abstract class Eval2 {
         int path = r._inputs.find( prior );
         // Parameters read from prior frame, Phis from local frame
         Frame frame = (r instanceof FunNode ? F._prior : F);
-        boolean isMain = r instanceof FunNode fun && fun.sig().isa(CodeGen.CODE._main);
+        boolean isClz = r instanceof FunNode fun && fun.isClz();
 
         // Parallel assign Phis.  First parallel read and cache
         int i;
         for( i = 0; i < r.nOuts(); i++ ) {
+            // Due to scheduling, all Phis are first in the outputs; first
+            // non-Phi is the end of all Phis.
             if( !(r.out(i) instanceof PhiNode phi) ) break;
-            if( isMain && phi instanceof ParmNode parm && parm._idx==2 )
-                PHICACHE[i] = arg; // Reading the initial arguments to main()
+
+            // Parms read from Call args -
+            // - except RPC is the actual prior frame
+            // - except <clinit> takes the singleton class object and external args
+            Object val;
+            if( isClz && phi instanceof ParmNode parm && parm._idx==3 )
+                PHICACHE[i] = arg; // Reading the initial arguments to <clinit>
             else {
                 Node n = phi instanceof ParmNode parm
-                    // RPC reads the Call directly;
+                    // RPC uses the prior Call directly;
                     // Parms may not be linked, so read call args directly
                     ? (parm._idx==0 ? prior : prior.in(parm._idx))
                     // Phis read from path input
                     :  phi.in(path);
+                // Read the frame before overwriting
                 PHICACHE[i] = frame.get(n);
             }
         }
         // Parallel assign; might assign before read, so read from cache
         for( int j=0; j < i; j++ )
             traceData(F.put0(r.out(j),PHICACHE[j]),trace);
-        // Return point in basic block past last Phi
+        // Return point in basic block past last Phi; the Phis have been
+        // evaluated here, and now we need to evaluate the rest of the block
         return i;
     }
 
@@ -252,36 +269,43 @@ public abstract class Eval2 {
     // From here down shamelessly copied from Evaluator, written by @Xmilia
     private static Object compute( Node n ) {
         return switch( n ) {
-        case AddFNode     adf  -> d(adf.in(1)) +  d(adf.in(2));
-        case AddNode      add  -> x(add.in(1)) +  x(add.in(2));
+        case AddNode      add  -> add.mode()==1
+            ? (Object)(x(add.in(1)) +  x(add.in(2)))
+            : (Object)(d(add.in(1)) +  d(add.in(2)));
         case AndNode      and  -> x(and.in(1)) &  x(and.in(2));
-        case BoolNode.EQF eqf  -> d(eqf.in(1)) == d(eqf.in(2)) ? 1L : 0L;
-        case BoolNode.LEF lef  -> d(lef.in(1)) <= d(lef.in(2)) ? 1L : 0L;
-        case BoolNode.LTF ltf  -> d(ltf.in(1)) <  d(ltf.in(2)) ? 1L : 0L;
         case BoolNode.EQ  eq   -> Objects.equals(val(eq.in(1)), val(eq.in(2))) ? 1L : 0L; // Bool EQ supports pointers, nil, and integers
-        case BoolNode.LE  le   -> x(le .in(1)) <= x(le .in(2)) ? 1L : 0L;
-        case BoolNode.LT  lt   -> x(lt .in(1)) <  x(lt .in(2)) ? 1L : 0L;
-        case CastNode    cast  -> val(cast.in(1));
+        case BoolNode.LE  le   -> le.mode()==1
+            ? (x(le.in(1)) <= x(le.in(2)) ? 1L : 0L)
+            : (d(le.in(1)) <= d(le.in(2)) ? 1L : 0L);
+        case BoolNode.LT  lt   -> lt.mode()==1
+            ? (x(lt.in(1)) <  x(lt.in(2)) ? 1L : 0L)
+            : (d(lt.in(1)) <  d(lt.in(2)) ? 1L : 0L);
+        case CheckCastNode cast -> val(cast.in(1));
+        case GuardNode   guard -> val(guard.in(1));
         case ConstantNode con  -> con(con._con);
-        case DivFNode     dvf  -> d(dvf.in(2))==0 ? 0D : d(dvf.in(1)) /  d(dvf.in(2));
-        case DivNode      div  -> x(div.in(2))==0 ? 0L : x(div.in(1)) /  x(div.in(2));
+        case DivNode      div  -> div.mode()==1
+            ? (Object)(x(div.in(1)) /  x(div.in(2)))
+            : (Object)((d(div.in(2))==0 ? 0D : d(div.in(1))) / d(div.in(2)));
+        case EscapeNode   esc  -> esc(esc);
+        case FunPtrNode   fptr -> con(fptr._con);
         case LoadNode     ld   -> load(ld);
-        case MinusFNode   mnf  -> - d(mnf.in(1));
-        case MinusNode    sub  -> - x(sub.in(1));
-        case MulFNode     mlf  -> d(mlf.in(1)) *  d(mlf.in(2));
-        case MulNode      mul  -> x(mul.in(1)) *  x(mul.in(2));
+        case MemMergeNode merge-> "$mem";
+        case MinusNode    sub  -> sub.mode()==1 ? (Object)(- x(sub.in(1))) : (Object)(- d(sub.in(1)));
+        case MulNode      mul  -> mul.mode()==1
+            ? (Object)(x(mul.in(1)) *  x(mul.in(2)))
+            : (Object)(d(mul.in(1)) *  d(mul.in(2)));
         case NewNode      alloc-> alloc(alloc);
-        case NotNode      not  -> x(not.in(1)) == 0 ? 1L : 0L;
+        case NotNode      not  -> not(not);
         case OrNode       or   -> x(or .in(1)) |  x(or .in(2));
         case ProjNode     proj -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
         case ReadOnlyNode read -> val(read.in(1));
         case SarNode      sar  -> x(sar.in(1)) >> x(sar.in(2));
-        case MemMergeNode merge-> "$mem";
         case ShlNode      shl  -> x(shl.in(1)) << x(shl.in(2));
         case ShrNode      shr  -> x(shr.in(1)) >>>x(shr.in(2));
         case StoreNode    st   -> store(st);
-        case SubNode      sub  -> x(sub.in(1)) -  x(sub.in(2));
-        case SubFNode     sbf  -> d(sbf.in(1)) -  d(sbf.in(2));
+        case SubNode      sub  -> sub.mode()==1
+            ? (Object)(x(sub.in(1)) -  x(sub.in(2)))
+            : (Object)(d(sub.in(1)) -  d(sub.in(2)));
         case ToFloatNode  toflt-> (double)x(toflt.in(1));
         case XorNode      xor  -> x(xor.in(1)) ^  x(xor.in(2));
         default -> throw Utils.TODO();
@@ -295,7 +319,9 @@ public abstract class Eval2 {
     // Fetch and unbox as primitive double
     static double d( Node n ) { Object d = F.get(n); return d==null ? 0 : (Double)d;  }
     // Fetch and unbox a function constant
-    static TypeFunPtr tfp(Node n) { return (TypeFunPtr)F.get(n); }
+    static TypeFunPtr tfp(Node n) {
+        return (TypeFunPtr)F.get(n);
+    }
     // Fetch and unbox a closure
     static Closure clj(Node n) { return (Closure)F.get(n); }
 
@@ -321,15 +347,32 @@ public abstract class Eval2 {
                 }
 
             } else {
-                // Generic TMP (since Simple is not currently making actual
-                // memory constants), used as a default input to a function;
-                // should never execute.
-                yield tmp.toString();
+                // Constant object with all zeros
+                yield alloc(tmp._obj);
             }
         }
         default -> null;
         };
     }
+
+    // Escapes of constant memory actually needs to set the memory
+    private static Object esc(EscapeNode esc) {
+        if( esc.priv() instanceof ConstantNode con ) {
+            TypeMem mem = (TypeMem)con._type;
+            Object val = con(mem._t);
+            TypeMemPtr tmp = (TypeMemPtr)esc.self()._type;
+            int idx = tmp._obj.findAlias(esc.fld()._alias);
+            Object[] fs = (Object[])val(esc.self());
+            if( tmp._obj.isAry() ) {
+                assert idx==0; // length field
+                assert (Long)val==fs.length;
+            } else {
+                fs[idx] = val;
+            }
+        }
+        return "$mem";
+    }
+
 
     // Convert array size to array element count
     private static int offToIdx( long off, TypeStruct t) {
@@ -340,8 +383,8 @@ public abstract class Eval2 {
     }
 
     // Builds and returns a pointer Object
-    private static Object alloc(NewNode alloc) {
-        TypeStruct type = alloc._ptr._obj;
+    private static Object[] alloc(NewNode alloc) {
+        TypeStruct type = alloc._ts;
         if( type.isAry() ) {
             long sz = (Long)val(alloc.in(1));
             long x = offToIdx(sz, type);
@@ -360,6 +403,10 @@ public abstract class Eval2 {
             return ary;
         }
 
+        return alloc(type);
+    }
+    private static Object[] alloc(TypeStruct type) {
+        assert !type.isAry();
         int num = type._fields.length;
         Object[] ptr = new Object[num];
         for( int i=0; i<num; i++ )
@@ -367,15 +414,16 @@ public abstract class Eval2 {
         return ptr;
     }
 
+    private static Object not( NotNode not ) {
+        Object n = val(not.in(1));
+        return ( n==null || (n instanceof Double D && D==0.0) || n instanceof Long L && L==0 )
+            ? 1L : 0L;
+    }
+
     private static Object load( LoadNode ld ) {
         Object f = val(ld.ptr());
         // Check for dense constant array
         if( f instanceof TypeMemPtr tmp ) {
-            //assert tmp._obj._con != TypeConAry.BOT;
-            //if( ld._name.equals("#") )
-            //    return (long)tmp._obj._con.len();
-            //int idx = offToIdx(x(ld.off()),tmp._obj);
-            //return tmp._obj._con.at(idx);
             throw Utils.TODO();
         }
         Object[] fs = (Object[])f;
@@ -434,12 +482,11 @@ public abstract class Eval2 {
         case TypeMemPtr tmp -> {
             if( visit.containsKey(x) ) yield sb.p("$cyclic");
             visit.put(x,x);
-            assert !tmp.isFRef();
 
             Object[] xs = (Object[])x; // Array of fields
             if( tmp._obj.isAry() ) {
                 Type elem = tmp._obj._fields[1]._t;
-                if( elem == TypeInteger.U8 ) {
+                if( elem.isa(TypeInteger.U8) ) {
                     // Shortcut u8[] as a String
                     for( Object o : xs )
                         sb.p((char)(long)(Long)o);

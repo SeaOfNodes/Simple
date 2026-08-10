@@ -13,7 +13,6 @@ public class riscv extends Machine {
     }
 
     @Override public String name() {return "riscv";}
-    //@Override public int maxReg() { return MAX_REG; }
 
     // Using ABI names instead of register names
     public static int ZERO =  0,  RPC=  1,  RSP=  2,  S12=  3,  S13=  4,  T0 =  5,  T1 =  6,  T2 =  7;
@@ -32,24 +31,24 @@ public class riscv extends Machine {
     public static final int F_OFFSET = 32;
 
     static final String[] REGS = new String[] {
-        "zero","rpc"  , "rsp" , "s12" , "s13" , "t0"  , "t1"  , "t2"  ,
-        "s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
-        "a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
-        "s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
-        "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
-        "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
-        "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
-        "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
-        // Register-based naming hella easier to debug than "official" register
-        // names when single-stepping in debugger.
-        //"zero", "r1"  , "rsp" , "r3" , "r4" , "r5" , "r6" , "r7" ,
-        //"r8"  , "r9"  , "r10" , "r11", "r12", "r13", "r14", "r15",
-        //"r16" , "r17" , "r18" , "r19", "r20", "r21", "r22", "r23",
-        //"r24" , "r25" , "r26" , "r27", "r28", "r29", "r30", "r31",
+        //"zero","rpc"  , "rsp" , "s12" , "s13" , "t0"  , "t1"  , "t2"  ,
+        //"s0"  , "s1"  , "a0"  , "a1"  , "a2"  , "a3"  , "a4"  , "a5"  ,
+        //"a6"  , "a7"  , "s2"  , "s3"  , "s4"  , "s5"  , "s6"  , "s7"  ,
+        //"s8"  , "s9"  , "s10" , "s11" , "t3"  , "t4"  , "t5"  , "t6"  ,
         //"f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
         //"fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
         //"fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
         //"fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
+        // Register-based naming hella easier to debug than "official" register
+        // names when single-stepping in debugger.
+        "zero", "r1"  , "rsp" , "r3" , "r4" , "r5" , "r6" , "r7" ,
+        "r8"  , "r9"  , "r10" , "r11", "r12", "r13", "r14", "r15",
+        "r16" , "r17" , "r18" , "r19", "r20", "r21", "r22", "r23",
+        "r24" , "r25" , "r26" , "r27", "r28", "r29", "r30", "r31",
+        "f0"  , "f1"  , "f2"  , "f3"  , "f4"  , "f5"  , "f6"  , "f7"  ,
+        "fs0" , "fs1" , "fa0" , "fa1" , "fa2" , "fa3" , "fa4" , "fa5" ,
+        "fa6" , "fa7" , "fs2" , "fs3" , "fs4" , "fs5" , "fs6" , "fs7" ,
+        "fs8" , "fs9" , "fs10", "fs11", "ft8" , "ft9" , "ft10", "ft11"
     };
     @Override public String[] regs() { return REGS; }
 
@@ -91,7 +90,7 @@ public class riscv extends Machine {
     public static RegMask FA6_MASK = new RegMask(FA6);
     public static RegMask FA7_MASK = new RegMask(FA7);
 
-    // Int arguments calling conv
+    // Int/ptr arguments calling convention
     static RegMask[] CALLINMASK = new RegMask[] {
         A0_MASK,
         A1_MASK,
@@ -257,10 +256,16 @@ public class riscv extends Machine {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        boolean hidden = hiddenSelf(tfp);
+        int sigidx = idx-2;
+        if( hidden ) {
+            if( sigidx==0 ) return null;
+            sigidx--;
+        }
         // Count floats in signature up to index
         int fcnt=0;
-        for( int i=2; i<idx; i++ )
-            if( tfp.arg(i-2) instanceof TypeFloat )
+        for( int i=hidden ? 1 : 0; i<idx-2; i++ )
+            if( tfp.arg(i) instanceof TypeFloat )
                 fcnt++;
         // Floats up to XMMS in XMM registers
         if( tfp.arg(idx-2) instanceof TypeFloat ) {
@@ -268,22 +273,25 @@ public class riscv extends Machine {
                 return XMMS[fcnt];
         } else {
             RegMask[] cargs = CALLINMASK;
-            if( idx-2-fcnt < cargs.length )
-                return cargs[idx-2-fcnt];
+            if( sigidx-fcnt < cargs.length )
+                return cargs[sigidx-fcnt];
         }
         // Pass on stack slot(8 and higher)
         if( maxArgSlot>0 ) throw Utils.TODO();
-        return new RegMask(MAX_REG + 1 + (idx - 2));
+        return new RegMask(MAX_REG + 1 + sigidx);
     }
 
     @Override public short maxArgSlot( TypeFunPtr tfp ) {
         int icnt=0, fcnt=0;     // Count of ints, floats
-        for( int i=0; i<tfp.nargs(); i++ ) {
+        for( int i=hiddenSelf(tfp) ? 1 : 0; i<tfp.nargs(); i++ ) {
             if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
             else icnt++;
         }
         int nstk = Math.max(icnt-8,0)+Math.max(fcnt-8,0);
         return (short)nstk;
+    }
+    private static boolean hiddenSelf(TypeFunPtr tfp) {
+        return tfp.nargs() > 0 && tfp.arg(0) == TypePtr.PTR;
     }
 
     static final long CALLER_SAVE =
@@ -306,7 +314,7 @@ public class riscv extends Machine {
     @Override public CFGNode jump() { return new UJmpRISC(); }
 
     // Create a split op; any register to any register, including stack slots
-    @Override  public SplitNode split(String kind, byte round, LRG lrg) { return new SplitRISC(kind,round);  }
+    @Override public SplitNode split(LRG lrg, String kind, byte round ) { return new SplitRISC(lrg, kind,round);  }
 
     // True if signed 12-bit immediate
     public static boolean imm12(TypeInteger ti) {
@@ -323,28 +331,34 @@ public class riscv extends Machine {
 
     @Override public Node instSelect( Node n ) {
         return switch (n) {
-        case AddFNode    addf -> addf(addf);
         case AddNode      add -> add(add);
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CallNode    call -> call(call);
-        case CastNode   cast  -> new CastMach(cast);
+        case CheckCastNode cast -> new CheckCastMach(cast);
+        case PtrToIntNode  ptr -> new PtrToIntMach(ptr);
+        case GuardNode guard  -> new GuardMach(guard);
         case CallEndNode cend -> new CallEndMach(cend);
         case CProjNode      c -> new CProjNode(c);
         case ConstantNode con -> con(con);
-        case DivFNode    divf -> new DivFRISC(divf);
-        case DivNode      div -> new DivRISC(div);
+        case DivNode      div -> div.mode()==2 ? new DivFRISC(div) : new DivRISC(div);
+        case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunRISC(fun);
+        case FunPtrNode  fptr -> fptr(fptr);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
-        case MinusNode    neg -> new NegRISC(neg);
-        case MulFNode    mulf -> new MulFRISC(mulf);
-        case MulNode      mul -> new MulRISC(mul);
+        case MinusNode    neg -> {
+            if( neg.mode()==2 ) throw Utils.TODO();
+            yield new NegRISC(neg);
+        }
+        case MulNode      mul -> mul.mode()==2 ? new MulFRISC(mul) : new MulRISC(mul);
         case NewNode      nnn -> nnn(nnn);
         case NotNode      not -> new NotRISC(not);
         case OrNode        or -> or(or);
         case ParmNode    parm -> new ParmRISC(parm);
+        case BulkMemPhiNode phi-> new BulkMemPhiNode(phi);
+        case MemPhiNode  phi  -> new MemPhiNode(phi);
         case PhiNode      phi -> new PhiNode(phi);
         case ProjNode     prj -> prj(prj);
         case ReadOnlyNode read-> new ReadOnlyMach(read);
@@ -352,11 +366,12 @@ public class riscv extends Machine {
         case SarNode      sar -> sra(sar);
         case ShlNode      shl -> sll(shl);
         case ShrNode      shr -> srl(shr);
+        case StartCUNode start -> new StartCUNode(start);
+        case StopCUNode  stop -> new StopCUNode(stop);
         case StartNode  start -> new StartNode(start);
         case StopNode    stop -> new StopNode(stop);
         case StoreNode     st -> st(st);
-        case SubFNode    subf -> new SubFRISC(subf);
-        case SubNode      sub -> sub(sub);
+        case SubNode      sub -> sub.mode()==2 ? new SubFRISC(sub) : sub(sub);
         case ToFloatNode  tfn -> i2f8(tfn);
         case XorNode      xor -> xor(xor);
 
@@ -366,11 +381,9 @@ public class riscv extends Machine {
         };
     }
 
-    private Node addf(AddFNode addf) {
-        return new AddFRISC(addf);
-    }
-
     private Node add(AddNode add) {
+        if( add.mode()==2 )
+            return new AddFRISC(add);
         if( add.in(2) instanceof ConstantNode off2 && off2._con instanceof TypeInteger ti && imm12(ti) )
             return new AddIRISC(add, (int)ti.value(),true);
         return new AddRISC(add);
@@ -388,8 +401,10 @@ public class riscv extends Machine {
     }
 
     private Node call(CallNode call) {
-        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
-            ? new CallRISC(call, tfp)
+        return call.fptr() instanceof FunPtrNode fptr
+            ? new CallRISC(call, (TypeFunPtr)fptr._type)
+            : call.fptr() instanceof ConstantNode con
+            ? new CallRISC(call, (TypeFunPtr)con._type)
             : new CallRRISC(call);
     }
     private Node nnn(NewNode nnn) {
@@ -428,9 +443,13 @@ public class riscv extends Machine {
     }
 
     private Node con( ConstantNode con ) {
-        if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
+        if( !con._con.isConstant() )
+            return ConstantNode.raw(con); // Default unknown caller inputs
+        String ext = con instanceof ExternNode ext0 ? ext0._extern : null;
         return switch( con._con ) {
         case TypeInteger ti -> {
+            // External; without knowing the size assume we have to load something
+            if( ext!=null ) yield new Int8RISC(con,ext);
             if( imm12(ti) ) yield new IntRISC(con);
             long x = ti.value();
             if( imm20Exact(ti) ) yield new LUI((int)x);
@@ -443,16 +462,20 @@ public class riscv extends Machine {
             }
             // Need more complex sequence for larger constants... or a load
             // from a constant pool, which does not need an extra register
-            yield new Int8RISC(con);
+            yield new Int8RISC(con,null);
         }
         // Load from constant pool
-        case TypeFloat   tf  -> new FltRISC(con);
-        case TypeFunPtr  tfp -> new TFPRISC(con);
-        case TypeMemPtr  tmp -> new TMPRISC(con);
+        case TypeFloat   tf  -> new FltRISC(con,ext);
+        case TypeMemPtr  tmp -> new TMPRISC(con,ext);
+        case TypeFunPtr  tfp -> new TFPRISC(tfp,ext);
         case TypeNil     tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> t==Type.NIL ? new IntRISC(con) : new ConstantNode(con);
+        case Type t -> t==Type.NIL ? new IntRISC(con) : ConstantNode.raw(con);
         };
+    }
+
+    private Node fptr( FunPtrNode con ) {
+        return new TFPRISC(con);
     }
 
     private Node jmp( IfNode iff ) {
@@ -509,7 +532,7 @@ public class riscv extends Machine {
     }
 
     private Node prj(ProjNode prj) {
-        return new ProjRISC(prj);
+        return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjRISC(prj);
     }
 
     private Node ld(LoadNode ld) {

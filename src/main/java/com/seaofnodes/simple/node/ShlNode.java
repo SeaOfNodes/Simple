@@ -1,13 +1,14 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class ShlNode extends ArithNode {
-    public ShlNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
+    public ShlNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs, (byte)1); }
+    @Override public Tag serialTag() { return Tag.Shl; }
 
-    @Override public String label() { return "Shl"; }
     @Override public String op() { return "<<"; }
     @Override public String glabel() { return "&lt;&lt;"; }
 
@@ -38,7 +39,7 @@ public class ShlNode extends ArithNode {
             if( lhs instanceof AddNode add && addDep(add).in(2)._type instanceof TypeInteger c && c.isConstant() ) {
                 long sum = c.value() << shl.value();
                 if( Integer.MIN_VALUE <= sum  && sum <= Integer.MAX_VALUE )
-                    return new AddNode(new ShlNode(_loc,add.in(1),rhs).peephole(), Parser.con(sum) );
+                    return new AddNode(new ShlNode(_loc,add.in(1),rhs).peephole(), CodeGen.CODE.con(sum) );
             }
         }
 

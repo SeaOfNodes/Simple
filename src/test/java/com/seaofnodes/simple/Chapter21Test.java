@@ -5,9 +5,6 @@ import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -17,24 +14,24 @@ public class Chapter21Test {
     public void testJig() throws IOException {
         String src =
 """
-struct s0 {
+struct _s0 {
     bool v1;
     i16 v2;
     int v3;
     i8 v4;
     byte v5;
 };
-while(new s0.v3)
-    while(new s0.v5<<new s0.v4) {}
+while(new _s0.v3)
+    while(new _s0.v5<<new _s0.v4) {}
 if(0) {
     if(0) {
-        flt !P5ZUD4=new s0.v2;
+        flt !P5ZUD4=new _s0.v2;
     }
     while(0) {}
 }
-return new s0.v1;
+return new _s0.v1;
 """;
-        testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
+        testCPU(src,"x86_64_v2", "win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
     }
@@ -43,10 +40,10 @@ return new s0.v1;
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
-        if( spills != -1 )
+        if( spills != -1 && !CodeGen.iterSeedOverridden() )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
         if( stop != null )
-            assertEquals(stop, code._stop.toString());
+            assertEquals(stop, code.print());
     }
 
 
@@ -58,14 +55,14 @@ return new s0.v1;
     }
 
     @Test public void testInfinite() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
+        String src = "struct _S { int i; }; _S !s = new _S; while(1) s.i++; return s.i;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");
     }
 
     @Test
-    public void testArray1() throws IOException {
+    public void testArray1() {
         String src =
 """
 int[] !ary = new int[arg];
@@ -83,13 +80,13 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     }
 
     @Test
-    public void testAntiDeps1() throws IOException {
+    public void testAntiDeps1() {
         String src =
 """
-struct S { int f; };
-var v0 = new S;
-S? v1;
-if (arg) v1 = new S;
+struct _S { int f; };
+var v0 = new _S;
+_S? v1;
+if (arg) v1 = new _S;
 if (v1) {
     v0.f = v1.f;
 } else {
@@ -97,13 +94,13 @@ if (v1) {
 }
 return v0;
 """;
-        testCPU(src,"x86_64_v2", "SystemV", 7,"return mov(mov(S));");
-        testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(S));");
-        testCPU(src,"arm"      , "SystemV",10,"return mov(mov(S));");
+        testCPU(src,"x86_64_v2", "SystemV",10,"return mov(mov(Test._S));");
+        testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(Test._S));");
+        testCPU(src,"arm"      , "SystemV",10,"return mov(mov(Test._S));");
     }
 
     @Test
-    public void testString() throws IOException {
+    public void testString() {
         String src =
 """
 struct String {
@@ -136,9 +133,9 @@ val _hashCodeString = { String self ->
     return hash;
 };
 """;
-        testCPU(src,"x86_64_v2", "SystemV", 9,null);
-        testCPU(src,"riscv"    , "SystemV", 3,null);
-        testCPU(src,"arm"      , "SystemV", 3,null);
+        testCPU(src,"x86_64_v2", "SystemV",18,null);
+        testCPU(src,"riscv"    , "SystemV", 5,null);
+        testCPU(src,"arm"      , "SystemV", 4,null);
     }
 
     @Test public void testStringExport() throws IOException {
@@ -174,10 +171,10 @@ val _hashCodeString = { String self ->
     return hash;
 };
 """;
-        TestC.run(src, "stringHash",null, "", 9);
+        TestC.runC(src, "stringHash", "",18);
     }
 
-    @Test public void testLoop2() throws IOException {
+    @Test public void testLoop2() {
         String src =
 """
 int i = 0;
@@ -190,9 +187,9 @@ while(true) {
 }
 return i;
 """;
-        testCPU(src,"x86_64_v2", "Win64"  ,0,"return (inc,Phi(Loop,0,inc));");
-        testCPU(src,"riscv"    , "SystemV",0,"return ( Phi(Loop,0,addi) + #1 );");
-        testCPU(src,"arm"      , "SystemV",0,"return (inc,Phi(Loop,0,inc));");
+        testCPU(src,"x86_64_v2", "win64"  ,0,"return (!=0)(inc,Phi(Loop,0,Phi(Region,(!=0),(!=0),0)));");
+        testCPU(src,"riscv"    , "SystemV",0,"return (!=0)( Phi(Loop,0,Phi(Region,(!=0),(!=0),0)) + #1 );");
+        testCPU(src,"arm"      , "SystemV",0,"return (!=0)(inc,Phi(Loop,0,Phi(Region,(!=0),(!=0),0)));");
     }
 
     @Test public void testNewtonExport() throws IOException {
@@ -221,9 +218,9 @@ val test_sqrt = { flt x ->
     }
 };
 """;
-        TestC.run(src, "newtonFloat", null, result, 34);
+        TestC.runC(src, "newtonFloat", result, 42);
 
-        EvalRisc5 R5 = TestRisc5.build("newtonFloat",src, 0, 10, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "test_sqrt", 0, 10, false);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
         int trap_r5 = R5.step(1000);
         assertEquals(0,trap_r5);
@@ -231,7 +228,7 @@ val test_sqrt = { flt x ->
         assertEquals(1.732051,R5.fregs[riscv.FA0 - riscv.F_OFFSET], 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("newtonFloat", src,0, 10, false);
+        EvalArm64 A5 = TestArm64.build("test_sqrt", src,0, 10, false);
         A5.fregs[arm.D0 - arm.D_OFFSET] = 3.0;
         int trap_arm = A5.step(1000);
         assertEquals(0,trap_arm);
@@ -281,11 +278,11 @@ val sieve = { int N ->
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run(src, "sieve", null, sprimes, 257);
+        TestC.runC(src, "sieve", sprimes, 186);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", src, 100, 160, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sieve", 100, 90, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -297,7 +294,7 @@ val sieve = { int N ->
 
         // Evaluate on ARM5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 160, false);
+        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 105, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];
@@ -310,7 +307,7 @@ val sieve = { int N ->
     @Test public void testFibExport() throws IOException {
         String src =
 """
-val fib = {int n ->
+val fib = { int n ->
     int f1=1;
     int f2=1;
     while( n-- > 1 ){
@@ -322,9 +319,9 @@ val fib = {int n ->
 };
 """;
         String fib = "[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]";
-        TestC.run(src, "fib", null, fib, 24);
+        TestC.runC(src, "fib", fib, 24);
 
-        EvalRisc5 R5 = TestRisc5.build("fib", src, 9, 17, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "fib", 9, 17, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         // Return register A0 holds fib(8)==55
@@ -351,7 +348,7 @@ val fib = {int n ->
                 };
                 """;
         String person = "6\n";
-        TestC.run(src, "person", null, person, 0);
+        TestC.run(src, "person1", null, TestC.CALL_CONVENTION, "", TestC.C_DRIVERS_DIR+"person.c", person, 2);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
@@ -362,7 +359,7 @@ val fib = {int n ->
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", src, ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "fcn", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -378,7 +375,7 @@ val fib = {int n ->
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("person", src, ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);
@@ -396,8 +393,8 @@ val fib = {int n ->
     }
 
     @Test public void testArgCount() throws IOException {
-        // Test passes more args than registers in Sys5, which is far far more
-        // than what Win64 allows - so Win64 gets a lot more spills here.
+        // Test passes more args than registers in Sys5, which is far, far more
+        // than what win64 allows - so win64 gets a lot more spills here.
         String src =
 """
 val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, int x8, flt f9, int i10, flt f11, int i12, flt f13, int i14, flt f15, int x16, flt f17 int x18, flt f19 ->
@@ -408,9 +405,9 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 """;
         String arg_count = "191.000000\n";
 
-        TestC.run(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
+        TestC.runC(src, "arg_count", arg_count, TestC.CALL_CONVENTION.equals("win64") ? 31 : 15);
 
-        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", src, 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "addAll", 0, 4, false);
 
         // Todo: handle stack(imaginary stack in emulator)
         // pass in float arguments
@@ -423,14 +420,13 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
         R5.fregs[riscv.FA6 - riscv.F_OFFSET] = 1.1;
         R5.fregs[riscv.FA7 - riscv.F_OFFSET] = 1.1;
 
-        // a0 is passed in arg
+        R5.regs[riscv.A0] = 2;
         R5.regs[riscv.A1] = 2;
         R5.regs[riscv.A2] = 2;
         R5.regs[riscv.A3] = 2;
         R5.regs[riscv.A4] = 2;
         R5.regs[riscv.A5] = 2;
         R5.regs[riscv.A6] = 2;
-        R5.regs[riscv.A7] = 2;
 
         int trap = R5.step(100);
         assertEquals(0,trap);
@@ -440,7 +436,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
         assertEquals(22.8, result, 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", src, 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("addAll", src, 0, 4, false);
 
         A5.fregs[arm.D0 - arm.D_OFFSET] = 1.1;
         A5.fregs[arm.D1 - arm.D_OFFSET] = 1.1;

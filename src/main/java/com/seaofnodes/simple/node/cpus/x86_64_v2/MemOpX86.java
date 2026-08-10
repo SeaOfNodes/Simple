@@ -41,7 +41,8 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
         _off = off;
         _scale = scale;
         _imm = imm;
-        _sz = (char)('0'+(1<<_declaredType.log_size()));
+        int size = mop instanceof StoreNode st ? st.storeSize() : 1<<_con.log_size();
+        _sz = (char)('0'+size);
     }
 
     // Store-based flavors have a value edge

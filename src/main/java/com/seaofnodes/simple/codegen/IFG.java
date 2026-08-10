@@ -68,9 +68,9 @@ abstract public class IFG {
         // Reset all to empty
         resetBBLiveOut();
         resetIFG();
+        WORK.clear();
 
         // Last block has nothing live out
-        assert WORK.isEmpty();
         for( CFGNode bb : alloc._code._cfg )
             if( bb.blockHead())
                 WORK.push( bb );
@@ -231,7 +231,9 @@ abstract public class IFG {
         selfConflict(alloc,n,lrg,TMP.get(lrg));
     }
     private static void selfConflict(RegAlloc alloc, Node n, LRG lrg, Node prior) {
-        if( prior!=null && prior != n ) {
+        // Casts never produce a *new* value, just lift our understanding of the value.
+        // They do not force self-conflicts.
+        if( prior!=null && prior != n && !(n instanceof CheckCastNode) ) {
             lrg.selfConflict(prior);
             lrg.selfConflict(n);
             alloc.fail(lrg); // 2 unrelated values live at once same live range; self-conflict
@@ -402,6 +404,7 @@ abstract public class IFG {
             swap(color_stack,sptr,bidx); // Pick best at sptr
     }
 
+    // Returns true if 'lrg' is better than 'best'
     private static boolean betterLRG( LRG best, LRG lrg ) {
         // If single-def varies, keep the not-single-def
         if( best.size1() != lrg.size1() )
@@ -409,6 +412,10 @@ abstract public class IFG {
         // If hasSplit varies, keep the hasSplit
         if( best.hasSplit() != lrg.hasSplit() )
             return lrg.hasSplit();
+        // If both are single register (so both sizes are 1),
+        // return a multi-use over a multi-def
+        if( best.size1() )
+            return !best._multiUse && lrg._multiUse;
         // Keep large register count
         return best.size() < lrg.size();
     }
@@ -438,7 +445,7 @@ abstract public class IFG {
     private static int pickRiskyScore( LRG lrg ) {
         // Pick single-def clonables that are not right next to their single-use.
         // Failing to color these will clone them closer to their uses.
-        if( !lrg._multiDef && lrg._machDef.isClone() ) {
+        if( !lrg._multiDef && lrg._machDef.isClone() && lrg._machUse != null ) {
             Node def = ((Node)lrg._machDef);
             Node use = ((Node)lrg._machUse);
             CFGNode cfg = def.cfg0();
@@ -458,7 +465,7 @@ abstract public class IFG {
 
         // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
         // and "area" for benefit
-        return 1000;
+        return 1000 + (lrg._multiUse ? -100 : 0);
     }
 
     private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {

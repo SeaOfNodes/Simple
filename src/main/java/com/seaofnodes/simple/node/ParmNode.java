@@ -1,30 +1,59 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
+
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class ParmNode extends PhiNode {
 
     // Argument indices are mapped one-to-one on CallNode inputs
     public final int _idx;             // Argument index
+    public Type _declaredType;
 
     public ParmNode(String label, int idx, Type declaredType, Node... inputs) {
-        super(label,declaredType,inputs);
+        super(label, inputs);
         _idx = idx;
+        _declaredType = declaredType;
+        _type = declaredType;
     }
-    public ParmNode(ParmNode parm) { super(parm, parm._label, parm._minType ); _idx = parm._idx; }
+    public ParmNode(ParmNode parm) { super(parm, parm._label ); _idx = parm._idx; _declaredType = parm._declaredType; }
+    @Override public Tag serialTag() { return Tag.Parm; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(nIns());   // Number of linked calls
+        baos.packed2(_label==null ? 0 : strs.get(_label));
+        baos.packed2(types.get(_declaredType)); // NPE if fails lookup
+        baos.packed1(_idx);
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        String label =   strs[bais.packed2()];
+        Type minType =  types[bais.packed2()];
+        return new ParmNode(label, bais.packed1(), minType, ins);
+    }
 
     @Override public String label() { return MemOpNode.mlabel(_label); }
 
     @Override public String glabel() { return _label; }
 
+    @Override protected Type declaredType() { return _declaredType; }
+    @Override protected Type constrain(Type t) { return t.join(_declaredType); }
+
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        Type t = _declaredType.upgradeType(TYPES);
+        if( t == _declaredType ) return false;
+        unlock();
+        _declaredType = t;
+        return true;
+    }
+
     public FunNode fun() { return (FunNode)in(0); }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( "main".equals(fun()._name) && _label.equals("arg") )
+        if( fun()._name!=null && fun()._name.endsWith("<clinit>") && _label.equals("arg") )
             return sb.append("arg");
         sb.append("Parm_").append(_label).append("(");
         for( Node in : _inputs ) {
@@ -48,14 +77,6 @@ public class ParmNode extends PhiNode {
         // If function is folding, do all possible peeps
         if( fun()._folding ) return super.idealize();
 
-        // Can upgrade minType even while in-progress
-        if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
-            if( tmp2!=null && tmp2 != _minType ) {
-                _minType = tmp2;
-                return this;
-            }
-        }
         // Skip most phi optimizations on parms
         return null;
     }

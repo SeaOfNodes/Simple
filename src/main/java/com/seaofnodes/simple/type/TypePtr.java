@@ -1,9 +1,12 @@
 package com.seaofnodes.simple.type;
 
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * Represents a Scalar; a single register-sized value.
@@ -49,6 +52,14 @@ public class TypePtr extends TypeNil {
 
     boolean _isGLB(boolean mem) { return this==PTR; }
     @Override TypePtr _glb(boolean mem) { return PTR; }
+
+    // Reserve 2 tags, PTR and NPTR
+    @Override int TAGOFF() { return 2; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        assert _nil>=2;
+        baos.write(TAGOFFS[_type] + (_nil==2 ? 0 : 1));
+    }
+    static TypePtr packed( int tag ) { return tag==0 ? NPTR : PTR; }
 
     @Override public String str() { return STRS[_nil]; }
     @Override public SB _print(SB sb, BitSet visit, boolean html) { return sb.p(str()); }

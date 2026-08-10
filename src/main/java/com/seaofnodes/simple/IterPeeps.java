@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Opto;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -39,7 +40,7 @@ import java.util.Random;
  * <li>Our strong invariant is that for all Nodes, either they are on the worklist
  *   OR no peephole applies.  This invariant is easy to check, although expensive.
  *   Basically the normal "iterate peepholes to a fixed point" is linear, and this
- *   check is linear at each peephole step... so quadratic overall.  Its a useful
+ *   check is linear at each peephole step... so quadratic overall.  It's a useful
  *   assert, but one we can disable once the overall algorithm is stable - and
  *   then turn it back on again when some new set of peepholes is misbehaving.
  *   The code for this is turned on in `IterPeeps.iterate` as `assert
@@ -80,6 +81,10 @@ public class IterPeeps {
                     // Everybody gets a free "go again" in case they didn't get
                     // made in their final form.
                     _work.push(x);
+                    // A self-returning peephole can have rewritten its input
+                    // edges.  The new defs gained a user and may have
+                    // backwards, user-sensitive peepholes of their own.
+                    for( Node z : x._inputs ) _work.push(z);
                     // If the result is not self, revisit all inputs (because
                     // there's a new user), and replace in the graph.
                     if( x != n ) {
@@ -117,20 +122,33 @@ public class IterPeeps {
         Node changed = code._stop.walk( n -> {
             Node m = n;
             Type nval = n.compute();
-            if( (!n.iskeep() || n._nid<=8) &&  // Types must be forwards, even if on worklist
-                ( dir
-                  ? nval.isa(n._type) // Pesi: new value lifts over old
-                  : n._type.isa(nval) // Opto: new value falls over old
-                  ) ) {
-                if( list.on(n) ) return null;
-                m = n.peepholeOpt();
-                if( m==null ) return null;
-            }
-            System.err.println("BREAK HERE FOR BUG");
+
+            // Types must be forwards, even if on the worklist.
+            boolean checkType = !n.iskeep() ||
+                n._nid <= 8 ||
+                (n instanceof ProjNode && n.in(0) instanceof StartNode);
+
+            boolean monotonic = dir
+                ? nval.isa(n._type) // Pesi: new value lifts over old
+                : n._type.isa(nval); // Opto: new value falls over old
+            assert !checkType || monotonic : "Non-monotonic peep: "+n+"#"+n._nid+" old="+n._type+" new="+nval+" inputs="+inputTypes(n)+" peep="+m;
+            if( list.on(n) )
+                return null;
+
+            assert n.nOuts() > 0 : "Unused live node: "+n;
+            m = n.peepholeOpt();
+            assert m==null : "Peep fired and not on worklist, "+n.getClass().getSimpleName()+"#"+n._nid+" -> "+m;
             return m;
         });
         code._midAssert = false;
         return changed==null;
+    }
+
+    private static String inputTypes(Node n) {
+        StringBuilder sb = new StringBuilder("[");
+        for( Node in : n._inputs )
+            sb.append(in==null ? "null" : in.getClass().getSimpleName()+"#"+in._nid+"="+in+":"+in._type+":keep="+in.iskeep()).append(',');
+        return sb.append(']').toString();
     }
 
     /**
@@ -180,12 +198,18 @@ public class IterPeeps {
             for( E n : ary )
                 push(n);
         }
+        public void addAll( E[] es ) {
+            for( E n : es )
+                push(n);
+        }
+
 
         /**
          * True if Node is on the WorkList
          */
         public boolean on( E x ) { return _on.get(x._nid); }
         boolean isEmpty() { return _len==0; }
+        Node[] asAry() { return Arrays.copyOf(_es,_len); }
 
         /**
          * Removes a random Node from the WorkList; null if WorkList is empty

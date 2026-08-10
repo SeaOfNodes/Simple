@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
 
 /**
@@ -26,19 +27,23 @@ public class TypeMemPtr extends TypeNil {
     // (TOP   ,true ) - a nil
 
     public TypeStruct _obj;
-    public boolean _one;  // Singleton instance
+    public boolean _one;      // Singleton pointer value; the pointer itself is constant.
+    public boolean _pub;      // Escaped/public pointer.  False means constructor-private.
 
     private static final Ary<TypeMemPtr> FREE = new Ary<>(TypeMemPtr.class);
-    private TypeMemPtr(byte nil, TypeStruct obj, boolean one) { super(TMEMPTR,nil); init(nil,obj,one); }
-    private TypeMemPtr init(byte nil, TypeStruct obj, boolean one) { _nil=nil; _obj=obj; _one=one; return this; }
+    private TypeMemPtr(byte nil, TypeStruct obj, boolean one, boolean pub) { super(TMEMPTR,nil); init(nil,obj,one,pub); }
+    private TypeMemPtr init(byte nil, TypeStruct obj, boolean one, boolean pub) { _nil=nil; _obj=obj; _one=one; _pub=pub; return this; }
     // Return a filled-in TypeMemPtr; either from free list or alloc new.
-    private static TypeMemPtr malloc(byte nil, TypeStruct obj, boolean one) {
-        return FREE.isEmpty() ? new TypeMemPtr(nil,obj,one) : FREE.pop().init(nil,obj,one);
+    static TypeMemPtr malloc(byte nil, TypeStruct obj, boolean one, boolean pub) {
+        return FREE.isEmpty() ? new TypeMemPtr(nil,obj,one,pub) : FREE.pop().init(nil,obj,one,pub);
     }
 
     // All fields directly listed
     public static TypeMemPtr make(byte nil, TypeStruct obj, boolean one) {
-        TypeMemPtr tmp = malloc(nil, obj, one);
+        return make(nil,obj,one,true);
+    }
+    public static TypeMemPtr make(byte nil, TypeStruct obj, boolean one, boolean pub) {
+        TypeMemPtr tmp = malloc(nil, obj, one, pub);
         TypeMemPtr t2 = tmp.intern();
         if( t2==tmp ) return tmp;
         return VISIT.isEmpty() ? t2.free(tmp) : t2.delayFree(tmp);
@@ -47,6 +52,8 @@ public class TypeMemPtr extends TypeNil {
         TypeMemPtr tmp = (TypeMemPtr)t;
         tmp._nil  = -99;
         tmp._obj  = null;
+        tmp._one  = false;
+        tmp._pub = true;
         tmp._dual = null;
         tmp._hash = 0;
         FREE.push(tmp);
@@ -57,11 +64,13 @@ public class TypeMemPtr extends TypeNil {
     static TypeMemPtr make(byte nil, TypeStruct obj) { return make(nil, obj, false); }
     public static TypeMemPtr make        (TypeStruct obj) { return make((byte)2, obj); }
     public static TypeMemPtr makeNullable(TypeStruct obj) { return make((byte)3, obj); }
+    public static TypeMemPtr makePrivate (TypeStruct obj) { return make((byte)2, obj, false, false); }
 
-    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one); }
+    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one, _pub); }
     public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
-    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one); }
-    public TypeMemPtr makeHigh() { return make((byte)0,_obj.makeHigh(),false); }
+    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one, _pub); }
+    public TypeMemPtr makeHigh(byte nil) { return make(nil,_obj.makeHigh(),false); }
+    @Override public Type nonZero() { return makeFrom((byte)(_nil <= 1 ? 1 : 2)); }
 
     // An abstract pointer, pointing to either a Struct or an Array.
     // Can also be null or not, so 4 choices {TOP,BOT} x {nil,not}
@@ -76,16 +85,19 @@ public class TypeMemPtr extends TypeNil {
     public TypeNil xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
         assert !isFree() && !that.isFree();
-        return make(xmeet0(that), (TypeStruct)_obj.meet(that._obj), _one & that._one);
+        // Can't keep _one if mixing two unequal singletons; the result is not
+        // either singleton.  Once either side is public, the meet is public.
+        boolean one = _one && that._one && (_obj==that._obj || !(_obj.isConAry() || that._obj.isConAry()));
+        return make(xmeet0(that), (TypeStruct)_obj.meet(that._obj), one, _pub | that._pub);
     }
 
     @Override
-    TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), _one); }
+    TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), !_one, !_pub); }
 
     @Override TypeMemPtr rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        TypeMemPtr d = malloc(dual0(), null, _one);
+        TypeMemPtr d = malloc(dual0(), null, !_one, !_pub);
         (_dual = d)._dual = this; // Cross link duals
         d._obj = _obj._terned ? _obj.dual() : _obj.rdual();
         return d;
@@ -94,50 +106,52 @@ public class TypeMemPtr extends TypeNil {
     // RHS is NIL; do not deep-dual when crossing the center line
     @Override Type meet0() { return _nil==3 ? this : make((byte)3,_obj); }
 
-    @Override boolean _isConstant() { return _one && _obj._isConstant(); }
+    @Override boolean _isConstant() { return _one; }
     @Override boolean _isFinal() { return _obj._isFinal(); }
     @Override TypeMemPtr _makeRO() { return makeFrom(_obj._makeRO()); }
-    @Override boolean _isGLB(boolean mem) { return _obj.isGLB2(); }
+    @Override boolean _isGLB(boolean mem) { return _obj._isGLB(true); }
     @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
-    @Override TypeMemPtr _close() { return makeFrom(_obj._close()); }
+    @Override TypeMemPtr _close( String name, HashMap<String, Type> TYPES ) { return malloc(_nil,_obj._close(name, TYPES ),_one,_pub); }
 
-
-    // True if this "isa" t up to named structures
-    @Override public boolean shallowISA( Type t ) {
-        if( !(t instanceof TypeMemPtr that) ) return false;
-        if( this==that ) return true;
-        if( xmeet0(that)!=that._nil ) return false;
-        if( _obj==that._obj ) return true;
-        if( _obj._name.equals(that._obj._name) )
-            return true;        // Shallow, do not follow matching names, just assume ok
-        throw Utils.TODO(); // return _obj.shallowISA(that._obj);
+    @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        return makeFrom((TypeStruct)_obj._upgradeType(TYPES));
     }
-
-    // Is forward-reference
-    @Override public boolean isFRef() { return _obj.isFRef(); }
 
     @Override public int log_size() { return 3; } // (1<<3)==8-byte pointers
 
-    @Override int hash() { return _obj.hashCode() ^ super.hash() ^ (_one ? 2048 : 0); }
+    @Override int hash() { return _obj.hashCode() ^ super.hash() ^ (_one ? 2048 : 0) ^ (_pub ? 4096 : 0); }
 
     @Override boolean eq(Type t) {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return super.eq(ptr) && _one == ptr._one && _obj == ptr._obj;
+        return super.eq(ptr) && _one == ptr._one && _pub == ptr._pub && _obj == ptr._obj;
     }
     @Override boolean cycle_eq(Type t) {
         if( t._type != TMEMPTR ) return false;
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return super.eq(ptr) && _one == ptr._one && _obj.cycle_eq(ptr._obj);
+        return super.eq(ptr) && _one == ptr._one && _pub == ptr._pub && _obj.cycle_eq(ptr._obj);
     }
 
-    @Override int nkids() { return 1; }
-    @Override Type at( int idx ) { return _obj; }
-    @Override void set( int idx, Type t ) { _obj = (TypeStruct)t; }
+    @Override public int nkids() { return 1; }
+    @Override public Type at( int idx ) { return _obj; }
+    @Override public void set( int idx, Type t ) { _obj = (TypeStruct)t; }
+
+    // Reserve tags for null/not, one/general and public/private
+    @Override int TAGOFF() { return 8; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        assert _nil>=2;
+        baos.write(TAGOFFS[_type]
+                   + (_nil==2 ? 0 : 1)
+                   + (!_one   ? 0 : 2)
+                   + (!_pub    ? 0 : 4) );
+    }
+    static TypeMemPtr packed( int tag, BAOS bais ) {
+        return malloc((byte)((tag&1)+2),null,(tag&2)==2,(tag&4)==4);
+    }
 
     @Override public String str() {
         if( this== NOTBOT) return "*void";
         if( this==    BOT) return "*void?";
-        return x()+"*"+_obj.str()+q();
+        return x()+"*"+(_obj==null?"---":_obj.str())+q();
     }
 
     @Override SB _print(SB sb, BitSet visit, boolean html ) {
