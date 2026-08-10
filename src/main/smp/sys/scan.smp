@@ -1,0 +1,39 @@
+
+// Scanner; a simple string parser.
+struct scan {
+    int !x;                     // Cursor
+    bool !bad;                  // True after a malformed token
+    u8[~] buf;                  // Buffer to parse
+
+    new scan = { u8[~] b -> buf = b; };
+
+    // Skip whitespace
+    val skip = { ->
+        while( x < buf# && buf[x] <= ' ' )
+            x++;
+        return self;
+    };
+
+    // True if find required character, and skip it; else False.
+    val match = { u8 c ->
+        skip();
+        if( x >= buf# ) return false;
+        if( buf[x] != c ) return false;
+        x++;
+        return true;
+    };
+
+    // Parse a simple number
+    val number = { ->
+        skip();
+        bool neg = match('-');
+        if( x >= buf# || buf[x] < '0' || '9' < buf[x] ) {
+            bad = true;
+            return 0;
+        }
+        i64 n = 0;
+        while( x < buf# && '0' <= buf[x] & buf[x] <= '9' )
+            n = n*10 + (buf[x++] - '0');
+        return neg ? -n : n;
+    };
+};

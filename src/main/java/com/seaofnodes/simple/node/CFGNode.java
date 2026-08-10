@@ -1,13 +1,11 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
 
 /** Control Flow Graph Nodes
  * <p>
@@ -94,14 +92,81 @@ public abstract class CFGNode extends Node {
         return lhs;
     }
 
+    // Safe read of the control input of a data node.
+    public static CFGNode safeCFG(Node n) {
+        return n != null && n.in(0) instanceof CFGNode cfg ? cfg : null;
+    }
+
+    // True when this node dominates `sub` in the current idom tree.
+    public boolean dominates(CFGNode sub) {
+        for( CFGNode cfg=sub; cfg!=null; cfg=cfg.idom() )
+            if( cfg == this )
+                return true;
+        return false;
+    }
+
+    public boolean sameFun(CFGNode that) {
+        FunNode fun = fun();
+        return fun != null && fun == that.fun();
+    }
+
+    public static boolean sameFun(CFGNode a, CFGNode b) {
+        return a != null && b != null && a.sameFun(b);
+    }
+
+    public static CFGNode deepest(CFGNode a, CFGNode b) {
+        if( a == null ) return b;
+        if( b == null ) return a;
+        return b.idepth() > a.idepth() ? b : a;
+    }
+
+    public static CFGNode earlyCFG(Node n, CFGNode start) {
+        return earlyCFG(n,start,new IdentityHashMap<>(),new BitSet());
+    }
+
+    public static CFGNode earlyCFG(Node n, CFGNode start, IdentityHashMap<Node,CFGNode> cache, BitSet active) {
+        if( n == null )
+            return null;
+        CFGNode cached = cache.get(n);
+        if( cached != null )
+            return cached;
+        if( active.get(n._nid) )
+            return safeCFG(n);
+        active.set(n._nid);
+        CFGNode early = start;
+        if( n.in(0) instanceof CFGNode cfg )
+            early = cfg;
+        for( int i=1; i<n.nIns(); i++ )
+            early = deepest(early,defCFG(n.in(i),start,cache,active));
+        active.clear(n._nid);
+        cache.put(n,early);
+        return early;
+    }
+
+    private static CFGNode defCFG(Node n, CFGNode start, IdentityHashMap<Node,CFGNode> cache, BitSet active) {
+        if( n == null )
+            return null;
+        if( n instanceof PhiNode phi )
+            return phi.region();
+        if( n instanceof CFGNode cfg )
+            return cfg;
+        if( n instanceof ProjNode )
+            return safeCFG(n);
+        if( n.isConst() )
+            return start;
+        return earlyCFG(n,start,cache,active);
+    }
+
     // Anti-dependence field support
     public int _anti;           // Per-CFG field to help find anti-deps
 
     // Find nearest enclosing FunNode
     public FunNode fun() {
         CFGNode cfg = this;
-        while( !(cfg instanceof FunNode fun) )
+        while( !(cfg instanceof FunNode fun) ) {
+            if( cfg==null ) return null;
             cfg = cfg.idom();
+        }
         return fun;
     }
 
@@ -112,13 +177,13 @@ public abstract class CFGNode extends Node {
 
     public LoopTree _ltree;
     public int _pre;            // Pre-order numbers for loop tree finding
-    static class LoopTree {
-        LoopTree _par;
-        final LoopNode _head;
-        int _depth;
+    public static class LoopTree {
+        public LoopTree _par;
+        public final LoopNode _head;
+        public int _depth;
         LoopTree(LoopNode head) { _head = head; }
-        @Override public String toString() { return "LOOP"+_head._nid; }
-        int depth() {
+        @Override public String toString() { return label(_head); }
+        public int depth() {
             return _depth==0 ? (_par==null ? 0 : (_depth = _par.depth()+1)) : _depth;
         }
     }
@@ -127,73 +192,87 @@ public abstract class CFGNode extends Node {
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start is a LoopNode which contains all at depth 1.
-    public void buildLoopTree(StartNode start, StopNode stop) {
-        // Unlink all linked calls.  This can remove RPC constants which
-        // shuffled the StartNode outputs so requires a while loop.
-        boolean done=false;
-        while(!done) {
-            done = true;
-            for( Node use : start._outputs )
-                if( use instanceof FunNode fun )
-                    for( Node c : fun._inputs )
-                        if( c instanceof CallNode call )
-                            { call.unlink_all(); done=false; }
+    public void buildLoopTree( Ary<FunNode> funs, StopNode stop) {
+        _ltree = stop._ltree = CodeGen.CODE.XCTRL._ltree = new LoopTree((StartNode)this);
+        Ary<FunNode> work = new Ary<>(FunNode.class);
+
+        BitSet post = new BitSet();
+        int pre = 1;
+        _pre = pre++;
+        for( FunNode fun : funs ) {
+            if( fun!=null && !fun.isDead() && !fun._type.isHigh() ) {
+                work.push(fun);
+                if(fun.in(1) instanceof StartCUNode start && start._pre==0 ) {
+                    start._pre = pre++;
+                    start._ltree = _ltree;
+                    post.set(start._nid);
+                }
+            };
         }
 
-        _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
-        _bltWalk(2,null,stop, new BitSet());
+        for( int i=0; i<work._len; i++ )
+            pre = work.at(i)._bltWalk(pre,work.at(i),stop, post, work);
     }
-    int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post ) {
+
+    int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post, Ary<FunNode> work ) {
         // Pre-walked?
         if( _pre!=0 ) return pre;
         _pre = pre++;
         // Pre-walk
         for( Node use : _outputs )
-            if( use instanceof CFGNode usecfg && !skip( usecfg ) )
-                pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post );
-
-        // Post-order work: find innermost loop
-        LoopTree inner = null, ltree;
-        for( Node use : _outputs ) {
-            if( !(use instanceof CFGNode usecfg) ) continue;
-            if( skip(usecfg) ) continue;
-            if( usecfg._type == Type.XCONTROL ||       // Do not walk dead control
-                usecfg._type == TypeTuple.IF_NEITHER ) // Nor dead IFs
-                continue;
-            // Child visited but not post-visited?
-            if( !post.get(usecfg._nid) ) {
-                // Must be a backedge to a LoopNode then
-                ltree = usecfg._ltree = new LoopTree((LoopNode)usecfg);
-            } else {
-                // Take child's loop choice, which must exist
-                ltree = usecfg._ltree;
-                // If falling into a loop, use the target loop's parent instead
-                if( ltree._head == usecfg ) {
-                    if( ltree._par == null )
-                        // This loop never had an If test choose to take its
-                        // exit, i.e. it is a no-exit infinite loop.
-                        ltree._par = ltree._head.forceExit(fun,stop)._ltree;
-                    ltree = ltree._par;
-                }
+            if( use instanceof CFGNode usecfg ) {
+                if( skip( usecfg ) ) {
+                    if( usecfg._pre==0 && usecfg instanceof FunNode fun2 ) work.add( fun2 );
+                } else
+                    pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post, work );
             }
-            // Sort inner loops.  The decision point is some branch far removed
-            // from either loop head OR either backedge so requires pre-order
-            // numbers to figure out innermost.
-            if( inner == null ) { inner = ltree; continue; }
-            if( inner == ltree ) continue; // No change
-            LoopTree outer = ltree._head._pre > inner._head._pre ? inner : ltree;
-            inner =          ltree._head._pre > inner._head._pre ? ltree : inner;
-            inner._par = outer;
+
+        if( this instanceof ReturnNode ret ) {
+            ret._ltree = stop._ltree;
+        } else {
+          // Post-order work: find innermost loop
+          LoopTree inner = null, ltree;
+          for( Node use : _outputs ) {
+              if( !(use instanceof CFGNode usecfg) ) continue;
+              if( skip(usecfg) ) continue;
+              if( usecfg._type == Type.XCONTROL ||       // Do not walk dead control
+                  usecfg._type == TypeTuple.IF_NEITHER ) // Nor dead IFs
+                  continue;
+              // Child visited but not post-visited?
+              if( !post.get(usecfg._nid) ) {
+                  // Must be a backedge to a LoopNode then
+                  ltree = usecfg._ltree = new LoopTree((LoopNode)usecfg);
+              } else {
+                  // Take child's loop choice, which must exist
+                  ltree = usecfg._ltree;
+                  // If falling into a loop, use the target loop's parent instead
+                  if( ltree._head == usecfg ) {
+                      if( ltree._par == null )
+                          // This loop never had an If test choose to take its
+                          // exit, i.e. it is a no-exit infinite loop.
+                          ltree._par = ltree._head.forceExit(fun,stop)._ltree;
+                      ltree = ltree._par;
+                  }
+              }
+              // Sort inner loops.  The decision point is some branch far removed
+              // from either loop head OR either backedge so requires pre-order
+              // numbers to figure out innermost.
+              if( inner == null ) { inner = ltree; continue; }
+              if( inner == ltree ) continue; // No change
+              LoopTree outer = ltree._head._pre > inner._head._pre ? inner : ltree;
+              inner =          ltree._head._pre > inner._head._pre ? ltree : inner;
+              inner._par = outer;
+          }
+          // Set selected loop
+          if( inner!=null )
+              _ltree = inner;
         }
-        // Set selected loop
-        if( inner!=null )
-            _ltree = inner;
         // Tag as post-walked
         post.set(_nid);
         return pre;
     }
 
-    private boolean skip(CFGNode usecfg) {
+    public boolean skip(CFGNode usecfg) {
         // Only walk control users that are alive.
         // Do not walk from a Call to linked Fun's.
         return usecfg instanceof XCtrlNode ||
@@ -201,8 +280,13 @@ public abstract class CFGNode extends Node {
                 (this instanceof ReturnNode && usecfg instanceof CallEndNode);
     }
 
-
-    public String label( CFGNode target ) {
-        return (target instanceof LoopNode ? "LOOP" : "L")+target._nid;
+    public static String label( CFGNode target ) {
+        return switch(target) {
+        case StartNode start -> start.label();
+        case FunNode fun -> fun.label();
+        case LoopNode loop -> "LOOP"+target._nid;
+        default -> "L"+target._nid;
+        };
     }
+
 }

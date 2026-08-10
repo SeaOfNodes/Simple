@@ -5,9 +5,9 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class ShrNode extends ArithNode {
-    public ShrNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
+    public ShrNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs, (byte)1); }
+    @Override public Tag serialTag() { return Tag.Shr; }
 
-    @Override public String label() { return "Shr"; }
     @Override public String op() { return ">>>"; }
     @Override public String glabel() { return "&gt;&gt;&gt;"; }
 

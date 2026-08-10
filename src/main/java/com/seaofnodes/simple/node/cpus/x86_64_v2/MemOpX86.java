@@ -4,7 +4,6 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
 import java.util.BitSet;
 
@@ -41,7 +40,8 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
         _off = off;
         _scale = scale;
         _imm = imm;
-        _sz = (char)('0'+(1<<_declaredType.log_size()));
+        int size = mop instanceof StoreNode st ? st.storeSize() : 1<<_con.log_size();
+        _sz = (char)('0'+size);
     }
 
     // Store-based flavors have a value edge
@@ -58,15 +58,15 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     }
 
     @Override public String label() { return op(); }
-    @Override public Type compute() { throw Utils.TODO(); }
-    @Override public Node idealize() { throw Utils.TODO(); }
+    @Override public Type compute() { throw new AssertionError("Do not call compute on "+getClass().getSimpleName()); }
+    @Override public Node idealize() { throw new AssertionError("Do not call idealize on "+getClass().getSimpleName()); }
 
     // Register mask allowed on input i.
     @Override public RegMask regmap(int i) {
         if( i==1 ) return null;               // Memory
         if( i==2 ) return x86_64_v2.RMASK;    // base  in GPR
         if( i==3 ) return x86_64_v2.RMASK;    // index in GPR
-        if( i==4 ) return _sz >= 2
+        if( i==4 ) return _sz >= '4'
                        ? x86_64_v2.MEM_MASK   // value in GPR or XMM
                        : x86_64_v2.RMASK;     // Bytes and shorts in GPR only
         return null; // Anti-dependence

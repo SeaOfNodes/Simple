@@ -1,14 +1,16 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Float Type
  */
-public class TypeFloat extends Type {
+public class TypeFloat extends TypeScalar {
 
     // - high -64, high -32, con 0, low +32, low +64
     public byte _sz;
@@ -51,7 +53,7 @@ public class TypeFloat extends Type {
         case   0 -> ""+_con+((float)_con==_con ? "f" : "");
         case  32 ->  "f32";
         case  64 ->  "flt";
-        default  -> throw Utils.TODO();
+        default  -> throw Utils.TODO("Should not reach here: unknown float size");
         };
     }
     private boolean isF32() { return ((float)_con)==_con; }
@@ -88,16 +90,36 @@ public class TypeFloat extends Type {
         return _isConstant() ? this : new TypeFloat((byte)-_sz,0); // Constants are a self-dual
     }
 
-    @Override boolean _isGLB(boolean mem) { return _glb(mem)==this; }
-    @Override Type _glb(boolean mem) {
-        if( !mem ) return F64;
+    @Override boolean _isConstant() { return _sz==0; }
+
+    @Override Type _makeStorage() {
         if( _isConstant() ) return isF32() ? F32 : F64;
         return isHigh() ? dual() : this;
     }
 
-    @Override boolean _isConstant() { return _sz==0; }
-
     @Override public Type makeZero() { return FZERO; }
+
+    // Reserve tags for F64,F32,constant
+    @Override int TAGOFF() { return 3; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        if(      this==F64 ) baos.write(TAGOFFS[_type] + 0);
+        else if( this==F32 ) baos.write(TAGOFFS[_type] + 1);
+        else {
+            assert isConstant();
+            baos.write(TAGOFFS[_type] + 2);
+            baos.packed8(Double.doubleToLongBits(_con));
+        }
+    }
+
+    static Type packed( int tag, BAOS bais ) {
+        return switch( tag ) {
+        case 0 -> F64;
+        case 1 -> F32;
+        case 2 -> constant(Double.longBitsToDouble(bais.packed8()));
+        default -> throw Utils.TODO("Should not reach here: unknown float type tag");
+        };
+    }
+
     @Override
     int hash() { return (int)(Double.hashCode(_con) ^ _sz ^ (1<<17)); }
     @Override

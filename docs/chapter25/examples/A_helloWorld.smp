@@ -1,0 +1,2 @@
+sys.io.p("Hello, World!\n");
+return 0;

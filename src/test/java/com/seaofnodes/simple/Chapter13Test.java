@@ -10,11 +10,11 @@ public class Chapter13Test {
     public void testJig() {
         CodeGen code = new CodeGen(
 """
-return 3.14;
+return 3;
 """);
         code.parse().opto();
-        assertEquals("return 3.14;", code.print());
-        assertEquals("3.14", Eval2.eval(code,  0));
+        assertEquals("return 3;", code.print());
+        assertEquals("3", Eval2.eval(code,  0));
     }
 
     @Test
@@ -40,22 +40,22 @@ return head.next.i;
     public void testLinkedList1() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int q; };
-LLI? !head = null;
+struct _LLI { _LLI? next; int q; };
+_LLI? !head = null;
 while( arg ) {
-    LLI !x = new LLI;
+    _LLI !x = new _LLI;
     x.next = head;
     x.q = arg;
     head = x;
     arg = arg-1;
 }
 if( !head ) return 0;
-LLI? next = head.next;
+_LLI? next = head.next;
 if( next==null ) return 1;
 return next.q;
 """);
         code.parse().opto().typeCheck();
-        assertEquals("return Phi(Region,0,1,.q);", code.print());
+        assertEquals("return Phi(Region,1,.q,0);", code.print());
         assertEquals("2", Eval2.eval(code,  3));
     }
 
@@ -63,17 +63,17 @@ return next.q;
     public void testCoRecur() {
         CodeGen code = new CodeGen(
 """
-struct int0 { int i; flt0? f; };
-struct flt0 { flt f; int0? i; };
-int0 !i0 = new int0;
+struct _int0 { int i; Test._flt0? f; };
+struct _flt0 { flt f;      _int0? i; };
+_int0 !i0 = new _int0;
 i0.i = 17;
-flt0 !f0 = new flt0;
+_flt0 !f0 = new _flt0;
 f0.f = 3.14;
 i0.f = f0;
 f0.i = i0;
 return f0.i.f.i.i;
 """);
-        code.parse().opto();
+        code.parse().opto().typeCheck();
         assertEquals("return 17;", code.print());
     }
 
@@ -81,8 +81,8 @@ return f0.i.f.i.i;
     public void testNullRef0() {
         CodeGen code = new CodeGen(
 """
-struct N { N? next; int i; };
-N n = new N;
+struct _N { _N? next; int i; };
+_N n = new _N;
 return n.next;
 """);
         code.parse().opto();
@@ -94,12 +94,12 @@ return n.next;
         CodeGen code = new CodeGen(
 """
 struct M { int m; };
-struct N { M next; int i; };
-N n = new N { next = new M; };
+struct N { M next; int i; new N = { M m -> next = m; }; };
+N n = new N(new M);
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("return (const)M;", code.print());
+        assertEquals("Stop[ return (const)Test.M; return MEM[ 2:.m=0;]; return Test.M; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:.next=Parm_m(Test.N.N,*Test.M {i64 !m; }); 7:.i=0;]; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:___ 7:.i=0;]; return Test.N; ]", code.print());
     }
 
     @Test
@@ -107,12 +107,12 @@ return n.next;
         CodeGen code = new CodeGen(
 """
 struct M { int m; };
-struct N { M next; int i; };
-N n = new N { next = null; };
+struct N { M next; int i; new N = { M m -> next = m; }; };
+N n = new N(null);
 return n.next;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #0 isa null, but must be a *Test.M {i64 !m; }",e.getMessage()); }
     }
 
     @Test
@@ -132,20 +132,20 @@ return n.i;
     public void testNullRef4() {
         CodeGen code = new CodeGen("return -null-5/null-5;");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot '//' null",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot 5 // null",e.getMessage()); }
     }
 
     @Test public void testNullRef5() {
         CodeGen code = new CodeGen("return null+42;");
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot '+' null",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot null + 42",e.getMessage()); }
     }
 
     @Test
     public void testEmpty() {
         CodeGen code = new CodeGen(
 """
-struct S{};
+struct _S{};
 return 0;
 """);
         code.parse().opto();
@@ -160,7 +160,7 @@ return 0;
 struct S1 { S2? s; };
 return new S2;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().opto().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
     }
 
@@ -168,12 +168,12 @@ return new S2;
     public void testForwardRef1() {
         CodeGen code = new CodeGen(
 """
-struct S1 { S2? s; };
-struct S2 { int x; };
-return new S1.s=new S2;
+struct _S1 { _S2? s; };
+struct _S2 { int x; };
+return (new _S1).s=new _S2;
 """);
         code.parse().opto();
-        assertEquals("return S2;", code.print());
+        assertEquals("return Test._S2;", code.print());
     }
 
     @Test
@@ -197,9 +197,9 @@ return p1.pi.i + 1;
     public void testCoRecur2() {
         CodeGen code = new CodeGen(
 """
-struct A { B? f0; C? f1; };  A !a = new A;
-struct B { C? f0; A? f1; };  B !b = new B;
-struct C { A? f0; B? f1; };  C !c = new C;
+struct _A { Test._B? f0; Test._C? f1; };  _A !a = new _A;
+struct _B { Test._C? f0; Test._A? f1; };  _B !b = new _B;
+struct _C { Test._A? f0; Test._B? f1; };  _C !c = new _C;
 
 a.f0=b;  a.f1=c;
 b.f0=c;  b.f1=a;
@@ -209,40 +209,40 @@ return a.f0.f1.f0.f1.f0;
 
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return B;", code._stop.toString());
-        assertEquals("B{f0=C},f1=A{f0=$cyclic,f1=$cyclic}}", Eval2.eval(code,  0));
+        assertEquals("return Test._B;", code.print());
+        assertEquals("Test._B{f0=Test._C{f0=Test._A{f0=$cyclic,f1=$cyclic},f1=$cyclic},f1=$cyclic}", Eval2.eval(code,  0));
     }
 
     @Test
     public void testCoRecur3() {
         CodeGen code = new CodeGen(
 """
-struct A { L? a; T? b; F? c; };  A !a = new A;
-struct B { M? a; U? b; G? c; };  B !b = new B;
-struct C { N? a; V? b; H? c; };  C !c = new C;
-struct D { O? a; W? b; I? c; };  D !d = new D;
-struct E { P? a; X? b; J? c; };  E !e = new E;
-struct F { Q? a; Y? b; K? c; };  F !f = new F;
-struct G { R? a; Z? b; L? c; };  G !g = new G;
-struct H { S? a; A? b; M? c; };  H !h = new H;
-struct I { T? a; B? b; N? c; };  I !i = new I;
-struct J { U? a; C? b; O? c; };  J !j = new J;
-struct K { V? a; D? b; P? c; };  K !k = new K;
-struct L { W? a; E? b; Q? c; };  L !l = new L;
-struct M { X? a; F? b; R? c; };  M !m = new M;
-struct N { Y? a; G? b; S? c; };  N !n = new N;
-struct O { Z? a; H? b; T? c; };  O !o = new O;
-struct P { A? a; I? b; U? c; };  P !p = new P;
-struct Q { B? a; J? b; V? c; };  Q !q = new Q;
-struct R { C? a; K? b; W? c; };  R !r = new R;
-struct S { D? a; L? b; X? c; };  S !s = new S;
-struct T { E? a; M? b; Y? c; };  T !t = new T;
-struct U { F? a; N? b; Z? c; };  U !u = new U;
-struct V { G? a; O? b; A? c; };  V !v = new V;
-struct W { H? a; P? b; B? c; };  W !w = new W;
-struct X { I? a; Q? b; C? c; };  X !x = new X;
-struct Y { J? a; R? b; D? c; };  Y !y = new Y;
-struct Z { K? a; S? b; E? c; };  Z !z = new Z;
+struct _A { Test._L? a; Test._T? b; Test._F? c; };  _A !a = new _A;
+struct _B { Test._M? a; Test._U? b; Test._G? c; };  _B !b = new _B;
+struct _C { Test._N? a; Test._V? b; Test._H? c; };  _C !c = new _C;
+struct _D { Test._O? a; Test._W? b; Test._I? c; };  _D !d = new _D;
+struct _E { Test._P? a; Test._X? b; Test._J? c; };  _E !e = new _E;
+struct _F { Test._Q? a; Test._Y? b; Test._K? c; };  _F !f = new _F;
+struct _G { Test._R? a; Test._Z? b; Test._L? c; };  _G !g = new _G;
+struct _H { Test._S? a; Test._A? b; Test._M? c; };  _H !h = new _H;
+struct _I { Test._T? a; Test._B? b; Test._N? c; };  _I !i = new _I;
+struct _J { Test._U? a; Test._C? b; Test._O? c; };  _J !j = new _J;
+struct _K { Test._V? a; Test._D? b; Test._P? c; };  _K !k = new _K;
+struct _L { Test._W? a; Test._E? b; Test._Q? c; };  _L !l = new _L;
+struct _M { Test._X? a; Test._F? b; Test._R? c; };  _M !m = new _M;
+struct _N { Test._Y? a; Test._G? b; Test._S? c; };  _N !n = new _N;
+struct _O { Test._Z? a; Test._H? b; Test._T? c; };  _O !o = new _O;
+struct _P { Test._A? a; Test._I? b; Test._U? c; };  _P !p = new _P;
+struct _Q { Test._B? a; Test._J? b; Test._V? c; };  _Q !q = new _Q;
+struct _R { Test._C? a; Test._K? b; Test._W? c; };  _R !r = new _R;
+struct _S { Test._D? a; Test._L? b; Test._X? c; };  _S !s = new _S;
+struct _T { Test._E? a; Test._M? b; Test._Y? c; };  _T !t = new _T;
+struct _U { Test._F? a; Test._N? b; Test._Z? c; };  _U !u = new _U;
+struct _V { Test._G? a; Test._O? b; Test._A? c; };  _V !v = new _V;
+struct _W { Test._H? a; Test._P? b; Test._B? c; };  _W !w = new _W;
+struct _X { Test._I? a; Test._Q? b; Test._C? c; };  _X !x = new _X;
+struct _Y { Test._J? a; Test._R? b; Test._D? c; };  _Y !y = new _Y;
+struct _Z { Test._K? a; Test._S? b; Test._E? c; };  _Z !z = new _Z;
 
 a.a=l;  a.b=t; a.c=f;
 b.a=m;  b.b=u; b.c=g;
@@ -275,7 +275,7 @@ return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
 
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return R;", code._stop.toString());
-        assertEquals("R{a=C{a=N},b=V},c=H}},b=K{a=$cyclic,b=D{a=O},b=W},c=I}},c=P}},c=$cyclic}", Eval2.eval(code,  0));
+        assertEquals("return Test._R;", code.print());
+        assertEquals("Test._R{a=Test._C{a=Test._N{a=Test._Y{a=Test._J{a=Test._U{a=Test._F{a=Test._Q{a=Test._B{a=Test._M{a=Test._X{a=Test._I{a=Test._T{a=Test._E{a=Test._P{a=Test._A{a=Test._L{a=Test._W{a=Test._H{a=Test._S{a=Test._D{a=Test._O{a=Test._Z{a=Test._K{a=Test._V{a=Test._G{a=$cyclic,b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic}", Eval2.eval(code,  0));
     }
 }

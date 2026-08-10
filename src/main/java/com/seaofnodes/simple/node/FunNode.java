@@ -1,41 +1,63 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.Encoding;
-import com.seaofnodes.simple.codegen.RegMask;
-import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeFunPtr;
-import com.seaofnodes.simple.type.TypeTuple;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class FunNode extends RegionNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
-    boolean _folding;
+    public boolean _folding;
 
     private TypeFunPtr _sig;    // Initial signature
     private ReturnNode _ret;    // Return pointer
 
     public String _name;        // Debug name
 
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, Node... nodes ) { super(loc,nodes); _name=name; _sig = sig; }
+    public int _approxUIDs;     // Approximate function size, used as a inlining heuristic
+    public CompUnit _compunit;  // Defined in source file
+    public final boolean _extern; // External function; no code, name only
+
+    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, CompUnit compunit, boolean ext ) {
+        super(loc,nodes);
+        _name   = name;
+        _sig    = sig;
+        _extern = ext;
+        _compunit = compunit;
+    }
+    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, CompUnit compunit, Node... nodes ) { this(loc,nodes,sig,name,compunit,false); }
     public FunNode( FunNode fun ) {
-        super( fun, fun==null ? null : fun._loc );
-        if( fun!=null ) {
-            _sig = fun.sig();
-            _name = fun._name;
-        } else {
-            _sig = TypeFunPtr.BOT;
-            _name = "";
-        }
+        super( fun, fun._loc );
+        _sig = fun.sig();
+        _name = fun._name;
+        _compunit = fun._compunit;
+        _extern = fun._extern;
+    }
+    @Override public Tag serialTag() { return Tag.Fun; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes ) {
+        assert !_folding;
+        baos.packed1(nIns());          // Number of linked calls
+        baos.packed2(types.get(_sig)); // NPE if fails lookup
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+        baos.packed2(_approxUIDs);
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
+        String name = strs[bais.packed2()];
+        FunNode fun = new FunNode(null,sig,name,null,ins);
+        fun._approxUIDs = bais.packed2();
+        return fun;
     }
 
-    @Override
-    public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
+    @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
 
     // Find the one CFG user from Fun.  It's not always the Return, but always
     // the Return *is* a CFG user of Fun.
@@ -47,13 +69,14 @@ public class FunNode extends RegionNode {
         return null;
     }
 
-    public ParmNode rpc() {
-        ParmNode rpc = null;
+    public ParmNode parm(int idx) {
+        ParmNode pidx = null;
         for( Node n : _outputs )
-            if( n instanceof ParmNode parm && parm._idx==0 )
-                { assert rpc==null; rpc=parm; }
-        return rpc;
+            if( n instanceof ParmNode parm && parm._idx==idx )
+                { assert pidx==null; pidx=parm; }
+        return pidx;
     }
+    public ParmNode rpc() { return parm(0); }
 
     // Cannot create the Return and Fun at the same time; one has to be first.
     // So setting the return requires a second step.
@@ -63,16 +86,46 @@ public class FunNode extends RegionNode {
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
     public void setSig( TypeFunPtr sig ) {
-        assert sig.isa(_sig);
+        assert sig.isa(_sig) || resolvesForwardSelf(sig,_sig);
         if( _sig != sig ) {
             CODE.add(this);
+            // Changing the signature can allow more inlining
+            if( _ret != null )
+                for( Node use : ret().outs() )
+                    if( use instanceof CallEndNode || use instanceof FunPtrNode )
+                        CODE.add(use);
             _sig = sig;
+            unlock();
         }
     }
 
+    // A class initializer starts parsing with an open singleton receiver and
+    // closes that same receiver after discovering its fields.  Function
+    // arguments are contravariant, so ordinary isa does not describe this
+    // parser-time forward-reference resolution even though every other part
+    // of the signature sharpens normally.
+    private static boolean resolvesForwardSelf(TypeFunPtr sig, TypeFunPtr old) {
+        if( !(sig.arg(0) instanceof TypeMemPtr now) ||
+            !(old.arg(0) instanceof TypeMemPtr prior) ||
+            now._obj._name != prior._obj._name ||
+            !prior._obj._open || now._obj._open )
+            return false;
+        return sig.makeFrom(old.arg(0),0).isa(old);
+    }
+
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        TypeFunPtr sig = (TypeFunPtr)_sig.upgradeType(TYPES);
+        if( sig == _sig ) return false;
+        unlock();
+        _sig = sig;
+        return true;
+    }
+
     public void setName( String name ) {
-        if( _name==null ) _name=name;
-        else _name += "."+name;
+        if( _name==null )
+            _name = _compunit==null || _compunit._cname==null || _compunit._cname.indexOf('.')==-1
+                ? name
+                : (_compunit._cname+"."+name).intern();
     }
 
     @Override
@@ -81,10 +134,10 @@ public class FunNode extends RegionNode {
         if( unknownCallers() )
             return Type.CONTROL;
         Type t = Type.XCONTROL;
-        for (int i = 1; i < nIns(); i++) {
-            // Since no unknown callers, we are not main and the Start input
-            // will be a Tuple with XControl, so ignore it.  Need to be called
-            // from someplace other than Start
+        for( int i = 1; i < nIns(); i++) {
+            // Since there are no unknown callers, the Start input is only a
+            // fake hook and will be a Tuple with XControl, so ignore it.  Need
+            // to be called from someplace other than Start.
             if( !(in(i) instanceof StartNode) )
                 t = t.meet(in(i)._type);
         }
@@ -94,28 +147,37 @@ public class FunNode extends RegionNode {
     @Override
     public Node idealize() {
 
-        // Some linked path dies, except main never kills Start
+        // Some linked path dies, except unknown caller hooks never kill Start.
         Node progress = deadPath(unknownCallers());
         if( progress!=null ) {
-            if( nIns()==3 && in(2) instanceof CallNode call )
-                CODE.add(call.cend()); // If Start and one call, check for inline
+            if( nIns()==2 && in(1) instanceof CallNode call )
+                CODE.add(call.cend()); // If no Start and one call, check for inline
             return progress;
         }
 
         // Upgrade inferred or user-written return type to actual
-        if( _ret!=null && _ret._type instanceof TypeTuple tt && tt.ret() != _sig.ret() ) {
+        if( _ret!=null && _ret._type instanceof TypeTuple tt &&
+            tt.ret() != _sig.ret() && tt.ret().isa(_sig.ret()) ) {
             setSig(_sig.makeFrom(tt.ret()));
             return this;
         }
 
+        // Attempt to get rid of the unknown caller.
+        // - Must be past pessimistic Iter, which discovers and links calls
+        //   through class-field loads and other initially imprecise values.
+        // - FIDX is not in the escape set
+        // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
+        if( in(1) instanceof StartCUNode start ) {
+            boolean preOpto = CodeGen.CODE._phase == null ||
+                CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
+            if( !preOpto && !start.escapedFIDX(_sig.fidx()) && nIns()<=2 && _ret!=null ) {
+                _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
+                return removeDeadPath(1);
+            } else {
+                addDep(start);
+            }
+        }
 
-        // When can we assume no callers?  Or no other callers (except main)?
-        // In a partial compilation, we assume Start gets access to any/all
-        // top-level public structures and recursively what they point to.
-        // This in turn is valid arguments to every callable function.
-        //
-        // In a total compilation, we can start from Start and keep things
-        // more contained.
 
         // If no default/unknown caller, use the normal RegionNode ideal rules
         // to collapse
@@ -134,24 +196,58 @@ public class FunNode extends RegionNode {
     }
 
     // Bypass Region idom, always assume depth == 1, one more than Start,
-    // unless folding then just a ID on input#1
+    // unless folding
     @Override public int idepth() {
-        return _folding ? super.idepth() : CodeGen.CODE.iDepthAt(1);
+        if( _folding ) return super.idepth();
+        return CodeGen.CODE.iDepthAt(1);
     }
+
     // Bypass Region idom, always assume idom is Start
-    @Override public CFGNode idom(Node dep) { return _folding && nIns()==3 ? cfg(2) : (nIns()>1 ? cfg(1) : null); }
+    @Override public CFGNode idom(Node dep) {
+        return _folding ? cfg(1) : null;
+    }
 
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
 
-    @Override public boolean inProgress() { return unknownCallers(); }
+    public boolean isModInit( ) {
+        // The one top-level <clinit> with no internal dots:
+        // "sys.<clinit>" is a module, but "sys.io.<clinit>" is not.
+        return isClz() && _name.indexOf('.')==_name.lastIndexOf('.');
+    }
+    public boolean isClz ( ) { return isClz (_name); }
+    public boolean isInit( ) { return isInit(_name); }
+    public boolean isInstance() { return isInstance(_name); }
+    public static boolean isClz (String name ) { return name!=null && name.endsWith(".<clinit>"); }
+    public static boolean isInit(String name ) { return name!=null && name.endsWith("init>"); }
+    public static boolean isInstance(String name ) { return name!=null && name.endsWith(".<init>"); }
 
-    // Add a new function exit point.
-    public void addReturn(Node ctrl, Node mem, Node rez) {  _ret.addReturn(ctrl,mem,rez);  }
+    // Function is public (callable from Start directly).
+    public boolean isPublic( ) {
+        // Never true for anonymous functions
+        if( _name == null ) return false;
+        // Only public for <clinit> and <init>, all others
+        // are found via field loads.  The <init> Start hook also supplies its
+        // conservative pre-Opto construction inputs; StopCU separately keeps
+        // its private-memory return from escaping as a public result.
+        if( !isInit() ) return false;
+        // Private class, has to be found via program text, not linker
+        if( _name.charAt(0)=='_' ) return false;
 
-    // Build the function body
+        // No instances of "...clz1._clz2..." where the class name path
+        // includes a private class.
+        if( _name.indexOf("._") != -1 ) return false;
+
+        // Public class <cl/init>
+        return true;
+    }
+
+    @Override public boolean inProgress() {
+        return unknownCallers() && CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
+    }
+
+    // Build the function body set
     public BitSet body() {
-
         // Reverse up (stop to start) CFG only, collect bitmap.
         BitSet cfgs = new BitSet();
         cfgs.set(_nid);
@@ -161,7 +257,13 @@ public class FunNode extends RegionNode {
         // If data use bottoms out in wrong CFG, returns false - but tries all outputs.
         // If any output hits an in-CFG use (e.g. phi), then keep node.
         BitSet body = new BitSet();
-        walkDown(this, cfgs, body, new BitSet());
+        BitSet visit = new BitSet();
+        int old;
+        do {
+            old = body.cardinality();
+            visit.clear();
+            walkDown(this, cfgs, body, visit);
+        } while( old != body.cardinality() );
         return body;
     }
 
@@ -175,23 +277,143 @@ public class FunNode extends RegionNode {
     }
 
     private static boolean walkDown( Node n, BitSet cfgs, BitSet body, BitSet visit ) {
+        if( n==null ) return false;
         if( visit.get(n._nid) ) return body.get(n._nid);
         visit.set(n._nid);
-
-        if( n instanceof CFGNode && !cfgs.get(n._nid) )
+        // Visit self as CFG outside the function
+        if( n instanceof CFGNode && !cfgs.get(n._nid) && unfolded( n ) )
             return false;
-        if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) )
+        // Pretend the NewNode is a CFG, so its projections stay with it in loops
+        if( n instanceof NewNode nnn ) cfgs.set(n._nid);
+        // Visit n.cfg() outside of function
+        if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) && unfolded( n.in( 0 ) ) )
             return false;
+        // Phis inside the function must have their body flag set BEFORE
+        // recursion walks around a loop and finds them again.
+        if( n instanceof PhiNode phi && cfgs.get(phi.in(0)._nid) )
+            body.set(phi._nid); // Find data cycles
         boolean in = n.in(0)!=null || n instanceof CFGNode;
-        for( Node use : n._outputs )
+        for( Node use : n._outputs ) {
+            // Will hit a backedge, so 'n' MUST be in the function, and must be
+            // set before the cyclic walk finds 'n' again.
+            if( use instanceof PhiNode puse && puse.in(0) instanceof LoopNode loop && puse.in(2)==n )
+                body.set(n._nid); // Set before walk
             in |= walkDown(use,cfgs,body,visit);
+        }
         if( in ) body.set(n._nid);
         return in;
     }
 
-    // FunNodes must match signature (equivalent: no 2 FunNodes are ever GVN'able)
+    // A CFG is folding, and so is basically Data
+    private static boolean unfolded( Node cfg) {
+        if( cfg instanceof CallNode call && call.cend().folding() ) return false;
+        if( cfg instanceof CallEndNode cend && cend.folding() ) return false;
+        if( cfg instanceof FunNode fun && fun._folding ) return false;
+        if( cfg instanceof ReturnNode ret && ret._fun._folding ) return false;
+        return true;
+    }
+
+    // Clone function body.  Give function a new FIDX.
+    FunNode copyBody() {
+        // Build the function body BitSet
+        BitSet body = body();
+        assert body.cardinality() < 100;
+        // Walk the body, cloning
+        IdentityHashMap<Node,Node> map = new IdentityHashMap<>();
+        BitSet visit = CodeGen.CODE.visit();
+        bodyCopy( visit, body, map, this );
+        visit.clear();
+        bodyEdge( visit, body, map, this );
+        visit.clear();
+        assert map.size()==body.cardinality();
+
+        // New function/return cross-link each other
+        FunNode    fun2 = (FunNode   )map.get(this);
+        ReturnNode ret2 = (ReturnNode)map.get(_ret);
+        fun2._ret = ret2;
+        ret2._fun = fun2;
+        BitSet body2 = new BitSet();
+        for( Node n : map.values() )
+            body2.set(n._nid);
+
+        // Remove non-body callers.  Body-local call edges were cloned along
+        // with their CallEnds and must stay linked so their cloned types remain
+        // monotonic during the post-Opto Iter.
+        for( int i=1; i<fun2.nIns(); i++ )
+            if( !(fun2.in(i) instanceof CallNode call) || !body2.get(call._nid) )
+                fun2.removeDeadPath(i--);
+
+        for( Node old : map.keySet() )
+            if( old instanceof CallNode oldCall )
+                relinkClonedCall(oldCall,(CallNode)map.get(oldCall),map);
+
+        // Flip to a new FIDX to avoid confusion with the old one.
+        // This is a non-monotonic (sideways) type move, only applicable
+        // because fun2 is new.  The fidx is also a purely local fiction,
+        // since this body will inline and the fidx goes dead.
+        fun2._sig = _sig.makeFrom(CodeGen.CODE._fidxs.nextInline());
+        return fun2;
+    }
+
+    private static void relinkClonedCall( CallNode oldCall, CallNode call, IdentityHashMap<Node,Node> map ) {
+        CallEndNode oldCend = oldCall.cend();
+        if( oldCend==null || oldCend._folding )
+            return;
+        for( int i=1; i<oldCend.nIns(); i++ ) {
+            ReturnNode oldRet = (ReturnNode)oldCend.in(i);
+            FunNode oldFun = oldRet.fun();
+            FunNode fun = (FunNode)map.get(oldFun);
+            if( fun==null ) fun = oldFun;
+            if( !call.linked(fun) )
+                call.link(fun);
+        }
+        CallEndNode cend = call.cend();
+        if( cend.nIns() > 1 )
+            cend._type = cend.compute();
+    }
+
+    // Clone small function
+    private void bodyCopy( BitSet visit, BitSet body, IdentityHashMap<Node,Node> map, Node n ) {
+        if( n==null ) return;
+        if( !body.get(n._nid) ) return; // Not part of the body
+        if( visit.get(n._nid) ) return; // Been there, done that
+        visit.set(n._nid);
+        Node m = n.copy();
+        CodeGen.CODE.add(m);
+        map.put(n,m);
+        m._type = n._type;
+        for( Node x : n._outputs )
+            bodyCopy(visit,body,map,x);
+    }
+    private void bodyEdge( BitSet visit, BitSet body, IdentityHashMap<Node,Node> map, Node n ) {
+        if( n==null ) return;
+        if( !body.get(n._nid) ) return; // Not part of the body
+        if( visit.get(n._nid) ) return; // Been there, done that
+        visit.set(n._nid);
+        Node m = map.get(n);
+        for( Node e : n._inputs ) {
+            Node x = e;
+            if( e != null ) {
+                if( n instanceof CallEndNode cend && e != cend.call() &&
+                    (!(e instanceof ReturnNode ret) || map.get(ret.fun()) == null) )
+                    continue;
+                x = map.get(e);
+                if( x == null ) {
+                    if( n instanceof CallEndNode cend && e != cend.call() )
+                        continue;
+                    x = e;
+                }
+            }
+            m.addDef(x);
+        }
+        for( Node x : n._outputs )
+            bodyEdge(visit,body,map,x);
+    }
+
+
+    // no 2 FunNodes are ever GVN'able
     @Override public boolean eq( Node n ) {
-        return _sig == ((FunNode)n)._sig;
+        return this==n;
     }
 
     @Override public int hash() {
@@ -245,4 +467,7 @@ public class FunNode extends RegionNode {
         return slotRotate*8;
     }
 
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_name);
+    }
 }

@@ -1,38 +1,48 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.*;
-import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class PhiNode extends Node {
 
     public final String _label;
 
-    // The Phi type we compute must stay within the domain of the Phi.  Example
-    // Int stays Int, Ptr stays Ptr, Control stays Control, Mem stays Mem.
-    Type _minType;
-
-    int lattice_drop;
-
-    public PhiNode(String label, Type minType, Node... inputs) {
+    public PhiNode( String label, Node... inputs) {
         super(inputs);
         _label = label;
-        assert minType!=null;
-        _minType = minType;
+    }
+    public static PhiNode make(String label, Type minType, Node... inputs) {
+        return minType instanceof TypeMem mem
+            ? mem._alias==1
+                ? new BulkMemPhiNode(label,inputs)
+                : new MemPhiNode(label,mem._alias,inputs)
+            : new PhiNode(label, inputs);
     }
     // Used by ParmNode
-    public PhiNode(PhiNode phi, String label, Type minType) { super(phi); _label = label; _type = _minType = minType; }
+    public PhiNode(PhiNode phi, String label) { super(phi); _label = label; }
     // Used by instruction Selection
-    public PhiNode(PhiNode phi) { this(phi,phi._label,phi._minType );  }
+    public PhiNode(PhiNode phi) { this(phi,phi._label);  }
     // Used by the infinite-loop exit breaker
     public PhiNode(RegionNode r, Node sample) {
         super(new Node[]{r});
         _label = "";
-        _minType = sample._type;
+        _type = sample._type;
         while( nIns() < r.nIns() )
             addDef(sample);
+    }
+    @Override public Tag serialTag() { return Tag.Phi; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(nIns());
+        baos.packed2(_label==null ? 0 : strs.get(_label));
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        return new PhiNode(strs[bais.packed2()], ins);
     }
 
     @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
@@ -55,24 +65,19 @@ public class PhiNode extends Node {
     }
 
     public CFGNode region() { return (CFGNode)in(0); }
-    @Override public boolean isMem() { return _minType instanceof TypeMem; }
+    @Override public boolean isMem() { return _type instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
-    boolean isRPC() { return false; }
 
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+            return Type.TOP;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() )
-            // Loop-Phis must lift to the declared type, because that is how
-            // the Parser keeps precise types until the loop finishes parsing.
-            // Similar, ParmNodes use precise minType until all calls are
-            // linked (post opto).
-            return r instanceof LoopNode || (this instanceof ParmNode) ? _minType : Type.BOTTOM;
+        if( r.inProgress() || in(nIns()-1)==null )
+            return Type.BOTTOM;
         // Set type to local top of the starting type
         Type t = Type.TOP;
-        for (int i = 1; i < nIns(); i++) {
+        for( int i = 1; i < nIns(); i++ ) {
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
             Type ctrl = addDep(r.in(i))._type;
@@ -82,111 +87,105 @@ public class PhiNode extends Node {
                 t = t.meet(in(i)._type);
             }
         }
-        Type newt = t.join( _minType );
 
         // phi loop widening part
-        if( region() instanceof LoopNode && // Only around loops
-            newt  instanceof TypeInteger newi &&
-            // Types changed and are falling (the optimistic case, expected to fall forever)
-            newi != _type ) {
-            if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
-                return newi.same_but_slightly_wider_than(_minType);
+        if( r instanceof LoopNode && // Only around loops
+            t != _type && // Types changed and are falling (the optimistic case, expected to fall forever)
+            !t.isConstant() &&  // No need to widen constants
+            t instanceof TypeInteger newi && // Only widen integers
+            (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) ) {
+            // Widen, to prevent infinite falling of TypeIntegers
+            return newi.same_but_slightly_wider_than();
         }
 
-        return newt;
+        return t;
     }
 
     @Override
     public Node idealize() {
-        if( !(region() instanceof RegionNode r ) )
-            return in(1);       // Input has collapse to e.g. starting control.
-        // Can upgrade minType even while in-progress
-        if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
-            TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
-            if( tmp2!=null && tmp2 != _minType ) {
-                _minType = tmp2;
-                return this;
-            }
-        }
-        if( r.inProgress() || r.nIns()<=1 )
+        RegionNode r = (RegionNode)region();
+        if( r.inProgress() || nOuts()==0 )
             return null;        // Input is in-progress
 
         // If we have only a single unique input, become it.
         Node live = singleUniqueInput();
-        if( live != null ) {
-            if( live._type.isa(_type) )
-                return live;
-            // Keep the Phi upcast
-            return new CastNode(_type,null,live);
-        }
+        if( live != null )
+            return live;
 
         // No bother if region is going to fold dead paths soon
         for( int i=1; i<nIns(); i++ )
             if( r.in(i)._type == Type.XCONTROL )
                 return null;
 
-        // Simple Phi-after-MemMerge to a known alias can bypass.  Happens when inlining.
-        if( _type instanceof TypeMem tmem && tmem._alias!=1 ) {
-            for( int i=1; i<nIns(); i++ )
-                if( in(i) instanceof MemMergeNode mem ) {
-                    setDef(i,mem.alias(tmem._alias));
-                    return this;
-                }
-        }
-
         // Generic "pull down op"
         Node progress;
         if( same_op() && (progress = drop_same_op()) != null )
             return progress;
 
-        // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
-        if( nIns()==3 ) {
-            if( in(1) instanceof CastNode cast && addDep(cast.in(1))==in(2) ) return in(2);
-            if( in(2) instanceof CastNode cast && addDep(cast.in(1))==in(1) ) return in(1);
-        }
-        // If merging a null-checked null and the checked value, just use the value.
-        // if( val ) ..; phi(Region,False=0/null,True=val);
-        // then replace with plain val.
-        if( nIns()==3 ) {
-            int nullx = -1;
-            if( in(1)._type == in(1)._type.makeZero() ) nullx = 1;
-            if( in(2)._type == in(2)._type.makeZero() ) nullx = 2;
-            if( nullx != -1 ) {
-                Node val = in(3-nullx);
-                if( val instanceof CastNode cast )
-                    val = cast.in(1);
-                Node ridom = r.idom(this);
-                if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {
-                    // Must walk the idom on the null side to make sure we hit False.
-                    CFGNode idom = (CFGNode)r.in(nullx);
-                    while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
-                    if( idom instanceof CProjNode proj && proj._idx==1 )
-                        return val;
-                } else if( ridom != null ) addDep(ridom);
-            }
-        }
+        // If merging Phi(ZERO, guardNZ(N)) at the matching `if(N)` join, the
+        // Phi is exactly N.  The guard arm proves N is non-zero, and the other
+        // arm contributes N's zero value.  This is only legal if N is already
+        // available at the Phi region; otherwise a return-scope/live-on-exit
+        // Phi can lose the zero arm and export a branch-local value upward.
+        Node unguard;
+        if( (unguard=matchingGuardMerge(r,1)) != null ) return unguard;
+        if( (unguard=matchingGuardMerge(r,2)) != null ) return unguard;
 
         return null;
+    }
+
+    private Node matchingGuardMerge(RegionNode r, int nzIdx) {
+        Node zero = in(3-nzIdx);
+        if( !(in(nzIdx) instanceof GuardNode cast && cast._nonZero) ||
+            zero._type.makeZero()!=zero._type ||
+            cast.in(1)==this )
+            return null;
+        if( !(r.in(nzIdx) instanceof CProjNode nz && nz._idx==0 && nz.ctrl() instanceof IfNode iff) )
+            return null;
+        if( !(r.in(3-nzIdx) instanceof CProjNode z && z._idx==1 && z.ctrl()==iff) )
+            return null;
+        Node n = cast.in(1);
+        while( n instanceof GuardNode guard ) {
+            n = guard.in(1);
+            throw Utils.TODO("test and remove TODO");
+        }
+        CFGNode early = CFGNode.earlyCFG(n,null);
+        return iff.pred()==cast.in(1) && (early==null || early.dominates(r)) ? n : null;
     }
 
     // Same op on all Phi paths; all ops have only the Phi as a use.
     // None have a control input.
     private boolean same_op() {
+        Node busy=null;
         for( int i=1; i<nIns(); i++ ) {
             Node op = in(i);
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
-            if( in(1) instanceof MemOpNode mem && mem._alias != ((MemOpNode)op)._alias )
-                return false;
-            if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
-                for( Node out : op._outputs )
-                    if( out!=null && out!=this )
-                        addDep(out);
-                return false;
+            if( in(1) instanceof MemOpNode mem ) {
+                // Mismatched aliases
+                if( mem._alias != ((MemOpNode)op)._alias ) return false;
+                // Load is clobbered somewhere, and can not be pulled forward past the Phi?
+                if( mem instanceof LoadNode )
+                    for( Node use : op.outs() )
+                        if( use instanceof StoreNode )
+                            return false;
             }
-            for( int j=1; j<in(1).nIns(); j++ )
-                if( op.in(j) instanceof ScopeNode || (op.in(j)==null ^ in(1).in(j)==null) )
-                    return false; // Lazy Phi input
+            if( in(1) instanceof EscapeNode )
+                return false;
+            if( in(1) instanceof MemMergeNode )
+                return false;   // Have to keep aliases straight
+            if( op.nOuts() > 1 ) {
+                if( busy==null ) busy = op;
+                else {         // Too many users, but addDep in case lose users
+                    for( Node out : op._outputs )
+                        if( out!=null && out!=this )
+                            addDep(out);
+                    for( Node out : busy._outputs )
+                        if( out!=null && out!=this )
+                            addDep(out);
+                    return false;
+                }
+            }
         }
         return true;
     }
@@ -205,7 +204,7 @@ public class PhiNode extends Node {
                 if( in(i).in(j) != x )
                     { needsPhi=true; break; }
             if( needsPhi ) {
-                x = new PhiNode(_label,op.in(j)._type.glb(false));
+                x = make(_label,op.in(j)._type);
                 x.addDef(region());
                 for( int i=1; i<nIns(); i++ )
                     x.addDef(in(i).in(j));
@@ -253,39 +252,27 @@ public class PhiNode extends Node {
     }
 
     // Never equal if inProgress.
-    // Also, joins
     @Override public boolean eq( Node n ) {
-        if( inProgress() ) return false;
-        Type min = ((PhiNode)n)._minType;
-        if( _minType==min ) return true;
-        Type mt = min.meet(_minType);
-        if( min!=mt && _minType!=mt ) return false;
-        //// Theory says these 2 Phis CAN be merged/GVNd, but I need to pick the
-        //// most general minType.
-        //_minType = ((PhiNode)n)._minType = mt;
-        //return true;
-        return false;
+        return !inProgress() && super.eq(n);
     }
 
     @Override
     public Parser.ParseException err() {
         if( _type != Type.BOTTOM ) return null;
 
-        // BOTTOM means we mixed e.g. int and ptr
+        // Global BOTTOM retains the same role for non-scalar families.
         for( int i=1; i<nIns(); i++ )
             // Already an error, but better error messages come from elsewhere
             if( in(i)._type == Type.BOTTOM )
                 return null;
 
-        // Gather a minimal set of types that "cover" all the rest
-        boolean ti=false, tf=false, tp=false, tn=false;
-        for( int i=1; i<nIns(); i++ ) {
-            Type t = in(i)._type;
-            ti |= t instanceof TypeInteger x;
-            tf |= t instanceof TypeFloat   x;
-            tp |= t instanceof TypeMemPtr  x;
-            tn |= t==Type.NIL;
-        }
-        return ReturnNode.mixerr(ti,tf,tp,tn, ((RegionNode)region())._loc);
+        SB sb = new SB().p("No common type amongst ");
+        for( int i=1; i<nIns(); i++ )
+            sb.p(in(i)._type.toString()).p(" and ");
+        return Parser.error(sb.unchar(5).toString(),null);
+    }
+
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_label);
     }
 }

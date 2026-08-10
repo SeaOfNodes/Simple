@@ -3,21 +3,20 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
-import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMem;
-import com.seaofnodes.simple.util.Utils;
-import java.util.BitSet;
-import java.util.HashSet;
+import com.seaofnodes.simple.util.BAOS;
+
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class LoopNode extends RegionNode {
-    public LoopNode( Parser.Lexer loc, Node entry ) { super(loc,null,entry,null); }
+    public LoopNode( Parser.Lexer loc, Node xctrl, Node entry ) { super(loc,xctrl,entry,null); }
     public LoopNode( LoopNode loop ) { super(loop); }
+    @Override public Tag serialTag() { return Tag.Loop; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { }
 
     public CFGNode entry() { return cfg(1); }
     public CFGNode back () { return cfg(2); }
-
-    @Override
-    public String label() { return "Loop"; }
 
     @Override
     public Type compute() {
@@ -48,7 +47,7 @@ public class LoopNode extends RegionNode {
             x = x.idom();
         }
         // Found a no-exit loop.  Insert an exit
-        NeverNode iff = (NeverNode)new NeverNode(back()).peephole(); // Ideal never-branch
+        NeverNode iff = (NeverNode)new NeverNode(1.2f,back()).peephole(); // Ideal never-branch
         CProjNode t = new CProjNode(iff,0,"True" ).init();
         CProjNode f = new CProjNode(iff,1,"False").init();
         setDef(2,t);            // True continues loop, False (never) exits loop
@@ -58,12 +57,14 @@ public class LoopNode extends RegionNode {
 
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
-        Node top = new ConstantNode(Type.TOP).peephole();
-        Node memout = new MemMergeNode(false);
+        Node top = ConstantNode.make(Type.TOP).peephole();
+        Node memout = new MemMergeNode();
         memout.addDef(f); // placeholder for control
+        memout.addDef(top);
         for( Node u : _outputs )
             if( u instanceof PhiNode phi && phi._type.isa(TypeMem.BOT) )
                 memout.addDef(phi);
+        memout.init();
 
         Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
         if( ctrl!=null && ctrl._type != Type.XCONTROL ) {
@@ -74,7 +75,7 @@ public class LoopNode extends RegionNode {
                 // Nope, insert an aligned exit layer
                 RegionNode r = new RegionNode(_loc,null,ctrl).init();
                 ctrl = r;  r._ltree = stop._ltree;
-                mem  = new PhiNode(r,mem ).init();
+                mem  = new BulkMemPhiNode(r,mem).init();
                 expr = new PhiNode(r,expr).init();
             }
             // Append new Never exit
@@ -89,8 +90,12 @@ public class LoopNode extends RegionNode {
         ret.setDef(0,ctrl.unkeep());
         ret.setDef(1,mem .unkeep());
         ret.setDef(2,expr.unkeep());
-        ret._type = null; // This may LIFT the Return type, from [XCtrl,mem,expr] to [Ctrl,mem,expr]
-        ret.setType(ret.compute());
+        // Force sane types to exit; might locally break monotonicity
+        ret.init();
+        ret.out(0).init();
+        stop.init();
+        CodeGen.CODE.add(CodeGen.CODE._start);
+        CodeGen.CODE.add(mem);
 
         return stop;
     }

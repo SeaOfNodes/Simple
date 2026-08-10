@@ -1,0 +1,64 @@
+
+// Simple I/O Library
+
+// Write byte array to stdout
+val p          = { u8[~] str -> write(1,str); };
+val p_noInline = { u8[~] str -> write(1,str); };
+
+// Return fd contents as a u8[].
+val read = { i32 fd ->
+    var buf = new u8[8*1024];
+    i64 ptr = buf;
+    int len = 0;
+    while( true ) {
+        i32 rez = libc.read(fd,ptr,buf#);
+        if( rez > buf# ) libc._exit(libc.errno);
+        len += rez;
+        if( rez < buf# )
+            break;
+        libc._exit(-2); // Need to implement for more than 8K input
+    }
+    var out = new u8[len];
+    ary.copy(out,0,buf,0,len);
+};
+
+// Write all of str to fd.
+val write = { i32 fd, u8[~] str ->
+  i64 ptr = str;                // Convert array pointer to a i64 for the native call
+  libc.write(fd,ptr,str#);
+};
+
+// Write all of str to fd.
+val writeOff = { i32 fd, u8[~] str, u32 off, u32 len ->
+  i64 ptr = str;                // Convert array pointer to a i64 for the native call
+  ptr += off;                   // Skip offset
+  // Cap at available length
+  if( len > str# - off ) len = str# - off;
+  // Do the write
+  libc.write(fd,ptr,len);
+};
+
+// Return stdin as a u8[].
+val stdin = { -> read(0); };
+
+// Create file for writing.  Return fd, or -1 and errno has the error code
+val create = { u8[~] str ->
+    i64 ptr = sys.aryu8.str0(str);
+    i32 perms = 6*64 + 6*8 + 6; // 0666
+    return libc.creat(ptr, perms);
+};
+
+// Open file for reading.  Return fd, or -1 and errno has the error code
+val open = { u8[~] str ->
+    i64 ptr = sys.aryu8.str0(str);
+    return libc.open(ptr, sys.libc.O_RDONLY, 0);
+};
+
+// Close an open fd.  Return 0, or -1 and errno has the error code
+val close = { i32 fd -> return libc.close(fd); };
+
+// Remove a file.  Return 0, or -1 and errno has the error code
+val remove = { u8[~] str ->
+    i64 ptr = sys.aryu8.str0(str);
+    return libc.unlink(ptr);
+};

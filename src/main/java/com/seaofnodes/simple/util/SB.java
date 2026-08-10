@@ -42,7 +42,7 @@ public final class SB {
   // 4 bytes, 8 hex digits, 32 bits, Big Endian
   public SB hex4(int s) { return hex2(s>>16).hex2(s); }
   // 8 bytes, 16 hex digits, 64 bits, Big Endian
-    public SB hex8(long s) { return hex4((int)(s>>32)).hex4((int)s); }
+  public SB hex8(long s) { return hex4((int)(s>>32)).hex4((int)s); }
 
   // Fixed width field
   public SB fix( int sz, String s ) {

@@ -1,2 +1,10 @@
-echo off
-java  -cp "build/classes/test;build/classes/main;lib/hamcrest-core-1.3.jar;lib/junit-4.12.jar" com.seaofnodes.simple.Simple %*
+@echo off
+setlocal
+
+set "HERE=%~dp0"
+set "RELEASE=%HERE%build\release"
+set "JAR=%RELEASE%\Simple.jar"
+
+if not defined SIMPLE_HOME set "SIMPLE_HOME=%RELEASE%"
+
+java -jar "%JAR%" %*

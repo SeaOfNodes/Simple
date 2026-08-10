@@ -8,8 +8,7 @@ import java.util.BitSet;
 
 public class ToFloatNode extends Node {
     public ToFloatNode(Node lhs) { super(null, lhs); }
-
-    @Override public String label() { return "ToFloat"; }
+    @Override public Tag serialTag() { return Tag.ToFloat; }
 
     @Override public String glabel() { return "(flt)"; }
 

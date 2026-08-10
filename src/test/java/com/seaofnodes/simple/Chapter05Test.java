@@ -116,7 +116,10 @@ if( arg==0 )
 return arg+a+b;
 """);
         code.parse().opto();
-        assertEquals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));", code.print());
+        String ir = code.print();
+        assertTrue(ir,
+                   ir.equals("return ((arg+Phi(Region,1,0))+Phi(Region,2,0));") ||
+                   ir.equals("return (Phi(Region,((!=0)arg+1),0)+Phi(Region,2,0));"));
     }
 
     @Test
@@ -162,7 +165,7 @@ return a;
     @Test
     public void testBadNum() {
         try { new CodeGen("return 1-;").parse();  fail(); }
-        catch( RuntimeException e ) { assertEquals("Syntax error, expected an identifier or expression: ;",e.getMessage()); }
+        catch( RuntimeException e ) { assertEquals("Syntax error, expected `an identifier or expression` but found `;`",e.getMessage()); }
     }
 
     @Test

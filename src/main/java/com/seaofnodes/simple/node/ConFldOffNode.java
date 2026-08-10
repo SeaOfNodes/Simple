@@ -1,11 +1,14 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
+import java.util.HashMap;
 
 /**
  * A field offset.  This becomes a constant *after* other optimizations which
@@ -14,12 +17,13 @@ import java.util.BitSet;
  */
 
 public class ConFldOffNode extends ConstantNode {
-    public final String _name;  // Struct name
+    public TypeStruct _ts;      // Struct holding field
     public final String _fname; // Field name
-    public ConFldOffNode( String name, String fname ) { super(TypeInteger.BOT); _name = name; _fname = fname; }
+    public ConFldOffNode( TypeStruct ts, String fname ) { super(TypeInteger.BOT); _ts = ts; _fname = fname; }
+    @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
 
     @Override public String label() {
-        return _fname == " len" ? "sizeof("+_name+")" : "#"+_fname;
+        return _fname == " len" ? "sizeof("+_ts._name+")" : "#"+_fname;
     }
     @Override public String glabel() { return label(); }
     @Override public String uniqueName() { return "Off_" + _nid; }
@@ -29,15 +33,41 @@ public class ConFldOffNode extends ConstantNode {
         return sb.append(label());
     }
 
-    // Convert field offset to an integer
-    public Node asOffset(TypeStruct ts) {
-        return new ConstantNode(TypeInteger.constant(ts.offset(_fname==" len" ? ts._fields.length : ts.find(_fname)))).peephole();
+    @Override public Node idealize() {
+        // Some array offsets are known early
+        if( _ts.isAry() ) {
+            // Length always at offset zero
+            if( _fname==" len" )
+                return CodeGen.CODE.ZERO;
+            // The shift depends on the element
+            if( _fname=="<<" )
+                return Node.con(_ts.aryScale());
+            // The base depends on the layout (alignment for large elements may
+            // involve padding) and MAY depend on the length if I go for
+            // smaller array lengths.
+        }
+        return null;
     }
 
+    // Convert field offset to an integer
+    public Node asOffset() {
+        int fldx = _fname==" len" ? _ts._fields.length : _ts.find(_fname);
+        if( fldx == -1 ) return null;
+        return ConstantNode.make(TypeInteger.constant(_ts.offset(fldx))).peephole();
+    }
+
+    // Upgrade the internal type
+    @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+        boolean progress = super._upgradeType(TYPES);
+        TypeStruct ts = (TypeStruct)_ts.upgradeType(TYPES);
+        if( ts == _ts ) return progress;
+        _ts = ts;
+        return true;
+    }
 
     @Override public boolean eq(Node n) {
         ConFldOffNode off = (ConFldOffNode)n; // Invariant
-        return _name.equals(off._name) && _fname.equals(off._fname) && super.eq(n);
+        return _ts._name==off._ts._name && _fname.equals(off._fname) && super.eq(n);
     }
-    @Override int hash() { return super.hash() * _name.hashCode() * _fname.hashCode(); }
+    @Override int hash() { return super.hash() * _ts._name.hashCode() * _fname.hashCode(); }
 }

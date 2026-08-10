@@ -4,14 +4,14 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
 import java.util.BitSet;
 
 public abstract class MemOpARM extends MemOpNode implements MachNode {
     final int _off;             // Limit 9 bits sized, or (13 bits<<logsize) unsigned
     final int _imm;             // Limit ? bits
-    final char _sz = (char)('0'+(1<<_declaredType.log_size()));
+    final int _bytes;
+    final char _sz;
     MemOpARM(MemOpNode mop, Node ptr, Node idx, int off, int imm) {
         super(mop,mop);
         assert ptr._type instanceof TypeMemPtr && !(ptr instanceof AddNode);
@@ -20,6 +20,8 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
         _inputs.setX(3, idx);
         _off = off;
         _imm = imm;
+        _bytes = mop instanceof StoreNode st ? st.storeSize() : 1<<_con.log_size();
+        _sz = (char)('0'+_bytes);
     }
 
     // Store-based flavors have a value edge
@@ -33,10 +35,10 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
 
     @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
 
-    @Override public Type compute() { throw Utils.TODO(); }
-    @Override public Node idealize() { throw Utils.TODO(); }
+    @Override public Type compute() { throw new AssertionError("Do not call compute on "+getClass().getSimpleName()); }
+    @Override public Node idealize() { throw new AssertionError("Do not call idealize on "+getClass().getSimpleName()); }
 
-    int size() { return 1<<_declaredType.log_size(); }
+    int size() { return _bytes; }
 
     // Wider mask to store both GPRs and FPRs
     @Override public RegMask regmap(int i) {

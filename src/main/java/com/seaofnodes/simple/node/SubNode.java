@@ -6,12 +6,15 @@ import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 
 public class SubNode extends ArithNode {
+    @Override boolean allowFloat() { return true; }
     public SubNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+    public SubNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs,mode); }
+    @Override public Tag serialTag() { return Tag.Sub; }
 
-    @Override public String label() { return "Sub"; }
     @Override public String op() { return "-"; }
 
-    @Override long doOp( long x, long y ) { return x - y; }
+    @Override long   doOp( long  x,  long  y ) { return x - y; }
+    @Override double doOp(double x, double y ) { return x - y; }
     @Override TypeInteger doOp(TypeInteger x, TypeInteger y) {
         // Sub of same is 0
         if( in(1)==in(2) )
@@ -38,6 +41,5 @@ public class SubNode extends ArithNode {
         return super.idealize();
     }
 
-    @Override Node copy(Node lhs, Node rhs) { return new SubNode(lhs,rhs); }
-    @Override Node copyF() { return new SubFNode(null,null); }
+    @Override Node copy(Node lhs, Node rhs) { return new SubNode(lhs,rhs,_mode); }
 }

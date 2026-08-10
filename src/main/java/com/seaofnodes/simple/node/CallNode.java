@@ -1,12 +1,17 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.TypeRPC;
+import com.seaofnodes.simple.type.XInt;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  *  Call
@@ -18,8 +23,9 @@ public class CallNode extends CFGNode {
 
     public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
-
-    @Override public String label() { return "Call"; }
+    @Override public Tag serialTag() { return Tag.Call; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
+    static Node make( BAOS bais )  { return new CallNode(null,new Node[bais.packed1()]); }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         String fname = name();
@@ -33,7 +39,7 @@ public class CallNode extends CFGNode {
     }
     public String name() {
         if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
-            FunNode fun = CodeGen.CODE.link(tfp);
+            FunNode fun = CodeGen.CODE.lookupFun(tfp);
             if( fun !=null ) return fun._name;
             if( fptr() instanceof ExternNode ex )  return ex._extern;
         }
@@ -97,14 +103,11 @@ public class CallNode extends CFGNode {
         Node progress = null;
         if( fptr()._type instanceof TypeFunPtr tfp && tfp.nargs() == nargs() ) {
             // If fidxs is negative, then infinite unknown functions
-            long fidxs = tfp.fidxs();
-            if( fidxs > 0 ) {
-                // Wipe out the return which matching in the linker table
-                // Walk the (63 max) bits and link
-                for( ; fidxs!=0; fidxs = TypeFunPtr.nextFIDX(fidxs) ) {
-                    int fidx = Long.numberOfTrailingZeros(fidxs);
-                    TypeFunPtr tfp0 = tfp.makeFrom(fidx);
-                    FunNode fun = CodeGen.CODE.link(tfp0);
+            int[] fidxs = tfp.fidxs();
+            if( !XInt.isHigh(fidxs) ) {
+                // Walk the bits and link
+                for( int fidx = XInt.next(fidxs,0); fidx > 0; fidx = XInt.next(fidxs,fidx) ) {
+                    FunNode fun = CodeGen.CODE.link(fidx);
                     if( fun!=null && !fun._folding && !linked(fun) )
                         progress = link(fun);
                 }
@@ -127,33 +130,56 @@ public class CallNode extends CFGNode {
         assert !linked(fun);
         fun.addDef(this);
         for( Node use : fun._outputs )
-            if( use instanceof ParmNode parm )
-                parm.addDef(parm._idx==0 ? new ConstantNode(cend()._rpc).peephole() : arg(parm._idx));
+            if( use instanceof ParmNode parm ) {
+                Node def = parm._idx==0 ? ConstantNode.seed(cend()._rpc).peephole() : arg(parm._idx);
+                parm.addDef(def);
+                // Linking can happen during post-SCCP inlining.  Keep an RPC
+                // Parm's cached finite set synchronized with its newly added
+                // input instead of waiting for the next worklist visit.
+                if( parm._idx==0 && parm._type instanceof TypeRPC )
+                    parm._type = parm._type.meet(def._type);
+            }
         // Call end points to function return
         CodeGen.CODE.add(cend()).addDef(fun.ret());
         return this;
     }
 
+    // Unlink a single function
+    public void unlink( FunNode fun, int path ) {
+        assert linked(fun);
+        for( Node use : fun._outputs )
+            if( use instanceof ParmNode )
+                use.delDef(path);
+        fun.delDef(path);
+        CodeGen.CODE.add(fun);
+        CallEndNode cend = cend();
+        ReturnNode ret = fun.ret();
+        if( cend != null ) {
+            ret.keep();
+            cend.delDef(cend._inputs.find(ret));
+            CodeGen.CODE.add(cend);
+            ret.unkeep();
+        }
+        assert !linked(fun);
+    }
+
+
     // Unlink all linked functions
     public void unlink_all() {
         for( int i=0; i<_outputs._len; i++ )
             if( out(i) instanceof FunNode fun ) {
-                assert linked(fun);
-                int idx = fun._inputs.find(this);
-                for( Node use : fun._outputs )
-                    if( use instanceof ParmNode )
-                        use.delDef(idx);
-                fun.delDef(idx);
-                cend().delDef(cend()._inputs.find(fun.ret()));
-                assert !linked(fun);
+                int path = fun._inputs.find(this);
+                unlink(fun,path);
                 i--;
             }
     }
 
     @Override
     public Parser.ParseException err() {
+        if( fptr()._type == Type.BOTTOM )
+            return null;        // Wrong, but failing earlier
         if( !(fptr()._type instanceof TypeFunPtr tfp) )
-            throw Utils.TODO();
+            return Parser.error("Expected a function, but found " + fptr()._type, _loc);
         if( !tfp.notNull() )
             return Parser.error( "Might be null calling "+tfp, _loc);
         if( nargs() != tfp.nargs() )
@@ -162,11 +188,13 @@ public class CallNode extends CFGNode {
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
             if( !arg(i+2)._type.isa(tfp.arg(i)) ) {
-                cend().addDep(arg(i+2)); // Upgrading arg type may allow inlining
-                return Parser.error( "Argument #" + i + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
+                // Constructors return private memory and carry hidden self and
+                // selfMem arguments ahead of the source-level arguments.
+                int argno = i - (tfp.ret() instanceof TypeMem ? 2 : 0);
+                return Parser.error( "Argument #" + argno + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
             }
 
-        if( tfp.fidxs() < 0 )
+        if( tfp.isHigh() )
             throw Utils.TODO(); // Infinite unknown TFPs?  Should be fairly precise CG
 
         return null;

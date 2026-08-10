@@ -8,12 +8,14 @@ import com.seaofnodes.simple.util.SB;
 // e.g CSET, stores flag info into GPRS after compare
 public class SetARM extends MachConcreteNode implements MachNode {
     final String _bop;          // One of <,<=,==
-    SetARM(Node cmp, String bop) {
+    final boolean _fp;          // FP compare (unsigned encoding)
+    SetARM(Node cmp, String bop, boolean fp) {
         super(cmp);
         _inputs.setLen(1);   // Pop the cmp inputs
         // Replace with the matched cmp
         _inputs.push(cmp);
         _bop = bop;
+        _fp = fp;
     }
     @Override public String op() { return "set"+_bop; }
     @Override public RegMask regmap(int i) { assert i==1; return arm.FLAGS_MASK; }
@@ -21,7 +23,7 @@ public class SetARM extends MachConcreteNode implements MachNode {
 
     @Override public void encoding( Encoding enc ) {
         // Using RM==RN==31 implies a *zero* value, not R31.
-        int body = arm.cset(arm.OP_CSET,0b11111, arm.make_condition(_bop), 0b011111, enc.reg(this));
+        int body = arm.cset(arm.OP_CSET,0b11111, arm.make_condition(_bop, _fp), 0b011111, enc.reg(this));
         enc.add4(body);
     }
 

@@ -5,7 +5,8 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class OrNode extends ArithNode {
-    public OrNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
+    public OrNode( Parser.Lexer loc, Node lhs, Node rhs) { super(loc,lhs, rhs, (byte)1); }
+    @Override public Tag serialTag() { return Tag.Or; }
 
     @Override public String label() { return "Or"; }
     @Override public String op() { return "|"; }
@@ -26,7 +27,7 @@ public class OrNode extends ArithNode {
 
         // Or of 0.  We do not check for (0|x) because this will already
         // canonicalize to (x|0)
-        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 && t1.isa(TypeInteger.BOT) )
             return lhs;
 
         // Move constants to RHS: con*arg becomes arg*con

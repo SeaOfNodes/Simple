@@ -4,21 +4,23 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
 
 // Special instruction for loading 8 byte constants from the constant pool.
 
 public class Int8RISC extends ConstantNode implements MachNode, RIPRelSize {
-    public Int8RISC(ConstantNode con) { super(con); }
-
+    final String _ext;
+    Int8RISC( ConstantNode con, String ext ) { super(con); _ext = ext; }
     @Override public String op() { return "ld8"; }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return riscv.WMASK; }
     @Override public boolean isClone() { return true; }
-    @Override public Int8RISC copy() { return new Int8RISC(this); }
+    @Override public Int8RISC copy() { return new Int8RISC(this,_ext); }
 
     @Override public byte encSize(int delta) { return 8;  }
 
     @Override public void encoding( Encoding enc ) {
+        if( _ext!=null ) throw Utils.TODO();
         short dst  = enc.reg(this);
         short tmp = (short)riscv.T6;
         enc.largeConstant(this,_con, 0, -1);

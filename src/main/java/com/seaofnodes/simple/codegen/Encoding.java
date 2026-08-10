@@ -1,12 +1,10 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
-import java.io.ByteArrayOutputStream;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 
 
@@ -24,11 +22,14 @@ public class Encoding {
     // Top-level program graph structure
     public final CodeGen _code;
 
+    // CFG Nodes in RPO order, per-encoding.
+    public Ary<CFGNode> _cfg;
+
     // Instruction bytes.  The registers are encoded already.  Relocatable data
     // is in a fixed format depending on the kind of relocation.
 
     // - RIP-relative offsets into the same chunk are just encoded with their
-    //   check relative offsets; no relocation info is required.
+    //   chunk relative offsets; no relocation info is required.
 
     // - Fixed address targets in the same encoding will be correct for a zero
     //   base; moving the entire encoding requires adding the new base address.
@@ -36,17 +37,10 @@ public class Encoding {
     // - RIP-relative to external chunks have a zero offset; the matching
     //   relocation info will be used to patch the correct value.
 
-    public static class BAOS extends ByteArrayOutputStream {
-        public byte[] buf() { return buf; }
-        void set( byte[] buf0, int count0 ) { buf=buf0; count=count0; }
-    };
-    final public BAOS _bits = new BAOS();
-
-    public int [] _opStart;     // Start  of opcodes, by _nid
-    public byte[] _opLen;       // Length of opcodes, by _nid
-
-    // Function headers now padded when printing
-    public boolean _padFunHeads;
+    public final BAOS _bits  = new BAOS(); // Instructions / encodings
+    public final BAOS _cpool = new BAOS(); // Constant r/o pool
+    public final BAOS _sdata = new BAOS(); // Static   r/w pool
+    public final HashMap<Node,Relo> _bigCons = new HashMap<>();
 
     // Big Constant relocation info.
     public static class Relo {
@@ -54,15 +48,16 @@ public class Encoding {
         public final Type _t;          // Constant type
         public final byte _off;        // Offset from start of opcode
         public final byte _elf;        // ELF relocation type, e.g. 2/PC32
-        public int _target;      // Where constant is finally placed
-        public int _opStart;     // Opcode start
+        public int _target;            // Where constant is finally placed
+        public int _opStart;           // Opcode start
         Relo( Node op, Type t, byte off, byte elf ) {
             _op=op;  _t=t;  _off=off; _elf=elf;
         }
     }
-    public final HashMap<Node,Relo> _bigCons = new HashMap<>();
 
-    Encoding( CodeGen code ) { _code = code; }
+    Encoding( CodeGen code ) {
+        _code = code;
+    }
 
     // Shortcut to the defining register
     public short reg(Node n) {
@@ -103,14 +98,6 @@ public class Encoding {
     }
 
     // Convenience for writing log-N
-    static void addN( int log, Type t, BAOS bits ) {
-        long x = t instanceof TypeInteger ti
-            ? ti.value()
-            : log==3
-            ? Double.doubleToRawLongBits(    ((TypeFloat)t).value())
-            : Float.floatToRawIntBits((float)((TypeFloat)t).value());
-        addN(log,x,bits);
-    }
     static void addN( int log, long x, BAOS bits ) {
         for( int i=0; i < 1<<log; i++ ) {
             bits.write((int)x);
@@ -123,48 +110,88 @@ public class Encoding {
     public Encoding add4( int op ) { addN(2,op,_bits); return this; }
     public Encoding add8(long op ) { addN(3,op,_bits); return this; }
 
+    private final static int SENTINEL = -1;
+    private final IntHashMap _opStart = new IntHashMap(SENTINEL);
+    private final IntHashMap _opLen   = new IntHashMap(SENTINEL);
+
+
+    // Read op start for n
+    public int opStart(Node n) { return _opStart.get(n._nid); }
+    // Read op length for n
+    public byte opLen (Node n) { return (byte)_opLen.get(n._nid); }
+
+    // Set op start for n
+    public void opStart(Node n, int off) {
+        assert off != SENTINEL;
+        _opStart.put(n._nid,off);
+    }
+
+    // Set op start for n
+    public void opStartAdd(Node n, int off) {
+        if( off==0 ) return;
+        int old = _opStart.get(n._nid);
+        assert old != SENTINEL && old+off != SENTINEL;
+        _opStart.put(n._nid,old+off);
+    }
+
+    // Set op length for n
+    public void opLen(Node n, byte len) {
+        assert len != SENTINEL;
+        _opLen.put(n._nid,len);
+    }
 
     // Nodes need "relocation" patching; things done after code is placed.
     // Record src and dst Nodes.
     private final HashMap<Node,CFGNode> _internals = new HashMap<>();
     // Source is a Call, destination in the Fun.
     public Encoding relo( CallNode call ) {
-        _internals.put(call,_code.link(call.tfp()));
+        FunNode fun = _code.link(call.tfp());
+        if( fun != null && !_code.owns(fun) )
+            _externals.put(call,fun._name);
+        else
+            _internals.put(call,fun);
         return this;
     }
-    public Encoding relo( ConstantNode con ) {
-        TypeFunPtr tfp = (TypeFunPtr)con._con;
-        _internals.put(con,_code.link(tfp));
+    // Code address as a constant
+    public Encoding relo( FunPtrNode fptr ) {
+        TypeFunPtr tfp = (TypeFunPtr)fptr._type;
+        FunNode fun = _code.link(tfp);
+        if( fun != null && !_code.owns(fun) )
+            _externals.put(fptr,fun._name);
+        else
+            _internals.put(fptr,fun);
         return this;
     }
+    // Local jump
     public void jump( CFGNode jmp, CFGNode dst ) {
         _internals.put(jmp,dst.uctrlSkipEmpty());
     }
 
-
-    final HashMap<Node,String> _externals = new HashMap<>();
+    // External references only located by Strings a link-time
+    public final HashMap<Node,String> _externals = new HashMap<>();
     public Encoding external( Node n, String extern ) {
         _externals.put(n,extern);
         return this;
     }
 
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
-    // addressing to load it
+    // addressing to load it.  Type is stored in either the .rodata or .data.
     public void largeConstant( Node relo, Type t, int off, int elf ) {
-        assert t.isConstant();
+        // TODO: Any-old struct in the cpool
+        assert t.isConstant() || (t instanceof TypeStruct ts && Parser.startsClzPrefix(ts._name));
         assert (byte)off == off;
         assert (byte)elf == elf;
         _bigCons.put(relo,new Relo(relo,t,(byte)off,(byte)elf));
     }
 
     // --------------------------------------------------
-    void encode() {
+    Encoding encode( ) {
         // Basic block layout: negate branches to keep blocks in-order; insert
         // unconditional jumps.  Attempt to keep backwards branches taken,
         // forwards not-taken (this is the default prediction on most
         // hardware).  Layout is still Reverse Post Order but with more
         // restrictions.
-        basicBlockLayout();
+        basicBlockLayout( );
 
         // Write encoding bits in order into a big byte array.
         // Record opcode start and length.
@@ -174,8 +201,15 @@ public class Encoding {
         // encodings and compact the code, changing all the offsets.
         compactShortForm();
 
+        // Write the constant pool
+        writeConstantPool(_cpool,true );
+        // Write the static memory
+        writeConstantPool(_sdata,false);
+
         // Patch RIP-relative and local encodings now.
         patchLocalRelocations();
+
+        return this;
     }
 
     // --------------------------------------------------
@@ -183,29 +217,48 @@ public class Encoding {
     // unconditional jumps.  Attempt to keep backwards branches taken, forwards
     // not-taken (this is the default prediction on most hardware).  Layout is
     // still Reverse Post Order but with more restrictions.
-    private void basicBlockLayout() {
+    private void basicBlockLayout( ) {
         IdentityHashMap<LoopNode,Ary<CFGNode>> rpos = new IdentityHashMap<>();
-        Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
-        rpos.put(_code._start.loop(),rpo);
+        _cfg = new Ary<>(CFGNode.class);
+        rpos.put(_code._start.loop(),_cfg);
         BitSet visit = _code.visit();
-        rpo.add(_code._stop);
-        FunNode main = _code.link(_code._main);
-        for( Node n : _code._start._outputs )
-            if( n instanceof FunNode fun && fun != main ) {
-                int x = rpo._len;
-                _rpo_cfg(fun, visit, rpos );
-                assert rpo.at(x) instanceof ReturnNode;
+
+        // Do them all except the <clinit>s
+        Ary<FunNode> clinits = new Ary<>(FunNode.class);
+        FunNode entry = null;
+        String entryName = _code.entryClinitName();
+        for( FunNode fun : _code._linker ) {
+            if( fun != null && !fun.isDead() && _code.owns(fun) ) {
+                if( fun.isClz() ) {
+                    if( fun._name.equals(entryName) )
+                        entry = fun;
+                    else
+                        clinits.add(fun);
+                } else {
+                    int x = _cfg._len;
+                    _rpo_cfg(fun,visit,rpos);
+                    assert _cfg.at(x) instanceof ReturnNode;
+                }
             }
-        // Do any main function last... so it lands at offset 0 in the RPO
-        if( main!=null )
-            _rpo_cfg(main, visit, rpos );
-        rpo.add(_code._start);
+        }
+        // Now the <clinit>s last, so when reversed they become first.  The
+        // program entry <clinit> is last of all, so it lands at offset zero.
+        for( FunNode clinit : clinits ) {
+            int x = _cfg._len;
+            _rpo_cfg(clinit,visit,rpos);
+            assert _cfg.at(x) instanceof ReturnNode;
+        }
+        if( entry != null ) {
+            int x = _cfg._len;
+            _rpo_cfg(entry,visit,rpos);
+            assert _cfg.at(x) instanceof ReturnNode;
+        }
+
 
         // Reverse in-place
-        for( int i=0; i< rpo.size()>>1; i++ )
-            rpo.swap(i,rpo.size()-1-i);
+        for( int i=0; i< _cfg.size()>>1; i++ )
+            _cfg.swap(i,_cfg.size()-1-i);
         visit.clear();
-        _code._cfg = rpo;       // Save the new ordering
     }
 
 
@@ -279,7 +332,7 @@ public class Encoding {
     private static boolean shouldInvert(CFGNode t, CFGNode f, int bld) {
         int tld = t.loopDepth(), fld = f.loopDepth();
         // These next two are symmetric and can happen in any order; if `tld <
-        // bld` is true, the `fld < bld` must be false, or else both directions
+        // bld` is true, then `fld < bld` must be false, or else both directions
         // exit the loop... and the IF test would not be in the loop.
 
         // true to exit a loop usually (and false falls into Yet Another Loop
@@ -324,24 +377,26 @@ public class Encoding {
     // --------------------------------------------------
     // Write encoding bits in order into a big byte array.
     // Record opcode start and length.
-    public FunNode _fun;        // Currently encoding function
+
+    // Current function is used by the spill-op encodings to query the stack
+    // frame layout and get the spill offsets.
     private void writeEncodings() {
-        _opStart= new int [_code.UID()];
-        _opLen  = new byte[_code.UID()];
-        for( CFGNode bb : _code._cfg ) {
+        for( CFGNode bb : _cfg ) {
             if( !(bb instanceof MachNode mach0) )
-                _opStart[bb._nid] = _bits.size();
-            else if( bb instanceof FunNode fun ) {
-                _fun = fun;     // Currently encoding function
-                _opStart[bb._nid] = _bits.size();
+                opStart(bb, _bits.size());
+            else if( bb instanceof FunNode ) {
+                opStart(bb, _bits.size());
                 mach0.encoding( this );
-                _opLen[bb._nid] = (byte) (_bits.size() - _opStart[bb._nid]);
+                opLen(bb, (byte) (_bits.size() - opStart(bb)));
             }
             for( Node n : bb._outputs ) {
-                if( n instanceof MachNode mach && !(n instanceof FunNode) ) {
-                    _opStart[n._nid] = _bits.size();
+                if( n instanceof MachNode mach && !(n instanceof FunNode) &&
+                    // FunPtrs are encoding in the block of their control, not
+                    // the block of the ReturnNode input - which is also a CFG.
+                    !(n instanceof FunPtrNode && bb instanceof ReturnNode) ) {
+                    opStart(n, _bits.size());
                     mach.encoding( this );
-                    _opLen[n._nid] = (byte) (_bits.size() - _opStart[n._nid]);
+                    opLen(n, (byte) (_bits.size() - opStart(n)));
                 }
             }
         }
@@ -351,10 +406,10 @@ public class Encoding {
     // Short-form RIP-relative support: replace short encodings with long
     // encodings and expand the code, changing all the offsets.
     private void compactShortForm() {
-        int len = _code._cfg._len;
+        int len = _cfg._len;
         int[] oldStarts = new int[len];
         for( int i=0; i<len; i++ )
-            oldStarts[i] = _opStart[_code._cfg.at(i)._nid];
+            oldStarts[i] = opStart(_cfg.at(i));
 
         // TODO: Rewrite this algo to use the small "_jmps" list of just the
         // jumps instead of walking all blocks.
@@ -368,24 +423,27 @@ public class Encoding {
         while( slide != 0) {    // While no fails
             slide = 0;
             for( int i=0; i<len; i++ ) {
-                CFGNode bb = _code._cfg.at(i);
-                _opStart[bb._nid] += slide;
+                CFGNode bb = _cfg.at(i);
+                opStartAdd(bb, slide);
                 // Slide down all other (non-CFG) ops in the block
                 for( Node n : bb._outputs )
-                    if( n instanceof MachNode && !(n instanceof CFGNode) )
-                        _opStart[n._nid] += slide;
+                    if( n instanceof MachNode && !(n instanceof CFGNode) &&
+                        // Match writeEncodings(): FunPtrs are encoded in the
+                        // block of their control, not again at the Return.
+                        !(n instanceof FunPtrNode && bb instanceof ReturnNode) )
+                        opStartAdd(n, slide);
                 if( bb instanceof RIPRelSize riprel ) {
                     CFGNode target = (bb instanceof IfNode iff ? iff.cproj(0) : (CFGNode)bb.out(0)).uctrlSkipEmpty();
                     // Delta is from opStart to opStart.  X86 at least counts
                     // the delta from the opEnd, but we don't have the end until
                     // we decide the size - so the encSize has to deal
-                    int delta = _opStart[target._nid] - _opStart[bb._nid];
+                    int delta = opStart(target) - opStart(bb);
                     byte opLen = riprel.encSize(delta);
                     // Recorded size is smaller than the current size?
-                    if( _opLen[bb._nid] < opLen ) {
+                    if( opLen(bb) < opLen ) {
                         // Start sliding the code down; record slide amount and new size
-                        slide += opLen - _opLen[bb._nid];
-                        _opLen[bb._nid] = opLen;
+                        slide += opLen - opLen(bb);
+                        opLen(bb, opLen);
                     }
                 }
             }
@@ -396,21 +454,21 @@ public class Encoding {
         // short-jumps span function headers, the padding will not make any
         // short jumps fail.
         for( int i=0; i<len; i++ ) {
-            CFGNode bb = _code._cfg.at(i);
+            CFGNode bb = _cfg.at(i);
             // Functions pad to align 16
             if( bb instanceof FunNode ) {
-                int newStart = _opStart[bb._nid]+slide;
+                int newStart = opStart(bb)+slide;
                 slide += (newStart+15 & -16)-newStart;
             }
-            _opStart[bb._nid] += slide;
+            opStartAdd(bb, slide);
             for( Node n : bb._outputs )
-                if( n instanceof MachNode && !(n instanceof CFGNode) )
-                    _opStart[n._nid] += slide;
+                if( n instanceof MachNode && !(n instanceof CFGNode) &&
+                    !(n instanceof FunPtrNode && bb instanceof ReturnNode) )
+                    opStartAdd(n, slide);
         }
-        _padFunHeads = true;
 
         // Copy/slide the bits to make space for all the longer branches
-        int grow = _opStart[_code._cfg.at(len-1)._nid] - oldStarts[len-1];
+        int grow = opStart(_cfg.at(len-1)) - oldStarts[len-1];
         if( grow > 0 ) {        // If no short-form ops, nothing to do here
             int end = _bits.size();
             byte[] bits = new byte[end+grow];
@@ -418,7 +476,7 @@ public class Encoding {
                 int start = oldStarts[i];
                 if( start==0 && i>1 ) continue;
                 int oldStart = oldStarts[i];
-                int newStart = _opStart[_code._cfg.at(i)._nid];
+                int newStart = opStart(_cfg.at(i));
                 System.arraycopy(_bits.buf(),oldStart,bits,newStart,end-start);
                 end = start;
             }
@@ -433,22 +491,28 @@ public class Encoding {
     void patchLocalRelocations() {
         // Walk the local code-address relocations
         for( Node src : _internals.keySet() ) {
-            int start  = _opStart[src._nid];
+            int start = opStart(src);
             Node dst =  _internals.get(src);
-            int target = _opStart[dst._nid];
-            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
+            // If function is entirely dead, only the function pointer remains
+            // and, it can only be used to test against zero or equals to
+            // another function pointer... i.e., there Is No Code Here.
+            int target = dst == null ? start : opStart(dst);
+             ((RIPRelSize)src).patch(this, start, opLen(src), target - start);
         }
     }
 
     // --------------------------------------------------
     // Write the constant pool into the BAOS and optionally patch locally
-    void writeConstantPool( BAOS bits, boolean patch ) {
+    void writeConstantPool( BAOS bits, boolean ro ) {
         padN(16,bits);
 
         // radix sort the big constants by alignment
         Ary<Relo>[] raligns = new Ary[5];
         for( Node op : _bigCons.keySet() ) {
             Relo relo = _bigCons.get(op);
+            // non-constant structs in the r/w data, everything else in r/o data
+            if( (relo._t instanceof TypeStruct ts && !ts.isConstant()) == ro )
+                continue;
             int align = relo._t.alignment();
             Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>(Relo.class)) : raligns[align];
             relos.add(relo);
@@ -459,7 +523,7 @@ public class Encoding {
         HashMap<Type,Integer> targets = new HashMap<>();
 
         // By alignment
-        for( int align = 4; align >= 0; align-- ) {
+        for( int align = raligns.length-1; align >= 0; align-- ) {
             Ary<Relo> relos = raligns[align];
             if( relos == null ) continue;
             for( Relo relo : relos ) {
@@ -469,30 +533,37 @@ public class Encoding {
                     targets.put(relo._t,target = bits.size());
                     // Write constant into constant pool
                     switch( relo._t ) {
-                    case TypeTuple  tt -> cpool(align,bits,tt);
-                    case TypeStruct ts -> cpool(bits,ts);
-                    // Simple primitive (e.g. larger int, float)
+                    case TypeTuple  tt -> throw Utils.TODO("no tuples here, use structs instead");
+                    case TypeStruct ts -> addStruct(bits,ts);
+                    // Simple primitive (e.g. larger int, float, function ptr)
                     default -> addN(align,relo._t,bits);
                     }
                 }
-                // Record target address and opcode start
+                // Record target address and opcode start.
+                // Target is relative to the cpool/sdata start.
                 relo._target = target;
-                relo._opStart= _opStart[relo._op._nid];
-                // Go ahead and locally patch in-memory
-                if( patch )
-                    ((RIPRelSize)relo._op).patch(this, relo._opStart, _opLen[relo._op._nid], relo._target - relo._opStart);
+                relo._opStart= opStart(relo._op);
             }
         }
+
     }
 
-    // Constant tuples put all entries at same alignment
-    private void cpool(int align, BAOS bits, TypeTuple tt) {
-        for( Type tx : tt._types )
-            addN(align,tx,bits);
+    // Emit a single scalar as bits
+    static void addN( int log, Type t, BAOS bits ) {
+        long x = switch( t ) {
+        case TypeInteger ti -> ti.value();
+        case TypeFloat tf -> log==3
+        ? Double.doubleToRawLongBits(    tf.value())
+        : Float.floatToRawIntBits((float)tf.value());
+        case TypeFunPtr tfp -> 0; // These need to be relocated
+        case TypeMemPtr tmp -> 0; // These need to be relocated
+        default -> { if( t==Type.NIL ) yield 0; else throw Utils.TODO(); }
+        };
+        addN(log,x,bits);
     }
 
     // Structs use internal field layout
-    private void cpool( BAOS bits, TypeStruct ts ) {
+    private void addStruct( BAOS bits, TypeStruct ts ) {
         // Field order by offset
         int[] layout = ts.layout();
         int off=0; // offset in the struct
@@ -507,7 +578,7 @@ public class Encoding {
                 off += ((TypeConAry)f._t).len();
             } else {
                 int log = f._t.log_size();
-                addN(log,f._t,bits);
+                addN(log,f._t.isConstant() ? f._t : f._t.makeZero(),bits);
                 off += 1<<log;
             }
         }
@@ -522,14 +593,14 @@ public class Encoding {
 
     void patchGlobalRelocations() {
         for( Node src : _externals.keySet() ) {
-            int start  = _opStart[src._nid];
+            int start  = opStart(src);
             String dst =  _externals.get(src);
             int target = switch( dst ) {
             case "calloc" -> SENTINEL_CALLOC;
             case "write"  -> SENTINEL_WRITE ;
             default -> throw Utils.TODO();
             };
-            ((RIPRelSize)src).patch(this, start, _opLen[src._nid], target - start);
+            ((RIPRelSize)src).patch(this, start, opLen(src), target - start);
         }
     }
 }
