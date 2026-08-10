@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -22,7 +23,14 @@ public class NewNode extends Node implements MultiNode {
 
     // --- Serialization
     public NewNode(NewNode nnn) { super(nnn); _ts = nnn._ts; }
-
+    @Override public Tag serialTag() { return Tag.New; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed2(types.get(_ts));
+    }
+    static Node make( BAOS bais, Type[] types)  {
+        TypeStruct ts = (TypeStruct)types[bais.packed2()];
+        return new NewNode(ts,null,null);
+    }
 
     @Override public String label() { return "new_"+(_ts.isAry() ? "ary_"+_ts._fields[1]._t.str() : _ts.str()); }
 

@@ -31,6 +31,7 @@ Options:
      '/', then all result files use relative paths to 'output', using a input file
      root-relative path.  If --root is missing, the one result file is named 'output'
 
+  -L path                  - add an external Simple object search path
   --eval                   - (slowly) evaluate the compiled code in emulator
   --run                    - run the compiled code natively; this is the default
   --main                   - export the top-level initializer as C `main`
@@ -104,6 +105,7 @@ Options:
         String cpu = null;
         String abi = null;
         String out = null;
+        ArrayList<String> libPaths = new ArrayList<>();
 
         // Parse command line
         int i; for( i = 0; i < args.length; i++ ) {
@@ -143,6 +145,9 @@ Options:
                                               break;
             case "--root":                    if( root!=null || i+1>=args.length ) bad_usage();
                                               root=args[++i];
+                                              break;
+            case "-L":                        if (i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
+                                              libPaths.add(args[++i]);
                                               break;
             case "--cpu":                     if (cpu != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
                                               cpu = args[++i];
@@ -218,11 +223,16 @@ Options:
         if( cpu == null ) cpu = TestC.CPU_PORT;
         if( abi == null ) abi = TestC.CALL_CONVENTION;
 
-        // Read input file
+        String simpleHome = System.getenv("SIMPLE_HOME");
+        if( simpleHome != null && !simpleHome.isEmpty() )
+            libPaths.add(Path.of(simpleHome,cpu+"_"+abi).toString());
+
+        // Keep file-backed units so discovery sees parents and siblings.
         src = input_filename.isEmpty() ? getInput() : null;
 
         // Compilation pipeline
-        CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), srcName, src, 456, true, TypeInteger.BOT );
+        Ary<String> externPaths = libPaths.isEmpty() ? null : new Ary<>(libPaths.toArray(new String[0]));
+        CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, true, TypeInteger.BOT );
         code.driver(do_eval && !do_codegen ? Phase.TypeCheck : Phase.LastPhase,
                     cpu,abi, false, emit_main || do_run || do_eval, dump);
 
@@ -247,7 +257,7 @@ Options:
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
             String exe = TestC.OS.startsWith("Windows") ? outBase+".exe" : outBase;
-            String result = TestC.gcc(outBase+".o", null, null, "", TestC.linkObjs(null), exe);
+            String result = TestC.gcc(outBase+".o", null, null, "", TestC.linkObjs(externPaths), exe);
             System.out.print(result);
         }
     }

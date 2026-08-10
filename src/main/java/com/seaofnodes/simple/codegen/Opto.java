@@ -74,7 +74,7 @@ abstract public class Opto {
                 // Start is a semantic unknown-caller edge.  Public functions
                 // keep it; closed-world functions must be reached by a
                 // concrete Call edge discovered during SCCP. Initializers,
-                // including private ones, are called by opaque CLInit
+                // including private/imported ones, are called by opaque CLInit
                 // obligations whose Call edges are introduced only in Lower.
                 if( !fun.isClz() &&
                     !code.publicFIDX(fun.sig().fidx()) &&

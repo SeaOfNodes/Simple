@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -10,7 +11,13 @@ import java.util.IdentityHashMap;
 public class StopCUNode extends StopNode {
     public StopCUNode() { super(); }
     public StopCUNode(StopNode stop) { super(stop); }
-
+    @Override public Tag serialTag() { return Tag.StopCU; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
+    static Node make( BAOS bais ) {
+        StopCUNode stop = new StopCUNode();
+        stop.setDefX(bais.packed1()-1,null);
+        return stop;
+    }
 
     public StartCUNode start() {
         for( Node use : _outputs )

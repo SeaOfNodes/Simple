@@ -4,6 +4,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
 
 import static com.seaofnodes.simple.util.Utils.TODO;
@@ -2907,6 +2908,32 @@ public class Parser {
             _position = pos;
         }
 
+
+        public static void gather(Lexer loc, HashMap<String,Integer> strs) {
+            if( loc==null || loc._cu==null ) return;
+            Serialize.gather(strs,loc._cu._cname);
+            String file=loc._cu.sourceFile();
+            if( file!=null ) Serialize.gather(strs,file);
+        }
+
+        public static void packed(Lexer loc, BAOS out, HashMap<String,Integer> strs) {
+            if( loc==null || loc._cu==null ) { out.packed4(0); return; }
+            out.packed4(loc._position+1);
+            out.packed4(strs.get(loc._cu._cname));
+            String file=loc._cu.sourceFile();
+            out.packed4(file==null ? 0 : strs.get(file));
+        }
+
+        public static Lexer unpack(BAOS in, String[] strs) {
+            int pos=in.packed4();
+            if( pos==0 ) return null;
+            String owner=strs[in.packed4()];
+            String file=strs[in.packed4()];
+            CompUnit cu=CodeGen.CODE._compunits.get(owner.replace('.','/'));
+            assert cu!=null : owner;
+            if( !file.isEmpty() ) cu._sourceFile=file;
+            return new Lexer(cu,pos-1);
+        }
 
         /**
          *  Copy a lexer from a lexer

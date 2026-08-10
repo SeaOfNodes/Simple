@@ -29,7 +29,7 @@ public class StartNode extends LoopNode implements MultiNode {
 
     public StartNode(StartNode start, StopNode stop, Type arg) { super(null,start,stop); _arg = arg;  }
     public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
-
+    @Override public Tag serialTag() { return Tag.Start; }
     public Type arg() { return _arg; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {

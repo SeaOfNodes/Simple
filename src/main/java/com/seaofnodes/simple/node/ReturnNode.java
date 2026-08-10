@@ -28,7 +28,7 @@ public class ReturnNode extends CFGNode {
         _fun = fun;
     }
     public ReturnNode( ReturnNode ret, FunNode fun ) { super(ret);  _fun = fun;  }
-
+    @Override public Tag serialTag() { return Tag.Return; }
 
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }

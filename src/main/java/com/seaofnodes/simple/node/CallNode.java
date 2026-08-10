@@ -9,6 +9,7 @@ import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeRPC;
 import com.seaofnodes.simple.type.XInt;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -23,7 +24,16 @@ public class CallNode extends CFGNode {
 
     public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc=loc; CodeGen.CODE._calls.add(this); }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
-
+    @Override public Tag serialTag() { return Tag.Call; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(nIns());
+        Parser.Lexer.packed(_loc,baos,strs);
+    }
+    @Override public void gather(HashMap<String,Integer> strs) { Parser.Lexer.gather(_loc,strs); }
+    static Node make( BAOS bais, String[] strs ) {
+        int nIns = bais.packed1();
+        return new CallNode(Parser.Lexer.unpack(bais,strs),new Node[nIns]);
+    }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         String fname = name();
@@ -42,6 +52,7 @@ public class CallNode extends CFGNode {
         }
         return null;
     }
+
 
 
     Node ctrl() { return in(0); }

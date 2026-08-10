@@ -4,7 +4,9 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -35,7 +37,18 @@ public class StoreNode extends MemOpNode {
         _init = init;
         _size = size;
     }
-
+    StoreNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
+        super(bais,strs,types,fileAliases,aliases,false);
+        addDef(null);
+        _init = bais.read() != 0;
+        _size = (byte)bais.read();
+    }
+    @Override public Tag serialTag() { return Tag.Store; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        super.packed(baos,strs,types, anodes );
+        baos.write(_init ? 1 : 0);
+        baos.write(_size);
+    }
 
     @Override boolean canDrop(MemOpNode other, Node dep) {
         return super.canDrop(other,dep) && _init==((StoreNode)other)._init;
@@ -114,7 +127,7 @@ public class StoreNode extends MemOpNode {
         // Freeze the semantic Store variant as soon as the pointer exposes a
         // canonical field declaration.  Waiting until after structural memory
         // peeps can lose the declaration to a flow-sensitive constant field
-        // state.
+        // state.  Imported Stores already carry a serialized non-zero width.
         if( _size==0 && (_size= storageType()) != 0 ) {
             unlock();           // Width participates in the cached hash.
             return init();

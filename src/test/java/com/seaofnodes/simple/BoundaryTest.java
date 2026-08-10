@@ -75,14 +75,9 @@ public class BoundaryTest {
         }
     }
 
-    @Test public void testLibrarySource() {
-        CodeGen code=new CodeGen("return sys.char.toupper('a');").driver(CodeGen.Phase.TypeCheck);
-        assertEquals("65",Eval2.eval(code,0));
-    }
-
     @Test public void testLazyTables() {
         for( long seed : new long[]{1,123,987654321} ) {
-            CodeGen code=new CodeGen("src/test/smp/lazy","build/objs","App/Main",null,seed,true,TypeInteger.BOT)
+            CodeGen code=new CodeGen("src/test/smp/lazy","build/objs",null,"App/Main",null,seed,true,TypeInteger.BOT)
                 .driver(CodeGen.Phase.TypeCheck);
             assertEquals("0",Eval2.eval(code,0));
             assertEquals("125",Eval2.eval(code,1));

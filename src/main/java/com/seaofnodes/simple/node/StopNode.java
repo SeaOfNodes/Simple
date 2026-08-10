@@ -3,7 +3,9 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -16,7 +18,13 @@ public class StopNode extends CFGNode {
         _type = compute();
     }
     public StopNode(StopNode stop) { super(stop); }
-
+    @Override public Tag serialTag() { return Tag.Stop; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(Serialize.nIns(this,anodes)); }
+    static Node make( BAOS bais ) {
+        StopNode stop = new StopNode();
+        stop.setDefX(bais.packed1()-1,null);
+        return stop;
+    }
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {

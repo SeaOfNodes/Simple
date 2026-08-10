@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
 
 /**
@@ -74,6 +75,25 @@ public class TypeRPC extends Type {
     @Override boolean _isConstant() { return XInt.isConstant(_rpcs); }
     @Override TypeRPC _makeStorage() { return this; }
 
+    // Reserve tags for ALL, singleton, generic
+    @Override int TAGOFF() { return 3; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        if( this==BOT ) {
+            baos.write( TAGOFFS[_type] + 0 );
+        } else if( XInt.isConstant(_rpcs) ) { // Singleton
+            baos.write(TAGOFFS[_type] + 1);
+            baos.packed2(rpc());
+        } else {                // Generic
+            assert !XInt.isHigh(_rpcs); // Not serializing above-center RPC
+            baos.write(TAGOFFS[_type] + 2);
+            XInt.packed(baos,_rpcs);
+        }
+    }
+    static TypeRPC packed( int tag, BAOS bais ) {
+        if( tag==0 ) return BOT;
+        if( tag==1 ) return malloc(XInt.make(bais.packed2()));
+        return malloc(XInt.packed(bais));
+    }
 
     @Override
     int hash() { return XInt.hash(_rpcs); }

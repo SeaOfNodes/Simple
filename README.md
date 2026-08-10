@@ -76,7 +76,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 26](docs/chapter26/README.md): Construction and Private Memory
 * [Chapter 27](docs/chapter27/README.md): Escape Analysis and Unknown Callers
 * [Chapter 28a](docs/chapter28a/README.md): Modules and Lazy Class Initialization
-* Chapter 28b: Separate Compilation
+* [Chapter 28b](docs/chapter28b/README.md): Separate Compilation
 
 Appendices: [Native libraries](docs/appendices/native-libraries.md),
 [optimizer and backend tuning](docs/appendices/optimizer-tuning.md).

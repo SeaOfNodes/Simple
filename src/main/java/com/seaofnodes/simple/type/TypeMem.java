@@ -173,7 +173,31 @@ public class TypeMem extends Type {
     @Override public int nkids() { return 1; }
     @Override public Type at( int idx ) { return _t; }
     @Override public void set( int idx, Type t ) { _t = t; }
-
+    // one tag for alias#1, one tag for generic alias.
+    // tag bit for _one, another bit for _final.
+    @Override int TAGOFF() { return 12; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        baos.write(TAGOFFS[_type]
+                   + (_alias==1 ? 0 : 1)
+                   + (!_final   ? 0 : 2)
+                   + (!_one     ? 0 : (_clz ? 4 : 8)));
+        if( _alias!=1 ) {
+            // generic alias
+            assert _alias <= 255;
+            baos.packed1( _alias );
+        }
+        XInt.packed(baos,_escFs);
+        XInt.packed(baos,_escAs);
+    }
+    static TypeMem packed( int tag, BAOS bais ) {
+        int alias = (tag&1)==0 ? 1 : bais.packed1();
+        boolean xfinal= (tag&2)==2;
+        boolean one   = (tag&12)!=0;
+        boolean clz   = (tag&4)==4;
+        int[] escFs = XInt.packed(bais);
+        int[] escAs = XInt.packed(bais);
+        return malloc(alias,null,one,clz,xfinal,escFs,escAs);
+    }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {
         if( this==BOT ) return sb.p("MemBot");

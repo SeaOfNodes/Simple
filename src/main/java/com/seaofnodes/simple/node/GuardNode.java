@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeScalar;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 
 import java.util.HashMap;
@@ -24,6 +25,11 @@ public class GuardNode extends Node {
         _nonZero = guard._nonZero;
     }
 
+    @Override public Tag serialTag() { return Tag.Guard; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes) {
+        baos.write(_nonZero ? 1 : 0);
+    }
+    static Node make(BAOS bais) { return new GuardNode(bais.read()!=0,null,null); }
 
     @Override public String label() { return _nonZero ? "(!=0)" : "(==0)"; }
 

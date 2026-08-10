@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -37,7 +38,21 @@ public class CallEndNode extends CFGNode implements MultiNode {
         super(new Node[nIns]);
         _rpc = rpc;
     }
-
+    @Override public Tag serialTag() { return Tag.CallEnd; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(Serialize.nIns(this,anodes));
+        // Linked CallEnds depend on Return types which depend on CallEnds;
+        // break the cycle
+        baos.packed2(types.get(_type));
+        baos.packed2(types.get(_rpc));
+    }
+    static Node make( BAOS bais, Type[] types )  {
+        int nIns = bais.packed1();
+        Type type = types[bais.packed2()];
+        Node cend = new CallEndNode(nIns,(TypeRPC)types[bais.packed2()]);
+        cend._type = type;
+        return cend;
+    }
 
     @Override public boolean blockHead() { return true; }
 

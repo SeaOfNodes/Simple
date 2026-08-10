@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.Arrays;
@@ -41,7 +42,24 @@ public class FunNode extends RegionNode {
         _compunit = fun._compunit;
         _extern = fun._extern;
     }
-
+    @Override public Tag serialTag() { return Tag.Fun; }
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes ) {
+        assert !_folding;
+        baos.packed1(Serialize.nIns(this,anodes)); // Object-local linked calls
+        baos.packed2(types.get(_sig)); // NPE if fails lookup
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+        baos.packed2(_approxUIDs);
+        // _compunit set from context on loading, do not write
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
+        String name = strs[bais.packed2()];
+        FunNode fun = new FunNode(null,sig,name,null,ins);
+        fun._approxUIDs = bais.packed2();
+        // _compunit set from context on loading, do not read
+        return fun;
+    }
 
     @Override public String label() { return _name == null ? "$fun"+_sig.fidx() : _name; }
 
@@ -460,4 +478,7 @@ public class FunNode extends RegionNode {
         return slotRotate*8;
     }
 
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_name);
+    }
 }

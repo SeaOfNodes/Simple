@@ -39,6 +39,7 @@ public class Chapter10Test {
     }
 
 
+
     private static final String NULLABLE_POINT_SOURCE = """
         struct Point { int x; new Point = { int v -> x = v; }; };
         !Point?[] !points = new !Point?[2];
@@ -371,6 +372,7 @@ return ret.v0;
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return .v0;", code.print());
     }
+
 
 
     @Test

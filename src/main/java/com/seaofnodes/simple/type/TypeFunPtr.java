@@ -75,6 +75,7 @@ public class TypeFunPtr extends TypeNil {
     }
 
 
+
     @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil ? this : make(  nil,_open,_sig,_ret, _fidxs); }
     public    TypeFunPtr makeFrom( Type ret ) { return  ret ==_ret ? this : make( _nil,_open,_sig, ret, _fidxs); }
     public    TypeFunPtr makeFrom( int fidx ) { return make1(_nil,_open,_sig,_ret,fidx); }
@@ -236,6 +237,33 @@ public class TypeFunPtr extends TypeNil {
         else _sig[idx] = t;
     }
 
+    // Reserve tags for null/not and open/close, one fidx/bitset, 0-6 args
+    // Tags 0-5 - not,close,1 fidx, 0-5 args (+fidx)
+    // Tag 6 - not ,close+fidxs+nargs
+    // Tag 7 - null,close+fidxs+nargs
+    @Override int TAGOFF() { return 8; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        assert _open;           // Open: Passing extra args is fine, and extras ignored.
+        if( _nil==2 && nargs()<6 && nfcns() == 1 && fidx() < 64 ) {
+            baos.write(TAGOFFS[_type] + nargs());
+            baos.packed2(fidx());
+        } else {
+            baos.write(TAGOFFS[_type] + 6 + (_nil==2 ? 0 : 1));
+            baos.packed1(nargs());
+            XInt.packed(baos,_fidxs);
+        }
+    }
+    static TypeFunPtr packed( int tag, BAOS bais ) {
+        if( tag < 6 ) {
+            int fidx = bais.read();
+            assert fidx < 64; // Need a larger fidx space
+            return malloc((byte)2,true,new Type[tag],null, XInt.make(fidx));
+        }
+        byte nil = (byte)(tag==6 ? 2 : 3);
+        int nargs = bais.packed1();
+        int[] fidxs = XInt.packed(bais);
+        return malloc(nil,true,new Type[nargs],null,fidxs);
+    }
 
     @Override
     int hash() {

@@ -5,6 +5,7 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
 
 // Track class initializers - the code just after this point expects the named
@@ -22,6 +23,12 @@ public class CLInitNode extends CFGNode implements MultiNode {
         _loc = loc;
     }
 
+    CLInitNode(BAOS bais, String[] strs) { super(null,null,null,null); _loc=Parser.Lexer.unpack(bais,strs); }
+    @Override public Tag serialTag() { return Tag.CLInit; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        Parser.Lexer.packed(_loc,baos,strs);
+    }
+    @Override public void gather(HashMap<String,Integer> strs) { Parser.Lexer.gather(_loc,strs); }
 
     public CLInitNode(CLInitNode init) {
         super(init);

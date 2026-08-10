@@ -4,6 +4,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -14,7 +15,10 @@ public class MinusNode extends Node implements ModeNode {
 
     public MinusNode(Node in) { super(null, in); }
     public MinusNode(Node in, byte mode) { super(null, in); _mode = mode; }
-
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes) {
+        baos.packed1(_mode);
+    }
+    @Override public Tag serialTag() { return Tag.Minus; }
 
     @Override public byte mode() { return _mode; }
     @Override public Node setMode(byte mode) {

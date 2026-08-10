@@ -27,6 +27,7 @@ public class ElfWriter {
         static final int SHT_SYMTAB  = 2;
         static final int SHT_STRTAB  = 3;
         static final int SHT_RELA    = 4;
+        static final int SHT_SIMPLE  = 10; // Simple section
 
         final String _name;
         final int _type, _entsize, _index, _name_pos, _flags;
@@ -275,6 +276,9 @@ public class ElfWriter {
     public static final int SECTION_HDR_SIZE = 64;
 
     // ------------------------------------------------------------------------
+    public class SimpleSection extends DataSection {
+        SimpleSection(BAOS serial) { super(".simple", SHT_SIMPLE, serial, 0); }
+    }
 
 
     // ------------------------------------------------------------------------
@@ -300,6 +304,8 @@ public class ElfWriter {
     }
 
     public ElfWriter export(boolean emitEntrySymbol) {
+        if( _code._serial==null )
+            throw new IllegalStateException("ELF export needs ideal IR: request Export from the driver, or Serialize before Lower");
         // Sections are created in the order they are emitted.
         _sections = new Ary<>(Section.class);
 
@@ -311,7 +317,7 @@ public class ElfWriter {
         _strtab = new StringSection();
 
         // place all the symbols
-        int nlocals = 1/*null*/+9/*number of sections*/;
+        int nlocals = 1/*null*/+9/*number of sections*/+1/*Simple section*/;
         SymbolSection symbols = new SymbolSection(nlocals);
 
         // we've already constructed these entire sections in the encoding phase
@@ -392,6 +398,7 @@ public class ElfWriter {
         }
 
         // Create a "Simple" section for Simple types and ir
+        SimpleSection simple = new SimpleSection(_code._serial);
 
         // Write the local section header symbols
         assert nlocals == 1+_sections._len;

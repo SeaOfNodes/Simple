@@ -1,8 +1,10 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 
 import java.util.BitSet;
@@ -44,6 +46,28 @@ public class BulkMemPhiNode extends PhiNode {
 
     public boolean isSplit(int alias) { return _aliases.get(alias); }
 
+    @Override public Tag serialTag() { return Tag.BulkMemPhi; }
+
+    @Override
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types,
+                       IdentityHashMap<Node,Integer> anodes) {
+        super.packed(baos,strs,types,anodes);
+        baos.packed2(_aliases.cardinality());
+        for( int alias = _aliases.nextSetBit(0); alias >= 0; alias = _aliases.nextSetBit(alias+1) )
+            baos.packed2(alias);
+    }
+
+    static Node make(BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases) {
+        Node[] ins = new Node[bais.packed1()];
+        String label = strs[bais.packed2()];
+        BitSet bits = new BitSet();
+        for( int i=bais.packed2(); i>0; i-- ) {
+            int alias = bais.packed2();
+            if( alias >= GlobalBits.RESERVED ) alias = aliases.map(fileAliases,alias);
+            bits.set(alias);
+        }
+        return new BulkMemPhiNode(label,bits.isEmpty() ? EMPTY : bits,ins);
+    }
 
     @Override
     public Type compute() {

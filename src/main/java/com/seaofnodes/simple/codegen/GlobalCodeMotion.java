@@ -60,7 +60,7 @@ public abstract class GlobalCodeMotion {
                 if( use==null || globals.containsKey(use) ) continue;
                 FunNode fun = useFun(use);
                 if( fun==null ) continue; // Global metadata has no function owner.
-                assert CodeGen.CODE._mach==null || CodeGen.CODE.owns(fun);
+                assert CodeGen.CODE._mach==null || CodeGen.CODE.owns(fun); // Ideal evaluation includes imported bodies.
                 var local = copies.computeIfAbsent(fun,f -> new IdentityHashMap<>());
                 Node copy = cloneGlobal(con,fun,globals,local);
                 for( int i=0; i<use.nIns(); i++ )

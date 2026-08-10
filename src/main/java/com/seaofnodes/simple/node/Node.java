@@ -5,6 +5,7 @@ import com.seaofnodes.print.BaseNode;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
@@ -67,8 +68,84 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
         _hash = 0;
     }
 
+    // Disk/serialized opcode tags
+    public enum Tag {
+        Add,And,BulkMemPhi,EQ,NE,LT,LE,ULT,
+        CallEnd,Call,ConFldOff,Con,CLInit,CProj,
+        Div,Escape,Extern,ExternOffset,Fun,FunPtr,Guard,
+        If,Load,Loop,MemMerge,MemPhi,Minus,Mul,
+        New,Never,Not,Or,Parm,Phi,Proj,PtrToInt,
+        ReadOnly,Return,Region,RoundF32,
+        Sar,Shl,Shr,Start,StartCU,StopCU,Stop,Store,Sub,
+        ToInteger,ToFloat,XCtrl,Xor;
+        public static final Tag[] VALS = values();
+        public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
+            return switch(this) {
+            case Add    -> new   AddNode(null,null,(byte)bais.packed1());
+            case And    -> { int mode=bais.packed1(); assert mode==1; yield new AndNode(null,null,null); }
+            case Div    -> new   DivNode(null,null,(byte)bais.packed1());
+            case Guard -> GuardNode.make(bais);
+            case If     -> new    IfNode(null,null);
+            case Loop   -> new  LoopNode(null,null,null);
+            case Minus  -> new MinusNode(null,(byte)bais.packed1());
+            case Mul    -> new   MulNode(null,null,(byte)bais.packed1());
+            case Never  -> new NeverNode(1.2f, null);
+            case Not    -> new   NotNode(null);
+            case Or     -> { int mode=bais.packed1(); assert mode==1; yield new OrNode(null,null,null); }
+            case ReadOnly-> new ReadOnlyNode((Node)null);
+            case Return ->new ReturnNode(null,null,null,null,null);
+            case RoundF32-> new RoundF32Node(null);
+            case PtrToInt-> new PtrToIntNode((Node)null);
+            case Sar    -> { int mode=bais.packed1(); assert mode==1; yield new SarNode(null,null,null); }
+            case Shl    -> { int mode=bais.packed1(); assert mode==1; yield new ShlNode(null,null,null); }
+            case Shr    -> { int mode=bais.packed1(); assert mode==1; yield new ShrNode(null,null,null); }
+            case Start  -> new StartNode(null,null,TypeInteger.BOT);
+            case Sub    -> new   SubNode(null,null,(byte)bais.packed1());
+            case ToFloat-> new ToFloatNode(null);
+            case ToInteger-> new ToIntegerNode(null);
+            case XCtrl  -> new XCtrlNode();
+            case Xor    -> { int mode=bais.packed1(); assert mode==1; yield new XorNode(null,null,null); }
+
+            case EQ    -> new  BoolNode.EQ (null,null,(byte)bais.packed1());
+            case NE    -> new  BoolNode.NE (null,null,(byte)bais.packed1());
+            case LT    -> new  BoolNode.LT (null,null,(byte)bais.packed1());
+            case LE    -> new  BoolNode.LE (null,null,(byte)bais.packed1());
+            case ULT   -> new  BoolNode.ULT(null,null,(byte)bais.packed1());
+
+            case Call  ->      CallNode.make(bais,strs);
+            case CallEnd->  CallEndNode.make(bais     ,types);
+            case CLInit ->    new CLInitNode(bais,strs);
+            case CProj ->     CProjNode.make(bais,strs);
+            case Con   ->  ConstantNode.make(bais     ,types);
+            case Escape->    EscapeNode.make(bais     ,types);
+            case Extern->    ExternNode.make(bais,strs,types);
+            case ExternOffset-> new ExternOffsetNode(strs[bais.packed2()]);
+            case FunPtr->    FunPtrNode.make(bais,     types);
+            case Fun   ->       FunNode.make(bais,strs,types);
+            case Load  ->       new LoadNode(bais,strs,types,fileAliases,aliases);
+            case MemMerge->MemMergeNode.make(bais);
+            case MemPhi->    MemPhiNode.make(bais,strs,types,fileAliases,aliases);
+            case BulkMemPhi-> BulkMemPhiNode.make(bais,strs,types,fileAliases,aliases);
+            case New   ->       NewNode.make(bais     ,types);
+            case Parm  ->      ParmNode.make(bais,strs,types);
+            case Phi   ->       PhiNode.make(bais,strs,types);
+            case Proj  ->      ProjNode.make(bais,strs);
+            case Store ->      new StoreNode(bais,strs,types,fileAliases,aliases);
+            case Stop  ->      StopNode.make(bais);
+            case StartCU->  StartCUNode.make(bais,strs,types);
+            case StopCU ->   StopCUNode.make(bais);
+            case Region->    RegionNode.make(bais);
+
+            default -> throw Utils.TODO("Should not reach here");
+            };
+        }
+    };
+    public Tag serialTag() { throw Utils.TODO(); }
+    // Serialize extra data, including input counts
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {}
+
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
-    public String label() { return getClass().getSimpleName().replace("Node",""); }
+    public String label() { return serialTag().toString(); }
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
@@ -667,6 +744,7 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
         return null;
     }
 
+    public void gather(HashMap<String,Integer> strs ) { }
 
     // If a Type upgrade happens, put on worklist
     boolean _upgradeType( HashMap<String,Type> TYPES ) { return false; }

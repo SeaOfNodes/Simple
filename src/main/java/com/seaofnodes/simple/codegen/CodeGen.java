@@ -29,8 +29,10 @@ public class CodeGen {
         IterPostOpto,           // Peepholes and inlining using SCCP results
         FinalizeIR,             // Field layout, offset cleanup, function/CU roots
         TypeCheck,              // Last check for bad programs
+        Serialize,              // Save ideal IR, including opaque class initialization
         Lower,                  // Expand checked class initialization to ordinary IR
         LoopTree,               // Build a loop tree; break infinite loops
+        Unlink,                 // Unlink call sites before machine code generation
         Select,                 // Convert to target hardware nodes
         Schedule,               // Global schedule (code motion) nodes
         LocalSched,             // Local schedule
@@ -64,7 +66,12 @@ public class CodeGen {
     public final String _modDir;
     // Module Build Root
     public final String _buildDir;
-    // Slashed path from source root to the entry file, without ".smp".
+    // Search path from CWD for `.o` files containing external symbols and types.
+    // This can contain archives, zips and other .o file containers.
+    public final Ary<String> _externPaths;
+
+    // Dotted path from module root to file containing the source, sans ".smp".
+    // e.g. module root: "sys", nested source name "sys.io".
     public final String _srcName;
 
     // Only available for tests, otherwise source comes from the CompUnit
@@ -73,8 +80,12 @@ public class CodeGen {
     // Current Working Directory; default module base
     private final String _cwd;
 
-    // Source files discovered in this invocation. All live initializers
-    // participate in cycle checking, including fully inlined bodies.
+    // Compilation Units used in this compile; typically one per source/object
+    // file, although you can nest structs and get more than one.  These are all
+    // required to compile, and are expected to have their source timestamps
+    // ahead of their obj file.  Some of these may entirely be dead or inlined
+    // in this CompUnit and thus not needed in any linking stage.  All the
+    // alive ones (inlined away or not) participate in class init cycle checks.
     public HashMap<String,CompUnit> _compunits;
 
     // Test shortcut for only one compilation unit
@@ -88,7 +99,7 @@ public class CodeGen {
 
     // True when fidx is published through a public class or instance field.
     public boolean publicFIDX(int fidx) {
-        if( fidx < LocalIds.RESERVED ) return false;
+        if( fidx < GlobalBits.RESERVED ) return false;
         // A public class initializer is itself an external root; unlike
         // constructors and methods, it is not reached through a class field.
         FunNode fun = _linker.atX(fidx);
@@ -142,7 +153,7 @@ public class CodeGen {
     void freezePublicInterface() {
         assert _publicFIDXs==null && _publicAliases==null;
         int[] fidxs = XInt.EMPTY;
-        for( int fidx=LocalIds.RESERVED; fidx<_linker._len; fidx++ )
+        for( int fidx=GlobalBits.RESERVED; fidx<_linker._len; fidx++ )
             if( publicFIDX(fidx) )
                 fidxs = XInt.make(fidxs,fidx);
         int[] aliases = XInt.EMPTY;
@@ -185,15 +196,15 @@ public class CodeGen {
 
     // Test setup; no module nor file; can alter seed & argument; can re-run same CodeGen
     public CodeGen( String src, Type arg ) {
-        this(null,null,null, src, 126L, true, arg);
+        this(null,null,null,null, src, 126L, true, arg);
     }
     // Test setup; no module nor file; can alter seed & argument; can re-run same CodeGen
     public CodeGen( String src, long workListSeed, boolean resetTypes ) {
-        this(null,null,null, src, workListSeed, resetTypes, TypeInteger.BOT);
+        this(null,null,null,null, src, workListSeed, resetTypes, TypeInteger.BOT);
     }
 
     // Generic CodeGen, including full module setup
-    public CodeGen( String modDir, String buildDir,
+    public CodeGen( String modDir, String buildDir, Ary<String> externPaths,
                     String srcName, String src, long workListSeed, boolean resetTypes, Type arg ) {
         // Public singleton to avoid passing about this state to a huge count
         // of places.  Probably becomes a TLS at some point.
@@ -203,6 +214,7 @@ public class CodeGen {
         _cwd = System.getProperty("user.dir")+"/";
         _modDir   =   modDir == null ? _cwd :   modDir;
         _buildDir = buildDir == null ? _cwd : buildDir;
+        _externPaths = externPaths;
         _srcName = srcName;
         _callingConv = null;       // Calling convention
         // Source code from test strings, not files
@@ -225,7 +237,9 @@ public class CodeGen {
     }
 
 
-    // Run the requested phases. ELF output contains machine code and data.
+    // Run requested phases. File export must request Serialize before Lower;
+    // requesting Export up front does that automatically. Encoding alone does
+    // not retain reloadable ideal IR.
 
     // No code emission, just IR generation
     public CodeGen driver( Phase phase ) { return driver(phase,null,null,false,false,0); }
@@ -245,7 +259,8 @@ public class CodeGen {
 
     // The Generic driver
     public CodeGen driver( Phase target, String cpu, String callingConv, boolean inMemory, boolean emitEntrySymbol, int dump ) {
-        // Parse the entry source and discover all referenced source files.
+        // Parse a Simple file, and for mentioned external symbols either load
+        // from .o or recursively parse
         step(target, Phase.Parse,        this::parse,        dump);
         // Run peepholes to a fixed point
         step(target, Phase.Iter,         this::iter,         dump);
@@ -257,12 +272,16 @@ public class CodeGen {
         step(target, Phase.FinalizeIR,   this::finalizeIR,   dump);
         // Final error check - bad programs fail here
         step(target, Phase.TypeCheck,    this::typeCheck,    dump);
+        // Save reloadable ideal IR for a later seperate compilation
+        step(target, Phase.Serialize, () -> Serialize.forTarget(this,target,inMemory), dump);
         // Replace "fat" nodes with their exploded explicit IR; this can
         // introduce CFG diamonds
         step(target, Phase.Lower,        this::lower,        dump);
         // Compute the loop-tree, used for approximating exec frequencies for
         // scheduling and register allocation
         step(target, Phase.LoopTree,     this::loopTree,     dump);
+        // Drop imports for machine selection, retain them for ideal evaluation.
+        step(target, Phase.Unlink, () -> unlink(cpu!=null), dump);
         // Instruction selection
         step(target, Phase.Select, () -> instSelect(cpu,callingConv), dump);
         // Global Code Motion
@@ -273,7 +292,7 @@ public class CodeGen {
         step(target, Phase.RegAlloc,     this::regAlloc,     dump);
         // Encode machine instructions into bits
         step(target, Phase.Encoding,     this::encode,       dump);
-        // Export machine code and data into one ELF file
+        // Export bits (and serialized IR) into ELF files
         step(target, Phase.Export, () -> exportELF(inMemory,emitEntrySymbol), dump);
         return this;
     }
@@ -329,13 +348,28 @@ public class CodeGen {
     }
 
 
-    // Allocate dense alias/function/call IDs within this invocation.
-    // Class slots let a forward reference reserve an initializer's identity.
-    public final LocalIds _aliases = new LocalIds();
+    // These next fields all 2-way map some *global* program feature to a
+    // local dense index, suitable for packing in BitSets.  The mapping takes a
+    // global value - always a {source file/class} name, and an order number
+    // counting up per feature in the same file.  The dense local index can be
+    // different in different compilations.
+
+    // The global info allows loading the same remote class info from different
+    // paths and aligning them.  Example: Compiling A loads pre-compiled B and
+    // C, both of which load pre-compiled D.  The 2 different D loads unify via
+    // this global info.
+
+    // These mappings are all trivial identities when compiling one file; they
+    // only become complex when loading separately compiled code.
+
+    // Compute local function index (FIDX) from global function info.  This is
+    // called *in order* during parsing, and that order is part of the global
+    // unique mapping
+    public final GlobalBits _aliases = new GlobalBits();
     public int alias(String clz) { return _aliases.next(clz); }
 
     // C storage has one global alias per symbol, including across object files.
-    public int externAlias(String name) { return _aliases.next("C:"+name,LocalIds.RESERVED); }
+    public int externAlias(String name) { return _aliases.next("C:"+name,GlobalBits.RESERVED); }
 
     // External data addresses supplied by an in-memory linker (image offsets).
     public final HashMap<String,Integer> _externDataAddresses = new HashMap<>();
@@ -343,14 +377,14 @@ public class CodeGen {
     // Compute local function index (FIDX) from global function info.  This is
     // called *in order* during parsing, and that order is part of the global
     // unique mapping
-    public final LocalIds _fidxs = new LocalIds();
+    public final GlobalBits _fidxs = new GlobalBits();
     // Return local index for specific global file & order.  Used to find fidxs for e.g. FREF class <init> fcns
     public int fidx( String clz, int order ) { return _fidxs.next(clz, order); }
     // New fidx in the current file
     public int fidx( String clz ) { return fidx(clz, -1); }
 
     // Compute local RPC index from global RPC info, one per call
-    public final LocalIds _rpcs = new LocalIds();
+    public final GlobalBits _rpcs = new GlobalBits();
     public int rpc( String clz ) { return _rpcs.next(clz); }
 
 
@@ -407,7 +441,6 @@ public class CodeGen {
     // TFPs all have exact single fidxs and their return is wiped to BOTTOM (so
     // the return is not part of the match).
     public final Ary<FunNode> _linker = new Ary<>(FunNode.class);
-    public final Ary<CallNode> _calls = new Ary<>(CallNode.class);
 
     // Extern function declarations; input is the FIDX assigned to the name.
     final HashMap<Integer,String> _externFunc = new HashMap<>();
@@ -430,6 +463,8 @@ public class CodeGen {
 
     // ---------------------------
     // Parser object
+    public final Ary<CallNode> _calls = new Ary<>(CallNode.class);
+
     public final Parser P;
 
     // Parse ASCII text into Sea-of-Nodes IR
@@ -483,17 +518,20 @@ public class CodeGen {
     // ---------------------------
     // TypeCheck queued surviving CLInits during its existing error walk.
     public CodeGen lower() {
-        return phase(Phase.Lower, _phase==Phase.TypeCheck, () -> _iter.iterate(this));
+        return phase(Phase.Lower, (_phase==Phase.TypeCheck || _phase==Phase.Serialize), () -> _iter.iterate(this));
     }
 
     // ---------------------------
     // Build the loop tree; break never-exit loops
     public CodeGen loopTree() {
-        return phase(Phase.LoopTree, _phase==Phase.Lower, () -> { _start.buildLoopTree(_linker,_stop); FinishCalls.run(this); });
+        return phase(Phase.LoopTree, _phase==Phase.Lower, () -> _start.buildLoopTree(_linker,_stop));
     }
 
     // ---------------------------
-
+    public BAOS _serial;
+    public void serialize() {
+        phase(Phase.Serialize, _phase==Phase.TypeCheck, () -> Serialize.serialize(this));
+    }
 
     // ---------------------------
     // Code generation CPU target
@@ -522,7 +560,12 @@ public class CodeGen {
     }
 
     // ---------------------------
-
+    public void unlink() {
+        unlink(true);
+    }
+    private void unlink(boolean removeImports) {
+        phase(Phase.Unlink, _phase==Phase.LoopTree, () -> Unlink.run(this,removeImports));
+    }
 
     // ---------------------------
     // Control Flow Graph in Reverse Post Order.
@@ -530,7 +573,7 @@ public class CodeGen {
 
     // Global schedule (code motion) nodes
     public CodeGen GCM() {
-        return phase(Phase.Schedule, (_phase==Phase.LoopTree || _phase==Phase.Select), () -> GlobalCodeMotion.buildCFG(this));
+        return phase(Phase.Schedule, (_phase==Phase.Unlink || _phase==Phase.Select), () -> GlobalCodeMotion.buildCFG(this));
     }
 
     // ---------------------------
@@ -576,6 +619,110 @@ public class CodeGen {
 
     // ---------------------------
 
+    // Search a external path list, each path is recursively searched for .o
+    // files, which are partially loaded and searched for public symbols.
+
+    // This is a state machine which lazily searches down the set of search
+    // paths until the requested module is class is found.
+
+    // Map from external Strings to either partially read Simple ElfFile or ExternNode
+    public final HashMap<String,Object> _externSymbols = new HashMap<>();
+
+    // State machine elements; the outermost element is _externPaths
+    private int _extPathIdx;    // Search index into the extern path list
+    private final Ary<File> _files = new Ary<>(File.class);   // Files in the current extern path being searched
+    private int _extFileIdx;    // Index into _files
+
+    public ElfReader findExternalSimple( String name ) {
+        return findExternalSymbol(name) instanceof ElfReader elf ? elf : null;
+    }
+
+    public ExternNode findExternal( String name ) {
+        return findExternalSymbol(name) instanceof ExternNode extern ? extern : null;
+    }
+
+    // Search the search-path for the name; return an ElfReader if found in a
+    // Simple-made ELF; return an ExternNode if from another ELF, or null if
+    // not found.
+    private Object findExternalSymbol( String name ) {
+        // State Machine!
+
+        while( true ) {
+            // Check for an immediate hit
+            switch( _externSymbols.get(name) ) {
+
+            case ExternNode extern:
+                // Name maps to an ExternNode
+                return extern;
+
+            case ElfReader elf:
+                return elf;
+
+            case null:
+                // Name is unknown.  Advance the file-system search, pulling
+                // out new ELF files from the search directory list and loading
+                // their published symbols.
+
+                // The last directory was mined out, so get the next search
+                // directory and find all ELF-like files.
+                if( _extFileIdx >= _files._len ) {
+                    if( _externPaths==null || _extPathIdx >= _externPaths._len )
+                        return null; // A true miss in the whole search path
+                    loadExtPath();   // Load next batch file of files
+                    break;
+                }
+                // Load and parse an ELF header
+                ElfReader elf = getElf(_files.at(_extFileIdx++));
+                if( elf == null ) break; // Not an ELF
+                // Load public symbols from the ELF
+                elf.loadPublicSymbols();
+                if( elf._strs==null ) break; // No .simple section with strings
+                // Put public symbol in global table; first names shadow all others
+                // Map from symbol string to ELFReader; most lookups
+                // will miss and no need to unpack ElfReader types
+                _externSymbols.putIfAbsent(elf._strs[1],elf);
+
+                // Publish definitions only; referenced classes belong to other objects.
+                for( String fname : elf._units )
+                    _externSymbols.putIfAbsent(Parser.addClzPrefix(fname.replace('/','.')),elf);
+                break;
+
+            default: throw Utils.TODO("should not reach here");
+            }
+        }
+    }
+
+    // Load all the .o files in the next external path.
+    private void loadExtPath() {
+        _files.clear();
+        _extFileIdx = 0;
+        String extpath = _externPaths.at(_extPathIdx++);
+        File f = new File(extpath);
+        if( !f.isAbsolute() )
+            f = new File(_cwd+extpath);
+        fillExtFiles(f);
+    }
+
+    // Recursive search (TODO: gzip, archives) and gather all .o files.
+    private void fillExtFiles(File dir) {
+        if( dir.isDirectory() )
+            for( File f : dir.listFiles() )
+                fillExtFiles(f);
+        else if( dir.getName().endsWith(".o") )
+            _files.add(dir);
+    }
+
+    // Map from object file names to ElfReaders
+    public final HashMap<String,ElfReader> _elfs = new HashMap<>();
+    ElfReader getElf(File f) {
+        ElfReader elf = _elfs.get(f.getPath());
+        if( elf != null )
+            return elf;
+        _elfs.put(f.getPath(), elf = ElfReader.load(f,null));
+        return elf;
+    }
+
+    // ---------------------------
     public boolean _asmLittle=true;
     public String asm() { return asm(new SB()).toString(); }
     SB asm(SB sb) {

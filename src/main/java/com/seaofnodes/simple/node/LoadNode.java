@@ -4,7 +4,9 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
@@ -25,7 +27,11 @@ public class LoadNode extends MemOpNode {
     public LoadNode(Parser.Lexer loc, String name, int alias, Node ctrl, Node mem, Node ptr, Node off) {
         super(loc, name, alias, true, Type.BOTTOM, ctrl, mem, ptr, off);
     }
-
+    LoadNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
+        super(bais,strs,types,fileAliases,aliases,true);
+        _con = Type.BOTTOM;      // Serialized slot retained while MemOps share TypeNode
+    }
+    @Override public Tag serialTag() { return Tag.Load; }
 
     @Override boolean canDrop(MemOpNode other, Node dep) {
         return super.canDrop(other,dep) && !clobbered(dep);
