@@ -1,0 +1,1 @@
+return 0 < arg < arg+1 < 4;

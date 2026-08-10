@@ -1,0 +1,5 @@
+bool b1 = arg == 1;
+bool b2 = arg == 2;
+if (b2) if (b1) return 1;
+if (b1) return 2;
+return 0;

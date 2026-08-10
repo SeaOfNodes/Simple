@@ -25,5 +25,5 @@ public interface MultiNode {
 
     // Return not-null if this projection index is a ideal copy.
     // Called by ProjNode ideal and used to collapse Multis.
-    default Node pcopy(int idx) { return null; }
+    default Node pcopy(int idx, Node dep) { return null; }
 }

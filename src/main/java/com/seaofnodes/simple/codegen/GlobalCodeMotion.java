@@ -28,16 +28,15 @@ public abstract class GlobalCodeMotion {
         breakUpGlobalConstants(code._start);
 
         code._visit.clear();
-        schedLate (code);
+        schedLate(code);
     }
 
     // Post-Order of CFG
     private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
-        if( def instanceof ReturnNode && use instanceof CallEndNode )
-            return;
-        assert !( def instanceof CallNode && use instanceof FunNode ); // All calls unwired now
+        assert !( def instanceof ReturnNode && use instanceof CallEndNode ); // All calls unwired now
+        assert !( def instanceof   CallNode && use instanceof     FunNode ); // All calls unwired now
         visit.set(cfg._nid);
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);
@@ -51,7 +50,7 @@ public abstract class GlobalCodeMotion {
         var cons = new ArrayList<Node>();
         for( Node con : start._outputs )
             if( con!=null && !(con instanceof CFGNode) &&
-                (con.isConst() || (con instanceof MachNode mach && mach.outregmap()!=null)) ) {
+                (con.isConst() || con instanceof MachNode mach && mach.outregmap()!=null) ) {
                 globals.put(con,true);
                 cons.add(con.keep()); // Preserve original inputs while rewiring users.
             }
@@ -62,6 +61,7 @@ public abstract class GlobalCodeMotion {
                 if( use==null || globals.containsKey(use) ) continue;
                 FunNode fun = useFun(use);
                 if( fun==null ) continue; // Global metadata has no function owner.
+                assert CodeGen.CODE._mach==null || CodeGen.CODE.owns(fun);
                 var local = copies.computeIfAbsent(fun,f -> new IdentityHashMap<>());
                 Node copy = cloneGlobal(con,fun,globals,local);
                 for( int i=0; i<use.nIns(); i++ )
@@ -144,6 +144,7 @@ public abstract class GlobalCodeMotion {
     private static int[] ANTI = new int[1];
     private static final AryInt TOUCHED = new AryInt();
     private static final Ary<Node> PLACED = new Ary<>(Node.class);
+    private static final Ary<Node> ANTIDEPS = new Ary<>(Node.class);
     private static final WorkList<Node> WORK = new WorkList<>();
 
     private static void schedLate( CodeGen code ) {
@@ -156,7 +157,7 @@ public abstract class GlobalCodeMotion {
         WORK.clear();
         // Breadth-first scheduling
         // Early scheduling has released the shared visit bits.
-        breadth(code._stop,PLACED,LATE,ANTI,code.visit());
+        breadth(code._stop,PLACED,LATE,ANTI,ANTIDEPS,code.visit());
 
         // Copy the best placement choice into the control slot
         for( Node n : PLACED )
@@ -166,6 +167,7 @@ public abstract class GlobalCodeMotion {
             LATE[TOUCHED.at(i)] = null;
         TOUCHED.clear();
         clear(PLACED);
+        clear(ANTIDEPS);
     }
 
     // Ary.clear retains references; static scratch must release them as well.
@@ -174,7 +176,12 @@ public abstract class GlobalCodeMotion {
         nodes.clear();
     }
 
-    private static void breadth(Node stop, Ary<Node> placed, CFGNode[] late, int[] anti, BitSet visit) {
+    private static Ary<Node> antiDeps(MemOpNode load, Ary<Node> antideps) {
+        clear(antideps);
+        return load.antiDeps(antideps);
+    }
+
+    private static void breadth(Node stop, Ary<Node> placed, CFGNode[] late, int[] anti, Ary<Node> antideps, BitSet visit) {
         // Things on the worklist have some (but perhaps not all) uses done.
         WorkList<Node> work = WORK;
         work.push(stop);
@@ -195,12 +202,12 @@ public abstract class GlobalCodeMotion {
 
                 // Loads need their memory inputs' uses also done
                 if( n instanceof MemOpNode ld && ld._isLoad )
-                    for( Node memuse : ld.antiDeps() )
+                    for( Node memuse : antiDeps(ld,antideps) )
                         if( late[memuse._nid]==null )
                             continue outer;
 
                 // All uses done, schedule
-                _doSchedLate(n,placed,late,anti);
+                _doSchedLate(n,placed,late,anti,antideps);
             }
 
             TOUCHED.push(n._nid);
@@ -220,7 +227,7 @@ public abstract class GlobalCodeMotion {
         }
     }
 
-    private static void _doSchedLate(Node n, Ary<Node> placed, CFGNode[] late, int[] anti) {
+    private static void _doSchedLate(Node n, Ary<Node> placed, CFGNode[] late, int[] anti, Ary<Node> antideps) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
         CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
         assert early != null;
@@ -231,8 +238,7 @@ public abstract class GlobalCodeMotion {
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof MemOpNode load && load._isLoad )
-            lca = find_anti_dep(lca,load,early,late,anti);
-
+            lca = find_anti_dep(lca,load,early,late,anti, antideps);
 
         // Walk up from the LCA to the early, looking for best place.  This is
         // the lowest execution frequency, approximated by least loop depth and
@@ -250,7 +256,8 @@ public abstract class GlobalCodeMotion {
     // Block of use.  Normally from late[] schedule, except for Phis, which go
     // to the matching Region input.
     private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
-        if( use instanceof ParmNode ) return late[use._nid];
+        if( use instanceof ParmNode parm )
+            return late[use._nid];
         if( !(use instanceof PhiNode phi) )
             return late[use._nid];
         CFGNode found=null;
@@ -271,51 +278,42 @@ public abstract class GlobalCodeMotion {
             best instanceof IfNode;
     }
 
-    // An allocation may consume a load's memory through a partial aggregate.
+    // A writer may consume a load's memory through an aggregate.
     private static void wakeLoads(Node def, CFGNode[] late, WorkList<Node> work, BitSet visit) {
         if( visit.get(def._nid) ) return;
         visit.set(def._nid);
         for( Node out : def._outputs )
             if( out instanceof MemOpNode ld && ld._isLoad && late[ld._nid]==null ) work.push(ld);
-        if( def instanceof MemMergeNode || def instanceof EscapeNode )
+        if( def instanceof MemMergeNode )
             for( int i=1; i<def.nIns(); i++ )
                 if( def.in(i)!=null ) wakeLoads(def.in(i),late,work,visit);
     }
 
-    private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late, int[] anti) {
+    private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late, int[] anti, Ary<Node> antideps) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
         CFGNode marked = lca;
-        for( CFGNode cfg = marked; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
+        for( CFGNode cfg = marked; cfg!=early.idom(); cfg = cfg.idom() )
             anti[cfg._nid] = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
-        for( Node mem : load.antiDeps() ) {
-            switch( mem ) {
-            case MemOpNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
-                break;
-            case CallNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
-                break;
-            case PhiNode phi:
+        for( Node mem : antiDeps(load,antideps) ) {
+            if( mem instanceof PhiNode phi ) {
                 // Inputs carrying different memory might overwrite this alias.
-                // Raise the LCA for those paths; unchanged memory does not
-                // clobber the load. No scheduling edge to the Phi.
+                // Raise the LCA for those paths; the unchanged-memory paths
+                // do not clobber the load.  No scheduling edge to the Phi.
                 for( int i=1; i<phi.nIns(); i++ )
                     if( phi.in(i)!=load.mem() )
                         lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null,anti);
-                break;
-            case NewNode st:
-                assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
-                break;
-            default: throw Utils.TODO();
+            } else {
+                // Hunt for clobbering stores
+                assert mem instanceof MemOpNode || mem instanceof EscapeNode ||
+                    mem instanceof CallNode || mem instanceof CLInitNode;
+                assert late[mem._nid]!=null;
+                lca = anti_dep(load,late[mem._nid],mem.cfg0(),lca,mem,anti);
             }
         }
         // Release this load's marks before another compilation reuses IDs.
-        for( CFGNode cfg = marked; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
+        for( CFGNode cfg = marked; cfg!=early.idom(); cfg = cfg.idom() )
             anti[cfg._nid] = 0;
         return lca;
     }
@@ -324,14 +322,15 @@ public abstract class GlobalCodeMotion {
     private static CFGNode anti_dep( MemOpNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
         // A conditional writer can precede the load without dominating its late block.
         // Walk back to the first overlap with the load's placement range.
-        // Another Phi input need not be dominated by this memory definition.
-        // Include its depth, and retain the sentinel for an entry's null idom.
+        // A different Phi input need not be dominated by this memory's
+        // definition. Stop at its depth rather than looking for that ancestor.
+        // Retain the sentinel too: a function entry has a null idom.
         for( ; stblk != defblk.idom() && stblk.idepth() >= defblk.idepth(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
             if( anti[stblk._nid]==load._nid ) {
                 lca = stblk.domLCA(lca,null); // Raise Loads LCA
                 if( lca == stblk && st != null && !(st instanceof CallNode) && st._inputs.find(load) == -1 ) // And if something moved,
-                    st.addDef(load);   // Add anti-dep as well; Calls already end their block.
+                    st.addDef(load);   // Add anti-dep as well (calls already end their block)
                 return lca;            // Cap this stores' anti-dep to here
             }
         }

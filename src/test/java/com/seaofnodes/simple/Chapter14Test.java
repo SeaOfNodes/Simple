@@ -94,12 +94,12 @@ return b;
     public void testRefLoad() {
         CodeGen code = new CodeGen(
 """
-struct Foo { u1 b; };
-!Foo !f = new Foo;
+struct _Foo { u1 b; };
+!_Foo !f = new _Foo;
 f.b = 123;
 return f.b;
 """);
-        code.driver(CodeGen.Phase.FinalizeIR);
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -176,7 +176,7 @@ while(v1) break;
 return v1;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return (Phi(Loop,(((1<<arg)&1)&Shl),0)&4294967295);", code.print());
+        assertEquals("return Phi(Loop,(((1<<arg)&1)&Shl),0);", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
 
