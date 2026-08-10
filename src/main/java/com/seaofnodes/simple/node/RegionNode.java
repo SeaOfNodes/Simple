@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.util.BAOS;
@@ -10,10 +11,10 @@ import java.util.*;
 
 public class RegionNode extends CFGNode {
     // Source location for late discovered errors
-    public Parser.Lexer _loc;
+    public Lexer _loc;
 
-    public RegionNode(Parser.Lexer loc, Node...   nodes) { super(nodes); _loc = loc; }
-    public RegionNode(RegionNode r, Parser.Lexer loc) { super(r); _loc = loc; }
+    public RegionNode(Lexer loc, Node...   nodes) { super(nodes); _loc = loc; }
+    public RegionNode(RegionNode r, Lexer loc) { super(r); _loc = loc; }
     public RegionNode(RegionNode r) { super(r); if( r!=null ) _loc = r._loc; }
     @Override public Tag serialTag() { return Tag.Region; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
@@ -141,7 +142,7 @@ public class RegionNode extends CFGNode {
                     { addDep(use); if( data!=null ) addDep(data); return true; }
                 }
             } else
-            { addDep(use);  return true; } // Control user
+            { if( use!=null ) addDep(use); return true; } // Control user, including an external keep
         }
         return false;
     }

@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
@@ -24,7 +25,7 @@ public class LoadNode extends MemOpNode {
      * @param ptr   The ptr to the struct base from where we load a field
      * @param off   The offset inside the struct base
      */
-    public LoadNode(Parser.Lexer loc, String name, int alias, Node ctrl, Node mem, Node ptr, Node off) {
+    public LoadNode(Lexer loc, String name, int alias, Node ctrl, Node mem, Node ptr, Node off) {
         super(loc, name, alias, true, Type.BOTTOM, ctrl, mem, ptr, off);
     }
     LoadNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
@@ -85,14 +86,18 @@ public class LoadNode extends MemOpNode {
         if( pfld == null )
             return tmp.isHigh() || tmp._obj.isHigh() ? TypeScalar.TOP : TypeScalar.BOT;
 
+        if( tmp._partial && (!mem._one || mem._clz) && pfld._t==TypeScalar.BOT ) return TypeScalar.BOT;
+
         Type t = pfld._t;
         boolean readonly = t instanceof TypeMemPtr view && view._ro;
         // Load member of constant array
         if( t instanceof TypeConAry ary )
             t = ary.elem();     // TODO: if offset is known, can peek the constant
-        if( mem._alias==_alias )
+        if( mem._one && !mem._clz && !tmp._obj.isAry() ) {
+            Field actual = mem._t instanceof TypeStruct ts ? ts.field(_name) : null;
+            t = mem._alias==_alias ? mem._t : actual==null ? TypeScalar.BOT : actual._t;
+        } else if( mem._alias==_alias )
             t = t.join(mem._t);
-
         if( !mem._one ) t = mem.outside(t);
         // Store forwarding is also a value fact during SCCP. Waiting for the
         // later rewrite can turn a known non-null stored pointer into a
@@ -105,6 +110,12 @@ public class LoadNode extends MemOpNode {
         // generic declared field type must not cast this information away.
         if( ptr0.isFinal() || readonly )
             t = t.makeRO();
+        // A completed receiver gives a completed view of its reachable fields.
+        // Through self, keep object references restricted until the root new.
+        if( t instanceof TypeMemPtr value ) {
+            value = value.withPartial(tmp._partial && !value._obj.isAry());
+            t = value._partial ? value.partialBound() : value;
+        }
         return scalar(t);
     }
 
@@ -117,6 +128,7 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        if( _type==TypeScalar.BOT ) return null;
         Node mem = mem();
         Node ptr = ptr();
 
@@ -176,7 +188,9 @@ public class LoadNode extends MemOpNode {
         //   if( pred ) ptr.x = e0;         val = pred ? e0
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
-        if( mem() instanceof MemPhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
+        if( mem() instanceof PhiNode memphi && !(memphi instanceof ParmNode) &&
+            (memphi instanceof MemPhiNode || (memphi._type instanceof TypeMem tm && tm._one)) &&
+            memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
             // Retain control on both copies only if it dominates both paths.
             // The Region itself, or a later range check, cannot move to its inputs.
             (in(0)==null || cfg0().domLCA(memphi.region().idom(this),this)==cfg0()) &&
@@ -210,6 +224,9 @@ public class LoadNode extends MemOpNode {
 
     // Load a flavored zero from a New
     private Node zero(NewNode nnn) {
+        // Object fields acquire values from their initializer's Stores.
+        // Only arrays expose calloc's zero-fill as a language-level default.
+        if( !nnn._ts.isAry() ) return new ConstantNode(TypeScalar.BOT).peephole();
         Type zero = declaredType().makeZero();
         assert zero.isa(_type); // Catch an uninitialized non-null field
         return castRO(new ConstantNode(zero).peephole());
@@ -237,8 +254,8 @@ public class LoadNode extends MemOpNode {
                 if( st._alias==1 ) return null;
                 addDep(st.ptr());
                 if( alias==st._alias && (ptr==address(st.ptr()) || ptr==address(st.nnptr())) &&
-                    ((!_name.equals("[]") && _name.equals(st._name)) || off()==st.off() ||
-                     (addDep(off())._type.isConstant() && off()._type==addDep(st.off())._type)) ) {
+                    (!_name.equals("[]") && _name.equals(st._name) || off()==st.off() ||
+                     addDep(off())._type.isConstant() && off()._type==addDep(st.off())._type) ) {
                     // Forwarding must preserve the pointer type already seen
                     // by users: completion, read-only view, and recursive shape.
                     // Open declarations can disagree until Opto upgrades them.
@@ -273,7 +290,8 @@ public class LoadNode extends MemOpNode {
                 if( address(esc.self())==ptr ) { mem=esc.priv(); break; }
                 if( neverAlias(ptr,address(esc.self())) ) { mem=esc.pub(); break; }
                 return null;
-            case MemPhiNode phi:
+            case PhiNode phi:
+                if( phi instanceof ParmNode || (!(phi instanceof MemPhiNode) && !(phi._type instanceof TypeMem tm && tm._one)) ) return null;
                 addDep(phi.region());
                 // Only the original loop closes a successful cycle. Another
                 // loop or an unfinished merge needs a separate proof.
@@ -300,7 +318,7 @@ public class LoadNode extends MemOpNode {
         Node win=find(mem,ptr,stop,new BitSet());
         if( win!=null ) {
             if( win==stop ) return value;
-            if( win instanceof MemPhiNode mp ) {
+            if( win instanceof PhiNode mp ) {
                 PhiNode phi=new PhiNode(_name,mp.region()).keep();
                 for( int i=1; i<mp.nIns(); i++ ) phi.addDef(load(mp.in(i),ptr,stop,value));
                 return CodeGen.CODE.add(phi.unkeep().peephole());
@@ -324,7 +342,7 @@ public class LoadNode extends MemOpNode {
         if( ptr instanceof ConvertNode conv && addDep(conv.val())._type instanceof TypeMemPtr src &&
             src.isa(addDep(conv)._type) && src.accessISA(conv._type) )
             ptr = conv.val();
-        while( ptr instanceof ReadOnlyNode ) {
+        while( ptr instanceof InitViewNode || ptr instanceof ReadOnlyNode || ptr instanceof ConstructNode con && con._partial ) {
             addDep(ptr);
             ptr = ptr.in(1);
         }
@@ -355,6 +373,15 @@ public class LoadNode extends MemOpNode {
 
         // Dunno without a longer walk
         return false;
+    }
+
+    @Override public Parser.ParseException err() {
+        Parser.ParseException err = super.err();
+        if( err!=null ) return err;
+        if( (in(0)==null || !in(0)._type.isHigh()) && _type==TypeScalar.BOT &&
+            mem()._type instanceof TypeMem mem && ((mem._one && !mem._clz) || (ptr()._type instanceof TypeMemPtr p && p._partial)) )
+            return Parser.error("Field '"+_name+"' might not be initialized",_loc);
+        return null;
     }
 
     // Read-Only is a deep property, and cannot be cast-away

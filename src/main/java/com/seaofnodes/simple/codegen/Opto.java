@@ -1,7 +1,8 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.IterPeeps.WorkList;
+import com.seaofnodes.simple.parser.Parser;
+import com.seaofnodes.simple.codegen.IterPeeps.WorkList;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 
@@ -54,26 +55,71 @@ abstract public class Opto {
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
         moveChangesToWorklist(code, oldTypes, changes);
+        // Unknown callers and concrete call edges have now been rediscovered.
         for( ReturnNode ret : returns ) code.add(ret.unkeep());
     }
 
-    // Reset Types before running the worklist algorithm
+    // Transition from Iter's pessimistic graph to SCCP's optimistic solve in
+    // one walk. Parsing has closed the named types; install them in the IR
+    // and resolve forward references before resetting each value to TOP.
+    // Do not run peepholes here: neighboring nodes may not yet be upgraded or
+    // reset. SCCP sees the completed setup, and IterPostOpto handles rewrites.
+    //
+    // The same walk preserves Returns while call edges are rebuilt, remembers
+    // old types for incremental cleanup, and gathers numeric modes and phase
+    // dependencies. These are setup duties, not separate graph passes.
     private static void resetToTop(CodeGen code, Ary<Type> oldTypes, Ary<Node> modes, WorkList<Node> deps, Ary<ReturnNode> returns ) {
         code._start.walk( x -> {
-                // Keep bodies alive while SCCP rebuilds their callers.
+                // A snapshot for change detection, not an upper bound: closing
+                // recursive declarations can change types in either direction.
+                oldTypes.setX(x._nid,x._type);
+                if( x.upgradeType(Parser.TYPES) ) deps.push(x);
+                if( x instanceof FRefNode fref ) resolveForward(code,fref);
+                // Rebuilding call edges must not DCE a temporarily uncalled body.
+                // Type-level function references can rediscover it later in SCCP.
                 if( x instanceof ReturnNode ret ) returns.add(ret.keep());
                 // Opto ends Parm.inProgress(), enabling constant folding even
                 // when a parameter's type was already constant before SCCP.
                 if( x instanceof ParmNode && x._type.isHighOrConst() ) deps.push(x);
+                // Construction identities may fold after the optimistic solve.
+                // Adds may need sorting after imported node IDs were assigned.
+                if( x instanceof ConstructNode || x instanceof InitViewNode || x instanceof AddNode ) deps.push(x);
                 // SCCP adds call edges and default arguments, not numeric
                 // operations. Gather unresolved modes on this required walk.
                 if( x instanceof ModeNode mode && mode.mode()==0 ) modes.push(x);
-                // Change snapshot, not a bound: Opto adds foreign identities.
-                oldTypes.setX(x._nid,x._type);
                 x._type = Type.TOP;            // Reset all Nodes to TOP
                 code._iter.add(x); // Visit everybody at least once; most Nodes produce better than TOP
                 return null;
             } );
+    }
+
+    private static void resolveForward(CodeGen code, FRefNode fref) {
+        if( fref.nIns()!=1 ) return;
+        boolean alloc = fref._name.endsWith(".<new>");
+        String clzName = alloc
+            ? fref._name.substring(0,fref._name.length()-".<new>".length()).intern()
+            : fref._name;
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
+        if( clz==null ) return;
+        Node con;
+        if( alloc ) {
+            Field ctor = clz.field("<new>");
+            if( ctor==null || !(ctor._t instanceof TypeFunPtr tfp) ) {
+                String name = clzName.startsWith(TypeStruct.CLZ)
+                    ? clzName.substring(TypeStruct.CLZ.length()) : clzName;
+                int dot = name.lastIndexOf('.');
+                throw Parser.error("Unknown struct type '"+(dot==-1 ? name : name.substring(dot+1))+"'",fref._loc);
+            }
+            FunNode fun = code._link(tfp);
+            if( fun==null ) return;
+            con = new FunPtrNode(tfp,code._start,fun.ret());
+            con._type = Type.BOTTOM; // No Iter bound; the Return may already be reset.
+        } else {
+            con = new ConstantNode(TypeMemPtr.make((byte)2,clz,true));
+        }
+        // The new input is visited by the reset walk too. Let SCCP propagate
+        // its value; replacing the FRef is a later peephole.
+        fref.addDef(con);
     }
 
 
@@ -98,6 +144,8 @@ abstract public class Opto {
                     // Unhook from Stop without treating the ReturnNode as
                     // DEAD.  It stays in limbo until Opto links when a caller
                     // is discovered (or not, and the function is really dead).
+                    // The reset walk keeps Returns alive. Use normal edge
+                    // editing so cleanup also revisits an emptied StopCU.
                     stop.delDef(i--);
                 }
                 // Unlink the existing conservative call linkages.
@@ -113,8 +161,9 @@ abstract public class Opto {
     private static void linkCG(CodeGen code, TypeFunPtr tfp, CallNode call) {
         if( tfp.nargs() != call.nargs() ) return; // Error calls hit this
         int[] fidxs = tfp.fidxs();
-        // Infinite targets use the outside continuation. Escaped local
-        // callbacks are reached through Start, and their effects feed Stop.
+        // An infinite target set uses the outside continuation. Escaped local
+        // callbacks are called through Start; their effects feed that same
+        // outside state. Do not attach unrelated same-arity function bodies.
         if( XInt.isHigh(fidxs) ) return;
         for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
             // unlinkStart deliberately leaves uncalled functions in a
@@ -137,7 +186,8 @@ abstract public class Opto {
         TypeMem tmem = (TypeMem)tt._types[1];
         int[] fidxs = tmem._escFs;
         if( XInt.isHigh(fidxs) ) {
-            // Cofinite sets include foreign identities but can exclude locals.
+            // A cofinite set includes foreign identities but can exclude local
+            // functions. Honor those exclusions just as in the finite case.
             for( FunNode fun : code._linker )
                 if( fun != null && !fun.isDead() && XInt.bit(fidxs,fun.sig().fidx()) )
                     linkStart(code,fun);
@@ -151,7 +201,8 @@ abstract public class Opto {
     }
 
     // Function is now reachable by unknown callers through Start.  The
-    // memory and callback inputs read Start; hidden self uses its owning class.
+    // Memory and callback defaults read Start's changing outside state.
+    // Scalar defaults remain constants; hidden self uses the owning class.
     static void linkStart( CodeGen code, FunNode fun ) {
         assert !fun.isDead();
         StartCUNode start = fun._compunit._start;

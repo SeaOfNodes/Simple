@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
@@ -44,9 +44,9 @@ public class NewNode extends Node implements MultiNode {
         TypeStruct ts = _ts.isAry() ? _ts : _ts.makeInit();
         return TypeTuple.make(TypeMemPtr.make(_ts),
                               // Arrays get pre-zeroed by constructor.
-                              // Objects start with default-zero memory for
-                              // fields that can be zero-initialized.  This is
-                              // still private memory, so no aliases escape yet.
+                              // Object fields start at Scalar.BOT; declaration
+                              // defaults are explicit Stores. This is private
+                              // memory, so no aliases escape yet.
                               TypeMem.make(1,ts,true,false,false,null,null));
     }
 

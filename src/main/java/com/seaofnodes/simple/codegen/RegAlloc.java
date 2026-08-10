@@ -425,6 +425,21 @@ public class RegAlloc {
         Node[] conflicts = lrg._selfConflicts.keySet().toArray(new Node[0]);
         Arrays.sort(conflicts, (x,y) -> x._nid - y._nid );
 
+        // A commutative two-address tie may join a whole chain to a Phi even
+        // when only the Phi and an earlier def actually overlap. Reuse the
+        // failed-range walk to find those ties before inserting copies.
+        // A Split's single use is artificial: leave earlier splitting intact.
+        findAllLRG(lrg);
+        for( int i = 0; i<_ns._len; i++ ) {
+            Node n = _ns.at(i);
+            if( lrg(n)==lrg && n instanceof MachNode mach && mach.twoAddress()==1 &&
+                mach.commutes() && !(n.in(2) instanceof SplitNode) &&
+                n.in(2).nOuts()==1 && lrg(n.in(2))!=lrg )
+                n.swap12();
+            else _ns.remove(i--);
+        }
+        // Reuse the scratch list to remember just the ties we broke.
+
         // First encounter with a loop Phi: try only cold splits this round.
         // Remember the Phi across rounds so a persistent self-conflict forces
         // the hot def/backedge splits on the next encounter.
@@ -466,7 +481,9 @@ public class RegAlloc {
                         insertBefore(phi,i,"use/self/phi",round,lrg);
             }
             // Split before two-address ops which extend the live range
-            if( def instanceof MachNode mach && mach.twoAddress()!= 0 )
+            // A commuted operand already broke this tie. Rebuild it in the
+            // next normal coloring round instead of copying the old range.
+            if( def instanceof MachNode mach && mach.twoAddress()!=0 && _ns.find(def)==-1 )
                 insertBefore(def,mach.twoAddress(),"use/self/two",round,lrg);
         }
         return true;

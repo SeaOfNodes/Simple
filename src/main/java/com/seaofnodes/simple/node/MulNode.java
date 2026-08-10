@@ -16,6 +16,7 @@ public class MulNode extends ArithNode {
     @Override long   doOp( long  x,  long  y ) { return x * y; }
     @Override double doOp(double x, double y ) { return x * y; }
     @Override TypeInteger doOp(TypeInteger x, TypeInteger y) {
+        if( x==TypeInteger.ZERO || y==TypeInteger.ZERO ) return TypeInteger.ZERO;
         return TypeInteger.BOT;
     }
 
@@ -25,6 +26,11 @@ public class MulNode extends ArithNode {
         Node rhs = in(2);
         Type t1 = lhs._type;
         Type t2 = rhs._type;
+
+        // Integer strength reductions require two integer operands. In
+        // particular Scalar.BOT * 0 must retain its unresolved input.
+        if( _mode==2 || !(t1 instanceof TypeInteger && t2 instanceof TypeInteger) )
+            return super.idealize();
 
         // Move constants to RHS: con*arg becomes arg*con
         if ( t1.isConstant() && !t2.isConstant() )
@@ -36,7 +42,7 @@ public class MulNode extends ArithNode {
             // canonicalize to (x*1)
             long c = i.value();
             if( c==1 )  return lhs._type.isa(compute()) ? lhs : super.idealize();
-            if( c==0 )  return CodeGen.CODE.ZERO;
+            // Zero is handled by compute(), before idealize().
             // Mul by a power of 2, +/-1.  Bit patterns more complex than this
             // are unlikely to win on an X86 vs the normal "imul", and so
             // become machine-specific.

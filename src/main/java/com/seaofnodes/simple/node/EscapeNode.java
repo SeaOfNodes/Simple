@@ -9,19 +9,26 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 
 /**
- *  Merge public and private aliases.
+ *  Merge public and private aliases. A borrow orders partial-reader calls
+ *  after constructor Stores without adding the private values to escape sets.
  *  0 - control
  *  1 - private pointer
  *  2 - private alias
  *  3 - public alias
  */
 public class EscapeNode extends TypeNode {
+    public final boolean _borrow;
 
     public EscapeNode(Field fld, Node self, Node priv, Node pub ) {
+        this(fld,self,priv,pub,false);
+    }
+    public EscapeNode(Field fld, Node self, Node priv, Node pub, boolean borrow ) {
         super(fld,null,self,priv,pub);
+        _borrow = borrow;
     }
     public EscapeNode(EscapeNode esc ) {
         super(esc);             // Copy constructor
+        _borrow = esc._borrow;
         // Except we do not want/need self ptr past Opto.
         // *NOTE* the weird direct stomp; this is correct because this
         // constructor does NOT set the backedges, because it is used to
@@ -38,6 +45,7 @@ public class EscapeNode extends TypeNode {
 
     @Override public Tag serialTag() { return Tag.Escape; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        assert !_borrow; // Source ^ interfaces cannot yet be serialized.
         baos.packed2(types.get(_con));
     }
     static Node make( BAOS bais, Type[] types)  {
@@ -73,7 +81,14 @@ public class EscapeNode extends TypeNode {
 
         // t is meet of pub & priv.  Pub memory can be very weak (e.g. alias 1)
         // and we're no worse than the declared field type
-        Type t = tpriv.meet(tpub).join(fld._t);
+        Type bound = fld._t;
+        if( _borrow && bound instanceof TypeMemPtr ptr && TypeMemPtr.mayBePartial(tpriv) )
+            bound = ptr.withPartial(true).partialBound();
+        Type t = tpriv.meet(tpub).join(bound);
+        // Lending memory to a local read-only partial argument is an ordering
+        // edge, not publication to unknown callers. Keep the public escape sets.
+        if( _borrow )
+            return TypeMem.make(fld._alias,t,false,false,false,mpub._escFs,mpub._escAs);
         int[] fidxes  = XInt.meet(mpriv._escFs, mpub._escFs);
         int[] aliases = XInt.meet(mpriv._escAs, mpub._escAs);
         // Keep escapes from the actual private value before narrowing it to
@@ -112,11 +127,12 @@ public class EscapeNode extends TypeNode {
 }
 
     @Override public boolean eq(Node n) {
+        if( _borrow!=((EscapeNode)n)._borrow ) return false;
         if( fld()._alias!=((EscapeNode)n).fld()._alias )
             return false;
         assert _con == ((EscapeNode)n)._con;
         return true;
     }
 
-    @Override int hash() { return _con.hashCode(); }
+    @Override int hash() { return _con.hashCode() ^ (_borrow ? 1024 : 0); }
 }

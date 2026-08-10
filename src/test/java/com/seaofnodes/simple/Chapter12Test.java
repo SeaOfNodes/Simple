@@ -79,6 +79,19 @@ return f0.i.f.i.i;
         assertEquals("return 17;", code.print());
     }
 
+    @Test public void testPrivateRecursiveReturn() {
+        CodeGen code = new CodeGen("""
+            struct _A { !Test._B? !b; };
+            struct _B { !_A? !a; };
+            !_A !_a = new _A;
+            !_B !_b = new _B;
+            _a.b = _b;
+            _b.a = _a;
+            return _a.b.a.b;
+            """).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return Test._B;",code.print());
+    }
+
     @Test
     public void testNullRef0() {
         CodeGen code = new CodeGen(

@@ -1,11 +1,13 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Iter;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMemPtr;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeRPC;
@@ -21,24 +23,27 @@ import java.util.IdentityHashMap;
 public class CallNode extends CFGNode {
 
     // Source location for late reported errors
-    public final Parser.Lexer _loc;
+    public final Lexer _loc;
 
-    public CallNode(Parser.Lexer loc, Node... nodes) {
+    public CallNode(Lexer loc, Node... nodes) {
         super(nodes);
         _loc = loc;
         CodeGen.CODE._calls.add(this);
+        // Imported targets may be installed after this call is parsed.
+        // Retry linking when Iter drains the parser's worklist.
+        CodeGen.CODE.add(this);
         CodeGen.CODE.add(CodeGen.CODE._globalEscapes);
     }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
     @Override public Tag serialTag() { return Tag.Call; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(nIns());
-        Parser.Lexer.packed(_loc,baos,strs);
+        Lexer.packed(_loc,baos,strs);
     }
-    @Override public void gather(HashMap<String,Integer> strs) { Parser.Lexer.gather(_loc,strs); }
+    @Override public void gather(HashMap<String,Integer> strs) { Lexer.gather(_loc,strs); }
     static Node make( BAOS bais, String[] strs ) {
         int nIns = bais.packed1();
-        return new CallNode(Parser.Lexer.unpack(bais,strs),new Node[nIns]);
+        return new CallNode(Lexer.unpack(bais,strs),new Node[nIns]);
     }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
@@ -150,7 +155,8 @@ public class CallNode extends CFGNode {
                 // Walk the bits and link
                 for( int fidx = XInt.next(fidxs,0); fidx > 0; fidx = XInt.next(fidxs,fidx) ) {
                     FunNode fun = CodeGen.CODE.link(fidx);
-                    if( fun!=null && !fun._folding && !linked(fun) )
+                    if( fun==null ) addDepForwards(CodeGen.CODE._start);
+                    if( fun!=null && !addDep(fun)._folding && !linked(fun) )
                         progress = link(fun);
                 }
             }
@@ -240,7 +246,10 @@ public class CallNode extends CFGNode {
 
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
-            if( !arg(i+2)._type.isa(tfp.arg(i)) || !arg(i+2)._type.accessISA(tfp.arg(i)) ) {
+            if( !arg(i+2)._type.isa(tfp.arg(i) instanceof TypeMemPtr p ? p.partialBound() : tfp.arg(i)) || !arg(i+2)._type.accessISA(tfp.arg(i)) ) {
+                if( arg(i+2)._type instanceof TypeMemPtr actual && actual._partial &&
+                    tfp.arg(i) instanceof TypeMemPtr formal && !formal._partial )
+                    return Parser.error("Cannot pass an incomplete object to a parameter without '^' (ordinary function or constructor)",_loc);
                 // Constructors return private memory and carry hidden self and
                 // selfMem arguments ahead of the source-level arguments.
                 int argno = i - (tfp.ret() instanceof TypeMem ? 2 : 0);
