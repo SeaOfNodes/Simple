@@ -10,6 +10,7 @@ import static org.junit.Assert.*;
 
 public class Chapter20Test {
     @Test public void testAllocatorTopPhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.topPhi(); }
+    @Test public void testIndependentFunctions() { com.seaofnodes.simple.codegen.RegAllocTestSupport.independentFunctions(); }
 
     @Test public void testNeverReturnAllocation() {
         String[] sources = {
@@ -141,7 +142,8 @@ val _sqrt = { int x ->
         guess = next;
     }
 };
-return _sqrt(arg) + _sqrt(arg+2);
+int x=arg, y=arg+2;
+return _sqrt(x) + _sqrt(y);
 """;
         testCPU(src,"x86_64_v2", "win64"  ,38,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
@@ -216,9 +218,9 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testCPU(src,"x86_64_v2", "SystemV",-1,"return mov(.[]);");
-        testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return (add,.[],(muli,.[]));");
+        testCPU(src,"riscv"    , "SystemV",9,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"arm"      , "SystemV",13,"return (add,.[],(mul,.[],1000));");
     }
 
 
@@ -259,7 +261,7 @@ val hashCode = { !String self ->
 
 """;
         // Return the public hashCode wrapper; keep its helper private.
-        testCPU(src,"x86_64_v2", "SystemV",12,null);
+        testCPU(src,"x86_64_v2", "SystemV",28,null);
         testCPU(src,"riscv"    , "SystemV",8,null);
         testCPU(src,"arm"      , "SystemV",6,null);
     }
@@ -267,7 +269,7 @@ val hashCode = { !String self ->
     @Test
     public void testCast() {
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
-        testCPU(src,"x86_64_v2", "SystemV",3,null);
+        testCPU(src,"x86_64_v2", "SystemV",5,null);
         testCPU(src,"riscv"    , "SystemV",6,null);
         testCPU(src,"arm"      , "SystemV",6,null);
     }

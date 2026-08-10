@@ -41,7 +41,7 @@ else {
 return x;
                 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,(arg<<1),(Shl+1));", code.print());
+        assertEquals("return Phi(Region,(arg<<1),(((((Shl<<32)>>32)+1)<<32)>>32));", code.print());
         Assert.assertEquals( "2", Eval2.eval(code,  1));
         Assert.assertEquals("23", Eval2.eval(code, 11));
     }
@@ -182,7 +182,7 @@ while(arg) {
 return a;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,0,(-(Phi_a+3)));", code.print());
+        assertEquals("return Phi(Loop,0,(((-(Phi_a+3))<<32)>>32));", code.print());
     }
 
     @Test

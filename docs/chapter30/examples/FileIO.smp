@@ -15,7 +15,8 @@ val main = { u8[~][] args ->
     i32 fd = sys.io.create(FILE);
     if( fd == -1 ) return _error();
     // Write
-    int wrote = sys.io.writeOff(fd,str.buf,0,str.len);
+    u32 len = str.len;
+    int wrote = sys.io.writeOff(fd,str.buf,0,len);
     if( wrote == -1 ) return _error();
     if( wrote != str.len ) return _error2(-2);
     // Close
@@ -26,12 +27,13 @@ val main = { u8[~][] args ->
     if( fd2 == -1 ) return _error();
     // Read
     var got = sys.io.read(fd2);
+    if( !got ) return _error();
     if( got# != str.len ) return _error2(-3);
     // Close
     if( sys.io.close(fd2) != 0 ) return _error();
 
     // Check contents are equal
-    if( sys.ary.cmp(got,0,str.buf,0,str.len) )
+    if( sys.ary.cmp(got,0,str.buf,0,len) )
         return _error2(-4);
 
     // Remove

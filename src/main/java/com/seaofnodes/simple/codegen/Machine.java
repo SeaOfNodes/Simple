@@ -3,6 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMemPtr;
 
 abstract public class Machine {
     // Human readable machine name.  Something like "x86-64" or "arm" or "risc5"
@@ -45,6 +46,17 @@ abstract public class Machine {
 
     // Instruction select from ideal nodes
     public abstract Node instSelect( Node n );
+
+    // Lower external fields before selecting a memory operation, including
+    // loads absorbed into another instruction rather than selected separately.
+    public static void externalAddress(MemOpNode mem) {
+        if( mem.off() instanceof ExternOffsetNode off ) {
+            // Retain the declaring type for load/store width selection.
+            TypeMemPtr ptr = (TypeMemPtr)mem.ptr()._type;
+            mem._inputs.set(2,new ExternNode(TypeMemPtr.make((byte)2,ptr._obj,true),off._extern));
+            mem._inputs.set(3,ConstantNode.raw(TypeInteger.ZERO));
+        }
+    }
 
     /** Stack Slot Numbering
 

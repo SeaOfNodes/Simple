@@ -157,7 +157,7 @@ return a;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return []*Test._A?;", code.print());
-        assertEquals("*Test._A {i64 !i; }?[ null,null]", Eval2.eval(code, 0));
+        assertEquals("*Test._A {i32 !i; }?[ null,null]", Eval2.eval(code, 0));
     }
 
     @Test
@@ -312,7 +312,7 @@ flt is = new int[2];
 return is;
 """);
         try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Exception e ) { assertEquals("Type *[]i64 is not of declared type flt",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type *[]i32 is not of declared type flt",e.getMessage()); }
     }
 
     @Test

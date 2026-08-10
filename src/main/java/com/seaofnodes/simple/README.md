@@ -2,7 +2,7 @@
 
 | Directory | Contents |
 | --- | --- |
-| `parser/` | Recursive-descent grammar routines, lexing, name resolution, and construction of the initial IR. `Var` describes a lexical binding. See the [grammar map](../../../../../../docs/chapter29/29-grammar.md). |
+| `parser/` | Recursive-descent grammar routines, lexing, name resolution, and construction of the initial IR. `Var` describes a lexical binding. See the [grammar map](../../../../../../docs/chapter30/30-grammar.md). |
 | `node/` | Sea-of-Nodes IR nodes: graph edges, type computation, and local peephole rewrites. |
 | `node/cpus/` | Machine-specific nodes and instruction selection support for `arm`, `riscv`, and `x86_64_v2`. |
 | `codegen/` | Compilation driver and passes: module loading, optimization, scheduling, register allocation, serialization, and machine-code emission. `IterPeeps` runs the peephole worklist. |

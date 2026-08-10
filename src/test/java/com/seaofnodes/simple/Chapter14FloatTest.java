@@ -12,8 +12,10 @@ public class Chapter14FloatTest {
             {"int rounded=arg/2.5; return rounded;", "6", "-6"},
             {"int rounded=0; rounded=arg/2.5; return rounded;", "6", "-6"},
             {"i8 rounded=arg*16.0; return rounded;", "16", "-16"},
-            {"int rounded=1e100; return rounded;", "9223372036854775807", "9223372036854775807"},
-            {"int rounded=-1e100; return rounded;", "-9223372036854775808", "-9223372036854775808"},
+            {"int rounded=1e100; return rounded;", "-1", "-1"},
+            {"int rounded=-1e100; return rounded;", "0", "0"},
+            {"i64 rounded=1e100; return rounded;", "9223372036854775807", "9223372036854775807"},
+            {"i64 rounded=-1e100; return rounded;", "-9223372036854775808", "-9223372036854775808"},
             {"int rounded=1e300*1e300-1e300*1e300; return rounded;", "0", "0"},
             {"f32 rounded=arg+16777216.0; return rounded;", "1.6777232E7", "1.6777199E7"}
         };

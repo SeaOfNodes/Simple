@@ -409,7 +409,7 @@ var b = arg ? new _Bar : null;
 return b ? b.x++ + b.x++ : -1;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
+        assertEquals("return Phi(Region,((((.x+1)<<32)>>32)+ld_x),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
 
                                    assertEquals("1", Eval2.eval(code, 1));
@@ -423,7 +423,7 @@ var b = arg ? new _Bar;
 return b ? b.x++ + b.x++ : -1;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
+        assertEquals("return Phi(Region,((((.x+1)<<32)>>32)+ld_x),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
     }
@@ -475,7 +475,7 @@ for( int i=0; i<arg; i++ )
 return sum;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
+        assertEquals("return Phi(Loop,0,(((Phi_sum+Phi(Loop,0,(((Phi_i+1)<<32)>>32)))<<32)>>32));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
     }
@@ -488,7 +488,7 @@ for( ; i<arg; i++ )
 return sum;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
+        assertEquals("return Phi(Loop,0,(((Phi_sum+Phi(Loop,0,(((Phi_i+1)<<32)>>32)))<<32)>>32));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
     }
@@ -503,7 +503,7 @@ for( int i=0; ; i++ ) {
 return sum;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
+        assertEquals("return Phi(Loop,0,(((Phi_sum+Phi(Loop,0,(((Phi_i+1)<<32)>>32)))<<32)>>32));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
     }
@@ -516,7 +516,7 @@ for( int i=0; i<arg; )
 return sum;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
+        assertEquals("return Phi(Loop,0,(((Phi_sum+Phi(Loop,0,(((Phi_i+1)<<32)>>32)))<<32)>>32));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
     }
@@ -578,8 +578,9 @@ return new _A(new !B?[0]).array_of_b;
         CodeGen code = new CodeGen("""
 struct _LLI { !_LLI? !next; int i; new _LLI = { !_LLI? !n, int ii -> next=n; i=ii; }; };
 !_LLI? !head = null;
-while( arg-- )
-    head = new _LLI(head,arg);
+while( arg-- ) {
+    int n=arg; head = new _LLI(head,n);
+}
 int sum=0;
 var ptr = head; // A read-only ptr, to be assigned from read-only next fields
 for( ; ptr; ptr = ptr.next )
@@ -587,7 +588,7 @@ for( ; ptr; ptr = ptr.next )
 return sum;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,0,(Phi_sum+.i));", code.print());
+        assertEquals("return Phi(Loop,0,(((Phi_sum+.i)<<32)>>32));", code.print());
         assertEquals("45", Eval2.eval(code, 10));
     }
 
@@ -618,8 +619,8 @@ for( int j=0; j<nprimes; j++ )
 return rez;
 """);
         code.driver(CodeGen.Phase.FinalizeIR).driver(CodeGen.Phase.Schedule);
-        assertEquals("return []i64;", code.print());
-        assertEquals("i64[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
+        assertEquals("return []i32;", code.print());
+        assertEquals("i32[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
 
 }
