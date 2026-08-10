@@ -17,10 +17,10 @@ public class Field extends Type {
     public Type _t;
     // Unique memory alias, not sensibly part of a "type" but very convenient here.
     public int _alias;
-    // Field must be written to exactly once, no more, no less
+    // Field is immutable after construction; constructor locals may change
     public boolean _final;
-    // Field is final in the declaration; value is the same for all instances
-    // and will be moved to the class object
+    // Shared function declaration, with the same value for every instance.
+    // A final data field is still per-instance, even with a constant default.
     public boolean _one;
 
     private static final Ary<Field> FREE = new Ary<>(Field.class);
@@ -133,4 +133,8 @@ public class Field extends Type {
     }
 
     @Override public String str() { return (_final?"":"!")+(_one?"$":"")+_fname; }
+
+    @Override Type _upgradeType(java.util.HashMap<String,Type> types) {
+        return makeFrom(_t._upgradeType(types));
+    }
 }

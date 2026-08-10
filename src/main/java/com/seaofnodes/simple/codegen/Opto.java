@@ -111,6 +111,7 @@ abstract public class Opto {
         // Always true for main
         if( fun.sig().fidx() == code._main.fidx() ) return true;
         // No escape analysis yet: a surviving address may be called from outside.
+        if( fun._constructor ) return false;
         if( fun.hasPtr() ) return true;
         // Never true for stdlib or anonymous functions
         if( fun._name == null || fun._name.startsWith("sys.") )
@@ -123,8 +124,7 @@ abstract public class Opto {
     // into a Call, link the Call and Fun.
     private static void linkCG(CodeGen code, TypeFunPtr tfp, CallNode call) {
         if( tfp.nargs() != call.nargs() ) return; // Error calls hit this
-        for( long fidxs=tfp.fidxs(); fidxs!=0; fidxs=TypeFunPtr.nextFIDX(fidxs) ) {
-            int fidx = Long.numberOfTrailingZeros(fidxs);
+        for( int fidx=XInt.next(tfp.fidxs(),-1); fidx>=0; fidx=XInt.next(tfp.fidxs(),fidx) ) {
             FunNode fun = code.link(fidx);
             // null here means an external function; i.e. this Call
             // calls to an outside library and all its arguments escape.

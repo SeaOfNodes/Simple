@@ -42,6 +42,10 @@ public class MemMergeNode extends Node {
         if( mem instanceof CastNode cast ) return contents(cast.in(1),alias,dep);
         if( mem instanceof MemMergeNode merge )
             return contents(merge.alias(alias),alias,dep);
+        if( mem._type instanceof TypeMem mt && mt._t instanceof TypeStruct shape ) {
+            int index = shape.findAlias(alias);
+            return index==-1 ? Type.BOTTOM : shape._fields[index]._t;
+        }
         if( mem instanceof ProjNode proj && proj.in(0) instanceof NewNode nnn ) {
             assert proj._idx==1 && nnn.field(alias)!=null;
             dep.addDep(nnn);
@@ -69,6 +73,17 @@ public class MemMergeNode extends Node {
 
 
     @Override public Type compute() {
+        if( in(1)!=null && in(1)._type instanceof TypeMem base && base._t instanceof TypeStruct shape ) {
+            // At a helper boundary, package the independent field slices for
+            // the call result. Constructor loops themselves carry local values.
+            Field[] fields=shape._fields.clone();
+            for( int i=0; i<fields.length; i++ ) {
+                Field f=fields[i];
+                Node slice=f._alias<nIns() ? in(f._alias) : null;
+                if( slice!=null ) fields[i]=f.makeFrom(contents(slice,f._alias,this));
+            }
+            return TypeMem.makePrivate(TypeStruct.make(shape._name,shape._open,fields));
+        }
         for( Node n : _inputs )
             if( n != null && !n._type.isHigh() )
                 return TypeMem.BOT;
