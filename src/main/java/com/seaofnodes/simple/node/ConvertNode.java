@@ -36,7 +36,12 @@ public class ConvertNode extends Node {
     @Override public Type compute() {
         Type src = val()._type;
         if( src.isHigh() ) return Type.TOP;
-        if( !(_dst instanceof TypeMemPtr) && src.isa(_dst) ) return src;
+        if( _dst instanceof TypeMemPtr ptr ) {
+            // Keep non-nullness before the identity rewrite; shape and access
+            // still follow the declaration so compute stays monotone.
+            return src instanceof TypeMemPtr actual && actual.notNull() ? ptr.nonZero() : ptr;
+        }
+        if( src.isa(_dst) ) return src;
         return _dst;
     }
 
@@ -77,7 +82,13 @@ public class ConvertNode extends Node {
         return null;
     }
 
-
+    @Override boolean _upgradeType(HashMap<String,Type> TYPES) {
+        Type dst = _dst.upgradeType(TYPES);
+        if( dst==_dst ) return false;
+        unlock();
+        _dst = dst;
+        return true;
+    }
 
     @Override public Parser.ParseException err() {
         if( val()._type==Type.BOTTOM ||
@@ -92,12 +103,4 @@ public class ConvertNode extends Node {
 
     @Override public boolean eq(Node n) { return _dst==((ConvertNode)n)._dst; }
     @Override int hash() { return _dst.hashCode(); }
-
-    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
-        Type next = _dst.upgradeType(types);
-        if( next==_dst ) return false;
-        unlock();
-        _dst=next;
-        return true;
-    }
 }

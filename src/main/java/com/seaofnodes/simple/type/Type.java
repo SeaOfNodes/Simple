@@ -56,35 +56,38 @@ public class Type /*implements Cloneable*/ {
     static final byte TXCTRL  = 3; // Ctrl flow top (mini-lattice: any-xctrl-ctrl-all)
     static final byte TNIL    = 4; // low null of all flavors
     static final byte TXNIL   = 5; // high or choice null
-    static final byte TSIMPLE = 6; // End of the Simple Types
-    static final byte TSCALAR = 6; // All register/field values, excluding control and memory
+    static final byte TSIMPLE = 5; // End of the Simple Types
 
-    static final byte TPTR    = 7; // All nil-able scalar values
+    static final byte TSCALAR = 6; // Integer, float, memory pointer or function pointer
+    static final byte TPTR    = 7; // All nil-able pointer values
     static final byte TINT    = 8; // All Integers; see TypeInteger
     static final byte TFLT    = 9; // All Floats  ; see TypeFloat
     static final byte TCONARY =10; // Constant array
     static final byte TRPC    =11; // Return Program Control (Return PC or RPC)
-    static final byte TTUPLE  =12; // Tuples; finite collections of unrelated Types, kept in parallel
 
-    static final byte TCYCLIC =13; // Has internal pointers, needs recursive treatment
-    static final byte TMEMPTR =13; // Memory pointer to a struct type
-    static final byte TFUNPTR =14; // Function pointer; unique signature and code address (just a bit)
-    static final byte TMEM    =15; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TCYCLIC =12; // Has internal pointers, needs recursive treatment
+    static final byte TMEMPTR =12; // Memory pointer to a struct type
+    static final byte TFUNPTR =13; // Function pointer; unique signature and code address (just a bit)
+    static final byte TMEM    =14; // All memory (alias 0) or A slice of memory - with specific alias
+    static final byte TFLD    =15; // Named fields in structs
     static final byte TSTRUCT =16; // Structs; tuples with named fields
-    static final byte TFLD    =17; // Named fields in structs
+    static final byte TTUPLE  =17; // Tuples; finite collections of unrelated Types, kept in parallel
+
+    static final byte TMAX    =18;
 
     // Basic RTTI, useful for a lot of fast tests.
     public final byte _type;
     public boolean _terned;
 
-    public boolean is_simple() { return _type < TSIMPLE; }
+    public boolean is_simple() { return _type <= TSIMPLE; }
+    public boolean is_nokids() { return _type < TCYCLIC; }
     private static final String[] STRS = new String[]{"Bot","Top","Ctrl","~Ctrl","null","~nil"};
-    static final int[] CNTS = new int[TFLD+1];
     protected Type(byte type) {
         _type = type;           // RTTI
         _uid = (char)UID++;     // A unique ID for every type
+        if( UID > 32000 )
+            type = type;
         assert _uid!=0;         // Overflow
-        CNTS[type]++;
     }
 
     public static final Type BOTTOM   = new Type( TBOT   ).intern(); // ALL
@@ -137,7 +140,7 @@ public class Type /*implements Cloneable*/ {
 
     // Factory method which interns "this"
     @SuppressWarnings("unchecked")
-    <T extends Type> T intern() {
+    public <T extends Type> T intern() {
         //assert check();
         assert !_terned;        // Do not ask for already-interned
         T t2 = (T)INTERN.get(this);
@@ -218,16 +221,16 @@ public class Type /*implements Cloneable*/ {
     }
     // Overridden in subclasses; subclass can assume "this!=t" and java classes are same
     boolean       eq(Type t) { return this==t; }
-    boolean cycle_eq(Type t) { assert _type < TCYCLIC; return _type==t._type && eq(t); }
+    boolean cycle_eq(Type t) { assert is_nokids(); return _type==t._type && eq(t); }
     // A pair of uids
     int pid( Type that ) {
         return _uid < that._uid ? (_uid<<16 | that._uid) : (that._uid<<16 | _uid);
     }
 
     // At/Set child at 'idx' to t
-    Type at ( int idx ) { throw Utils.TODO(); }
-    void set( int idx, Type t ) { throw Utils.TODO(); }
-    int nkids() { assert _type < TTUPLE; return 0; }   // Number of kids
+    public Type at( int idx ) { throw Utils.TODO("Should not reach here: type has no children"); }
+    public void set( int idx, Type t ) { throw Utils.TODO("Should not reach here: type has no children"); }
+    public int nkids() { return 0; }   // Number of kids
 
 
     // Clear and re-insert the basic Type INTERN table
@@ -256,6 +259,7 @@ public class Type /*implements Cloneable*/ {
 
     // ----------------------------------------------------------
     public final Type meet(Type t) {
+        assert _terned && t._terned;
         // Shortcut for the self case
         if( t == this ) return this;
         // Same-type is always safe in the subclasses
@@ -266,12 +270,14 @@ public class Type /*implements Cloneable*/ {
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
-        // Constant arrays meet their integer element types.
+        // TypeConAry meet its element type is OK
         if( this instanceof TypeConAry tcon && t    instanceof TypeInteger ti ) return tcon.ymeet(ti);
         if( t    instanceof TypeConAry tcon && this instanceof TypeInteger ti ) return tcon.ymeet(ti);
+        // Two distinct scalar families meet at the scalar envelope.
         if( this instanceof TypeScalar scalar0 && t instanceof TypeScalar scalar1 )
             return scalar0.smeet(scalar1);
-        return Type.BOTTOM;     // Mixing 2 unrelated types
+        // Mixing 2 unrelated types
+        return Type.BOTTOM;
     }
 
     // Compute meet right now.  Overridden in subclasses.
@@ -286,7 +292,7 @@ public class Type /*implements Cloneable*/ {
         // RHS TypeNil vs NIL/XNIL
         if( _type==TNIL || _type==TXNIL ) {
             if( t instanceof TypeNil ptr ) return _type==TNIL ? ptr.meet0() : ptr.meetX();
-            if( t instanceof TypeScalar ) {
+            if( t instanceof TypeScalar scalar ) {
                 if( t._type==TSCALAR ) return t.isHigh() ? this : t;
                 return TypeScalar.BOT;
             }
@@ -315,7 +321,7 @@ public class Type /*implements Cloneable*/ {
             case TXCTRL-> TCTRL;
             case TNIL  -> TXNIL;
             case TXNIL -> TNIL;
-        default -> throw Utils.TODO(); // Should not reach here
+        default -> throw Utils.TODO("Should not reach here: unknown simple type");
         });
     }
 
@@ -329,23 +335,12 @@ public class Type /*implements Cloneable*/ {
     }
 
     // True if this "isa" t; e.g. 17 isa TypeInteger.BOT
-    // Applies for pessimistic case
-    public boolean isa( Type t )     { return meet(t)==t; }
+    public boolean isa( Type t ) { return meet(t)==t; }
 
-    // True if this "isa" t up to named structures
-    public boolean shallowISA( Type t ) { return isa(t); }
-
-    public Type nonZero() { return TypePtr.NPTR; }
+    public Type nonZero() { return this==NIL ? TypePtr.XNPTR : TypePtr.NPTR; }
 
     // Make a zero version of this type, 0 for integers and null for pointers.
     public Type makeZero() { return Type.NIL; }
-
-    // Writable array slots are invariant in their element access permissions.
-    // Otherwise an alias could insert a readonly pointer into a writable slot.
-    public boolean accessISA(Type dst) { return true; }
-
-    // Is forward-reference
-    public boolean isFRef() { return false; }
 
     // Cap at limits
     public Type oob() { return isHigh() ? TOP : BOTTOM; }
@@ -354,7 +349,7 @@ public class Type /*implements Cloneable*/ {
 
     // Cyclic types!  Flag the start of a cyclic type by putting a sentinel in
     // VISIT (and eventually clearing VISIT when done).  Then do a normal
-    // recursive descent visit of all types; this will accumilate types without
+    // recursive descent visit of all types; this will accumulate types without
     // interning them.  When done we have to visit the possibly cyclic type and
     // intern the whole cycle, possibly hitting the entire cycle on a prior
     // interned cycle.  Any sub-part might also be interned, including whole
@@ -367,7 +362,8 @@ public class Type /*implements Cloneable*/ {
     // "C0<->D0" cycle.
 
     Type recurOpen() { assert VISIT.isEmpty(); VISIT.put(0L,BOTTOM); return this; }
-    Type recurClose() {
+    Type recurClose() { return recurClose(null); }
+    Type recurClose(Type[] types) {
         VISIT.remove(0L);       // Just ignore the sentinel
         Ary<Type> ts = new Ary<>(Type.class);
         ts.addAll(VISIT.values());
@@ -391,6 +387,9 @@ public class Type /*implements Cloneable*/ {
         // Upgrade the result
         Type rez = INTERN.get(this);
         assert rez!=null;
+        if( types!=null )
+            for( int i=0; i<types.length; i++ )
+                types[i] = INTERN.get(types[i]);
 
         // Pass#4?: Free up any created-but-already interned
         for( Type t : FREES )
@@ -432,10 +431,12 @@ public class Type /*implements Cloneable*/ {
         free(this);
     }
 
-    Type free(Type free) { return this; }
+    Type free(Type free) {
+        return this;
+    }
     boolean isFree() { return false; }
 
-    <T extends Type> T delayFree(Type free) {
+    final <T extends Type> T delayFree(Type free) {
         assert !free._terned;
         FREES.push(free);
         return (T)this;
@@ -444,7 +445,7 @@ public class Type /*implements Cloneable*/ {
     final Type install() {
         if( this instanceof TypeStruct ) {
             Type x = _intern();     // Stop the recursion
-            assert x==this;
+            if( x!=this ) return x.delayFree(this);
         }
         int nkids = nkids();
         for( int i=0; i<nkids; i++ ) {
@@ -457,7 +458,7 @@ public class Type /*implements Cloneable*/ {
                 }
             }
         }
-        return this instanceof TypeStruct ? this : _intern();
+        return this instanceof TypeStruct || _terned ? this : _intern();
     }
 
     // Strict constant values, things on the lattice centerline.
@@ -466,8 +467,12 @@ public class Type /*implements Cloneable*/ {
     boolean _isConstant() { return _type==TNIL; }
 
     // Are all reachable struct Fields are final?
+    // Writable array slots are invariant in their element access permissions.
+    // Otherwise an alias could insert a readonly pointer into a writable slot.
+    public boolean accessISA(Type dst) { return true; }
+
     public final boolean isFinal() { return recurClose(recurOpen()._isFinal()); }
-    boolean _isFinal() { assert _type < TCYCLIC; return true; }
+    boolean _isFinal() { assert is_nokids(); return true; }
 
     public final Type makeRO() {
         if( isFinal() ) return this;
@@ -475,30 +480,37 @@ public class Type /*implements Cloneable*/ {
     }
     Type _makeRO() { return this; }
 
-    // Compute greatest lower bound in the lattice.  If values are in memory,
-    // ints and floats cannot widen.
-    public final boolean isGLB(boolean mem) { return recurClose(recurOpen()._isGLB(mem)); };
-    boolean _isGLB(boolean mem) {
-        return switch(_type) {
-        case TBOT -> false;
-        case TNIL -> false;
-        case TCTRL -> true;
-        case TXCTRL -> false;
-        case TXNIL -> false;
-        case TTOP -> false;
-        default -> throw Utils.TODO();
-        };
+    /** Declared shape used when a value is published into mutable memory. */
+    public final Type makeStorage() {
+        return recurOpen()._makeStorage().recurClose();
     }
-    public final Type glb(boolean mem) {
-        if( isGLB(mem) ) return this;
-        Type glb = recurOpen()._glb(mem).recurClose();
-        assert this.isa(glb);
-        return glb;
-    }
-    Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
+    Type _makeStorage() { assert is_simple(); return BOTTOM; }
 
-    Type _close(HashMap<String,Type> types) { return this; }
+    // Bulk close-over all recursive types
+    public static TypeStruct[] closeOver(TypeStruct[] ts, HashMap<String,Type> TYPES) {
+        BOTTOM.recurOpen();
+        for( TypeStruct t : ts )
+            t._close(null, TYPES);
+        for( int i=0; i<ts.length; i++ ) {
+            // Parser only tracks the mutable name of arrays, so the closeOver
+            // returns that one.  However, internal types might have immutable
+            // versions.
+            String name = ts[i].isAry() ? (ts[i]._name+"!").intern() : ts[i]._name;
+            ts[i] = (TypeStruct)VISIT.get(name);
+        }
+        BOTTOM.recurClose(ts);
+        return ts;
+    }
+
+    Type _close( String name, HashMap<String, Type> TYPES ) { return this; }
     public Type widen() { return this; }
+
+    // Replace recursively all TypeBuilders with cyclic TypeStructs
+    public Type upgradeType(HashMap<String,Type> TYPES) {
+        return recurOpen()._upgradeType(TYPES).recurClose();
+    }
+    Type _upgradeType(HashMap<String,Type> TYPES) { assert is_nokids(); return this;  }
+
 
     // ----------------------------------------------------------
 
@@ -533,11 +545,4 @@ public class Type /*implements Cloneable*/ {
 
     // This is used by error messages, and is a shorted print.
     public String str() { return STRS[_type]; }
-
-    // Closing declarations changes the meaning of forward shapes. Upgrade
-    // the whole graph together before starting the pessimistic fixed point.
-    public final Type upgradeType(HashMap<String,Type> types) {
-        return recurOpen()._upgradeType(types).recurClose();
-    }
-    Type _upgradeType(HashMap<String,Type> types) { return this; }
 }

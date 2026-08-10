@@ -1,0 +1,4 @@
+struct b {
+    int x;
+    new b = { int y -> x = y; };
+};

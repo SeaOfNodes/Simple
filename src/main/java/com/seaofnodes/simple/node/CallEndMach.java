@@ -14,13 +14,15 @@ public class CallEndMach extends CallEndNode implements MachNode {
         _retMask = code._mach.retMask(call().tfp());
         // Kill mask is all caller-saves, and any mirror stack slots for args
         // in registers.
-        RegMaskRW kills = code._callerSave.copy();
+        RegMaskRW kills = (call().external() ? code._cCallerSave : code._callerSave).copy();
         // Start of stack slots
         int maxReg = code._mach.regs().length;
         // Incoming function arg slots, all low numbered in the RA
         int fslot = fun()._maxArgSlot;
         // Killed slots for this calls outgoing args
-        int xslot = code._mach.maxArgSlot(call().tfp());
+        int xslot = call().external()
+            ? code._mach.maxArgSlot(call().tfp(),code._cCallingConv)
+            : code._mach.maxArgSlot(call().tfp());
         _xslot = (maxReg+fslot)+xslot;
         for( int i=0; i<xslot; i++ )
             kills.set((maxReg+fslot)+i);

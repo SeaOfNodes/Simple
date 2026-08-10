@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Integer Type
@@ -50,8 +51,8 @@ public class TypeInteger extends TypeScalar {
         return this;
     }
 
-    public Type same_but_slightly_wider_than( Type minType ) {
-        return _widen < 3 ? make(_min,_max, (byte)(_widen+1)) : minType;
+    public Type same_but_slightly_wider_than( ) {
+        return _widen < 3 ? make(_min,_max, (byte)(_widen+1)) : BOT;
     }
     // Force max widen
     @Override public Type widen() {
@@ -121,14 +122,17 @@ public class TypeInteger extends TypeScalar {
         if( this==I16 || this==U16              ) return 1; // 1<<1 == 2 bytes
         if( this==I32 || this==U32              ) return 2; // 1<<2 == 4 bytes
         if( this==BOT                           ) return 3; // 1<<3 == 8 bytes
-        if( _isConstant() ) {                                // just const here
-            if (-0xFF <= _min && _min <= 0xFF)                    return 0;
-            else if (-0xFFFF <= _min && _min <= 0xFFFF)           return 1;
-            else if (-0xFFFFFFFFL <= _min && _min <= 0xFFFFFFFFL) return 2;
-            else return 3;
-        }
-        if( -128 <= _min && _max < 128 ) return 0; // 1 byte
-        throw Utils.TODO();
+        if( _isConstant() ) return log(_min);                // just const here
+        int lo = log(_min);
+        int hi = log(_max);
+        return Math.max(lo,hi);
+    }
+
+    private static int log(long x) {
+        if(      -0xFFL <= x && x <=       0xFFL) return 0;
+        if(    -0xFFFFL <= x && x <=     0xFFFFL) return 1;
+        if(-0xFFFFFFFFL <= x && x <= 0xFFFFFFFFL) return 2;
+        return 3;
     }
 
     public long value() { assert _isConstant(); return _min; }
@@ -157,7 +161,7 @@ public class TypeInteger extends TypeScalar {
         return make(Math.min(_min,i._min), Math.max(_max,i._max), (byte)Math.max(_widen,i._widen));
     }
 
-    @Override TypeInteger xdual() { return malloc(_max,_min,(byte)(3-_widen)); }
+    @Override TypeInteger xdual() {  return malloc(_max,_min,(byte)(3-_widen));  }
 
     @Override public TypeInteger nonZero() {
         if( isHigh() ) return this;
@@ -168,13 +172,11 @@ public class TypeInteger extends TypeScalar {
     }
     @Override public Type makeZero() { return ZERO; }
     @Override boolean _isConstant() { return _min == _max; }
-    @Override boolean _isGLB(boolean mem) { return _glb(mem)==this; }
-    @Override Type _glb(boolean mem) {
-        if( !mem ) return BOT;
-        // GLB is not well-defined in memory; depends on the size of the memory field
+    @Override Type _makeStorage() {
         if( _isConstant() ) return BOT;
         return isHigh() ? dual() : this;
     }
+
 
     @Override int hash() { return Utils.fold(_min) * Utils.fold(_max) + _widen; }
     @Override public boolean eq( Type t ) {

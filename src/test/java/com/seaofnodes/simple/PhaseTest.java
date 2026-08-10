@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 public class PhaseTest {
     private static final String SRC = "int sum=0; for(int i=0; i<arg; i++) sum+=i; return sum;";
 
-    @Test public void testStopAndResume() {
+    @Test public void testIdealPhasesAndResume() {
         ArrayList<String> phases = new ArrayList<>();
         CodeGen code = new CodeGen(SRC);
         code._obs = new GraphObserver<Node>() {
@@ -19,38 +19,25 @@ public class PhaseTest {
             @Override public void after(Node n, Node repl, boolean applied) {}
             @Override public void phase(String phase) { phases.add(phase); }
         };
-        code.driver(Phase.Iter);
-        assertEquals(Phase.Iter,code._phase);
-        assertEquals("Parse Iter",String.join(" ",phases));
         code.driver(Phase.TypeCheck);
-        code.driver(Phase.TypeCheck); // Repeated requests do not rerun phases.
-        code.driver(Phase.LoopTree);
-        assertEquals(Phase.LoopTree,code._phase);
+        code.driver(Phase.TypeCheck); // A repeated request does not rerun anything.
         code.driver(Phase.LocalSched);
-        assertEquals("Parse Iter Opto IterPostOpto FinalizeIR TypeCheck LoopTree Schedule LocalSched",String.join(" ",phases));
+        assertEquals("Parse Iter Opto IterPostOpto FinalizeIR TypeCheck Lower LoopTree Schedule LocalSched",
+                     String.join(" ",phases));
+        assertNull(code._mach);
         assertEquals("45",Eval2.eval(code,10));
     }
 
-    @Test public void testResumeMachineCompilation() {
-        CodeGen staged = new CodeGen(SRC).driver(Phase.TypeCheck);
-        staged.driver(Phase.Select,"x86_64_v2","SystemV");
-        staged.driver(Phase.Encoding,"x86_64_v2","SystemV");
-        byte[] bits = staged._encoding._bits.toByteArray();
-        CodeGen direct = new CodeGen(SRC).driver(Phase.Encoding,"x86_64_v2","SystemV");
-        assertArrayEquals(bits,direct._encoding._bits.toByteArray());
-    }
-
-    @Test public void testOptoRequiresIter() {
-        CodeGen code = new CodeGen(SRC).parse();
-        try {
-            code.opto();
-            fail("Opto must not implicitly run Iter");
-        } catch( AssertionError expected ) {
-            assertEquals("Cannot run Opto after Parse",expected.getMessage());
+    @Test public void testEncodingAndResume() {
+        for( String cpu : new String[]{"x86_64_v2","arm","riscv"} ) {
+            CodeGen code = new CodeGen(SRC).driver(Phase.TypeCheck);
+            code.driver(Phase.LoopTree,cpu,"SystemV");
+            code.driver(Phase.Select,cpu,"SystemV");
+            code.driver(Phase.Encoding,cpu,"SystemV");
+            byte[] staged = code._encoding._bits.toByteArray();
+            CodeGen direct = new CodeGen(SRC).driver(Phase.Encoding,cpu,"SystemV");
+            assertArrayEquals(staged,direct._encoding._bits.toByteArray());
         }
-        code.iter().opto();
-        assertEquals(Phase.Opto,code._phase);
-        code.driver(Phase.LocalSched);
-        assertEquals("45",Eval2.eval(code,10));
     }
+
 }

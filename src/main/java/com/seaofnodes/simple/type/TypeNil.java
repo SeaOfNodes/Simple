@@ -51,7 +51,6 @@ public abstract class TypeNil extends TypeScalar {
     public boolean nullable() { return _nil==3; }
 
     @Override boolean _isConstant() { return false; }
-    @Override Type _glb(boolean mem) { return Type.NIL; }
 
     final String q() { return _nil == 1 || _nil == 2 ? "" : "?"; }
     final String x() { return isHigh() ? "~" : ""; }

@@ -5,7 +5,9 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
-import com.seaofnodes.simple.util.SB;
+
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  * A Constant node represents a constant value.
@@ -17,29 +19,56 @@ import com.seaofnodes.simple.util.SB;
  * The Constant's value is the value stored in it.
  */
 
-public class ConstantNode extends Node {
-    public Type _con;
+public class ConstantNode extends TypeNode {
     public ConstantNode( Type type ) {
-        super(new Node[]{CodeGen.CODE._start});
-        _con = _type = type;
+        this(type,false);
     }
-    public ConstantNode( ConstantNode con ) { super(con);  _con = con._type;  }
+    protected ConstantNode( Type type, boolean raw ) {
+        super(type,new Node[]{CodeGen.CODE._start});
+        assert raw || !(type instanceof TypeFunPtr tfp && tfp.isConstant()) :
+            "Unique function identities require a Return-linked FunPtrNode";
+        _type = type;
+    }
+    public ConstantNode( ConstantNode con ) { super(con); }
 
+
+    // Semantic constant construction through Lower.  A unique internal
+    // function identity carries a lifetime edge to the function's Return.
     public static Node make( Type type ) {
         if( type==Type. CONTROL ) return new CtrlNode();
         if( type==Type.XCONTROL ) return new XCtrlNode();
-        if( type instanceof TypeFunPtr tfp && tfp.isConstant() && tfp.notNull() ) {
-            FunNode fun = CodeGen.CODE.link(tfp);
-            if( fun!=null && !fun.isDead() ) return new FunPtrNode(tfp,fun.ret());
+        if( CodeGen.CODE._phase != null &&
+            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Lower.ordinal() )
+            return raw(type);
+        if( type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+            FunNode fun = CodeGen.CODE._link(tfp);
+            if( fun != null )
+                return new FunPtrNode(tfp,CodeGen.CODE._start,fun.ret()).init();
+            // TODO: A singleton FIDX can also emerge after merging and
+            // guarding several function pointers.  Preserve that identity
+            // even if its internal Return is no longer available.
+            return raw(type);
         }
         return new ConstantNode(type);
     }
+
+    // Exact construction for deserialization and graph-incomplete machine
+    // selection.  No semantic classification, compute, idealize, or GVN.
+    public static ConstantNode raw( Type type ) { return new ConstantNode(type,true); }
+    public static ConstantNode raw( ConstantNode con ) { return new ConstantNode(con); }
+
+    // Analysis input created from whole cloth, rather than a first-class
+    // runtime value.  In particular, a constructor call descriptor does not
+    // own the constructor function; the class FunPtr does.
+    public static ConstantNode seed( Type type ) { return new ConstantNode(type,true); }
 
     @Override protected String repeatName() {
         return _con==null || _con.toString().length()<=32 ? null : uniqueName();
     }
 
     @Override public String label() { return "Con"; }
+    @Override public Node copy() { return raw(this); }
+
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
@@ -54,14 +83,4 @@ public class ConstantNode extends Node {
     @Override public boolean isConst() { return true; }
     @Override public Type compute() { return _con; }
     @Override public Node idealize() { return null; }
-    @Override public boolean eq(Node n) { return _con==((ConstantNode)n)._con; }
-    @Override int hash() { return _con.hashCode(); }
-
-    @Override boolean _upgradeType(java.util.HashMap<String,Type> types) {
-        Type next = _con.upgradeType(types);
-        if( next==_con ) return false;
-        unlock();
-        _con=next;
-        return true;
-    }
 }

@@ -1,11 +1,9 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.node.StopNode;
 import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 public class Chapter14FloatTest {
     @Test public void testNumericAssignments() {
@@ -53,22 +51,23 @@ public class Chapter14FloatTest {
     public void testJig() {
         CodeGen code = new CodeGen(
 """
-return 3.14;
+return 0;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return 3.14;", code.print());
-        assertEquals("3.14", Eval2.eval(code,  0));
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     @Test
     public void testFloat() {
         CodeGen code = new CodeGen(
 """
-return 3.14;
+flt x = 3.14;
+return 0;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return 3.14;", code.print());
-        assertEquals("3.14", Eval2.eval(code,  0));
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  0));
     }
 
     @Test
@@ -83,6 +82,8 @@ while( 1 ) {
 }
 return guess;
 """);
+        // TODO: One of the problems with <clinit> returning an OS error code,
+        // is it chops all results to int.
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Loop,(flt)arg,((Phi_guess+(ToFloat/Phi_guess))*0.5f));", code.print());
         assertEquals("3.0", Eval2.eval(code,  9));

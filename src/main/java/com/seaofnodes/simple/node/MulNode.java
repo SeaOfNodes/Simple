@@ -10,6 +10,7 @@ public class MulNode extends ArithNode {
     public MulNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public MulNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs, mode); }
 
+
     @Override public String op() { return "*"; }
 
     @Override long   doOp( long  x,  long  y ) { return x * y; }
@@ -35,7 +36,7 @@ public class MulNode extends ArithNode {
             // canonicalize to (x*1)
             long c = i.value();
             if( c==1 )  return lhs._type.isa(compute()) ? lhs : super.idealize();
-            if( c==0 )  return com.seaofnodes.simple.Parser.ZERO;
+            if( c==0 )  return CodeGen.CODE.ZERO;
             // Mul by a power of 2, +/-1.  Bit patterns more complex than this
             // are unlikely to win on an X86 vs the normal "imul", and so
             // become machine-specific.

@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.IterPeeps.WorkList;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+
 import java.util.BitSet;
 
 // Optimistic Algorithm
@@ -25,106 +25,101 @@ abstract public class Opto {
     // get a fairly precise set of Call Graph edges between CallNodes and
     // FunNodes.
     public static void opto(CodeGen code) {
-
+        int[] foreign = code._fidxs.foreign();
+        for( int fidx : code._externFunc.keySet() ) foreign = XInt.make(foreign,fidx);
+        code._start._foreign = TypeMem.START.makeFrom(foreign,code._aliases.foreign());
         // Reset Types before running the worklist algorithm
         Ary<Type> oldTypes = new Ary<>(Type.class);
         WorkList<Node> deps = new WorkList<>();
         WorkList<Node> changes = new WorkList<>();
         Ary<Node> modes = new Ary<>(Node.class);
-        resetToTop(code,oldTypes,modes);
-
-        // Main seeds a whole program. Without main, named exported functions
-        // seed discovery. Either way, escaping addresses can add more unknown
-        // callers as Start and Stop reach their shared fixed point.
-        boolean wholeWorld = code.link(code._main) != null;
-
-
-        // If wholeWorld, remove the Start inputs to functions - they are not
-        // called unless they get linked (hence go dead and can be removed).
-        // If not wholeWorld, keep only public methods (and not the std lib).
-        unlinkStart(wholeWorld,code);
-
+        Ary<ReturnNode> returns = new Ary<>(ReturnNode.class);
+        resetToTop(code,oldTypes,modes,deps,returns);
+        unlinkStart(code);
 
         // OPTIMISTIC INTERPROCEDURAL SCCP
         sccp(code, oldTypes, changes, deps);
+
         // Settle modes, then resume SCCP on affected nodes without resetting types.
         // Any further type changes must still fall; BOTTOM results stay BOTTOM.
         resolveNumericModes(code,modes);
-        if( !code._iter._work.isEmpty() ) sccp(code, oldTypes, changes, deps);
 
-        ProjNode startMem=code._start.proj(1);
-        if( startMem!=null ) { startMem.unkeep(); code.add(startMem); }
+        if( !code._iter._work.isEmpty() )
+            sccp(code, oldTypes, changes, deps);
 
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
         Node dep;
         while( (dep=deps.pop())!=null ) code.add(dep);
         moveChangesToWorklist(code, oldTypes, changes);
-
-
+        for( ReturnNode ret : returns ) code.add(ret.unkeep());
     }
 
     // Reset Types before running the worklist algorithm
-    private static void resetToTop(CodeGen code, Ary<Type> oldTypes, Ary<Node> modes ) {
+    private static void resetToTop(CodeGen code, Ary<Type> oldTypes, Ary<Node> modes, WorkList<Node> deps, Ary<ReturnNode> returns ) {
         code._start.walk( x -> {
+                // Keep bodies alive while SCCP rebuilds their callers.
+                if( x instanceof ReturnNode ret ) returns.add(ret.keep());
+                // Opto ends Parm.inProgress(), enabling constant folding even
+                // when a parameter's type was already constant before SCCP.
+                if( x instanceof ParmNode && x._type.isHighOrConst() ) deps.push(x);
                 // SCCP adds call edges and default arguments, not numeric operations.
                 if( x instanceof ModeNode mode && mode.mode()==0 ) modes.push(x);
-                oldTypes.setX(x._nid,x._type); // Compare the final SCCP type with Iter's type
+                // Change snapshot, not a bound: Opto adds foreign identities.
+                oldTypes.setX(x._nid,x._type);
                 x._type = Type.TOP;            // Reset all Nodes to TOP
                 code._iter.add(x); // Visit everybody at least once; most Nodes produce better than TOP
-                // Unlink all existing (conservative) linkages.
-                if( x instanceof CallNode call )
-                    call.unlink_all();
                 return null;
             } );
     }
 
 
-    // If wholeWorld, remove the Start inputs to functions - they are not
-    // called unless they get linked (hence go dead and can be removed).  If
-    // not wholeWorld, keep only public methods (and not the std lib).
-    private static void unlinkStart(boolean wholeWorld, CodeGen code) {
-        ProjNode startMem=code._start.proj(1);
-        if( startMem!=null ) startMem.keep();
-        for( FunNode fun : code._linker ) {
-            if( fun != null && !fun.isDead() && !funIsPublic(code,wholeWorld,fun) ) {
-                assert fun.in(1)==code._start; // Start always in slot 1
-                fun.removeDeadPath(1);
-                // By same logic, remove stop->return linkage, without
-                // remove the (now dead) ReturnNode; it awaits in limbo
-                // for the opto phase to link to some valid call
-                code._stop._inputs.del(code._stop._inputs.find(fun.ret()));
-                fun.ret().delUse(code._stop);
+    // Rediscover ordinary functions through calls and escapes. This chapter
+    // retains initializer entries until opaque CLInit obligations are lowered.
+    private static void unlinkStart(CodeGen code) {
+        // Keep the Start & Start.ProjMem alive even as we remove all uses
+        for( CompUnit cu : code._compunits.values() ) {
+            ProjNode mem = cu._start.proj(1);
+            if( mem!=null ) mem.keep();
+        }
+
+        // Iterate the Stop-of-Stops
+        for( Node stop : code._stop._inputs ) {
+            for( int i=0; i<stop.nIns(); i++ ) {
+                ReturnNode ret = (ReturnNode)stop.in(i);
+                FunNode fun = ret.fun();
+                // Start is a semantic unknown-caller edge. Ordinary functions
+                // are discovered through calls and escaped values. Initializers,
+                // including private ones, are called by opaque CLInit
+                // obligations whose Call edges are introduced only in Lower.
+                if( !fun.isClz() &&
+                    fun.in(1) instanceof StartNode ) {
+                    fun.removeDeadPath(1);
+                    // Unhook from Stop without treating the ReturnNode as
+                    // DEAD.  It stays in limbo until Opto links when a caller
+                    // is discovered (or not, and the function is really dead).
+                    stop.delDef(i--);
+                }
+                // Unlink the existing conservative call linkages.
+                for( int j=1; j<fun.nIns(); j++ )
+                    if( fun.in(j) instanceof CallNode call )
+                        call.unlink(fun,j--);
             }
         }
-    }
-
-    // Function is public (callable from Start directly).
-    // - Always true for main
-    // - Otherwise false for stdlib or anonymous functions
-    // - Named functions use `!wholeWorld`
-    private static boolean funIsPublic( CodeGen code, boolean wholeWorld, FunNode fun ) {
-        // Always true for main
-        if( fun.sig().fidx() == code._main.fidx() ) return true;
-        // Hidden allocation helpers are never external entry points.
-        if( fun._constructor ) return false;
-        // Taking an address does not expose it. Stop discovers escapes from
-        // reachable returns and memory; linkStart restores only those callers.
-        // Never true for stdlib or anonymous functions
-        if( fun._name == null || fun._name.startsWith("sys.") )
-            return false;
-        // Named functions (and not stdlib) are callable if not whole-world.
-        return !wholeWorld;
     }
 
     // As part of building a CallGraph, when opto finds a function ptr flowing
     // into a Call, link the Call and Fun.
     private static void linkCG(CodeGen code, TypeFunPtr tfp, CallNode call) {
         if( tfp.nargs() != call.nargs() ) return; // Error calls hit this
-        if( XInt.isHigh(tfp.fidxs()) ) return;
-        for( int fidx=XInt.next(tfp.fidxs(),-1); fidx>=0; fidx=XInt.next(tfp.fidxs(),fidx) ) {
-            // A disconnected function can still be revived by a discovered
-            // call or escaping address. Do not clean the linker entry here.
+        int[] fidxs = tfp.fidxs();
+        // Infinite targets use the outside continuation. Escaped local
+        // callbacks are reached through Start, and their effects feed Stop.
+        if( XInt.isHigh(fidxs) ) return;
+        for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
+            // unlinkStart deliberately leaves uncalled functions in a
+            // temporarily dead limbo.  A newly discovered call revives them;
+            // do not use the cleanup lookup which removes dead linker entries.
             FunNode fun = code._link(fidx);
             // null here means an external function; i.e. this Call
             // calls to an outside library and all its arguments escape.
@@ -136,23 +131,47 @@ abstract public class Opto {
         }
     }
 
-    // Exposure is a call edge from the unknown world. Restore conservative
-    // declared arguments, never the narrower values inferred from known calls.
-    private static void linkStart(CodeGen code, TypeTuple state) {
-        for( FunNode fun : code._linker ) {
-            if( fun==null || fun.isDead() || fun._constructor || fun.unknownCallers() ||
-                !XInt.bit(state.mem()._escFs,fun.sig().fidx()) ) continue;
-            fun.insertDef(1,code._start);
-            if( !code._stop._inputs.contains(fun.ret()) ) code._stop.addDef(fun.ret());
-            code.add(fun); code.add(code._stop);
-            for( Node n : fun._outputs )
-                if( n instanceof ParmNode parm ) {
-                    Node def=parm._idx==1 ? code._start.proj(1) : new ConstantNode(parm._declaredType).peephole();
-                    parm.insertDef(1,def);
+    // Start added some FIDXs, the same functions now can be reached from start
+    // and called by anybody.  Add the CG edges.
+    private static void linkStart( CodeGen code, TypeTuple tt  ) {
+        TypeMem tmem = (TypeMem)tt._types[1];
+        int[] fidxs = tmem._escFs;
+        if( XInt.isHigh(fidxs) ) {
+            // Cofinite sets include foreign identities but can exclude locals.
+            for( FunNode fun : code._linker )
+                if( fun != null && !fun.isDead() && XInt.bit(fidxs,fun.sig().fidx()) )
+                    linkStart(code,fun);
+            return;
+        }
+        for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
+            FunNode fun = code._linker.atX(fidx);
+            if( fun==null )  assert code._externFunc.containsKey(fidx);
+            else             linkStart(code,fun);
+        }
+    }
+
+    // Function is now reachable by unknown callers through Start.  The
+    // memory and callback inputs read Start; hidden self uses its owning class.
+    private static void linkStart( CodeGen code, FunNode fun ) {
+        assert !fun.isDead();
+        StartCUNode start = fun._compunit._start;
+        if( !fun.unknownCallers() ) {
+            assert !start.isDead();
+            code.keepInCompUnit(fun);
+            // Function is reachable by any *remote* caller who gets the pointer!
+            fun.insertDef(1,start);
+            code._iter.add(fun);
+            for( Node p : fun._outputs )
+                if( p instanceof ParmNode parm ) {
+                    Type t = parm._idx<2 ? parm._declaredType : fun.defaultArg(parm._idx-2);
+                    Node defalt = parm._idx==1 || parm._declaredType instanceof TypeFunPtr
+                        ? start.proj(1) : ConstantNode.seed(t).peephole();
+                    parm.insertDef(1,defalt);
                     code.add(parm);
                 }
         }
     }
+
 
     // The core SCCP algorithm
     private static void sccp( CodeGen code, Ary<Type> oldTypes, WorkList<Node> changes, WorkList<Node> deps ) {
@@ -167,23 +186,39 @@ abstract public class Opto {
             // Filter candidates against the final SCCP type after convergence.
             if( nval!=oldTypes.atX(n._nid) || n.isUnlocked() ) changes.push(n);
             if( oval == nval ) continue;
-            assert oval.isa(nval) : n.label()+"#"+n._nid+" old="+oval+" new="+nval; // Types start high and always fall
-            Type pesiVal = oldTypes.atX(n._nid);
-            assert pesiVal==null || nval.isa(pesiVal) : n.label()+"#"+n._nid+" pessimistic="+pesiVal+" new="+nval; // Never fall worse than the pessimistic pass
+            assert oval.isa(nval) : "Non-monotonic SCCP: "+n.getClass().getSimpleName()+"#"+n._nid+" "+n+" old="+oval+" new="+nval;    // Types start high and always fall
             n._type = nval;
 
-            // If a TFP adds a new function input to a call, link to the new Fun
+            // Now we have a series of stanzas where we lazily create the Call
+            // Graph - adding graph edges between every call site and called
+            // function, including external (unknown) callers.  These edges are
+            // not in from the start because they are *too many*; we would get
+            // O(n^2) edges.  So all along we have been treating them as
+            // "virtual" CFG edges - a FunNode taking a Start input is treated
+            // as if every call on the planet might call it.  Now we make these
+            // CG edges *concrete*, adding them back as we discover that a call
+            // calls a particular function.
+
+            // If a TFP adds a new function input to a call, link to the new
+            // Fun.  This adds new edges to the graph allowing argument values
+            // to flow from calls into functions.  The added edges are
+            // effectively a refined Call Graph.
             if( nval instanceof TypeFunPtr tfp ) {
                 for( Node use : n._outputs )
                     if( !use._type.isHigh() && use instanceof CallNode call && call.fptr() == n )
                         linkCG(code,tfp,call);
             }
 
-            // Link a Call which becomes alive
-            if( n instanceof CallNode call && oval.isHigh() && !nval.isHigh() && call.fptr()._type instanceof TypeFunPtr )
+            // Link a Call which becomes alive.  Like above, adds new Call
+            // Graph edges to the graph.
+            if( n instanceof CallNode call && nval == Type.CONTROL && call.fptr()._type instanceof TypeFunPtr )
                 linkCG(code,call.tfp(),call);
 
-            if( n instanceof StartNode && nval instanceof TypeTuple tt ) linkStart(code,tt);
+            // If an otherwise-dead function pointer escapes, any future linked
+            // caller might find and call it.  Force the function to be alive
+            // and called by Start.
+            if( n instanceof StartNode )
+                linkStart(code,(TypeTuple)n._type);
 
             // Since n._type changed, visit all output neighbors
             code._iter.addAll(n._outputs);
@@ -191,19 +226,36 @@ abstract public class Opto {
             // the following Iter pass before moving clears the dependency list.
             for( int i=0; i<n.nDeps(); i++ ) deps.push(n.dep(i));
             n.moveDepsToWorklist(code._iter);
-            // Quadratic (expensive) small-step assert
-            assert check(code);
+            // Quadratic (expensive) small-step assert.
+            assert !CodeGen.expensiveAssert(count) || worklistCheck(code);
         }
     }
 
-    // Quadratic (expensive) small-step assert
-    private static boolean check(CodeGen code) {
-        code._start.walk( x -> {
+    // Quadratic (expensive) fixed-point assert
+    public static boolean fixedPointCheck(CodeGen code) {
+        return fixedPointCheck(code,code._stop);
+    }
+    public static boolean fixedPointCheck(CodeGen code, Node root) {
+        root.walk( x -> {
                 Type xval = x.compute();
-                assert xval == x._type || (x._type.isa( xval ) && code._iter._work.on( x ))
-                    : x.label()+"#"+x._nid+" old="+x._type+" new="+xval+" queued="+code._iter._work.on(x);
+                assert xval == x._type;
                 return null;
             });
+        return true;
+    }
+
+    // Quadratic (expensive) small-step assert for SCCP, where changed nodes
+    // may already be on the worklist.
+    private static boolean worklistCheck(CodeGen code) {
+        code._midAssert = true;
+        Node root = code._start;
+        root.walk( x -> {
+                Type xval = x.compute();
+                assert xval == x._type || (x._type.isa( xval ) && code._iter._work.on( x ))
+                    : "Non-monotonic or missed SCCP work: "+x.getClass().getSimpleName()+"#"+x._nid+" "+x+" old="+x._type+" new="+xval;
+            return null;
+            });
+        code._midAssert = false;
         return true;
     }
 
@@ -215,7 +267,6 @@ abstract public class Opto {
             if( n.isDead() ) continue;
             assert n.compute() == n._type; // Hit the fixed point.
             Type old = oldTypes.atX(n._nid);
-            assert old==null || n._type.isa(old);
             if( n._type!=old || n.isUnlocked() ) {
                 code.add(n);
                 code.addAll(n._inputs);

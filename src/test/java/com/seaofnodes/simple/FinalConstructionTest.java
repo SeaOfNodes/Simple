@@ -58,6 +58,8 @@ public class FinalConstructionTest {
             extern long long buildFinal(long long);
             int main(void) { return buildFinal(0)!=1 || buildFinal(3)!=15 || buildFinal(5)!=63; }
             """);
-        TestC.run("build/objs","finalConstruction","",-1);
+        TestC.run("val buildFinal={int arg ->"+LOOP+"};","finalConstruction",null,TestC.CALL_CONVENTION,
+                  TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",
+                  dir.resolve("finalConstruction.c").toString(),"",-1);
     }
 }

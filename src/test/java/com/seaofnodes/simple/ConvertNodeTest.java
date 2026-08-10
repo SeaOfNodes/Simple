@@ -42,7 +42,7 @@ public class ConvertNodeTest {
                 destinations.add(t);
 
         // Vary one isolated input without folding or lowering the conversion.
-        Node input = new ConstantNode(Type.BOTTOM);
+        Node input = ConstantNode.seed(Type.BOTTOM);
         input.setDef(0,null);
         Type[][] expected = new Type[destinations.size()][inputs.size()];
         for( CodeGen.Phase phase : new CodeGen.Phase[]{CodeGen.Phase.Parse,CodeGen.Phase.Iter,CodeGen.Phase.Opto,CodeGen.Phase.IterPostOpto} ) {

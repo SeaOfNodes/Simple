@@ -1,24 +1,54 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.type.*;
+import com.seaofnodes.print.ExprPrinter;
 
-/** A field name whose receiver's shape is not known while parsing. */
-public class FldOffNode extends Node {
-    public final String _name;
-    public FldOffNode(Node ptr, String name) { super(null,ptr); _name=name; }
-    @Override public String label() { return "#"+_name; }
-    @Override public Type compute() { return TypeInteger.BOT; }
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
+import java.util.HashMap;
+
+/**
+ * A field offset.  This becomes a constant *after* other optimizations which
+ * determine field sizes - some fields might be dead, or hold only zeros or
+ * small values.
+ */
+
+public class FldOffNode extends TypeNode {
+    public final String _fname; // Field name
+    public final Parser.Lexer _loc;   //
+    public FldOffNode( Node base, String fname, Parser.Lexer loc ) { super(TypeInteger.BOT,base); _fname = fname; _loc=loc; }
+
+
+    @Override public String label() {
+        return _fname == " len" ? "sizeof()" : "#"+_fname;
+    }
+
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.p(label());
+    }
+
+    @Override public Type compute() {
+        return Type.BOTTOM;
+    }
+
     @Override public Node idealize() {
-        if( in(1)._type instanceof TypeMemPtr ptr && !ptr._obj._open ) {
-            if( _name.equals("<<") && ptr._obj.isAry() ) return con(ptr._obj.aryScale());
-            if( ptr._obj.field(_name)!=null ) return new ConFldOffNode(ptr._obj._name,_name);
-        }
+        // When base() gets typed, this xforms into a ConFldOffNode
+        if( in(0)._type instanceof TypeMemPtr tmp )
+            return new ConFldOffNode(tmp._obj,_fname);
         return null;
     }
-    @Override public Parser.ParseException err() {
-        return Parser.error("Cannot resolve field '"+_name+"'",null);
+
+    @Override public boolean eq(Node n) {
+        FldOffNode off = (FldOffNode)n; // Invariant
+        return _fname.equals(off._fname) && super.eq(n);
     }
-    @Override public boolean eq(Node n) { return _name.equals(((FldOffNode)n)._name); }
-    @Override int hash() { return _name.hashCode(); }
+    @Override int hash() { return super.hash() * _fname.hashCode(); }
+
+    @Override public Parser.ParseException err() {
+        if( in(0)._type instanceof TypeMemPtr tmp && tmp._obj._fref )
+            return Parser.error("Unknown struct type '"+tmp._obj._name+"'",null);
+        return null;
+    }
 }

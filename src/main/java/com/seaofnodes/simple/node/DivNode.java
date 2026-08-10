@@ -10,6 +10,7 @@ public class DivNode extends ArithNode {
     public DivNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public DivNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs, mode); }
 
+
     @Override public String op() { return _mode==1 ? "//" : "/"; }
 
     @Override long   doOp( long  x,  long  y ) { return y==0 ? 0 : x / y; }

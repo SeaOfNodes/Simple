@@ -25,7 +25,6 @@ public class GuardNode extends Node {
     }
 
 
-
     @Override public String label() { return _nonZero ? "(!=0)" : "(==0)"; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
@@ -46,7 +45,6 @@ public class GuardNode extends Node {
         // choosing generic ptr here can be weaker than a later concrete type.
         if( t==TypeScalar.BOT || t==TypeScalar.TOP ) return t;
         Type t2 = _nonZero ? t.nonZero() : t.makeZero();
-        if( t2!=null ) t2 = t.join(t2);
         return t2==null ? (_type==null ? Type.TOP : _type) : t2; // No sane answer for e.g. not-zero of a zero
     }
 
@@ -54,8 +52,6 @@ public class GuardNode extends Node {
         if( in(0)._type != Type.CONTROL && in(0)._type != Type.BOTTOM )
             return null;
         if( in(1)._type==Type.BOTTOM || in(1)._type==Type.TOP ) return null;
-        Type t = in(1)._type;
-        if( _nonZero ? !t.makeZero().isa(t) : t==t.makeZero() ) return in(1);
         if( _type.isHighOrConst() && in(1)._type.isa(_type) )
             return in(1);
         return null;

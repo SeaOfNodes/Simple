@@ -2,37 +2,38 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.type.*;
 
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+
+// A collection of function ReturnNodes for a compilation unit.
 public class StopNode extends CFGNode {
 
-    public final String _src;
-    private Type _closed;
-    public void close() { _closed=_type; }
-
-    public StopNode(String src) {
+    public StopNode() {
         super();
-        _src = src;
         _type = compute();
     }
-    public StopNode(StopNode stop) { super(stop);  _src = stop==null ? null : stop._src; _closed=stop==null ? null : stop._closed; }
+    public StopNode(StopNode stop) { super(stop); }
 
-    @Override
-    public String label() {
-        return "Stop";
-    }
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         // For the sake of many old tests, and single value prints as "return val"
-        ReturnNode ret1 = ret();
+        ReturnNode ret1 = null;
+        for( Node n : _inputs ) {
+            if( n instanceof ReturnNode ret ) {
+                if( ret1 != null ) { ret1=null; break; }
+                ret1 = ret;
+            }
+        }
         if( ret1!=null ) return p.n(ret1);
+
         p.p("Stop[ ");
-        for( Node ret : _inputs )
-            if( ret!=null ) {
-                String name = ((ReturnNode)ret).fun()._name;
+        for( Node n : _inputs )
+            if( n instanceof ReturnNode ret ) {
+                String name = ret.fun()._name;
                 if( name== null || !name.startsWith("sys.") )
                     p.n(ret).p(" ");
             }
@@ -45,42 +46,36 @@ public class StopNode extends CFGNode {
     // If a single Return, return it.
     // Otherwise, null because ambiguous.
     public ReturnNode ret() {
-        Node ret1 = this;
-        for( Node ret : _inputs ) {
-            String name = ((ReturnNode)ret).fun()._name;
-            if( name==null || !name.startsWith("sys.") )
-                ret1 = ret1==this ? ((ReturnNode)ret) : null;
-        }
-        return ret1==this ? null : (ReturnNode)ret1;
-    }
-
-    @Override
-    public Type compute() {
-        if( _closed!=null ) return _closed;
-        CodeGen code=CodeGen.CODE;
-        if( code._phase==null || code._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ) return TypeMem.BOT;
-        TypeMem mem=TypeMem.START;
+        ReturnNode ret1 = null;
         for( Node n : _inputs ) {
-            ReturnNode ret=(ReturnNode)n;
-            if( !ret.fun().unknownCallers() ) continue;
-            // An external caller already holds its arguments. Writes through
-            // those pointers are visible even if this function returns a scalar.
-            for( Node use : ret.fun()._outputs )
-                if( use instanceof ParmNode p && p._idx>=2 )
-                    mem=mem.escapes(addDepForwards(p)._type);
-            if( !(ret._type instanceof TypeTuple tt) || tt._types[0].isHigh() ) continue;
-            mem=mem.escapes(tt.ret()).escapes(tt._types[1]);
+            // TODO: remove isPublic
+            if( n instanceof ReturnNode ret && ret.fun().isPublic() ) {
+                if( ret1 != null ) return null; // Ambiguous
+                ret1 = ret;
+            }
         }
-        for( CallNode call : code._calls )
-            if( !call.isDead() ) mem=mem.escapes(call.exposed(this));
-        return mem;
+        return ret1;
     }
 
     @Override
-    public Node idealize() {
+    public TypeTuple compute() {
+        // During Parsing, new Stops and Returns are being added.  This Stop
+        // cannot know if more are coming, so must assume the worst.
+        if( CodeGen.CODE._phase ==null || CodeGen.CODE._phase == CodeGen.Phase.Parse )
+            return TypeTuple.STATE;
+
+        // Just meet-over-inputs.
+        TypeTuple tt = TypeTuple.STOP_HIGH;
+        for( Node def : _inputs )
+            tt = (TypeTuple)tt.meet(def._type);
+        assert tt.mem()._alias==1 && !tt.mem()._one;
+        return tt;
+    }
+
+    @Override public Node idealize() {
         int len = nIns();
         for( int i=0; i<nIns(); i++ )
-            if( addDep(((ReturnNode)in(i)).fun()).isDead() )
+            if( in(i).nIns()==0 )
                 delDef(i--);
         if( len != nIns() ) return this;
         return null;
@@ -90,7 +85,10 @@ public class StopNode extends CFGNode {
         if( validIDepth() ) return _idepth;
         int d=0;
         for( Node ret : _inputs )
-            d = Math.max(d,((ReturnNode)ret).idepth()+1);
+            // All public results are hooked on the Stop, including data
+            // values, so must check CFG
+            if( ret instanceof CFGNode cfg )
+                d = Math.max(d,cfg.idepth()+1);
         return cacheIDepth(d);
     }
 }

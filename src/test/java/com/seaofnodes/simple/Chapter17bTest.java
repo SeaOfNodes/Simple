@@ -19,7 +19,9 @@ public class Chapter17bTest {
             """).driver(CodeGen.Phase.LocalSched);
         int[] stores = {0};
         code._stop.walk(n -> {
-            if( n instanceof com.seaofnodes.simple.node.StoreNode st && st._name.equals("x") ) {
+            // Constructor zero Stores remain in separate private memory.
+            if( n instanceof com.seaofnodes.simple.node.StoreNode st && st._name.equals("x") &&
+                st.val() instanceof com.seaofnodes.simple.node.PhiNode ) {
                 assertEquals(0,st.cfg0().loopDepth()); // One final Store outside the loop.
                 stores[0]++;
             }
@@ -28,7 +30,7 @@ public class Chapter17bTest {
         assertEquals(1,stores[0]);
         for( int arg : new int[]{-1,0,1,4} ) {
             long expected = arg<=0 ? 10 : arg;
-            assertEquals("S{x="+expected+"}",Eval2.eval(code,arg));
+            assertEquals("Test.S{x="+expected+"}",Eval2.eval(code,arg));
         }
     }
 
@@ -106,8 +108,8 @@ return xs[0];
     @Test
     public void testInc5() {
         CodeGen code = new CodeGen("""
-struct S { u16 x; };
-!S !s = new S;
+struct _S { u16 x; };
+!_S !s = new _S;
 s.x--;
 return s.x;
 """);
@@ -159,13 +161,13 @@ return s.x;
     @Test public void testVar0() {
         CodeGen code = new CodeGen("var d; return d;");
         try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected `=expression` but found `;`",e.getMessage()); }
     }
 
     @Test public void testVar1() {
         CodeGen code = new CodeGen("val d; return d;");
         try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected `=expression` but found `;`",e.getMessage()); }
     }
 
     @Test public void testVar2() {
@@ -183,14 +185,14 @@ return s.x;
     }
 
     @Test public void testVar4() {
-        CodeGen code = new CodeGen("struct S{int x;}; !S? !s; s=new S; s.x++; return s.x; // Ok, no initializer so x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x;}; !_S? !s; s=new _S; s.x++; return s.x; // Ok, no initializer so x is mutable ");
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar5() {
-        CodeGen code = new CodeGen("struct S{int x;}; !S? !s; s=new S{x=3;}; s.x++; return s.x; // Ok, no initializer so x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x; new _S={ int xx -> x=xx; };}; !_S? !s; s=new _S(3); s.x++; return s.x; // Ok, no initializer so x is mutable ");
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
@@ -203,20 +205,20 @@ return s.x;
     }
 
     @Test public void testVar7() {
-        CodeGen code = new CodeGen("struct S{int x;}; ~S s = new S{x=3;}; s.x++; return s.x; // Error initializer so x is immutable ");
+        CodeGen code = new CodeGen("struct S{int x; new S={ int xx -> x=xx; };}; ~S s = new S(3); s.x++; return s.x; // Error initializer so x is immutable ");
         try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test public void testVar8() {
-        CodeGen code = new CodeGen("struct S{int x;}; !S !s=new S; s.x++; return s.x; // Ok, has '!' so s.x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x;}; !_S !s=new _S; s.x++; return s.x; // Ok, has '!' so s.x is mutable ");
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar9() {
-        CodeGen code = new CodeGen("struct S{int x;}; var s=new S; s.x++; return s.x; // Ok, has var so s.x is mutable ");
+        CodeGen code = new CodeGen("struct _S{int x;}; var s=new _S; s.x++; return s.x; // Ok, has var so s.x is mutable ");
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
@@ -234,8 +236,8 @@ struct Bar { int x; };
 !Bar !bar = new Bar;
 bar.x = 3; // Ok, bar is mutable
 
-struct Foo { !Bar? !bar; int y; };
-!Foo !foo = new Foo { bar = bar; };
+struct Foo { !Bar? !bar; int y; new Foo = { !Bar? b -> bar = b; }; };
+!Foo !foo = new Foo(bar);
 foo.bar = bar; // Ok foo is mutable
 foo.bar.x++;   // Ok foo and foo.bar and foo.bar.x are all mutable
 
@@ -249,16 +251,16 @@ return xfoo.bar.x;
 
     @Test public void testVar12() {
         CodeGen code = new CodeGen("""
-struct Bar { int x; };
-!Bar !bar = new Bar;
+struct _Bar { int x; };
+!_Bar !bar = new _Bar;
 bar.x = 3; // Ok, bar is mutable
 
-struct Foo { !Bar? !bar; int y; };
-!Foo !foo = new Foo;
+struct _Foo { !_Bar? !bar; int y; };
+!_Foo !foo = new _Foo;
 foo.bar = bar; // Ok bar is mutable
 foo.bar.x++;   // Ok foo and foo.bar and foo.bar.x are all mutable
 
-~Foo xfoo = foo;        // Throw away mutability
+~_Foo xfoo = foo;        // Throw away mutability
 int x4 = xfoo.bar.x;   // Ok to read through xfoo, gets 4
 foo.bar.x++;           // Bumps to 5
 int x5 = xfoo.bar.x;   // Ok to read through xfoo, gets 5
@@ -283,41 +285,64 @@ int i,i++;
     public void testVar14() {
         CodeGen code = new CodeGen("""
 struct B {};
-struct A { !B !b; };
-A x = new A {
+struct A { !B !b; new A = { ->
     return b; // read before init
     b = new B;
-};
+}; };
+A x = new A;
 """);
         try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Exception e ) { assertEquals("Cannot read uninitialized field 'b'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Field 'b' might not be initialized",e.getMessage()); }
     }
 
     @Test
     public void testVar15() {
-        CodeGen code = new CodeGen("""
-struct B {};
-struct A { !B !b; };
-return new A {
-    if (arg) b = new B; // Constructor ends with partial init of b
-}.b;
-""");
-        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Exception e ) { assertEquals("'A' is not fully initialized, field 'b' needs to be set in a constructor",e.getMessage()); }
+        for( String fields : new String[] {
+            "!B !b; new A = { -> if (arg) b = new B; };",
+            "!B !b; new A = { -> if (arg) return 0; b = new B; };",
+            "!B !b; new A = { !B !b -> b = new B; };", // Mutable argument shadows field
+            "new A = { -> }; !B !b;",              // Field declared later
+        } ) {
+            CodeGen code = new CodeGen("struct B {}; struct A { "+fields+" }; return 0;");
+            try { code.parse(); fail(fields); }
+            catch( Parser.ParseException e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
+        }
+    }
+
+    @Test
+    public void testDefaultConstructorFields() {
+        for( String field : new String[] { "!B !b;", "!B !b;" } ) {
+            CodeGen code = new CodeGen("struct B {}; struct A { "+field+" }; return new A;");
+            try { code.parse(); fail(field); }
+            catch( Parser.ParseException e ) { assertEquals("'Test.A' is not fully initialized, field 'b' needs to be set in a constructor",e.getMessage()); }
+        }
+        for( String fields : new String[] {
+            "B b = new B;",
+            "!B !b; b = new B;",
+            "new A = { -> }; B b = new B;",
+            "!B !b; new A = { -> if (arg) { b = new B; return 0; } b = new B; };",
+        } ) {
+            CodeGen code = new CodeGen("struct B {}; struct A { "+fields+" }; return new A.b != null;");
+            code.driver(CodeGen.Phase.TypeCheck);
+            assertEquals("1",Eval2.eval(code,0));
+            assertEquals("1",Eval2.eval(code,1));
+        }
+        // No returning path means no object can escape uninitialized.
+        new CodeGen("struct B {}; struct A { !B !b; new A = { -> while (true) {} }; }; return 0;").parse();
     }
 
     @Test
     public void testVar16() {
         CodeGen code = new CodeGen(
 """
-struct S{};
+struct S{ new S = { -> x = 2; }; };
 val x = 1;
-~S s = new S{x = 2;};
+~S s = new S;
 return x;
 """
 );
         try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Undefined name 'x'",e.getMessage()); }
     }
 
     @Test
@@ -336,7 +361,7 @@ return me;
 """
 );
         try { code.parse(); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected =expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected `=expression` but found `;`",e.getMessage()); }
     }
 
     // ---------------------------------------------------------------
@@ -362,23 +387,36 @@ return arg ? 0 : arg;
     }
 
     @Test
+    public void testShortCircuitGuard() {
+        CodeGen code = new CodeGen("""
+struct S { int !x; };
+val get = { !S s -> s.x; };
+!S? !s = arg ? new S;
+if( !s || !arg ) return 0;
+return get(s);
+""");
+        code.driver(CodeGen.Phase.TypeCheck);
+    }
+
+    @Test
     public void testTrinary2() {
         CodeGen code = new CodeGen("""
-struct Bar { int x; };
-var b = arg ? new Bar : null;
+struct _Bar { int x; };
+var b = arg ? new _Bar : null;
 return b ? b.x++ + b.x++ : -1;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
-        assertEquals("1", Eval2.eval(code, 1));
+
+                                   assertEquals("1", Eval2.eval(code, 1));
     }
 
     @Test
     public void testTrinary3() {
         CodeGen code = new CodeGen("""
-struct Bar { int x; };
-var b = arg ? new Bar;
+struct _Bar { int x; };
+var b = arg ? new _Bar;
 return b ? b.x++ + b.x++ : -1;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
@@ -391,8 +429,8 @@ return b ? b.x++ + b.x++ : -1;
     public void testTrinary4() {
         // This test case will benefit from an unzipping transformation
         CodeGen code = new CodeGen("""
-struct Bar { !Bar? !next; int x; };
-var b = arg ? new Bar { next = (arg==2) ? new Bar{x=2;}; x=1; };
+struct _Bar { !_Bar? !next; int x; new _Bar = { !_Bar? !n, int xx -> next=n; x=xx; }; };
+var b = arg ? new _Bar((arg==2) ? new _Bar(null,2), 1);
 return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0"
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
@@ -421,7 +459,7 @@ struct S{};
 return arg ? 7 : new S;
 """);
         try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Exception e ) { assertEquals("No common type amongst int and reference",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot return generic scalar",e.getMessage()); }
     }
 
     // ---------------------------------------------------------------
@@ -496,48 +534,48 @@ return i;
 for(;;arg++;) {}
 """);
         try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
-        catch( Exception e ) { assertEquals("Syntax error, expected Unexpected code after expression: ;",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Syntax error, expected `Unexpected code after expression` but found `;`",e.getMessage()); }
     }
-
 
 
     // ---------------------------------------------------------------
     @Test
     public void testForward0() {
         CodeGen code = new CodeGen("""
-struct A{
+struct _A {
     !B? !f1;
     !B? !f2;
 };
-return new A;
+return new _A;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return A;", code.print());
-        assertEquals("A{f1=null,f2=null}", Eval2.eval(code,0));
+        assertEquals("return Test._A;", code.print());
+        assertEquals("Test._A{f1=null,f2=null}", Eval2.eval(code,0));
     }
 
     @Test
     public void testForward1() {
         CodeGen code = new CodeGen("""
-struct A {
+struct _A {
     !B?[]? !nil_array_of_b;
     !B?[] !array_of_b;
+    new _A = { !B?[] bs -> array_of_b = bs; };
 };
-return new A{array_of_b = new !B?[0]; }.array_of_b;
+return new _A(new !B?[0]).array_of_b;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return []*B?;", code.print());
-        assertEquals("*B {... }?[]", Eval2.eval(code,0));
+        assertEquals("*B {}?[]", Eval2.eval(code,0));
     }
 
     // ---------------------------------------------------------------
     @Test
     public void testLinkedList2() {
         CodeGen code = new CodeGen("""
-struct LLI { !LLI? !next; int i; };
-!LLI? !head = null;
+struct _LLI { !_LLI? !next; int i; new _LLI = { !_LLI? !n, int ii -> next=n; i=ii; }; };
+!_LLI? !head = null;
 while( arg-- )
-    head = new LLI { next=head; i=arg; };
+    head = new _LLI(head,arg);
 int sum=0;
 var ptr = head; // A read-only ptr, to be assigned from read-only next fields
 for( ; ptr; ptr = ptr.next )
@@ -575,7 +613,7 @@ for( int j=0; j<nprimes; j++ )
     rez[j] = primes[j];
 return rez;
 """);
-        code.driver(CodeGen.Phase.Schedule);
+        code.driver(CodeGen.Phase.FinalizeIR).driver(CodeGen.Phase.Schedule);
         assertEquals("return []i64;", code.print());
         assertEquals("i64[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
