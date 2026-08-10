@@ -154,14 +154,14 @@ public class FunNode extends RegionNode {
         }
 
         // Attempt to get rid of the unknown caller.
-        // - Must be past Parser, which invents new calls "from whole cloth".
+        // - Must be past pessimistic Iter, which discovers and links calls
+        //   through class-field loads and other initially imprecise values.
         // - FIDX is not in the escape set
         // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
         if( in(1) instanceof StartCUNode start ) {
             boolean preOpto = CodeGen.CODE._phase == null ||
                 CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
-            if( !start.escapedFIDX(_sig.fidx()) && nIns()<=2 && _ret!=null &&
-                !(preOpto && hasFunPtr()) ) {
+            if( !preOpto && !start.escapedFIDX(_sig.fidx()) && nIns()<=2 && _ret!=null ) {
                 _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
                 return removeDeadPath(1);
             } else {
@@ -184,17 +184,6 @@ public class FunNode extends RegionNode {
         }
 
         return null;
-    }
-
-    // Before SCCP has discovered all Call edges, a live function pointer is
-    // enough reason to retain the unknown-caller Start edge.
-    private boolean hasFunPtr() {
-        for( Node use : ret().outs() )
-            if( use instanceof FunPtrNode && !use.isDead() ) {
-                addDep(use);
-                return true;
-            }
-        return false;
     }
 
     // Bypass Region idom, always assume depth == 1, one more than Start,

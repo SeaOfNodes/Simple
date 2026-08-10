@@ -193,7 +193,8 @@ public class TypeInteger extends TypeScalar {
             baos.write(TAGOFFS[_type] + 6);
             baos.packed8(_min);
             baos.packed8(_max);
-            baos.packed1(_widen);
+            assert -3 <= _widen && _widen <= 3;
+            baos.packed1(_widen + 3);
         }
     }
 
@@ -205,7 +206,7 @@ public class TypeInteger extends TypeScalar {
         case 3 -> BOOL;
         case 4 -> ZERO;
         case 5 -> constant(bais.packed8());
-        case 6 -> make(bais.packed8(),bais.packed8(),(byte)bais.packed1());
+        case 6 -> make(bais.packed8(),bais.packed8(),(byte)(bais.packed1()-3));
         default -> throw Utils.TODO();
         };
     }

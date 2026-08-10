@@ -12,13 +12,20 @@ public class TFPX86 extends FunPtrNode implements MachNode, RIPRelSize {
     private byte _opLen;
     final String _ext;          // External name
     // Pointer to a Simple function
-    TFPX86( FunPtrNode fptr ) { super(fptr); _ext = null; }
+    TFPX86( FunPtrNode fptr ) { this((TypeFunPtr)fptr._type,null); }
+    // Spill clone: copy inputs without registering their reverse edges;
+    // insertBefore will place and register the clone in its use block.
+    private TFPX86( TFPX86 fptr ) { super(fptr); _ext = fptr._ext; }
     // Pointer to an Extern "C" function
     TFPX86( TypeFunPtr fptr, String ext ) { super(fptr,CodeGen.CODE._start,null); _type = fptr; _ext = ext; }
     @Override public String op() { return "ldx"; }
     @Override public String label() { return op(); }
+    // The ideal FunPtrNode is pinned because its Return input is a lifetime
+    // hook.  After selection this is an ordinary cloneable load-address
+    // instruction and must be scheduled down near its actual use.
+    @Override public boolean isPinned() { return false; }
     @Override public boolean isClone() { return true; }
-    @Override public TFPX86 copy() { return new TFPX86((TypeFunPtr)_con,_ext); }
+    @Override public TFPX86 copy() { return new TFPX86(this); }
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public void encoding( Encoding enc ) {

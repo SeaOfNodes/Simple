@@ -41,14 +41,16 @@ public class TypeScalar extends Type {
     @Override boolean _isGLB(boolean mem) { return this == BOT; }
     @Override Type _glb(boolean mem) { return BOT; }
 
-    @Override int TAGOFF() { return 1; }
+    // Reserve tags for both lattice endpoints.  Unlike most concrete scalar
+    // families, generic scalar TOP can survive into a serialized graph.
+    @Override int TAGOFF() { return 2; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs) {
-        assert this == BOT;
-        baos.write(TAGOFFS[_type]);
+        assert this == BOT || this == TOP;
+        baos.write(TAGOFFS[_type] + (this == BOT ? 0 : 1));
     }
     static TypeScalar packed(int tag) {
-        assert tag == 0;
-        return BOT;
+        assert tag == 0 || tag == 1;
+        return tag == 0 ? BOT : TOP;
     }
 
     @Override public String str() { return isHigh() ? "~scalar" : "scalar"; }
