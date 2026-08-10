@@ -70,7 +70,7 @@ abstract public class BoolNode extends Node implements ModeNode {
     public Node idealize() {
         // Compare of same
         if( in(1)==in(2) )
-            return this instanceof LT ? com.seaofnodes.simple.Parser.ZERO : ConstantNode.make(TRUE);
+            return this instanceof LT ? CodeGen.CODE.ZERO : ConstantNode.make(TRUE);
         // Can we decide int vs flt?
         Type t1 = in(1)._type, t2 = in(2)._type;
         if( t1==null || t2==null )
@@ -116,7 +116,8 @@ abstract public class BoolNode extends Node implements ModeNode {
     public static class EQ extends BoolNode {
         public EQ(Node lhs, Node rhs) { super(lhs,rhs); }
         public EQ(Node lhs, Node rhs, byte mode) { super(lhs,rhs, mode); }
-            public String op() { return "=="; }
+
+        public String op() { return "=="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1==i2 && i1.isConstant() ) return TRUE;
             if( i1._max < i2._min || i1._min > i2._max ) return FALSE;
@@ -129,7 +130,8 @@ abstract public class BoolNode extends Node implements ModeNode {
     public static class NE extends BoolNode {
         public NE(Node lhs, Node rhs) { super(lhs,rhs); }
         public NE(Node lhs, Node rhs, byte mode) { super(lhs,rhs,mode); }
-            public String op() { return "!="; }
+
+        public String op() { return "!="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1==i2 && i1.isConstant() ) return TRUE;
             if( i1._max < i2._min || i1._min > i2._max ) return FALSE;
@@ -142,7 +144,8 @@ abstract public class BoolNode extends Node implements ModeNode {
     public static class LT extends BoolNode {
         public LT(Node lhs, Node rhs) { super(lhs,rhs); }
         public LT(Node lhs, Node rhs, byte mode) { super(lhs,rhs, mode); }
-            public String op() { return "<" ; }
+
+        public String op() { return "<" ; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <  i2._min ) return TRUE;
             if( i1._min >= i2._max ) return FALSE;
@@ -155,7 +158,8 @@ abstract public class BoolNode extends Node implements ModeNode {
     public static class LE extends BoolNode {
         public LE(Node lhs, Node rhs) { super(lhs,rhs); }
         public LE(Node lhs, Node rhs, byte mode) { super(lhs,rhs,mode); }
-            public String op() { return "<="; }
+
+        public String op() { return "<="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <= i2._min ) return TRUE;
             if( i1._min >  i2._max ) return FALSE;
@@ -172,7 +176,8 @@ abstract public class BoolNode extends Node implements ModeNode {
             super(lhs,rhs,(byte)1);
             assert mode==1;
         }
-            public String op() { return "u<" ; }
+
+        public String op() { return "u<" ; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( Long.compareUnsigned(i1._max,i2._min) <  0 ) return TRUE;
             if( Long.compareUnsigned(i1._min,i2._max) >= 0 ) return FALSE;
@@ -180,23 +185,4 @@ abstract public class BoolNode extends Node implements ModeNode {
         }
         Node copy(Node lhs, Node rhs) { return new ULT(lhs,rhs); }
     }
-    public static class EQF extends EQ {
-        public EQF(Node lhs, Node rhs) { super(lhs,rhs,(byte)2); }
-        @Override boolean doOp(double lhs, double rhs) { return lhs == rhs; }
-        @Override public boolean isFloat() { return true; }
-        @Override Node copy(Node lhs, Node rhs) { return new EQF(lhs,rhs); }
-    }
-    public static class LTF extends LT {
-        public LTF(Node lhs, Node rhs) { super(lhs,rhs,(byte)2); }
-        @Override boolean doOp(double lhs, double rhs) { return lhs <  rhs; }
-        @Override public boolean isFloat() { return true; }
-        @Override Node copy(Node lhs, Node rhs) { return new LTF(lhs,rhs); }
-    }
-    public static class LEF extends LE {
-        public LEF(Node lhs, Node rhs) { super(lhs,rhs,(byte)2); }
-        @Override boolean doOp(double lhs, double rhs) { return lhs <= rhs; }
-        @Override public boolean isFloat() { return true; }
-        @Override Node copy(Node lhs, Node rhs) { return new LEF(lhs,rhs); }
-    }
-
 }

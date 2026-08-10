@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
+import com.seaofnodes.simple.codegen.IndirectCallTestSupport;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
@@ -21,6 +22,7 @@ public class IndirectCallTest {
             RegMask mask = ((MachNode)call).regmap(call.nIns()-1);
             assertTrue(mask.test(5));
             assertTrue(mask.test(6));
+            if( cpu.equals("arm") ) IndirectCallTestSupport.checkArmEncoding(code,call);
             // Machine operands can lose their ideal type (e.g. a spill reload).
             // The call still needs the original signature for argument masks.
             target._type = Type.BOTTOM;

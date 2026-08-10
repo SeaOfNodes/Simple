@@ -197,7 +197,7 @@ public abstract class XInt {
 
 
     // Next set bit, or -1
-    // for( int bit = XInt.next(bits,-1); bit >=0; bit = XInt.next(bits,bit) ) {...bit...}
+    // for( int bit = XInt.next(bits,0); bit >=0; bit = XInt.next(bits,bit) ) {...bit...}
     public static int next(int[] xs, int x) {
         assert !isHigh(xs);     // No iterating infinite bitsets
         x++;                    // Skip current
@@ -207,6 +207,9 @@ public abstract class XInt {
         return x;
     }
 
+    // Remap all bits
+
+
     public static String str(int[] xs) { return str(new SB(),xs).toString(); }
     public static SB str(SB sb, int[] xs) {
         sb.p("[ ");
@@ -215,13 +218,13 @@ public abstract class XInt {
         //   1,2,4 prints 1,2,4
         //
         int max = (xs.length-1)<<5;
-        int low = -1;  // No low range; function identity 0 is main here.
-        for( int i=0; i<max; i++ ) {
+        int low = 0;   // No low range
+        for( int i=1; i<max; i++ ) {
             if( bit(xs,i) ) {       // Set bit, start or extend range
-                if( low==-1 ) low=i; // No range, start one
+                if( low==0 ) low=i; // No range, start one
             } else {                // Break in sequence, ending a range
                 range(sb,low,i-1);  // Print prior range, and start new one
-                low=-1;             // Reset range
+                low=0;              // Reset range
             }
         }
         // Print any partial range
@@ -232,7 +235,7 @@ public abstract class XInt {
     }
 
     private static SB range( SB sb, int low, int mid ) {
-        if( low==-1 ) ;
+        if( low==0 ) ;
         else if( low==mid ) sb.p(low).p(',');
         else if( low==mid-1 ) sb.p(low).p(',').p(mid).p(',');
         else sb.p(low).p('-').p(mid).p(',');

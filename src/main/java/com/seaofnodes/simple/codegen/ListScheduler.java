@@ -28,7 +28,7 @@ public abstract class ListScheduler {
         }
         void free() { _n = null; FREE.push(this); }
 
-        static XSched get(Node n) { return n==null ? null : XS.get(n instanceof ProjNode && !(n.in(0) instanceof CallEndNode) ? n.in(0) : n); }
+        static XSched get(Node n) { return n==null ? null : XS.get(n instanceof ProjNode && !(n.in(0) instanceof CFGNode) ? n.in(0) : n); }
 
         private XSched init(CFGNode bb, Node n) {
             _n = n;

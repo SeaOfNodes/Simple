@@ -21,7 +21,7 @@ public class ChainedComparisonTest {
 
     @Test public void testSingleEvaluationAndShortCircuit() {
         for(int seed:new int[]{2,13,123}) {
-            CodeGen code = new CodeGen("int x=arg; int y=0; val b=0 < x++ <= (y+=3) < (y+=1); return x*100+y*10+b;",TypeInteger.BOT,seed,true)
+            CodeGen code = new CodeGen("int x=arg; int y=0; val b=0 < x++ <= (y+=3) < (y+=1); return x*100+y*10+b;",seed,true)
                 .driver(CodeGen.Phase.TypeCheck);
             assertEquals("100",Eval2.eval(code,0));
             assertEquals("441",Eval2.eval(code,3));

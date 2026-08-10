@@ -1,0 +1,10 @@
+{i32 i64 u32 -> u32} write="C";
+val _p={u8[~] str -> i64 ptr=str; return write(1,ptr,str#);};
+int score = 75;
+
+if (60 <= score < 90) {
+    _p("In Range");
+} else {
+_p("Out of range");
+}
+return 0;

@@ -11,8 +11,8 @@ import static org.junit.Assert.*;
 public class ArithNodeTest {
     @Test public void testUnresolvedInput() {
         new CodeGen("return 0;").driver(CodeGen.Phase.Opto);
-        Node lhs = new ConstantNode(TypeInteger.TRUE);
-        Node rhs = new ConstantNode(TypeInteger.TRUE);
+        Node lhs = ConstantNode.seed(TypeInteger.TRUE);
+        Node rhs = ConstantNode.seed(TypeInteger.TRUE);
         ArithNode add = new AddNode(lhs,rhs);
         assertSame(TypeInteger.constant(2),add.compute());
         lhs._type = TypeScalar.BOT;
@@ -47,8 +47,8 @@ public class ArithNodeTest {
         size = inputs.size();
 
         // Isolated inputs let us vary types without peepholes settling modes.
-        Node lhs = new ConstantNode(Type.BOTTOM);
-        Node rhs = new ConstantNode(Type.BOTTOM);
+        Node lhs = ConstantNode.seed(Type.BOTTOM);
+        Node rhs = ConstantNode.seed(Type.BOTTOM);
         lhs.setDef(0,null);
         rhs.setDef(0,null);
         ArrayList<ArithNode> ops = new ArrayList<>();

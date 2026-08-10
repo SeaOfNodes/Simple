@@ -1,0 +1,4 @@
+Stats.builds++;
+int[] _squares=new int[256];
+for(int i=0; i<256; i++) _squares[i]=i*i;
+val square={u8 n -> _squares[n];};

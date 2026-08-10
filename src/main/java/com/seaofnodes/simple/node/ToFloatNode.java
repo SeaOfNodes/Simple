@@ -9,7 +9,6 @@ import com.seaofnodes.simple.type.TypeInteger;
 public class ToFloatNode extends Node {
     public ToFloatNode(Node lhs) { super(null, lhs); }
 
-    @Override public String label() { return "ToFloat"; }
 
     @Override protected String format() { return "(flt)%1"; }
 

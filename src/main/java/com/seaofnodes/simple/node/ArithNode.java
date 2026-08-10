@@ -95,6 +95,8 @@ public abstract class ArithNode extends Node implements ModeNode {
             return null;
         if( unsupportedFloat || n instanceof BoolNode )
             return Parser.error("Cannot '"+op+"' "+bad,loc);
+        if( n.nIns()==3 )
+            return Parser.error("Cannot "+n.in(1)._type+" "+op+" "+n.in(2)._type,loc);
         return Parser.error("Cannot '"+op+"' "+bad,loc);
     }
 

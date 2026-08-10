@@ -1,7 +1,6 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -14,7 +13,7 @@ public class PrefixUpdateTest {
             for(int seed:new int[]{2,13,123}) {
                 String src="struct C { "+fields[i]+"; val change_noInline={ -> "+updates[i]+"; }; }; "
                     +"var c=new C; val a=c.change_noInline(); val b=c.change_noInline(); return a+10*b+100*c.x;";
-                CodeGen code=new CodeGen(src,TypeInteger.BOT,seed,true).driver(CodeGen.Phase.TypeCheck);
+                CodeGen code=new CodeGen(src,seed,true).driver(CodeGen.Phase.TypeCheck);
                 assertEquals(fields[i],results[i],Eval2.eval(code,0));
             }
     }
@@ -48,6 +47,12 @@ public class PrefixUpdateTest {
             int main(void) { return prefixUpdate(0)!=110; }
             """);
         String abi=TestC.OS.startsWith("Windows") ? "ms_abi" : "sysv_abi";
-        TestC.run(src,TestC.CALL_CONVENTION,null,abi,driver.toString(),"build/objs/prefixUpdate","S","",-1);
+        TestC.run(src,"prefixUpdate",null,TestC.CALL_CONVENTION,abi,driver.toString(),"",-1);
+    }
+
+    @Test public void testModuleFieldWrites() {
+        CodeGen code=new CodeGen("int calls=0; val next_noInline={ -> ++calls; }; return next_noInline()+10*next_noInline();")
+            .driver(CodeGen.Phase.TypeCheck);
+        assertEquals("21",Eval2.eval(code,0));
     }
 }

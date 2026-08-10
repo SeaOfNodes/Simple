@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Float Type
@@ -51,7 +52,7 @@ public class TypeFloat extends TypeScalar {
         case   0 -> ""+_con+((float)_con==_con ? "f" : "");
         case  32 ->  "f32";
         case  64 ->  "flt";
-        default  -> throw Utils.TODO();
+        default  -> throw Utils.TODO("Should not reach here: unknown float size");
         };
     }
     private boolean isF32() { return ((float)_con)==_con; }
@@ -88,16 +89,16 @@ public class TypeFloat extends TypeScalar {
         return _isConstant() ? this : new TypeFloat((byte)-_sz,0); // Constants are a self-dual
     }
 
-    @Override boolean _isGLB(boolean mem) { return _glb(mem)==this; }
-    @Override Type _glb(boolean mem) {
-        if( !mem ) return F64;
+    @Override boolean _isConstant() { return _sz==0; }
+
+    @Override Type _makeStorage() {
         if( _isConstant() ) return isF32() ? F32 : F64;
         return isHigh() ? dual() : this;
     }
 
-    @Override boolean _isConstant() { return _sz==0; }
-
     @Override public Type makeZero() { return FZERO; }
+
+
     @Override
     int hash() { return (int)(Double.hashCode(_con) ^ _sz ^ (1<<17)); }
     @Override

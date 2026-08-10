@@ -83,18 +83,11 @@ public class ScriptGenerator {
         }
     }
 
-    private static final List<TypeInt> INTTYPES = new ArrayList<>();
 
-    static {
-        for( var e : Parser.TYPES.entrySet() ) {
-            if( e.getValue() instanceof TypeInteger ) {
-                INTTYPES.add(new TypeInt(e.getKey()));
-            }
-        }
-    }
-
-    private static final Type TYPE_INT = INTTYPES.stream().filter(t->t.name.equals("int")).findAny().get();
-    private static final Type TYPE_BOOL = INTTYPES.stream().filter(t->t.name.equals("bool")).findAny().get();
+    private static final TypeInt TYPE_INT  = new TypeInt("int");
+    private static final TypeInt TYPE_BOOL = new TypeInt("bool");
+    private static final TypeInt TYPE_U8 = new TypeInt("u8");
+    private static final List<TypeInt> INTTYPES = new ArrayList<>(){{add(TYPE_INT); add(TYPE_BOOL); add(TYPE_U8); }};
 
     private static class Variable {
         final String name;

@@ -8,6 +8,7 @@ public class AddNode extends ArithNode {
     public AddNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public AddNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs, mode); }
 
+
     @Override public String label() { return "Add"; }
     @Override public String op() { return "+"; }
 
@@ -41,7 +42,7 @@ public class AddNode extends ArithNode {
 
         // Add of same to a multiply by 2
         if( lhs==rhs && _mode==1 )
-            return new ShlNode(null,lhs,com.seaofnodes.simple.Parser.con(1));
+            return new ShlNode(null,lhs,CodeGen.CODE.con(1));
 
         // Goal: a left-spine set of adds, with constants on the rhs (which then fold).
 

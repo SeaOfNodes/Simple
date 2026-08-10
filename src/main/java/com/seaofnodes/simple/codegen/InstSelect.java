@@ -1,30 +1,43 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
 import java.util.IdentityHashMap;
 
-// Replace ideal nodes with machine nodes, then rebuild the copied graph's uses.
+// Replace ideal nodes with machine nodes while preserving CFG/loop metadata.
+// Selection also owns target ABI masks and rebuilding the copied graph's uses.
 class InstSelect {
     private final CodeGen _code;
-    InstSelect(CodeGen code) { _code=code; }
+    private InstSelect(CodeGen code) { _code=code; }
 
-    @SuppressWarnings("unchecked")
-    void run(String cpu, String callingConv, String base) {
+    static CodeGen select(CodeGen code, String cpu, String callingConv, String base) {
+        // Ideal evaluation schedules the ideal graph without a CPU port.
+        if( cpu==null ) return code;
+        return code.phase(CodeGen.Phase.Select, code._phase==CodeGen.Phase.LoopTree,
+                          () -> new InstSelect(code).run(cpu,callingConv,base));
+    }
+
+    private void run(String cpu, String callingConv, String base) {
         _code._callingConv = callingConv;
 
         // Look for CPU in fixed named place:
         //   com.seaofnodes.simple.node.cpus."cpu"."cpu.class"
         String clzFile = base+"."+cpu+"."+cpu;
-        try { _code._mach = ((Class<Machine>) Class.forName( clzFile )).getDeclaredConstructor(new Class[]{CodeGen.class}).newInstance(_code); }
+        try { _code._mach = Class.forName(clzFile).asSubclass(Machine.class).getDeclaredConstructor(CodeGen.class).newInstance(_code); }
         catch( Exception e ) { throw new RuntimeException(e); }
+
+        _code._cCallingConv = _code._mach.cCallingConv(callingConv);
 
         // Build global copies of common register masks.
         long callerSave = _code._mach.callerSave();
+        long cCallerSave= _code._mach.callerSave(_code._cCallingConv);
         long  neverSave = _code._mach. neverSave();
         int maxReg = Math.min(64,_code._mach.regs().length);
         assert maxReg>=64 || (-1L << maxReg & callerSave)==0; // No stack slots in callerSave
+        assert maxReg>=64 || (-1L << maxReg & cCallerSave)==0; // No stack slots in cCallerSave
         _code._callerSave = new RegMask(callerSave);
+        _code._cCallerSave= new RegMask(cCallerSave);
 
         // Build a Return RegMask array.  All returns have the following inputs:
         // 0 - ctrl
@@ -43,11 +56,18 @@ class InstSelect {
         _code._uid = 1;               // All new machine nodes reset numbering
         var map = new IdentityHashMap<Node,Node>();
         _instSelect( _code._stop, map );
-        _code._stop  = ( StopNode)map.get(_code._stop );
+        _code._stop  = (StopNode)map.get(_code._stop );
         StartNode start = (StartNode)map.get(_code._start);
         _code._start = start==null ? new StartNode(_code._start) : start;
         _instOuts(_code._stop,_code.visit());
         _code._visit.clear();
+
+        // Replace the CompUnit stop (and list of functions)
+        // with hardware-specific ones
+        for( CompUnit cu : _code._compunits.values() ) {
+            cu._start= (StartCUNode)map.get(cu._start);
+            cu._stop = (StopCUNode )map.get(cu._stop );
+        }
     }
 
     private Node _instSelect( Node n, IdentityHashMap<Node,Node> map ) {
@@ -65,14 +85,28 @@ class InstSelect {
         }
 
         // Produce a machine node from n; map it to flag as done so stops cycles.
-        map.put(n, x=select(n) );
-        // Stop retains the callable body. Its lifetime edge is not a machine operand.
-        if( n instanceof FunPtrNode ) x._inputs.pop();
+        if( n instanceof MemOpNode mem && mem.off() instanceof ExternOffsetNode off ) {
+            // External fields replace base+offset with symbol+0. Keep the ideal
+            // declaring type on the address for machine load/store width selection.
+            TypeMemPtr ptr = (TypeMemPtr)mem.ptr()._type;
+            n._inputs.set(2,new ExternNode(TypeMemPtr.make((byte)2,ptr._obj,true),off._extern));
+            n._inputs.set(3,ConstantNode.raw(TypeInteger.ZERO));
+        }
+        map.put(n, x=_code._mach.instSelect(n) );
+        // Carry loop-tree and pre-order info across the ideal->mach transition
+        if( n instanceof CFGNode ncfg && x instanceof CFGNode xcfg ) {
+            xcfg._ltree = ncfg._ltree;
+            xcfg._pre = ncfg._pre;
+        }
         // Walk machine op and replace inputs with mapped inputs
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );
-        if( x instanceof MachNode mach )
+        // Post selection action
+        if( x instanceof MachNode mach ) {
+            if( n instanceof ReturnNode ret )
+                ((ReturnNode)mach)._fun = (FunNode)map.get(ret._fun);
             mach.postSelect(_code);  // Post selection action
+        }
 
         return x;
     }
@@ -83,30 +117,10 @@ class InstSelect {
         for( Node in : n._inputs )
             if( in!=null ) {
                 in._outputs.push(n);
+                // CallNode special: outputs are partially ordered; CallEnd in slot 0
+                if( in instanceof CallNode call && n instanceof CallEndNode cend && call.out(0) != cend )
+                    call._outputs.swap(0,call.nOuts()-1);
                 _instOuts(in,visit);
             }
-    }
-
-
-    private Node select(Node n) {
-        if( n instanceof EscapeNode esc ) return new EscapeMach(esc);
-        if( n instanceof GuardNode guard ) return new GuardMach(guard);
-        if( n instanceof PtrToIntNode ptr ) return new PtrToIntMach(ptr);
-        Node op = n;
-        if( n instanceof ModeNode mode && mode.mode()==2 ) {
-            // Adapt to the existing CPU selectors. As with machine expansion,
-            // copy inputs without adding uses to the old graph; _instOuts
-            // rebuilds reverse edges after selection has finished.
-            op = switch(n) {
-            case AddNode add -> new AddFNode(add);
-            case SubNode sub -> new SubFNode(sub);
-            case MulNode mul -> new MulFNode(mul);
-            case DivNode div -> new DivFNode(div);
-            case MinusNode neg -> new MinusFNode(neg);
-            default -> n;
-            };
-            op._type = n._type;
-        }
-        return _code._mach.instSelect(op);
     }
 }

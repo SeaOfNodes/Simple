@@ -14,8 +14,7 @@ public class CallARM extends CallNode implements MachNode, RIPRelSize {
         _inputs.pop(); // Pop constant target
         assert tfp.isConstant();
         _tfp = tfp;
-        FunNode fun = CodeGen.CODE.link(tfp);
-        _name = fun==null ? CodeGen.CODE.externFunc(tfp) : fun._name;
+        _name = CodeGen.CODE.funcName(tfp.fidx());
     }
 
     @Override public String op() { return "call"; }
