@@ -74,7 +74,17 @@ public abstract class TypeConAry<A> extends TypeScalar {
     public abstract long at8(int idx);
     public abstract int len();
     @Override public abstract int log_size();
-
-
     public void write( BAOS baos ) { throw Utils.TODO("Should not reach here: abstract constant array cannot be written"); }
+
+    // Reserve tags for u8 array
+    @Override int TAGOFF() { return 1; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        assert log_size()==0 && !_any;
+        baos.write(TAGOFFS[TCONARY]+0);
+        baos.packed4(len());
+        baos.write((byte[])_ary);
+    }
+    static TypeConAry packed( int tag, BAOS bais ) {
+        return TypeConAryB.make(bais.read(new byte[bais.packed4()]));
+    }
 }

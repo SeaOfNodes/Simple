@@ -1,9 +1,10 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.*;
@@ -11,7 +12,7 @@ import java.util.*;
 public abstract class Eval2 {
 
     // A mapping from Node ID to evaluation data Object.
-    // Data Objsts are a boxed Long or Double; or an Object[] of fields, which
+    // Data Objects are a boxed Long or Double; or an Object[] of fields, which
     // themselves are just more Objects.
     private static class Frame {
         private static int UID=1;
@@ -77,31 +78,24 @@ public abstract class Eval2 {
         }
     }
 
-    // Classic Closure; an environment (stack of frames) and an execution point
-    private static class Closure {
-        // Where to return too; either a CallEnd or a Function
+    // A Classic Continuation; the suspended caller and the control point to
+    // resume after a return.
+    private static class Continuation {
+        // Resume a CallEnd or a CLInit's successor, or exit at Stop.
         final CFGNode _cc;
 
-        // Stack frame at the execution point.  Includes Closures which
+        // Stack frame at the execution point.  Includes Continuations which
         // recursively include other stack frames
-        private Frame _frame;
+        final Frame _frame;
 
-        Closure(CFGNode cc, Frame frame) {
-            _cc = cc;           // One of Fun, CallEnd or Stop (null)
+        Continuation(CFGNode cc, Frame frame) {
+            _cc = cc;
             _frame = frame;
             assert _frame._refcnt >=0;
             _frame._refcnt++;
         }
 
-        FunNode fun() { return (FunNode)_cc; }
-        CallEndNode cend() { return (CallEndNode)_cc; }
-        boolean isStop() { return _cc instanceof StopNode; } // or Stop
-
-        //
-        void pushFrame() {
-            _frame = new Frame(_frame);
-            _frame._refcnt++;
-        }
+        boolean isStop() { return _cc instanceof StopNode; }
 
         @Override public String toString() {
             return _cc.toString();
@@ -119,12 +113,14 @@ public abstract class Eval2 {
 
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
+        code.driver(CodeGen.Phase.TypeCheck);
         if( code._start.uctrl()==null ) return ""; // The empty program
         SB trace = null; // new SB(); // TRACE, set to null for off, new SB() for on
-        // Force local scheduling phase
-        code.driver(CodeGen.Phase.LocalSched);
         // Set global, so don't have to pass everywhere
         CODE = code;
+        // The normal driver schedules ideal IR without Lower or instruction
+        // selection. Objects loaded later are scheduled independently.
+        code.driver(CodeGen.Phase.LocalSched);
         CLASSES.clear();
 
         // Timer for when we run too long.  Ticks once per backedge or function call
@@ -134,18 +130,12 @@ public abstract class Eval2 {
         // fields, which themselves are just more Objects.
         F = new Frame(null);
 
-        // Start at the START
-        CFGNode BB = code._start, prior = null;
-        // Return from main hits Stop
-        F.put(BB,new Closure(code._stop,F));
-        // For all <clinit> / Clazzes, install their uninitialized memory
-        for( FunNode fun : code._linker )
-            if( fun!=null && fun.isClz() ) {
-                TypeStruct clz = ((TypeMemPtr)fun.sig().arg(0))._obj;
-                // Map from the <clinit> self parameter to the
-                // singleton class structure.
-                F.put(fun.parm(2),classObject(clz));
-            }
+        FunNode entry = (FunNode)code._start.uctrl();
+        VALUE_CACHE.setX(0,"$mem");
+        VALUE_CACHE.setX(1,classObject(((TypeMemPtr)entry.sig().arg(0))._obj));
+        VALUE_CACHE.setX(2,arg);
+        CFGNode BB = enter(entry,code._stop);
+        CFGNode prior = null;
 
 
         // ------------
@@ -158,7 +148,7 @@ public abstract class Eval2 {
 
             // Parallel assign Phis
             int i = BB instanceof RegionNode r
-                    ? parallelAssignPhis(r,prior,arg,trace)
+                    ? parallelAssignPhis(r,prior,trace)
                     : 0;
 
             // Compute the data nodes until BB control
@@ -170,33 +160,38 @@ public abstract class Eval2 {
             prior = BB;
             BB = BB.uctrl();      // Next unique control target
             switch( prior ) {
-            case StartNode start:  F = new Frame(F); break; // Frame for the call to main, as-if Called
             case CallNode  call :  BB = call(call); break;
+            case CLInitNode init:  BB = call(init); break;
             case NeverNode never:  BB = never.cproj(0); break; // Synthetic exit is never taken.
             case IfNode    iff  :  Object p = val(iff.pred()); BB = iff.cproj( p==null || (p instanceof Long x && x==0L)  ? 1 : 0);  break;
-            case ReturnNode ret :  if( clj(ret.rpc()).isStop() ) return exit(ret); else BB = ret(ret); break;
+            case ReturnNode ret :  if( continuation(ret).isStop() ) return exit(ret); else BB = ret(ret); break;
             case FunNode   fun  :  if( loopCnt++ > timeout ) return null;  break; // Timeout
             case LoopNode  loop :  if( loopCnt++ > timeout ) return null;  break; // Timeout
             case CallEndNode cend: break;
             case CProjNode cproj:  break;
             case RegionNode r   :  break;
-            default:               throw Utils.TODO();
+            default:               throw Utils.TODO("Eval control: "+prior.getClass().getSimpleName());
             }
             if( BB==null ) return null;
             assert !BB.isDead();
         }
     }
 
+    // Scratch values for parallel Phi assignment and call arguments. Each use
+    // is consumed before the next block executes; loading only schedules code.
+    private static final Ary<Object> VALUE_CACHE = new Ary<>(Object.class);
+    static int parallelAssignPhis(RegionNode r, CFGNode prior, SB trace) {
 
-    // Phi cache; size is limited to number of Phis at a merge point
-    private static final Object[] PHICACHE = new Object[256];
-    static int parallelAssignPhis(RegionNode r, CFGNode prior, long arg, SB trace) {
+        // enter() assigned parameters, including the return continuation,
+        // from runtime arguments rather than the compiler's call graph.
+        if( r instanceof FunNode ) {
+            int i = 0;
+            while( i<r.nOuts() && r.out(i) instanceof ParmNode ) i++;
+            return i;
+        }
 
         // Compute input path on Phis for this Region
         int path = r._inputs.find( prior );
-        // Parameters read from prior frame, Phis from local frame
-        Frame frame = (r instanceof FunNode ? F._prior : F);
-        boolean isClz = r instanceof FunNode fun && fun.isClz();
 
         // Parallel assign Phis.  First parallel read and cache
         int i;
@@ -205,26 +200,11 @@ public abstract class Eval2 {
             // non-Phi is the end of all Phis.
             if( !(r.out(i) instanceof PhiNode phi) ) break;
 
-            // Parms read from Call args -
-            // - except RPC is the actual prior frame
-            // - except entry <clinit> takes the external program argument
-            Object val;
-            if( isClz && prior instanceof StartNode && phi instanceof ParmNode parm && parm._idx==3 )
-                PHICACHE[i] = arg; // Reading the initial arguments to <clinit>
-            else {
-                Node n = phi instanceof ParmNode parm
-                    // RPC uses the prior Call directly;
-                    // Parms may not be linked, so read call args directly
-                    ? (parm._idx==0 ? prior : prior.in(parm._idx))
-                    // Phis read from path input
-                    :  phi.in(path);
-                // Read the frame before overwriting
-                PHICACHE[i] = frame.get(n);
-            }
+            VALUE_CACHE.setX(i,F.get(phi.in(path)));
         }
         // Parallel assign; might assign before read, so read from cache
         for( int j=0; j < i; j++ )
-            traceData(F.put0(r.out(j),PHICACHE[j]),trace);
+            traceData(F.put0(r.out(j),VALUE_CACHE.at(j)),trace);
         // Return point in basic block past last Phi; the Phis have been
         // evaluated here, and now we need to evaluate the rest of the block
         return i;
@@ -233,27 +213,67 @@ public abstract class Eval2 {
 
     // Make a call.
     private static CFGNode call( CallNode call ) {
-        // Set up the Return PC and return frame (which is just the current frame).
-        // Really making a Continuation, but it's just a Closure
-        Closure cont = new Closure(call.cend(),F);
-        // Set the return continuation into the current frame RPC
-        F.put(call, cont );
-        // Next Frame to use
-        F = new Frame(F);
-        // Target function and environment
-        return CODE.link(tfp(call.fptr()));
+        int nargs = call.nargs()+1; // Include memory.
+        for( int i = 0; i<nargs; i++ ) VALUE_CACHE.setX(i,val(call.in(i+1)));
+        return enter(CODE.link(tfp(call.fptr())),call.cend());
+    }
+
+    // Interpret the flag-test/call diamond that Lower would emit. The taken
+    // arm uses the ordinary call entry and RPC continuation. The initializer
+    // itself initializes its parent and sets its own $init flag.
+    private static CFGNode call(CLInitNode init) {
+        CompUnit cu = init.cu();
+        //if( cu==null ) return init.uctrl();
+        assert cu != null;      // Post-optimizer the remaining CLInits refer to real classes
+        Object[] obj = classObject(cu._clz);
+        if( obj[cu._clz.find("$init")].equals(1L) )
+            return init.uctrl(); // Class already initialized!
+        VALUE_CACHE.setX(0,"$mem");
+        VALUE_CACHE.setX(1,obj);
+        VALUE_CACHE.setX(2,0L);
+        return enter(CODE.link(cu),init.uctrl());
+    }
+
+
+    private static FunNode enter(FunNode fun, CFGNode continuation) {
+        // If we find a Summary, then this Fun's code never got loaded.
+        // Load it now.
+        if( fun.summary()!=null ) {
+            int fidx = fun.sig().fidx();
+            // Load the matching .o, and all its CompUnits, and all the
+            // included FunNodes, including a replacement for this one.
+            ElfReader elf = SummaryNode.load(CODE,fun);
+            // Object files contain checked ideal IR, before scheduling.  This is
+            // the first schedule for this object's bodies, even though the caller
+            // is already executing.  Schedule only the new graph: revisiting the
+            // caller could change nodes whose values live in an active Frame.
+            // No optimization, CLInit lowering, or finalization.
+            ListScheduler.sched(GlobalCodeMotion.forEval(CODE,(StartNode)elf._nodes.at(0),(StopNode)elf._nodes.last()));
+            // Get the new replacement FunNode
+            fun = CODE.link(fidx);
+        }
+        Continuation cont = new Continuation(continuation,F);
+        F=new Frame(F);
+        for( Node use : fun._outputs )
+            if( use instanceof ParmNode parm )
+                F.put0(parm,parm._idx==0 ? cont : VALUE_CACHE.at(parm._idx-1));
+        return fun;
     }
 
     private static CFGNode ret( ReturnNode ret ) {
         // Fetch return expression value and continuation from current frame
         Object rez = val(ret.expr());
-        Closure cont = clj(ret.rpc());
+        Continuation cont = continuation(ret);
         // Lower Frame reference count; might delete frame
         F.dec();                // Lower ref count
         // Install replacement Frame; set return result over the CallEnd
         F = cont._frame;
-        F.put0(cont._cc,rez);   // Set return value into CallEnd
-        return cont._cc;        // Return CallEnd as the new control
+        if( cont._cc instanceof CallEndNode ) F.put0(cont._cc,rez);
+        return cont._cc;        // Resume after the call.
+    }
+
+    private static Continuation continuation(ReturnNode ret) {
+        return (Continuation)val(ret.rpc());
     }
 
     private static String exit( ReturnNode ret ) {
@@ -329,8 +349,6 @@ public abstract class Eval2 {
     static TypeFunPtr tfp(Node n) {
         return (TypeFunPtr)F.get(n);
     }
-    // Fetch and unbox a closure
-    static Closure clj(Node n) { return (Closure)F.get(n); }
 
     // Java box ints and floats.  Other things can just be null or some informative string
     private static Object con( Type t ) {

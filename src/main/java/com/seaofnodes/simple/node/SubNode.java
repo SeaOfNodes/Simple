@@ -9,7 +9,7 @@ public class SubNode extends ArithNode {
     @Override boolean allowFloat() { return true; }
     public SubNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public SubNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs,mode); }
-
+    @Override public Tag serialTag() { return Tag.Sub; }
 
     @Override public String op() { return "-"; }
 

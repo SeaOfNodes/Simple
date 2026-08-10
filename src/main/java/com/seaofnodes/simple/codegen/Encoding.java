@@ -162,7 +162,7 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
     // Source is a Call, destination in the Fun.
     public Encoding relo( CallNode call ) {
         FunNode fun = _code.link(call.tfp());
-        if( fun != null && !_code.owns(fun) )
+        if( fun != null && !_code.emits(fun) )
             _externals.put(call,fun._name);
         else
             _internals.put(call,fun);
@@ -176,7 +176,7 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
         String nativeName = _code.externFunc(tfp.fidx());
         if( nativeName!=null ) return external(fptr,nativeName);
         FunNode fun = _code.link(tfp);
-        if( fun != null && !_code.owns(fun) )
+        if( fun != null && !_code.emits(fun) )
             _externals.put(fptr,fun._name);
         else
             _internals.put(fptr,fun);
@@ -249,7 +249,7 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
         FunNode entry = null;
         String entryName = _code.entryClinitName();
         for( FunNode fun : _code._linker ) {
-            if( fun != null && !fun.isDead() && _code.owns(fun) ) {
+            if( fun != null && !fun.isDead() && _code.emits(fun) ) {
                 if( fun.isClz() ) {
                     if( fun._name.equals(entryName) )
                         entry = fun;

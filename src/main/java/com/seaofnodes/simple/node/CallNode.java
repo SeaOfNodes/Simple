@@ -4,11 +4,13 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.Iter;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeRPC;
 import com.seaofnodes.simple.type.XInt;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -21,9 +23,23 @@ public class CallNode extends CFGNode {
     // Source location for late reported errors
     public final Parser.Lexer _loc;
 
-    public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc=loc; CodeGen.CODE._calls.add(this); }
+    public CallNode(Parser.Lexer loc, Node... nodes) {
+        super(nodes);
+        _loc = loc;
+        CodeGen.CODE._calls.add(this);
+        CodeGen.CODE.add(CodeGen.CODE._globalEscapes);
+    }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
-
+    @Override public Tag serialTag() { return Tag.Call; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(nIns());
+        Parser.Lexer.packed(_loc,baos,strs);
+    }
+    @Override public void gather(HashMap<String,Integer> strs) { Parser.Lexer.gather(_loc,strs); }
+    static Node make( BAOS bais, String[] strs ) {
+        int nIns = bais.packed1();
+        return new CallNode(Parser.Lexer.unpack(bais,strs),new Node[nIns]);
+    }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         String fname = name();
@@ -42,6 +58,7 @@ public class CallNode extends CFGNode {
         }
         return null;
     }
+
 
 
     Node ctrl() { return in(0); }
@@ -166,6 +183,17 @@ public class CallNode extends CFGNode {
             }
         // Call end points to function return
         CodeGen.CODE.add(cend()).addDef(fun.ret());
+        // Loading/inlining can reveal a target after SCCP.  Its new caller
+        // may bring escapes absent from the cached formal parameter types.
+        // Repair affected bounds before the next type-lifting peephole.
+        CodeGen code = CodeGen.CODE;
+        if( code._phase.ordinal()>CodeGen.Phase.Opto.ordinal() &&
+            code._phase.ordinal()<CodeGen.Phase.Lower.ordinal() ) {
+            boolean repair = !fun.compute().isa(fun._type) || !cend().compute().isa(cend()._type);
+            for( Node use : fun._outputs )
+                if( use instanceof ParmNode && !use.compute().isa(use._type) ) repair = true;
+            if( repair ) Iter.repair(code);
+        }
         return this;
     }
 
