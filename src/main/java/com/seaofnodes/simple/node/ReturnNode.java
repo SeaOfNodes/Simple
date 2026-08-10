@@ -28,7 +28,7 @@ public class ReturnNode extends CFGNode {
         _fun = fun;
     }
     public ReturnNode( ReturnNode ret, FunNode fun ) { super(ret);  _fun = fun;  }
-
+    @Override public Tag serialTag() { return Tag.Return; }
 
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }
@@ -49,7 +49,13 @@ public class ReturnNode extends CFGNode {
 
     @Override
     public Type compute() {
-        return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
+        Type ret = expr()._type;
+        // Recursive results can grow around Return -> CallEnd -> Add -> Phi
+        // without crossing Parm's widening point. Widen here, so FunPtr and
+        // CallEnd agree on the result, bounded by the declared signature.
+        if( ret instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
+            ret = ti.same_but_slightly_wider_than();
+        return TypeTuple.make(ctrl()._type,mem()._type,ret.join(addDep(_fun).sig().ret()));
     }
 
     @Override public Node idealize() {

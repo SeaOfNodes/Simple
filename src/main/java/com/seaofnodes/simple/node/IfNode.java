@@ -13,7 +13,7 @@ public class IfNode extends CFGNode implements MultiNode {
         CodeGen.CODE.add(this); // Because idoms are complex, just add it
     }
     public IfNode(IfNode iff) { super(iff); }
-
+    @Override public Tag serialTag() { return Tag.If; }
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {

@@ -2,6 +2,8 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.CompUnit;
+import com.seaofnodes.simple.codegen.ElfReader;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;
@@ -10,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
@@ -117,13 +120,12 @@ public abstract class TestC {
         //   build/objs/foo.exe - linked executable Windows
         //   build/objs/foo     - linked executable Linux
         String pathBase = "build/objs/"+base;
-        String obj = pathBase+".o";
         String exe = pathBase+(OS.startsWith("Windows") ? ".exe" : "");
         // Compile simple, emit ELF
-        CodeGen code = new CheckedCodeGen(null,"build/objs",base,src,126L,true,TypeInteger.BOT);
+        CodeGen code = new CheckedCodeGen(null,"build/objs",externPaths,base,src,126L,true,TypeInteger.BOT);
         code.driver( CPU_PORT, simple_conv, false, cfile==null );
 
-        linkExe(obj, c_conv, cfile, linkObjs(externPaths), exe);
+        linkExe(linkObjs(code), c_conv, cfile, exe);
 
         // Allocation quality not degraded
         SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
@@ -137,7 +139,7 @@ public abstract class TestC {
     public static String gcc( String main, double ignore, String... objs ) throws IOException {
         String BLDDIR = "build/objs/test0/";
         String exe = BLDDIR+main+(OS.startsWith("Windows") ? ".exe" : "");
-        linkExe(objs[0],null,null,null,exe);
+        linkExe(new Ary<>(objs),null,null,exe);
         // Module tests intentionally use the program exit code as their result.
         ExecResult result = execute(null,0,exe);
         return result.exit==0 ? result.out : "exec exit code: "+result.exit;
@@ -160,7 +162,21 @@ public abstract class TestC {
         return execStdin(stdin,0,args);
     }
 
-    public static void linkExe( String obj, String c_conv, String cfile, Ary<String> linkObjs, String exe ) throws IOException {
+    // Immediate compile/link: the compiler already resolved every Simple object.
+    public static String gcc(CodeGen code, String c_conv, String cfile, String stdin, String... args) throws IOException {
+        linkExe(linkObjs(code),c_conv,cfile,args[0]);
+        return execStdin(stdin,0,args);
+    }
+
+    // Object-only tests supply every link input explicitly.
+    public static void linkExe( String entry, String c_conv, String cfile, Ary<String> libraries, String exe ) throws IOException {
+        Ary<String> objects = new Ary<>(String.class);
+        objects.add(entry);
+        if( libraries!=null ) objects.addAll(libraries);
+        linkExe(objects,c_conv,cfile,exe);
+    }
+
+    private static void linkExe(Ary<String> objects, String c_conv, String cfile, String exe) throws IOException {
         // Compile the C program.  Compiling code and constants in the low
         // 2Gig.  Pointers are 64b BUT since always in the low 2G all the
         // high bits are zero - and Simple code can be emitted treating
@@ -169,18 +185,16 @@ public abstract class TestC {
         params.add("gcc");
         params.add(OS.startsWith("Windows") ? "-Wl,--image-base,0x400000" : "-no-pie");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
-        params.add(obj);
+        params.addAll(objects);
         // Standalone Simple programs export `simple_main`; the small C
         // runtime owns the native main symbol and converts argc/argv into a
         // normal Simple array before making the ABI-qualified call.
         if( cfile==null ) params.add(runtimeObject());
-        if( linkObjs != null )
-            params.addAll(linkObjs.asAry());
         params.addAll(new String[] {
             "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
-            "-g",
-            "-o",
-            exe,
+            "-g",  // debug symbols
+            "-o",  // name the output file
+            exe,   // name the output file
         });
         // Calling convention for C calls, if any
         if( cfile!=null ) {
@@ -254,20 +268,15 @@ public abstract class TestC {
         }
     }
 
-    static Ary<String> linkObjs(Ary<String> externPaths) {
-        if( externPaths == null )
-            return null;
-        Ary<String> objs = new Ary<>(String.class);
-        for( String path : externPaths ) {
-            File file = new File(path);
-            if( file.isFile() && file.getName().endsWith(".o") )
-                objs.add(file.toString());
-            else if( file.isDirectory() ) {
-                File sys = new File(file,"sys.o");
-                if( sys.isFile() )
-                    objs.add(sys.toString());
-            }
+    // Gather all CompUnit files and all externally named symbols
+    static Ary<String> linkObjs(CodeGen code) throws IOException {
+        Ary<String> objNames = new Ary<>(String.class);
+        for( CompUnit cu : code._compunits.values() ) {
+            File obj = cu._obj;
+            if( obj==null && cu._src!=null ) // Source supplied as a string.
+                obj = new File(code._buildDir+"/"+(code._srcName==null ? "Test" : code._srcName)+".o");
+            if( obj!=null ) objNames.add(obj.getCanonicalPath());
         }
-        return objs.isEmpty() ? null : objs;
+        return objNames;
     }
 }

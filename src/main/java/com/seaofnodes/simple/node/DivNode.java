@@ -9,7 +9,7 @@ public class DivNode extends ArithNode {
     @Override boolean allowFloat() { return true; }
     public DivNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public DivNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs, mode); }
-
+    @Override public Tag serialTag() { return Tag.Div; }
 
     @Override public String op() { return _mode==1 ? "//" : "/"; }
 

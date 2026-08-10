@@ -108,8 +108,12 @@ public abstract class ListScheduler {
 
     // List schedule every block
     public static void sched( CodeGen code ) {
+        sched(code._cfg);
+    }
+
+    public static void sched(Ary<CFGNode> cfgs) {
         XS.clear();
-        for( CFGNode bb : code._cfg )
+        for( CFGNode bb : cfgs )
             if( bb.blockHead() )
                 local(bb,false);
     }

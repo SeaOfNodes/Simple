@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 import java.lang.StringBuilder;
@@ -60,6 +61,24 @@ public abstract class MemOpNode extends TypeNode {
         _isLoad= mop._isLoad;
     }
 
+    MemOpNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases, boolean isLoad ) {
+        this(null,
+             strs[bais.packed2()],
+             mapAlias(bais,fileAliases,aliases),isLoad,
+             types[bais.packed2()],null,null,null,null);
+    }
+
+    private static int mapAlias( BAOS bais, GlobalBits fileAliases, GlobalBits aliases ) {
+        int alias = bais.packed2();
+        return alias < GlobalBits.RESERVED ? alias : aliases.map(fileAliases,alias);
+    }
+
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed2(_name==null ? 0 : strs.get(_name));
+        baos.packed2(_alias);
+        baos.packed2(types.get(_con));                // NPE if fails lookup
+        assert _isLoad == this instanceof LoadNode; // No machine ops
+    }
 
     static String mlabel(String name) { return "[]"==name ? "ary" : ("#"==name ? "len" : name); }
     String mlabel() { return mlabel(_name); }

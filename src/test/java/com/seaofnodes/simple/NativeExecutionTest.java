@@ -48,6 +48,7 @@ public class NativeExecutionTest {
 
     @Test public void testHelloWorldArtifacts() throws IOException {
         new Chapter22Test().testHelloWorld();
+        new Chapter25Test().testHelloWorld();
         // Model a parallel run paused between Chapter 22's link and execution.
         // Chapter 25 must not replace the executable Chapter 22 is about to run.
         String exe = "build/objs/helloWorld"+(TestC.OS.startsWith("Windows") ? ".exe" : "");

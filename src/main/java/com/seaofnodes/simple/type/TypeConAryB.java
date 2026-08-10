@@ -16,6 +16,5 @@ public class TypeConAryB extends TypeConAry<byte[]> {
     @Override public String str() { return "[\""+new String(_ary)+"\"]"; }
     @Override boolean eq(Type t) { return t instanceof TypeConAryB ary && _widen==ary._widen && Arrays.equals(_ary,ary._ary); }
     @Override int hash() { return Arrays.hashCode(_ary); }
-
     @Override public void write( BAOS baos ) { baos.write(_ary); }
 }

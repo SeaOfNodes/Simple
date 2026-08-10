@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -17,7 +18,9 @@ abstract public class BoolNode extends Node implements ModeNode {
 
     public BoolNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public BoolNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs); _mode = mode; }
-
+    @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes) {
+        baos.packed1(_mode);
+    }
 
     abstract public String op(); // String opcode name
 
@@ -116,7 +119,7 @@ abstract public class BoolNode extends Node implements ModeNode {
     public static class EQ extends BoolNode {
         public EQ(Node lhs, Node rhs) { super(lhs,rhs); }
         public EQ(Node lhs, Node rhs, byte mode) { super(lhs,rhs, mode); }
-
+        @Override public Tag serialTag() { return Tag.EQ; }
         public String op() { return "=="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1==i2 && i1.isConstant() ) return TRUE;
@@ -130,7 +133,7 @@ abstract public class BoolNode extends Node implements ModeNode {
     public static class NE extends BoolNode {
         public NE(Node lhs, Node rhs) { super(lhs,rhs); }
         public NE(Node lhs, Node rhs, byte mode) { super(lhs,rhs,mode); }
-
+        @Override public Tag serialTag() { return Tag.NE; }
         public String op() { return "!="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1==i2 && i1.isConstant() ) return TRUE;
@@ -144,7 +147,7 @@ abstract public class BoolNode extends Node implements ModeNode {
     public static class LT extends BoolNode {
         public LT(Node lhs, Node rhs) { super(lhs,rhs); }
         public LT(Node lhs, Node rhs, byte mode) { super(lhs,rhs, mode); }
-
+        @Override public Tag serialTag() { return Tag.LT; }
         public String op() { return "<" ; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <  i2._min ) return TRUE;
@@ -158,7 +161,7 @@ abstract public class BoolNode extends Node implements ModeNode {
     public static class LE extends BoolNode {
         public LE(Node lhs, Node rhs) { super(lhs,rhs); }
         public LE(Node lhs, Node rhs, byte mode) { super(lhs,rhs,mode); }
-
+        @Override public Tag serialTag() { return Tag.LE; }
         public String op() { return "<="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <= i2._min ) return TRUE;
@@ -176,7 +179,7 @@ abstract public class BoolNode extends Node implements ModeNode {
             super(lhs,rhs,(byte)1);
             assert mode==1;
         }
-
+        @Override public Tag serialTag() { return Tag.ULT; }
         public String op() { return "u<" ; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( Long.compareUnsigned(i1._max,i2._min) <  0 ) return TRUE;

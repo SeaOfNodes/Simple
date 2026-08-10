@@ -9,7 +9,7 @@ public class MulNode extends ArithNode {
     @Override boolean allowFloat() { return true; }
     public MulNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
     public MulNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs, mode); }
-
+    @Override public Tag serialTag() { return Tag.Mul; }
 
     @Override public String op() { return "*"; }
 

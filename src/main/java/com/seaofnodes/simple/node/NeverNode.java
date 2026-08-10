@@ -12,7 +12,7 @@ import com.seaofnodes.simple.type.TypeTuple;
 public class NeverNode extends IfNode {
     public NeverNode(NeverNode ctrl) { super(ctrl); }
     public NeverNode(float ignore, Node ctrl) { super(ctrl,null); }
-
+    @Override public Tag serialTag() { return Tag.Never; }
 
     @Override public String label() { return "Never"; }
 

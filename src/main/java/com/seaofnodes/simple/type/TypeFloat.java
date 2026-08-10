@@ -2,6 +2,7 @@ package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -98,6 +99,26 @@ public class TypeFloat extends TypeScalar {
 
     @Override public Type makeZero() { return FZERO; }
 
+    // Reserve tags for F64,F32,constant
+    @Override int TAGOFF() { return 3; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        if(      this==F64 ) baos.write(TAGOFFS[_type] + 0);
+        else if( this==F32 ) baos.write(TAGOFFS[_type] + 1);
+        else {
+            assert isConstant();
+            baos.write(TAGOFFS[_type] + 2);
+            baos.packed8(Double.doubleToLongBits(_con));
+        }
+    }
+
+    static Type packed( int tag, BAOS bais ) {
+        return switch( tag ) {
+        case 0 -> F64;
+        case 1 -> F32;
+        case 2 -> constant(Double.longBitsToDouble(bais.packed8()));
+        default -> throw Utils.TODO("Should not reach here: unknown float type tag");
+        };
+    }
 
     @Override
     int hash() { return (int)(Double.hashCode(_con) ^ _sz ^ (1<<17)); }

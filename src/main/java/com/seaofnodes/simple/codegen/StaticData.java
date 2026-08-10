@@ -37,7 +37,7 @@ public final class StaticData {
 
     StaticData(Encoding enc) {
         this.enc=enc;
-        prefix=enc._code.entryClinitName()+"$DATA$";
+        prefix=(enc._code._emitUnit==null ? enc._code.entryClinitName() : enc._code._emitUnit._cname)+"$DATA$";
     }
 
     static boolean isClass(Type t) {
@@ -68,7 +68,7 @@ public final class StaticData {
         String symbol=clz ? ((TypeStruct)t)._name.substring(Parser.CLZ.length())+".$class"
             : t instanceof TypeFunPtr fp ? functionSymbol(fp) : prefix+objects.size();
         ObjectData obj=new ObjectData(t,symbol,!clz && (!(t instanceof TypeStruct ts) || ts.isConstant()),
-                                      owner!=null && owner._src==null);
+                                      owner!=null && !enc._code.emits(owner));
         objects.put(key,obj);
         // Register before following fields: class objects may refer to each other.
         if( !obj.external && t instanceof TypeStruct ts )
@@ -96,7 +96,7 @@ public final class StaticData {
         // Definitions belong to their compilation unit, even if every local use folded.
         ArrayList<CompUnit> units=new ArrayList<>(enc._code._compunits.values());
         units.sort(Comparator.comparing(cu -> cu._cname==null ? "" : cu._cname));
-        for( CompUnit cu : units ) if( cu._src!=null && cu._clz!=null ) object(cu._clz);
+        for( CompUnit cu : units ) if( enc._code.emits(cu) && cu._clz!=null ) object(cu._clz);
         for( ObjectData obj : entries() ) {
             if( obj.external ) continue;
             BAOS bits=obj.readOnly ? enc._cpool : enc._sdata;
@@ -157,7 +157,7 @@ public final class StaticData {
                 if( ext!=null ) address=enc.externalAddress(ext);
                 else if( fun==null ) address=address(object(fp),cpool,sdata);
                 else {
-                    if( !enc._code.owns(fun) ) throw new IllegalArgumentException("Unlinked function "+functionSymbol(fp));
+                    if( !fun.isFromSource() ) throw new IllegalArgumentException("Unlinked function "+functionSymbol(fp));
                     address=enc.opStart(fun);
                 }
             }

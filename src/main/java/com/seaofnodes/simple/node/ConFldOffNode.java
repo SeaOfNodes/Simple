@@ -21,7 +21,7 @@ public class ConFldOffNode extends ConstantNode {
     public TypeStruct _ts;      // Struct holding field
     public final String _fname; // Field name
     public ConFldOffNode( TypeStruct ts, String fname ) { super(TypeInteger.BOT); _ts = ts; _fname = fname; }
-
+    @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
 
     @Override public String label() {
         return _fname == " len" ? "sizeof("+_ts._name+")" : "#"+_fname;

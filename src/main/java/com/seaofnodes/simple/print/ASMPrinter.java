@@ -7,9 +7,9 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.BAOS;
 import java.util.ArrayList;
 import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.HashMap;
 
 /** Machine-specific facts; traversal, columns and byte display live in print/. */

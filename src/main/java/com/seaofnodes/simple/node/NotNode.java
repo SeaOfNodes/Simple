@@ -6,7 +6,7 @@ import com.seaofnodes.simple.util.Utils;
 
 public class NotNode extends Node {
     public NotNode(Node in) { super(null, in); }
-
+    @Override public Tag serialTag() { return Tag.Not; }
 
     @Override protected String format() { return "(!%1)"; }
 

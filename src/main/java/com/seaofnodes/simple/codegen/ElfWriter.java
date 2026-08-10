@@ -27,6 +27,7 @@ public class ElfWriter {
         static final int SHT_SYMTAB  = 2;
         static final int SHT_STRTAB  = 3;
         static final int SHT_RELA    = 4;
+        static final int SHT_SIMPLE  = 10; // Simple section
 
         final String _name;
         final int _type, _entsize, _index, _name_pos, _flags;
@@ -192,12 +193,13 @@ public class ElfWriter {
             for( Node stopcu : stop._inputs ) {
                 for( Node ret : stopcu._inputs ) {
                     FunNode fun = ((ReturnNode)ret).fun();
-                    if( !_code.owns(fun) )
+                    if( !_code.emits(fun) )
                         continue;
                     int end = enc.opStart(fun.ret()) + enc.opLen(fun.ret());
                     long value = enc.opStart(fun);
                     long size = end - value;
-                    if( fun._name != null ) { // Anonymous functions have no name
+                    // Stable FIDX names are exported separately below.
+                    if( fun._name != null && !fun._name.equals(_code._fidxs.symbol(fun.sig().fidx())) ) {
                         // The C runtime owns `main` and adapts argc/argv into
                         // a normal Simple array.  Keep the Simple function on
                         // its native ABI under a private entry symbol.
@@ -216,7 +218,7 @@ public class ElfWriter {
             FunNode clinit = null;
             String entryName = _code.entryClinitName();
             for( FunNode fun : _code._linker )
-                if( fun != null && _code.owns(fun) ) {
+                if( fun != null && _code.emits(fun) ) {
                     if( "main".equals(fun._name) )
                         return; // encodeFunctions exported this as simple_main
                     if( entryName.equals(fun._name) )
@@ -275,6 +277,9 @@ public class ElfWriter {
     public static final int SECTION_HDR_SIZE = 64;
 
     // ------------------------------------------------------------------------
+    public class SimpleSection extends DataSection {
+        SimpleSection(BAOS serial) { super(".simple", SHT_SIMPLE, serial, 0); }
+    }
 
 
     // ------------------------------------------------------------------------
@@ -300,6 +305,8 @@ public class ElfWriter {
     }
 
     public ElfWriter export(boolean emitEntrySymbol) {
+        if( _code._serial==null )
+            throw new IllegalStateException("ELF export needs ideal IR: request Export from the driver, or Serialize before Lower");
         // Sections are created in the order they are emitted.
         _sections = new Ary<>(Section.class);
 
@@ -311,7 +318,7 @@ public class ElfWriter {
         _strtab = new StringSection();
 
         // place all the symbols
-        int nlocals = 1/*null*/+9/*number of sections*/;
+        int nlocals = 1/*null*/+9/*number of sections*/+1/*Simple section*/;
         SymbolSection symbols = new SymbolSection(nlocals);
 
         // we've already constructed these entire sections in the encoding phase
@@ -362,7 +369,7 @@ public class ElfWriter {
         // anonymous functions which have no source-level exported name.
         HashMap<String,Integer> dataSymbols=new HashMap<>();
         for( FunNode fun : _code._linker )
-            if( fun!=null && !fun.isDead() && _code.owns(fun) && enc.opStart(fun)>=0 ) {
+            if( fun!=null && !fun.isDead() && _code.emits(fun) && enc.opStart(fun)>=0 ) {
                 String name=_code._fidxs.symbol(fun.sig().fidx());
                 dataSymbols.put(name,symbols.symbol(name,text._index,SYM_BIND_GLOBAL,SYM_TYPE_FUNC,enc.opStart(fun),0));
             }
@@ -392,6 +399,7 @@ public class ElfWriter {
         }
 
         // Create a "Simple" section for Simple types and ir
+        SimpleSection simple = new SimpleSection(_code._serial);
 
         // Write the local section header symbols
         assert nlocals == 1+_sections._len;
@@ -439,7 +447,7 @@ public class ElfWriter {
 
         assert out.position() == size;
 
-        String objName = _code._buildDir + "/" + _code._srcName + ".o";
+        String objName = _code._buildDir + "/" + (_code._emitUnit==null ? _code._srcName : _code._emitUnit._fname) + ".o";
         File file = new File(objName);
         if( file.getParentFile()!=null )
             file.getParentFile().mkdirs();
