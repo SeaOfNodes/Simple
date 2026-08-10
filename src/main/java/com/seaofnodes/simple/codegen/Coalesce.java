@@ -13,7 +13,7 @@ abstract public class Coalesce {
 
         // Walk all the splits, looking for coalesce chances
         boolean progress = false;
-        for( CFGNode bb : alloc._code._cfg ) {
+        for( CFGNode bb : alloc._cfg ) {
             outer:
             for( int j=0; j<bb.nOuts(); j++ ) {
                 Node n = bb.out(j);

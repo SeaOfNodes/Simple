@@ -20,7 +20,7 @@ public class BoundaryTest {
                     .driver(CodeGen.Phase.TypeCheck);
                 assertEquals("7",Eval2.eval(factory,0));
             }
-        String src="struct Counter { int x; int y; int z; new Counter={int n -> while(x<n) { int old=x; y=x+1; x=y+1; z=old; }}; }; val c=new Counter(arg); return c.x*100+c.z;";
+        String src="struct Counter { int x; int y; int z; new Counter={int n -> while(x<n) { int old=x; y=x+1; x=y+1; z=old; }}; }; val c=new Counter(((arg<<32)>>32)); return c.x*100+c.z;";
         CodeGen code=new CodeGen(src).driver(CodeGen.Phase.LocalSched);
         assertEquals("2018",Eval2.eval(code,19));
         assertEquals("0",Eval2.eval(code,0));
@@ -53,11 +53,11 @@ public class BoundaryTest {
     @Test public void testRecursiveCallback() {
         String src="""
             val run={int n ->
-                val power={int base,int exponent -> if(exponent<=0) return 1; return base*power(base,exponent-1);};
-                val sumPowers={int n,{int int -> int} f -> if(n<=0) return 0; return f(2,n)+sumPowers(n-1,f);};
+                val power={int base,int exponent -> if(exponent<=0) return 1; return base*power(base,--exponent);};
+                val sumPowers={int n,{int int -> i64} f -> if(n<=0) return 0; return f(2,n)+sumPowers(--n,f);};
                 return sumPowers(n,power);
             };
-            return run(arg);
+            return run(((arg<<32)>>32));
             """;
         for( long seed : new long[]{2,13,123} ) {
             CodeGen code=new CodeGen(src,seed,true).driver(CodeGen.Phase.Opto);
@@ -74,11 +74,11 @@ public class BoundaryTest {
             "retain(power); return power(2,n);",
             "if(n) { retain(power); while(true) {} } return power(2,n);"
         } ) {
-            String src="val run={int n -> val power={int base,int exponent -> if(exponent<=0) return 1; return base*power(base,exponent-1);}; { {int int -> int} -> int } retain=\"C\";"+tail+"}; return run(arg);";
+            String src="val run={int n -> val power={int base,int exponent -> if(exponent<=0) return 1; return base*power(base,--exponent);}; { {int int -> i64} -> int } retain=\"C\";"+tail+"}; return run(((arg<<32)>>32));";
             CodeGen code=new CodeGen(src).driver(CodeGen.Phase.Opto);
             ParmNode base=code._start.walk(n -> n instanceof ParmNode p && p._label.equals("base") ? p : null);
             assertNotNull(base);
-            assertSame(TypeInteger.BOT,base._type);
+            assertSame(TypeInteger.I32,base._type);
             code.driver(CodeGen.Phase.TypeCheck);
         }
     }

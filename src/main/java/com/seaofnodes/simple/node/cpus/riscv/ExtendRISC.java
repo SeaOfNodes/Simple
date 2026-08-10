@@ -6,14 +6,21 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.SB;
 
-// Convert a narrow C return register to Simple's full-width integer value.
+// Normalize narrow parameters and C return values to full-width integers.
 public class ExtendRISC extends MachConcreteNode {
     final int _bits;
     final boolean _signed;
     ExtendRISC(ProjNode prj, TypeInteger ret) {
-        super(prj);
-        _inputs.set(0,null);
-        _inputs.add(new ProjRISC(prj));
+        this(prj,new ProjRISC(prj),ret);
+    }
+    ExtendRISC(ParmNode parm, TypeInteger decl) {
+        this(parm,new ParmRISC(parm),decl);
+    }
+    private ExtendRISC(Node ideal, Node value, TypeInteger ret) {
+        super(ideal);
+        _inputs.clear();
+        _inputs.add(null);
+        _inputs.add(value);
         _bits = 8 << ret.log_size();
         _signed = ret._min < 0;
     }

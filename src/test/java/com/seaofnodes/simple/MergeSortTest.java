@@ -18,8 +18,9 @@ public class MergeSortTest {
 """
 val merge_sort = { int[] a ->
     int[] !b = new int[a#];
-    _copy_array (a, 0, a#, b);
-    _split_merge(a, 0, a#, b);
+    int len=a#;
+    _copy_array (a, 0, len, b);
+    _split_merge(a, 0, len, b);
 };
 
 val _split_merge = { int[] !b, int begin, int end, int[] a ->
@@ -57,16 +58,16 @@ val _copy_array = { int[] !a, int begin, int end, int[] b ->
         for( int prime : primes )
             sb.p(prime).p(", ");
         String sprimes = sb.p("]").toString();
-        TestC.runC(src, "sort", sprimes, 34);
+        TestC.runC(src, "sort", sprimes,70);
 
 
         EvalRisc5 R5 = TestRisc5.build( src, "merge_sort", 0, 36, false);
         // Allocate an array of primes, filled in reverse order
         int ps = R5._heap;
-        R5._heap += (primes.length+1)*8; // 25 primes, and length
+        R5._heap += (primes.length+1)*4; // 25 primes, and length
         R5.st4(ps,primes.length);
         for( int i=0; i<primes.length; i++ )
-            R5.st8(ps+(primes.length-1-i+1)*8,primes[i]);
+            R5.st4(ps+(primes.length-1-i+1)*4,primes[i]);
         // Pass array base when calling `merge_sort`
         R5.regs[riscv.A0] = ps;          // Array base to be sorted
 
@@ -75,7 +76,7 @@ val _copy_array = { int[] !a, int begin, int end, int[] b ->
 
         assertEquals(primes.length,R5.ld4s(ps));
         for( int i=0; i<primes.length; i++ )
-            assertEquals(primes[i], R5.ld8(ps+(i+1)*8));
+            assertEquals(primes[i], R5.ld4s(ps+(i+1)*4));
 
         // TODO: replace with ARM Eval
         Chapter21Test.testCPU(src,"arm", "SystemV",36,null);

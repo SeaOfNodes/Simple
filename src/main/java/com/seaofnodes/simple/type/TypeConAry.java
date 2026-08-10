@@ -16,6 +16,7 @@ public abstract class TypeConAry<A> extends TypeScalar {
 
     TypeConAry( boolean any, byte widen, A ary ) { super(TCONARY); _any = any; _widen = widen; _ary = ary; }
     public static void gather(ArrayList<Type> ts) {
+        ts.add(TypeConAryB.make(""));
         ts.add(TypeConAryB.ABC);
         ts.add(TypeConAryB.ABCD);
         ts.add(TypeConAryI.I123);
@@ -36,6 +37,15 @@ public abstract class TypeConAry<A> extends TypeScalar {
     }
 
     Type ymeet( TypeInteger ti ) {
+        // Empty arrays have no observed elements: use the storage bounds.
+        // Check both endpoints just as the loop checks a nonempty body;
+        // retaining high integer inputs here preserves lattice duality.
+        if( len()==0 ) {
+            TypeInteger bound=emptyElem();
+            if( !ti.isa(TypeInteger.make(bound._min,bound._min,ti._widen)) ||
+                !ti.isa(TypeInteger.make(bound._max,bound._max,ti._widen)) )
+                return ti.meet(bound);
+        }
         // if i can isa *each* element, then maybe can keep.
         // no good to i.isa(elem()) because fails the dual
         for( int j=0; j<len(); j++ )
@@ -64,12 +74,17 @@ public abstract class TypeConAry<A> extends TypeScalar {
             return _any ? Type.TOP : BOTTOM;
         int len = len();
         long min = Long.MAX_VALUE;
+        if( len==0 ) return emptyElem();
         long max = Long.MIN_VALUE;
         for( int i=0; i<len; i++ ) {
             min = Math.min(min,at8(i));
             max = Math.max(max,at8(i));
         }
         return TypeInteger.make(min,max,_widen);
+    }
+    private TypeInteger emptyElem() {
+        return log_size()==0 ? TypeInteger.make(0,255,_widen)
+            : TypeInteger.make(Integer.MIN_VALUE,Integer.MAX_VALUE,_widen);
     }
     public abstract long at8(int idx);
     public abstract int len();

@@ -30,7 +30,7 @@ public class ConstructionGroupTest {
 
     @Test public void testCyclesAndIndependentAllocations() {
         String src = parent("val detached = new Child(null); payload = n+read(detached); child = new Child(self);")+
-            "val p = new Parent(arg); val local = new Child(p); val par = local.parent; return (par ? par.payload : 0)+p.child.value;";
+            "val p = new Parent(((arg<<32)>>32)); val local = new Child(p); val par = local.parent; return (par ? par.payload : 0)+p.child.value;";
         for( long seed : new long[]{1,123,987654321} ) {
             CodeGen code = new CodeGen(src,seed,true).driver(CodeGen.Phase.TypeCheck);
             assertEquals("17",Eval2.eval(code,7));
@@ -44,7 +44,7 @@ public class ConstructionGroupTest {
         // Child's own slots are initialized, even though its parent remains
         // partial. Reading that slot does not complete the parent reference.
         String src = parent("child = new Child(self); payload = child.parent==null;")+
-            "return new Parent(arg).payload;";
+            "return new Parent(((arg<<32)>>32)).payload;";
         assertEquals("0",Eval2.eval(new CodeGen(src).driver(CodeGen.Phase.TypeCheck),0));
     }
 
@@ -73,7 +73,7 @@ public class ConstructionGroupTest {
     }
 
     @Test public void testAliasesAndLoopBackedges() {
-        String src = parent("val alias = self; alias.payload = n; child = new Child(alias);")+"return new Parent(arg).child.value;";
+        String src = parent("val alias = self; alias.payload = n; child = new Child(alias);")+"return new Parent(((arg<<32)>>32)).child.value;";
         assertEquals("5",Eval2.eval(new CodeGen(src).driver(CodeGen.Phase.TypeCheck),3));
         rejects(parent("payload = 1; child = new Child(self); Child? !c = null; while(n--) { if(c) read(c); c = child; }")+
             "return 0;","ordinary function");
@@ -116,7 +116,7 @@ public class ConstructionGroupTest {
                     head = p;
                 };
             };
-            val root = new Root(arg);
+            val root = new Root(((arg<<32)>>32));
             return root.value + root.head.value;
             """;
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);

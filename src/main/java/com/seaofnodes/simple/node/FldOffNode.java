@@ -49,7 +49,7 @@ public class FldOffNode extends TypeNode {
 
     @Override public Parser.ParseException err() {
         if( in(1)._type instanceof TypeMemPtr tmp && tmp._obj._fref )
-            return Parser.error("Unknown struct type '"+tmp._obj._name+"'",null);
+            return Parser.error("Unknown struct type '"+tmp._obj._name+"'",_loc);
         return null;
     }
 }

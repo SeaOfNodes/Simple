@@ -8,9 +8,11 @@ val sort = { !sys.aryi64 nums ->
     sys.aryi64?! more = nums;
     while( more ) {
         more = null;
-        for( var i = 0; i < nums.len-1; i++ )
-            if( nums.buf[i] > nums.buf[i+1] )
-                more = nums.swap(i,i+1);
+        for( u32 i = 0; i < nums.len-1; i++ )
+            if( nums.buf[i] > nums.buf[i+1] ) {
+                u32 next = i+1;
+                more = nums.swap(i,next);
+            }
     }
 };
 

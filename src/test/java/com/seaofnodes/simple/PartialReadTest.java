@@ -11,7 +11,7 @@ public class PartialReadTest {
     private static String program(String body, String helper) {
         return "struct _C { int~ x; int~ y; new _C = { int n -> " + body +
             " }; }; val _read_noInline = { _C ^p -> " + helper +
-            " }; return new _C(arg).y;";
+            " }; return new _C(((arg<<32)>>32)).y;";
     }
     private static void rejects(String source, String message) {
         try {
@@ -108,7 +108,7 @@ public class PartialReadTest {
                 _Child child;
                 new _Parent = { int n -> x=n; child=new _Child(self); };
             };
-            val p=new _Parent(arg); return p.child.seen+p.child.parent.x;
+            val p=new _Parent(((arg<<32)>>32)); return p.child.seen+p.child.parent.x;
             """;
         assertEquals("22",Eval2.eval(new CodeGen(src).driver(CodeGen.Phase.TypeCheck),11));
         rejects(src.replace("x=n; child=new _Child(self);","child=new _Child(self); x=n;"),"might not be initialized");
@@ -127,7 +127,7 @@ public class PartialReadTest {
                 new _C = { int n -> data=new int[1]; data[0]=n; y=_read_noInline(self); };
             };
             val _read_noInline={ _C ^p -> return p.data[0]; };
-            return new _C(arg).y;
+            return new _C(((arg<<32)>>32)).y;
             """;
         assertEquals("23",Eval2.eval(new CodeGen(src).driver(CodeGen.Phase.TypeCheck),23));
         // A set reference slot is not proof that its referent is initialized.

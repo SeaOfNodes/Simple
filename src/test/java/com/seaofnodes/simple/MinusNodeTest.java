@@ -57,7 +57,7 @@ public class MinusNodeTest {
     }
 
     @Test public void testRecursiveFloat() {
-        CodeGen code = new CodeGen("val _neg = { int x -> x ? -_neg(x-1) : 1.0; }; return _neg(arg);")
+        CodeGen code = new CodeGen("val _neg = { int x -> x ? -_neg(--x) : 1.0; }; return _neg(((arg<<32)>>32));")
             .driver(CodeGen.Phase.TypeCheck);
         for( int i=0; i<4; i++ )
             assertEquals((i&1)==0 ? "1.0" : "-1.0",Eval2.eval(code,i));

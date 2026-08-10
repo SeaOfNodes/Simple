@@ -242,7 +242,7 @@ public class CallNode extends CFGNode {
         if( !tfp.notNull() )
             return Parser.error( "Might be null calling "+tfp, _loc);
         if( nargs() != tfp.nargs() )
-            return Parser.error( "Expecting "+tfp.nargs()+" arguments, but found "+nargs(), _loc);
+            return Parser.error( "Expecting "+(tfp.nargs()-1)+" arguments, but found "+(nargs()-1), _loc);
 
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )

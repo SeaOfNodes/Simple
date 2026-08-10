@@ -16,7 +16,7 @@ abstract public class BuildLRG {
     // true if no hard-conflicts, although we still might not color.
     public static boolean run(int round, RegAlloc alloc) {
         FunNode fun = null;
-        for( Node bb : alloc._code._cfg ) {
+        for( Node bb : alloc._cfg ) {
             if( bb instanceof FunNode fun2 )
                 fun = fun2;
             for( Node n : bb.outs() ) {

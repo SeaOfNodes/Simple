@@ -53,7 +53,15 @@ public class TypeInteger extends TypeScalar {
     }
 
     public Type same_but_slightly_wider_than( ) {
-        return _widen < 3 ? make(_min,_max, (byte)(_widen+1)) : BOT;
+        if( _widen < 3 ) return make(_min,_max, (byte)(_widen+1));
+        // Start in the intersection of i32 and u32 for nonnegative ranges.
+        // Widening those straight to i32 invents negative values that prevent
+        // a u32 loop from remaining unsigned. Either 32-bit range can then
+        // grow to its own bound; unbounded arithmetic ultimately reaches BOT.
+        if( _min >= 0 && _max <= I32._max ) return make(0,I32._max,(byte)3);
+        if( _min >= I32._min && _max <= I32._max ) return I32;
+        if( _min >= 0 && _max <= U32._max ) return U32;
+        return BOT;
     }
     // Force max widen
     @Override public Type widen() {

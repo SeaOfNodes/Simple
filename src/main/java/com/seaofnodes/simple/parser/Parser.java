@@ -24,6 +24,7 @@ public class Parser {
     final References references = new References(this);
     final Conversions conversions = new Conversions(this);
     final Construction construction = new Construction(this);
+    final Strings strings = new Strings(this);
 
     public void checkConstructionSerializable() { construction.checkSerializable(); }
 
@@ -106,7 +107,7 @@ public class Parser {
             put("i32" ,TypeInteger.I32);
             put("i64" ,TypeInteger.BOT);
             put("i8"  ,TypeInteger.I8 );
-            put("int" ,TypeInteger.BOT);
+            put("int" ,TypeInteger.I32);
             put("u1"  ,TypeInteger.U1 );
             put("u16" ,TypeInteger.U16);
             put("u32" ,TypeInteger.U32);
@@ -117,7 +118,8 @@ public class Parser {
 
     public static class ParseException extends RuntimeException {
         public final Lexer _loc;
-        ParseException( String msg, Lexer loc ) { super(msg);  _loc = loc; }
+        ParseException( String msg, Lexer loc ) { super(msg); _loc = loc==null ? null : new Lexer(loc); }
+        public String diagnostic() { return _loc==null ? getMessage() : _loc.diagnostic(getMessage()); }
     }
 
     public Parser(CodeGen code ) {
@@ -186,9 +188,18 @@ public class Parser {
 
     // Require and return an identifier
     String requireId() {
+        return requireId(false);
+    }
+
+    // Primitive names are useful member names (sys.text.int), but remain
+    // reserved for local variables, parameters and type declarations.
+    String requireId(boolean member) {
+        _lexer.skipWhiteSpace();
+        Lexer site=loc();
         String id = _lexer.matchId();
-        if (id != null && !KEYWORDS.contains(id) ) return id.intern();
-        throw error("Expected an identifier, found '"+id+"'");
+        if (id != null && (!KEYWORDS.contains(id) || member &&
+            (INIT_TYPES.get(id) instanceof TypeInteger || INIT_TYPES.get(id) instanceof TypeFloat)) ) return id.intern();
+        throw error("Expected an identifier, found '"+new Lexer(site).getAnyNextToken()+"'",site);
     }
 
     String matchId() {
@@ -266,7 +277,9 @@ public class Parser {
 
     ParseException errorSyntax(String syntax) { return _errorSyntax("expected `"+syntax+"`");  }
     private ParseException _errorSyntax(String msg) {
-        return error("Syntax error, "+msg+" but found `" + _lexer.getAnyNextToken()+"`");
+        _lexer.skipWhiteSpace();
+        // Reading the token for the message must not advance the error location.
+        return error("Syntax error, "+msg+" but found `" + loc().getAnyNextToken()+"`");
     }
     ParseException error(String msg) { return error(msg,_lexer); }
     public static ParseException error(String msg, Lexer loc) { return new ParseException(msg,loc); }

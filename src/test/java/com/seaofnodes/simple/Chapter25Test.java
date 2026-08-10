@@ -142,8 +142,9 @@ public class Chapter25Test {
         CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
             "Client","""
                 val _other={int n -> n-1;};
-                val inc={int n -> n+1;};
-                return Lib.apply_noInline(inc,arg);
+                val inc={int n -> n+=1; return n;};
+                int n=arg;
+                return Lib.apply_noInline(inc,n);
                 """,987654321,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
         var clz=(com.seaofnodes.simple.type.TypeStruct)Parser.TYPES.get("class:Lib");
         int hidden=((com.seaofnodes.simple.type.TypeFunPtr)clz.field("_hidden_noInline")._t).fidx();
@@ -169,7 +170,7 @@ public class Chapter25Test {
         String[] sources={
             "val _spin={ -> while(1) {} return 1; }; _spin(); return 2;",
             // Two callers require cloning, including the non-exiting arm.
-            "val _spin={int x -> if(x) while(1) {} return 7; }; return _spin(arg)+_spin(arg);"
+            "val _spin={int x -> if(x) while(1) {} return 7; }; int n=arg; return _spin(n)+_spin(n);"
         };
         for( int i=0; i<sources.length; i++ ) {
             for( long seed : new long[]{1,123,987654321} ) {
@@ -191,6 +192,9 @@ public class Chapter25Test {
             i8 small="C";
             f64 fraction="C";
             {int} bump="C";
+            val extern_matches={i32 x -> counter==x;};
+            val extern_less={i32 x -> x<counter;};
+            val extern_seven={ -> counter==7;};
             val test_global={ ->
                 val before=counter;
                 counter=before;
@@ -471,9 +475,9 @@ public class Chapter25Test {
 
         // Elf files are sane
 
-        // Sys depends on io, libc, char, collections, and array utilities.
+        // Sys depends on io, libc, text, char, collections, and array utilities.
         assertArrayEquals(new String[]{"sys/adt", "sys/ary",
-            "sys/aryi64", "sys/aryu8", "sys/char", "sys/io", "sys/libc", "sys/scan"},sys_elf._deps);
+            "sys/aryi64", "sys/aryu8", "sys/char", "sys/io", "sys/libc", "sys/rt", "sys/scan", "sys/text"},sys_elf._deps);
         assertArrayEquals(new String[]{"sys"},sys_elf._units);
         assertSame("class:sys" ,sys_elf._clz._name);
     }
@@ -496,7 +500,7 @@ public class Chapter25Test {
     @Test
     public void testHelloWorldDriver() throws Exception {
         String out = "build/objs/helloWorldDriver/";
-        Simple.main(new String[]{"-L",SYS_BLDDIR,"-o",out,"--norun","src/test/smp/examples/A_helloWorld.smp"});
+        Simple.main(new String[]{"-L",SYS_BLDDIR,"-o",out,"--norun","docs/examples/A_helloWorld.smp"});
         assertTrue(Files.isRegularFile(Path.of(out,"A_helloWorld.o")));
     }
 
@@ -507,7 +511,7 @@ public class Chapter25Test {
         try( PrintStream capture = new PrintStream(output,true,StandardCharsets.UTF_8) ) {
             System.setOut(capture);
             Simple.main(new String[]{"-L",SYS_BLDDIR,"-o","build/objs/helloWorldDriverLibFile/",
-                                    "src/test/smp/examples/A_helloWorld.smp"});
+                                    "docs/examples/A_helloWorld.smp"});
         } finally {
             System.setOut(saved);
         }
@@ -554,7 +558,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testBubbles() throws IOException {
-        String src = Files.readString( Path.of("src/test/smp/examples/BubbleSort.smp"));
+        String src = Files.readString( Path.of("docs/examples/BubbleSort.smp"));
         String exe = TestC.compile(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
                                    TestC.CALL_CONVENTION,null,null,-1);
         assertEquals("[-17, 2, 3, 999]\n",
@@ -575,7 +579,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testCapitalize() throws IOException {
-        String src = Files.readString(Path.of("src/test/smp/examples/Capitalize.smp"));
+        String src = Files.readString(Path.of("docs/examples/Capitalize.smp"));
         String exe = TestC.compile(src,"Capitalize",new Ary<>(new String[]{SYS_BLDDIR}),
                                    TestC.CALL_CONVENTION,null,null,-1);
         assertEquals("Hello world\n",TestC.exec(exe,"hello world"));
@@ -588,7 +592,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testDijkstra() throws IOException {
-        String src = Files.readString(Path.of("src/test/smp/examples/Dijkstra.smp"));
+        String src = Files.readString(Path.of("docs/examples/Dijkstra.smp"));
         String matrix = "[0, 2, 0, 6, 0, 2, 0, 3, 8, 5, 0, 3, 0, 0, 7, 6, 8, 0, 0, 9, 0, 5, 7, 9, 0]";
         String exe = TestC.compile(src,"Dijkstra",new Ary<>(new String[]{SYS_BLDDIR}),
                                    TestC.CALL_CONVENTION,null,null,-1);
@@ -603,7 +607,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testFileIO() throws IOException {
-        String src = Files.readString(Path.of("src/test/smp/examples/FileIO.smp"));
+        String src = Files.readString(Path.of("docs/examples/FileIO.smp"));
         String exe = TestC.compile(src,"FileIO",new Ary<>(new String[]{SYS_BLDDIR}),
                                    TestC.CALL_CONVENTION,null,null,-1);
         assertEquals("File I/O succeeded\n",TestC.exec(exe));

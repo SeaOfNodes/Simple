@@ -3,4 +3,4 @@ val run={int n ->
     val c=new Counters.Counter(n);
     return c.get()+100*Counters.next_noInline();
 };
-return run(arg);
+int n=arg; return run(n);

@@ -73,14 +73,19 @@ final class Functions {
         while( true ) {
             Type t = P.types.parseType();    // Arg type
             if( t==null ) break;
+            P._lexer.skipWhiteSpace();
+            Lexer qualifier=P.loc();
             if( P.match("^") ) {
                 if( !(t instanceof TypeMemPtr ptr) || ptr._obj.isAry() )
-                    throw P.error("'^' requires a struct parameter");
+                    throw Parser.error("'^' requires a struct parameter",qualifier);
                 t = ptr.withPartial(true);
                 P.construction._borrowed = true;
             }
             finals.set(ids.size(),P.declarations.bindingFinal(t));
+            P._lexer.skipWhiteSpace();
+            Lexer nameLoc=P.loc();
             String id = P.requireId();
+            if( ids.find(id)!=-1 ) throw Parser.error("Duplicate parameter '"+id+"'",nameLoc);
             ts .push(t );       // Push type/arg pairs
             ids.push(id);
             P.match(",");
@@ -98,7 +103,7 @@ final class Functions {
         Lexer site = P.loc();
         site._position--; // Opening '('; arguments can contain nested calls.
         if( fcn._type == Type.NIL )
-            throw P.error("Calling a null function pointer");
+            throw Parser.error("Calling a null function pointer",site);
         fcn.keep();            // Keep while parsing args
 
         Ary<Node> args = new Ary<>( Node.class );
@@ -207,6 +212,9 @@ final class Functions {
 
         int oldUID = P._code.UID(); // Used to approximate function size
         FunNode fun = enterFunction(funName,sig,loc,finals,ids);
+        // Guards belong to this function's control flow. Do not inherit an
+        // enclosing function's predicates or leak this body's guards on exit.
+        P._scope.addGuards(fun,null,false);
         Construction.Frame outerConstruction = P.construction.enter(fun,isCtor && !fun.isClz());
         Node rpc = fun.parm(0);
         if( fun.isClz() ) P.structs.beginClassInit(fun,loc);
@@ -260,6 +268,7 @@ final class Functions {
         P._ref.addFun(P._code,fun);
 
         // Unstack parser state
+        P._scope.removeGuards(fun);
         if( _returnScope != null ) _returnScope.kill();
         _returnScope   =   returnScope;
         P.statements._continueScope = continueScope;

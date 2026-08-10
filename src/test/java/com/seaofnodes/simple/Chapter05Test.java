@@ -21,7 +21,7 @@ else {
 return a;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,(arg+2),(arg-3));", code.print());
+        assertEquals("return ((Phi(Region,(arg+2),(arg-3))<<32)>>32);", code.print());
     }
 
     @Test
@@ -65,7 +65,7 @@ else
     b=a+1;
 return a+b;""");
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return ((arg<<1)+Phi(Region,2,3));", code.print());
+        assertEquals("return ((((Phi(Region,arg,(((arg+1)<<32)>>32))+1)<<32)>>32)+Sar);", code.print());
     }
 
     @Test
@@ -80,7 +80,7 @@ else
     a=b+1;
 return a+b;""");
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return ((Phi(Region,(arg<<1),arg)+arg)+Phi(Region,4,5));", code.print());
+        assertEquals("return ((((Phi(Region,arg,(((arg+2)<<32)>>32))+1)<<32)>>32)+(((Phi(Region,(((arg+1)<<32)>>32),2)+Phi(Region,Sar,arg))<<32)>>32));", code.print());
     }
 
     @Test

@@ -15,13 +15,36 @@ final class References {
 
     References(Parser P) { this.P = P; }
 
+    // Compiler-generated library references use ordinary module lookup and
+    // forward resolution, without a synthetic token stream.
+    Node classReference(String name, Lexer site) {
+        CompUnit cu=ParseAll.findCompUnit(P._code,P._ref,name);
+        if( cu==null ) throw Parser.error("Cannot find standard library '"+name+"'",site);
+        String clzName=TypeStruct.addClzPrefix(cu._cname);
+        TypeStruct clz=(TypeStruct)Parser.TYPES.computeIfAbsent(clzName,n -> TypeStruct.make(n,true));
+        FRefNode ref=new FRefNode(name,site,TypeMemPtr.make((byte)2,clz,true));
+        _frefs.push(ref);
+        return ref.peephole();
+    }
+
+    // Read a member without consuming a postfix from source text.
+    Node member(Node receiver, String name, Lexer site) {
+        Field fld=receiver._type instanceof TypeMemPtr ptr ? ptr._obj.field(name) : null;
+        return P.peep(new LoadNode(site,name,fld==null ? 1 : fld._alias,
+                                  P.ctrl(),P.mem(),receiver,P.fldoff(receiver,name)));
+    }
+
     // Resolve a primary name, retaining its use site before speculative type lookup.
     Node parseName(String id, int pre, int pos, int pos2) {
+        Lexer site=P.loc();
+        site._position=pos;
+        site.skipWhiteSpace();
         // Attempt a local var lookup first
         Var var = P._scope.lookup(id);
         if( var==null ) {
             // Not a local var, try again as a type name
             P.pos(pos);
+            Lexer nameLoc = P.loc();
             Type t = P.types.parseType();
             if( t!=null ) {
                 // Static <clinit> typename lookup
@@ -52,7 +75,7 @@ final class References {
                 t = TypeMemPtr.make((byte)2,clz,true);
             }
             // Define the FRef
-            var = P._scope.defineFRef(id,t,true,P.loc());
+            var = P._scope.defineFRef(id,t,true,nameLoc);
             P.references._frefs.push((FRefNode)P._scope.in(var));
         }
 
@@ -73,7 +96,7 @@ final class References {
         if( kx < fx && !P.structs.inExplicitConstructor() && // Out of scope
             !(var._final && rvalue._type.isConstant()) ) { // Not a final constant
             if( kx > 0  ) // Global scope is OK, only ever one of these (not one per function invoke)
-                throw P.error("Variable '"+var._name+"' is out of function scope and must be a final constant");
+                throw Parser.error("Variable '"+var._name+"' is out of function scope and must be a final constant",site);
 
             // var.idx==2 is self argument, 3 is args, 4 or more are now static globals
             if( var._idx >= 4 ) {
@@ -98,7 +121,7 @@ final class References {
         }
         // Assign-update direct into Scope
         if( var._final && !P._scope.canInit(var) )
-            throw P.error("Cannot reassign final '"+var._name+"'");
+            throw Parser.error("Cannot reassign final '"+var._name+"'",site);
         checkSharedFunction(var);
         Node op = P.expressions.opAssign(ch,rvalue, var.type() );
         P._scope.update(var,op);
@@ -106,14 +129,14 @@ final class References {
         return pre==0 && Lexer.postfix(ch) ? rvalue : op;
     }
 
-    void checkAssignment(Var def) {
+    void checkAssignment(Var def, Lexer site) {
         String name = def._name;
         // A final field may receive its first value in its constructor.
         if( P._scope.in(def._idx)._type!=Type.TOP && def._final &&
             // Inside an allocation, final assign is OK, outside nope.
             // The parseNew() call added the allocation scope
             !P._scope.canInit(def) )
-            throw P.error("Cannot reassign final '"+name+"'");
+            throw Parser.error("Cannot reassign final '"+name+"'",site);
         checkSharedFunction(def);
 
     }
@@ -201,7 +224,7 @@ final class References {
         if( fld==null && ts!=null )
             fld = P.types.fieldOrOpen(ts,name,false);
         if( fld==null && ts!=null && !P.types.latestStruct(ts)._open )
-            throw P.error("Accessing unknown field '"+name+"' from '*"+ts._name+"'");
+            throw Parser.error("Accessing unknown field '"+name+"' from '*"+ts._name+"'",site);
 
         // We have to record "active touches" of a new class, to track when we
         // need to force class initialization.  Basically, we insert an CLInit,
@@ -233,7 +256,7 @@ final class References {
             // Store to field
             mem.keep();
             if( !P.construction.own(expr) && expr._type instanceof TypeMemPtr view && view._ro && P.ctrl()._type!=Type.XCONTROL )
-                throw P.error("Cannot modify final field '"+name+"'");
+                throw Parser.error("Cannot modify final field '"+name+"'",site);
             Node st = new StoreNode(P.loc(), name, alias, decl, P.ctrl(), mem, expr.unkeep(), off.unkeep(), lift, P.construction.own(expr)).peephole().keep();
             P.construction.store(expr,alias,st,mem);
             st.unkeep();
@@ -250,17 +273,17 @@ final class References {
             decl = conary.elem();
 
         // Load field
-        Node load = P.peep(new LoadNode(P.loc(),name,alias,P.ctrl(),mem,expr,off));
+        Node load = P.peep(new LoadNode(site,name,alias,P.ctrl(),mem,expr,off));
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
         char ch = pre==0 ? P._lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
             if( fld!=null && decl==Type.BOTTOM )
-                throw P.error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
+                throw Parser.error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor",site );
             Node op = P.expressions.opAssign(ch,load, decl ).keep();
             mem.keep();
             if( !P.construction.own(expr) && expr._type instanceof TypeMemPtr view && view._ro && P.ctrl()._type!=Type.XCONTROL )
-                throw P.error("Cannot modify final field '"+name+"'");
+                throw Parser.error("Cannot modify final field '"+name+"'",site);
             Node st = new StoreNode(P.loc(), name, alias, decl, P.ctrl(), mem, expr.unkeep(), off.unkeep(), op, P.construction.own(expr)).peephole().keep();
             P.construction.store(expr,alias,st,mem);
             st.unkeep();
@@ -302,7 +325,8 @@ final class References {
         Ary<FRefNode> frefs = new Ary<>(FRefNode.class);
         for( FRefNode fref : _frefs ) {
             if( fref.nIns() != 1 && fref._con == FRefNode.FREF_TYPE ) continue;
-            CompUnit cu = ParseAll.findCompUnitOrThrow(P._code,P._ref,fref._name);
+            CompUnit cu = ParseAll.findCompUnit(P._code,P._ref,fref._name);
+            if( cu==null ) throw fref.err();
             // Name lookup may already know this class's fields. Do not replace
             // that information with an empty placeholder before Iter runs.
             if( fref._con==FRefNode.FREF_TYPE )

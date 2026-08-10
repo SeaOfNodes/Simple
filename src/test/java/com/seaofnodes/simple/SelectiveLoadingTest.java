@@ -23,7 +23,7 @@ public class SelectiveLoadingTest {
         new CodeGen(src.toString(),obj.toString(),null,"Lib",null,123,true,TypeInteger.BOT)
             .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
         CodeGen code = new CodeGen(null,null,new Ary<>(new String[]{obj.toString()}),
-            "Use","return Lib.sum_noInline(arg);",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            "Use","return Lib.sum_noInline(((arg<<32)>>32));",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
         assertNull(code._compunits.get("Lib/Left")._src);
         assertNull(code._compunits.get("Lib/Right")._src);
         assertEquals("2000000000000",Eval2.eval(code,0));
@@ -33,11 +33,11 @@ public class SelectiveLoadingTest {
     @Test public void testUnreachableImportIsNotARoot() throws Exception {
         Path root = library("dead-import-");
         Ary<String> paths = new Ary<>(new String[]{root.toString()});
-        object(root,paths,"Unused","val run_noInline = { int n -> n+1; };");
+        object(root,paths,"Unused","val run_noInline = { int n -> int result=n+1; return result; };");
         for( long seed : new long[]{1,123,987654321} ) {
             CodeGen code = new CodeGen(null,root.toString(),paths,"Main","""
                 val _false_noInline = { -> false; };
-                if( _false_noInline() ) return Unused.run_noInline(arg);
+                if( _false_noInline() ) return Unused.run_noInline(((arg<<32)>>32));
                 return 7;
                 """,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
             CompUnit unused = code._compunits.get("Unused");
@@ -61,8 +61,8 @@ public class SelectiveLoadingTest {
             object(root,paths,"L"+i,"val relay_noInline = { {int->int} f -> L"+(i-1)+".relay_noInline(f); };");
         for( long seed : new long[]{1,123,987654321} ) {
             CodeGen code = new CodeGen(null,root.toString(),paths,"Main","""
-                val _increment_noInline = { int n -> n+1; };
-                val _decrement_noInline = { int n -> n-1; };
+                val _increment_noInline = { int n -> int result=n+1; return result; };
+                val _decrement_noInline = { int n -> int result=n-1; return result; };
                 val f = L5.relay_noInline(arg ? _increment_noInline : _decrement_noInline);
                 return f(41);
                 """,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
@@ -78,9 +78,9 @@ public class SelectiveLoadingTest {
         object(root,paths,"Relay","val relay = { {int->int} f -> f; };");
         for( long seed : new long[]{1,123,987654321} ) {
             CodeGen code = new CodeGen(null,root.toString(),paths,"Main","""
-                val _increment_noInline = { int n -> n+1; };
+                val _increment_noInline = { int n -> int result=n+1; return result; };
                 val f = Relay.relay(_increment_noInline);
-                return f(arg);
+                return f(((arg<<32)>>32));
                 """,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
             assertNull(function(code,"relay").summary());
             assertEquals("42",Eval2.eval(code,41));
@@ -91,11 +91,11 @@ public class SelectiveLoadingTest {
     @Test public void testImportedFunctionField() throws Exception {
         Path root = library("function-field-");
         Ary<String> paths = new Ary<>(new String[]{root.toString()});
-        object(root,paths,"Targets","var chosen = { int n -> n+1; };");
+        object(root,paths,"Targets","var chosen = { int n -> int result=n+1; return result; };");
         object(root,paths,"Apply","val run = { int n -> val f = Targets.chosen; return f(n); };");
         for( long seed : new long[]{1,123,987654321} ) {
             CodeGen code = new CodeGen(null,root.toString(),paths,"Main",
-                "return Apply.run(arg);",seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+                "return Apply.run(((arg<<32)>>32));",seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
             assertNull(function(code,"run").summary());
             assertEquals("42",Eval2.eval(code,41));
             assertEquals("1",Eval2.eval(code,0));
@@ -112,15 +112,15 @@ public class SelectiveLoadingTest {
         for( String target : new String[]{"apply","apply_noInline","forward_noInline"} )
             for( long seed : new long[]{1,123,987654321} ) {
                 CodeGen code = new CodeGen(null,root.toString(),paths,"Main",
-                    "val _increment_noInline = { int n -> n+1; }; "+
+                    "val _increment_noInline = { int n -> int result=n+1; return result; }; "+
                     "val forward_noInline = { {int->int} f,int n -> Apply.apply_noInline(f,n); }; return "+
-                    (target.equals("forward_noInline") ? target : "Apply."+target)+"(_increment_noInline,arg);",
+                    (target.equals("forward_noInline") ? target : "Apply."+target)+"(_increment_noInline,((arg<<32)>>32));",
                     seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
                 assertEquals("42",Eval2.eval(code,41));
                 assertEquals("1",Eval2.eval(code,0));
             }
         CodeGen nativeCode = new CodeGen(null,root.toString(),paths,"NativeCallback","""
-            val _increment_noInline = { int n -> n+1; };
+            val _increment_noInline = { int n -> int result=n+1; return result; };
             val run = { int n -> Apply.apply_noInline(_increment_noInline,n); };
             """,123,true,TypeInteger.BOT).driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
         Path driver = root.resolve("driver.c");
@@ -212,7 +212,7 @@ public class SelectiveLoadingTest {
             val p={int n -> Work.write_noInline(n);};
             val p_noInline={int n -> Work.write_noInline(n);};
             """);
-        write(src,"Lib/Work","val write_noInline={int n -> n+1;};");
+        write(src,"Lib/Work","val write_noInline={ int n -> int result=n+1; return result;};");
         write(src,"Lib/Unused","val f={int n -> n*2;};");
         new CodeGen(src.toString(),lib.toString(),null,"Lib",null,123,true,TypeInteger.BOT)
             .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
@@ -221,7 +221,7 @@ public class SelectiveLoadingTest {
 
         Ary<String> paths = new Ary<>(new String[]{lib.toString()});
         CodeGen code = new CodeGen(null,app.toString(),paths,"Main",
-            "if(arg==0) return -1; return Lib.api.p_noInline(arg);",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            "if(arg==0) return -1; return Lib.api.p_noInline(((arg<<32)>>32));",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
         assertNotNull(function(code,"Lib.Api.p_noInline").summary());
         assertNotNull(function(code,"Lib.Work.write_noInline").summary());
         assertNotNull(function(code,"Lib.Unused.f").summary());
@@ -233,7 +233,7 @@ public class SelectiveLoadingTest {
         assertEquals("6",Eval2.eval(code,5));
 
         code=new CodeGen(null,app.toString(),paths,"Main",
-            "val run={int n -> Lib.api.p(n);}; return run(arg);",123,true,TypeInteger.BOT)
+            "val run={int n -> Lib.api.p(n);}; return run(((arg<<32)>>32));",123,true,TypeInteger.BOT)
             .driver(CodeGen.Phase.TypeCheck);
         assertNull("p requested Api's implementation",function(code,"Lib.Api.p").summary());
         assertNotNull("The remaining call needs a signature, not a body",function(code,"Lib.Work.write_noInline").summary());
@@ -255,7 +255,7 @@ public class SelectiveLoadingTest {
         // fresh program.
         try {
             Eval2.eval(new CodeGen(null,app.toString(),paths,"Missing",
-                "if(arg==0) return -1; return Lib.api.p_noInline(arg);",123,true,TypeInteger.BOT),0);
+                "if(arg==0) return -1; return Lib.api.p_noInline(((arg<<32)>>32));",123,true,TypeInteger.BOT),0);
             fail("Missing transitive code must fail before evaluation");
         } catch( RuntimeException ex ) { assertTrue(ex.getMessage(),ex.getMessage().contains("Lib/Work")); }
     }

@@ -32,14 +32,14 @@ public class Chapter19Test {
                     case "u16" -> arg & 0xffffL;
                     case "i16" -> (long)(short)arg;
                     case "u32" -> arg & 0xffffffffL;
-                    case "i32" -> (long)(int)arg;
+                    case "i32", "int" -> (long)(int)arg;
                     case "f32" -> (double)(float)arg;
                     case "flt" -> (double)arg;
                     default    -> arg;
                     };
                     String msg = type+" array="+array+" arg="+arg;
                     String printed = array
-                        ? (type.equals("u8") ? ""+(char)(long)(Long)expected : (type.equals("int") ? "i64" : type)+"[ "+expected+"]")
+                        ? (type.equals("u8") ? ""+(char)(long)(Long)expected : (type.equals("int") ? "i32" : type)+"[ "+expected+"]")
                         : "Test.S{x="+expected+"}";
                     assertEquals(msg,printed,Eval2.eval(code,arg));
                 }
@@ -118,8 +118,8 @@ val hashCode = { !String self ->
 hashCode(new String("Hello, World!"));
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,123456789,(!=0)Phi(Loop,0,(((Phi_hash<<5)-Phi_hash)+.[]))); return Test.String; return Phi(Region,0,1,0,1); return Phi(Region,(!=0)._hashCode,Phi(Region,123456789,(!=0)Phi(Loop,0,(((Phi_hash<<5)-Phi_hash)+.[])))); ]", code.print());
-        assertEquals("4029215624828139541", Eval2.eval(code,  2));
+        assertEquals("Stop[ return Phi(Region,123456789,(!=0)Phi(Loop,0,(((((Phi_hash<<5)-Phi_hash)+.[])<<32)>>32))); return Test.String; return Phi(Region,0,1,0,1); return Phi(Region,(!=0)._hashCode,Phi(Region,123456789,(!=0)Phi(Loop,0,(((((Phi_hash<<5)-Phi_hash)+.[])<<32)>>32)))); ]", code.print());
+        assertEquals("1498789909", Eval2.eval(code,  2));
     }
 
     @Test
@@ -251,7 +251,7 @@ hashCode(new String("Hello"));
 int arg1 =  arg + 1;
 return arg1 / arg;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (div,(inc,arg),arg);", code.print());
+        assertEquals("return (div,(sari,(shli,(inc,arg))),arg);", code.print());
     }
 
     @Test
@@ -262,7 +262,7 @@ int arg1 =  arg + 1;
 return arg1 * arg;
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (mul,(inc,arg),arg);", code.print());
+        assertEquals("return (mul,(sari,(shli,(inc,arg))),arg);", code.print());
     }
 
     @Test
@@ -272,7 +272,7 @@ int a = arg;
 return a + 2.0;
 """
         ).driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (addf,(cvtf,arg),2.0f);", code.print());
+        assertEquals("return (addf,(cvtf,(sari,(shli,arg))),2.0f);", code.print());
     }
 
     @Test
@@ -287,7 +287,7 @@ else {
 }
 return a;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return Phi(Region,(addi,arg),(addi,arg));", code.print());
+        assertEquals("return (sari,(shli,Phi(Region,(addi,arg),(addi,arg))));", code.print());
     }
 
     @Test
@@ -302,7 +302,7 @@ else
     a=b+1;
 return a+b;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (add,(add,Phi(Region,(shli,arg),arg),arg),Phi(Region,4,5));", code.print());
+        assertEquals("return (add,(sari,(shli,(inc,Phi(Region,arg,(sari,(shli,(addi,arg))))))),(sari,(shli,(add,Phi(Region,(sari,(shli,(inc,arg))),2),Phi(Region,sari,arg)))));", code.print());
     }
 
     @Test
@@ -314,7 +314,7 @@ for( int i=0; i<arg; i++ )
     sum += i;
 return sum;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return Phi(Loop,0,(add,Phi_sum,Phi(Loop,0,(inc,Phi_i))));", code.print());
+        assertEquals("return Phi(Loop,0,(sari,(shli,(add,Phi_sum,Phi(Loop,0,(sari,(shli,(inc,Phi_i))))))));", code.print());
     }
 
     @Test
@@ -331,21 +331,21 @@ return new _S;""");
     public void testLea1() {
         CodeGen code = new CodeGen("int x = arg/3; return arg+x+7;");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (lea,arg,(div,arg,3));", code.print());
+        assertEquals("return (lea,arg,(sari,(shli,(div,arg,3))));", code.print());
     }
 
     @Test
     public void testLea2() {
         CodeGen code = new CodeGen("int x = arg/3; return arg+x*4+7;");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (lea,arg,(div,arg,3));", code.print());
+        assertEquals("return (lea,arg,(sari,(shli,(div,arg,3))));", code.print());
     }
 
     @Test
     public void testLea3() {
         CodeGen code = new CodeGen("int x = arg/3; return x*4+arg;");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (lea,arg,(div,arg,3));", code.print());
+        assertEquals("return (lea,arg,(sari,(shli,(div,arg,3))));", code.print());
     }
 
     @Test
@@ -359,7 +359,7 @@ return new _S;""");
     public void testAlloc3() {
         CodeGen code = new CodeGen("int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1]+3;");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return .[];", code.print());
+        assertEquals("return (addi,.[]);", code.print());
     }
 
     @Test
@@ -376,7 +376,7 @@ for( int i=0; i<ary#-1; i++ )
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return .[];", code.print());
+        assertEquals("return (add,.[],(muli,.[]));", code.print());
     }
 
     @Test
@@ -479,7 +479,7 @@ val _fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return _fcn(2)*10 + _fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun3,[2-3]),x); return (shli,Parm_x($fun4,[2-3])); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,(sext32,Parm_x($fun3,[2-3])),sext32); return (shli,(sext32,Parm_x($fun4,[2-3]))); ]", code.print());
     }
 
     @Test
@@ -487,9 +487,9 @@ return _fcn(2)*10 + _fcn(3);
         CodeGen code = new CodeGen(
 """
 val _sq = { int x -> x*x; };
-return _sq(arg) + _sq(3);
+int n=arg; return _sq(n) + _sq(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("return (addi,(mul,arg,arg));", code.print());
+        assertEquals("return (addi,(mul,(sari,(shli,arg)),sari));", code.print());
     }
 }

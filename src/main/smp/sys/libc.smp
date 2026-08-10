@@ -2,17 +2,17 @@
 // libc bindings:
 //   https://www.man7.org/linux/man-pages/man2/<libc call>.2.html
 
-// The buffers are int-versions of zero-terminated strings.
-//     int buf = aryu8.str0("some_file");
+// The buffers are i64 addresses of zero-terminated strings.
+//     i64 buf = aryu8.str0("some_file");
 // buf mode perm-> fd
 {  i64 i32  i32 -> i32 } open = "C";
 // buf perm -> fd
 {  i64 i32 -> i32 } creat = "C";
 
 // fd  buf len -> len
-{  i32 i64 u32 -> i32 } write = "C";
+{  i32 i64 i64 -> i64 } write = "C";
 // fd  buf len -> len
-{  i32 i64 u32 -> i32 } read = "C";
+{  i32 i64 i64 -> i64 } read = "C";
 // fd  -> err
 {  i32 -> i32 } close = "C";
 // path -> err
@@ -27,12 +27,29 @@ i32 O_TRUNC = 1024; // 04000 on x86_64-pc-cygwin
 i32 STDIN  = 0;
 i32 STDOUT = 1;
 i32 STDERR = 2;
+i32 EOF    = -1; // simple_getch sets errno to EOF on end-of-input.
 
 // status
 {  i32 -> i32 } _exit = "C";
+
 // errno is not an ordinary C data symbol; read it through the native runtime.
 { i32 } simple_errno = "C";
 val errno = { -> simple_errno(); };
+{ i32 -> i32 } simple_set_errno = "C";
+// Set errno and return -1, matching the native I/O error convention.
+val set_errno = { i32 error -> simple_set_errno(error); };
+
+i32 EINTR = "C";
+i32 EIO = "C";
+i32 EINVAL = "C";
+i32 EOVERFLOW = "C";
+
+// Read one byte from stdin, without <enter> or echo.  Restores the previous
+// terminal mode before returning.  Files and pipes also work.  Returns 0..255,
+// or -1 with errno set to EOF or an OS error.  Ctrl-C is byte 3; escape/UTF-8
+// sequences are multiple bytes.
+{ i32 } simple_getch = "C";
+
 // addr len prot flags fd  off -> void*
 {  i64  i64 i32  i32   i32 i32 -> i64 } mmap = "C";
 // mmap flags

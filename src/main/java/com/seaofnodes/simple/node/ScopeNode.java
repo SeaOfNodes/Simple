@@ -638,6 +638,7 @@ public class ScopeNode extends MemMergeNode {
         int i = _guards._len;
         while( i > 0 ) {
             Node  cast = _guards.at(--i);
+            if( cast instanceof FunNode ) break; // Function boundary
             if( cast instanceof CFGNode ) continue; // Marker between guard sets
             Node xpred = _guards.at(--i);
             if( xpred == pred )

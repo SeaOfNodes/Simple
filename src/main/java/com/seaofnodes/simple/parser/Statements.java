@@ -24,12 +24,14 @@ final class Statements {
      * @return a {@link Node} or {@code null}
      */
     Node parseStatement() {
+        P._lexer.skipWhiteSpace();
+        Lexer site=P.loc();
         if(      P.matchx("return")  ) return parseReturn();
         else if (P.matchx("if")      ) return parseIf();
         else if (P.matchx("while")   ) return parseWhile();
         else if (P.matchx("for")     ) return parseFor();
-        else if (P.matchx("break")   ) return parseBreak();
-        else if (P.matchx("continue")) return parseContinue();
+        else if (P.matchx("break")   ) return parseBreak(site);
+        else if (P.matchx("continue")) return parseContinue(site);
         else if (P.matchx("struct")  ) return P.structs.parseStruct();
         else if (P.structs.inStructDeclaration() && P.matchx("new")) return P.structs.parseConstructorDeclaration();
         else if (P.matchx(";")       ) return P._code.ZERO; // Empty statement
@@ -204,7 +206,7 @@ final class Statements {
         if( doFor ) {
             int old = P.pos(nextPos);
             if( !P.peek(')') )
-              P.expressions.parseAssignment();
+              P.expressions.parseAssignment().isKill();
             if( P.pos() != nextEnd )
                 throw P.errorSyntax( "Unexpected code after expression" );
             P.pos(old);
@@ -237,8 +239,8 @@ final class Statements {
         P._scope = exit;
         return P._code.ZERO;
     }
-    private Node parseBreak   () {
-        checkLoopActive();
+    private Node parseBreak(Lexer site) {
+        checkLoopActive(site);
         // At the time of the break, and loop-exit conditions are only valid if
         // they are ALSO valid at the break.  It is the intersection of
         // conditions here, not the union.
@@ -248,15 +250,20 @@ final class Statements {
         return P._code.ZERO;
     }
 
-    private Node parseContinue() { checkLoopActive(); _continueScope = P.require(jumpTo( _continueScope ),";"); return P._code.ZERO; }
+    private Node parseContinue(Lexer site) { checkLoopActive(site); _continueScope = P.require(jumpTo( _continueScope ),";"); return P._code.ZERO; }
 
     private ScopeNode jumpTo(ScopeNode toScope) {
         ScopeNode cur = P._scope.dup();
         P.ctrl(P._code.XCTRL); // Kill current scope
         // Prune nested lexical scopes that have depth > than the loop head
         // We use _breakScope as a proxy for the loop head scope to obtain the depth
+        // The clone shares lexical boundaries and Var records with the active
+        // parser scope. Promoting on the clone would move those boundaries
+        // without moving the active scope's bindings. Drop locals first, then
+        // copy forward references into the jump scope with their own indices.
         while( cur.depth() > _breakScope.depth() )
-            cur.pop();
+            cur._pop();
+        cur.balanceLoopFRefs(P._scope);
         // If this is a continue then first time the target is null
         // So we just use the pruned current scope as the base for the
         // "continue"
@@ -264,9 +271,13 @@ final class Statements {
             return cur;
         // toScope is either the break scope, or a scope that was created here
         assert toScope.depth() <= _breakScope.depth();
+        // A later path can discover forward references after an earlier
+        // break/continue saved its scope. Keep those bindings across the merge.
+        toScope.balanceLoopFRefs(cur);
+        cur.balanceLoopFRefs(toScope);
         toScope.ctrl(toScope.mergeScopes(cur,P.loc()).peephole());
         return toScope;
     }
 
-    private void checkLoopActive() { if (_breakScope == null) throw P.error("No active loop for a break or continue"); }
+    private void checkLoopActive(Lexer site) { if (_breakScope == null) throw Parser.error("No active loop for a break or continue",site); }
 }

@@ -28,7 +28,7 @@ public class EscapeFlowTest {
     // Start memory rather than a frozen declaration constant.
     @Test public void testUnknownCallerCallback() {
         CodeGen code = new CodeGen("""
-            val _hidden_noInline = { int n -> return n+2; };
+            val _hidden_noInline = { int n -> int result=n+2; return result; };
             val apply_noInline = { {int->int} f,int n -> return f(n); };
             return apply_noInline;
             """).parse();
@@ -42,16 +42,16 @@ public class EscapeFlowTest {
         assertTrue(callback.in(1) instanceof ProjNode);
         TypeFunPtr type = (TypeFunPtr)callback._type;
         assertTrue(XInt.isHigh(type.fidxs()));
-        assertSame(TypeInteger.BOT,apply.ret().expr()._type);
+        assertSame(TypeInteger.I32,apply.ret().expr()._type);
         // Only <clinit> and apply escape; forwarding #self must not expose _hidden.
         assertEquals("Stop[ return { apply_noInline}; return #2; ]",code.print());
     }
 
     @Test public void testNativeCallbackRoundTrip() {
         CodeGen code = new CodeGen("""
-            val _callback_noInline = { int n -> return n+1; };
+            val _callback_noInline = { int n -> int result=n+1; return result; };
             { {int->int} -> {int->int} } bounce = "C";
-            return bounce(_callback_noInline)(arg);
+            return bounce(_callback_noInline)(((arg<<32)>>32));
             """).driver(CodeGen.Phase.TypeCheck);
         FunNode callback = named(code,"_callback_noInline");
         assertTrue(callback.unknownCallers());
@@ -87,7 +87,7 @@ public class EscapeFlowTest {
     @Test public void testPublicAllocator() {
         CodeGen code = new CodeGen("""
             struct Box { int n; new Box = { int x -> n=x; }; };
-            return new Box(arg).n;
+            return new Box(((arg<<32)>>32)).n;
             """).parse();
         FunNode allocator = named(code,"Test.Box.<new>");
         int[] helpers = XInt.EMPTY;

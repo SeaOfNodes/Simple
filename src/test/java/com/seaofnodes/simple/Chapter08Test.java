@@ -46,7 +46,7 @@ while(arg < 10) {
 return a;
                 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1),Phi_a));", code.print());
+        assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(((Phi_a+1)<<32)>>32),Phi_a));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
 
@@ -185,7 +185,7 @@ while(arg < 10) {
 return a;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,Phi(Loop,1,(Phi_a+1)),Add);", code.print());
+        assertEquals("return Phi(Region,Phi(Loop,1,(((Phi_a+1)<<32)>>32)),Sar);", code.print());
         assertTrue(code.ctrl() instanceof RegionNode);
     }
 
@@ -201,7 +201,7 @@ while(1) {
 return a;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return (Phi(Loop,1,Add)+1);", code.print());
+        assertEquals("return (((Phi(Loop,1,Sar)+1)<<32)>>32);", code.print());
         assertTrue(code.ctrl() instanceof CProjNode prj && prj._idx==1 );
     }
 

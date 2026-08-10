@@ -68,8 +68,8 @@ public class IncrementalBuildTest {
     @Test public void testSourceChangeAndCycle() throws Exception {
         Path root=fixture("bundle-");
         Path src=root.resolve("src"), obj=root.resolve("obj");
-        write(src,"App/A","val value={int n -> n ? B.value(n-1) : 1; };",1000);
-        write(src,"App/B","val value={int n -> n ? A.value(n-1) : 5; };",1000);
+        write(src,"App/A","val value={int n -> n ? B.value(--n) : 1; };",1000);
+        write(src,"App/B","val value={int n -> n ? A.value(--n) : 5; };",1000);
         write(src,"App/Main","return A.value(1);",1000);
         compile(src,obj,"App/A");
         assertEquals("One build timestamp for the cycle",Files.getLastModifiedTime(obj.resolve("App/A.o")),
@@ -82,7 +82,7 @@ public class IncrementalBuildTest {
         assertNull(code._compunits.get("App/A")._src);
         assertNull(code._compunits.get("App/B")._src);
 
-        write(src,"App/B","val value={int n -> n ? A.value(n-1) : 7; };",4000);
+        write(src,"App/B","val value={int n -> n ? A.value(--n) : 7; };",4000);
         code=client(src,obj);
         assertEquals("7",Eval2.eval(code,0));
         assertNotNull(code._compunits.get("App/A")._src);

@@ -91,10 +91,50 @@ public class RegAllocTestSupport {
     public static void nullUseMask() {
         CodeGen code = graph();
         Op def = new Op(A,null,null,false,code._start);
+        new Op(null,null,A,false,code._start); // The dependency must not keep A live across this kill.
         new Op(null,null,null,false,code._start,def); // Scheduling dependency only.
         RegAlloc alloc = new RegAlloc(code);
         assertTrue(BuildLRG.run(0,alloc));
         assertTrue(IFG.build(0,alloc));
+    }
+
+    public static void independentFunctions() {
+        for( boolean reverse : new boolean[]{false,true} ) {
+            CodeGen code = graph();
+            code._cfg.clear();
+            code._callerSave = RegMask.FULL; // These graphs only test local constraints.
+            FunNode masks = new FunNode(null,com.seaofnodes.simple.type.TypeFunPtr.BOT,
+                                        "masks",null,null,code._start);
+            Op a = new Op(A,null,null,false,masks);
+            Op b = new Op(null,B,null,false,masks,a); // Fails BuildLRG.
+            ReturnNode ret1 = new ReturnNode(masks,null,null,null,masks);
+            masks.setRet(ret1);
+
+            FunNode kills = new FunNode(null,com.seaofnodes.simple.type.TypeFunPtr.BOT,
+                                        "kills",null,null,code._start);
+            Op c = new Op(A,null,null,false,kills);
+            new Op(null,null,A,false,kills);
+            Op d = new Op(null,A,null,false,kills,c); // Fails IFG, independently of masks.
+            ReturnNode ret2 = new ReturnNode(kills,null,null,null,kills);
+            kills.setRet(ret2);
+            code._cfg.add(reverse ? kills : masks);
+            code._cfg.add(reverse ? ret2 : ret1);
+            code._cfg.add(reverse ? masks : kills);
+            code._cfg.add(reverse ? ret1 : ret2);
+            RegAlloc alloc = new RegAlloc(code);
+            alloc.regAlloc();
+            assertEquals(0,alloc.regnum(a));
+            assertEquals(1,alloc.regnum(b.in(1)));
+            assertEquals(0,alloc.regnum(c));
+            assertEquals(0,alloc.regnum(d.in(1)));
+            int splits = 0;
+            for( Node n : kills.outs() )
+                if( n instanceof SplitNode split ) {
+                    assertEquals("Another function's mask failure must not delay this split",0,split._round);
+                    splits++;
+                }
+            assertTrue("Preserving A across the kill requires transfers",splits>0);
+        }
     }
 
     public static void cloneRegisterClass() {
@@ -144,7 +184,7 @@ public class RegAllocTestSupport {
                 assertEquals(op,1,found);
                 code.driver(CodeGen.Phase.RegAlloc,"x86_64_v2","SystemV");
                 checkRegisters(code);
-                assertEquals(op+" reversed="+reversed,8,code._regAlloc._spillScaled);
+                assertEquals(op+" reversed="+reversed,24,code._regAlloc._spillScaled);
                 code.encode();
             }
     }
@@ -305,6 +345,34 @@ public class RegAllocTestSupport {
             assertTrue(phi.in(2) instanceof SplitNode);
             if( phiConflict ) assertTrue(use.in(1) instanceof SplitNode);
         }
+    }
+
+    public static void tiedLoopBackedges() {
+        CodeGen code = graph();
+        RegAlloc alloc = new RegAlloc(code);
+        Op init = new Op(A,null,null,false,code._start);
+        LoopNode loop = new LoopNode(null,null,code._start);
+        PhiNode first = new PhiNode("first",loop,init,null);
+        PhiNode second = new PhiNode("second",loop,init,null);
+        first._type = second._type = TypeInteger.BOT;
+        Op back = new Op(A,A,null,false,loop,first);
+        Op narrowed = new Op(A,A,null,false,loop,back);
+        first.setDef(2,back);
+        second.setDef(2,narrowed);
+        new Op(null,A,null,false,loop,first,second);
+        loop.setDef(2,loop);
+        // Model the union created by two-address operations on the backedge.
+        LRG lrg = alloc.newLRG(first,null);
+        lrg._mask = A;
+        for( Node n : new Node[]{second,init,back,narrowed} ) alloc.union(lrg,n);
+        lrg.selfConflict(first);
+        lrg.selfConflict(second);
+        alloc.splitSelfConflict((byte)0,lrg);
+        assertSame(back,first.in(2));
+        assertSame(narrowed,second.in(2));
+        alloc.splitSelfConflict((byte)1,lrg);
+        assertTrue(first.in(2) instanceof SplitNode);
+        assertTrue(second.in(2) instanceof SplitNode);
     }
 
     public static void copyForward() throws Exception {

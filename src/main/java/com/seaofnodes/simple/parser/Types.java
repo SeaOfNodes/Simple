@@ -54,12 +54,14 @@ final class Types {
         // Nest arrays and '?' as needed
         Type t2 = t1;
         while( true ) {
+            P._lexer.skipWhiteSpace();
+            Lexer site=P.loc();
             if( P.match("?") ) {
                 if( t2 instanceof TypeMemPtr tmp ) {
-                    if( tmp.nullable() ) throw P.error("Type "+t2+" already allows null");
+                    if( tmp.nullable() ) throw Parser.error("Type "+t2+" already allows null",site);
                     t2 = tmp.makeNullable();
                 } else
-                    throw P.error("Type "+t0+" cannot be null");
+                    throw Parser.error("Type "+t0+" cannot be null",site);
             } else if( P.match("[~]") ) {
                 t2 = TypeMemPtr.make(typeAry(t2,true)).makeRO();
             } else if( P.match("[]") ) {

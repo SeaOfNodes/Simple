@@ -16,6 +16,10 @@ public abstract class SourceError {
             source=cu._src!=null ? cu._src.getBytes(StandardCharsets.UTF_8)
                 : file==null ? null : Files.readAllBytes(Path.of(file));
         } catch( IOException ex ) { source=null; }
+        return format(name,source,pos,message);
+    }
+
+    public static String format(String name, byte[] source, int pos, String message) {
         if( source==null || pos<0 || pos>source.length )
             return name+": error: "+message+" (source unavailable at byte offset "+pos+")";
 
@@ -28,22 +32,24 @@ public abstract class SourceError {
         int point=Math.min(pos,end);
         String before=new String(source,start,point-start,StandardCharsets.UTF_8);
         String text=new String(source,start,end-start,StandardCharsets.UTF_8);
-        int column=before.codePointCount(0,before.length())+1;
-        SB sb=new SB().p(name).p(':').p(line).p(':').p(column).p(": error: ").p(message).p("\n    ");
+        SB excerpt=new SB();
         int width=0, caret=0;
         for( int i=0; i<text.length(); ) {
             if( i==before.length() ) caret=width;
             int ch=text.codePointAt(i);
             if( ch=='\t' ) {
                 int spaces=8-(width%8);
-                for( int j=0; j<spaces; j++ ) sb.p(' ');
+                for( int j=0; j<spaces; j++ ) excerpt.p(' ');
                 width+=spaces;
-            } else { sb.p(new String(Character.toChars(ch))); width++; }
+            } else { excerpt.p(new String(Character.toChars(ch))); width++; }
             i+=Character.charCount(ch);
         }
         if( before.length()==text.length() ) caret=width;
+        // Emacs compilation mode defaults to display columns, with 8-column tabs.
+        SB sb=new SB().p(name).p(':').p(line).p(':').p(caret+1).p(": error: ").p(message)
+            .p("\n    ").p(excerpt.toString());
         sb.p("\n    ");
-        for( int i=0; i<caret; i++ ) sb.p('-');
+        for( int i=0; i<caret; i++ ) sb.p('_');
         return sb.p('^').toString();
     }
 }

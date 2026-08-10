@@ -72,7 +72,7 @@ abstract public class IFG {
         WORK.clear();
 
         // Last block has nothing live out
-        for( CFGNode bb : alloc._code._cfg )
+        for( CFGNode bb : alloc._cfg )
             if( bb.blockHead())
                 WORK.push( bb );
 
@@ -164,6 +164,10 @@ abstract public class IFG {
         // Also record use-side spills for biased coloring.
         // Then make all inputs live.
         for( int i=1; i<n.nIns(); i++ ) {
+            // Metadata and scheduling dependencies do not consume registers.
+            // In particular, a static call's hidden class argument has no ABI
+            // location and must not keep its constant live across other calls.
+            if( ((MachNode)n).regmap(i)==null ) continue;
             Node def = n.in(i);
             if( def==null ) continue;
             LRG lrg1 = alloc.lrg(def);
@@ -480,7 +484,7 @@ abstract public class IFG {
 
     private static int functionArea(FunNode fun, RegAlloc alloc) {
         int area=0;
-        for( CFGNode bb : alloc._code._cfg )
+        for( CFGNode bb : alloc._cfg )
             if( bb.fun()==fun )
                 area += bb.nOuts();
         return area;

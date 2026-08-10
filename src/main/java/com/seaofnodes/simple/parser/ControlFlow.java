@@ -14,6 +14,8 @@ final class ControlFlow {
 
     // Parse a conditional expression, merging results.
     Node conditional( Node pred, String fside ) {
+        Lexer site=P.loc();
+        if( !fside.equals("else") ) site._position-=fside.equals(":") ? 1 : 2;
         // IfNode takes current control and predicate
         pred.keep();
         Node ifNode = new IfNode(P.ctrl(), pred).peephole();
@@ -88,7 +90,7 @@ final class ControlFlow {
         Node ret = P.peep(new PhiNode("",r,lhs.unkeep(),rhs.unkeep()));
         // Immediately fail e.g. `arg ? 7 : ptr`
         ParseException err;
-        if( !fside.equals("else") && (err = ret.err()) !=null ) throw err;
+        if( !fside.equals("else") && (err = ret.err()) !=null ) throw Parser.error(err.getMessage(),site);
         ret.keep();
         r.peephole();
         return ret.unkeep();

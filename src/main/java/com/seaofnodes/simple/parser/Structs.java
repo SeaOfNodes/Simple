@@ -78,12 +78,14 @@ final class Structs {
     Node parseConstructorDeclaration() {
         TypeStruct self = P._scope.constructorSelf();
         assert self != null;
+        P._lexer.skipWhiteSpace();
+        Lexer site=P.loc();
         String name = P.requireId();
         String expect = initFieldName(self._name);
         if( name != expect )
-            throw P.error("Constructor name '" + name + "' must match type name '" + expect + "'");
+            throw Parser.error("Constructor name '" + name + "' must match type name '" + expect + "'",site);
         P.require("=");
-        if( _pendingCtor!=null ) throw P.error("Redefining constructor '"+name+"'");
+        if( _pendingCtor!=null ) throw Parser.error("Redefining constructor '"+name+"'",site);
         _pendingCtor = new Constructor(name,P.loc());
         // Parse the body after all field declarations are known, so self.x
         // and x resolve the same field even when x is declared below this body.

@@ -395,6 +395,9 @@ public class LoadNode extends MemOpNode {
     // load will need to zero/sign-extend.
     private Node extend(Node val) {
         if( !(declaredType() instanceof TypeInteger ti) ) return val;
+        // A typed load can already know its width while the stored value is
+        // still unresolved. Do not replace it with an untyped shift/and chain.
+        if( !(val._type instanceof TypeInteger) ) { addDep(val); return null; }
         if( ti._min==0 )        // Unsigned
             return new AndNode(null,val,con(ti._max));
         // Signed extension

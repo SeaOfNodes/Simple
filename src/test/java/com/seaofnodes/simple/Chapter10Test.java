@@ -74,7 +74,8 @@ public class Chapter10Test {
         CodeGen code = new CodeGen("""
             val f = { int n -> (n+1)&7; };
             int x = 0;
-            if (!!(arg && (x=f(arg)))) return x;
+            int n=arg;
+            if (!!(n && (x=f(n)))) return x;
             return -1;
             """).driver(CodeGen.Phase.TypeCheck);
         assertEquals("-1",Eval2.eval(code,0));
@@ -181,7 +182,7 @@ struct s0 { int v0; };
 arg=0+new s0.0;
 """);
         try { code.parse(); fail(); }
-        catch( Exception e ) { assertEquals("Expected an identifier, found 'null'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Expected an identifier, found '0'",e.getMessage()); }
     }
 
     @Test
@@ -196,7 +197,7 @@ while (arg) {
 return bar.a;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("Stop[ return Phi(Loop,0,(Phi_a+2)); return Test.Bar; ]", code.print());
+        assertEquals("Stop[ return ((Phi(Loop,0,(Sar+2))<<32)>>32); return Test.Bar; ]", code.print());
     }
 
     @Test
@@ -318,7 +319,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("Stop[ return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum)); return Test.Iter; ]", code.print());
+        assertEquals("Stop[ return Phi(Loop,0,(((Phi_sum+((Phi(Loop,0,(((Sar+1)<<32)>>32))<<32)>>32))<<32)>>32)); return Test.Iter; ]", code.print());
     }
 
 

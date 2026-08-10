@@ -1,0 +1,304 @@
+src\test\java\com\seaofnodes\simple\Chapter09Test.java:6: error: package org.junit does not exist
+import org.junit.Assert;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter09Test.java:7: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter09Test.java:8: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter09Test.java:10: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\ParserTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\ParserTest.java:6: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter16Test.java:4: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter16Test.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter16Test.java:6: error: package org.junit does not exist
+import static org.junit.Assert.assertEquals;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter16Test.java:6: error: static import only from classes and interfaces
+import static org.junit.Assert.assertEquals;
+^
+src\test\java\com\seaofnodes\simple\Chapter16Test.java:7: error: package org.junit does not exist
+import static org.junit.Assert.fail;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter16Test.java:7: error: static import only from classes and interfaces
+import static org.junit.Assert.fail;
+^
+src\test\java\com\seaofnodes\simple\TicTacToeTest.java:8: error: package org.junit does not exist
+import org.junit.BeforeClass;
+                ^
+src\test\java\com\seaofnodes\simple\TicTacToeTest.java:9: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\TicTacToeTest.java:10: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\ConstructionGroupTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\ConstructionGroupTest.java:6: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\codegen\RegAllocTestSupport.java:7: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter23Test.java:17: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter23Test.java:18: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter23Test.java:19: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\NativeExecutionTest.java:6: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\NativeExecutionTest.java:7: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\NativeExecutionTest.java:8: error: package org.junit does not exist
+import static org.junit.Assume.assumeTrue;
+                       ^
+src\test\java\com\seaofnodes\simple\NativeExecutionTest.java:8: error: static import only from classes and interfaces
+import static org.junit.Assume.assumeTrue;
+^
+src\test\java\com\seaofnodes\simple\Chapter14Test.java:5: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter14Test.java:6: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter14Test.java:7: error: package org.junit does not exist
+import static org.junit.Assert.assertEquals;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter14Test.java:7: error: static import only from classes and interfaces
+import static org.junit.Assert.assertEquals;
+^
+src\test\java\com\seaofnodes\simple\Chapter14Test.java:8: error: package org.junit does not exist
+import static org.junit.Assert.fail;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter14Test.java:8: error: static import only from classes and interfaces
+import static org.junit.Assert.fail;
+^
+src\test\java\com\seaofnodes\simple\ArithNodeTest.java:8: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\ArithNodeTest.java:9: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\CompoundAssignmentTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\CompoundAssignmentTest.java:6: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter14FloatTest.java:4: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter14FloatTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter14FloatTest.java:6: error: package org.junit does not exist
+import static org.junit.Assert.assertEquals;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter14FloatTest.java:6: error: static import only from classes and interfaces
+import static org.junit.Assert.assertEquals;
+^
+src\test\java\com\seaofnodes\simple\Chapter10Test.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter10Test.java:6: error: package org.junit does not exist
+import static org.junit.Assert.assertEquals;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter10Test.java:6: error: static import only from classes and interfaces
+import static org.junit.Assert.assertEquals;
+^
+src\test\java\com\seaofnodes\simple\Chapter10Test.java:7: error: package org.junit does not exist
+import static org.junit.Assert.fail;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter10Test.java:7: error: static import only from classes and interfaces
+import static org.junit.Assert.fail;
+^
+src\test\java\com\seaofnodes\simple\BulkMemPhiTest.java:7: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\BulkMemPhiTest.java:8: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\MemoryEncodingTest.java:6: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\MemoryEncodingTest.java:7: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\ConstructionRequirementsTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\ConstructionRequirementsTest.java:6: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\ConstructionRequirementsTest.java:8: error: package org.junit does not exist
+@org.junit.Ignore("Deferred: inferred field requirements and incomplete-object traversal")
+          ^
+src\test\java\com\seaofnodes\simple\Chapter13Test.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter13Test.java:6: error: package org.junit does not exist
+import static org.junit.Assert.assertEquals;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter13Test.java:6: error: static import only from classes and interfaces
+import static org.junit.Assert.assertEquals;
+^
+src\test\java\com\seaofnodes\simple\Chapter06Test.java:6: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter06Test.java:8: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\TestRunner.java:3: error: package org.junit.internal does not exist
+import org.junit.internal.TextListener;
+                         ^
+src\test\java\com\seaofnodes\simple\TestRunner.java:4: error: package org.junit.runner does not exist
+import org.junit.runner.JUnitCore;
+                       ^
+src\test\java\com\seaofnodes\simple\TestRunner.java:5: error: package org.junit.runner does not exist
+import org.junit.runner.Request;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter03Test.java:4: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter03Test.java:5: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\FuzzerWrap.java:5: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\FuzzerWrap.java:6: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\FuzzerWrap.java:7: error: package org.junit does not exist
+import static org.junit.Assert.assertTrue;
+                       ^
+src\test\java\com\seaofnodes\simple\FuzzerWrap.java:7: error: static import only from classes and interfaces
+import static org.junit.Assert.assertTrue;
+^
+src\test\java\com\seaofnodes\simple\EscapeFlowTest.java:6: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\EscapeFlowTest.java:7: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Int32Test.java:10: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Int32Test.java:11: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter24Test.java:15: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter24Test.java:16: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter24Test.java:17: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\TerminalInputTest.java:12: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\TerminalInputTest.java:13: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\ConstructorCompletionTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\ConstructorCompletionTest.java:6: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\RuntimeArgsTest.java:4: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\RuntimeArgsTest.java:5: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\TestC.java:21: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter04Test.java:6: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter04Test.java:7: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter04Test.java:9: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\ChainedComparisonTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\ChainedComparisonTest.java:6: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\SeparateCompilationTest.java:9: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\SeparateCompilationTest.java:10: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\MutabilityTest.java:3: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\MutabilityTest.java:4: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\FinalConstructionTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\FinalConstructionTest.java:6: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter28bTest.java:4: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter28bTest.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter28bTest.java:7: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter21Test.java:13: error: package org.junit does not exist
+import org.junit.Ignore;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter21Test.java:14: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter21Test.java:15: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\Chapter07Test.java:5: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\Chapter07Test.java:7: error: package org.junit does not exist
+import static org.junit.Assert.*;
+                       ^
+src\test\java\com\seaofnodes\simple\BrainFuckTest.java:9: error: package org.junit does not exist
+import org.junit.Test;
+                ^
+src\test\java\com\seaofnodes\simple\BrainFuckTest.java:10: error: package org.junit does not exist
+import static org.junit.Assert.assertEquals;
+                       ^
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+100 errors
+only showing the first 100 errors, of 2590 total; use -Xmaxerrs if you would like to see more
