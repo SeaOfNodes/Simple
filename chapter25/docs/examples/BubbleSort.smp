@@ -11,9 +11,7 @@ val sort = { sys.aryi64 nums ->
         done = true;
         for( var i = 0; i < nums.len-1; i++ )
             if( nums.buf[i] > nums.buf[i+1] ) {
-                int tmp = nums.buf[i];
-                nums.buf[i] = nums.buf[i+1];
-                nums.buf[i+1] = tmp; // Swap
+                nums.swap(i,i+1);
                 done = false;
             }
     }

@@ -35,6 +35,13 @@ struct aryi64 {
             str.num(buf[i]).add(',').add(' ');
         str.undo(2).add(']');
     };
+
+    val swap = { int i, int j ->
+        i64 tmp = buf[i];
+        buf[i] = buf[j];
+        buf[j] = tmp;
+        self;
+    };
 };
 
 
