@@ -138,6 +138,7 @@ public class riscv extends Machine {
         if( idx==0 ) return RPC_MASK;
         if( idx==1 ) return null;
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        if( tfp.arg(idx-2) instanceof TypeMem ) return null; // Hidden private memory
         // Count floats in signature up to index
         int fcnt=0;
         for( int i=2; i<idx; i++ )
@@ -178,7 +179,7 @@ public class riscv extends Machine {
     @Override public long callerSave() { return CALLER_SAVE; }
     @Override public long  neverSave() { return (1L<<RSP) | (1L<<ZERO); }
     @Override public RegMask retMask( TypeFunPtr tfp ) {
-        return tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK;
+        return tfp.ret() instanceof TypeMem ? null : tfp.ret() instanceof TypeFloat ? FA0_MASK : A0_MASK;
     }
     @Override public int rpc() { return RPC; }
 
