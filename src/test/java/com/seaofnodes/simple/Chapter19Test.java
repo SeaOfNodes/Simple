@@ -51,7 +51,7 @@ public class Chapter19Test {
 
     @Test public void testPrintingFunctionLookup() {
         var code = new CodeGen("return 0;").parse();
-        var tfp = TypeFunPtr.make((byte)2,false,new Type[]{TypeInteger.constant(987654)},TypeInteger.constant(123456),1L<<30);
+        var tfp = TypeFunPtr.make((byte)2,false,new Type[]{TypeInteger.constant(987654)},TypeInteger.constant(123456),XInt.make(1000));
         var con = new ConstantNode(tfp);
         var call = new CallNode(null,code._start,con,con);
         // Diagnostic lookup may construct/intern the return-erased linker key.
@@ -451,7 +451,7 @@ val fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(2)*10 + fcn(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
-        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun21,i64),x); return (shli,Parm_x($fun22,i64)); ]", code.print());
+        assertEquals("Stop[ return (add,#2,(muli,#2)); return (mul,Parm_x($fun35,i64),x); return (shli,Parm_x($fun36,i64)); ]", code.print());
     }
 
     @Test
@@ -479,8 +479,7 @@ return sq(arg) + sq(3);
                         assertTrue(n.in(0) instanceof CFGNode);
                     if( n instanceof NewNode nn ) {
                         assertEquals(2,((TypeTuple)nn._type)._types.length);
-                        assertTrue(nn.mem() instanceof MemMergeNode);
-                        assertNull(nn.mem().in(1)); // Partial allocation input.
+                        assertNull(nn.mem()); // The allocation starts with private memory.
                         nn.cacheRegs(code);
                         MachNode mach = (MachNode)nn;
                         assertNull(mach.regmap(1));

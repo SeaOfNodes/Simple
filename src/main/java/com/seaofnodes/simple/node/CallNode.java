@@ -6,6 +6,7 @@ import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.XInt;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.util.Utils;
 
@@ -16,9 +17,12 @@ public class CallNode extends CFGNode {
 
     // Source location for late reported errors
     public final Parser.Lexer _loc;
+    // A forward field call records its receiver before its declaration tells
+    // us whether this is a method or an ordinary function stored in a field.
+    public String _method;
 
     public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
-    public CallNode(CallNode call) { super(call); _loc = call._loc; }
+    public CallNode(CallNode call) { super(call); _loc = call._loc; _method=call._method; }
 
     @Override public String label() { return "Call"; }
 
@@ -90,6 +94,15 @@ public class CallNode extends CFGNode {
     public Node idealize() {
         CallEndNode cend = cend();
         if( cend==null ) return null; // Still building
+        if( _method!=null ) {
+            if( !(arg(2)._type instanceof com.seaofnodes.simple.type.TypeMemPtr ptr) ) return null;
+            var field=ptr._obj.field(_method);
+            if( field==null ) return null;
+            if( !(fptr()._type instanceof TypeFunPtr sig) ) return null;
+            if( !field._final || CodeGen.CODE.externFunc(sig)!=null ) delDef(2);
+            _method=null;
+            return this;
+        }
 
         // Link: call calls target function.  Linking makes the target FunNode
         // point to this Call, and all his Parms point to the call arguments;
@@ -97,12 +110,11 @@ public class CallNode extends CFGNode {
         Node progress = null;
         if( fptr()._type instanceof TypeFunPtr tfp && tfp.nargs() == nargs() ) {
             // If fidxs is negative, then infinite unknown functions
-            long fidxs = tfp.fidxs();
-            if( fidxs > 0 ) {
+            int[] fidxs = tfp.fidxs();
+            if( !XInt.isHigh(fidxs) ) {
                 // Wipe out the return which matching in the linker table
-                // Walk the (63 max) bits and link
-                for( ; fidxs!=0; fidxs = TypeFunPtr.nextFIDX(fidxs) ) {
-                    int fidx = Long.numberOfTrailingZeros(fidxs);
+                // Walk the function identities and link each possible callee.
+                for( int fidx=XInt.next(fidxs,-1); fidx>=0; fidx=XInt.next(fidxs,fidx) ) {
                     TypeFunPtr tfp0 = tfp.makeFrom(fidx);
                     FunNode fun = CodeGen.CODE.link(tfp0);
                     if( fun!=null && !fun._folding && !linked(fun) )
@@ -166,7 +178,7 @@ public class CallNode extends CFGNode {
                 return Parser.error( "Argument #" + i + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
             }
 
-        if( tfp.fidxs() < 0 )
+        if( XInt.isHigh(tfp.fidxs()) )
             throw Utils.TODO(); // Infinite unknown TFPs?  Should be fairly precise CG
 
         return null;

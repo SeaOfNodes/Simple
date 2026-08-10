@@ -64,7 +64,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第24a章](docs/chapter24a/README.ja.md)：関数内の SCCP
 * [第24b章](docs/chapter24b/README.ja.md)：関数間の SCCP
 * [第25章](docs/chapter25/README.ja.md)：型が決まる前の SSA
-* 第26章：構築とプライベートメモリ
+* [第26章](docs/chapter26/README.ja.md)：構築とプライベートメモリ
 * 第27章：エスケープ解析と未知の呼び出し元
 * 第28a章：モジュールと遅延クラス初期化
 * 第28b章：分離コンパイル

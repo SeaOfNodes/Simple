@@ -14,6 +14,11 @@ abstract class TypeCheck {
         });
         if( errs.isEmpty() ) return;
 
+        // Publication is a producer check. Report an incomplete object before
+        // its users complain about values or permissions inherited from it.
+        for( Node n : errs )
+            if( n instanceof EscapeNode ) throw n.err();
+
         // A bad Load now produces BOTTOM. Report the bad access before a
         // Convert or arithmetic use that merely received its failed result.
         Node first = errs.at(0);
