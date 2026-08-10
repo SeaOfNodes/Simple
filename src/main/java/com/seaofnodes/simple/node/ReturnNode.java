@@ -10,7 +10,15 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
-/** Keeps all preceding memory effects and the return value alive: {ctrl, $mem, value, rpc}. */
+/**
+ * The Return node has two inputs.  The first input is a control node and the
+ * second is the data node that supplies the return value.
+ * <p>
+ * In this presentation, Return functions as a Stop node, since multiple <code>return</code> statements are not possible.
+ * The Stop node will be introduced in Chapter 6 when we implement <code>if</code> statements.
+ * <p>
+ * The Return's output is the value from the data node.
+ */
 public class ReturnNode extends CFGNode {
 
     public FunNode _fun;
@@ -21,14 +29,12 @@ public class ReturnNode extends CFGNode {
     }
     public ReturnNode( ReturnNode ret, FunNode fun ) { super(ret);  _fun = fun;  }
 
+
     public Node ctrl() { return in(0); }
     public Node mem () { return in(1); }
     public Node expr() { return in(2); }
     public Node rpc () { return in(3); }
     @Override public FunNode fun() { return _fun; }
-
-    @Override
-    public String label() { return "Return"; }
 
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
@@ -43,123 +49,59 @@ public class ReturnNode extends CFGNode {
 
     @Override
     public Type compute() {
-        if( inProgress () ) return TypeTuple.RET; // In progress
-        // Inlining can delete the entry while callers still use this return.
         return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
     }
 
     @Override public Node idealize() {
-        if( inProgress () ) return null;
         if( _fun.isDead() ) return null;
 
         // Upgrade signature based on return type
         Type ret = expr()._type;
         TypeFunPtr fcn = _fun.sig();
-        // Private field contents flow on the linked Return/CallEnd edges.
-        // Keep the helper's interface at MemBot; a current memory snapshot
-        // is not a new declaration for its self type or its methods.
-        if( !(ret instanceof TypeMem) && ret != fcn.ret() && ret.isa(fcn.ret()) )
+        if( ret != fcn.ret() && ret.isa(fcn.ret()) )
             _fun.setSig(fcn.makeFrom(ret));
-
-        // If dead (cannot be reached; infinite loop), kill the exit values
-        if( ctrl()._type==Type.XCONTROL &&
-            !(mem() instanceof ConstantNode && expr() instanceof ConstantNode) ) {
-            Node top = new ConstantNode(Type.TOP).peephole();
-            setDef(1,top);
-            setDef(2,top);
-            return this;
-        }
 
         return null;
     }
 
-    public boolean inProgress() {
-        return ctrl().getClass() == RegionNode.class && ((RegionNode)ctrl()).inProgress();
-    }
-
-    // Remember parsed type kinds for diagnostics; the optimized expression decides validity.
-    private boolean ti=false, tf=false, tp=false, tn=false;
-
-    // Add a return exit to the current parsing function
-    void addReturn( Node ctrl, Node rmem, Node expr ) {
-        assert inProgress();
-
-        // Gather parse-time return types for error reporting
-        Type t = expr._type;
-        ti |= t instanceof TypeInteger x;
-        tf |= t instanceof TypeFloat   x;
-        tp |= t instanceof TypeMemPtr  x;
-        tn |= t==Type.NIL;
-
-        // Merge path into the One True Return
-        RegionNode r = (RegionNode)ctrl();
-        // Assert that the Phis are in particular outputs; not reordered or shuffled
-        PhiNode mem = (PhiNode)r.out(0); assert mem.isMem();
-        PhiNode rez = (PhiNode)r.out(1); assert !rez.isMem() || fun().sig().ret() instanceof TypeMem;
-        // Pop "inProgress" null off
-        r  ._inputs.pop();
-        mem._inputs.pop();
-        rez._inputs.pop();
-        // Add new return point
-        r  .addDef(ctrl);
-        mem.addDef(rmem);
-        rez.addDef(expr);
-        // Back to being inProgress
-        r  .addDef(null);
-        mem.addDef(null);
-        rez.addDef(null);
-    }
-
     @Override public Parser.ParseException err() {
-        if( expr()._type instanceof TypeMem ) return null; // Hidden initializer result.
-        if( ctrl()._type != Type.CONTROL ) return null; // Exit path is dead
-        if( expr()._type==TypeScalar.BOT ) {
-            int kinds = returnKinds(expr(),new java.util.BitSet());
-            return mixerr((kinds&1)!=0,(kinds&2)!=0,(kinds&4)!=0,(kinds&8)!=0,_fun._loc);
+        if( ctrl()._type == Type.CONTROL &&
+            expr()._type == Type.TOP )
+            return Parser.error("No defined return type",null);
+        if( ctrl()._type == Type.CONTROL &&
+            expr()._type == TypeScalar.BOT )
+            return Parser.error("Cannot return generic scalar",null);
+        // With no user constructor, <init> doubles as the public no-arg
+        // constructor.  Required fields remain TOP in its private memory: a
+        // typed parser poison which deliberately emitted no Store or code.
+        if( ctrl()._type == Type.CONTROL && _fun.isInstance() ) {
+            TypeStruct self = ((TypeMemPtr)_fun.sig().arg(0))._obj;
+            if( !CodeGen.hasUserConstructor(self) && expr()._type instanceof TypeMem mem )
+                for( Field fld : self._fields ) {
+                    if( !(fld._t instanceof TypeNil tn && tn.notNull()) ) continue;
+                    Type actual = mem._alias==1 && mem._t instanceof TypeStruct ts
+                        ? ts.field(fld._fname)._t
+                        : mem._alias==fld._alias ? mem._t : Type.TOP;
+                    if( actual==Type.TOP || actual instanceof TypeNil atn && atn.nullable() )
+                        return Parser.error("'"+self._name+"' is not fully initialized, field '"+
+                                            fld._fname+"' is only partially set in the constructor",null);
+                }
         }
-        return expr()._type==Type.BOTTOM || expr()._type==Type.TOP || expr()._type==TypeScalar.BOT ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
+        return null;
     }
 
-    private static int returnKinds(Node n, java.util.BitSet visit) {
-        if( n==null || visit.get(n._nid) ) return 0;
-        visit.set(n._nid);
-        Type t=n._type;
-        if( t instanceof TypeInteger ) return 1;
-        if( t instanceof TypeFloat ) return 2;
-        if( t instanceof TypeMemPtr || t instanceof TypeFunPtr ) return 4;
-        if( t==Type.NIL ) return 8;
-        int kinds=0;
-        if( n instanceof PhiNode phi )
-            for( int i=1; i<n.nIns(); i++ )
-                if( phi.region().in(i)._type==Type.CONTROL ) kinds |= returnKinds(n.in(i),visit);
-        return kinds;
+    @Override public boolean eq( Node n ) {
+        return !_fun.isDead() && !((ReturnNode)n)._fun.isDead();
     }
-
-    static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {
-        if( !ti && !tf && !tp && !tn )
-            // Hit when the function never returns.  e.g. `f = { -> return f() };`
-            return Parser.error("No defined return type", loc);
-        // Rather ugly way to print conflicting return types
-        int cnt = (ti?1:0) + (tf?1:0) + (tp||tn?1:0);
-        if( cnt==1 ) return null; // Uniform return type, something else errored and will report
-        SB sb = new SB().p("No common type amongst ");
-        if( ti ) sb.p("int and ");
-        if( tf ) sb.p("f64 and ");
-        if( tp || tn ) sb.p("reference and ");
-        return Parser.error(sb.unchar(5).toString(),loc);
-    }
-
 
     // ------------
     // MachNode specifics, shared across all CPUs
     public String op() {
-        return _fun._frameAdjust > 0 ? "addi" : "ret";
+        return _fun._frameAdjust > 0 ? "epilog" : "ret  ";
     }
     // Correct Nodes outside the normal edges
     public void postSelect(CodeGen code) {
-        FunNode fun = (FunNode)rpc().in(0);
-        _fun = fun;
-        fun.setRet(this);
+        _fun.setRet(this);
     }
     public RegMask regmap(int i) {
         return i==2
@@ -171,13 +113,14 @@ public class ReturnNode extends CFGNode {
     public void asm(CodeGen code, SB sb) {
         int frameAdjust = fun()._frameAdjust;
         if( frameAdjust>0 )
-            sb.p("rsp += #").p(frameAdjust).p("\nret");
+            sb.p("\n").p("rsp += #").p(frameAdjust).p("\nret    ");
         // Post code-gen, just print the "ret"
-        if( code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() )
+        if( code._phase.ordinal() < CodeGen.Phase.RegAlloc.ordinal() ||
+            (code._phase.ordinal() == CodeGen.Phase.RegAlloc.ordinal() && !code._regAlloc.done()) )
             // Prints return reg (either RAX or XMM0), RPC and then the
             // callee-save registers.
             for( int i=2; i<nIns(); i++ )
-                sb.p(code.reg(in(i),fun())).p("  ");
+                sb.p(code.reg(in(i))).p("  ");
         // If we did not get the expected rpc, print which one we got
         else if( code._regAlloc.regnum(rpc()) != code._mach.rpc() )
             sb.p("[").p(code.reg(rpc())).p("]");

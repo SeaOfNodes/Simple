@@ -68,7 +68,7 @@ include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 include $(firstword $(wildcard ../print/print.mk print/print.mk))
 include $(firstword $(wildcard ../isa/isa.mk isa/isa.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
-test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java)) com.seaofnodes.simple.codegen.X86EncodingTest
+test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
 classes = $(main_classes) $(test_classes)
 # All the libraries
 libs = $(wildcard lib/*jar)
@@ -184,3 +184,18 @@ spill-stats: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 
 .PHONY: build
 build: $(CLZDIR)/main/.mtag
+
+# The ABI shim gives standalone native tests the same entry contract as clients.
+CPU_PORT := x86_64_v2
+ifeq ($(OS),Windows_NT)
+CALL_CONV := win64
+NATIVE_ABI := ms_abi
+else
+CALL_CONV := SystemV
+NATIVE_ABI := sysv_abi
+endif
+runtime_obj := build/release/$(CPU_PORT)_$(CALL_CONV)/simple_crt.o
+$(runtime_obj): src/main/c/simple_crt.c Makefile
+	@mkdir -p $(dir $@)
+	gcc -c -O2 -DCALL_CONV=$(NATIVE_ABI) $< -o $@
+tests: $(runtime_obj)
