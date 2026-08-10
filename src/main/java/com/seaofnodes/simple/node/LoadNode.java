@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
@@ -24,7 +25,7 @@ public class LoadNode extends MemOpNode {
      * @param ptr   The ptr to the struct base from where we load a field
      * @param off   The offset inside the struct base
      */
-    public LoadNode(Parser.Lexer loc, String name, int alias, Node ctrl, Node mem, Node ptr, Node off) {
+    public LoadNode(Lexer loc, String name, int alias, Node ctrl, Node mem, Node ptr, Node off) {
         super(loc, name, alias, true, Type.BOTTOM, ctrl, mem, ptr, off);
     }
     LoadNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {

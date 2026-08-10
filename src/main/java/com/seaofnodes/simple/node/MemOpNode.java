@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
@@ -40,16 +41,16 @@ public abstract class MemOpNode extends TypeNode {
     // Field name.
     public final String _name;
     // Source location for late reported errors
-    public final Parser.Lexer _loc;
+    public final Lexer _loc;
 
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off) {
+    public MemOpNode(Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off) {
         super(decl, ctrl, mem, ptr, off);
         _name  = name;
         _alias = alias;
         _loc = loc;
         _isLoad = isLoad;
     }
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value) {
+    public MemOpNode(Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value) {
         this(loc, name, alias, isLoad, decl, ctrl, mem, ptr, off);
         addDef(value);
     }

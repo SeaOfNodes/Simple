@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
@@ -13,12 +14,12 @@ import java.util.IdentityHashMap;
 
 public abstract class ArithNode extends Node implements ModeNode {
     // Source location for late reported errors
-    Parser.Lexer _loc;
+    Lexer _loc;
     // Mode is 0 for unknown, 1 for int, 2 for flt
     byte _mode;
 
-    public ArithNode( Parser.Lexer loc, Node lhs, Node rhs) { super(null, lhs, rhs); _loc = loc; }
-    public ArithNode( Parser.Lexer loc, Node lhs, Node rhs, byte mode) { this(loc,lhs,rhs); _mode=mode; }
+    public ArithNode( Lexer loc, Node lhs, Node rhs) { super(null, lhs, rhs); _loc = loc; }
+    public ArithNode( Lexer loc, Node lhs, Node rhs, byte mode) { this(loc,lhs,rhs); _mode=mode; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes) {
         baos.packed1(_mode);
     }
@@ -65,7 +66,7 @@ public abstract class ArithNode extends Node implements ModeNode {
     // Check that a settled mode agrees with all data inputs.  Takes the Node
     // instead of a varargs list both to avoid allocation and to keep this ready
     // to become shared mode-aware Node behavior later.
-    static Parser.ParseException nodeErr(Node n, Parser.Lexer loc, String op, byte mode, boolean allowFloat) {
+    static Parser.ParseException nodeErr(Node n, Lexer loc, String op, byte mode, boolean allowFloat) {
         Type bad = null;
         for( int i=1; i<n.nIns(); i++ ) {
             Type t = n.in(i)._type;

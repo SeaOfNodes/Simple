@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Iter;
 import com.seaofnodes.simple.type.Type;
@@ -21,9 +22,9 @@ import java.util.IdentityHashMap;
 public class CallNode extends CFGNode {
 
     // Source location for late reported errors
-    public final Parser.Lexer _loc;
+    public final Lexer _loc;
 
-    public CallNode(Parser.Lexer loc, Node... nodes) {
+    public CallNode(Lexer loc, Node... nodes) {
         super(nodes);
         _loc = loc;
         CodeGen.CODE._calls.add(this);
@@ -33,12 +34,12 @@ public class CallNode extends CFGNode {
     @Override public Tag serialTag() { return Tag.Call; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed1(nIns());
-        Parser.Lexer.packed(_loc,baos,strs);
+        Lexer.packed(_loc,baos,strs);
     }
-    @Override public void gather(HashMap<String,Integer> strs) { Parser.Lexer.gather(_loc,strs); }
+    @Override public void gather(HashMap<String,Integer> strs) { Lexer.gather(_loc,strs); }
     static Node make( BAOS bais, String[] strs ) {
         int nIns = bais.packed1();
-        return new CallNode(Parser.Lexer.unpack(bais,strs),new Node[nIns]);
+        return new CallNode(Lexer.unpack(bais,strs),new Node[nIns]);
     }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {

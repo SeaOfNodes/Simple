@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Lexer;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
@@ -27,14 +28,14 @@ public class FunNode extends RegionNode {
     public CompUnit _compunit;  // Defined in source file
     public final boolean _extern; // External function; no code, name only
 
-    private FunNode( Parser.Lexer loc, Node[] nodes, TypeFunPtr sig, String name, CompUnit compunit, boolean ext ) {
+    private FunNode( Lexer loc, Node[] nodes, TypeFunPtr sig, String name, CompUnit compunit, boolean ext ) {
         super(loc,nodes);
         _name   = name;
         _sig    = sig;
         _extern = ext;
         _compunit = compunit;
     }
-    public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, CompUnit compunit, Node... nodes ) { this(loc,nodes,sig,name,compunit,false); }
+    public FunNode( Lexer loc, TypeFunPtr sig, String name, CompUnit compunit, Node... nodes ) { this(loc,nodes,sig,name,compunit,false); }
     public FunNode( FunNode fun ) {
         super( fun, fun._loc );
         _sig = fun.sig();

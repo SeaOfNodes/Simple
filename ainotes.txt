@@ -1,5 +1,5 @@
 
-Historical design notes from the former combined Chapter 25, now Chapter 28b.
+Historical design notes from the former combined Chapter 25, carried forward from Chapter 28b.
 The cleanup record is in ../skills/stage-audit.md; remaining work is in
 ../docs/roadmap.md. The original intent below is preserved.
 

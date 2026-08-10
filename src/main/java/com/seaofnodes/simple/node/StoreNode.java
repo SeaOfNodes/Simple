@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Parser;
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
@@ -29,10 +31,10 @@ public class StoreNode extends MemOpNode {
      * @param off   The offset inside the struct base
      * @param value Value to be stored
      */
-    public StoreNode(Parser.Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
+    public StoreNode(Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
         this(loc,name,alias,decl,ctrl,mem,ptr,off,value,init,(byte)0);
     }
-    private StoreNode(Parser.Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init, byte size) {
+    private StoreNode(Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init, byte size) {
         super(loc, name, alias, false, decl, ctrl, mem, ptr, off, value);
         _init = init;
         _size = size;

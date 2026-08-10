@@ -1,7 +1,8 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.codegen.Iter;
@@ -14,22 +15,22 @@ import java.util.*;
 // also - dead code does not force class init.
 //
 public class CLInitNode extends CFGNode implements MultiNode {
-    public Parser.Lexer _loc;          // For error reporting
+    public Lexer _loc;          // For error reporting
 
     // Inputs: control, whole memory, class pointer, loaded $init flag
     // Results: control, whole memory, known-true flag alias memory, call control.
     // For field references, the ptr might be the dst clz ptr or not.
-    public CLInitNode(Parser.Lexer loc, Node ctrl, Node mem, Node ptr, Node ready) {
+    public CLInitNode(Lexer loc, Node ctrl, Node mem, Node ptr, Node ready) {
         super(ctrl,mem,ptr,ready);
         _loc = loc;
     }
 
-    CLInitNode(BAOS bais, String[] strs) { super(null,null,null,null); _loc=Parser.Lexer.unpack(bais,strs); }
+    CLInitNode(BAOS bais, String[] strs) { super(null,null,null,null); _loc=Lexer.unpack(bais,strs); }
     @Override public Tag serialTag() { return Tag.CLInit; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
-        Parser.Lexer.packed(_loc,baos,strs);
+        Lexer.packed(_loc,baos,strs);
     }
-    @Override public void gather(HashMap<String,Integer> strs) { Parser.Lexer.gather(_loc,strs); }
+    @Override public void gather(HashMap<String,Integer> strs) { Lexer.gather(_loc,strs); }
 
     public CLInitNode(CLInitNode init) {
         super(init);

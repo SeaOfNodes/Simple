@@ -16,10 +16,10 @@ public class TypeStruct extends Type {
     /**
      * `_open` and `_fref` are independent lattice coordinates.
      *
-     * `_open` says the structural tail is not known yet.  On the low side an
-     * open struct has infinitely many implicit BOT fields; its dual has an
-     * implicit TOP tail.  A real declaration is therefore open while its body
-     * is being parsed:
+     * `_open` says the structural tail is not known yet - more fields may be
+     * added.  On the low side an open struct has infinitely many implicit BOT
+     * fields; its dual has an implicit TOP tail.  A real declaration is open
+     * while its body is being parsed:
      *
      * ```text
      * struct S { int x; /* more declared fields may follow *\/ }
@@ -27,7 +27,8 @@ public class TypeStruct extends Type {
      *
      * `_fref` says no actual declaration has contributed to the type.  The
      * parser may still invent fields demanded by uses, leaving a useful open
-     * structural constraint:
+     * structural constraint.  Here `S` is an unknown struct, which has an
+     * unknown `x` field:
      *
      * ```text
      * S? p; p.x;       // fref S { BOT x; ... }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Var;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;

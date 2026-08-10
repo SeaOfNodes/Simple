@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Var;
+import com.seaofnodes.simple.parser.Parser;
+import com.seaofnodes.simple.parser.Var;
 import com.seaofnodes.simple.type.Type;
 
 /**
@@ -22,10 +23,10 @@ import com.seaofnodes.simple.type.Type;
 public class FRefNode extends ConstantNode {
     public static final Type FREF_TYPE = Type.BOTTOM;
     public String _name;
-    public final Parser.Lexer _loc;    // Source location
+    public final Lexer _loc;    // Source location
 
-    public FRefNode( String name, Parser.Lexer loc ) { this(name,loc,FREF_TYPE); }
-    public FRefNode( String name, Parser.Lexer loc, Type type ) {
+    public FRefNode( String name, Lexer loc ) { this(name,loc,FREF_TYPE); }
+    public FRefNode( String name, Lexer loc, Type type ) {
         super(type);
         _name = name;
         _loc = loc;

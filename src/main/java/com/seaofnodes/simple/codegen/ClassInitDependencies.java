@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Lexer;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
@@ -76,7 +77,7 @@ public class ClassInitDependencies {
 
     // Return the outgoing init edge set for this function
     private static int[] walk( CodeGen code, FunNode fun, Ary<CFGNode> work, IntHashMap iset, BitSet visit,
-                              Ary<Parser.Lexer> sites) {
+                              Ary<Lexer> sites) {
         if( fun.summary()!=null ) return fun.summary()._classDependencyFIDXs;
         // Walk function body, looking for outgoing init edges
         assert iset .isEmpty(); // int hash set for de-dup
@@ -164,7 +165,7 @@ public class ClassInitDependencies {
         Ary<CFGNode> work = new Ary<>(CFGNode.class);
         IntHashMap iset = new IntHashMap(0);
         BitSet visit = new BitSet();
-        Ary<Parser.Lexer> sites = new Ary<>(Parser.Lexer.class);
+        Ary<Lexer> sites = new Ary<>(Lexer.class);
         for( int i=idx; i<_sp; i++ ) {
             int src = _stk[i];
             FunNode fun = _code.link(src);
@@ -175,7 +176,7 @@ public class ClassInitDependencies {
                 for( int dst : _edgess[src] )
                     if( members.get(dst) ) {
                         sb.p("\n  ").p(name(src)).p(" -> ").p(name(dst));
-                        Parser.Lexer loc = sites.atX(dst);
+                        Lexer loc = sites.atX(dst);
                         if( loc!=null && loc._cu!=null )
                             sb.p('\n').p(SourceError.format(loc._cu,loc.pos(),"cyclic class initialization"));
                         else if( fun!=null && fun.isClz() && dst!=0 && fun._compunit._par==_code.link(dst)._compunit )

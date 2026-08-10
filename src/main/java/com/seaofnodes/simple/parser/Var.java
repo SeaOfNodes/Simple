@@ -1,4 +1,4 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.parser;
 
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Utils;
@@ -20,12 +20,12 @@ public class Var {
     // nullable type carries the path-sensitive state through SSA merges.
     public boolean _uninit;
     public int _extern;         // C storage alias; zero for ordinary variables
-    public Parser.Lexer _loc;    // Source location
+    public Lexer _loc;    // Source location
 
-    public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc ) {
+    public Var(int idx, String name, Type type, boolean xfinal, Lexer loc ) {
         this(idx,name,type,xfinal,loc,false);
     }
-    public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc, boolean fref) {
+    public Var(int idx, String name, Type type, boolean xfinal, Lexer loc, boolean fref) {
         _idx = idx;
         _name = name;
         _type = type;
@@ -40,7 +40,7 @@ public class Var {
     // distinct from inferred variables
     public boolean isFRef() { return _fref; }
 
-    public void defFRef( Type type, boolean xfinal, Parser.Lexer loc ) {
+    public void defFRef( Type type, boolean xfinal, Lexer loc ) {
         assert isFRef() && xfinal;
         _type = type;
         _final = true;

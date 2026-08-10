@@ -2,8 +2,8 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.BaseNode;
 
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.IterPeeps;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.print.IRPrinter;

@@ -1,8 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.graph.GraphObserver;
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;

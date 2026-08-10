@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
@@ -17,8 +18,8 @@ import java.util.HashMap;
 
 public class FldOffNode extends TypeNode {
     public final String _fname; // Field name
-    public final Parser.Lexer _loc;   //
-    public FldOffNode( Node base, String fname, Parser.Lexer loc ) { super(TypeInteger.BOT,base); _fname = fname; _loc=loc; }
+    public final Lexer _loc;   //
+    public FldOffNode( Node base, String fname, Lexer loc ) { super(TypeInteger.BOT,base); _fname = fname; _loc=loc; }
     @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
 
     @Override public String label() {

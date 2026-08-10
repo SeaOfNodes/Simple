@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Var;
+import com.seaofnodes.simple.parser.Parser;
+import com.seaofnodes.simple.parser.Var;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.codegen.ParseAll;
@@ -232,7 +233,7 @@ public class ScopeNode extends MemMergeNode {
     /**
      * Create a new variable name in the current scope
      */
-    public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
+    public boolean define( String name, Type declaredType, boolean xfinal, Node init, Lexer loc ) {
         assert _kinds.isEmpty() || name!=MEM0 ; // Later scopes do not define memory
         if( depth() > 0 )
             for( int i=_vars.size()-1; i>=klast()._lexSize; i-- ) {
@@ -260,7 +261,7 @@ public class ScopeNode extends MemMergeNode {
     // lexical scope.  Scope pops promote it outwards "as if" the final constant
     // had been declared before the using scope.
 
-    public Var defineFRef( String id, Type t, boolean xfinal, Parser.Lexer loc ) {
+    public Var defineFRef( String id, Type t, boolean xfinal, Lexer loc ) {
         Var var = new Var(nIns(),id,t,xfinal,loc,true);
         FRefNode fref = new FRefNode(id,loc).init();
         fref._type = fref._con = t;
@@ -375,7 +376,7 @@ public class ScopeNode extends MemMergeNode {
      * @param that The ScopeNode to be merged into this
      * @return A new node representing the merge point
      */
-    public RegionNode mergeScopes(ScopeNode that, Parser.Lexer loc) {
+    public RegionNode mergeScopes(ScopeNode that, Lexer loc) {
         RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
         this._merge(that,r);
         that.kill();            // Kill merged scope
