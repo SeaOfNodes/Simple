@@ -29,17 +29,9 @@ abstract public class Opto {
         Ary<Type> oldTypes = new Ary<>(Type.class); // Used for asserts only
         resetToTop(code,oldTypes);
 
-        // The whole-world assumption: we use it if compiling `main`, and not otherwise.
-        // The assumption is no unknown callers into functions:
-        // - during or past an Opto phase (but not before, since parse through
-        //   pessimistic must assume somebody calls an unknown function which
-        //   calls everybody).
-        // - Have a `main` to start tracing the Call Graph from
-        // - - True for most test cases
-        // - - False for lacking a main; we assume the linker will call all public functions
-
-        // True if we can make the "whole world" assumption, which means we are
-        // compiling the program entry: `main`.
+        // Main seeds a whole program. Without main, named exported functions
+        // seed discovery. Either way, escaping addresses can add more unknown
+        // callers as Start and Stop reach their shared fixed point.
         boolean wholeWorld = code.link(code._main) != null;
 
 
@@ -53,6 +45,9 @@ abstract public class Opto {
         sccp(code, oldTypes);
         resolveNumericModes(code);
         if( !code._iter._work.isEmpty() ) sccp(code, oldTypes);
+
+        ProjNode startMem=code._start.proj(1);
+        if( startMem!=null ) { startMem.unkeep(); code.add(startMem); }
 
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
@@ -79,6 +74,8 @@ abstract public class Opto {
     // called unless they get linked (hence go dead and can be removed).  If
     // not wholeWorld, keep only public methods (and not the std lib).
     private static void unlinkStart(boolean wholeWorld, CodeGen code) {
+        ProjNode startMem=code._start.proj(1);
+        if( startMem!=null ) startMem.keep();
         for( FunNode fun : code._linker ) {
             if( fun != null && !fun.isDead() && !funIsPublic(code,wholeWorld,fun) ) {
                 assert fun.in(1)==code._start; // Start always in slot 1
@@ -94,15 +91,15 @@ abstract public class Opto {
 
     // Function is public (callable from Start directly).
     // - Always true for main
-    // - True for function addresses used as values
     // - Otherwise false for stdlib or anonymous functions
     // - Named functions use `!wholeWorld`
     private static boolean funIsPublic( CodeGen code, boolean wholeWorld, FunNode fun ) {
         // Always true for main
         if( fun.sig().fidx() == code._main.fidx() ) return true;
-        // No escape analysis yet: a surviving address may be called from outside.
+        // Hidden allocation helpers are never external entry points.
         if( fun._constructor ) return false;
-        if( fun.hasPtr() ) return true;
+        // Taking an address does not expose it. Stop discovers escapes from
+        // reachable returns and memory; linkStart restores only those callers.
         // Never true for stdlib or anonymous functions
         if( fun._name == null || fun._name.startsWith("sys.") )
             return false;
@@ -114,8 +111,11 @@ abstract public class Opto {
     // into a Call, link the Call and Fun.
     private static void linkCG(CodeGen code, TypeFunPtr tfp, CallNode call) {
         if( tfp.nargs() != call.nargs() ) return; // Error calls hit this
+        if( XInt.isHigh(tfp.fidxs()) ) return;
         for( int fidx=XInt.next(tfp.fidxs(),-1); fidx>=0; fidx=XInt.next(tfp.fidxs(),fidx) ) {
-            FunNode fun = code.link(fidx);
+            // A disconnected function can still be revived by a discovered
+            // call or escaping address. Do not clean the linker entry here.
+            FunNode fun = code._link(fidx);
             // null here means an external function; i.e. this Call
             // calls to an outside library and all its arguments escape.
             if( fun != null && !call.linked(fun) ) {
@@ -123,6 +123,24 @@ abstract public class Opto {
                 code._iter.add(fun);
                 code._iter.addAll(fun._outputs);
             }
+        }
+    }
+
+    // Exposure is a call edge from the unknown world. Restore conservative
+    // declared arguments, never the narrower values inferred from known calls.
+    private static void linkStart(CodeGen code, TypeTuple state) {
+        for( FunNode fun : code._linker ) {
+            if( fun==null || fun.isDead() || fun._constructor || fun.unknownCallers() ||
+                !XInt.bit(state.mem()._escFs,fun.sig().fidx()) ) continue;
+            fun.insertDef(1,code._start);
+            if( !code._stop._inputs.contains(fun.ret()) ) code._stop.addDef(fun.ret());
+            code.add(fun); code.add(code._stop);
+            for( Node n : fun._outputs )
+                if( n instanceof ParmNode parm ) {
+                    Node def=parm._idx==1 ? code._start.proj(1) : new ConstantNode(parm._declaredType).peephole();
+                    parm.insertDef(1,def);
+                    code.add(parm);
+                }
         }
     }
 
@@ -137,9 +155,9 @@ abstract public class Opto {
             count++;
             Type oval = n._type, nval = n.compute();
             if( oval == nval ) continue;
-            assert oval.isa(nval);    // Types start high and always fall
-            Type pesiVal = oldTypes.at(n._nid);
-            assert nval.isa(pesiVal); // Never fall worse than the pessimistic pass
+            assert oval.isa(nval) : n.label()+"#"+n._nid+" old="+oval+" new="+nval; // Types start high and always fall
+            Type pesiVal = oldTypes.atX(n._nid);
+            assert pesiVal==null || nval.isa(pesiVal) : n.label()+"#"+n._nid+" pessimistic="+pesiVal+" new="+nval; // Never fall worse than the pessimistic pass
             n._type = nval;
 
             // If a TFP adds a new function input to a call, link to the new Fun
@@ -153,6 +171,8 @@ abstract public class Opto {
             if( n instanceof CallNode call && oval.isHigh() && !nval.isHigh() && call.fptr()._type instanceof TypeFunPtr )
                 linkCG(code,call.tfp(),call);
 
+            if( n instanceof StartNode && nval instanceof TypeTuple tt ) linkStart(code,tt);
+
             // Since n._type changed, visit all output neighbors
             code._iter.addAll(n._outputs);
             n.moveDepsToWorklist(code._iter);
@@ -165,7 +185,8 @@ abstract public class Opto {
     private static boolean check(CodeGen code) {
         code._start.walk( x -> {
                 Type xval = x.compute();
-                assert xval == x._type || (x._type.isa( xval ) && code._iter._work.on( x ));
+                assert xval == x._type || (x._type.isa( xval ) && code._iter._work.on( x ))
+                    : x.label()+"#"+x._nid+" old="+x._type+" new="+xval+" queued="+code._iter._work.on(x);
                 return null;
             });
         return true;
