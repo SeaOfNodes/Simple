@@ -1,0 +1,10 @@
+struct S { int f; };
+int x=0;
+int result=arg&1;
+if(!result) {
+    S !s=new S;
+    while(x<3) x++;
+    s.f=++x;
+    result=!!s.f;
+}
+return x*10+result;

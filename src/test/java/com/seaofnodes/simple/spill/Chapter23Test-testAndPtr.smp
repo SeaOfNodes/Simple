@@ -1,0 +1,12 @@
+{i32 i64 u32 -> u32} write="C";
+val _p={u8[~] str -> i64 ptr=str; return write(1,ptr,str#);};
+struct S { S? fld; new S={ S? f -> fld=f; }; };
+
+val ptr = arg == 1 ? null : new S(arg==1 ? null : new S(null));
+if( ptr && ptr.fld ) {
+  _p("true");
+} else {
+  _p("false");
+}
+
+return 0;

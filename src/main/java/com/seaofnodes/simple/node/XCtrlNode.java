@@ -8,7 +8,7 @@ import com.seaofnodes.simple.type.Type;
 
 public class XCtrlNode extends CFGNode {
     public XCtrlNode() { super(new Node[]{CodeGen.CODE._start}); }
-    @Override public String label() { return "Xctrl"; }
+    @Override public Tag serialTag() { return Tag.XCtrl; }
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p("Xctrl"); }
     @Override public boolean isConst() { return true; }
     @Override  public Type compute() { return Type.XCONTROL; }

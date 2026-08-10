@@ -1,0 +1,20 @@
+// A hypothetical scanner class
+struct Scan {
+    int !x;
+    u8[~] buf;
+    new Scan={ u8[~] b -> buf=b; };
+    // Skip whitespace
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
+    };
+    // Peek a character; if matched consume it, else false.
+    val peek = { u8 c ->
+        skip();
+        if( buf[x] != c ) return false;
+        x++;
+        return true;
+    };
+};
+Scan !s = new Scan("  q");
+return s.peek('q');

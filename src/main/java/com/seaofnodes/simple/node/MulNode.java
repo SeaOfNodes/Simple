@@ -1,17 +1,20 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import java.util.BitSet;
 
 public class MulNode extends ArithNode {
+    @Override boolean allowFloat() { return true; }
     public MulNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+    public MulNode(Node lhs, Node rhs, byte mode) { super(null, lhs, rhs, mode); }
+    @Override public Tag serialTag() { return Tag.Mul; }
 
-    @Override public String label() { return "Mul"; }
     @Override public String op() { return "*"; }
 
-    @Override long doOp( long x, long y ) { return x * y; }
+    @Override long   doOp( long  x,  long  y ) { return x * y; }
+    @Override double doOp(double x, double y ) { return x * y; }
     @Override TypeInteger doOp(TypeInteger x, TypeInteger y) {
         return TypeInteger.BOT;
     }
@@ -33,7 +36,7 @@ public class MulNode extends ArithNode {
             // canonicalize to (x*1)
             long c = i.value();
             if( c==1 )  return lhs;
-            if( c==0 )  return Parser.ZERO;
+            if( c==0 )  return CodeGen.CODE.ZERO;
             // Mul by a power of 2, +/-1.  Bit patterns more complex than this
             // are unlikely to win on an X86 vs the normal "imul", and so
             // become machine-specific.
@@ -58,6 +61,5 @@ public class MulNode extends ArithNode {
 
         return super.idealize();
     }
-    @Override Node copy(Node lhs, Node rhs) { return new MulNode(lhs,rhs); }
-    @Override Node copyF() { return new MulFNode(null,null); }
+    @Override Node copy(Node lhs, Node rhs) { return new MulNode(lhs,rhs,_mode); }
 }

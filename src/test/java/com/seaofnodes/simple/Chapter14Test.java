@@ -92,12 +92,12 @@ return b;
     public void testRefLoad() {
         CodeGen code = new CodeGen(
 """
-struct Foo { u1 b; };
-Foo !f = new Foo;
+struct _Foo { u1 b; };
+_Foo !f = new _Foo;
 f.b = 123;
 return f.b;
 """);
-        code.parse().opto();
+        code.parse().opto().typeCheck();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }

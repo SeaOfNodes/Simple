@@ -1,0 +1,10 @@
+// Newtons approximation to the square root
+val sqrt = { int x ->
+    int guess = x;
+    while( 1 ) {
+        int next = (x/guess + guess)/2;
+        if( next == guess ) return guess;
+        guess = next;
+    }
+};
+return sqrt(arg) + sqrt(arg+2);

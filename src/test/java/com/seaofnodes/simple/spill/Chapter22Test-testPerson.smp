@@ -1,0 +1,8 @@
+struct Person {
+    i32 age;
+};
+
+val fcn = { Person?[] ps, int x ->
+    if( ps[x] )
+        ps[x].age++;
+};

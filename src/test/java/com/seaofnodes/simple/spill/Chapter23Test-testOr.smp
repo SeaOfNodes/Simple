@@ -1,0 +1,13 @@
+{i32 i64 u32 -> u32} write="C";
+val _p={u8[~] str -> i64 ptr=str; return write(1,ptr,str#);};
+int a = 1;
+int b = 0;
+
+if(a++ || b++ ) {
+    if(b == 0 && a == 2) {
+        _p("Or");
+    }
+} else{
+    _p("And");
+}
+return 0;

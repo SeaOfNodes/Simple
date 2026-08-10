@@ -1,0 +1,3 @@
+var stack11 = { int x ->
+    0 < x < x+1 < 4;
+};

@@ -1,0 +1,1 @@
+int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];

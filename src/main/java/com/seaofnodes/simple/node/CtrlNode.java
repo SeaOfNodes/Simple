@@ -8,6 +8,7 @@ import com.seaofnodes.simple.type.Type;
 
 public class CtrlNode extends CFGNode {
     public CtrlNode() { super(CodeGen.CODE._start); }
+    @Override public Tag serialTag() { throw com.seaofnodes.simple.util.Utils.TODO(); }
     @Override public String label() { return "Ctrl"; }
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p("Cctrl"); }
     @Override public boolean isConst() { return true; }

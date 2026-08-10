@@ -1,9 +1,15 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
+
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 /**
  * A Phi for bulk memory.  It covers all aliases except {@link #_aliases};
@@ -15,23 +21,53 @@ public class BulkMemPhiNode extends PhiNode {
     private static final BitSet EMPTY = new BitSet();
 
     // Excluded Aliases; empty means NO exclusions.
-    // Each split clones the exclusions; published sets are never mutated.
-    public final BitSet _aliases;
+    // Directly visible by design.  Empty sets share EMPTY; splitAlias performs
+    // copy-on-first-write and removes the node from GVN before mutation.
+    public BitSet _aliases;
 
     public BulkMemPhiNode(String label, Node... inputs) {
         this(label,EMPTY,inputs);
     }
 
     private BulkMemPhiNode(String label, BitSet aliases, Node... inputs) {
-        super(label,TypeMem.BOT,inputs);
+        super(label, inputs);
         _aliases = aliases;
+    }
+
+    public BulkMemPhiNode(BulkMemPhiNode phi) {
+        super(phi,phi._label);
+        _aliases = phi._aliases.isEmpty() ? EMPTY : (BitSet)phi._aliases.clone();
+    }
+
+    public BulkMemPhiNode(RegionNode r, Node sample) {
+        super(r,sample);
+        _aliases = EMPTY;
     }
 
     public boolean isSplit(int alias) { return _aliases.get(alias); }
 
-    public BulkMemPhiNode(BulkMemPhiNode phi) { super(phi); _aliases = phi._aliases; }
+    @Override public Tag serialTag() { return Tag.BulkMemPhi; }
 
-    @Override public String label() { return "BulkPhi"+_aliases; }
+    @Override
+    public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types,
+                       IdentityHashMap<Node,Integer> anodes) {
+        super.packed(baos,strs,types,anodes);
+        baos.packed2(_aliases.cardinality());
+        for( int alias = _aliases.nextSetBit(0); alias >= 0; alias = _aliases.nextSetBit(alias+1) )
+            baos.packed2(alias);
+    }
+
+    static Node make(BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases) {
+        Node[] ins = new Node[bais.packed1()];
+        String label = strs[bais.packed2()];
+        BitSet bits = new BitSet();
+        for( int i=bais.packed2(); i>0; i-- ) {
+            int alias = bais.packed2();
+            if( alias >= GlobalBits.RESERVED ) alias = aliases.map(fileAliases,alias);
+            bits.set(alias);
+        }
+        return new BulkMemPhiNode(label,bits.isEmpty() ? EMPTY : bits,ins);
+    }
 
     @Override
     public Type compute() {
@@ -51,7 +87,7 @@ public class BulkMemPhiNode extends PhiNode {
         // "Peek through" a MemMerge that covers this alias set on its default
         for( int i=1; i<nIns(); i++ )
             if( in(i) instanceof MemMergeNode mmm && canPeek(mmm) ) {
-                setDef(i,CodeGen.CODE.add(mmm.in(1)));
+                setDef(i,mmm.in(1));
                 return this;
             }
 
@@ -63,8 +99,8 @@ public class BulkMemPhiNode extends PhiNode {
                 return slice(alias);
         }
 
-        for( int i=0; i<_outputs.size(); i++ ) {
-            int alias = outputAlias(_outputs.get(i));
+        for( int i=0; i<nOuts(); i++ ) {
+            int alias = outputAlias(out(i));
             if( alias!=0 )
                 return slice(alias);
         }
@@ -89,19 +125,22 @@ public class BulkMemPhiNode extends PhiNode {
 
     // True if the MemMerge has no precise slice still covered by this Phi.
     private boolean canPeek(MemMergeNode mmm) {
-        return mmm.in(1)!=null && missingAlias(mmm)==0;
+        return missingAlias(mmm,false)==0;
     }
 
     // Return an alias required by an input but still covered by this Phi, or 0.
     private int inputAlias(Node n) {
         return switch(n) {
+        case ParmNode p -> { assert p._idx==1; yield 0; }
         case ProjNode proj -> 0;
-        case ParmNode parm -> 0;
-        case ConstantNode con -> 0;
-        case MemMergeNode mmm -> missingAlias(mmm);
+        case ConstantNode con -> {
+            assert !(con._con instanceof TypeMem tmem && tmem._alias != 1);
+            yield 0;
+        }
+        case MemMergeNode mmm -> missingAlias(mmm,false);
         case MemOpNode mem -> unsplit(mem._alias);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
-        default -> throw new AssertionError("Unexpected memory input "+n);
+        default -> throw Utils.TODO("Should not reach here");
         };
     }
 
@@ -111,16 +150,18 @@ public class BulkMemPhiNode extends PhiNode {
         // Normal graph-neighbor enqueueing flows from defs to uses, so retain
         // an explicit forward dependency to revisit this Phi when the user
         // sharpens.
-        addDepForwards(use);
+        use = addDepForwards(use);
         return switch(use) {
         case ScopeNode scope -> 0;
-        case MemMergeNode mmm -> missingAlias(mmm);
+        case ParmNode parm -> 0;
+        case MemMergeNode mmm -> missingAlias(mmm,true);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
         case MemOpNode mem -> unsplit(mem._alias);
         case MemPhiNode phi -> unsplit(phi._alias);
+        case EscapeNode esc -> esc.pub()==this ? unsplit(esc.fld()._alias) : 0;
         default -> {
-            assert use instanceof ReturnNode || use instanceof CallNode || use instanceof ParmNode
-                : "Unexpected bulk-memory user "+use;
+            assert use instanceof ReturnNode || use instanceof CallNode
+                : "Unexpected bulk-memory user "+use.getClass().getSimpleName()+"#"+use._nid+": "+use;
             yield 0;
         }
         };
@@ -142,14 +183,14 @@ public class BulkMemPhiNode extends PhiNode {
         return 0;
     }
 
-    // Every explicit slot requests that alias, including a partial allocation
-    // input whose slot still points to this bulk Phi.
-    private int missingAlias(MemMergeNode mmm) {
+    // First precise MemMerge slice still covered by this Phi.  When inspecting
+    // a user, ignore slots which point back to this Phi.
+    private int missingAlias(MemMergeNode mmm, boolean user) {
         for( int alias=2; alias<mmm.nIns(); alias++ )
             if( mmm.in(alias)!=null &&
                 mmm.alias(alias)!=mmm.in(1) &&
                 !_aliases.get(alias) )
-                return alias;
+                { assert (!user || mmm.in(alias)!=this); return alias; }
         return 0;
     }
 
@@ -160,6 +201,7 @@ public class BulkMemPhiNode extends PhiNode {
         // parallel precise Phi already exists, reuse it instead of building a
         // duplicate for the same Region/alias pair.
         Node mem = precisePhi(alias);
+        assert ((TypeMem)mem._type)._alias==alias;
 
         BitSet aliases = ((BitSet)_aliases.clone());
         aliases.set(alias);
@@ -174,8 +216,7 @@ public class BulkMemPhiNode extends PhiNode {
         // Do not peephole bphi here, as BulkMemPhi can recursively start a
         // second bulk rewrite before this one has finished.  Let the worklist
         // discover any further splits
-        bphi.setType(TypeMem.BOT);
-        Node bulk = bphi;
+        Node bulk = bphi.init();
         CodeGen.CODE.add(bulk);
         CodeGen.CODE.add(mem);
         return aggregate(bulk,alias,mem);
@@ -185,11 +226,19 @@ public class BulkMemPhiNode extends PhiNode {
     // which the bulk has already excluded.  The named alias is newly supplied
     // (or replaces its old slice).
     MemMergeNode aggregate(Node bulk, int alias, Node precise) {
-        MemMergeNode mmm = new MemMergeNode(bulk);
+        MemMergeNode mmm = new MemMergeNode(null,bulk);
         for( int old = _aliases.nextSetBit(0); old >= 0; old = _aliases.nextSetBit(old+1) )
             { assert old != alias; mmm.alias(old,precisePhi(old));}
         mmm.alias(alias,precise);
         assert checkMerge(mmm);
+        mmm.init();
+        // Slicing changes representation, not the set of values in memory.
+        // Newly exposed precise inputs can carry conservative bulk escape
+        // summaries; do not let those invent escapes absent from this Phi.
+        TypeMem old = (TypeMem)_type;
+        TypeMem mem = (TypeMem) mmm._type;
+        mmm._type = TypeMem.make(mem._alias,mem._t,mem._one,mem._clz,
+                                 mem._final,old._escFs,old._escAs);
         return mmm;
     }
 
@@ -201,14 +250,14 @@ public class BulkMemPhiNode extends PhiNode {
         mphi = new MemPhiNode("$"+alias,alias);
         mphi.addDef(region());
         // Due to cycles, must set before calling peephole
-        mphi.setType(TypeMem.make(alias,Type.BOTTOM));
+        mphi.setType(TypeMem.BOT.makeFrom(alias));
         for( int i=1; i<nIns(); i++ )
             mphi.addDef(CodeGen.CODE.add(preciseInput(in(i),alias)));
         return CodeGen.CODE.add(mphi);
     }
 
     MemPhiNode _findPhi(int alias) {
-        for( Node use : region()._outputs )
+        for( Node use : region().outs() )
             if( use instanceof MemPhiNode mphi && mphi._alias==alias )
                 return mphi;
         return null;

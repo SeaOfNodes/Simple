@@ -1,0 +1,6 @@
+bool b1 = arg == 1;
+while (arg > 0) {
+    arg--;
+    if (b1) arg--;
+}
+return arg;

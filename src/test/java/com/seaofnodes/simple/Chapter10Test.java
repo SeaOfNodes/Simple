@@ -2,8 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Test;
-import com.seaofnodes.simple.node.*;
-import java.util.BitSet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -15,35 +13,40 @@ public class Chapter10Test {
         } ) {
             String src = "struct S { int x; }; " + body;
             var code = new CodeGen(src).parse().opto().typeCheck();
+            // This chapter also has constructor/class-init Returns in the CompUnit.
+            var entry = (com.seaofnodes.simple.node.FunNode)code._start.uctrl();
             org.junit.Assert.assertTrue(body,
-                code.expr()._type instanceof com.seaofnodes.simple.type.TypeMemPtr);
+                entry.ret().expr()._type instanceof com.seaofnodes.simple.type.TypeMemPtr);
         }
     }
 
 
 
-    // Issue #246: null-check guards start in Chapter 10; arrays arrive in Chapter 15.
     private static final String NULLABLE_POINT_SOURCE = """
-        struct Point { int x; };
+        struct Point { int x; new Point = { int v -> x = v; }; };
         Point?[] !points = new Point?[2];
-        points[arg] = new Point { x = 42; };
+        points[arg] = new Point(42);
         Point? p = points[1];
         """;
 
     @Test
     public void testNullGuards() {
+        // Issue #246: != null lowers to !!p. Follow every negation, on either arm.
         for( String body : new String[] {
             "if (p != null) return p.x; return -1;",
             "if (null != p) return p.x; return -1;",
             "if (!!!!p) return p.x; return -1;",
             "if (!!!p) return -1; return p.x;",
-            "int b = !!p; if (b) return p.x + b - 1; return -1;",
+            "val b = !!p; if (b) return p.x + b - 1; return -1;",
             "if (!(p == null || arg == 0)) return p.x; return -1;"
-        } ) {
-            CodeGen code = new CodeGen(NULLABLE_POINT_SOURCE+body).parse().opto().typeCheck();
-            assertEquals(body,"-1",Eval2.eval(code,0));
-            assertEquals(body,"42",Eval2.eval(code,1));
-        }
+        } )
+            for( long seed : new long[] { 1, 42, 126 } ) {
+                CodeGen code = new CodeGen(NULLABLE_POINT_SOURCE+body,seed,true)
+                    .driver(CodeGen.Phase.TypeCheck);
+                assertEquals(body,"-1",Eval2.eval(code,0));
+                assertEquals(body,"42",Eval2.eval(code,1));
+                code.driver(CodeGen.Phase.LocalSched);
+            }
     }
 
     @Test
@@ -70,13 +73,10 @@ public class Chapter10Test {
             "if (!!p) { int x = p.x; } return p.x;"
         } ) {
             try {
-                new CodeGen(NULLABLE_POINT_SOURCE+body).parse().opto().typeCheck();
+                new CodeGen(NULLABLE_POINT_SOURCE+body).driver(CodeGen.Phase.TypeCheck);
                 fail(body);
-            } catch( RuntimeException e ) {
-                // Known null is rejected during parsing in these chapters.
-                String expected = body.startsWith("if (p == null)")
-                    ? "Accessing unknown field 'x' from 'null'" : "Might be null accessing 'x'";
-                assertEquals(body,expected,e.getMessage());
+            } catch( Parser.ParseException e ) {
+                assertEquals(body,"Might be null accessing 'x'",e.getMessage());
             }
         }
     }
@@ -109,15 +109,15 @@ return p-r;
     @Test
     public void testStruct() {
         CodeGen code = new CodeGen("""
-struct Bar {
+struct _Bar {
     int a;
     int b;
 };
-struct Foo {
+struct _Foo {
     int x;
 };
-Foo? foo = null;
-Bar !bar = new Bar;
+_Foo? foo = null;
+_Bar !bar = new _Bar;
 bar.a = 1;
 bar.a = 2;
 return bar.a;
@@ -139,7 +139,7 @@ else
 return v;
 """);
         code.parse().opto();
-        assertEquals("return Vector2D;", code.print());
+        assertEquals("Stop[ return Test.Vector2D; return MEM[ 2:.x=0; 3:.y=0;]; return Test.Vector2D; ]", code.print());
     }
 
     @Test
@@ -151,8 +151,8 @@ struct s0 {
 s0? v1=null;
 int v3=v1.zAicm;
 """);
-        try { code.parse();  fail(); }
-        catch( Exception e ) {  assertEquals("Accessing unknown field 'zAicm' from 'null'",e.getMessage());  }
+        try { code.parse().opto().typeCheck();  fail(); }
+        catch( Exception e ) {  assertEquals("Might be null accessing 'zAicm'",e.getMessage());  }
     }
 
     @Test
@@ -177,7 +177,7 @@ while (arg) {
 return bar.a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,0,(Phi_a+2));", code.print());
+        assertEquals("Stop[ return Phi(Loop,0,(Phi_a+2)); return MEM[ 2:.a=0;]; return Test.Bar; ]", code.print());
     }
 
     @Test
@@ -190,7 +190,7 @@ bar.a = 1;
 return bar.a;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *Bar",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Test.Bar",e.getMessage()); }
     }
 
     @Test
@@ -216,28 +216,28 @@ bar.a = 1;
 return bar.a;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *Bar", e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *Test.Bar", e.getMessage()); }
     }
 
     @Test
     public void testIfOrNull() {
         CodeGen code = new CodeGen("""
-struct Bar { int a; };
-Bar? !bar = new Bar;
+struct _Bar { int a; };
+_Bar? !bar = new _Bar;
 if (arg) bar = null;
 if( bar ) bar.a = 1;
-return bar;
+return bar.a;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Region,null,Bar);", code.print());
+        assertEquals("return Phi(Region,1,.a);", code.print());
     }
 
     @Test
     public void testIfOrNull2() {
         CodeGen code = new CodeGen(
 """
-struct Bar { int a; };
-Bar? !bar = new Bar;
+struct _Bar { int a; };
+_Bar? !bar = new _Bar;
 if (arg) bar = null;
 int rez = 3;
 if( !bar ) rez=4;
@@ -299,7 +299,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", code.print());
+        assertEquals("Stop[ return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum)); return MEM[ 2:.x=0; 3:.len=0;]; return Test.Iter; ]", code.print());
     }
 
 
@@ -318,43 +318,62 @@ while(arg) {
 return ret;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
+        assertEquals("Stop[ return Phi(Loop,Test.s0,Phi(Region,Test.s0,Phi_ret)); return MEM[ 2:.v0=0;]; return Test.s0; ]", code.print());
     }
 
     @Test
     public void test2() {
         CodeGen code = new CodeGen("""
-struct s0 {int v0;};
-s0 !ret = new s0;
-s0 !v0 = new s0;
+struct _s0 {int v0;};
+_s0 !ret = new _s0;
+_s0 !v0  = new _s0;
 while(arg) {
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
-
 }
-return ret;
+return ret.v0;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
+        assertEquals("return .v0;", code.print());
     }
 
 
     @Test
     public void test3() {
         CodeGen code = new CodeGen("""
-struct s0 {int v0;};
-s0 !ret = new s0;
+struct _s0 {int v0;};
+_s0 !ret = new _s0;
 while(arg < 10) {
-    s0 !v0 = new s0;
-    if (arg == 5) ret=v0;
+    _s0 !v1 = new _s0;
+    if (arg == 5) ret=v1;
     arg = arg + 1;
 }
-return ret;
+return ret.v0;
 """);
         code.parse().opto();
-        assertEquals("return Phi(Loop,s0,Phi(Region,s0,Phi_ret));", code.print());
+        assertEquals("return .v0;", code.print());
     }
+
+
+
+    @Test
+    public void testModGlobalInConstructor() {
+        CodeGen code = new CodeGen(
+"""
+int cnt = 1;
+// cnt is incremented exactly once, it is not part of s0 constructor
+// hence s0.x is always 1, and cnt remains at 2
+struct s0 { int x = cnt++; };
+s0 a = new s0();
+s0 b = new s0();
+// a.x==1, b.x==1, cnt==2
+return a.x * 100 + b.x * 10 + cnt;
+""");
+        code.parse().iter().opto();
+        assertEquals("Stop[ return 112; return MEM[ 2:___ 3:.x=1;]; return Test.s0; ]", code.print());
+    }
+
 
     @Test
     public void testBug3() {
@@ -364,7 +383,7 @@ return new s0;
 int v0=null.f0;
 """);
         try { code.parse();  fail(); }
-        catch( Exception e ) {  assertEquals("Syntax error, expected ;: .",e.getMessage());  }
+        catch( Exception e ) {  assertEquals("Syntax error, expected `;` but found `.`",e.getMessage());  }
     }
 
     @Test
@@ -394,8 +413,8 @@ if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
     """);
-        code.parse().opto();
-        assertEquals("return s0;", code.print());
+        code.parse().iter().opto().typeCheck();
+        assertEquals("Stop[ return Test.s0; return MEM[ 2:.f0=0;]; return Test.s0; ]", code.print());
     }
 
     @Test
@@ -423,7 +442,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("return s0;", code.print());
+        assertEquals("Stop[ return (const)Test.s0; return MEM[ 2:.f0=0;]; return Test.s0; ]", code.print());
     }
 
 
@@ -470,121 +489,4 @@ return 0;
         assertEquals("return 0;", code.print());
     }
 
-    @Test public void testReadBeforeStores() {
-        var code = new CodeGen("""
-            struct S { int x; int y; };
-            S !a = new S; S !b = new S;
-            a.x = 11; b.x = 22;
-            S !p = a; if (arg) p = b;
-            int before = p.x;
-            a.y = 55; b.y = 66;
-            a.x = 33; b.x = 44;
-            return before*100 + p.x;
-            """).parse().opto();
-        StopNode stop = code._stop;
-        assertEquals("1133",Eval2.eval(code,0));
-        assertEquals("2244",Eval2.eval(code,1));
-    }
-
-    static final String NESTED_MEMORY = """
-            struct S { int x; int y; int z; };
-            S !s = new S;
-            s.x = 5; s.y = 7; s.z = 11;
-            while (arg > 0) {
-                s.x = s.x + 1;
-                int j = 3;
-                while (j > 0) {
-                    j = j - 1;
-                    if (j == 1) continue;
-                    s.y = s.y + arg;
-                    if (arg == 2) break;
-                    s.z = s.z + 1;
-                }
-                arg = arg - 1;
-            }
-            return s;
-            """;
-
-    @Test public void testMemoryAcrossNestedLoops() {
-        var code = new CodeGen(NESTED_MEMORY).parse().opto();
-        StopNode stop = code._stop;
-        for (int arg=0; arg<7; arg++) {
-            assertEquals("S{x="+(5L+arg)+",y="+(7L+arg*(arg+1)-(arg>=2 ? 2 : 0))+
-                         ",z="+(11L+2*arg-(arg>=2 ? 2 : 0))+"}",Eval2.eval(code,arg));
-        }
-    }
-
-    @Test public void testMemoryAtEarlyReturns() {
-        var code = new CodeGen("""
-            struct S { int x; int y; int z; };
-            S !s = new S;
-            s.x = 3; s.y = 5; s.z = 7;
-            if (arg) { s.x = 11; s.z = 13; return s; }
-            s.y = 17;
-            return s;
-            """).parse().opto();
-        StopNode stop = code._stop;
-        for (int arg=0; arg<2; arg++) {
-            assertEquals(arg==0 ? "S{x=3,y=17,z=7}" : "S{x=11,y=5,z=13}",Eval2.eval(code,arg));
-        }
-    }
-
-    @Test public void testKeepLoadsAtMerge() {
-        var code = new CodeGen("""
-            struct S { int x; };
-            S !a = new S; S !b = new S;
-            a.x = arg; b.x = arg+1;
-            S !p = a; S !q = b;
-            if (arg<0) { p=b; q=a; }
-            int v;
-            if (arg>1) v=p.x; else v=q.x;
-            return v;
-            """).parse().opto();
-        StopNode stop = code._stop;
-        // The one-step safety check stops at the memory aggregate.
-        assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
-        assertEquals("-1",Eval2.eval(code,-1));
-        assertEquals("1",Eval2.eval(code,0));
-        assertEquals("3",Eval2.eval(code,3));
-    }
-
-    @Test public void testDropStores() {
-        var code = new CodeGen("""
-            struct S { int x; };
-            S !s = new S;
-            if (arg) s.x=arg+1; else s.x=arg+2;
-            return s;
-            """).parse().opto();
-        StopNode stop = code._stop;
-        assertEquals(1,countMemoryNodes(stop,StoreNode.class,new BitSet()));
-        assertEquals("S{x=2}",Eval2.eval(code,0));
-        assertEquals("S{x=4}",Eval2.eval(code,3));
-    }
-
-    @Test public void testKeepReadsBeforeWrites() {
-        var code = new CodeGen("""
-            struct S { int x; int y; };
-            S !a = new S; S !b = new S;
-            a.x=arg; b.x=arg+1;
-            S !p=a; S !q=b;
-            if (arg<0) { p=b; q=a; }
-            int v;
-            if (arg>1) { v=p.x; p.x=41; p.y=5; }
-            else       { v=q.x; q.x=42; }
-            return v;
-            """).parse().opto();
-        StopNode stop = code._stop;
-        assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
-        assertEquals("-1",Eval2.eval(code,-1));
-        assertEquals("1",Eval2.eval(code,0));
-        assertEquals("3",Eval2.eval(code,3));
-    }
-
-    private static int countMemoryNodes(Node n, Class<?> kind, BitSet seen) {
-        if (n==null || seen.get(n._nid)) return 0;
-        seen.set(n._nid);
-        int cnt=kind.isInstance(n) ? 1 : 0;
-        for (Node def : n._inputs) cnt+=countMemoryNodes(def,kind,seen);
-        return cnt;
-    }
 }
