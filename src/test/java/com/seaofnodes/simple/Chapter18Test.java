@@ -223,7 +223,8 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("Stop[ return #2; return (Parm_x($fun35,i64)*x); return (Parm_x($fun36,i64)<<1); ]", code._stop.toString());
+        // Both addresses stay local, so both callees see only x=3.
+        assertEquals("Stop[ return #2; return 9; return 6; ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -283,7 +284,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Loop,arg,3); return Parm_i(x,i64); ]", code._stop.toString());
+        assertEquals("return Phi(Loop,arg,3);", code._stop.toString());
         assertEquals("3", Eval2.eval(code,  0));
     }
 
@@ -454,7 +455,7 @@ if (i2i) return i2i(arg);
 return f2f(o)(1);
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,arg,1); return Parm_i(i2i.o,i64); ]", code._stop.toString());
+        assertEquals("return Phi(Region,arg,1);", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

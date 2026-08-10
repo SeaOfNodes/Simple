@@ -10,7 +10,7 @@ import com.seaofnodes.simple.type.TypeMemPtr;
 public class ParmNode extends PhiNode {
 
     // Argument indices are mapped one-to-one on CallNode inputs
-    private Type _declaredType;
+    public Type _declaredType;
     public final int _idx;             // Argument index
 
     public ParmNode(String label, int idx, Type declaredType, Node... inputs) {
@@ -39,7 +39,15 @@ public class ParmNode extends PhiNode {
 
     @Override
     public Type compute() {
-        Type t = inProgress() ? _declaredType : super.compute().join(_declaredType);
+        Type t;
+        if( _idx==1 && region() instanceof FunNode fun ) {
+            // Even an unknown caller supplies Start's discovered escape set.
+            // Its heap contents are arbitrary, but its addresses are not.
+            t=Type.TOP;
+            for( int i=1; i<nIns(); i++ )
+                if( !addDep(fun.in(i))._type.isHigh() ) t=t.meet(in(i)._type);
+            t=t.join(_declaredType);
+        } else t = inProgress() ? _declaredType : super.compute().join(_declaredType);
         // Recursion is a loop in disguise. A Parm merges the first argument
         // with those from recursive calls, just as a loop Phi merges its entry
         // and backedge. Use the widening rule in PhiNode.compute here too.

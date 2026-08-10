@@ -3,18 +3,29 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
-import java.util.HashSet;
-import static com.seaofnodes.simple.util.Utils.TODO;
 
-/** Start supplies control, whole memory, and the argument, in that order. */
+/** Unknown callers: control, exposed memory, and the entry argument.
+ *  Stop feeds discovered addresses back here during SCCP. This closes the
+ *  cycle between known code and unknown callers without a runtime loop.
+ */
 public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
+    private TypeTuple _closed;
 
     public StartNode(Type arg) { super(null,null); _arg = arg; _type = compute(); }
-    public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
+    public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; _closed=start==null ? null : start._closed; }
+
+    public void close() {
+        _closed=(TypeTuple)_type;
+        ProjNode mem=proj(1);
+        if( mem!=null ) mem.subsume(new ConstantNode(mem._type).peephole());
+        // Stop is a graph root even after the analysis feedback edge is gone.
+        Node stop=in(1).keep();
+        setDef(1,null);
+        stop.unkeep();
+    }
 
     @Override public String label() { return "Start"; }
 
@@ -37,7 +48,16 @@ public class StartNode extends LoopNode implements MultiNode {
 
 
     @Override public TypeTuple compute() {
-        return TypeTuple.make(Type.CONTROL,TypeMem.BOT,_arg);
+        if( _closed!=null ) return _closed;
+        TypeMem mem = in(1)==null || CodeGen.CODE._phase==null ||
+            CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ? TypeMem.BOT :
+            in(1)._type instanceof TypeMem m ? m : in(1)._type.isHigh() ? TypeMem.START : TypeMem.BOT;
+        return TypeTuple.make(Type.CONTROL,mem,_arg);
+    }
+
+    public boolean escapedFIDX(int fidx) {
+        if( !(_type instanceof TypeTuple tt) ) return !_type.isHigh();
+        return XInt.bit(tt.mem()._escFs,fidx);
     }
 
     @Override public Node idealize() { return null; }

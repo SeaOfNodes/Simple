@@ -48,10 +48,11 @@ public class StoreNode extends MemOpNode {
         // Initializing Stores are emitted at helper exits for a fresh object.
         // They replace this private field; Escape later joins it with public
         // memory. Keep an unwritten BOTTOM visible to the completion check.
-        if( _init ) return TypeMem.make(_alias,val);
+        if( _init ) return TypeMem.make(_alias,val,XInt.EMPTY,XInt.EMPTY).escapes(val);
         assert !_declaredType.isFRef();
         Type t = val.join(_declaredType).meet(MemMergeNode.contents(mem(),_alias,this));
-        return TypeMem.make(_alias,t);
+        TypeMem prior=mem()._type instanceof TypeMem m ? m : mem()._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+        return prior.withContents(_alias,t).escapes(val);
     }
 
     @Override
