@@ -2,19 +2,22 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.util.Utils;
 
 public class StopNode extends CFGNode {
 
     public final String _src;
+    private Type _closed;
+    public void close() { _closed=_type; }
 
     public StopNode(String src) {
         super();
         _src = src;
         _type = compute();
     }
-    public StopNode(StopNode stop) { super(stop);  _src = stop==null ? null : stop._src; }
+    public StopNode(StopNode stop) { super(stop);  _src = stop==null ? null : stop._src; _closed=stop==null ? null : stop._closed; }
 
     @Override
     public String label() {
@@ -53,7 +56,24 @@ public class StopNode extends CFGNode {
 
     @Override
     public Type compute() {
-        return Type.BOTTOM;
+        if( _closed!=null ) return _closed;
+        CodeGen code=CodeGen.CODE;
+        if( code._phase==null || code._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ) return TypeMem.BOT;
+        TypeMem mem=TypeMem.START;
+        for( Node n : _inputs ) {
+            ReturnNode ret=(ReturnNode)n;
+            if( !ret.fun().unknownCallers() ) continue;
+            // An external caller already holds its arguments. Writes through
+            // those pointers are visible even if this function returns a scalar.
+            for( Node use : ret.fun()._outputs )
+                if( use instanceof ParmNode p && p._idx>=2 )
+                    mem=mem.escapes(addDepForwards(p)._type);
+            if( !(ret._type instanceof TypeTuple tt) || tt._types[0].isHigh() ) continue;
+            mem=mem.escapes(tt.ret()).escapes(tt._types[1]);
+        }
+        for( CallNode call : code._calls )
+            if( !call.isDead() ) mem=mem.escapes(call.exposed(this));
+        return mem;
     }
 
     @Override

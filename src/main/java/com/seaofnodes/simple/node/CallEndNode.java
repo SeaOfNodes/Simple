@@ -69,7 +69,29 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     ret = ti.same_but_slightly_wider_than(TypeInteger.BOT).join(tfp.ret());
             }
         }
-        return TypeTuple.make(call._type,TypeMem.BOT,ret);
+        TypeMem mem=TypeMem.TOP;
+        for( int i=1; i<nIns(); i++ ) {
+            Type state=in(i)._type;
+            if( state instanceof TypeTuple tt ) mem=(TypeMem)mem.meet(tt._types[1]);
+            else if( !state.isHigh() ) mem=TypeMem.BOT;
+        }
+        boolean known=false, external=false;
+        if( ftype instanceof TypeFunPtr tfp && !XInt.isHigh(tfp.fidxs()) ) {
+            int locals=0;
+            for( int fidx=XInt.next(tfp.fidxs(),-1); fidx>=0; fidx=XInt.next(tfp.fidxs(),fidx) ) {
+                if( CodeGen.CODE.externFunc(tfp.makeFrom(fidx))!=null ) external=true;
+                else locals++;
+            }
+            known=locals==nIns()-1;
+        }
+        if( external || (ftype instanceof TypeFunPtr tfp && XInt.isHigh(tfp.fidxs())) ) {
+            // Unknown code may retain arguments and all addresses already
+            // exposed to it. Heap values are arbitrary after this call;
+            // exposure itself still has a useful finite summary.
+            mem=(TypeMem)mem.meet(call.exposed(this));
+        } else if( !known && (CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ||
+                             CodeGen.CODE._phase.ordinal()>CodeGen.Phase.FinalizeIR.ordinal()) ) mem=TypeMem.BOT;
+        return TypeTuple.make(call._type,mem,ret);
     }
 
     @Override

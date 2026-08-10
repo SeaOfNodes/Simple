@@ -4,8 +4,8 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
 
 /** Publish one initialized field: {control, public memory, private memory, self}.
- *  This is an explicit construction boundary, not escape discovery. The next
- *  chapter will discover which objects and functions unknown code can reach.
+ *  This explicit construction boundary publishes a completed field. Stop and
+ *  Start separately discover whether unknown code can reach that field.
  */
 public class EscapeNode extends Node {
     public Field _field;
@@ -27,7 +27,9 @@ public class EscapeNode extends Node {
     }
     @Override public Type compute() {
         if( in(0)._type.isHigh() || priv()._type.isHigh() || pub()._type.isHigh() ) return TypeMem.TOP;
-        return TypeMem.make(_field._alias,value().meet(MemMergeNode.contents(pub(),_field._alias,this)).join(_field._t));
+        Type t=value().meet(MemMergeNode.contents(pub(),_field._alias,this)).join(_field._t);
+        TypeMem prior=pub()._type instanceof TypeMem m ? m : TypeMem.BOT;
+        return prior.withContents(_field._alias,t).escapes(value());
     }
     @Override public Node idealize() {
         if( priv() instanceof MemMergeNode merge ) {

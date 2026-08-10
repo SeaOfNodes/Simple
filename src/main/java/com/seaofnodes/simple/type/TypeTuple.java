@@ -7,6 +7,8 @@ import java.util.*;
 
 public class TypeTuple extends Type {
 
+    public TypeMem mem() { return (TypeMem)_types[1]; }
+
     public Type[] _types;
 
     private static final Ary<TypeTuple> FREE = new Ary<>(TypeTuple.class);

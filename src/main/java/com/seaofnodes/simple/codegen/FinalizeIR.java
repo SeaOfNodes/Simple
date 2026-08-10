@@ -10,6 +10,10 @@ abstract class FinalizeIR {
     static void run(CodeGen code) {
         fieldSizes(code);
         code._iter.iterate(code);
+        // The external-world cycle is an analysis edge, not runtime control.
+        // Freeze its facts before replacing call edges with emission roots.
+        code._stop.close();
+        code._start.close();
         removeCallGraph(code);
         Arrays.sort(code._stop._inputs._es,0,code._stop.nIns(),(x,y) -> x._nid - y._nid);
     }
