@@ -169,9 +169,9 @@ public class RegAllocTestSupport {
     // Check the scheduled graph before encoding adds untyped branches or rewrites tail calls.
     public static class CheckedCodeGen extends CodeGen {
         public CheckedCodeGen(String src) { super(src); }
-        public CheckedCodeGen(String modDir, String buildDir,
+        public CheckedCodeGen(String modDir, String buildDir, com.seaofnodes.simple.util.Ary<String> externPaths,
                               String srcName, String src, long seed, boolean reset, TypeInteger arg) {
-            super(modDir,buildDir,srcName,src,seed,reset,arg);
+            super(modDir,buildDir,externPaths,srcName,src,seed,reset,arg);
         }
         @Override public CodeGen regAlloc() {
             super.regAlloc();

@@ -2,6 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -10,9 +11,16 @@ import java.util.IdentityHashMap;
 public class StopCUNode extends StopNode {
     public StopCUNode() { super(); }
     public StopCUNode(StopNode stop) { super(stop); }
+    @Override public Tag serialTag() { return Tag.StopCU; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
+    static Node make( BAOS bais ) {
+        StopCUNode stop = new StopCUNode();
+        stop.setDefX(bais.packed1()-1,null);
+        return stop;
+    }
 
-
-    // Each compilation unit owns its Stop by identity.
+    // CompUnit owns this wrapper by identity. Even empty units must not share
+    // a Stop: doing so can merge their Starts and their kept memory projections.
     @Override public boolean eq(Node n) { return false; }
 
     public StartCUNode start() {
@@ -46,7 +54,7 @@ public class StopCUNode extends StopNode {
                 !CodeGen.hasUserConstructor(((TypeMemPtr)fun.sig().arg(0))._obj);
             // Only entry initializers seed escape discovery. Constructors
             // and methods are discovered through escaping class/instance fields.
-            boolean pub = fun.isClz() && (CodeGen.CODE.entryClinitName().equals(fun._name) || fun.isPublic());
+            boolean pub = fun.isRoot();
             TypeFunPtr sig = fun.sig();
             // If public init, the function escapes and the related class escapes
             if( pub ) {
@@ -75,9 +83,11 @@ public class StopCUNode extends StopNode {
                 xmem = (TypeMem)xmem.meet(tret.mem());
             }
         }
-        // Calls can retain arguments even on paths with no Return.
-        for( CallNode call : CodeGen.CODE._calls )
-            if( !call.isDead() ) xmem = xmem.escapes(call.exposed(this));
+        // All units share escapes from calls and unloaded bodies, including
+        // paths with no Return. Revisit only when that shared result changes.
+        GlobalEscapeNode global = CodeGen.CODE._globalEscapes;
+        if( global!=null && !global.isDead() )
+            xmem = xmem.escapes(addDepForwards(global)._type);
         assert xmem._alias==1 && !xmem._one;
         return TypeTuple.make(Type.CONTROL,xmem,Type.BOTTOM);
     }

@@ -12,14 +12,14 @@ import java.util.*;
 
 // Build the inits-graph, a call-graph plus CLInits plus class parents.
 
-// (1) Scan all functions f, building _edges[f][]: the set of <cinit> fcns from
-// CompUnits from CLInitNodes, and the set of fcn call targets in f and the
-// class parent.  These are all reported as fidxs (ints).
+// (1) Scan all functions f, building _edges[f][]: the set of <clinit> fcns
+// from CompUnits from CLInitNodes, and the set of fcn call targets in f and
+// the class parent.  These are all reported as fidxs (ints).
 //
-// (2) Walk the _edges graph using Tarjans SCC. Reject cycles containing more
+// (2) Walk the _edges graph using Tarjans SCC.  Reject cycles containing more
 // than one <clinit>.
 //
-// (3) Report on <clinit> cycles
+// (3) Report on <clinit> cycles, if any
 //
 public class ClassInitDependencies {
     private final CodeGen _code;
@@ -28,6 +28,7 @@ public class ClassInitDependencies {
     private final int[] _pres;
     private final int[] _lows;
     private final int[] _stk ;
+    private final int[] _spos; // Stack position; FIDX -> stack slot + 1, or 0 when absent.
     private int _sp;
     private int _pre;
 
@@ -39,6 +40,7 @@ public class ClassInitDependencies {
         _pres = new int[code._linker._len];
         _lows = new int[code._linker._len];
         _stk  = new int[code._linker._len];
+        _spos = new int[code._linker._len];
 
         //
         BitSet visit = code.visit();                   // Visit set per-fcn
@@ -51,13 +53,23 @@ public class ClassInitDependencies {
             if( fun!=null && !fun.isDead() )
                 // Visit function and collect direct class touches and callees
                 _edgess[fun.sig().fidx()] = walk(code,fun,work,iset,visit,null);
-        // An unknown callback can call any escaped local function. Zero is
-        // this outside-world vertex, not an executable function identity.
+
+        // FIDX zero represents escapees - an unknown callee, including a
+        // callback supplied by another compilation.  Its code can call any
+        // exposed function.  Keep this edge in saved summaries so later
+        // applications contribute their callbacks too.
+
+        // Filter escapees by dead and not a class (class initializers are
+        // reached through bodies, not directly callable function pointers).
         int[] escaped = ((TypeTuple)code._stop._type).mem()._escFs;
         AryInt callees = new AryInt();
-        for( FunNode fun : code._linker )
-            if( fun!=null && !fun.isDead() && !fun.isClz() && XInt.bit(escaped,fun.sig().fidx()) )
-                callees.push(fun.sig().fidx());
+        // An imported Stop can still carry FULL (only local bodies have edges)
+        // so limit by existing FIDXs.
+        int limit = code._linker._len;
+        for( int fidx = XInt.next(escaped,0,limit); fidx >= 0; fidx = XInt.next(escaped,fidx,limit) ) {
+            FunNode fun = code.link(fidx); // Discard dead bodies and external C functions.
+            if( fun!=null && !fun.isClz() ) callees.push(fidx);
+        }
         _edgess[0] = callees.isEmpty() ? null : callees.asAry();
         visit.clear();
     }
@@ -65,12 +77,14 @@ public class ClassInitDependencies {
     // Return the outgoing init edge set for this function
     private static int[] walk( CodeGen code, FunNode fun, Ary<CFGNode> work, IntHashMap iset, BitSet visit,
                               Ary<Parser.Lexer> sites) {
+        if( fun.summary()!=null ) return fun.summary()._classDependencyFIDXs;
         // Walk function body, looking for outgoing init edges
         assert iset .isEmpty(); // int hash set for de-dup
         assert visit.isEmpty(); // needs a visit set, because loops
         assert work .isEmpty(); // needs a worklist, because DAG, parallel explore paths
 
-        // Children classes always dependent on parents
+        // Children require their parents to init first;
+        // add child->parent edge
         if( fun.isClz() && fun._compunit._par != null )
             iset.put(code.link(fun._compunit._par).sig().fidx(),1);
 
@@ -124,7 +138,8 @@ public class ClassInitDependencies {
     // Return an error string, or null if no cycle contains multiple clinits.
     public String check() {
         Arrays.fill(_pres,0);
-        _sp = 0;
+        // A prior check may have stopped with a cycle still on the stack.
+        while( _sp>0 ) _spos[_stk[--_sp]] = 0;
         _pre = 1;
 
         int idx = -1;
@@ -183,6 +198,7 @@ public class ClassInitDependencies {
     int scc( int fidx ) {
         // Assign pre-order number
         _lows[fidx] = _pres[fidx] = _pre++;
+        _spos[fidx] = _sp+1;
         _stk[_sp++] = fidx;
         // walk outbound edges
         if( _edgess[fidx]!=null ) {
@@ -192,27 +208,21 @@ public class ClassInitDependencies {
                     int idx = scc(edge);
                     if( idx != -1 ) return idx; // Found a cycle
                     _lows[fidx] = Math.min(_lows[fidx],_lows[edge]);
-                } else if( _edgess[edge]!=null && onStk(edge) ) {
+                } else if( _edgess[edge]!=null && _spos[edge]!=0 ) {
                     _lows[fidx] = Math.min(_lows[fidx],_pres[edge]);
                 }
             }
         }
         // Found a cycle
         if( _lows[fidx] == _pres[fidx] ) {
-            int idx = find(fidx);
+            int idx = _spos[fidx]-1;
             if( hasClzCycle(idx) )
                 return idx;     // Found a class cycle
-            // Pop stack, including fidx
-            _sp = idx;
+            // Pop stack, including fidx, should be a really short loop
+            while( _sp>idx ) _spos[_stk[--_sp]] = 0;
         }
         return -1;              // No cycle
     }
-
-    private int find(int e) {
-        for( int i=0; i<_sp; i++ )  if( _stk[i] == e ) return i;
-        return -1;
-    }
-    private boolean onStk(int e) { return find(e) != -1; }
 
     private boolean hasClzCycle(int idx) {
         int clinits = 0;

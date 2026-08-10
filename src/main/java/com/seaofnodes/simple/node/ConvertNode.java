@@ -7,8 +7,13 @@ import com.seaofnodes.simple.type.*;
 
 import java.util.HashMap;
 
-// Convert a value to an authoritative destination type.  The destination is
-// known structurally from a declaration; the source family might sharpen later.
+// Convert the incoming value; actual conversion depends on the _dst type.
+// Convert ints to floats, ptrs to ints, nullable to not-null, etc.  Once the
+// input type is known precisely enough, the idealize() call triggers and
+// replaces the Convert with a concrete conversion (e.g. toFloatNode).
+//
+// Convert has no runtime dynamic behavior; it must *always* get replaced with
+// some concrete behavior (or its an error).
 public class ConvertNode extends Node {
     private Type _dst;
 
@@ -28,11 +33,9 @@ public class ConvertNode extends Node {
         return p.p(label()).open().n(val()).close();
     }
 
-    // The declaration bounds the result; preserve dead inputs and stronger
-    // scalar facts so SCCP can propagate constants through loop conversions.
-    // Managed pointers keep the declared type until idealize checks access:
-    // array element access must agree in both directions, so it cannot gate
-    // precision in this monotone transfer function.
+
+    // Not much to do here, if the input type is not sharp enough to fold into
+    // the proper conversion, its not sharp enough to do much else.
     @Override public Type compute() {
         Type src = val()._type;
         if( src.isHigh() ) return Type.TOP;

@@ -13,15 +13,7 @@ import static org.junit.Assert.*;
 public class MinusNodeTest {
     @Test public void testMonotoneCompute() {
         CodeGen code = new CodeGen("return 0;");
-        // Type.gather also loads cached fixtures which do not survive later compiler resets.
-        ArrayList<Type> inputs = new ArrayList<>(Arrays.asList(
-            Type.BOTTOM,Type.CONTROL,Type.NIL,TypeScalar.BOT,TypePtr.PTR,
-            TypeMemPtr.BOT,TypeFunPtr.BOT,TypeMem.BOT,
-            TypeConAryB.make(new byte[]{1,2,3})));
-        TypeInteger.gather(inputs);
-        TypeFloat.gather(inputs);
-        int size = inputs.size();
-        for( int i=0; i<size; i++ ) inputs.add(inputs.get(i).dual());
+        ArrayList<Type> inputs = new ArrayList<>(Arrays.asList(Type.gather()));
         for( long value : new long[]{Long.MIN_VALUE,Long.MIN_VALUE+1,-1,1,Long.MAX_VALUE} )
             inputs.add(TypeInteger.constant(value));
         for( double value : new double[]{-0.0,0.0,-1.0,1.0,Double.NaN,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY} )
@@ -32,7 +24,7 @@ public class MinusNodeTest {
             for( byte mode=0; mode<3; mode++ ) {
                 // An isolated analysis input: vary its type without peepholes
                 // selecting a mode or folding the node under test.
-                Node input = new ConstantNode(Type.BOTTOM);
+                Node input = ConstantNode.seed(Type.BOTTOM);
                 input.setDef(0,null);
                 MinusNode minus = new MinusNode(input,mode);
                 Type[] results = new Type[inputs.size()];
@@ -55,7 +47,7 @@ public class MinusNodeTest {
 
     @Test public void testUnresolvedInput() {
         new CodeGen("return 0;").driver(CodeGen.Phase.Opto);
-        Node input = new ConstantNode(TypeInteger.TRUE);
+        Node input = ConstantNode.seed(TypeInteger.TRUE);
         MinusNode minus = new MinusNode(input);
         assertSame(TypeInteger.constant(-1),minus.compute());
         input._type = Type.BOTTOM;
