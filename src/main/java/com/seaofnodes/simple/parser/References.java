@@ -120,6 +120,7 @@ final class References {
             return P.expressions.parsePostfixMethod(P.construction.view(rvalue),P._scope.in(P._scope.update(P._scope.var(selfx),null)));
         }
         // Assign-update direct into Scope
+        P.arrays.checkAssignment(var,site);
         if( var._final && !P._scope.canInit(var) )
             throw Parser.error("Cannot reassign final '"+var._name+"'",site);
         checkSharedFunction(var);
@@ -130,6 +131,7 @@ final class References {
     }
 
     void checkAssignment(Var def, Lexer site) {
+        if( fieldSelf(def)==null ) P.arrays.checkAssignment(def,site);
         String name = def._name;
         // A final field may receive its first value in its constructor.
         if( P._scope.in(def._idx)._type!=Type.TOP && def._final &&
@@ -278,7 +280,7 @@ final class References {
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
         char ch = pre==0 ? P._lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
-            if( fld!=null && decl==Type.BOTTOM )
+            if( fld!=null && decl==Type.BOTTOM && !ts._fref )
                 throw Parser.error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor",site );
             Node op = P.expressions.opAssign(ch,load, decl ).keep();
             mem.keep();
@@ -306,10 +308,15 @@ final class References {
     // Fields are lvalues in memory, including inside their initializer and
     // explicit constructor. Scope slots retain declaration metadata only.
     private Node fieldSelf(Var var) {
-        int kx = P._scope.kindx(var), fx = P._scope.enclosingFuncOrDecl();
+        int kx = P._scope.kindx(var);
         ScopeNode.Kind kind = P._scope._kinds.at(kx);
         if( !(kind instanceof Kind.Func inst) || !FunNode.isInstance(inst._name) || var._idx<inst._lexSize+2 ) return null;
-        if( kx==fx || kx+1==fx ) return defaultSelf();
+        // Nested functions have their own receiver parameter. Resolve fields
+        // through it even across intervening function and block scopes.
+        Node self = defaultSelf();
+        Type owner = P._scope.var(inst._lexSize).type();
+        if( self._type instanceof TypeMemPtr ptr && owner instanceof TypeMemPtr declared &&
+            ptr._obj._name.equals(declared._obj._name) ) return self;
         return null;
     }
 

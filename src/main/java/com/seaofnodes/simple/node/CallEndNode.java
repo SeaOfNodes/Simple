@@ -85,6 +85,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
             return ftype.isHigh() ? TypeTuple.STATE.dual() : TypeTuple.STATE;
         // Mid-fold, just take the inlined callee's return.
         if( _folding ) return in(1)._type;
+        TypeTuple intrinsic=Intrinsic.compute(call,this);
+        if( intrinsic!=null ) return intrinsic;
 
         // The outside continuation reads Start directly: Call can remain
         // CONTROL while its possible returned identities change.
@@ -135,6 +137,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
     }
 
     public byte maybeInline() {
+        byte intrinsic=Intrinsic.tryInline(this);
+        if( intrinsic>0 ) return intrinsic;
         byte inline = inlineCandidate(false);
         if( CodeGen.CODE._midAssert )
             return inline;

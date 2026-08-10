@@ -9,7 +9,7 @@ public class NotX86 extends MachConcreteNode implements MachNode {
     NotX86(NotNode not) { super(not); }
     @Override public String op() { return "not"; }
     @Override public RegMask regmap(int i) { return x86_64_v2.RMASK; }
-    @Override public RegMask outregmap() { return x86_64_v2.RMASK;  }
+    @Override public RegMask outregmap() { return x86_64_v2.WMASK;  }
     @Override public RegMask killmap() { return x86_64_v2.FLAGS_MASK; }
 
     @Override public void encoding( Encoding enc ) {

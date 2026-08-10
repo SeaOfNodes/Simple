@@ -94,7 +94,8 @@ public abstract class MemOpNode extends TypeNode {
         if( !(ptr()._type instanceof TypeMemPtr tmp) )
             return Type.BOTTOM;
         Field fld = tmp._obj.field(_name);
-        return fld == null || fld._t == null ? Type.BOTTOM : fld._t;
+        return fld == null || fld._t == null ? Type.BOTTOM :
+            fld._t instanceof TypeConAry ary ? ary.storageType() : fld._t;
     }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return _printMach(p);  }

@@ -39,7 +39,9 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
     public final BAOS _bits  = new BAOS(); // Instructions / encodings
     public final BAOS _cpool = new BAOS(); // Constant r/o pool
     public final BAOS _sdata = new BAOS(); // Static   r/w pool
-    public final HashMap<Node,Relo> _bigCons = new HashMap<>();
+    // Relocations belong to instruction occurrences, including equal constant
+    // loads cloned by scheduling/register allocation. Structural keys lose sites.
+    public final IdentityHashMap<Node,Relo> _bigCons = new IdentityHashMap<>();
     public final StaticData _data;
     public final HashMap<String,Integer> _externalAddresses = new HashMap<>();
 
@@ -157,7 +159,7 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
 
     // Nodes need "relocation" patching; things done after code is placed.
     // Record src and dst Nodes.
-    private final HashMap<Node,CFGNode> _internals = new HashMap<>();
+    private final IdentityHashMap<Node,CFGNode> _internals = new IdentityHashMap<>();
     // Source is a Call, destination in the Fun.
     public Encoding relo( CallNode call ) {
         FunNode fun = _code.link(call.tfp());
@@ -187,13 +189,13 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
     }
 
     // External references only located by Strings a link-time
-    public final HashMap<Node,String> _externals = new HashMap<>();
+    public final IdentityHashMap<Node,String> _externals = new IdentityHashMap<>();
     public Encoding external( Node n, String extern ) {
         _externals.put(n,extern);
         return this;
     }
 
-    public final HashMap<Node,String> _externData = new HashMap<>();
+    public final IdentityHashMap<Node,String> _externData = new IdentityHashMap<>();
     public void externalData(Node n, String name) { _externData.put(n,name); }
 
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative

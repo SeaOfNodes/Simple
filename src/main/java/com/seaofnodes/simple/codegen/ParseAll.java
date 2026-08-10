@@ -150,7 +150,8 @@ public abstract class ParseAll {
     }
 
     private static void addRequiredTypes(CodeGen code, CompUnit cunit) {
-        for( String typeName : code.P._requiredTypes ) {
+        for( var required : code.P._requiredTypes.entrySet() ) {
+            String typeName = required.getKey();
             // A forward use can have been resolved later in this source file.
             if( Parser.TYPES.get(typeName) instanceof TypeStruct ts && !ts._fref ) continue;
             try {
@@ -158,7 +159,7 @@ public abstract class ParseAll {
                 if( xcunit != null )
                     cunit.addDep(xcunit);
                 else
-                    assert false : "expected to find required type";
+                    throw Parser.error("Unknown type '"+typeName+"'",required.getValue());
             } catch( IOException ioe ) {
                 throw new RuntimeException(ioe);
             }

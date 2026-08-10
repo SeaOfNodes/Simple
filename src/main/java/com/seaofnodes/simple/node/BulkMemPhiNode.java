@@ -261,13 +261,33 @@ public class BulkMemPhiNode extends PhiNode {
         mphi = new MemPhiNode(ScopeNode.memName(alias),alias);
         mphi.addDef(region());
         // Due to cycles, must set before calling peephole
-        // Splitting preserves the bulk Phi's established escape bound. Starting
-        // at BOT would temporarily invent escapes when the new slice is merged.
+        // An escaped slice must preserve the bulk Phi's established bound.
+        // An unescaped slice was excluded from that summary: include the
+        // facts hidden in predecessor slices before wiring any cyclic Phis.
         TypeMem old = (TypeMem)_type;
+        if( !XInt.bit(old._escAs,alias) )
+            old = (TypeMem)old.meet(sliceBound(this,alias,new BitSet()));
         mphi.setType(TypeMem.make(alias,old._t,old._one,old._clz,false,old._escFs,old._escAs));
         for( int i=1; i<nIns(); i++ )
             mphi.addDef(CodeGen.CODE.add(preciseInput(in(i),alias)));
         return CodeGen.CODE.add(mphi);
+    }
+
+    // A bulk summary ignores unescaped slots in MemMerge inputs. Follow the
+    // same slots that splitting will expose, including across loop backedges.
+    // A visited cycle contributes TOP; its incoming definitions supply the bound.
+    private static TypeMem sliceBound(Node mem, int alias, BitSet visit) {
+        if( visit.get(mem._nid) ) return TypeMem.TOP;
+        visit.set(mem._nid);
+        if( mem instanceof MemMergeNode merge )
+            return sliceBound(merge.alias(alias),alias,visit);
+        if( mem instanceof BulkMemPhiNode bulk ) {
+            TypeMem bound = TypeMem.TOP;
+            for( int i = 1; i < bulk.nIns(); i++ )
+                bound = (TypeMem)bound.meet(sliceBound(bulk.in(i),alias,visit));
+            return bound;
+        }
+        return mem._type instanceof TypeMem bound ? bound : TypeMem.BOT;
     }
 
     MemPhiNode _findPhi(int alias) {

@@ -7,6 +7,12 @@ import com.seaofnodes.simple.util.SB;
 
 public class CmpX86 extends MachConcreteNode implements MachNode {
     CmpX86( Node add ) { super(add); }
+    private CmpX86(CmpX86 cmp) {
+        super((Node)null);
+        addDef(null);
+        addDef(cmp.in(1));
+        addDef(cmp.in(2));
+    }
     @Override public String op() { return "cmp"; }
     @Override public RegMask regmap(int i) { return x86_64_v2.RMASK; }
     @Override public RegMask outregmap() { return x86_64_v2.FLAGS_MASK; }
@@ -16,6 +22,7 @@ public class CmpX86 extends MachConcreteNode implements MachNode {
     // compared to some normal registers - and those normal registers might not
     // be spilling!
     @Override public boolean isClone() { return true; }
+    @Override public Node copy() { return new CmpX86(this); }
 
     @Override public void encoding( Encoding enc ) {
         X86.reg(enc,0x3B,enc.reg(in(1)),enc.reg(in(2)));

@@ -568,8 +568,8 @@ struct _A {
 return new _A(new !B?[0]).array_of_b;
 """);
         code.driver(CodeGen.Phase.TypeCheck);
-        assertEquals("return []*B?;", code.print());
-        assertEquals("*B {}?[]", Eval2.eval(code,0));
+        assertEquals("return []*Test.B?;", code.print());
+        assertEquals("*Test.B {}?[]", Eval2.eval(code,0));
     }
 
     // ---------------------------------------------------------------

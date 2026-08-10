@@ -4,6 +4,8 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.Ary;
+import java.util.IdentityHashMap;
 
 public class x86_64_v2 extends Machine {
     public x86_64_v2( CodeGen code ) {}
@@ -85,6 +87,18 @@ public class x86_64_v2 extends Machine {
         case "<=" -> 0x8E;
         case ">=" -> 0x8D;
         default -> throw new IllegalArgumentException("Too many arguments");
+        };
+    }
+    static int jumpop(String op, boolean unsigned) {
+        if( !unsigned ) return jumpop(op);
+        return switch( op ) {
+            case "==" -> 0x84;
+            case "!=" -> 0x85;
+            case "<"  -> 0x82;
+            case "<=" -> 0x86;
+            case ">"  -> 0x87;
+            case ">=" -> 0x83;
+            default -> throw new IllegalArgumentException(op);
         };
     }
 
@@ -282,6 +296,7 @@ public class x86_64_v2 extends Machine {
     public Node instSelect(Node n) {
         return switch (n) {
         case AddNode      add -> add(add);
+        case Intrinsic.BitCastNode cast -> new BitCastX86(cast);
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CLInitNode  init -> new CLInitNode(init);
@@ -292,16 +307,14 @@ public class x86_64_v2 extends Machine {
         case GuardNode  guard -> new GuardMach(guard);
         case ConstantNode con -> con(con);
         case DivNode      div -> div.mode()==2 ? new DivFX86(div) : new DivX86(div);
+        case ModNode      mod -> mod.mode()==2 ? new ModFNode(mod) : new DivX86(mod);
         case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunX86(fun);
         case FunPtrNode  fptr -> fptr(fptr);
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
-        case MinusNode    neg -> {
-            if( neg.mode()==2 ) throw Utils.TODO();
-            yield new NegX86(neg);
-        }
+        case MinusNode    neg -> neg.mode()==2 ? new NegFX86(neg) : new NegX86(neg);
         case MulNode      mul -> mul.mode()==2 ? new MulFX86(mul) : mul(mul);
         case NewNode      nnn -> new NewX86(nnn);
         case NotNode      not -> new NotX86(not);
@@ -344,7 +357,7 @@ public class x86_64_v2 extends Machine {
             return new AddFX86(add);
         Node lhs = add.in(1);
         Node rhs = add.in(2);
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld.declaredType().log_size() >= 3)
+        if( lhs instanceof LoadNode ld && ld.declaredType().log_size() >= 3 && canFoldLoad(ld,rhs) )
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, 0, rhs);
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS
@@ -370,8 +383,9 @@ public class x86_64_v2 extends Machine {
 
     private Node _lea(Node add, Node base, Node idx, int off) {
         int scale = 0;
-        if( base instanceof ShlNode && !(idx instanceof ShlNode) )
-            throw Utils.TODO(); // Bug in canonicalization, should on RHS
+        if( base instanceof ShlNode && !(idx instanceof ShlNode) ) {
+            Node tmp = base; base = idx; idx = tmp;
+        }
         if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
             shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
             idx = shift.in(1);
@@ -419,11 +433,11 @@ public class x86_64_v2 extends Machine {
         // Since cmp does not record a BOP, SetX/Jmp need to know if the CMP is swapped.
 
         // Vs memory
-        if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && rhs._type.isa(ld.declaredType()) )
+        if( lhs instanceof LoadNode ld && rhs._type.isa(ld.declaredType()) && canFoldLoad(ld,rhs) )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(rhs), val, false);
 
         // Operands swap in the encoding directly, no need for Set/Jmp to swap `bop`
-        if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld.declaredType()) &&
+        if( rhs instanceof LoadNode ld && lhs._type.isa(ld.declaredType()) && canFoldLoad(ld,lhs) &&
             (!(lhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value())) ||
              bool.op()=="==" || bool.op()=="!=") )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
@@ -438,6 +452,25 @@ public class x86_64_v2 extends Machine {
 
         // x vs y
         return new CmpX86(bool);
+    }
+
+    // The other operand must not depend on a writer which must follow this
+    // load. Fusing them would move the read across that write (or form a
+    // scheduling cycle). Control dependencies count too, including calls.
+    private static boolean canFoldLoad(LoadNode load, Node value) {
+        if( load.nOuts()!=1 ) return false;
+        Ary<Node> writers=load.antiDeps(new Ary<>(Node.class));
+        if( writers.isEmpty() ) return true;
+        var seen=new IdentityHashMap<Node,Boolean>();
+        Ary<Node> work=new Ary<>(Node.class);
+        work.push(value);
+        while( !work.isEmpty() ) {
+            Node n=work.pop();
+            if( seen.put(n,Boolean.TRUE)!=null ) continue;
+            if( writers.find(n)!=-1 ) return false;
+            for( Node def : n._inputs ) if( def!=null ) work.push(def);
+        }
+        return true;
     }
 
     private Node con( ConstantNode con ) {

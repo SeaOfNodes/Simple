@@ -2,7 +2,7 @@
 
 The parser builds Sea-of-Nodes IR directly. Each component shares the cursor,
 active scope, and compilation state through its `Parser P` reference; there is no intermediate
-AST. The [grammar map](../../../../../../../docs/chapter30/30-grammar.md) connects language
+AST. The [grammar map](../../../../../../../docs/chapter31/31-grammar.md) connects language
 productions to their entry points.
 
 | File | Responsibility |
@@ -14,6 +14,7 @@ productions to their entry points.
 | `Declarations.java` | Bindings, initializers, mutability modifiers, and native declarations. |
 | `Types.java` | Type syntax, qualified-name lookup, arrays, function types, and forward types. |
 | `Functions.java` | Function expressions, parameters, arguments, calls, and function entry/return graphs. |
+| `MethodAccess.java` | Infers whether an instance method needs writable access through its receiver. |
 | `Structs.java` | Struct and constructor declarations, field discovery, and initialization Stores. |
 | `Construction.java` | Selects private self memory during parsing; its comment explains BOT fields, the TypeMemPtr qualifier, and checks deferred to TypeCheck. |
 | `References.java` | Bare-name and field resolution, implicit receivers, assignments, and forward references. |
@@ -23,8 +24,16 @@ productions to their entry points.
 | `Var.java` | Lexical binding metadata: name, type, scope slot, and mutability. |
 
 Start with `Statements.parseStatement` or `Expressions.parseAssignment` to follow
-the grammar. Loop updates are parsed after their bodies, and declared constructor
-bodies after field discovery; `Lexer.skipTo` scans these deferred fragments.
+the grammar. Loop updates are parsed after their bodies. Instance method headers
+are parsed immediately, but their bodies and declared constructor bodies wait
+until all fields are known. Methods can therefore use fields declared later in
+the struct. `Lexer.skipTo` scans these deferred fragments.
+
+Method receivers accept read-only access unless the body needs writable access.
+The check follows aliases, child references, array elements, and calls between
+methods. Writing an independent argument does not require a writable receiver.
+Returning or storing a writable receiver alias also requires writable access;
+an explicit read-only view can be exposed without that requirement.
 
 `Parser` keeps the short cursor, scope/memory, IR-building, and diagnostic helpers
 used by these components. Independent helpers live with their data: class-object

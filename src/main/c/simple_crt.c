@@ -3,8 +3,31 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 #include <termios.h>
 #include <unistd.h>
+
+// Fixed-semantics compiler intrinsics. Keep these definitions for indirect
+// calls; direct calls may inline to representation-preserving register moves.
+int64_t simple_f64_bits(double value) {
+    int64_t bits;
+    memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+double simple_f64_from_bits(int64_t bits) {
+    double value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+// Floating remainder's machine instruction uses this memory-preserving helper.
+double simple_f64_mod(double x, double y) {
+    // fmod can set errno for NaN-producing inputs; arithmetic leaves it alone.
+    int saved_errno = errno;
+    double result = fmod(x, y);
+    errno = saved_errno;
+    return result;
+}
 
 // errno may be thread-local or a macro calling a platform accessor.
 int32_t simple_errno(void) { return errno; }

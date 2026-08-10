@@ -10,6 +10,22 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class SeparateCompilationTest {
+    @Test public void testImportedReadOnlyPrimitiveArray() throws Exception {
+        Path build=Path.of("build/objs/separate");
+        Files.createDirectories(build);
+        Path lib=Files.createTempDirectory(build,"pixels-");
+        new CodeGen(null,lib.toString(),null,"Pixels",
+            "val first={ u32[~] pixels -> pixels[0]; };",123,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+        var paths=new Ary<>(new String[]{lib.toString()});
+        CodeGen code=new CodeGen(null,"build/objs",paths,"PixelClient","""
+            val pixels=new u32[2];
+            pixels[0]=4294967295;
+            return Pixels.first(pixels);
+            """,123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("4294967295",Eval2.eval(code,0));
+    }
+
     @Test public void testImportedNativeExposure() throws Exception {
         Path build=Path.of("build/objs/separate");
         Files.createDirectories(build);

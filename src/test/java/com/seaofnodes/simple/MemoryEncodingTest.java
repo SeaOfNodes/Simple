@@ -8,6 +8,31 @@ import static org.junit.Assert.*;
 
 // Execution regressions are separate from the fixed spill-measurement cohorts.
 public class MemoryEncodingTest {
+    @Test public void testIntegerMemoryOperandsAcrossCalls() throws java.io.IOException {
+        TestC.runSF("""
+            val touch_noInline={i64[] a, i64 i -> a[i]+=1;};
+            val scan_noInline={i64[] a, i64 limit, i64 delta ->
+                int below=0, above=0;
+                for(int i=0;i<a#;i++) {
+                    touch_noInline(a,i);
+                    if(a[i]<limit) below++;
+                    if(limit<a[i]) above++;
+                    a[i]+=delta;
+                }
+                return below*10+above;
+            };
+            val main={->
+                val a=new i64[]{0x7ffffffffffffffe,-2,0};
+                if(scan_noInline(a,0x7fffffffffffffff,0)!=20) return 1;
+                if(a[0]!=0x7fffffffffffffff || a[1]!=-1 || a[2]!=1) return 2;
+                val b=new i64[]{-3,-2,0};
+                if(scan_noInline(b,-1,0x100000000)!=11) return 3;
+                if(b[0]!=0xfffffffe || b[1]!=0xffffffff || b[2]!=0x100000001) return 4;
+                return 0;
+            };
+            ""","integerMemoryAcrossCalls","",-1);
+    }
+
     @Test public void testLoopLoadSearch() {
         String[] sources = {
             """

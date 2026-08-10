@@ -67,9 +67,9 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
         if( i==1 ) return null;               // Memory
         if( i==2 ) return x86_64_v2.RMASK;    // base  in GPR
         if( i==3 ) return x86_64_v2.RMASK;    // index in GPR
-        if( i==4 ) return _sz >= '4'
-                       ? x86_64_v2.MEM_MASK   // value in GPR or XMM
-                       : x86_64_v2.RMASK;     // Bytes and shorts in GPR only
+        // Integer arithmetic and comparisons require a GPR value operand.
+        // Only StoreX86 has alternate encodings that accept XMM values.
+        if( i==4 ) return x86_64_v2.RMASK;
         return null; // Anti-dependence
     }
 

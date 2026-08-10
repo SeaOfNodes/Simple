@@ -786,7 +786,11 @@ public class CodeGen {
     public boolean _asmLittle=true;
     public String asm() { return asm(new SB()).toString(); }
     SB asm(SB sb) {
-        ASMPrinter.print(sb,this);
+        if( _encodings.isEmpty() ) ASMPrinter.print(sb,this);
+        else for( var entry : _encodings.entrySet() ) {
+            sb.p("\n=== Compilation unit: ").p(entry.getKey()._cname).p(" ===\n");
+            ASMPrinter.print(sb,this,entry.getValue());
+        }
         return sb;
     }
 

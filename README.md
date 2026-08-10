@@ -84,7 +84,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 28b](docs/chapter28b/README.md): Separate Compilation
 * [Chapter 29](docs/chapter29/README.md): Tech Debt Cleanup, Partial Objects
 * [Chapter 30](docs/chapter30/README.md): Text Formatting and Diagnostics
-* Chapter 31: Software Drawing and Graphical Games (work in progress)
+* [Chapter 31](docs/chapter31/README.md): Software Drawing and Graphical Games (work in progress)
 
 Appendices: [Native libraries](docs/appendices/native-libraries.md),
 [optimizer and backend tuning](docs/appendices/optimizer-tuning.md).

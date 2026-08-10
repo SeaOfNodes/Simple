@@ -49,7 +49,7 @@ public abstract class ListScheduler {
             else
                 computeSingleRDef(bb,n);
 
-            if( n instanceof NewNode || n instanceof CallNode )
+            if( n instanceof NewNode || n instanceof CallNode || n instanceof ModFNode )
                 bb.fun()._hasCalls = true;
             return this;
         }

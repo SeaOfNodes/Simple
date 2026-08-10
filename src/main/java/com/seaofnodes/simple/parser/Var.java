@@ -33,6 +33,11 @@ public class Var {
     public Type  type() { return _type; }
     public Type _type() { return _type; } // ScopeNode printer needs to have no side effects
 
+    void refineType(Type type) {
+        assert type.isa(_type) : _name+": "+_type+" -> "+type;
+        _type = type;
+    }
+
     // Forward reference variables (not types) must be BOTTOM and
     // distinct from inferred variables
     public boolean isFRef() { return _fref; }

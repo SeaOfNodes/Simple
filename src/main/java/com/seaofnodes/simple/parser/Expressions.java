@@ -233,7 +233,7 @@ final class Expressions {
      * Parse an multiplicativeExpr expression
      *
      * <pre>
-     *     multiplicativeExpr : unaryExpr (('*' | '/') unaryExpr)*
+     *     multiplicativeExpr : unaryExpr (('*' | '/' | '%') unaryExpr)*
      * </pre>
      * @return a multiply expression {@link Node}, never {@code null}
      */
@@ -242,6 +242,7 @@ final class Expressions {
         while( true ) {
             if( P.match("*") ) lhs = new MulNode(lhs,null);
             else if( P.match("/") ) lhs = new DivNode(lhs,null);
+            else if( P.match("%") ) lhs = new ModNode(lhs,null);
             else break;
             lhs.setDef(2,parseUnary());
             lhs = P.peep(lhs);
@@ -341,6 +342,7 @@ final class Expressions {
         case '-'        -> new SubNode(lhs,rhs);
         case '*'        -> new MulNode(lhs,rhs);
         case '/'        -> new DivNode(lhs,rhs);
+        case '%'        -> new ModNode(lhs,rhs);
         case '|'        -> new  OrNode(null,lhs,rhs);
         case '&'        -> new AndNode(null,lhs,rhs);
         case '^'        -> new XorNode(P.loc(),lhs,rhs);
@@ -400,7 +402,7 @@ final class Expressions {
      * Parse integer literal
      *
      * <pre>
-     *     integerLiteral: [1-9][0-9]* | [0]
+     *     integerLiteral: [1-9][0-9]* | 0[0-7]* | 0[xX][0-9a-fA-F]+
      *     floatLiteral: [digits].[digits]?[e [digits]]?[f]?
      * </pre>
      */

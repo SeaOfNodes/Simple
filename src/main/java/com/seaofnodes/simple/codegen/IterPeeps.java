@@ -65,8 +65,10 @@ public class IterPeeps {
      * Iterate peepholes and inlining to a fixed point
      */
     public void iterate( CodeGen code ) {
+        assert !CodeGen.expensiveAssert(0) || (progressOnList(code, _work) && schedulableUses(code));
         boolean didInline = false;
         Ary<Node> defer = new Ary<>(Node.class);
+
         while( true ) {
             // Clean up everything that does not grow the code
             iteratePeeps(code);
@@ -97,8 +99,6 @@ public class IterPeeps {
 
     // Run all the code-reduction and type-lifting peeps as possible
     private void iteratePeeps( CodeGen code ) {
-        assert !CodeGen.expensiveAssert(0) || (progressOnList(code, _work) && schedulableUses(code));
-
         Node n;
         while( (n = _work.pop()) != null ) {
             if( n.isDead() )  continue;

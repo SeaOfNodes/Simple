@@ -28,7 +28,7 @@ public class arm extends Machine {
     public static final int D16 = 48,  D17 = 49,  D18 = 50,  D19 = 51,  D20 = 52,  D21 = 53,  D22 = 54,  D23 = 55;
     public static final int D24 = 56,  D25 = 57,  D26 = 58,  D27 = 59,  D28 = 60,  D29 = 61,  D30 = 62,  D31 = 63;
 
-    static final int FLAGS = 64;
+    public static final int FLAGS = 64;
     static final int MAX_REG = 65;
     public static final int D_OFFSET = 32;
 
@@ -318,6 +318,7 @@ public class arm extends Machine {
         case CProjNode c     -> new CProjNode(c);
         case ConstantNode con-> con(con);
         case DivNode div     -> div.mode()==2 ? new DivFARM(div) : new DivARM(div);
+        case ModNode mod     -> mod.mode()==2 ? new ModFNode(mod) : new ModARM(mod);
         case EscapeNode esc  -> new EscapeNode(esc);
         case FunNode fun     -> new FunARM(fun);
         case FunPtrNode  fptr -> fptr(fptr);
@@ -350,6 +351,7 @@ public class arm extends Machine {
         case StoreNode st    -> st(st);
         case SubNode sub     -> sub.mode()==2 ? new SubFARM(sub) : sub(sub);
         case ToFloatNode tfn -> new I2F8ARM(tfn);
+        case Intrinsic.BitCastNode cast -> new BitCastARM(cast);
         case ToIntegerNode cvt -> new F8ToIARM(cvt);
         case XorNode xor     -> xor(xor);
 

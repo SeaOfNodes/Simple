@@ -20,8 +20,20 @@ public class MemMergeNode extends Node {
     public MemMergeNode( Node ...nodes) { super(nodes); _type = TypeMem.BOT; }
     public MemMergeNode(MemMergeNode mem) { super(mem); }
     @Override public Tag serialTag() { return Tag.MemMerge; }
-    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
-    static Node make( BAOS bais )  { Node mem = new MemMergeNode(); mem.setDefX(bais.packed1()-1,null); return mem; }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        // A memory merge always has inputs. Zero escapes a wide alias table,
+        // preserving every existing nonzero single-byte count.
+        assert nIns()>0;
+        baos.packed1(nIns()<=255 ? nIns() : 0);
+        if( nIns()>255 ) baos.packed4(nIns());
+    }
+    static Node make( BAOS bais ) {
+        int count=bais.packed1();
+        if( count==0 ) count=bais.packed4();
+        Node mem=new MemMergeNode();
+        mem.setDefX(count-1,null);
+        return mem;
+    }
 
     @Override public String label() { return "ALLMEM"; }
     @Override public boolean isMem() { return true; }

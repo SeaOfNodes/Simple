@@ -91,6 +91,10 @@ final class Declarations {
             // expr is a constant function
             if( t instanceof TypeFunPtr decl && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
                 t = decl.makeFrom(tfp.fidx());
+                // The explicit signature specifies source parameters/return;
+                // the receiver of a method body is still inferred.
+                if( expr instanceof FunPtrNode && P.structs.inStructDeclaration() )
+                    t = ((TypeFunPtr)t).makeFrom(tfp.arg(0),0);
                 FunNode fun = P._code.link(tfp);
                 if( fun != null )
                     fun.setName(name); // Assign debug name to Simple function

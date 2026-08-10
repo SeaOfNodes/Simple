@@ -332,9 +332,7 @@ return 0;
     public void testFinalArray() {
         String src = """
 int N=4;
-i32[] !is = new i32[N];
-for( int i=0; i<N; i++ )
-    is[i] = i*i;
+i32[~] !is = new i32[~N]{ int i -> i*i; };
 val _sum = { i32[~] is ->  // final array
     int sum=0;
     for( int i=0; i<is#; i++ )

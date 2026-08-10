@@ -7,7 +7,7 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.Stack;
 
 /** Source-unit entry point and shared cursor, scope, and IR utilities.
@@ -21,6 +21,7 @@ public class Parser {
     final Functions functions = new Functions(this);
     final Structs structs = new Structs(this);
     final Allocations allocations = new Allocations(this);
+    final ArrayInitializers arrays = new ArrayInitializers(this);
     final References references = new References(this);
     final Conversions conversions = new Conversions(this);
     final Construction construction = new Construction(this);
@@ -91,7 +92,7 @@ public class Parser {
     public final Stack<ScopeNode> _xScopes = new Stack<>();
     // Layouts needed by field accesses in this source file.  Resolve after
     // parsing, since a later local struct declaration can satisfy the use.
-    public final LinkedHashSet<String> _requiredTypes = new LinkedHashSet<>();
+    public final LinkedHashMap<String,Lexer> _requiredTypes = new LinkedHashMap<>();
 
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.
@@ -120,6 +121,11 @@ public class Parser {
         public final Lexer _loc;
         ParseException( String msg, Lexer loc ) { super(msg); _loc = loc==null ? null : new Lexer(loc); }
         public String diagnostic() { return _loc==null ? getMessage() : _loc.diagnostic(getMessage()); }
+        // JUnit and uncaught-exception reporters use these entry points rather
+        // than the CLI's diagnostic(). Source errors should retain their source
+        // excerpt and caret there too. getMessage() stays stable for callers.
+        @Override public void printStackTrace(java.io.PrintStream out) { out.println(diagnostic()); }
+        @Override public void printStackTrace(java.io.PrintWriter out) { out.println(diagnostic()); }
     }
 
     public Parser(CodeGen code ) {
@@ -265,7 +271,7 @@ public class Parser {
     // Field offset for an unknown type
     public Node fldoff( Node n, String name ) {
         if( n._type instanceof TypeMemPtr ptr && ptr._obj._fref )
-            _requiredTypes.add(ptr._obj._name);
+            _requiredTypes.putIfAbsent(ptr._obj._name,loc());
         return new FldOffNode(n,name,loc()).peephole();
     }
     public Node peep( Node n ) {
