@@ -5,6 +5,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.util.SB;
@@ -13,6 +14,9 @@ import java.util.BitSet;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class FunNode extends RegionNode {
+    // Generated allocation/initializer entry points cannot be called by users.
+    public boolean _constructor;
+
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     boolean _folding;
@@ -29,6 +33,7 @@ public class FunNode extends RegionNode {
         if( fun!=null ) {
             _sig = fun.sig();
             _name = fun._name;
+            _constructor = fun._constructor;
         } else {
             _sig = TypeFunPtr.BOT;
             _name = "";
@@ -73,6 +78,13 @@ public class FunNode extends RegionNode {
 
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
+    // Hidden initializer captures are discovered while parsing its body,
+    // before any call or function address has been made for this function.
+    public void addParseArg(Type type) {
+        Type[] args=java.util.Arrays.copyOf(_sig._sig,_sig.nargs()+1);
+        args[args.length-1]=type;
+        _sig=TypeFunPtr.make((byte)2,false,args,_sig.ret(),_sig.fidxs());
+    }
     public void setSig( TypeFunPtr sig ) {
         assert sig.isa(_sig);
         if( _sig != sig ) {
@@ -114,7 +126,8 @@ public class FunNode extends RegionNode {
         }
 
         // Upgrade inferred or user-written return type to actual
-        if( _ret!=null && addDep(_ret)._type instanceof TypeTuple tt && tt.ret() != _sig.ret() ) {
+        if( _ret!=null && addDep(_ret)._type instanceof TypeTuple tt &&
+            !(tt.ret() instanceof TypeMem) && tt.ret() != _sig.ret() ) {
             setSig(_sig.makeFrom(tt.ret()));
             return this;
         }

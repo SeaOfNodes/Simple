@@ -73,7 +73,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 24a](docs/chapter24a/README.md): SCCP Within a Function
 * [Chapter 24b](docs/chapter24b/README.md): SCCP Across Functions
 * [Chapter 25](docs/chapter25/README.md): SSA Before Types Are Known
-* Chapter 26: Construction and Private Memory
+* [Chapter 26](docs/chapter26/README.md): Construction and Private Memory
 * Chapter 27: Escape Analysis and Unknown Callers
 * Chapter 28a: Modules and Lazy Class Initialization
 * Chapter 28b: Separate Compilation

@@ -130,7 +130,9 @@ public abstract class MemOpNode extends Node {
         if( visit.get(mem._nid) ) return;
         visit.set(mem._nid);
         for( Node use : mem._outputs ) {
-            if( use instanceof MemMergeNode merge ) {
+            if( use instanceof EscapeNode esc && esc._field._alias==_alias ) {
+                antiDeps(esc,deps,visit);
+            } else if( use instanceof MemMergeNode merge ) {
                 Node slice = _alias<merge.nIns() ? merge.in(_alias) : null;
                 if( (slice==mem) || (slice==null && merge.in(1)==mem) )
                     antiDeps(merge,deps,visit);
