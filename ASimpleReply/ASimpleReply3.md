@@ -94,7 +94,7 @@ Dadal:
 
 In a similar situation C2 will do the same.  Of course, for sufficiently hot
 `foo` and modest `bar`, inlining is the answer.  This makes me wonder if C2's
-inlininhg budget is substantially higher than V8's.
+inlining budget is substantially higher than V8's.
 
 Dadal: 
 > "Oh, and `bar` could be changing the shape of `o` only some times"

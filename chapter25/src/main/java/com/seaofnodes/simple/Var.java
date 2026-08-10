@@ -1,0 +1,53 @@
+package com.seaofnodes.simple;
+
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
+
+
+/**
+ *  The tracked fields are now complex enough to deserve a array-of-structs layout
+ */
+public class Var {
+
+    public final String _name;   // Declared name
+    // These fields are not final for forward reference late updates or
+    // promotions.
+    public int _idx;             // index in containing scope
+    private Type _type;          // Declared type
+    public boolean _final;       // Final field
+    public boolean _fref;        // Forward ref
+    // Parser-only definite-initialization marker.  The current binding's
+    // nullable type carries the path-sensitive state through SSA merges.
+    public boolean _uninit;
+    public Parser.Lexer _loc;    // Source location
+
+    public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc ) {
+        this(idx,name,type,xfinal,loc,false);
+    }
+    public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc, boolean fref) {
+        _idx = idx;
+        _name = name;
+        _type = type;
+        _final = xfinal;
+        _fref = fref;
+        _loc = loc;
+    }
+    public Type  type() { return _type; }
+    public Type _type() { return _type; } // ScopeNode printer needs to have no side effects
+
+    // Forward reference variables (not types) must be BOTTOM and
+    // distinct from inferred variables
+    public boolean isFRef() { return _fref; }
+
+    public void defFRef( Type type, boolean xfinal, Parser.Lexer loc ) {
+        assert isFRef() && xfinal;
+        _type = type;
+        _final = true;
+        _fref = false;
+        _loc = loc;
+    }
+
+    @Override public String toString() {
+        return (_fref ? "FREF " : "")+(_uninit ? "UNINIT " : "")+_type.toString()+(_final ? " ": " !")+_name;
+    }
+}

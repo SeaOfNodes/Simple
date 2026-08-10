@@ -1,0 +1,294 @@
+package com.seaofnodes.simple.node;
+
+import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.Serialize;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.SB;
+
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+
+public class PhiNode extends Node {
+
+    public final String _label;
+
+    public PhiNode( String label, Node... inputs) {
+        super(inputs);
+        _label = label;
+    }
+    public static PhiNode make(String label, Type minType, Node... inputs) {
+        return minType instanceof TypeMem mem
+            ? mem._alias==1
+                ? new BulkMemPhiNode(label,inputs)
+                : new MemPhiNode(label,mem._alias,inputs)
+            : new PhiNode(label, inputs);
+    }
+    // Used by ParmNode
+    public PhiNode(PhiNode phi, String label) { super(phi); _label = label; }
+    // Used by instruction Selection
+    public PhiNode(PhiNode phi) { this(phi,phi._label);  }
+    // Used by the infinite-loop exit breaker
+    public PhiNode(RegionNode r, Node sample) {
+        super(new Node[]{r});
+        _label = "";
+        _type = sample._type;
+        while( nIns() < r.nIns() )
+            addDef(sample);
+    }
+    @Override public Tag serialTag() { return Tag.Phi; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(nIns());
+        baos.packed2(_label==null ? 0 : strs.get(_label));
+    }
+    static Node make( BAOS bais, String[] strs, Type[] types)  {
+        Node[] ins = new Node[bais.packed1()];
+        return new PhiNode(strs[bais.packed2()], ins);
+    }
+
+    @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
+
+    @Override public String glabel() { return "&phi;_"+_label; }
+
+    @Override
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
+        if( !(region() instanceof RegionNode r) || r.inProgress() )
+            sb.append("Z");
+        sb.append("Phi(");
+        for( Node in : _inputs ) {
+            if (in == null) sb.append("____");
+            else in._print0(sb, visited);
+            sb.append(",");
+        }
+        sb.setLength(sb.length()-1);
+        sb.append(")");
+        return sb;
+    }
+
+    public CFGNode region() { return (CFGNode)in(0); }
+    @Override public boolean isMem() { return _type instanceof TypeMem; }
+    @Override public boolean isPinned() { return true; }
+    boolean isRPC() { return false; }
+
+    @Override
+    public Type compute() {
+        if( !(region() instanceof RegionNode r) )
+            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+        // During parsing Phis have to be computed type pessimistically.
+        if( r.inProgress() )
+            return declaredType();
+        // Set type to local top of the starting type
+        Type t = Type.TOP;
+        for( int i = 1; i < nIns(); i++ ) {
+            // If the region's control input is live, add this as a dependency
+            // to the control because we can be peeped should it become dead.
+            Type ctrl = addDep(r.in(i))._type;
+            if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
+                if( in(i)._type==Type.BOTTOM )
+                    return Type.BOTTOM;
+                t = t.meet(in(i)._type);
+            }
+        }
+        Type declared = declaredType();
+        Type newt = constrain(t);
+
+        // phi loop widening part
+        if( region() instanceof LoopNode && // Only around loops
+            newt  instanceof TypeInteger newi &&
+            // Types changed and are falling (the optimistic case, expected to fall forever)
+            newi != _type ) {
+            if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
+                return newi.same_but_slightly_wider_than(
+                    declared instanceof TypeInteger ? declared : TypeInteger.BOT);
+        }
+
+        return newt;
+    }
+
+    // Ordinary Phis have no parser-supplied type constraint.
+    protected Type declaredType() { return Type.BOTTOM; }
+    protected Type constrain(Type t) { return t; }
+
+    @Override
+    public Node idealize() {
+        if( !(region() instanceof RegionNode r ) )
+            return in(1);       // Input has collapse to e.g. starting control.
+        if( r.inProgress() || r.nIns()<=1 || nOuts()==0 )
+            return null;        // Input is in-progress
+
+        // If we have only a single unique input, become it.
+        Node live = singleUniqueInput();
+        if( live != null )
+            return live;
+
+        // No bother if region is going to fold dead paths soon
+        for( int i=1; i<nIns(); i++ )
+            if( r.in(i)._type == Type.XCONTROL )
+                return null;
+
+        // Generic "pull down op"
+        Node progress;
+        if( same_op() && (progress = drop_same_op()) != null )
+            return progress;
+
+        // If merging Phi(ZERO, guardNZ(N)) - we are losing the cast JOIN effects, so just remove.
+        if( nIns()==3 ) {
+            if( in(1) instanceof GuardNode cast && cast._nonZero && in(2)._type.makeZero()==in(2)._type && cast.in(1)!=this )  return cast.in(1);
+            if( in(2) instanceof GuardNode cast && cast._nonZero && in(1)._type.makeZero()==in(1)._type && cast.in(1)!=this )  return cast.in(1);
+        }
+
+        // If merging a null-checked null and the checked value, just use the value.
+        // if( val ) ..; phi(Region,False=0/null,True=val);
+        // then replace with plain val.
+        if( nIns()==3 ) {
+            int nullx = -1;
+            if( in(1)._type == in(1)._type.makeZero() ) nullx = 1;
+            if( in(2)._type == in(2)._type.makeZero() ) nullx = 2;
+            if( nullx != -1 ) {
+                Node val = in(3-nullx);
+                if( val instanceof GuardNode cast && cast._nonZero )
+                    val = cast.in(1);
+                Node ridom = r.idom(this);
+                if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {
+                    // Must walk the idom on the null side to make sure we hit False.
+                    CFGNode idom = r.cfg(nullx);
+                    while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
+                    if( idom instanceof CProjNode proj && proj._idx==1 )
+                        return val;
+                } else if( ridom != null ) addDep(ridom);
+            }
+        }
+
+        return null;
+    }
+
+    // Same op on all Phi paths; all ops have only the Phi as a use.
+    // None have a control input.
+    private boolean same_op() {
+        Node busy=null;
+        for( int i=1; i<nIns(); i++ ) {
+            Node op = in(i);
+            if( op.nOuts()==0 )
+                { op.kill(); return false; }
+            if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
+                return false;      // Wrong class or CFG bound or mismatched inputs
+            if( in(1) instanceof MemOpNode mem ) {
+                // Mismatched aliases
+                if( mem._alias != ((MemOpNode)op)._alias ) return false;
+                // Load is clobbered somewhere, and can not be pulled forward past the Phi?
+                if( mem instanceof LoadNode )
+                    for( Node use : op.outs() )
+                        if( use instanceof StoreNode )
+                            return false;
+            }
+            if( in(1) instanceof EscapeNode )
+                return false;
+            if( in(1) instanceof MemMergeNode )
+                return false;   // Have to keep aliases straight
+            if( op.nOuts() > 1 ) {
+                if( busy==null ) busy = op;
+                else {         // Too many users, but addDep in case lose users
+                    for( Node out : op._outputs )
+                        if( out!=null && out!=this )
+                            addDep(out);
+                    for( Node out : busy._outputs )
+                        if( out!=null && out!=this )
+                            addDep(out);
+                    return false;
+                }
+            }
+            for( int j=1; j<in(1).nIns(); j++ )
+                if( op.in(j) instanceof ScopeNode || (op.in(j)==null ^ in(1).in(j)==null) )
+                    return false; // Lazy Phi input
+        }
+        return true;
+    }
+
+    private Node drop_same_op() {
+        assert !(in(1) instanceof CFGNode);
+        Node op = in(1);
+        Node cp = op.copy();
+        cp._type = null;    // Fresh type
+        cp.addDef(null);    // No control
+
+        for( int j=1; j<op.nIns(); j++ ) {
+            boolean needsPhi = false;
+            Node x = op.in(j); // Jth input from sample #1
+            for( int i=2; i<nIns(); i++ )
+                if( in(i).in(j) != x )
+                    { needsPhi=true; break; }
+            if( needsPhi ) {
+                x = make(_label,op.in(j)._type.glb(false));
+                x.addDef(region());
+                for( int i=1; i<nIns(); i++ )
+                    x.addDef(in(i).in(j));
+                x = x.peephole();
+            }
+            cp.addDef(x);
+        }
+        // Test not running backwards, which can happen for e.g. And's
+        if( cp.compute().isa(compute()) )
+            return cp;
+        cp.kill();
+        return null;
+    }
+
+    /**
+     * If only single unique input, return it
+     */
+    private Node singleUniqueInput() {
+        if( region() instanceof LoopNode loop && loop.entry()._type == Type.XCONTROL )
+            return null;    // Dead entry loops just ignore and let the loop collapse
+        Node live = null;
+        for( int i=1; i<nIns(); i++ ) {
+            // If the region's control input is live, add this as a dependency
+            // to the control because we can be peeped should it become dead.
+            if( addDep(region().in(i))._type != Type.XCONTROL && in(i) != this )
+                if( live == null || live == in(i) ) live = in(i);
+                else return null;
+        }
+        return live;
+    }
+
+    @Override
+    boolean allCons(Node dep) {
+        if( !(region() instanceof RegionNode r) ) return false;
+        // When the region completes (is no longer in progress) the Phi can
+        // become a "all constants" Phi, and the "dep" might make progress.
+        dep.addDep(this);
+        if( r.inProgress() ) return false;
+        return super.allCons(dep);
+    }
+
+    // True if last input is null
+    public boolean inProgress() {
+        return in(nIns()-1) == null;
+    }
+
+    // Never equal if inProgress.
+    @Override public boolean eq( Node n ) {
+        return !inProgress() && super.eq(n);
+    }
+
+    @Override
+    public Parser.ParseException err() {
+        if( _type != Type.BOTTOM && _type != TypeScalar.BOT ) return null;
+
+        // Scalar BOT means we mixed scalar families, e.g. int and ptr.
+        // Global BOTTOM retains the same role for non-scalar families.
+        for( int i=1; i<nIns(); i++ )
+            // Already an error, but better error messages come from elsewhere
+            if( in(i)._type == Type.BOTTOM || in(i)._type == TypeScalar.BOT )
+                return null;
+
+        SB sb = new SB().p("No common type amongst ");
+        for( int i=1; i<nIns(); i++ )
+            sb.p(in(i)._type.toString()).p(" and ");
+        return Parser.error(sb.unchar(5).toString(),null);
+    }
+
+    @Override public void gather( HashMap<String,Integer> strs ) {
+        Serialize.gather(strs,_label);
+    }
+}

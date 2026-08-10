@@ -1,0 +1,9 @@
+// -*- mode: java;  -*-
+
+// top-level default standard library import
+
+var libc = libc;
+var io = io;
+var aryu8 = aryu8;
+var Scan = Scan;
+var aryi64 = aryi64;

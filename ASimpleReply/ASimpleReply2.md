@@ -93,7 +93,7 @@ maintains type info end-to-end, because its free to do so and because its
 useful.
 
 "Equivalence classes are much weaker for arrays" - sure.  And basically make no
-differece to 99% of all Java programs.  1-d arrays vectorize just fine; stencil
+difference to 99% of all Java programs.  1-d arrays vectorize just fine; stencil
 calculations also fine.  Register blocking and tiling?  First Java needs to
 change how multi-D arrays are laid out then we can worry about loop carried
 aliasing.  Basically, Java was never intended to replace Fortran, although in
@@ -108,7 +108,7 @@ optimize some things around the call - all dwarfed by the call overhead itself.
 "Memory optimizations also cannot typically float past deoptimization state" -
 plenty of those in Java too.  C2 also does not sink stores *below* a deopt
 state.  At least for Java, we can float loads *up* past a deopt state (and do
-so plenty).  
+so plenty).
 
 Also, call inline points *completely* disappear in C2.  There is no
 optimization barrier after inlining, even for memory effects.  This is
@@ -123,7 +123,7 @@ alias, the other aliases are not even representable".
 
 This gets into a weak argument from me about how after specialization guards,
 we're back to equivalence classes... but I honestly dunno.  Not tried it in JS
-at least (C2 certainly does this, but its not so common as JS).  
+at least (C2 certainly does this, but its not so common as JS).
 Very curious though...
 
 Curious enough for Google to fund a reprise with me lending a hand?

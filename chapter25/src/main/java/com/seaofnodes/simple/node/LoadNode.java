@@ -1,0 +1,332 @@
+package com.seaofnodes.simple.node;
+
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.GlobalBits;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.util.Utils;
+import java.util.BitSet;
+
+/**
+ * Load represents extracting a value from inside a memory object,
+ * in chapter 10 this means Struct fields.
+ */
+public class LoadNode extends MemOpNode {
+
+    /**
+     * Load a value from a ptr.field.
+     *
+     * @param name  The field we are loading
+     * @param mem   The memory alias node - this is updated after a Store
+     * @param ptr   The ptr to the struct base from where we load a field
+     * @param off   The offset inside the struct base
+     */
+    public LoadNode(Parser.Lexer loc, String name, int alias, Node ctrl, Node mem, Node ptr, Node off) {
+        super(loc, name, alias, true, Type.BOTTOM, ctrl, mem, ptr, off);
+    }
+    LoadNode( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
+        super(bais,strs,types,fileAliases,aliases,true);
+        _con = Type.BOTTOM;      // Serialized slot retained while MemOps share TypeNode
+    }
+    @Override public Tag serialTag() { return Tag.Load; }
+
+    // GraphVis DOT code (must be valid Java identifiers) and debugger labels
+    @Override public String  label() { return "ld_"+mlabel(); }
+    // GraphVis node-internal labels
+    @Override public String glabel() { return "." +_name; }
+
+    @Override
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+
+    @Override
+    public Type compute() {
+        Type mem0 = aliasMem()._type;
+        Type ptr0 = ptr()._type;
+        // Validate argument types
+        if( ptr0.isHigh() )
+            return TypeScalar.TOP;
+        if( !(mem0 instanceof TypeMem mem) )
+            return mem0.isHigh() ? TypeScalar.TOP : TypeScalar.BOT;
+        if( ptr0 == Type.NIL )
+            return TypeScalar.TOP;
+        if( !(ptr0 instanceof TypeMemPtr ptr) )
+            return mem0.isHigh() ? TypeScalar.TOP : scalar(mem._t);
+
+        // Load field from object
+        TypeMemPtr tmp = ptr;
+        Field pfld = tmp._obj.field(_name);
+        // No field?  Open objects might yet get the field when falling;
+        // closed objects with missing field are an error.
+        if( pfld == null )
+            return tmp.isHigh() || tmp._obj.isHigh() ? TypeScalar.TOP : TypeScalar.BOT;
+
+        Type t = pfld._t;
+        // Load member of constant array
+        if( t instanceof TypeConAry ary )
+            t = ary.elem();     // TODO: if offset is known, can peek the constant
+
+        // Now, do the same for memory
+        if( mem._t instanceof TypeStruct ts ) {
+            assert ts._name==tmp._obj._name;
+            Field mfld = ts.field(_name);
+            // Lift from declared type and memory input
+            if( mfld != null )
+                t = t.join(mfld._t);
+        } else if( mem._alias==_alias ) {
+            t = t.join(mem._t);
+        } else if( mem._t == Type.TOP ) {
+            return TypeScalar.TOP;
+        }
+
+        // A deeply read-only base produces a deeply read-only value.  The
+        // generic declared field type must not cast this information away.
+        if( ptr0.isFinal() )
+            t = t.makeRO();
+        return scalar(t);
+    }
+
+    // Loads produce ordinary scalar values.  Field/memory joins can still
+    // expose the enclosing global lattice bounds through an uninitialized
+    // Type.TOP/BOTTOM field; keep those results inside the scalar envelope.
+    private static Type scalar(Type t) {
+        return t==Type.TOP ? TypeScalar.TOP : t==Type.BOTTOM ? TypeScalar.BOT : t;
+    }
+
+    @Override
+    public Node idealize() {
+        Node ptr = ptr();
+        Node mem = aliasMem();
+
+        // Loads into structs do not need a ctrl edge, as null-ptr checking is
+        // baked into the type system.  Loads into arrays DO need the ctrl
+        // edge, at least until proper range-checking is in place.
+        if( in(0)!=null && ptr()._type instanceof TypeMemPtr tmp &&
+            // Never can be an array
+            (!tmp._obj._open || (tmp._obj._fields.length > 1 && tmp._obj._fields[0]._fname != "#")) ) {
+            setDef(0,null);
+            return this;
+        }
+
+        // Forward-ref loads eventually sharpen to a declared type
+        Field fld;
+        if( ptr()._type instanceof TypeMemPtr tmp &&
+            (fld=tmp._obj.field(_name)) != null &&
+            _alias != fld._alias) {
+            assert _alias==1 || _alias == fld._alias;
+            unlock();           // Alias participates in GVN semantics
+            _alias = fld._alias;
+            // Bulk memory may already have inspected this user.  Revisit it
+            // once the declaring shape is stable; an open forward reference
+            // can still change this Load's semantics.
+            if( !tmp._obj._open && !tmp._obj._fref )
+                CodeGen.CODE.add(mem());
+            return this;
+        }
+        // Must sharpen alias first
+        if( _alias == 1 )
+            return null;
+
+        // Simple Load-after-Store on same address.
+        if( mem instanceof StoreNode st &&
+            ptr == st.nnptr() &&
+            off() == st.off() ) { // Must check same object
+            assert _name.equals(st._name); // Equiv class aliasing is perfect
+            return extend(st.val());
+        }
+
+        // Expose the same effective memory input already observed by compute.
+        if( mem != mem() ) {
+            for( Node ld : mem._outputs )
+                if( ld instanceof LoadNode )
+                    CodeGen.CODE.add(ld);
+            if( mem instanceof BulkMemPhiNode ) CodeGen.CODE.add(mem);
+            setDef(1,mem);
+            return this;
+        }
+
+        // Uplift control to a prior dominating load.
+        for( Node memuse : mem._outputs )
+            // Find a prior load, has same mem,ptr,off but higher ctrl
+            if( memuse != this && memuse instanceof LoadNode ld && ptr==ld.ptr() && off()==ld.off() &&
+                cfg0()!=null && cfg0()._idom(ld.cfg0(),this) == ld.cfg0() ) // Higher control means load is legal earlier
+                return ld;
+
+        // Load-after-Store on same address, but bypassing provably unrelated
+        // stores.  This is a more complex superset of the above two peeps.
+        // "Provably unrelated" is really weak.
+        if( ptr instanceof ReadOnlyNode ro )
+            ptr = ro.in(1);
+        outer:
+        while( true ) {
+            switch( mem ) {
+            case StoreNode st:
+                if( ptr == addDep(st.ptr()) && off() == st.off() )
+                    return extend(castRO(st.val())); // Proved equal
+                // Can we prove unequal?  Offsets do not overlap?
+                if( !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
+                    !neverAlias(ptr,st.ptr()) ) {                 // And might alias
+                    addDep(   off());                             // Offsets can fold, proving unequal
+                    addDep(st.off());                             // Offsets can fold, proving unequal
+                    break outer;                                  // Cannot tell, stop trying
+                }
+                // Pointers cannot overlap
+                mem = st.mem(); // Proved never equal
+                break;
+            case PhiNode phi:
+                // Assume related
+                addDep(phi);
+                break outer;
+            case ConstantNode con:
+                // Load from constant memory
+                if( con._con instanceof TypeMem tmem )
+                    return ConstantNode.make(tmem._t);
+                break outer;  // Assume shortly dead
+            case ProjNode mproj: // Memory projection
+                switch( mproj.in(0) ) {
+                case NewNode nnn1:
+                    // Direct load from e.g. new array elements
+                    assert _name=="[]";
+                    Type decl = declaredType();
+                    return decl==Type.BOTTOM ? null : ConstantNode.make(decl.makeZero());
+                case StartNode  start: break outer;
+                case CallEndNode cend: addDep(mproj); break outer; // TODO: Bypass no-alias call
+                default: throw Utils.TODO();
+                }
+            case CheckCastNode cast: mem = cast.in(1); break;
+            case MemMergeNode merge:  mem = merge.alias(_alias);  break;
+            case EscapeNode esc:
+                if( esc.self()==ptr ) // Proved equal
+                    { mem = esc.priv(); break; }
+                // Two NewNodes are always unequal
+                if( esc.self().in(0) instanceof NewNode && ptr.in(0) instanceof NewNode )
+                    { mem = esc.pub(); break; }
+                // TODO: Can we prove unequal?
+                break outer;
+
+            default:
+                throw Utils.TODO();
+            }
+        }
+
+        // Push a Load up through a Phi, as long as it collapses on at least
+        // one arm.  If at a Loop, the backedge MUST collapse - else we risk
+        // spinning the same transform around the loop indefinitely.
+        //   BEFORE (2 Sts, 1 Ld):          AFTER (1 St, 0 Ld):
+        //   if( pred ) ptr.x = e0;         val = pred ? e0
+        //   else       ptr.x = e1;                    : e1;
+        //   val = ptr.x;                   ptr.x = val;
+        if( mem() instanceof PhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
+            // Offset can be hoisted
+            off() instanceof ConstantNode &&
+            // Not control dependent
+            in(0)==null &&
+            // Pointer can be hoisted
+            hoistPtr(ptr,memphi)  ) {
+
+            // Profit on RHS/Loop backedge
+            if( profit(memphi,2) ||
+                // Else must not be a loop to count profit on LHS.
+                (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
+                // profit() peepholes inputs and can restore a required control
+                // edge.  Recheck before manufacturing control-free loads.
+                if( in(0)!=null )
+                    return null;
+                Node ld1 = ld(1);
+                Node ld2 = ld(2);
+                PhiNode phi = new PhiNode(_name, memphi.region(),ld1,ld2);
+                phi.setType(phi.compute().join(_type));
+                return phi;
+            }
+        }
+
+        return null;
+    }
+
+    // Semantic memory input for this Load.  Compute defines behavior from
+    // this view; ideal merely exposes the same edge in the graph.
+    private Node aliasMem() {
+        Node mem = mem();
+        return _alias != 1 && mem instanceof MemMergeNode merge
+            ? merge.alias(_alias)
+            : mem;
+    }
+
+    private Node ld( int idx ) {
+        Node mem = mem(), ptr = ptr();
+        assert in(0)==null;
+        return new LoadNode(_loc,_name,_alias,null,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
+    }
+
+    private static boolean neverAlias( Node ptr1, Node ptr2 ) {
+        return ptr1.in(0) != ptr2.in(0) &&
+            // Unrelated allocations
+            ptr1 instanceof ProjNode && ptr1.in(0) instanceof NewNode &&
+            ptr2 instanceof ProjNode && ptr2.in(0) instanceof NewNode;
+    }
+
+    private static boolean hoistPtr(Node ptr, PhiNode memphi ) {
+        // Can I hoist ptr above the Region?
+        if( !(memphi.region() instanceof RegionNode r) )
+            return false;       // Dead or dying Region/Phi
+        // If ptr from same Region, then yes, just use hoisted split pointers
+        if( ptr instanceof PhiNode pphi && pphi.region() == r )
+            return true;
+
+        // No, so can we lift this ptr?
+        CFGNode cptr = ptr.cfg0();
+        if( cptr != null )
+            // Pointer is controlled high
+            // TODO: Really needs to be the LCA of all inputs is high
+            return cptr.idepth() <= r.idepth();
+
+        // Dunno without a longer walk
+        return false;
+    }
+
+    // Profitable if we find a matching Store on this Phi arm.
+    private boolean profit(PhiNode phi, int idx) {
+        Node px = phi.in(idx);
+        if( px==null ) return false;
+        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() )
+            // To avoid cyclic pushing a Load up then down, getting here means
+            // the load *must* replace with the high/constant.
+            return true;
+        if( px instanceof StoreNode st1 && ptr()==addDep(st1.nnptr() )&& off()==st1.off() )
+            // To avoid cyclic pushing a Load up then down, getting here means
+            // the load *must* match against the Store
+            return true;
+        addDep(px);
+        return false;
+    }
+
+    // Read-Only is a deep property, and cannot be cast-away
+    private Node castRO(Node rez) {
+        if( ptr()._type.isFinal() && !rez._type.isFinal() )
+            return new ReadOnlyNode(rez).peephole();
+        return rez;
+    }
+
+    // When a load bypasses a store, the store might truncate bits - and the
+    // load will need to zero/sign-extend.
+    private Node extend(Node val) {
+        if( !(declaredType() instanceof TypeInteger ti) ) return val;
+        if( ti._min==0 )        // Unsigned
+            return new AndNode(null,val,con(ti._max));
+        // Signed extension
+        int shift = Long.numberOfLeadingZeros(ti._max)-1;
+        Node shf = con(shift);
+        if( shf._type==TypeInteger.ZERO ) {
+            // Val can be stale and on worklist.  Preserve momnotoncity and bring it up to date
+            if( val._type.isa(_type) )
+                return val;
+            Node val2 = val.peephole();
+            assert val._type.isa(_type);
+            return val2;
+        }
+        Node shl = new ShlNode(null,val,shf.keep()).peephole();
+        return new SarNode(null,shl,shf.unkeep());
+    }
+
+    @Override public int log_size() { return declaredType().log_size(); }
+}
