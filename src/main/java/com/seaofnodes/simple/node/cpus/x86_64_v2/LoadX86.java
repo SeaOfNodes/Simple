@@ -12,7 +12,7 @@ public class LoadX86 extends MemOpX86 {
         super(ld,ld, base, idx, off, scale, 0);
     }
     @Override public String op() { return "ld"+_sz; }
-    @Override public RegMask outregmap() { return x86_64_v2.MEM_MASK; }
+    @Override public RegMask outregmap() { return _con instanceof TypeFloat ? x86_64_v2.XMASK : x86_64_v2.WMASK; }
     @Override public void encoding( Encoding enc ) {
         // REX.W + 8B /r	MOV r64, r/m64
         // Zero extension for u8, u16 and u32 but sign extension i8, i16, i32
@@ -20,7 +20,7 @@ public class LoadX86 extends MemOpX86 {
         short dst = enc.reg(this );
         short ptr = enc.reg(ptr());
         short idx = enc.reg(idx());
-        enc(enc, _declaredType, dst, ptr, idx, _off, _scale);
+        enc(enc, _con, dst, ptr, idx, _off, _scale);
     }
 
     static void enc( Encoding enc, Type decl, short dst, short ptr, short idx, int off, int scale ) {

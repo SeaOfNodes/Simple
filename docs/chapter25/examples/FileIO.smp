@@ -1,0 +1,50 @@
+
+// An implementation of
+// https://sampleprograms.io/projects/file-input-output/
+
+val FILE = "output.txt";
+
+val main = { u8[~][] args ->
+    var str = new sys.aryu8();
+    str.addAry("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n");
+    str.addAry("Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\n");
+    str.addAry("Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.\n");
+    str.addAry("Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n");
+
+    // Create
+    i32 fd = sys.io.create(FILE);
+    if( fd == -1 ) return _error();
+    // Write
+    int wrote = sys.io.writeOff(fd,str.buf,0,str.len);
+    if( wrote == -1 ) return _error();
+    if( wrote != str.len ) return _error2(-2);
+    // Close
+    if( sys.io.close(fd) != 0 ) return _error();
+
+    // Open
+    i32 fd2 = sys.io.open(FILE);
+    if( fd2 == -1 ) return _error();
+    // Read
+    var got = sys.io.read(fd2);
+    if( got# != str.len ) return _error2(-3);
+    // Close
+    if( sys.io.close(fd2) != 0 ) return _error();
+
+    // Check contents are equal
+    if( sys.ary.cmp(got,0,str.buf,0,str.len) )
+        return _error2(-4);
+
+    // Remove
+    if( sys.io.remove(FILE) != 0 ) return _error();
+
+    sys.io.p("File I/O succeeded\n");
+    return 0;
+};
+
+val _error2 = { i32 errno ->
+    sys.io.remove(FILE);
+    new sys.aryu8().addAry("Failed with error code ").num(errno).add('\n').write(sys.libc.STDERR);
+    sys.libc._exit(errno);
+};
+
+val _error = { -> _error2(sys.libc.errno); };

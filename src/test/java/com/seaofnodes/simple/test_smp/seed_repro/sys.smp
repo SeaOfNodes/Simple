@@ -1,0 +1,3 @@
+// Reduced multi-compilation-unit reproducer for order-sensitive inlining.
+var aryu8 = aryu8;
+var aryi64 = aryi64;

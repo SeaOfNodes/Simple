@@ -1,8 +1,6 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 
 public class TypeTuple extends Type {
@@ -31,20 +29,32 @@ public class TypeTuple extends Type {
     }
     @Override boolean isFree() { return _types==null; }
 
+    public TypeTuple makeFrom(int idx, Type tx ) {
+        if( _types[idx]==tx ) return this;
+        Type[] types = _types.clone();
+        types[idx] = tx;
+        return make(types);
+    }
+    public TypeTuple meetFrom(int idx, Type t ) { return makeFrom(idx,_types[idx].meet(t)); }
 
     public static final TypeTuple BOT = malloc(new Type[0]).intern();
     public static final TypeTuple TOP = BOT.dual();
+    // The default state, a triple of CONTROL, Memory, and Value, with bottoms
+    // for all.  This is the default StopNode type, when new functions are
+    // being created and we cannot tell what the future holds.  This is the
+    // default ReturnNode type, returning what the worst a function can do.
+    public static final TypeTuple STATE = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM);
+    public static final TypeTuple STOP_HIGH = make(Type.CONTROL,TypeMem.START,Type.TOP);
 
     public static final TypeTuple TEST = make(TypeInteger.BOT,TypeMemPtr.TEST);
-    public static final TypeTuple START= make(Type.CONTROL,TypeMem.TOP,TypeInteger.BOT);
-    public static final TypeTuple RET  = make(Type.CONTROL,TypeMem.BOT,Type.BOTTOM);
+    public static final TypeTuple DEAD_NEW = make(TypeMemPtr.TOP,TypeMem.TOP);
 
     public static final TypeTuple IF_BOTH    = make(Type. CONTROL,Type. CONTROL);
     public static final TypeTuple IF_NEITHER = make(Type.XCONTROL,Type.XCONTROL);
     public static final TypeTuple IF_TRUE    = make(Type. CONTROL,Type.XCONTROL);
     public static final TypeTuple IF_FALSE   = make(Type.XCONTROL,Type. CONTROL);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(BOT); ts.add(TEST); ts.add(START); ts.add(IF_TRUE); }
+    public static void gather(ArrayList<Type> ts) { ts.add(BOT); ts.add(TEST); ts.add(STATE); ts.add(IF_TRUE); }
 
     @Override
     Type xmeet(Type other) {
@@ -58,7 +68,24 @@ public class TypeTuple extends Type {
 
     @Override TypeTuple xdual() {
         if( _types.length==0 ) return malloc(null);
-        return malloc(TypeFunPtr.xdual(_types));
+        boolean isCon=true;
+        for( Type t : _types )
+            if( t._dual!=t )
+                // Not a constant
+                return malloc(TypeFunPtr.xdual(_types));
+        return this;
+    }
+    @Override TypeTuple rdual() {
+        if( _dual!=null ) return dual();
+        assert !_terned;
+        assert _types.length>0;
+        Type[] ts = new Type[_types.length];
+        TypeTuple d = malloc(ts);
+        (_dual = d)._dual = this; // Cross link duals
+        // Collection rdual
+        for( int i=0; i<_types.length; i++ )
+            ts[i] = _types[i]._terned ? _types[i].dual() : _types[i].rdual();
+        return d;
     }
 
     @Override boolean _isConstant() {
@@ -67,11 +94,18 @@ public class TypeTuple extends Type {
                 return false;
         return true;
     }
-    @Override boolean _isFinal() { throw Utils.TODO(); }
+    @Override boolean _isFinal() { throw Utils.TODO("Should not reach here: tuples are not stored object values"); }
 
-    @Override TypeMemPtr _makeRO() { throw Utils.TODO(); }
+    @Override TypeMemPtr _makeRO() { throw Utils.TODO("Should not reach here: tuples cannot be made read-only"); }
 
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        Type[] ts = new Type[_types.length];
+        for( int i=0; i<ts.length; i++ )
+            ts[i] = _types[i]._upgradeType(TYPES);
+        return make(ts);
+    }
+
+    @Override public int log_size() { throw Utils.TODO("Should not reach here: tuples have no scalar storage size"); }
     @Override public int alignment() {
         assert isConstant();
         int align = 0;
@@ -80,7 +114,30 @@ public class TypeTuple extends Type {
         return align;
     }
 
-    public Type ret() { assert _types.length==3; return _types[2]; }
+    public Type    ctl() { assert _types.length>=3; return _types[0]; }
+    public Type    ret() { assert _types.length>=3; return _types[2]; }
+    public TypeMem mem() { assert _types.length>=3;
+        return _types[1] instanceof TypeMem tmem ? tmem : (_types[1].isHigh() ? TypeMem.START : TypeMem.BOT);
+    }
+
+    @Override public int nkids() { return _types.length; }
+    @Override public Type at( int idx ) { return _types[idx]; }
+    @Override public void set( int idx, Type t ) { _types[idx] = t; }
+
+    // Reserve tags for tuples with 2,3,generic
+    @Override int TAGOFF() { return 4; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
+        if( _types.length==2 ) baos.write(TAGOFFS[_type] + 0);
+        else if( _types.length==3 ) baos.write(TAGOFFS[_type] + 1);
+        else if( _types.length==4 ) baos.write(TAGOFFS[_type] + 2);
+        else baos.write(TAGOFFS[_type] + 3).packed2(_types.length);
+    }
+    static TypeTuple packed( int tag, BAOS bais ) {
+        if( tag==0 ) return malloc(new Type[2]);
+        if( tag==1 ) return malloc(new Type[3]);
+        if( tag==2 ) return malloc(new Type[4]);
+        return malloc(new Type[bais.packed2()]);
+    }
 
     @Override SB _print(SB sb, BitSet visit, boolean html ) {
         if( this==TOP ) return sb.p("[TOP]");
@@ -111,9 +168,5 @@ public class TypeTuple extends Type {
                 return false;
         return true;
     }
-
-    @Override int nkids() { return _types.length; }
-    @Override Type at( int idx ) { return _types[idx]; }
-    @Override void set( int idx, Type t ) { _types[idx] = t; }
 
 }

@@ -56,6 +56,8 @@ public class RegAlloc {
 
     public int _spills, _spillScaled;
 
+    private boolean _done;
+
     // -----------------------
     // Live ranges with self-conflicts or no allowed registers
     private final IdentityHashMap<LRG,String> _failed = new IdentityHashMap<>();
@@ -67,6 +69,7 @@ public class RegAlloc {
         _failed.put(lrg,"");
     }
     boolean success() { return _failed.isEmpty(); }
+    public boolean done() { return _done; }
 
 
     // -----------------------
@@ -75,16 +78,16 @@ public class RegAlloc {
     short _lrg_num;
 
     // Define a new LRG, and assign n
-    LRG newLRG( Node n ) {
+    LRG newLRG( Node n, FunNode fun ) {
         LRG lrg = lrg(n);
         if( lrg!=null ) return lrg;
-        lrg = new LRG(_lrg_num++);
+        lrg = new LRG(_lrg_num++, fun);
         LRG old = _lrgs.put(n,lrg); assert old==null;
         return lrg;
     }
 
     // LRG for n
-    LRG lrg( Node n ) {
+    public LRG lrg( Node n ) {
         LRG lrg = _lrgs.get(n);
         if( lrg==null ) return null;
         LRG lrg2 = lrg.find();
@@ -141,18 +144,19 @@ public class RegAlloc {
     }
 
     // Printable register number for node n
-    String reg( Node n ) { return reg(n,null); }
-    String reg( Node n, FunNode fun ) {
+    String reg( Node n ) {
         LRG lrg = _lrg(n);
-        if( lrg==null ) return null;
+        return lrg==null ? null : reg(lrg);
+    }
+    String reg( LRG lrg ) {
         // No register yet, use LRG
         if( lrg._reg == -1 ) return "V"+lrg._lrg;
         // Chosen machine register unless stack-slot and past RA
         String[] regs = _code._mach.regs();
-        if( lrg._reg < regs.length || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || fun==null )
+        if( lrg._reg < regs.length || _code._phase.ordinal() <= CodeGen.Phase.RegAlloc.ordinal() || lrg._fun==null )
             return RegMask.reg(regs,lrg._reg);
         // Stack-slot past RA uses the frame layout logic
-        return "[rsp+"+fun.computeStackOffset(_code,lrg._reg)+"]";
+        return "[rsp+"+lrg._fun.computeStackOffset(_code,lrg._reg)+"]";
     }
 
     // -----------------------
@@ -178,8 +182,7 @@ public class RegAlloc {
             for( Node n : bb._outputs )
                 if( n instanceof NewNode nnn ) nnn.cacheRegs(_code);
         }
-
-        // Optional diagnostic for values accidentally shared across functions.
+        // Expensive assert: useful when chasing cross-function allocator edges.
         //assert verifyFunctionLocalEdges();
 
         // Top driver: repeated rounds of coloring and splitting.
@@ -191,21 +194,64 @@ public class RegAlloc {
             round++;
         }
         postColor();                       // Remove no-op spills
+        _done = true;
     }
 
     boolean verifyFunctionLocalEdges() {
-        for( CFGNode bb : _code._cfg ) {
-            if( bb instanceof StartNode ) continue;
-            FunNode fun = bb.fun();
-            for( Node use : bb._outputs )
-                if( use instanceof MachNode mach && !(use instanceof ParmNode) )
-                    for( int i=1; i<use.nIns(); i++ ) {
-                        Node def = use.in(i);
-                        if( def==null || mach.regmap(i)==null || def.cfg0()==null || def.cfg0() instanceof StartNode ) continue;
-                        assert def.cfg0().fun()==fun : "Cross-function register edge: "+def.uniqueName()+" -> "+use.uniqueName()+" input "+i;
-                    }
-        }
+        for( CFGNode bb : _code._cfg )
+            for( Node use : bb._outputs ) {
+                FunNode useFun = funOf(use);
+                for( int i=1; i<use.nIns(); i++ ) {
+                    Node def = use.in(i);
+                    if( def==null || def.isConst() || allowedCrossFunctionEdge(use,i,def) )
+                        continue;
+                    FunNode defFun = funOf(def);
+                    if( defFun != null && useFun != null && defFun != useFun )
+                        throw new AssertionError(crossFunctionMessage(def,defFun,use,useFun,i));
+                }
+            }
         return true;
+    }
+
+    private static String crossFunctionMessage(Node def, FunNode defFun, Node use, FunNode useFun, int idx) {
+        StringBuilder sb = new StringBuilder("Cross-function value edge: ");
+        sb.append(def.uniqueName()).append("(").append(defFun.label()).append(") -> ")
+          .append(use.uniqueName()).append("(").append(useFun.label()).append(") input ").append(idx)
+          .append(" def=").append(def).append(" use=").append(use).append("\n  all uses:");
+        for( Node out : def.outs() ) {
+            FunNode outFun = funOf(out);
+            sb.append("\n    ").append(out.uniqueName()).append("(")
+              .append(outFun==null ? "?" : outFun.label()).append(")");
+        }
+        return sb.toString();
+    }
+
+    private static boolean allowedCrossFunctionEdge(Node use, int idx, Node def) {
+        // Function metadata/control edges are not value live ranges.
+        if( use instanceof FunNode || use instanceof StopNode || use instanceof StopCUNode )
+            return true;
+        // Return-linked function pointers carry function identity/lifetime, not
+        // an allocator value flowing from the callee body into this function.
+        if( use instanceof FunPtrNode && def instanceof ReturnNode )
+            return true;
+        // Parm defaults and call-linked argument edges are the entry protocol;
+        // BuildLRG also skips Parm input 1.
+        if( use instanceof ParmNode )
+            return true;
+        // Linked CallEnd -> Return edges should be gone before RegAlloc, but
+        // diagnose allocator value edges rather than call graph metadata here.
+        if( use instanceof CallEndNode && def instanceof ReturnNode )
+            return true;
+        return false;
+    }
+
+    private static FunNode funOf(Node n) {
+        if( n instanceof ParmNode parm ) return parm.fun();
+        if( n instanceof ReturnNode ret ) return ret.fun();
+        if( n instanceof FunNode fun ) return fun;
+        if( n instanceof CFGNode cfg ) return cfg.fun();
+        CFGNode cfg = n.cfg0();
+        return cfg==null ? null : cfg.fun();
     }
 
     private boolean graphColor(byte round) {
@@ -251,7 +297,7 @@ public class RegAlloc {
 
         // Register mask when empty; split around defs and uses with limited
         // register masks.
-        if( lrg._mask.isEmpty() && (!lrg._multiDef || lrg._1regUseCnt==1) ) {
+        if( lrg._mask.isEmpty() ) {
             if( lrg._1regDefCnt <= 1 &&
                 lrg._1regUseCnt <= 1 &&
                 (lrg._1regDefCnt + lrg._1regUseCnt) > 0 &&
@@ -263,6 +309,10 @@ public class RegAlloc {
             if( !lrg._multiDef && lrg._1regDefCnt <= 1 && lrg._1regUseCnt > 2 )
                 if( splitEmptyMaskByUse(round,lrg) )
                     return true;
+        }
+        if( lrg._mask.isEmpty() && lrg._multiDef && lrg._1regUseCnt > 1 && lrg._1regDefCnt <= 1 ) {
+            if( splitEmptyMaskSingleUses(round,lrg) )
+                return true;
         }
 
         // Generic split-by-loop depth.
@@ -276,18 +326,20 @@ public class RegAlloc {
         // single-register.  Split after the def and before the use.  Does not
         // require a full pass.
 
+        // Compute def nOuts *before* replacing those uses with a split
+        int defNouts = ((Node)lrg._machDef).nOuts();
         // Split just after def
         if( lrg._1regDefCnt==1 && !lrg._machDef.isClone() )
-            // An earlier copy is reusable only if no intervening clobber.
-            // Being in the same block alone is insufficient.  Example:
+            // Force must-split, even if a prior split same block because register
+            // conflicts.  Example:
             //   alloc
             //     V1/rax - forced by alloc
             //   alloc
             //     V2/rax - kills prior RAX
             //   st4 [V1],len - No good, must split around
-            insertAfterAndReplace(makeSplit("def/empty1",round,lrg),(Node)lrg._machDef,false);
+            insertAfterAndReplace( makeSplit("def/empty1",round,lrg), (Node)lrg._machDef, false/*true*/);
         // Split just before use
-        if( lrg._1regUseCnt==1 )
+        if( lrg._machUse!=null && (lrg._1regUseCnt==1 || (lrg._1regDefCnt==1 && defNouts==1)) )
             insertBefore((Node)lrg._machUse,lrg._uidx,"use/empty1",round,lrg);
         return true;
     }
@@ -328,6 +380,27 @@ public class RegAlloc {
                     }
         }
         return true;
+    }
+
+    // Empty-mask live range with several direct single-register uses, often
+    // through a Phi with multiple defs.  Split those uses directly instead of
+    // doing a loop-depth split, which might keep isolating the wrong edge.
+    boolean splitEmptyMaskSingleUses( byte round, LRG lrg ) {
+        findAllLRG(lrg);
+        if( _ns._len <= 5 )
+            return false;
+        boolean progress = false;
+        for( Node n : _ns ) {
+            if( !(n instanceof MachNode mach) ) continue;
+            for( int i=1; i<n.nIns(); i++ ) {
+                RegMask use = mach.regmap(i);
+                if( use != null && use.size1() && lrg(n.in(i))==lrg ) {
+                    insertBefore(n,i,"use/emptyN",round,lrg);
+                    progress = true;
+                }
+            }
+        }
+        return progress;
     }
 
     // Narrowing preserves all earlier users of a class; new classes are disjoint.
@@ -429,9 +502,11 @@ public class RegAlloc {
         int min = (int)ld;
         int max = (int)(ld>>32);
 
-
-        // If the minLoopDepth is less than the maxLoopDepth: for-all defs and
-        // uses, if at minLoopDepth or lower, split after def and before use.
+        boolean emptyMulti = lrg._mask.isEmpty() && lrg._multiDef && lrg._1regDefCnt <= 1 &&
+            (lrg._1regUseCnt > 1 || _ns._len > 5);
+        // Multi-def empty-mask conflicts need the hot/deep side isolated from
+        // fixed register uses.  Ordinary pressure splits keep the old shallow
+        // boundary behavior.
         for( Node n : _ns ) {
             if( n instanceof SplitNode && min!=max ) continue; // Ignoring splits; since spilling need to split in a deeper loop
             if( n.isDead() ) continue; // Some Cloneable went dead by other spill changes
@@ -442,7 +517,7 @@ public class RegAlloc {
 
             if( lrg(n)==lrg && // This is a LRG def
                 // At loop boundary, or splitting in inner loop
-                (min==max || n.cfg0().loopDepth() <= min) ) {
+                (min==max || (emptyMulti ? n.cfg0().loopDepth() >= max : n.cfg0().loopDepth() <= min)) ) {
                 // Cloneable constants will be cloned at uses, not after def
                 if( !(n instanceof MachNode mach && mach.isClone()) &&
                     // Single user is already a split adjacent
@@ -457,7 +532,7 @@ public class RegAlloc {
                     // No split in front of a split
                     if( !(n.in(i) instanceof SplitNode) &&
                         // splitting in inner loop or at loop border
-                        (min==max || phi.region().cfg(i).loopDepth() <= min) &&
+                        (min==max || (emptyMulti ? phi.region().cfg(i).loopDepth() >= max : phi.region().cfg(i).loopDepth() <= min)) &&
                         // and not around the backedge of a loop (bad place to force a split, hard to remove)
                         !(phi.region() instanceof LoopNode && i==2 && (phi.in(i) instanceof PhiNode pp && pp.region()==phi.region())) )
                         // Split before phi-use in prior block
@@ -469,7 +544,8 @@ public class RegAlloc {
                     // This is a LRG use
                     // splitting in inner loop or at loop border
                     if( lrgSame( n.in( i ), lrg ) &&
-                        (min == max || (n.in(i) instanceof MachNode mach && mach.isClone()) || n.cfg0().loopDepth() <= min) )
+                        (min == max || (n.in(i) instanceof MachNode mach && mach.isClone()) ||
+                         (emptyMulti ? n.cfg0().loopDepth() >= max : n.cfg0().loopDepth() <= min)) )
                         // Split before in this block
                         insertBefore( n, i, "use/loop/use", round,lrg, false );
                 }
@@ -518,8 +594,8 @@ public class RegAlloc {
     void findAllLRG( LRG lrg ) {
         _ns.clear();
         int wd = 0;
-        if( lrg._machDef!=null ) _ns.push((Node)lrg._machDef);
-        if( lrg._machUse!=null ) _ns.push((Node)lrg._machUse);
+        if( lrg._machDef != null ) _ns.push((Node)lrg._machDef);
+        if( lrg._machUse != null ) _ns.push((Node)lrg._machUse);
         while( wd < _ns._len ) {
             Node n = _ns.at(wd++);
             if( lrg(n)!=lrg ) continue;
@@ -578,12 +654,12 @@ public class RegAlloc {
         // Clone simple constants if possible
         Node split = def instanceof MachNode mach && mach.isClone() && (umask==null || mach.outregmap().overlap(umask))
             ? mach.copy()
-            : _code._mach.split(kind,round,lrg);
+            : _code._mach.split(lrg,kind,round);
         _lrgs.put(split,lrg);
         return split;
     }
     private SplitNode makeSplit( String kind, byte round, LRG lrg ) {
-        SplitNode split = _code._mach.split(kind,round,lrg);
+        SplitNode split = _code._mach.split(lrg,kind,round);
         _lrgs.put(split,lrg);
         return split;
     }
@@ -675,6 +751,6 @@ public class RegAlloc {
             if( clobbers(n,defreg) )
                 return false;   // Clobbered
         }
-        throw Utils.TODO();
+        throw Utils.TODO("Should not reach here");
     }
 }

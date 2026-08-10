@@ -6,8 +6,7 @@ import java.util.BitSet;
 
 public class NotNode extends Node {
     public NotNode(Node in) { super(null, in); }
-
-    @Override public String label() { return "Not"; }
+    @Override public Tag serialTag() { return Tag.Not; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

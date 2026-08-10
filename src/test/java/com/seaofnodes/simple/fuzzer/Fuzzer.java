@@ -85,7 +85,7 @@ public class Fuzzer {
             code1 = FuzzerUtils.parse(script, 123, true);
         } catch (RuntimeException e1) {
             try {
-                FuzzerUtils.parse(script, 456, false);
+                FuzzerUtils.parse(script, 456, true);
             } catch (RuntimeException e2) {
                 if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
                     if (!valid || e1.getClass() == Parser.ParseException.class) return;
@@ -163,6 +163,24 @@ public class Fuzzer {
         check(sb.toString(), valid, seed);
     }
 
+    /**
+     * Run one seed as a regression test.  Unlike the exploratory fuzzer path,
+     * this deliberately does not reduce on failure; old bad seeds should fail
+     * fast with the seed visible in the JUnit assertion.
+     */
+    public void fuzzPeepsRegression(long seed) {
+        var rand = new Random(seed);
+        var sb = new StringBuilder();
+        var valid = new ScriptGenerator(rand, sb, true).genProgram();
+        try {
+            runCheck(sb.toString(), valid);
+        } catch( Throwable e ) {
+            AssertionError ae = new AssertionError("Fuzzer regression seed failed: "+seed);
+            ae.initCause(e);
+            throw ae;
+        }
+    }
+
 
     /**
      * Check that no exceptions happened.
@@ -170,19 +188,5 @@ public class Fuzzer {
      */
     public boolean noExceptions() {
         return exceptions.isEmpty();
-    }
-
-    /** Run a fixed chapter-local seed without reducing or swallowing failures. */
-    public void fuzzPeepsRegression(long seed) {
-        var rand = new Random(seed);
-        var sb = new StringBuilder();
-        var valid = new ScriptGenerator(rand, sb, true).genProgram();
-        try {
-            runCheck(sb.toString(), valid);
-        } catch (Throwable e) {
-            AssertionError ae = new AssertionError("Fuzzer regression seed failed: " + seed);
-            ae.initCause(e);
-            throw ae;
-        }
     }
 }

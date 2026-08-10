@@ -24,7 +24,7 @@ public class LoadARM extends MemOpARM {
 
     // ldr(immediate - unsigned offset) | ldr(register)
     @Override public void encoding( Encoding enc ) {
-        ldst_encode(enc, OP_LOADS[Integer.numberOfTrailingZeros(size())], OP_LOAD_RS[_declaredType.log_size()], this, size());
+        ldst_encode(enc, OP_LOADS[Integer.numberOfTrailingZeros(size())], OP_LOAD_RS[_con.log_size()], this, size());
     }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(",");

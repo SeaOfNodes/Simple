@@ -5,9 +5,9 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
 public class ShrNode extends ArithNode {
-    public ShrNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs); }
+    public ShrNode(Parser.Lexer loc, Node lhs, Node rhs) { super(loc, lhs, rhs, (byte)1); }
+    @Override public Tag serialTag() { return Tag.Shr; }
 
-    @Override public String label() { return "Shr"; }
     @Override public String op() { return ">>>"; }
     @Override long doOp( long x, long y ) { return x >>> y; }
     @Override TypeInteger doOp( TypeInteger x, TypeInteger y ) {
@@ -21,7 +21,7 @@ public class ShrNode extends ArithNode {
         Type t2 = rhs._type;
 
         // Shr of 0.
-        if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 && forceInt(lhs) )
             return lhs;
 
         // TODO: x >>> 3 >>> (y ? 1 : 2) ==> x >>> (y ? 4 : 5)

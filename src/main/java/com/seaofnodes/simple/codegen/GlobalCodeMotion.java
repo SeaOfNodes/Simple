@@ -27,16 +27,15 @@ public abstract class GlobalCodeMotion {
         breakUpGlobalConstants(code._start);
 
         code._visit.clear();
-        schedLate (code);
+        schedLate(code);
     }
 
     // Post-Order of CFG
     private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
-        if( def instanceof ReturnNode && use instanceof CallEndNode )
-            return;
-        assert !( def instanceof CallNode && use instanceof FunNode ); // All calls unwired now
+        assert !( def instanceof ReturnNode && use instanceof CallEndNode ); // All calls unwired now
+        assert !( def instanceof   CallNode && use instanceof     FunNode ); // All calls unwired now
         visit.set(cfg._nid);
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);
@@ -61,6 +60,7 @@ public abstract class GlobalCodeMotion {
                 if( use==null || globals.containsKey(use) ) continue;
                 FunNode fun = useFun(use);
                 if( fun==null ) continue; // Global metadata has no function owner.
+                assert CodeGen.CODE.owns(fun);
                 var local = copies.computeIfAbsent(fun,f -> new IdentityHashMap<>());
                 Node copy = cloneGlobal(con,fun,globals,local);
                 for( int i=0; i<use.nIns(); i++ )
@@ -179,10 +179,10 @@ public abstract class GlobalCodeMotion {
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
                              // Load-use directly defines memory
-                             memuse instanceof CallNode ||
-                             // Load-use indirectly defines memory
-                             (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
+                             memuse instanceof CallNode) ) {
+                            assert !( memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem );
                             continue outer;
+                        }
 
                 // All uses done, schedule
                 _doSchedLate(n,ns,late,anti);
@@ -217,7 +217,6 @@ public abstract class GlobalCodeMotion {
         if( n instanceof MemOpNode load && load._isLoad )
             lca = find_anti_dep(lca,load,early,late,anti);
 
-
         // Walk up from the LCA to the early, looking for best place.  This is
         // the lowest execution frequency, approximated by least loop depth and
         // deepest control flow.
@@ -234,7 +233,8 @@ public abstract class GlobalCodeMotion {
     // Block of use.  Normally from late[] schedule, except for Phis, which go
     // to the matching Region input.
     private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
-        if( use instanceof ParmNode ) return late[use._nid];
+        if( use instanceof ParmNode parm )
+            return late[use._nid];
         if( !(use instanceof PhiNode phi) )
             return late[use._nid];
         CFGNode found=null;
@@ -258,7 +258,7 @@ public abstract class GlobalCodeMotion {
     private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late, int[] anti) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
-        for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
+        for( CFGNode cfg=lca; cfg!=early.idom(); cfg = cfg.idom() )
             anti[cfg._nid] = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
         for( Node mem : load.mem()._outputs ) {
@@ -269,6 +269,12 @@ public abstract class GlobalCodeMotion {
                     lca = anti_dep(load,late[mem._nid],lca,st,anti);
                 }
                 break; // Loads do not cause anti-deps on other loads
+            case EscapeNode esc:
+                if( load._alias == esc.fld()._alias ) {
+                    assert late[mem._nid] != null;
+                    lca = anti_dep(load,late[mem._nid],lca,mem,anti);
+                }
+                break;
             case CallNode call:
                 assert late[call._nid]!=null;
                 lca = anti_dep(load,late[call._nid],lca,call,anti);
@@ -280,11 +286,9 @@ public abstract class GlobalCodeMotion {
                     if( phi.in(i)==load.mem() )
                         lca = anti_dep(load,phi.region().cfg(i),lca,null,anti);
                 break;
-            case NewNode st: break;
             case ReturnNode ret: break; // Load must already be ahead of Return
             case MemMergeNode ret: break; // Mem uses now on ScopeMin
-            case NeverNode never: break;
-            default: throw Utils.TODO();
+            default: throw Utils.TODO("Should not reach here");
             }
         }
         return lca;

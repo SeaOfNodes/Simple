@@ -8,8 +8,7 @@ import java.util.BitSet;
 
 public class ToFloatNode extends Node {
     public ToFloatNode(Node lhs) { super(null, lhs); }
-
-    @Override public String label() { return "ToFloat"; }
+    @Override public Tag serialTag() { return Tag.ToFloat; }
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {

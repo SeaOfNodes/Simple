@@ -27,7 +27,7 @@ public class StoreARM extends MemOpARM {
     private static final int[] OP_STORE_RS = new int[]{ arm.OP_STORE_R_8, arm.OP_STORE_R_16, arm.OP_STORE_R_32, arm.OP_STORE_R_64, };
 
     @Override public void encoding( Encoding enc ) {
-        ldst_encode(enc, OP_STORES[Integer.numberOfTrailingZeros(size())], OP_STORE_RS[_declaredType.log_size()], val(), size());
+        ldst_encode(enc, OP_STORES[Integer.numberOfTrailingZeros(size())], OP_STORE_RS[Integer.numberOfTrailingZeros(_bytes)], val(), size());
     }
     @Override public void asm(CodeGen code, SB sb) {
         asm_address(code,sb).p(",");

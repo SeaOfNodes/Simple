@@ -7,19 +7,37 @@ import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Normal tests run chapter-local regression seeds. Open failures and exploratory
- * fuzzing are opt-in (run directly in the IDE or temporarily remove Ignore).
- * Seeds depend on this chapter's generator; do not copy them between chapters.
+ * To use the fuzzer run the <code>fuzzPeeps</code> methods.
+ * This can be done from IntelliJ Gui or remove the `@Ignore` annotation and start the test case from the command line
+ * via <code>mvn clean test -Dtest=com.seaofnodes.simple.Fuzzer08Test#fuzzPeeps</code>
  */
 public class FuzzerWrap {
 
     private static final long[] REGRESSION_SEEDS = {
+          375135762521757909L, // bad LCA
+         -148471672577312953L, // bulk mem
+        -5037182906211190034L, // dead Guard control
+        -6359653295501938199L, // monotonicity, escape is dead
+         6506797708065910879L, // missing ModeNode._mode is optimistic
+          650692970082394944L, // recursive bulk mem split
+         8335100609598232836L, // ternary result killed by region cleanup
+         2520958273643234516L, // nested guard merge
+        -3772838984504063325L, // fuzzer regression
+        -4628356252269023530L, // idepth cache version wrap
+        -4022199781524079249L, // fuzzer regression
+         8824787517620928178L, // unknown-mode unary minus during SCCP
+         -673501011619761901L, // peephole killed self
+        -8212834489697770130L, // bad keep/unkeep in parser
+          478567486335112458L, // dying escape node
+        -5114548365532699915L, // dominate flags dependencies
+        -4710931876754133070L, // Tests monotonic phi widening
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
     };
 
-    @Test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(REGRESSION_SEEDS); }
+
+    @Test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(  REGRESSION_SEEDS); }
     @Test @Ignore public void fuzzPeepsOpenFailures() { fuzzPeepsSeeds(OPEN_FAILING_SEEDS); }
 
     private static void fuzzPeepsSeeds(long... seeds) {
@@ -30,6 +48,17 @@ public class FuzzerWrap {
 
     @Ignore
     @Test
+    public void fuzzPeepsRandom() {
+        Random R = new Random(System.currentTimeMillis());
+        var fuzzer = new Fuzzer();
+        for (int i=0; i<100; i++)
+            fuzzer.fuzzPeeps(R.nextLong());
+        assertTrue(fuzzer.noExceptions());
+    }
+
+
+    @Ignore
+    @Test
     public void fuzzPeepsLarge() {
         var fuzzer = new Fuzzer();
         for (int i=0; i<1000000; i++)
@@ -37,22 +66,13 @@ public class FuzzerWrap {
         assertTrue(fuzzer.noExceptions());
     }
 
-
-    @Test @Ignore
-    public void fuzzPeepsRandom() {
-        Random R = new Random(System.currentTimeMillis());
-        var fuzzer = new Fuzzer();
-        for (int i=0; i<100; i++)
-            fuzzer.fuzzPeeps( R.nextLong());
-        assertTrue(fuzzer.noExceptions());
-    }
-
-    @Test
     @Ignore
+    @Test
     public void fuzzPeepTiming() {
         var fuzzer = new Fuzzer();
         int max_nid=0;
         for (int i=0; i<1000000; i++)
             max_nid = fuzzer.fuzzPeepTiming(i, max_nid);
     }
+
 }

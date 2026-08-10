@@ -6,7 +6,7 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
 public class AddFMemX86 extends MemOpX86 {
-    AddFMemX86( AddFNode add, LoadNode ld , Node base, Node idx, int off, int scale, Node val ) {
+    AddFMemX86( AddNode add, LoadNode ld , Node base, Node idx, int off, int scale, Node val ) {
         super(add,ld, base, idx, off, scale, 0, val );
     }
     @Override public String op() { return "addf"+_sz; }

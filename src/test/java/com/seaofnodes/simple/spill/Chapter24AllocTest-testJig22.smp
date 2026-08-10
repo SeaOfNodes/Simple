@@ -1,0 +1,15 @@
+val fib = {int n ->
+    int temp=0;
+    int f1=1;
+    int f2=1;
+    int i=n;
+    while( i>1 ){
+        temp = f1+f2;
+        f1=f2;
+        f2=temp;
+        i=i-1;
+    }
+    return f2;
+};
+
+fib(10);
