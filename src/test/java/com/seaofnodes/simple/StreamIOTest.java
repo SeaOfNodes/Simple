@@ -131,6 +131,10 @@ public class StreamIOTest extends TestC {
         gcc.addAll(linkObjs(code));
         gcc.add(runtimeObject("simple_crt"));
         gcc.add(runtimeObject("simple_args"));
+        gcc.add(runtimeObject("simple_graphics"));
+        gcc.add(runtimeObject("simple_audio"));
+        gcc.add(runtimeObject("simple_time"));
+        if( !OS.startsWith("Windows") ) gcc.add("-ldl");
         gcc.addAll(new String[]{"-lm","-o",exe});
         exec(TEST_TIMEOUT_SECONDS,gcc.asAry());
         assertEquals("ok\n",exec(TEST_TIMEOUT_SECONDS,exe));

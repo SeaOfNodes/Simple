@@ -7,6 +7,26 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
+    @Test public void testConstantArrayElements() {
+        TypeConAry range=TypeConAry.make(TypeInteger.U16,new long[]{5,6,7});
+        Assert.assertEquals("[5-7]",range.toString());
+        Assert.assertEquals("[5-7]",TypeConAry.make(TypeInteger.U8,new long[]{5,6,7}).toString());
+        Assert.assertEquals("[\"abc\"]",TypeConAry.make("abc").toString());
+        for( TypeInteger storage : new TypeInteger[]{TypeInteger.BOOL,TypeInteger.I8,TypeInteger.U8,
+                TypeInteger.I16,TypeInteger.U16,TypeInteger.I32,TypeInteger.U32,TypeInteger.BOT} ) {
+            TypeConAry empty=TypeConAry.make(storage,new long[0]);
+            assertSame(storage.dual(),empty.elem());
+            assertSame(storage,((TypeConAry)empty.dual()).elem());
+            for( long[] values : new long[][]{{0},{1},{0,1},{storage._min,storage._max}} ) {
+                TypeConAry array=TypeConAry.make(storage,values);
+                Assert.assertTrue(empty.isa(array));
+                assertSame(array,empty.meet(array));
+                assertSame(empty,array.join(empty));
+                check_symmetric(empty,array);
+            }
+        }
+    }
+
     @Test public void testOpaqueExternalEscapes() {
         TypeMem defaults = TypeMem.START.makeFrom(XInt.make(2),XInt.make(3));
         TypeMem prior = TypeMem.START.makeFrom(XInt.make(5),XInt.make(7));

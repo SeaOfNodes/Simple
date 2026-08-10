@@ -1,0 +1,17 @@
+// Optional graphics smoke test: pixels are drawn entirely in Simple.
+// Pass any argument for a short, self-closing test; otherwise close or press Esc.
+val main = { u8[~][] args ->
+    if( sys.gfx.open("Simple pixels",320,240) != sys.gfx.OK ) return 1;
+    val pixels = new u32[320*240];
+    for( int y = 0; y < 240; y++ )
+        for( int x = 0; x < 320; x++ )
+            pixels[y*320+x] = (x*255/319 << 16) | (y*255/239 << 8) | 64;
+    int result = sys.gfx.present(pixels);
+    int frames = 0;
+    while( result == sys.gfx.OK ) {
+        result = sys.gfx.poll(true);
+        if( args# > 1 && ++frames == 5 ) break;
+    }
+    sys.gfx.close();
+    return result == sys.gfx.ERROR ? 1 : 0;
+};

@@ -1,0 +1,128 @@
+// Local clocks; click the button or press Space to switch. Q/Escape exits.
+// Any argument runs ten frames, exercising both faces for smoke tests.
+u32 GREEN = 0x62ff70, DIM = 0x123d20, BACKGROUND = 0x020b05;
+
+val main = { u8[~][] args ->
+    val gfx  = sys.gfx;
+    val time = sys.time;
+    // The main Canvas
+    val screen = new sys.draw.Canvas(720,540);
+    if( gfx.open("Simple digital and analog clocks",screen.width,screen.height) != gfx.OK ) return 1;
+
+    // Button to flip clock style
+    val button = new sys.draw.Button(220,454,280,52,"ANALOG CLOCK");
+    val timers = new sys.time.Timers();
+    u32 frame_id = timers.every(33);
+    if( frame_id == 0 ) { gfx.close(); return 1; }
+
+    bool analog = false, held = false;
+    int frames = 0, status = gfx.OK;
+
+    // Main event loop
+    while( status == gfx.OK ) {
+        // Did the user press space bar?
+        bool space = gfx.key(' ');
+        // Did the left mouse button go down?
+        bool down = gfx.button(gfx.LEFT);
+        // ANd did it go down over this button?
+        bool click = button.update(gfx.mouseX(),gfx.mouseY(),down);
+        // If clicked, flip the clock mode
+        if( click || (space && !held) ) analog = !analog;
+        held = space;
+        if( gfx.key('Q') ) break;
+        // Change button label
+        button.label = analog ? "DIGITAL CLOCK" : "ANALOG CLOCK";
+        // If the next timer event is the every-33-msec event
+        if( timers.poll(time.monotonic()) == frame_id ) {
+            // Draw the clock screen and button
+            _draw(screen,time.now(),analog);
+            button.draw(screen,3,GREEN,BACKGROUND,DIM);
+            // Presne the canvas on screen
+            status = gfx.present(screen.pixels);
+            // Testing only: show 5 frames, flip to analog, show 5 more and exit
+            if( args# > 1 ) {
+                frames++;
+                if( frames == 5 ) analog = true;
+                if( frames == 10 ) break;
+            }
+        }
+        if( status != gfx.OK ) break;
+        // Stall until next timer event
+        status = gfx.wait(time.remaining(timers.nextDeadline(),time.monotonic()));
+    }
+    gfx.close();
+    return status == gfx.ERROR ? 1 : 0;
+};
+
+val _draw = { !sys.draw.Canvas screen, i64 wall_ms, i64 analog ->
+    val d = sys.time.local(wall_ms);
+    screen.clear(BACKGROUND);
+    screen.text(266,24,"SIMPLE CLOCK",4,GREEN);
+    if( analog ) _analog(screen,d.hour,d.minute,d.second,d.millisecond);
+    else        _digital(screen,d.hour,d.minute,d.second);
+    screen.text(298,412,"%(sys.time.formatLocal(wall_ms,sys.time.DATE))",4,GREEN);
+    screen.text(249,520,"SPACE SWITCH   Q OR ESC QUIT",2,GREEN);
+};
+
+// a..g bits: top, upper-right, lower-right, bottom, lower-left, upper-left,
+// middle.  Faint unlit bars retain the old LED figure-eight silhouette.
+val _digit = { !sys.draw.Canvas c, int x, int y, i64 digit ->
+    int bits = digit == 0 ? 0x3f : digit == 1 ? 0x06 : digit == 2 ? 0x5b :
+        digit == 3 ? 0x4f : digit == 4 ? 0x66 : digit == 5 ? 0x6d :
+        digit == 6 ? 0x7d : digit == 7 ? 0x07 : digit == 8 ? 0x7f : digit == 9 ? 0x6f : 0;
+    for( int i = 0; i < 7; i++ ) {
+        u32 color = (bits&(1<<i)) != 0 ? GREEN : DIM;
+        if( i == 0 || i == 3 || i == 6 ) {
+            int dy = i == 0 ? 0 : i == 3 ? 144 : 72;
+            c.line(x+14,y+dy,x+58,y+dy,10,color);
+        } else {
+            bool right = i == 1 || i == 2;
+            int dx = right ? 68 : 4, dy = i == 1 || i == 5 ? 12 : 84;
+            c.line(x+dx,y+dy,x+dx,y+dy+48,10,color);
+        }
+    }
+};
+
+val _digital = { !sys.draw.Canvas c, int hour, int minute, int second ->
+    _digit(c,68,166,hour/10); _digit(c,154,166,hour-hour/10*10);
+    _digit(c,284,166,minute/10); _digit(c,370,166,minute-minute/10*10);
+    _digit(c,500,166,second/10); _digit(c,586,166,second-second/10*10);
+    for( int i = 0; i < 2; i++ ) {
+        c.fillCircle(254+i*216,214,6,GREEN);
+        c.fillCircle(254+i*216,262,6,GREEN);
+    }
+    c.text(272,352,"LOCAL TIME  24H",3,GREEN);
+};
+// Rational sine approximation, accurate enough for pixel clock geometry.
+// Arguments are nonnegative turns; no additional native math dependency.
+val _sin = { f64 turn ->
+    i64 whole = turn; turn -= whole;
+    bool negative = turn > 0.5;
+    f64 x = (negative ? turn-0.5 : turn)*6.283185307179586;
+    f64 product = x*(3.141592653589793-x);
+    f64 numerator = negative ? -16.0 : 16.0;
+    return numerator*product/(49.34802200544679-4*product);
+};
+val _hand = { !sys.draw.Canvas c, f64 turn, int length, int thickness, u32 color ->
+    int x = 360+_sin(turn)*length, y = 232-_sin(turn+0.25)*length;
+    c.line(360,232,x,y,thickness,color);
+};
+val _analog = { !sys.draw.Canvas c, int hour, int minute, int second, int millisecond ->
+    c.circle(360,232,154,3,GREEN);
+    for( int i = 0; i < 60; i++ ) {
+        f64 turn = i/60.0;
+        bool major = i-i/5*5 == 0;
+        int inner = major ? 133 : 143;
+        int x0 = 360+_sin(turn)*inner, y0 = 232-_sin(turn+0.25)*inner;
+        int x1 = 360+_sin(turn)*149, y1 = 232-_sin(turn+0.25)*149;
+        c.line(x0,y0,x1,y1,major ? 3 : 1,GREEN);
+    }
+    c.text(349,100,"12",2,GREEN); c.text(484,227,"3",2,GREEN);
+    c.text(357,354,"6",2,GREEN); c.text(230,227,"9",2,GREEN);
+    f64 seconds = second+millisecond/1000.0;
+    f64 minutes = minute+seconds/60.0;
+    _hand(c,(hour-hour/12*12+minutes/60.0)/12.0,78,8,GREEN);
+    _hand(c,minutes/60.0,112,5,GREEN);
+    _hand(c,seconds/60.0,128,2,0xc3ffcb);
+    c.fillCircle(360,232,6,GREEN);
+};

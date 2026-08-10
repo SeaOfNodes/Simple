@@ -78,6 +78,7 @@ final class Statements {
      */
     private Node parseReturn() {
         var expr = P.require(P.expressions.parseAssignment(), ";");
+        if( P.arrays._frame!=null ) return P.arrays.addReturn(expr);
         return P.functions.addReturn(expr);
     }
 

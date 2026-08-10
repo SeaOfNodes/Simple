@@ -190,6 +190,11 @@ public abstract class TestC {
         params.add(OS.startsWith("Windows") ? "-Wl,--image-base,0x400000" : "-no-pie");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
         params.addAll(objects);
+        // The loader has no MiniFB dependency and opens nothing until gfx.open.
+        params.add(runtimeObject("simple_graphics"));
+        params.add(runtimeObject("simple_audio"));
+        params.add(runtimeObject("simple_time"));
+        if( !OS.startsWith("Windows") ) params.add("-ldl");
         // Standalone Simple programs export `simple_main`; the small C
         // runtime owns native main and calls the Simple argument converter
         // before making the ABI-qualified entry call.

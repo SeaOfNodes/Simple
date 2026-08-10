@@ -1,0 +1,6 @@
+// Integer bounds.
+
+i64 MIN_I64 = 1<<63;
+i64 MAX_I64 = -(MIN_I64+1);
+i32 MAX_I32 = (1<<31)-1;
+u32 MAX_U32 = (1<<32)-1;

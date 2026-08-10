@@ -37,7 +37,7 @@ final class Conversions {
         case TypeFloat   tf -> TypeFloat.F64;
         case TypeMemPtr tmp -> tmp.makeVar();
         case TypeFunPtr tfp -> tfp;
-        case TypeConAry<?> a -> a;
+        case TypeConAry a -> a;
         case TypePtr     ptr -> TypePtr.PTR;
         case TypeScalar  ts -> TypeScalar.BOT;
         default             -> t;

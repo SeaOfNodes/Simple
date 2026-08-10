@@ -32,7 +32,7 @@ final class Strings {
                 Node strings=P.references.member(text,"string",fmt.site()).keep();
                 fptr=new FormatNode(value,ints.unkeep(),floats.unkeep(),strings.unkeep(),fmt.site()).peephole();
             } else {
-                String family="diuoxXcb".indexOf(fmt.kind())>=0 ? "integer" : fmt.kind()=='s' ? "string" : "floating";
+                String family="diuoxXcb".indexOf(fmt.kind())>=0 ? "integer" : fmt.kind()=='s' ? "string" : fmt.kind()=='t' ? "time" : "floating";
                 fptr=P.references.member(text,family,fmt.site());
             }
             call(text,fptr,fmt.site(),builder,value.unkeep(),P.con(fmt.kind() | fmt.flags()<<8),

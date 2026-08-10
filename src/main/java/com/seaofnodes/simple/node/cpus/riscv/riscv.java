@@ -254,6 +254,7 @@ public class riscv extends Machine {
         case StoreNode     st -> st(st);
         case SubNode      sub -> sub.mode()==2 ? new SubFRISC(sub) : sub(sub);
         case ToFloatNode  tfn -> i2f8(tfn);
+        case Intrinsic.BitCastNode cast -> new BitCastRISC(cast);
         case ToIntegerNode cvt -> new F8ToIRISC(cvt);
         case XorNode      xor -> xor(xor);
 

@@ -14,7 +14,10 @@ public final class StaticData {
         public final String symbol;
         public final boolean readOnly, external;
         public final int alignment, size;
+        // Source names are aliases, not part of the object's pooling identity.
+        final TreeSet<String> debugNames = new TreeSet<>();
         public int offset;
+        public String label() { return debugNames.isEmpty() ? symbol : String.join(", ",debugNames); }
         ObjectData(Type t, String name, boolean ro, boolean ext) {
             type=t; symbol=name; readOnly=ro; external=ext;
             alignment=t.alignment();
@@ -73,7 +76,12 @@ public final class StaticData {
         // Register before following fields: class objects may refer to each other.
         if( !obj.external && t instanceof TypeStruct ts )
             for( Field f : ts._fields )
-                if( !f._extern && f._t.isConstant() ) target(f._t);
+                if( !f._extern && f._t.isConstant() ) {
+                    target(f._t);
+                    if( clz && f._final && f._t instanceof TypeMemPtr ptr &&
+                        pointerConstant(ptr) && !isClass(ptr._obj) )
+                        object(ptr._obj).debugNames.add(ts._name.substring(TypeStruct.CLZ.length())+"."+f._fname);
+                }
         return obj;
     }
 

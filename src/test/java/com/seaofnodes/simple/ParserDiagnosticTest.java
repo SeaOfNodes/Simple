@@ -30,7 +30,18 @@ public class ParserDiagnosticTest {
         diagnostic("return 9223372036854775808;",1,8,"Integer literal is outside the signed 64-bit range");
         diagnostic("return 1e;",1,8,"Invalid floating-point literal '1e'");
         diagnostic("return 1.2.3f;",1,8,"Invalid floating-point literal '1.2.3f'");
-        diagnostic("return 012;",1,8,"Syntax error: integer values cannot start with '0'");
+        diagnostic("return 018;",1,8,"Invalid octal integer literal '018'");
+    }
+
+    @Test public void testBasedIntegerLiteralErrors() {
+        diagnostic("return 0x;",1,8,"Hexadecimal integer literal requires at least one digit");
+        diagnostic("return 0x12g;",1,8,"Invalid hexadecimal integer literal '0x12g'");
+        diagnostic("return 0128;",1,8,"Invalid octal integer literal '0128'");
+        diagnostic("return 0x_ff;",1,8,"Invalid hexadecimal integer literal '0x_ff'");
+        diagnostic("return 09;",1,8,"Invalid octal integer literal '09'");
+        diagnostic("return 0x10000000000000000;",1,8,"Hexadecimal integer literal exceeds 64 bits");
+        diagnostic("return 02000000000000000000000;",1,8,"Octal integer literal exceeds 64 bits");
+        diagnostic("int 0xabc;",1,5,"Expected an identifier, found '0xabc'");
     }
 
     @Test public void testUnclosedCommentsAndStrings() {
@@ -121,6 +132,24 @@ public class ParserDiagnosticTest {
         var error=rejected("int x=1\nreturn x;");
         assertEquals("Test.smp:2:1: error: Syntax error, expected `;` but found `return`"
             +"\n    return x;\n    ^",error.diagnostic());
+    }
+
+    @Test public void testJUnitReportsSourceDiagnostic() {
+        var error=rejected("val dist=new i64[3]{int i -> i;}\ndist[0]=0;");
+        String expected="Test.smp:2:1: error: Syntax error, expected `;` but found `dist`"
+            +"\n    dist[0]=0;\n    ^"+System.lineSeparator();
+        var test=org.junit.runner.Description.createTestDescription(getClass(),"missingSemicolon");
+        assertEquals(expected,new org.junit.runner.notification.Failure(test,error).getTrace());
+
+        var bytes=new java.io.ByteArrayOutputStream();
+        error.printStackTrace(new java.io.PrintStream(bytes,true,StandardCharsets.UTF_8));
+        assertEquals(expected,bytes.toString(StandardCharsets.UTF_8));
+        assertEquals("Syntax error, expected `;` but found `dist`",error.getMessage());
+
+        // Compiler implementation failures must still include Java frames.
+        String trace=new org.junit.runner.notification.Failure(test,new IllegalStateException("compiler bug")).getTrace();
+        assertTrue(trace,trace.contains("java.lang.IllegalStateException: compiler bug"));
+        assertTrue(trace,trace.contains("ParserDiagnosticTest.testJUnitReportsSourceDiagnostic"));
     }
 
     @Test public void testEOF() {

@@ -461,6 +461,7 @@ return i;
         String src =
 """
 val test_sqrt = { flt x ->
+    if( x==0.0 ) return 0.0; // Avoid 0/0: unordered comparisons must stay false.
     flt epsilon = 1e-15;
     flt guess = x;
     while( 1 ) {
@@ -531,7 +532,8 @@ val sieve = { int N ->
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.runC(src, "sieve", sprimes,344);
+        // Load/Phi hoisting now requires the pointer before the loop entry.
+        TestC.runC(src, "sieve", sprimes,216);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.

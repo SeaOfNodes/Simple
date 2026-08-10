@@ -64,6 +64,10 @@ public class EscapeNode extends TypeNode {
 
     @Override
     public Type compute() {
+        // A static constant array has no private heap writes to publish.
+        // This depends on its type, regardless of which node produced it.
+        if( self()!=null && self()._type instanceof TypeMemPtr ptr &&
+            ptr.isConstant() && ptr._obj.isConAry() ) return pub()._type;
         if( priv()._type.isHigh() ) return TypeMem.TOP;
         if( pub ()._type.isHigh() ) return TypeMem.TOP;
         TypeMem mpriv = (TypeMem)priv()._type;
@@ -100,6 +104,8 @@ public class EscapeNode extends TypeNode {
     }
 
     @Override public Node idealize() {
+        if( self()._type instanceof TypeMemPtr ptr && ptr.isConstant() && ptr._obj.isConAry() )
+            return pub();
         // Sharpen private memory input
         if( priv() instanceof MemMergeNode mmm ) {
             setDef(2,mmm.alias(fld()._alias));

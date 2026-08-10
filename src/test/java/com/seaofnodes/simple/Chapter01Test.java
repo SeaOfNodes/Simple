@@ -41,13 +41,8 @@ public class Chapter01Test {
     }
 
     @Test
-    public void testBad2() {
-        try {
-            new CodeGen("return 0123;").parse();
-            fail();
-        } catch( RuntimeException e ) {
-            assertEquals("Syntax error: integer values cannot start with '0'",e.getMessage());
-        }
+    public void testOctal() {
+        assertEquals("return 83;",new CodeGen("return 0123;").parse().print());
     }
 
     @Test

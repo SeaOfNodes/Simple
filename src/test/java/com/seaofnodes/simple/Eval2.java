@@ -110,6 +110,7 @@ public abstract class Eval2 {
 
     // Class pointers and initializer self parameters share one object per run.
     private static final HashMap<String,Object[]> CLASSES = new HashMap<>();
+    private static final IdentityHashMap<TypeStruct,Object[]> ARRAYS = new IdentityHashMap<>();
 
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
@@ -122,6 +123,7 @@ public abstract class Eval2 {
         // selection. Objects loaded later are scheduled independently.
         code.driver(CodeGen.Phase.LocalSched);
         CLASSES.clear();
+        ARRAYS.clear();
 
         // Timer for when we run too long.  Ticks once per backedge or function call
         int loopCnt = 0;
@@ -334,6 +336,8 @@ public abstract class Eval2 {
         case RoundF32Node rnd  -> (double)(float)d(rnd.in(1));
         case ToIntegerNode cvt -> (long)d(cvt.in(1));
         case ToFloatNode  toflt-> (double)x(toflt.in(1));
+        case Intrinsic.F64BitsNode cast -> Double.doubleToRawLongBits(d(cast.in(1)));
+        case Intrinsic.F64FromBitsNode cast -> Double.longBitsToDouble(x(cast.in(1)));
         case XorNode      xor  -> x(xor.in(1)) ^  x(xor.in(2));
         default -> throw Utils.TODO();
         };
@@ -361,9 +365,12 @@ public abstract class Eval2 {
             if( tmp._obj.isAry() ) { // Constant array ptr
                 Type elem = tmp._obj.field("[]")._t;
                 if( elem instanceof TypeConAry con ) {
+                    Object[] old=ARRAYS.get(tmp._obj);
+                    if( old!=null ) yield old;
                     Object[] xs = new Object[con.len()];
                     for( int i=0; i<con.len(); i++ )
                         xs[i] = con.at8(i);
+                    ARRAYS.put(tmp._obj,xs);
                     yield xs;
                 } else {
                     // Generic constant array, used as a default input to a
@@ -388,7 +395,7 @@ public abstract class Eval2 {
             TypeMem mem = (TypeMem)con._type;
             Object val = con(mem._t);
             TypeMemPtr tmp = (TypeMemPtr)esc.self()._type;
-            int idx = tmp._obj.findAlias(esc.fld()._alias);
+            int idx = layout(tmp._obj).findAlias(esc.fld()._alias);
             Object[] fs = (Object[])val(esc.self());
             if( tmp._obj.isAry() ) {
                 assert idx==0; // length field
@@ -443,8 +450,18 @@ public abstract class Eval2 {
 
     private static Object[] classObject(TypeStruct type) {
         Object[] ptr = CLASSES.get(type._name);
-        if( ptr==null ) CLASSES.put(type._name,ptr=alloc(type));
+        if( ptr==null ) CLASSES.put(type._name,ptr=alloc(layout(type)));
         return ptr;
+    }
+
+    // Imported pointer views may retain parsing-only forward-reference fields.
+    // Like native field offsets, evaluator slots use the module's final layout.
+    private static TypeStruct layout(TypeStruct type) {
+        if( TypeStruct.startsClzPrefix(type._name) ) {
+            CompUnit cu=CODE._compunits.get(type._name.substring(6).replace('.','/'));
+            if( cu!=null ) return cu._clz;
+        }
+        return type;
     }
 
     private static Object not( NotNode not ) {
@@ -465,7 +482,7 @@ public abstract class Eval2 {
         TypeMemPtr tmp = (TypeMemPtr)ld.ptr()._type;
         int idx = tmp._obj.isAry()
             ? offToIdx(x(ld.off()),tmp._obj)
-            : tmp._obj.find(ld._name);
+            : layout(tmp._obj).find(ld._name);
         return fs[idx];
     }
 
@@ -476,7 +493,7 @@ public abstract class Eval2 {
         Object[] fs = (Object[])val(st.ptr());
         int idx = tmp._obj.isAry()
             ? offToIdx(x(st.off()),tmp._obj)
-            : tmp._obj.find(st._name);
+            : layout(tmp._obj).find(st._name);
         Object val = val(st.val());
         // Idealization can remove conversions already performed by the store.
         Type type = st.declaredType();

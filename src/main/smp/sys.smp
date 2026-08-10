@@ -2,12 +2,18 @@
 // top-level default standard library import
 
 val adt = adt;                  // Abstract Data Types
+val audio = audio;              // Optional background sound (miniaudio)
 val ary = ary;                  // Array utilities
 val aryi64 = aryi64;            // Variable sized array of i64
 val aryu8 = aryu8;              // Variable sized array of u8
 val char = char;                // Character utilities
+val integer = integer;          // Integer bounds
+val math = math;                // Floating-point representation primitives
 val io = io;                    // IO library
+val gfx = gfx;                  // Optional pixel window (MiniFB)
+val draw = draw;                // Software raster drawing in Simple
 val text = text;                // Typed text conversions
+val time = time;                // Clocks, calendar text, and cooperative timers
 val libc = libc;                // libc FFI bindings
 val rt = rt;                    // Run Time support
 val scan = scan;                // A simple string parser

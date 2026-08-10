@@ -21,6 +21,7 @@ public class Parser {
     final Functions functions = new Functions(this);
     final Structs structs = new Structs(this);
     final Allocations allocations = new Allocations(this);
+    final ArrayInitializers arrays = new ArrayInitializers(this);
     final References references = new References(this);
     final Conversions conversions = new Conversions(this);
     final Construction construction = new Construction(this);
@@ -120,6 +121,11 @@ public class Parser {
         public final Lexer _loc;
         ParseException( String msg, Lexer loc ) { super(msg); _loc = loc==null ? null : new Lexer(loc); }
         public String diagnostic() { return _loc==null ? getMessage() : _loc.diagnostic(getMessage()); }
+        // JUnit and uncaught-exception reporters use these entry points rather
+        // than the CLI's diagnostic(). Source errors should retain their source
+        // excerpt and caret there too. getMessage() stays stable for callers.
+        @Override public void printStackTrace(java.io.PrintStream out) { out.println(diagnostic()); }
+        @Override public void printStackTrace(java.io.PrintWriter out) { out.println(diagnostic()); }
     }
 
     public Parser(CodeGen code ) {

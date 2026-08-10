@@ -1,0 +1,293 @@
+// Clear 24 x 8 bricks. Arrows or mouse move; Space/click serves; P pauses;
+// R restarts; Q/Escape exits. Any argument runs ten frames as a smoke test.
+int WIDTH = 1008, HEIGHT = 760, COLS = 24, ROWS = 8;
+int LEFT = 24, RIGHT = 984, TOP = 84, BOTTOM = 718;
+int BRICK_TOP = 152, BRICK_DX = 40, BRICK_DY = 22, BRICK_W = 36, BRICK_H = 18;
+int RADIUS = 5, PADDLE_HALF = 56, PADDLE_Y = 674;
+int READY = 0, PLAY = 1, WON = 2, LOST = 3;
+int KEY_LEFT = 263, KEY_RIGHT = 262; // MiniFB key codes; gfx.LEFT is a mouse button.
+i64 STEP_ms = 8, FRAME_ms = 16;
+u32 BACKGROUND = 0x0b1220, WHITE = 0xeef7ff, MUTED = 0x8aabc4, CYAN = 0x4ce0ef;
+val COLORS = new u32[~]{0xff5268,0xff8050,0xffb548,0xffdb58,
+                        0x9bdd58,0x45d8b0,0x49b9f5,0x8d94ff};
+val DIGITS = new u8[~][~]{"0","1","2","3","4","5","6","7","8","9"};
+
+struct Game {
+    u8[] bricks = new u8[COLS*ROWS]{int i -> 1;};
+    int score = 0, remaining = COLS*ROWS, lives = 3, depth = 1, phase = READY;
+    bool boosted = false, backWall = false, paused = false;
+    f64 x = 504.0, y = 663.0, dx = 0.4, dy = -0.916515138991168;
+    int soundDepth = 1;
+
+    // Serve the ball; give it a nominal direction and speed
+    val _serve = { ->
+        if( phase == READY && !paused ) {
+            phase = PLAY;
+            dx = 0.4;
+            dy = -_sqrt(1.0-dx*dx);
+        }
+        return 0;
+    };
+
+    // Several sound things might happen in this event, pick one
+    int sound = 0; // Increasing priority: wall, paddle, brick, boost, miss, win.
+    val _cue = { int snd -> if( snd > sound ) sound = snd; };
+
+    // Ball speed is a fraction of deepest brick hit, plus backwall boost
+    f64 speed;
+    val _speed = { -> speed = (320.0+35.0*(depth-1))*(boosted ? 1.65 : 1.0); };
+
+    // Clamp paddle to wall sides
+    f64 paddle;
+    val _paddle = { f64 x ->
+        paddle = x < LEFT +PADDLE_HALF ? LEFT +PADDLE_HALF :
+                 x > RIGHT-PADDLE_HALF ? RIGHT+PADDLE_HALF :
+                 x;
+    };
+
+
+    // Hit the paddle
+    val _rebound = { ->
+        // Where along the paddle did you hit?
+        f64 offset = (x-paddle)/PADDLE_HALF;
+        if( offset < -1.0 ) offset = -1.0;
+        if( offset >  1.0 ) offset =  1.0;
+        dx = 0.88*offset;
+        // A near-center hit still drifts sideways instead of repeating forever.
+        if( -0.12 < dx < 0.12 ) dx = dx < 0.0 ? -0.12 : 0.12;
+        dy = -_sqrt(1.0-dx*dx); // Bounce upwards speed
+        y = PADDLE_Y-RADIUS;    // Reset ball hit to top of paddle
+        backWall = false;       // Did not hit back wall
+        _cue(2);                // Paddle bounce sound
+    };
+
+    // Hit a brick?
+    val _brick = { int index, bool back ->
+        if( bricks[index] == 0 ) return 0; // No brick to hit!
+        bricks[index] = 0;                 // Clear brick
+        int row = ROWS-index/COLS;         // Get brick row
+        score += row;                      // Score by row
+        remaining--;                       // Fewer bricks to iwn
+        if( row > depth ) depth = row;     // Max depth seen
+        // Brick-hit sound
+        if( sound <= 3 ) { soundDepth = row; _cue(3); }
+        if( back && backWall && !boosted ) { boosted = true;  _cue(4); }
+        if( remaining == 0 ) { phase = WON; _cue(6); }
+        _speed();
+        return 0;
+    };
+
+    // Reset for another round
+    val _reset = { ->
+        for( int i = 0; i < bricks#; i++ ) bricks[i] = 1;
+        score = 0;
+        remaining = COLS*ROWS;
+        lives = 3;
+        depth = 1;
+        phase = READY;
+        boosted = false;
+        backWall = false;
+        paused = false;
+        sound = 0;
+        paddle = 504.0;
+        x = paddle;
+        y = PADDLE_Y-RADIUS-6;
+        _speed();
+    };
+};
+
+// Fixed 8 ms simulation, split further to travel at most two pixels per step.
+// Even at maximum boosted speed a ball cannot tunnel through an 18 px brick.
+val _tick = { !Game g, int direction ->
+    if( g.paused || g.phase == WON || g.phase == LOST ) return 0;
+    g._paddle(g.paddle+direction*6.4);
+    if( g.phase == READY ) { g.x = g.paddle; g.y = PADDLE_Y-RADIUS-6; return 0; }
+    f64 seconds = 0.008;
+    while( seconds > 0.000000001 && g.phase == PLAY ) {
+        f64 dt = 2.0/g.speed;
+        if( dt > seconds ) dt = seconds;
+        seconds -= dt;
+        f64 oldX = g.x, oldY = g.y;
+        g.x += g.dx*g.speed*dt;
+        g.y += g.dy*g.speed*dt;
+        if( g.x < LEFT+RADIUS && g.dx < 0.0 ) {
+            g.x = 2.0*(LEFT+RADIUS)-g.x; g.dx = -g.dx; g._cue(1);
+        }
+        if( g.x > RIGHT-RADIUS && g.dx > 0.0 ) {
+            g.x = 2.0*(RIGHT-RADIUS)-g.x; g.dx = -g.dx; g._cue(1);
+        }
+        if( g.y < TOP+RADIUS && g.dy < 0.0 ) {
+            g.y = 2.0*(TOP+RADIUS)-g.y; g.dy = -g.dy;
+            g.backWall = true; g._cue(1);
+        }
+        if( g.dy > 0.0 && oldY <= PADDLE_Y-RADIUS && g.y >= PADDLE_Y-RADIUS &&
+            g.paddle-PADDLE_HALF-RADIUS <= g.x <= g.paddle+PADDLE_HALF+RADIUS ) g._rebound();
+        if( g.y > BOTTOM+RADIUS ) {
+            g.lives--;
+            g.phase = g.lives == 0 ? LOST : READY;
+            g.backWall = false;
+            g.depth = 1;
+            g.boosted = false;
+            g._speed();
+            g.x = g.paddle; g.y = PADDLE_Y-RADIUS-6;
+            g._cue(5);
+            break;
+        }
+        for( int i = 0; i < g.bricks#; i++ ) {
+            if( g.bricks[i] == 0 ) continue;
+            f64 left = LEFT+2+(i-i/COLS*COLS)*BRICK_DX-RADIUS;
+            f64 top = BRICK_TOP+(i/COLS)*BRICK_DY-RADIUS;
+            f64 right = left+BRICK_W+2*RADIUS, bottom = top+BRICK_H+2*RADIUS;
+            if( left < g.x < right && top < g.y < bottom ) {
+                bool back = false;
+                // Resolve the face crossed this step, using the previous center.
+                // Vertical faces win a simultaneous corner contact.
+                if( oldY <= top && g.dy > 0.0 ) {
+                    g.y = top; g.dy = -g.dy; back = true;
+                } else if( oldY >= bottom && g.dy < 0.0 ) {
+                    g.y = bottom; g.dy = -g.dy;
+                } else if( oldX <= left && g.dx > 0.0 ) {
+                    g.x = left; g.dx = -g.dx;
+                } else if( oldX >= right && g.dx < 0.0 ) {
+                    g.x = right; g.dx = -g.dx;
+                } else continue;
+                g._brick(i,back);
+                break;
+            }
+        }
+    }
+    return 0;
+};
+
+// Fixed-width decimal labels avoid allocating new strings on every frame.
+val _number = { !sys.draw.Canvas c, i64 x, i64 y, int value, int digits, int scale, u32 color ->
+    for( int i = 0; i < digits; i++ ) {
+        c.text(x+(digits-1-i)*4*scale,y,DIGITS[value-value/10*10],scale,color);
+        value /= 10;
+    }
+};
+val _hud = { !sys.draw.Canvas c, Game g ->
+    c.text(24,22,"BREAKOUT",5,WHITE);
+    c.text(264,20,"SCORE",2,MUTED);
+    _number(c,264,40,g.score,3,4,WHITE);
+    c.text(424,20,"BRICKS",2,MUTED);
+    _number(c,424,40,g.remaining,3,4,WHITE);
+    c.text(584,20,"BALLS",2,MUTED);
+    for( int i = 0; i < g.lives; i++ ) c.fillCircle(590+23*i,50,5,CYAN);
+    c.text(714,20,"SPEED",2,MUTED);
+    int speed = g.speed;
+    _number(c,714,40,speed,3,4,g.boosted ? COLORS[0] : WHITE);
+    c.text(838,40,g.boosted ? "BOOST!" : "NORMAL",3,g.boosted ? COLORS[0] : MUTED);
+};
+val _bricks = { !sys.draw.Canvas c, Game g ->
+    c.fillRect(LEFT-4,TOP-4,RIGHT-LEFT+8,4,MUTED);
+    c.fillRect(LEFT-4,TOP,4,BOTTOM-TOP,0x29435a);
+    c.fillRect(RIGHT,TOP,4,BOTTOM-TOP,0x29435a);
+    c.text(376,108,g.boosted ? "BACK WALL BOOST ACTIVE" : "BREAK THROUGH FOR A BOOST",2,g.boosted ? COLORS[0] : MUTED);
+    for( int i = 0; i < g.bricks#; i++ ) {
+        if( g.bricks[i] == 0 ) continue;
+        int row = i/COLS;
+        i64 x = LEFT+2+(i-row*COLS)*BRICK_DX, y = BRICK_TOP+row*BRICK_DY;
+        c.fillRect(x,y,BRICK_W,BRICK_H,COLORS[row]);
+        c.fillRect(x,y,BRICK_W,2,WHITE);
+    }
+};
+val _overlay = { !sys.draw.Canvas c, Game g ->
+    if( g.phase != PLAY || g.paused ) {
+        c.fillRect(246,422,516,108,0x17263a).rect(246,422,516,108,2,0x29435a);
+        u8[~] title = g.paused ? "PAUSED" : g.phase == WON ? "WALL CLEARED!" : g.phase == LOST ? "GAME OVER" : "READY?";
+        c.text(504-(title#*4-1)*4/2,442,title,4,WHITE);
+        u8[~] help = g.paused ? "P TO CONTINUE" : g.phase == WON || g.phase == LOST ? "R TO PLAY AGAIN" : "SPACE OR CLICK TO SERVE";
+        c.text(504-(help#*4-1)*2/2,490,help,2,CYAN);
+    }
+    return 0;
+};
+val _draw = { !sys.draw.Canvas c, Game g ->
+    c.clear(BACKGROUND);
+    _hud(c,g);
+    _bricks(c,g);
+    i64 paddle = g.paddle, ballX = g.x, ballY = g.y;
+    int glowRadius = RADIUS+3;
+    c.fillRect(paddle-PADDLE_HALF,PADDLE_Y,2*PADDLE_HALF,12,CYAN);
+    c.fillRect(paddle-PADDLE_HALF+4,PADDLE_Y+2,2*PADDLE_HALF-8,2,WHITE);
+    c.fillCircle(ballX,ballY,glowRadius,g.boosted ? 0x672a42 : 0x224b61);
+    c.fillCircle(ballX,ballY,RADIUS,g.boosted ? COLORS[0] : WHITE);
+    _overlay(c,g);
+    c.text(24,738,"ARROWS / MOUSE: MOVE   SPACE / CLICK: SERVE   P: PAUSE   R: RESTART   Q / ESC: QUIT",2,MUTED);
+};
+
+// Short, fading triangle waves; the array initializer builds PCM once at startup.
+val _tone = { int period ->
+    val samples = new i16[~2400]{int i ->
+        int phase = i-i/period*period;
+        int triangle = phase < period/2 ? phase : period-phase;
+        return (triangle*4-period)*6000/period*(2400-i)/2400;
+    };
+    int handle = sys.audio.load(samples);
+    return handle < 0 ? sys.audio.BOOP : handle;
+};
+struct Controls {
+    bool serveHeld = false, pauseHeld = false, restartHeld = false;
+    int lastMouse = 504;
+};
+val _input = { !Game g, !Controls keys ->
+    val gfx = sys.gfx;
+    bool serve = gfx.key(' ') || gfx.button(gfx.LEFT);
+    bool pause = gfx.key('P'), restart = gfx.key('R');
+    if( restart && !keys.restartHeld ) { g._reset(); sys.audio.stop(); }
+    if( pause && !keys.pauseHeld && (g.phase == READY || g.phase == PLAY) ) g.paused = !g.paused;
+    int direction = (gfx.key(KEY_RIGHT) ? 1 : 0)-(gfx.key(KEY_LEFT) ? 1 : 0);
+    int mouse = gfx.mouseX();
+    if( mouse != keys.lastMouse && direction == 0 && !g.paused && (g.phase == READY || g.phase == PLAY) ) {
+        g._paddle(mouse*1.0);
+        if( g.phase == READY ) g.x = g.paddle;
+    }
+    keys.lastMouse = mouse;
+    if( serve && !keys.serveHeld ) g._serve();
+    keys.serveHeld = serve; keys.pauseHeld = pause; keys.restartHeld = restart;
+    return direction;
+};
+
+// Fast low accuracy sqrt
+val _sqrt = { f64 n ->
+    f64 r = 1.0;
+    for( int i = 0; i < 8; i++ ) r = (r+n/r)*0.5;
+    return r;
+};
+
+val main = { u8[~][] args ->
+    val gfx = sys.gfx, audio = sys.audio, time = sys.time;
+    val c = new sys.draw.Canvas(WIDTH,HEIGHT);
+    val g = new Game;
+    if( gfx.open("Simple Breakout",c.width,c.height) != gfx.OK ) return 1;
+    audio.open(); // Optional: a missing audio backend leaves play silent.
+    val sounds = new int[~]{0,_tone(120),_tone(80),audio.BOOP,audio.WIN,audio.LOSE,audio.WIN};
+    // Bottom to top: roughly 333..800 Hz, below the old 1000 Hz brick tone.
+    val brickSounds = new int[~ROWS]{int i -> int period = 144-i*12; _tone(period);};
+    val keys = new Controls;
+    keys.lastMouse = gfx.mouseX();
+    int frames = 0, status = gfx.OK;
+    i64 last_ms = time.monotonic(), pending_ms = 0, frame_ms = last_ms;
+    while( status == gfx.OK ) {
+        if( gfx.key('Q') || gfx.key(gfx.ESCAPE) ) break;
+        int direction = _input(g,keys);
+        i64 now_ms = time.monotonic(), elapsed_ms = now_ms-last_ms;
+        last_ms = now_ms;
+        // Drop long stalls instead of teleporting the ball after a window drag.
+        pending_ms += elapsed_ms < 0 ? 0 : elapsed_ms > 64 ? 64 : elapsed_ms;
+        while( pending_ms >= STEP_ms ) { _tick(g,direction); pending_ms -= STEP_ms; }
+        if( g.sound != 0 ) {
+            audio.play(g.sound == 3 ? brickSounds[g.soundDepth-1] : sounds[g.sound]);
+            g.sound = 0;
+        }
+        if( now_ms >= frame_ms ) {
+            _draw(c,g);
+            status = gfx.present(c.pixels);
+            frame_ms = now_ms+FRAME_ms;
+            if( args# > 1 && ++frames == 10 ) break;
+        }
+        if( status == gfx.OK ) status = gfx.wait(STEP_ms-pending_ms);
+    }
+    audio.close(); gfx.close();
+    return status == gfx.ERROR ? 1 : 0;
+};

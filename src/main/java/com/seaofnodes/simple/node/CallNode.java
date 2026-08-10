@@ -97,6 +97,7 @@ public class CallNode extends CFGNode {
         if( _type!=Type.CONTROL ) return TypeMem.BOT;
         if( !(fptr()._type instanceof TypeFunPtr) )
             return fptr()._type.isHigh() ? TypeMem.START : TypeMem.BOT;
+        if( Intrinsic.pure(this) ) return TypeMem.START;
         if( !external() ) return TypeMem.START;
         Type input = dep.addDepForwards(mem())._type;
         TypeMem escaped = input instanceof TypeMem m ? m : input.isHigh() ? TypeMem.TOP : TypeMem.BOT;
@@ -241,6 +242,8 @@ public class CallNode extends CFGNode {
             return Parser.error("Expected a function, but found " + fptr()._type, _loc);
         if( !tfp.notNull() )
             return Parser.error( "Might be null calling "+tfp, _loc);
+        Parser.ParseException intrinsic=Intrinsic.err(this);
+        if( intrinsic!=null ) return intrinsic;
         if( nargs() != tfp.nargs() )
             return Parser.error( "Expecting "+(tfp.nargs()-1)+" arguments, but found "+(nargs()-1), _loc);
 

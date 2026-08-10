@@ -1,18 +1,20 @@
 // Native startup support, compiled independently and linked with the CRT.
 // Raw native addresses stay i64; only the arrays allocated here are Simple objects.
+// This startup object is built without sys imports.
+u32 _MAX_U32 = (1<<32)-1;
 { i64 i64 -> i64 } simple_argv = "C";
 { i64 -> i64 } strlen = "C";
 { i64 i64 i64 -> i64 } memcpy = "C";
 
 val simple_args = { i64 argc, i64 argv ->
-    if( argc < 0 || argc > 4294967295 ) return null;
+    if( argc < 0 || argc > _MAX_U32 ) return null;
     // Zero-filled reference arrays require nullable elements. Every slot is
     // filled before returning; the native entry bridge publishes u8[~][].
     val args = new u8[~]?[argc];
-    for( i64 i=0; i<argc; i++ ) {
+    for( i64 i = 0; i < argc; i++ ) {
         i64 src = simple_argv(argv,i);
         i64 len = strlen(src);
-        if( len < 0 || len > 4294967295 ) return null;
+        if( len < 0 || len > _MAX_U32 ) return null;
         val bytes = new u8[len];
         i64 dst = bytes;
         memcpy(dst,src,len);

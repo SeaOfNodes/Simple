@@ -128,6 +128,10 @@ public class StringFormatTest extends TestC {
 
     @Test public void testWrongTypesAndReservedNames() {
         rejects("return \"%d(1.5)\";", "must be a");
+        rejects("return \"%t(1.5)\";", "must be a");
+        rejects("return \"%tQ(0)\";", "Expected a time format");
+        rejects("return \"%.2t(0)\";", "Precision is not supported");
+        rejects("return \"%+t(0)\";", "Invalid flags");
         rejects("return \"%s(17)\";", "must be a");
         rejects("return \"%(null)\";", "Cannot format");
         rejects("val f={int int -> int;}; return 0;", "Expected an identifier");

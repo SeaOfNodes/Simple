@@ -87,6 +87,18 @@ public class x86_64_v2 extends Machine {
         default -> throw new IllegalArgumentException("Too many arguments");
         };
     }
+    static int jumpop(String op, boolean unsigned) {
+        if( !unsigned ) return jumpop(op);
+        return switch( op ) {
+            case "==" -> 0x84;
+            case "!=" -> 0x85;
+            case "<"  -> 0x82;
+            case "<=" -> 0x86;
+            case ">"  -> 0x87;
+            case ">=" -> 0x83;
+            default -> throw new IllegalArgumentException(op);
+        };
+    }
 
     // Limit of float args passed in registers
     static RegMask[] XMMS8 = new RegMask[]{
@@ -282,6 +294,7 @@ public class x86_64_v2 extends Machine {
     public Node instSelect(Node n) {
         return switch (n) {
         case AddNode      add -> add(add);
+        case Intrinsic.BitCastNode cast -> new BitCastX86(cast);
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CLInitNode  init -> new CLInitNode(init);
@@ -298,10 +311,7 @@ public class x86_64_v2 extends Machine {
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
-        case MinusNode    neg -> {
-            if( neg.mode()==2 ) throw Utils.TODO();
-            yield new NegX86(neg);
-        }
+        case MinusNode    neg -> neg.mode()==2 ? new NegFX86(neg) : new NegX86(neg);
         case MulNode      mul -> mul.mode()==2 ? new MulFX86(mul) : mul(mul);
         case NewNode      nnn -> new NewX86(nnn);
         case NotNode      not -> new NotX86(not);
@@ -370,8 +380,9 @@ public class x86_64_v2 extends Machine {
 
     private Node _lea(Node add, Node base, Node idx, int off) {
         int scale = 0;
-        if( base instanceof ShlNode && !(idx instanceof ShlNode) )
-            throw Utils.TODO(); // Bug in canonicalization, should on RHS
+        if( base instanceof ShlNode && !(idx instanceof ShlNode) ) {
+            Node tmp = base; base = idx; idx = tmp;
+        }
         if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
             shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
             idx = shift.in(1);

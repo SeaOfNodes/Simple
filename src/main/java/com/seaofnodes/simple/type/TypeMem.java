@@ -211,14 +211,19 @@ public class TypeMem extends Type {
                    + (!_one     ? 0 : (_clz ? 4 : 8)));
         if( _alias!=1 ) {
             // generic alias
-            assert _alias <= 255;
-            baos.packed1( _alias );
+            // Zero is reserved for alias-set flags, never a memory slice.
+            // Use it as an escape for large libraries, retaining the existing
+            // single-byte encoding (including 255) for older objects.
+            assert _alias>1;
+            baos.packed1(_alias<=255 ? _alias : 0);
+            if( _alias>255 ) baos.packed4(_alias);
         }
         XInt.packed(baos,_escFs);
         XInt.packed(baos,_escAs);
     }
     static TypeMem packed( int tag, BAOS bais ) {
         int alias = (tag&1)==0 ? 1 : bais.packed1();
+        if( alias==0 ) alias=bais.packed4();
         boolean xfinal= (tag&2)==2;
         boolean one   = (tag&12)!=0;
         boolean clz   = (tag&4)==4;
