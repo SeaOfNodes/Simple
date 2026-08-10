@@ -68,9 +68,9 @@ abstract public class IFG {
         // Reset all to empty
         resetBBLiveOut();
         resetIFG();
+        WORK.clear();
 
         // Last block has nothing live out
-        assert WORK.isEmpty();
         for( CFGNode bb : alloc._code._cfg )
             if( bb.blockHead())
                 WORK.push( bb );
@@ -207,18 +207,11 @@ abstract public class IFG {
             assert tlrg.leader();
             // Always, tlrg cannot use kills
             if( tlrg._mask.overlap(killMask) ) {
-                // Disallow clone-ables from killing registers.  Just fail
-                // them and re-clone closer to target... so no kill.
-                // Special case for Intel XOR used to zero.
-                Node n = (Node)m;
-                CFGNode effUseBlk = n.out(0) instanceof PhiNode phi ? phi.region().cfg(phi._inputs.find(n)) : n.out(0).cfg0();
-                if( m.isClone() &&  // Must be clonable
-                    (n.nOuts()>1 || // Has many users OR
-                     // Only 1 user but effective use is remote block
-                     effUseBlk != n.cfg0() ))
-                    // Then fail the clonable; it should split or move
-                    alloc.fail(alloc.lrg((Node)m));
-                // Else clonable cannot move
+                Node live = TMP.get(tlrg);
+                // Disallow clone-ables from living across killed registers.
+                // Fail them and let splitting re-clone closer to the target use.
+                if( live instanceof MachNode mach && mach.isClone() )
+                    alloc.fail(tlrg);
                 else if( !tlrg.sub(killMask) )
                     alloc.fail(tlrg);
             }
@@ -326,7 +319,7 @@ abstract public class IFG {
         // Pull all lrgs from IFG, in trivial order if possible
         while( sptr < color_stack.length ) {
             // Swap best color up front
-            pickColor(color_stack,sptr,swork);
+            pickColor(color_stack,sptr,swork,alloc);
 
             // Pick a trivial lrg, and (temporarily) remove from the IFG.
             LRG lrg = color_stack[sptr++];
@@ -382,10 +375,10 @@ abstract public class IFG {
     }
 
     // Pick LRG from color stack
-    private static void pickColor(LRG[] color_stack, int sptr, int swork) {
+    private static void pickColor(LRG[] color_stack, int sptr, int swork, RegAlloc alloc) {
         // Out of trivial colorable, pick an at-risk to pull
         if( sptr==swork )
-            swap(color_stack,sptr,pickRisky(color_stack,sptr));
+            swap(color_stack,sptr,pickRisky(color_stack,sptr,alloc));
         // When coloring, we'd like to give more choices; so when coloring we'd
         // like to see the single-def first (since no choices anyway), then
         // non-split related (so more live ranges get colored), then
@@ -402,6 +395,7 @@ abstract public class IFG {
             swap(color_stack,sptr,bidx); // Pick best at sptr
     }
 
+    // Returns true if 'lrg' is better than 'best'
     private static boolean betterLRG( LRG best, LRG lrg ) {
         // If single-def varies, keep the not-single-def
         if( best.size1() != lrg.size1() )
@@ -409,18 +403,22 @@ abstract public class IFG {
         // If hasSplit varies, keep the hasSplit
         if( best.hasSplit() != lrg.hasSplit() )
             return lrg.hasSplit();
+        // If both are single register (so both sizes are 1),
+        // return a multi-use over a multi-def
+        if( best.size1() )
+            return !best._multiUse && lrg._multiUse;
         // Keep large register count
         return best.size() < lrg.size();
     }
 
     // Pick a live range that hasn't already spilled, or has a single-def-
     // single-use that are not adjacent.
-    private static int pickRisky( LRG[] color_stack, int sptr ) {
+    private static int pickRisky( LRG[] color_stack, int sptr, RegAlloc alloc ) {
         int best=sptr;
-        int bestScore = pickRiskyScore(color_stack[best]);
+        int bestScore = pickRiskyScore(color_stack[best],alloc);
         for( int i=sptr+1; i<color_stack.length; i++ ) {
             if( bestScore == 1000000 ) return best; // Already max score
-            int iScore = pickRiskyScore(color_stack[i]);
+            int iScore = pickRiskyScore(color_stack[i],alloc);
             if( iScore > bestScore )
                 { best = i; bestScore = iScore; }
         }
@@ -435,30 +433,53 @@ abstract public class IFG {
     //
     // Picking a live range that is very close to coloring might allow it to
     // color despite being risky.
-    private static int pickRiskyScore( LRG lrg ) {
+    private static int pickRiskyScore( LRG lrg, RegAlloc alloc ) {
+        // Callee-save live ranges cover the whole function and are cheap to
+        // split.  Rank scheduled area recovered against the loop-scaled cost
+        // of the def- and use-side moves.
+        if( lrg._machDef instanceof CalleeSaveNode )
+            return areaScore(functionArea(lrg._fun,alloc),
+                             splitCost((Node)lrg._machDef,(Node)lrg._machUse));
+        if( lrg._splitDef != null && lrg._splitDef. in(1) instanceof CalleeSaveNode &&
+            lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
+            return areaScore(functionArea(lrg._fun,alloc),
+                             splitCost(lrg._splitDef,lrg._splitUse));
+
         // Pick single-def clonables that are not right next to their single-use.
-        // Failing to color these will clone them closer to their uses.
-        if( !lrg._multiDef && lrg._machDef.isClone() ) {
+        // Rank by the area recovered by cloning closer to the use.
+        if( !lrg._multiDef && lrg._machDef.isClone() && lrg._machUse != null ) {
             Node def = ((Node)lrg._machDef);
             Node use = ((Node)lrg._machUse);
             CFGNode cfg = def.cfg0();
-            if( cfg != use.cfg0() || // Different blocks OR
-              // Same block, but not close
-              cfg._outputs.find(def) < cfg._outputs.find(use)+1 )
-                return 1000000;
+            int area = cfg != use.cfg0()
+                ? functionArea(lrg._fun,alloc)
+                : cfg._outputs.find(use)-cfg._outputs.find(def)-1;
+            if( area > 0 )
+                return areaScore(area,loopCost(use));
         }
 
-        // Always pick callee-save registers as being very large area recovered
-        // and very cheap to spill.
-        if( lrg._machDef instanceof CalleeSaveNode )
-            return 1000000-2-lrg._mask.firstReg();
-        if( lrg._splitDef != null && lrg._splitDef. in(1) instanceof CalleeSaveNode &&
-            lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
-            return 1000000-1;
+        // Default for ranges without a specific area/cost estimate.
+        return 1000 + (lrg._multiUse ? -100 : 0);
+    }
 
-        // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
-        // and "area" for benefit
-        return 1000;
+    private static int functionArea(FunNode fun, RegAlloc alloc) {
+        int area=0;
+        for( CFGNode bb : alloc._code._cfg )
+            if( bb.fun()==fun )
+                area += bb.nOuts();
+        return area;
+    }
+
+    private static int areaScore(int area, int cost) {
+        return 1000 + (area<<10)/cost;
+    }
+
+    private static int splitCost(Node def, Node use) {
+        return loopCost(def) + (use==null ? 0 : loopCost(use));
+    }
+
+    private static int loopCost(Node n) {
+        return 1 << (n.cfg0().loopDepth()*3);
     }
 
     private static short biasColor( RegAlloc alloc, LRG lrg, short reg, RegMask mask ) {

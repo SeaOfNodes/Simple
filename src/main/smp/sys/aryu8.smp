@@ -1,0 +1,87 @@
+
+// Ary/Vector of u8s - a resizable array of bytes.
+struct aryu8 {
+    u32 !len = 0;
+    u8[] !buf;
+
+    new aryu8 = { -> buf = new u8[1]; };
+
+    // Grow as needed
+    val _grow = { int len2 ->
+        if( len+len2 < buf# ) return self;
+        int newlen = buf# * 2;
+        while( len+len2 >= newlen ) newlen *= 2;
+        u8[] !buf2 = new u8[newlen];
+        ary.copy(buf2,0,buf,0,buf#);
+        buf = buf2;
+        self;
+    };
+
+    val clear = { -> len = 0; self; };
+
+    // Add a character to aryu8
+    val add = { u8 c ->
+        _grow(1).buf[len++] = c;
+        self;
+    };
+
+    // Add all of a plain array to the aryu8
+    val addAry = { u8[~] xs ->
+        _grow(xs#);
+        ary.copy(buf,len,xs,0,xs#);
+        len += xs#;
+        self;
+    };
+
+    // Remove x bytes from the tail.
+    val undo = { int x ->
+        len = len >= x ? len-x : 0;
+        self;
+    };
+
+    // Print ASCII number into aryu8
+    val num = { i64 x ->
+        if( !x ) { add('0'); return self; }
+        if( x < 0 ) { add('-'); x = -x; }
+        i64 ten = 1, log = 0;
+        while( ten <= x ) { ten *= 10; log++; }
+        for( int i=0; i<log; i++ ) {
+            ten /= 10;
+            i64 q = x/ten;
+            u8 digit = q+'0';
+            add(digit);
+            x -= q*ten;
+        }
+        self;
+    };
+
+    // Write to fd, returns the number of bytes written (len).
+    val write = { i32 fd ->
+        i64 ptr = buf; // Cast buffer pointer to i64 for native C call
+        libc.write(fd,ptr,len);
+    };
+};
+
+
+// Parse one integer, ignore trailing data; returns 0 with an empty string.
+// If you want a more robust parsing, use the `scan` class
+val atoi = { u8[~] str ->
+    int x = 0;
+    while( x < str# && str[x] <= ' ' ) x++;
+    if( x == str# ) return 0;
+    bool neg = false;
+    if( str[x]=='-' ) { neg=true; x++; }
+    i64 n = 0;
+    while( x < str# && '0' <= str[x] <= '9' )
+        n = n*10 + str[x++]-'0';
+    return neg ? -n : n;
+};
+
+// Zero-terminate string for libc strings.  No error checking, just copies and
+// appends a zero.
+{ u8[~] -> u8[] } str0 = { u8[~] str ->
+  u8[] !strz = new u8[str#+1];
+  ary.copy(strz,0,str,0,str#);
+  strz[str#] = '\0';
+  strz;
+};

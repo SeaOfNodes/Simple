@@ -17,7 +17,7 @@ while(arg < 10) {
 }
 return arg;
 """);
-        code.parse();
+        code.parse().opto();
         assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
@@ -106,7 +106,7 @@ while(a < 10) {
 }
 return a;
 """);
-        code.parse();
+        code.parse().opto();
         assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
@@ -164,7 +164,7 @@ while(a < 10) {
 }
 return a;
 """);
-        code.parse();
+        code.parse().opto();
         assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
@@ -197,7 +197,7 @@ while(a < 10) {
 }
 return a;
 """);
-        code.parse();
+        code.parse().opto();
         assertEquals("return Phi(Loop,1,(Phi_a+3));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }

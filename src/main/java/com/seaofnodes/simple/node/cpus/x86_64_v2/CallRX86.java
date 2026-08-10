@@ -20,7 +20,7 @@ public class CallRX86 extends CallNode implements MachNode {
         // calls the function in the register
         short src = enc.reg(fptr());
         enc.add1(0xFF);
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT,2,src));
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT,2,src));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

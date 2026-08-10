@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
 
 
 /**
@@ -15,6 +16,9 @@ public class Var {
     private Type _type;          // Declared type
     public boolean _final;       // Final field
     public boolean _fref;        // Forward ref
+    // Parser-only definite-initialization marker.  The current binding's
+    // nullable type carries the path-sensitive state through SSA merges.
+    public boolean _uninit;
     public Parser.Lexer _loc;    // Source location
 
     public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc ) {
@@ -28,12 +32,8 @@ public class Var {
         _fref = fref;
         _loc = loc;
     }
-    public Type type() {
-        if( !_type.isFRef() ) return _type;
-        // Update self to no longer use the forward ref type
-        Type def = Parser.TYPES.get(((TypeMemPtr)_type)._obj._name);
-        return (_type=_type.meet(def));
-    }
+    public Type  type() { return _type; }
+    public Type _type() { return _type; } // ScopeNode printer needs to have no side effects
 
     // Forward reference variables (not types) must be BOTTOM and
     // distinct from inferred variables
@@ -48,6 +48,6 @@ public class Var {
     }
 
     @Override public String toString() {
-        return _type.toString()+(_final ? " ": " !")+_name;
+        return (_fref ? "FREF " : "")+(_uninit ? "UNINIT " : "")+_type.toString()+(_final ? " ": " !")+_name;
     }
 }

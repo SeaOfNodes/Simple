@@ -466,7 +466,17 @@ public class arm extends Machine {
     // int l
     public static int adrp(int op, int imlo,int opcode, int imhi, int rd) {
         assert 0 <= rd && rd < 32;
+        assert 0 <= imlo && imlo <= 0x3;     //  2 bits
+        assert 0 <= imhi && imhi <= 0x7FFFF; // 19 bits
         return (op << 31) | (imlo << 29) |(opcode << 24) | (imhi << 5) | rd;
+    }
+
+    public static void patch_adrp_add(Encoding enc, int opStart, int delta, int rd) {
+        int target = opStart + delta;
+        int pageDelta = ((target & ~0xFFF) - (opStart & ~0xFFF)) >> 12;
+        int imm21 = pageDelta & 0x1FFFFF;
+        enc.patch4(opStart  , adrp(1, imm21 & 3, OP_ADRP, imm21 >>> 2, rd));
+        enc.patch4(opStart+4, imm_inst_l(OPI_ADD, target & 0xFFF, rd));
     }
 
     // [Rptr+Roff]
@@ -514,19 +524,31 @@ public class arm extends Machine {
     public static void f_cmp(Encoding enc, Node n) {
         short reg1 = (short)(enc.reg(n.in(1))-D_OFFSET);
         short reg2 = (short)(enc.reg(n.in(2))-D_OFFSET);
-        int body = f_cmp(0b00011110, 3, reg1,  reg2);
+        int body = f_cmp(0b00011110, 3, reg2,  reg1);
         enc.add4(body);
     }
 
-    public static COND make_condition(String bop) {
-        return switch (bop) {
-        case "==" -> COND.EQ;
-        case "!=" -> COND.NE;
-        case "<"  -> COND.LT;
-        case "<=" -> COND.LE;
-        case ">=" -> COND.GE;
-        case ">"  -> COND.GT;
-        default   -> throw Utils.TODO();
+    public static COND make_condition(String bop, boolean fp) {
+        // One of {N,Z,C} and !V
+        // OR { !N, !Z, C, V }
+        return fp
+            ? switch (bop) {    // FP uses unsigned encodings
+            case "==" -> COND.EQ;  //  Z
+            case "!=" -> COND.NE;  // !Z
+            case "<"  -> COND.MI;  //        N
+            case "<=" -> COND.LS;  //  Z || !C
+            case ">=" -> COND.PL;  //       !N
+            case ">"  -> COND.HI;  // !Z &&  C
+            default   -> throw Utils.TODO();
+        }
+            : switch (bop) {
+            case "==" -> COND.EQ;  //  Z
+            case "!=" -> COND.NE;  // !Z
+            case "<"  -> COND.LT;  //       N != V
+            case "<=" -> COND.LE;  //  Z || N != V
+            case ">=" -> COND.GE;  //       N == V
+            case ">"  -> COND.GT;  // !Z && N == V
+            default   -> throw Utils.TODO();
         };
     }
 
@@ -594,10 +616,16 @@ public class arm extends Machine {
         if( idx==1 ) return null;
         // Count floats in signature up to index
         if( idx-2 >= tfp.nargs() ) return null; // Anti-dependence
+        boolean hidden = hiddenSelf(tfp);
+        int sigidx = idx-2;
+        if( hidden ) {
+            if( sigidx==0 ) return null;
+            sigidx--;
+        }
         // Count floats in signature up to index
         int fcnt=0;
-        for( int i=2; i<idx; i++ )
-            if( tfp.arg(i-2) instanceof TypeFloat)
+        for( int i=hidden ? 1 : 0; i<idx-2; i++ )
+            if( tfp.arg(i) instanceof TypeFloat)
                 fcnt++;
         // Floats up to XMMS in XMM registers
         if( tfp.arg(idx-2) instanceof TypeFloat ) {
@@ -605,23 +633,26 @@ public class arm extends Machine {
                 return XMMS[fcnt];
         } else {
             RegMask[] cargs = CALLINMASK;
-            if( idx-2-fcnt < cargs.length )
-                return cargs[idx-2-fcnt];
+            if( sigidx-fcnt < cargs.length )
+                return cargs[sigidx-fcnt];
         }
         // Pass on stack slot (8 and higher)
         if( maxArgSlot>0 ) throw Utils.TODO();
-        return new RegMask(MAX_REG + 1 + (idx - 2));
+        return new RegMask(MAX_REG + 1 + sigidx);
     }
 
     // Return the max stack slot used by this signature, or 0
     @Override public short maxArgSlot( TypeFunPtr tfp ) {
         int icnt=0, fcnt=0;     // Count of ints, floats
-        for( int i=0; i<tfp.nargs(); i++ ) {
+        for( int i=hiddenSelf(tfp) ? 1 : 0; i<tfp.nargs(); i++ ) {
             if( tfp.arg(i) instanceof TypeFloat ) fcnt++;
             else icnt++;
         }
         int nstk = Math.max(icnt-8,0)+Math.max(fcnt-8,0);
         return (short)nstk;
+    }
+    private static boolean hiddenSelf(TypeFunPtr tfp) {
+        return tfp.nargs() > 0 && tfp.arg(0) == TypePtr.PTR;
     }
 
     private static final long CALLEE_SAVE =
@@ -640,7 +671,7 @@ public class arm extends Machine {
     @Override public int rpc() { return X30; }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }
+    @Override public SplitNode split(LRG lrg, String kind, byte round) {  return new SplitARM(lrg,kind,round);  }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {
@@ -650,40 +681,46 @@ public class arm extends Machine {
     // Instruction selection
     @Override public Node instSelect(Node n ) {
         return switch( n ) {
-        case AddFNode addf   -> new AddFARM(addf);
         case AddNode add     -> add(add);
         case AndNode and     -> and(and);
         case BoolNode bool   -> cmp(bool);
         case CallNode call   -> call(call);
-        case CastNode cast   -> new CastMach(cast);
+        case PtrToIntNode ptr -> new PtrToIntMach(ptr);
+        case GuardNode guard -> new GuardMach(guard);
         case CallEndNode cend-> new CallEndMach(cend);
         case CProjNode c     -> new CProjNode(c);
         case ConstantNode con-> con(con);
-        case DivFNode divf   -> new DivFARM(divf);
-        case DivNode div     -> new DivARM(div);
+        case DivNode div     -> div.mode()==2 ? new DivFARM(div) : new DivARM(div);
+        case EscapeNode esc  -> new EscapeNode(esc);
         case FunNode fun     -> new FunARM(fun);
+        case FunPtrNode  fptr -> fptr(fptr);
         case IfNode iff      -> jmp(iff);
         case LoadNode ld     -> ld(ld);
         case MemMergeNode mem-> new MemMergeNode(mem);
-        case MinusNode neg   -> new NegARM(neg);
-        case MulFNode mulf   -> new MulFARM(mulf);
-        case MulNode mul     -> new MulARM(mul);
+        case MinusNode neg   -> {
+            if( neg.mode()==2 ) throw Utils.TODO();
+            yield new NegARM(neg);
+        }
+        case MulNode mul     -> mul.mode()==2 ? new MulFARM(mul) : new MulARM(mul);
         case NewNode nnn     -> new NewARM(nnn);
         case NotNode not     -> new NotARM(not);
         case OrNode or       -> or(or);
         case ParmNode parm   -> new ParmARM(parm);
+        case BulkMemPhiNode phi -> new BulkMemPhiNode(phi);
+        case MemPhiNode phi  -> new MemPhiNode(phi);
         case PhiNode phi     -> new PhiNode(phi);
-        case ProjNode prj    -> new ProjARM(prj);
+        case ProjNode prj    -> prj(prj);
         case ReadOnlyNode read -> new ReadOnlyMach(read);
         case ReturnNode ret  -> new RetARM(ret,ret.fun());
         case SarNode sar     -> asr(sar);
         case ShlNode shl     -> lsl(shl);
         case ShrNode shr     -> lsr(shr);
+        case StartCUNode start -> new StartCUNode(start);
+        case StopCUNode stop   -> new StopCUNode(stop);
         case StartNode start -> new StartNode(start);
         case StopNode stop   -> new StopNode(stop);
         case StoreNode st    -> st(st);
-        case SubFNode subf   -> new SubFARM(subf);
-        case SubNode sub     -> sub(sub);
+        case SubNode sub     -> sub.mode()==2 ? new SubFARM(sub) : sub(sub);
         case ToFloatNode tfn -> new I2F8ARM(tfn);
         case XorNode xor     -> xor(xor);
 
@@ -695,7 +732,7 @@ public class arm extends Machine {
 
     private Node cmp(BoolNode bool){
         Node cmp = _cmp(bool);
-        return new SetARM(cmp, bool.op());
+        return new SetARM(cmp, bool.op(), cmp instanceof CmpFARM);
     }
     private Node _cmp(BoolNode bool) {
         if( bool.isFloat() )
@@ -714,13 +751,18 @@ public class arm extends Machine {
         // Most general arith ops will also set flags, which the Jmp needs directly.
         // Loads do not set the flags, and will need an explicit TEST
         String op = "!=";
-        if( iff.in(1) instanceof BoolNode bool ) op = bool.op();
+        boolean fp = false;
+        if( iff.in(1) instanceof BoolNode bool ) { op = bool.op(); fp = bool.isFloat(); }
         else if( iff.in(1)==null ) op = "=="; // Never-node cutout
-        else iff.setDef(1, new BoolNode.NE(iff.in(1), new ConstantNode(TypeInteger.ZERO)));
-        return new BranchARM(iff, op);
+        else iff.setDef(1, new BoolNode.NE(iff.in(1),
+                                           ConstantNode.raw(TypeInteger.ZERO),
+                                           (byte)(iff.in(1)._type instanceof TypeFloat ? 2 : 1)));
+        return new BranchARM(iff, op, fp);
     }
 
     private Node add(AddNode add) {
+        if( add.mode()==2 )
+            return new AddFARM(add);
         return add.in(2) instanceof ConstantNode off && off._con instanceof TypeInteger ti && imm12(ti)
                 ? new AddIARM(add, (int)ti.value())
                 : new AddARM(add);
@@ -733,22 +775,30 @@ public class arm extends Machine {
     }
 
     private Node con( ConstantNode con ) {
-        if( !con._con.isConstant() ) return new ConstantNode( con ); // Default unknown caller inputs
+        if( !con._con.isConstant() )
+            return ConstantNode.raw(con); // Default unknown caller inputs
+        String ext = con instanceof ExternNode ext0 ? ext0._extern : null;
         return switch( con._con ) {
-        case TypeInteger ti -> new IntARM(con);
-        case TypeFloat   tf -> new FloatARM(con);
-        case TypeFunPtr tfp -> new TFPARM(con);
-        case TypeMemPtr tmp -> new TMPARM(con);
+        case TypeInteger ti -> new IntARM(con,ext);
+        case TypeFloat   tf -> new FltARM(con,ext);
+        case TypeMemPtr tmp -> new TMPARM(con,ext);
+        case TypeFunPtr tfp -> new TFPARM(tfp,ext);
         case TypeNil tn  -> throw Utils.TODO();
         // TOP, BOTTOM, XCtrl, Ctrl, etc.  Never any executable code.
-        case Type t -> t==Type.NIL ? new IntARM(con) : new ConstantNode(con);
+        case Type t -> t==Type.NIL ? new IntARM(con,ext) : ConstantNode.raw(con);
         };
     }
 
+    private Node fptr( FunPtrNode con ) {
+        return new TFPARM(con);
+    }
+
     private Node call(CallNode call){
-        return call.fptr() instanceof ConstantNode con && con._con instanceof TypeFunPtr tfp
-                ? new CallARM(call, tfp)
-                : new CallRRARM(call);
+        return call.fptr() instanceof FunPtrNode fptr
+            ? new CallARM(call, (TypeFunPtr)fptr._type)
+            : call.fptr() instanceof ConstantNode con
+            ? new CallARM(call, (TypeFunPtr)con._type)
+            : new CallRRARM(call);
     }
 
     private Node or(OrNode or) {
@@ -788,6 +838,10 @@ public class arm extends Machine {
         return lsr.in(2)  instanceof ConstantNode off && off._con instanceof TypeInteger ti && ti.value() >= 0 && ti.value() < 63
                 ? new LsrIARM(lsr, (int)ti.value())
                 : new LsrARM(lsr);
+    }
+
+    private Node prj(ProjNode prj) {
+        return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjARM(prj);
     }
 
 

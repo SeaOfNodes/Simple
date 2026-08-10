@@ -1,0 +1,30 @@
+
+Meta-info: I intend to keep extending and re-editing this "ainotes.txt" file so
+I can reprompt the you (the AI) between AI restarts, As such this file will
+contain a mix of high-level design decisions, goals, intents and wisdom, and
+then taper down to more detailed problems and solutions - which probably keep
+changing.
+
+AI is allowed access to all files recursively in "C:/Users/cliffc/Desktop/Simple"
+directory.
+
+Meta-info: all the tests run with `make tests` currently run, and should again
+run before we accept any changes.
+
+
+The overall project is rooted in the `Simple/` directory,
+and is a compiler tutorial broken up into chapters.
+The chapters build on each other.
+
+Read the code in this chapter25; the goal in this chapter is to allow separate
+compilation.  I want to compile a "standard library", the start of which is in
+`src/main/smp/sys.smp` and subdirectories and end up with either an archive or
+a "fat ELF .o" file.
+
+Then I want to compile a 1-liner "hello world" program:
+  `sys.io.p("Hello World!");`
+and have the symbols `sys`, `io` and `p` be found in the standard library.
+
+I am using a test case to represent this seperate compilation strategy in
+`Chapter25Test.testModules`.  There are comments there to help drive my
+thinking.

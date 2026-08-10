@@ -209,9 +209,9 @@ return -0+0+0;
 
     @Test
     public void testFuzz3() {
-        CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0; return 0;");
+        CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0; return 1;");
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("return 1;", code.print());
     }
 
     @Test
@@ -255,7 +255,7 @@ return 0!=0;
 int v0=0;
 while(0==1) while(v0)
         v0=1+v0;
-return 0;        
+return 0;
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());
