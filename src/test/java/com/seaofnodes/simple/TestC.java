@@ -10,10 +10,14 @@ import com.seaofnodes.simple.util.Utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
 import static org.junit.Assert.*;
 
 // Call a C driver program, which calls a Simple-generated .o, and self-checks.
@@ -32,10 +36,10 @@ public abstract class TestC {
     public static final String CPU_ABI = CPU_PORT+"_"+CALL_CONVENTION;
     public static final String RELEASE_SYS_DIR = "build/release/"+CPU_ABI;
 
-    public static String runtimeObject() {
+    public static String runtimeObject(String name) {
         String home = System.getenv("SIMPLE_HOME");
         String root = home==null || home.isEmpty() ? "build/release" : home;
-        return Path.of(root,CPU_ABI,"simple_crt.o").toString();
+        return Path.of(root,CPU_ABI,name+".o").toString();
     }
 
     public static final String C_DRIVERS_DIR = "src/test/java/com/seaofnodes/simple/progs/";
@@ -176,7 +180,7 @@ public abstract class TestC {
         linkExe(objects,c_conv,cfile,exe);
     }
 
-    private static void linkExe(Ary<String> objects, String c_conv, String cfile, String exe) throws IOException {
+    static void linkExe(Ary<String> objects, String c_conv, String cfile, String exe) throws IOException {
         // Compile the C program.  Compiling code and constants in the low
         // 2Gig.  Pointers are 64b BUT since always in the low 2G all the
         // high bits are zero - and Simple code can be emitted treating
@@ -187,9 +191,12 @@ public abstract class TestC {
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
         params.addAll(objects);
         // Standalone Simple programs export `simple_main`; the small C
-        // runtime owns the native main symbol and converts argc/argv into a
-        // normal Simple array before making the ABI-qualified call.
-        if( cfile==null ) params.add(runtimeObject());
+        // runtime owns native main and calls the Simple argument converter
+        // before making the ABI-qualified entry call.
+        if( cfile==null ) {
+            params.add(runtimeObject("simple_crt"));
+            params.add(runtimeObject("simple_args"));
+        }
         params.addAll(new String[] {
             "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
             "-g",  // debug symbols
@@ -213,6 +220,40 @@ public abstract class TestC {
     // Tests can bound execution without imposing a deadline on the CLI driver.
     public static String exec( int seconds, String... args ) throws IOException {
         return execStdin(null,seconds,args);
+    }
+
+    // The CLI must display prompts while the child is waiting for input.
+    // Keep the capture-to-files path below for bounded, noninteractive tests.
+    public static void execInteractive(String... args) throws IOException {
+        Process child = new ProcessBuilder(args).redirectInput(ProcessBuilder.Redirect.INHERIT).start();
+        try( var relays = Executors.newFixedThreadPool(2) ) {
+            var out = relays.submit(() -> { relay(child.getInputStream(),System.out); return null; });
+            var err = relays.submit(() -> { relay(child.getErrorStream(),System.err); return null; });
+            try {
+                int status = child.waitFor();
+                out.get();
+                err.get();
+                if( status!=0 ) throw new IOException(String.join(" ",args)+"\nexec exit code: "+status);
+            } catch( InterruptedException e ) {
+                child.destroyForcibly();
+                Thread.currentThread().interrupt();
+                throw new IOException("interrupted",e);
+            } catch( ExecutionException e ) {
+                throw new IOException("Cannot relay program output",e.getCause());
+            } finally {
+                if( child.isAlive() ) child.destroyForcibly();
+            }
+        }
+    }
+
+    private static void relay(InputStream in, PrintStream out) throws IOException {
+        try( in ) {
+            byte[] buffer = new byte[4096];
+            for( int n; (n=in.read(buffer))!=-1; ) {
+                out.write(buffer,0,n);
+                out.flush();
+            }
+        }
     }
 
     private static String execStdin( String stdin, int seconds, String... args ) throws IOException {

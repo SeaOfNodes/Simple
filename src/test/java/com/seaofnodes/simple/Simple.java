@@ -3,6 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.codegen.CodeGen.Phase;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -34,6 +35,8 @@ Options:
   -L path                  - add an external Simple object search path
   --eval                   - (slowly) evaluate the compiled code in emulator
   --run                    - run the compiled code natively; this is the default
+  --link                   - build a native executable without running it
+  --norun                  - emit objects without linking or running
   --main                   - export the top-level initializer as C `main`
   --cpu <cpu-name>         - use specific CPU (x86_64_v2, riscv, arm)
   --abi <abi-name>         - use specific ABI variant (SystemV)
@@ -90,10 +93,20 @@ Options:
     }
 
     public static void main(String[] args) throws Exception {
+        try {
+            run(args);
+        } catch( Parser.ParseException e ) {
+            System.err.println(e.diagnostic());
+            System.exit(1);
+        }
+    }
+
+    private static void run(String[] args) throws Exception {
         String root = null;
         String input_filename = null;
         boolean do_eval = false;
         boolean do_run = true;
+        boolean do_link = false;
         boolean do_codegen = false;
         boolean emit_main = false;
         boolean print_time = false;
@@ -134,9 +147,10 @@ Options:
             case "--dump":                    dump |=  1<<Phase.LastPhase .ordinal()   ; break;
             case "--dump-after-all":          dump |= (2<<Phase.LastPhase .ordinal())-1; break;
             case "-S":                        print_asm = true; break;
-            case "--eval":                    do_eval = true ; do_run = false; break;
+            case "--eval":                    do_eval = true ; do_run = false; do_link = false; break;
             case "--run":                     do_run  = true ; break;
-            case "--norun":                   do_run  = false; break;
+            case "--link":                    do_link = true ; do_run = false; break;
+            case "--norun":                   do_run  = false; do_link = false; break;
             case "--main":                    emit_main = true; break;
             case "--dump-size":               print_size = true; break;
             case "--dump-time":               print_time = true; break;
@@ -215,7 +229,7 @@ Options:
         }
         String outBase = outPath.resolve(srcName).toString();
 
-        if( do_run || print_asm || print_size ) {
+        if( do_run || do_link || print_asm || print_size ) {
             if (cpu == null) cpu = TestC.CPU_PORT;
             if (abi == null) abi = TestC.CALL_CONVENTION;
             do_codegen = true;
@@ -234,7 +248,7 @@ Options:
         Ary<String> externPaths = libPaths.isEmpty() ? null : new Ary<>(libPaths.toArray(new String[0]));
         CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, true, TypeInteger.BOT );
         code.driver(do_eval && !do_codegen ? Phase.TypeCheck : Phase.LastPhase,
-                    cpu,abi, false, emit_main || do_run || do_eval, dump);
+                    cpu,abi, false, emit_main || do_run || do_link || do_eval, dump);
 
         if( do_codegen && print_asm )
             System.out.println(code.asm());
@@ -253,12 +267,12 @@ Options:
             if( print_time )
                 System.out.printf( "EXECUTION TIME:             %.3f sec%n", (System.currentTimeMillis() - t) / 1e3);
         }
-        if( do_run ) {
+        if( do_run || do_link ) {
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
-                throw bad("cannot run code on not native target");
+                throw bad("cannot link or run code on a non-native target");
             String exe = TestC.OS.startsWith("Windows") ? outBase+".exe" : outBase;
-            String result = TestC.gcc(code, null, null, "", exe);
-            System.out.print(result);
+            TestC.linkExe(TestC.linkObjs(code),null,null,exe);
+            if( do_run ) TestC.execInteractive(exe);
         }
     }
 }

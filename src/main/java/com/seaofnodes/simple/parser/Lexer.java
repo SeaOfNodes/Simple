@@ -3,10 +3,12 @@ package com.seaofnodes.simple.parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.codegen.Serialize;
+import com.seaofnodes.simple.codegen.SourceError;
 import com.seaofnodes.simple.parser.Parser.ParseException;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import java.util.HashMap;
+import java.io.ByteArrayOutputStream;
 
 // Lexer provides low level access to the raw file bytes, peeks and matches
 // short strings, parses numbers, skips comments and whitespace, tracks
@@ -34,6 +36,11 @@ public class Lexer {
 
     public String position() { return _line_number+":"+(_position-_line_start+1); }
     public int pos() { return _position; }
+
+    public String diagnostic(String message) {
+        return _cu==null ? SourceError.format("<input>",_input,_position,message)
+            : SourceError.format(_cu,_position,message);
+    }
 
     /**
      * Record the source text for lexing
@@ -143,19 +150,21 @@ public class Lexer {
         while( true ) {
             if( isWhiteSpace() ) inc();
             // Skip // to end of line
-            else if( _position+2 < _input.length &&
+            else if( _position+1 < _input.length &&
                      _input[_position  ] == '/' &&
                      _input[_position+1] == '/') {
                 inc(); inc();
                 while( !isEOF() && _input[_position] != '\n' )
                     inc();
-            } else if( _position+2 < _input.length &&
+            } else if( _position+1 < _input.length &&
                      _input[_position  ] == '/' &&
                      _input[_position+1] == '*') {
-                // Skip /*comment*/
-                while( !isEOF() && !(_input[_position-1] == '*' && _input[_position] == '/'))
+                Lexer start=new Lexer(this);
+                inc(); inc();
+                while( !isEOF() && !(peek()=='*' && _position+1<_input.length && peek(1)=='/') )
                     inc();
-                inc();
+                if( isEOF() ) throw Parser.error("Unclosed block comment",start);
+                inc(); inc();
             } else break;
         }
     }
@@ -229,20 +238,27 @@ public class Lexer {
 
     // Return a constant Type, either TypeInteger or TypeFloat
     Type parseNumber() {
+        Lexer start=new Lexer(this);
         int old = _position;
         int len = isLongOrDouble();
         boolean f32 = peek()=='f';
         if( f32 ) nextChar();
         int n = Math.abs(len);
-        if( f32 )
-            return TypeFloat.constant(Float.parseFloat(new String(_input,old,n)));
-        if( len > 0 ) {
-            if( len > 1 && _input[old]=='0' )
-                throw Parser.error("Syntax error: integer values cannot start with '0'",this);
-            long i = Long.parseLong(new String(_input,old,len));
-            return TypeInteger.constant(i);
+        String literal=new String(_input,old,n);
+        try {
+            if( f32 )
+                return TypeFloat.constant(Float.parseFloat(literal));
+            if( len > 0 ) {
+                if( len > 1 && _input[old]=='0' )
+                    throw Parser.error("Syntax error: integer values cannot start with '0'",start);
+                long i = Long.parseLong(literal);
+                return TypeInteger.constant(i);
+            }
+            return TypeFloat.constant(Double.parseDouble(literal));
+        } catch( NumberFormatException ex ) {
+            throw Parser.error(len>0 && !f32 ? "Integer literal is outside the signed 64-bit range"
+                : "Invalid floating-point literal '"+literal+(f32 ? "f" : "")+"'",start);
         }
-        return TypeFloat.constant(Double.parseDouble(new String(_input,old,n)));
     }
     private String parseNumberString() {
         int old = _position;
@@ -319,25 +335,77 @@ public class Lexer {
         return 0;
     }
 
-    String parseString() {
-        if( !peek('"') ) return null;
-        inc();
-        StringBuilder sb = new StringBuilder();
+    record StringPart(byte[] text, boolean end) {}
+
+    // Opening quote has been consumed. Leave a format's '%' unread so both
+    // the expression parser and deferred-body scanner use the same grammar.
+    StringPart stringPart(Lexer start) {
+        ByteArrayOutputStream sb = new ByteArrayOutputStream();
         while( !isEOF() ) {
             char c = nextChar();
-            if( c=='"' ) return sb.toString();
+            if( c=='"' ) return new StringPart(sb.toByteArray(),true);
+            if( c=='%' ) {
+                if( peek()=='%' ) { inc(); sb.write('%'); continue; }
+                _position--;
+                return new StringPart(sb.toByteArray(),false);
+            }
             if( c!='\\' ) {
-                sb.append(c);
+                sb.write(c);
                 continue;
             }
             if( isEOF() )
-                throw error("Unclosed string");
-            sb.append(escapedChar("string"));
+                throw Parser.error("Unclosed string",start);
+            sb.write(escapedChar("string"));
         }
-        throw error("Unclosed string");
+        throw Parser.error("Unclosed string",start);
+    }
+
+    record Format(int kind, int flags, int width, int precision, Lexer site) {}
+
+    Format stringFormat() {
+        Lexer site = new Lexer(this);
+        assert peek()=='%';
+        inc();
+        if( peek()=='(' ) { inc(); return new Format(0,0,0,-1,site); }
+        int flags=0, bit;
+        while( (bit="-+ #0".indexOf(peek()))>=0 ) {
+            int mask=1<<bit;
+            if( (flags&mask)!=0 ) throw Parser.error("Repeated format flag",site);
+            flags |= mask;
+            inc();
+        }
+        int width = formatNumber(site);
+        int precision = -1;
+        if( peek()=='.' ) {
+            inc();
+            precision = formatNumber(site);
+        }
+        char kind=nextChar();
+        if( "diuoxXfFeEgGaAcsb".indexOf(kind)<0 )
+            throw Parser.error("Expected a string format: %(expression), %d(expression), or %%",site);
+        boolean number="diuoxXfFeEgGaA".indexOf(kind)>=0;
+        if( !number && (flags&~1)!=0 || "uoxX".indexOf(kind)>=0 && (flags&6)!=0 ||
+            "diu".indexOf(kind)>=0 && (flags&8)!=0 )
+            throw Parser.error("Invalid flags for %"+kind,site);
+        if( precision>=0 && (kind=='c' || kind=='b') )
+            throw Parser.error("Precision is not supported for %"+kind,site);
+        if( peek()!='(' ) throw Parser.error("Expected '(' after string format %"+kind,site);
+        inc();
+        return new Format(kind,flags,width,precision,site);
+    }
+
+    private int formatNumber(Lexer site) {
+        long n=0;
+        while( peek()>='0' && peek()<='9' ) {
+            n=n*10+nextChar()-'0';
+            if( n>Integer.MAX_VALUE ) throw Parser.error("String format width or precision is too large",site);
+        }
+        return (int)n;
     }
 
     private char escapedChar(String kind) {
+        Lexer start=new Lexer(this);
+        start._position--; // The backslash introducing the escape.
         char esc = nextChar();
         return switch( esc ) {
         case '0'  -> '\u0000';
@@ -347,17 +415,24 @@ public class Lexer {
         case '\\' -> '\\';
         case '"'  -> '"';
         case '\'' -> '\'';
-        default -> throw error("Unknown "+kind+" escape \\\\"+esc);
+        case '%'  -> '%';
+        default -> throw Parser.error("Unknown "+kind+" escape \\"+esc,start);
         };
     }
 
     char parseChar() {
-        if( isEOF() ) throw error("Unclosed character");
+        Lexer start=new Lexer(this);
+        start._position--; // Opening quote was consumed by the caller.
+        if( isEOF() || peek()=='\n' || peek()=='\r' ) throw Parser.error("Unclosed character literal",start);
+        if( peek()=='\'' ) throw Parser.error("Empty character literal",start);
         char c = nextChar();
         if( c=='\\' ) {
-            if( isEOF() ) throw error("Unclosed character");
+            if( isEOF() ) throw Parser.error("Unclosed character literal",start);
             c = escapedChar("character");
         }
+        if( isEOF() || peek()=='\n' || peek()=='\r' ) throw Parser.error("Unclosed character literal",start);
+        if( peek()!='\'' ) throw Parser.error("Character literal must contain exactly one byte",start);
+        inc();
         return c;
     }
 
@@ -372,16 +447,18 @@ public class Lexer {
             if( isEOF() ) throw error("Unclosed "+what);
             char ch = peek();
             if( ch==close && depth==0 ) return;
+            Lexer site=ch=='"' ? new Lexer(this) : null;
             nextChar();
             if( ch==open ) depth++;
             else if( ch==close ) depth--;
-            else if( ch=='"' || ch=='\'' ) {
-                char quote = ch;
-                while( !isEOF() ) {
-                    ch = nextChar();
-                    if( ch=='\\' ) nextChar();
-                    else if( ch==quote ) break;
+            else if( ch=='"' ) {
+                while( !stringPart(site).end() ) {
+                    stringFormat();
+                    skipTo('(',')',"string interpolation");
+                    nextChar();
                 }
+            } else if( ch=='\'' ) {
+                parseChar();
             }
         }
     }

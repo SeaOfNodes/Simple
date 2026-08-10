@@ -7,7 +7,7 @@ typedef struct ArrayU8 {
 } ArrayU8;
 typedef struct String {
   ArrayU8 * cs;
-  long long _hashCode;
+  int _hashCode;
 } String;
 
 

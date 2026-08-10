@@ -10,7 +10,7 @@ public class TypeConAryB extends TypeConAry<byte[]> {
     public static TypeConAryB make( String s ) { return make(s.getBytes()); }
     static final TypeConAryB ABC  = make("abc");
     static final TypeConAryB ABCD = make("abcd");
-    @Override public long at8(int idx) { return _ary[idx]; }
+    @Override public long at8(int idx) { return _ary[idx]&255; }
     @Override public int len() { return _ary.length; }
     @Override public int log_size() { return 0; }
     @Override public String str() { return "[\""+new String(_ary)+"\"]"; }

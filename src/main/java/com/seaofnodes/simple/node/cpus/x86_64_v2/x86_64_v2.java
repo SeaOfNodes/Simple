@@ -306,7 +306,8 @@ public class x86_64_v2 extends Machine {
         case NewNode      nnn -> new NewX86(nnn);
         case NotNode      not -> new NotX86(not);
         case OrNode        or -> or(or);
-        case ParmNode    parm -> new ParmX86(parm);
+        case ParmNode    parm -> parm._declaredType instanceof TypeInteger ti && ti.log_size()<3
+            ? new ExtendX86(parm,ti) : new ParmX86(parm);
         case BulkMemPhiNode phi-> new BulkMemPhiNode(phi);
         case MemPhiNode  phi  -> new MemPhiNode(phi);
         case PhiNode      phi -> new PhiNode(phi);
@@ -555,6 +556,7 @@ public class x86_64_v2 extends Machine {
     private static int off, scale, imm;
     private static Node idx, val;
     private <N extends MemOpNode > N address(N mop) {
+        externalAddress(mop);
         off = scale = imm = 0;  // Reset
         idx = val = null;
         Node base = mop.ptr();

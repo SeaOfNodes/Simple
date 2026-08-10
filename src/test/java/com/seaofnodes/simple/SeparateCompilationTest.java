@@ -18,9 +18,9 @@ public class SeparateCompilationTest {
             val run={int n ->
                 val power={int base,int exponent ->
                     if(exponent<=0) return 1;
-                    return base*power(base,exponent-1);
+                    return base*power(base,--exponent);
                 };
-                { {int int -> int} -> int } retain="C";
+                { {int int -> i64} -> int } retain="C";
                 retain(power);
                 return power(2,n);
             };
@@ -28,14 +28,14 @@ public class SeparateCompilationTest {
         new CodeGen(null,lib.toString(),null,"Callbacks",src,123,true,TypeInteger.BOT)
             .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
         CodeGen code=new CodeGen(null,null,new Ary<>(new String[]{lib.toString()}),
-            "Client","return Callbacks.run(arg);",123,true,TypeInteger.BOT)
+            "Client","return Callbacks.run(((arg<<32)>>32));",123,true,TypeInteger.BOT)
             .driver(CodeGen.Phase.Opto);
         // This assertion inspects a body, not just its saved summary.
         ParseAll.loadCompUnit(code,code._compunits.get("Callbacks"));
         assertNull(code._compunits.get("Callbacks")._src);
         ParmNode base=code._start.walk(n -> n instanceof ParmNode p && p._label.equals("base") ? p : null);
         assertNotNull(base);
-        assertSame("Native code may call the saved callback with any base",TypeInteger.BOT,base._type);
+        assertSame("Native code may call the saved callback with any base",TypeInteger.I32,base._type);
         code.driver(CodeGen.Phase.TypeCheck);
     }
 

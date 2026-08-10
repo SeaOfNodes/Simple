@@ -1,0 +1,98 @@
+// Formatting primitives used directly by interpolation and named converters.
+// Keep this module free of interpolation: sys can build itself from source.
+// spec's low byte is the format kind; bits 8..12 are flags: - + space # 0.
+
+val begin = { -> new aryu8(); };
+
+val end = { aryu8 b ->
+    val bytes = new u8[b.len];
+    ary.copy(bytes,0,b.buf,0,b.len);
+    u8[~] result = bytes;
+    result;
+};
+
+val _pad = { !aryu8 b, i64 n, u8 c ->
+    for( i64 i=0; i<n; i++ ) b.add(c);
+    b;
+};
+
+val string = { !aryu8 b, u8[~] s, i64 spec, i64 width, i64 precision ->
+    i64 len=s#;
+    if( precision>=0 && precision<len ) len=precision;
+    i64 pad=width-len;
+    if( !(spec&256) ) _pad(b,pad,' ');
+    for( i64 i=0; i<len; i++ ) b.add(s[i]);
+    if( spec&256 ) _pad(b,pad,' ');
+    b;
+};
+
+val integer = { !aryu8 b, i64 value, i64 spec, i64 width, i64 precision ->
+    i64 kind=spec&255;
+    if( kind=='b' ) return string(b,value ? "true" : "false",spec,width,-1);
+    if( kind=='c' ) {
+        if( !(spec&256) ) _pad(b,width-1,' ');
+        u8 c=value;
+        b.add(c);
+        if( spec&256 ) _pad(b,width-1,' ');
+        return b;
+    }
+    bool signed=kind==0 || kind=='d' || kind=='i';
+    i64 base=kind=='o' ? 8 : (kind=='x' || kind=='X' ? 16 : 10);
+    u8[~] alphabet=kind=='X' ? "0123456789ABCDEF" : "0123456789abcdef";
+    val digits=new u8[22]; // Maximum: 22 octal digits for a 64-bit integer.
+    i64 count=0, n=value;
+    // Signed decimal stays nonpositive, including the minimum i64.
+    if( signed && n>0 ) n=-n;
+    if( n==0 && precision!=0 ) digits[count++]='0';
+    while( n!=0 ) {
+        i64 q=0, r=0;
+        if( signed ) { q=n/base; r=q*base-n; }
+        else {
+            // Unsigned division without a u64 type. Halving first makes
+            // the dividend nonnegative; the remainder needs at most one fix.
+            q=((n>>>1)/base)*2;
+            r=n-q*base;
+            if( r>=base ) { q++; r-=base; }
+        }
+        digits[count++]=alphabet[r];
+        n=q;
+    }
+    u8[~] !prefix="";
+    if( signed ) {
+        if( value<0 ) prefix="-";
+        else if( spec&512 ) prefix="+";
+        else if( spec&1024 ) prefix=" ";
+    } else if( (spec&2048) && value!=0 ) {
+        if( kind=='x' ) prefix="0x";
+        if( kind=='X' ) prefix="0X";
+    }
+    i64 zeros=precision>count ? precision-count : 0;
+    // Alternate octal always begins with a zero, including precision-zero 0.
+    if( kind=='o' && (spec&2048) && zeros==0 && (count==0 || digits[count-1]!='0') ) zeros=1;
+    i64 pad=width-prefix#-zeros-count;
+    bool left=(spec&256)!=0;
+    bool zero=(spec&4096)!=0 && precision<0 && !left;
+    if( !left && !zero ) _pad(b,pad,' ');
+    b.addAry(prefix);
+    if( zero ) _pad(b,pad,'0');
+    _pad(b,zeros,'0');
+    while( count>0 ) b.add(digits[--count]);
+    if( left ) _pad(b,pad,' ');
+    b;
+};
+
+// Only conversion of binary floating-point values is delegated to libc.
+// The fixed signature accepts a validated format and returns a byte string.
+{ f64 i64 i64 i64 -> u8[~] } simple_text_float = "C";
+val floating = { !aryu8 b, f64 value, i64 spec, i64 width, i64 precision ->
+    b.addAry(simple_text_float(value,spec,width,precision));
+};
+
+// Explicitly named, typed conversions share the same formatting routines.
+val int  = { i64  x -> end(integer (begin(),x, 0 ,0,-1)); };
+val flt  = { f64  x -> end(floating(begin(),x, 0 ,0,-1)); };
+val f32  = { f32  x -> end(floating(begin(),x,'g',0,-1)); };
+val f64  = { f64  x -> end(floating(begin(),x, 0 ,0,-1)); };
+val char = { i64  x -> end(integer (begin(),x,'c',0,-1)); };
+val bool = { bool x -> end(integer (begin(),x,'b',0,-1)); };
+val hex  = { i64  x -> end(integer (begin(),x,'x',0,-1)); };

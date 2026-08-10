@@ -332,7 +332,8 @@ public class arm extends Machine {
         case NewNode nnn     -> new NewARM(nnn);
         case NotNode not     -> new NotARM(not);
         case OrNode or       -> or(or);
-        case ParmNode parm   -> new ParmARM(parm);
+        case ParmNode parm   -> parm._declaredType instanceof TypeInteger ti && ti.log_size()<3
+            ? new ExtendARM(parm,ti) : new ParmARM(parm);
         case BulkMemPhiNode phi -> new BulkMemPhiNode(phi);
         case MemPhiNode phi  -> new MemPhiNode(phi);
         case PhiNode phi     -> new PhiNode(phi);

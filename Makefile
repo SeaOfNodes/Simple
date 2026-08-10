@@ -155,7 +155,19 @@ RELEASE:= build/release
 TEST_SYS:= $(OBJS)/lib_$(CPU_ABI)/sys.o
 RELEASE_SYS:= $(RELEASE)/$(CPU_ABI)/sys.o
 RELEASE_CRT:= $(RELEASE)/$(CPU_ABI)/simple_crt.o
+RELEASE_ARGS:= $(RELEASE)/$(CPU_ABI)/simple_args.o
 C_CALL_CONV:= $(if $(filter win64,$(CALL_CONV)),ms_abi,sysv_abi)
+GAME_DIR:= build/examples/$(CPU_ABI)
+TICTACTOE:= $(GAME_DIR)/TicTacToe$(if $(filter Windows_NT,$(OS)),.exe,)
+
+# Build a runnable game without starting it. Native outputs are ABI-specific;
+# WSL can use CLZDIR=build/classes-linux to keep its Java build separate too.
+.PHONY: tictactoe
+tictactoe: $(TICTACTOE)
+
+$(TICTACTOE): docs/examples/TicTacToe.smp $(CLZDIR)/test/.ttag $(RELEASE_SYS) $(RELEASE_CRT) Makefile
+	@echo "building " $@
+	@$(JVM) com.seaofnodes.simple.Simple --link --cpu $(CPU_PORT) --abi $(CALL_CONV) -L $(dir $(RELEASE_SYS)) -o $(GAME_DIR)/TicTacToe.o $<
 
 $(TEST_SYS):	$(CLZDIR)/main/.mtag $(simple_driver) $(SYS_SMPS) | $(CLZDIR)/test/.ttag
 	@echo "simping " $@
@@ -167,7 +179,11 @@ $(RELEASE_SYS):	$(OBJS)/lib_$(CPU_ABI)/sys.o
 	@cp $< $@
 	@cp -r $(dir $<)sys $(dir $@)
 
-$(RELEASE_CRT): src/main/c/simple_crt.c
+$(RELEASE_ARGS): src/main/smp/sys/rt/simple_args.smp $(CLZDIR)/main/.mtag $(simple_driver) Makefile | $(CLZDIR)/test/.ttag
+	@echo "simping " $@
+	@$(JVM) com.seaofnodes.simple.Simple --cpu $(CPU_PORT) --abi $(CALL_CONV) --norun -o $@ $<
+
+$(RELEASE_CRT): src/main/c/simple_crt.c $(RELEASE_ARGS) Makefile
 	@echo "compiling " $@
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@gcc -c -O2 -DCALL_CONV=$(C_CALL_CONV) -o $@ $<

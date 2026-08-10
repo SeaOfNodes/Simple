@@ -236,7 +236,8 @@ public class riscv extends Machine {
         case NewNode      nnn -> nnn(nnn);
         case NotNode      not -> new NotRISC(not);
         case OrNode        or -> or(or);
-        case ParmNode    parm -> new ParmRISC(parm);
+        case ParmNode    parm -> parm._declaredType instanceof TypeInteger ti && ti.log_size()<3
+            ? new ExtendRISC(parm,ti) : new ParmRISC(parm);
         case BulkMemPhiNode phi-> new BulkMemPhiNode(phi);
         case MemPhiNode  phi  -> new MemPhiNode(phi);
         case PhiNode      phi -> new PhiNode(phi);

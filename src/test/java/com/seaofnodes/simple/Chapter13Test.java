@@ -35,7 +35,7 @@ while( prime <= arg ) {
 return primeCount;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi_primeCount,(Phi_primeCount+1))));", code.print());
+        assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi_primeCount,(((Phi_primeCount+1)<<32)>>32))));", code.print());
         assertEquals("0", Eval2.eval(code,  1)); // No primes 1 or below
         assertEquals("1", Eval2.eval(code,  2)); // 2
         assertEquals("2", Eval2.eval(code,  3)); // 2, 3
@@ -116,7 +116,7 @@ if (v1) {
 return v0.f;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,.f,2);", code.print());
+        assertEquals("return ((Phi(Region,((.f<<32)>>32),2)<<32)>>32);", code.print());
     }
 
 
@@ -134,7 +134,7 @@ while (arg) v.f = 2;
 return i;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return arg;", code.print());
+        assertEquals("return ((arg<<32)>>32);", code.print());
     }
 
     @Test
@@ -151,7 +151,7 @@ while(1) {
 return v.f;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Loop,0,2);", code.print());
+        assertEquals("return ((Phi(Loop,0,2)<<32)>>32);", code.print());
         for( int arg : new int[]{-1,0,1,3,100} )
             assertEquals("0",Eval2.eval(code,arg));
     }

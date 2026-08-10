@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 public class Chapter21Test {
 
     @Test public void testFloatToInteger() throws IOException {
-        String src = "val float_to_int={ flt x -> int i=x; return i; };"+
+        String src = "val float_to_int={ flt x -> i64 i=x; return i; };"+
                      "val float_to_u8={ flt x -> u8 i=x; return i; };";
         TestC.runC(src,"floatToInteger","",-1);
         for( double x : new double[]{0.0,-0.0,6.92,-6.92,255.75,-257.75,
@@ -138,9 +138,10 @@ public class Chapter21Test {
         String src = """
             val sum = { int n ->
                 if( n<=0 ) return 1;
-                return sum(n-1)+n;
+                int prev=n-1;
+                return sum(prev)+n;
             };
-            val run = { int n -> return sum(n)+sum(n+1); };
+            val run = { int n -> int next=n+1; return sum(n)+sum(next); };
             """;
         assertTrue("Ordinary calls must survive optimization",checkArmCalls(src,"run",4,27)>0);
     }
@@ -157,7 +158,7 @@ public class Chapter21Test {
                     buf=buf2;
                 };
                 val add = { int e ->
-                    if( len>=buf# ) grow(buf#*2);
+                    if( len>=buf# ) { int size=buf#*2; grow(size); }
                     buf[len++]=e;
                     return self;
                 };
@@ -323,9 +324,9 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testCPU(src,"x86_64_v2", "SystemV",-1,"return mov(.[]);");
-        testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return (add,.[],(muli,.[]));");
+        testCPU(src,"riscv"    , "SystemV",9,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"arm"      , "SystemV",13,"return (add,.[],(mul,.[],1000));");
     }
 
     @Test
@@ -384,7 +385,7 @@ val hashCode = { !String self ->
 };
 """;
         // Return the public hashCode wrapper; keep its helper private.
-        testCPU(src,"x86_64_v2", "SystemV",12,null);
+        testCPU(src,"x86_64_v2", "SystemV",28,null);
         testCPU(src,"riscv"    , "SystemV",8,null);
         testCPU(src,"arm"      , "SystemV",6,null);
     }
@@ -423,7 +424,7 @@ val hashCode = { !String self ->
     : (self._hashCode = _hashCodeString(self));
 };
 """;
-        TestC.runC(src, "stringHash", "",12);
+        TestC.runC(src, "stringHash", "",28);
     }
 
     @Test public void testLoop2() {
@@ -439,9 +440,9 @@ while(true) {
 }
 return i;
 """;
-        testCPU(src,"x86_64_v2", "win64"  ,0,"return (!=0)(inc,Phi(Loop,0,Phi(Region,(!=0),(!=0),0)));");
-        testCPU(src,"riscv"    , "SystemV",0,"return (!=0)( Phi(Loop,0,Phi(Region,(!=0),(!=0),0)) + #1 );");
-        testCPU(src,"arm"      , "SystemV",0,"return (!=0)(inc,Phi(Loop,0,Phi(Region,(!=0),(!=0),0)));");
+        testCPU(src,"x86_64_v2", "win64"  ,0,"return (!=0)(sari,(shli,(inc,Phi(Loop,0,Phi(Region,(!=0),(!=0),0)))));");
+        testCPU(src,"riscv"    , "SystemV",0,"return (!=0)( ( ( Phi(Loop,0,Phi(Region,(!=0),(!=0),0)) + #1 ) << #32 ) >> #1056 );");
+        testCPU(src,"arm"      , "SystemV",0,"return (!=0)(asri,(lsli,(inc,Phi(Loop,0,Phi(Region,(!=0),(!=0),0)))));");
     }
 
     @Test public void testNewtonExport() throws IOException {
@@ -530,7 +531,7 @@ val sieve = { int N ->
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.runC(src, "sieve", sprimes, 186);
+        TestC.runC(src, "sieve", sprimes,344);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.

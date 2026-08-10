@@ -1,0 +1,133 @@
+// Player is X, CPU is O. Squares are numbered left-to-right, top-to-bottom.
+val main = { u8[~][] args ->
+    sys.io.p("Tic-tac-toe!\nYou are X; the CPU is O.  You go first.\n");
+    sys.io.p("Press a square's number (no Enter needed), or q/Esc to quit.\n");
+    sys.io.p("Squares:\n 1 | 2 | 3 \n---+---+---\n 4 | 5 | 6 \n---+---+---\n 7 | 8 | 9 \n\n");
+    val board = new u8[9];
+    for( int i=0; i<board#; i++ ) board[i]=' ';
+    // Draw empty board
+    _draw(board);
+
+    while( true ) {
+        sys.io.p("Your move (1-9): ");
+        // Valid user move 1-9, or 0 for quitting
+        int square = _validMove(board) - 1;
+        if( square < 0 ) return 0;
+        // Set user choice; print board
+        board[square] = 'X';
+        sys.io.p("\n");
+        _draw(board);
+        // A winner?
+        if( _finished(board) ) return 0;
+        // Compute CPU move
+        int reply = _cpu(board);
+        // Set CPU choice; print board
+        board[reply]='O';
+        sys.io.p("CPU plays %(reply+1).\n");
+        _draw(board);
+        // A winner?
+        if( _finished(board) ) return 0;
+    }
+};
+
+// Return with a valid user move 1-9, or 0 to exit
+val _validMove =  { u8[~] board ->
+    while( true ) {
+        int key = sys.io.getch();
+        if( key == -1 && sys.libc.errno() != sys.libc.EOF ) {
+            sys.io.err("\nUnable to read the keyboard.\n");
+            return 0;
+        }
+        // Various quitting conditions
+        if( key == -1 || key == 'q' || key == 'Q' || key == 27 || key == 3 || key == 4 ) {
+            sys.io.p("\nGoodbye!\n");
+            return 0;
+        }
+        // Ignore CR/LF
+        if( key == '\r' || key == '\n' ) continue;
+
+        // Valid choice
+        if( key < '1' || key > '9' ) {
+            sys.io.p("\nChoose a square from 1 to 9: ");
+            continue;
+        }
+        if( board[key-'1'] != ' ' ) {
+            sys.io.p("\nThat square is occupied. Your move (1-9): ");
+            continue;
+        }
+        sys.io.p("%c(key)");
+        return key-'0';
+    }
+};
+
+// Return the winning mark, or zero.
+val _winner = { u8[~] board ->
+    for( int i=0; i<3; i++ ) {
+        int row = i*3;
+        if( board[row]!=' ' && board[row]==board[row+1] && board[row]==board[row+2] )
+            return board[row];
+        if( board[i]!=' ' && board[i]==board[i+3] && board[i]==board[i+6] )
+            return board[i];
+    }
+    if( board[4]!=' ' ) {
+        if( board[0]==board[4] && board[4]==board[8] ) return board[4];
+        if( board[2]==board[4] && board[4]==board[6] ) return board[4];
+    }
+    return 0;
+};
+
+val _finished = { u8[~] board ->
+    int winner = _winner(board);
+    if( winner=='X' ) { sys.io.p("You win!\n"); return true; }
+    if( winner=='O' ) { sys.io.p("CPU wins!\n"); return true; }
+    for( int i=0; i<board#; i++ )
+        if( board[i]==' ' ) return false;
+    sys.io.p("It's a draw!\n");
+    return true;
+};
+
+// Try each empty square, restoring it before returning.
+val _threat = { u8[] board, u8 mark ->
+    for( int i=0; i<board#; i++ ) {
+        if( board[i]==' ' ) {
+            board[i]=mark;
+            bool wins = _winner(board)==mark;
+            board[i]=' ';       // Restore board
+            if( wins ) return i;
+        }
+    }
+    return -1;
+};
+
+// Win if possible, otherwise block, then prefer center, corners, and edges.
+// Called only after _finished has ruled out a full board.
+val _cpu = { u8[] board ->
+    // If O can win, do so
+    int win = _threat(board,'O');
+    if( win>=0 ) return win;
+    // If X will win next move, block
+    int block = _threat(board,'X');
+    if( block>=0 ) return block;
+    // If center is open, take it
+    if( board[4]==' ' ) return 4;
+    // If a corner is open, take it
+    for( int i=0; i<board#; i+=2 )
+        if( board[i]==' ' ) return i;
+    // Take whatever is available
+    for( int i=0; i<board#; i++ )
+        if( board[i]==' ' ) return i;
+    return -1;
+};
+
+val _draw = { u8[~] board ->
+    val out = new sys.aryu8();
+    for( int row=0; row<3; row++ ) {
+        for( int col=0; col<3; col++ ) {
+            out.add(' ').add(board[row*3+col]).add(' ');
+            if( col<2 ) out.add('|');
+        }
+        out.add('\n');
+        if( row<2 ) out.addAry("---+---+---\n");
+    }
+    out.write(sys.libc.STDOUT);
+};
