@@ -258,7 +258,7 @@ public class BulkMemPhiNode extends PhiNode {
         MemPhiNode mphi = _findPhi(alias);
         if( mphi!=null ) return mphi;
 
-        mphi = new MemPhiNode("$"+alias,alias);
+        mphi = new MemPhiNode(ScopeNode.memName(alias),alias);
         mphi.addDef(region());
         // Due to cycles, must set before calling peephole
         // Splitting preserves the bulk Phi's established escape bound. Starting

@@ -16,10 +16,10 @@ public class TypeStruct extends Type {
     /**
      * `_open` and `_fref` are independent lattice coordinates.
      *
-     * `_open` says the structural tail is not known yet.  On the low side an
-     * open struct has infinitely many implicit BOT fields; its dual has an
-     * implicit TOP tail.  A real declaration is therefore open while its body
-     * is being parsed:
+     * `_open` says the structural tail is not known yet - more fields may be
+     * added.  On the low side an open struct has infinitely many implicit BOT
+     * fields; its dual has an implicit TOP tail.  A real declaration is open
+     * while its body is being parsed:
      *
      * ```text
      * struct S { int x; /* more declared fields may follow *\/ }
@@ -27,7 +27,8 @@ public class TypeStruct extends Type {
      *
      * `_fref` says no actual declaration has contributed to the type.  The
      * parser may still invent fields demanded by uses, leaving a useful open
-     * structural constraint:
+     * structural constraint.  Here `S` is an unknown struct, which has an
+     * unknown `x` field:
      *
      * ```text
      * S? p; p.x;       // fref S { BOT x; ... }
@@ -102,7 +103,7 @@ public class TypeStruct extends Type {
         for( Field f : _fields )
             if( f._fname.charAt(0) != '_' &&  // Skip private fields.
                 !hiddenInit(f) &&             // Skip private allocation helper.
-                f._t != Type.TOP )            // Skip uninit fields
+                f._t != Type.TOP && f._t != TypeScalar.TOP ) // Skip unreachable values
                 xs[XInt.idx(f._alias)] |= XInt.mask(f._alias);
         return (_aliases=XInt.intern(xs));
     }
@@ -115,15 +116,15 @@ public class TypeStruct extends Type {
         assert _terned;
         int[] xs = XInt.EMPTY;
         for( Field f : _fields )
-            if( f._fname.charAt(0) != '_' &&     // Skip private fields.
-                !hiddenInit(f) &&                // Skip private allocation helper.
-                f._t instanceof TypeFunPtr tfp ) // Looking for TFP
-                xs = XInt.meet(xs,tfp._fidxs);
+            if( f._fname.charAt(0) != '_' && !hiddenInit(f) ) {
+                if( f._t==TypeScalar.BOT || f._t==Type.BOTTOM ) return (_fidxs = XInt.FULL);
+                if( f._t instanceof TypeFunPtr tfp ) xs = XInt.meet(xs,tfp._fidxs);
+            }
         return (_fidxs = xs);
     }
 
-    // Initializer/constructor helpers receive private memory. Only the
-    // allocator has a source-callable signature.
+    // Hidden initializer/constructor helpers receive private memory. Only the
+    // allocator has a source-callable signature; TypeMem is not a source type.
     public boolean hiddenInit(Field fld) {
         return fld._t instanceof TypeFunPtr tfp && tfp.nargs()>=2 &&
             tfp.arg(1) instanceof TypeMem;
@@ -153,8 +154,7 @@ public class TypeStruct extends Type {
         Field[] fs = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ ) {
             if( _fields[i]._extern ) { fs[i] = _fields[i]; continue; }
-            Type zero = _fields[i]._t.makeZero();
-            fs[i] = _fields[i].makeFrom(_fields[i]._t != Type.BOTTOM && zero.isa(_fields[i]._t) ? zero : Type.TOP);
+            fs[i] = _fields[i].makeFrom(TypeScalar.BOT);
         }
         return make(_name,_open,_fref,fs);
     }
@@ -650,4 +650,19 @@ public class TypeStruct extends Type {
         return is;
     }
 
+
+    // Class-object name, distinct from its instance type.
+    public static final String CLZ = "class:";
+
+    public static String addClzPrefix( String x ) {
+        assert !x.startsWith(CLZ);
+        return (CLZ+x).intern();
+    }
+    public static boolean startsClzPrefix( String s ) {
+        return s.startsWith(CLZ);
+    }
+    public static boolean isPublicClassName( String name ) {
+        if( startsClzPrefix(name) ) name = name.substring(CLZ.length());
+        return !name.isEmpty() && name.charAt(0)!='_' && name.indexOf("._")==-1;
+    }
 }

@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.parser.Parser;
+import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
@@ -29,10 +31,10 @@ public class StoreNode extends MemOpNode {
      * @param off   The offset inside the struct base
      * @param value Value to be stored
      */
-    public StoreNode(Parser.Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
+    public StoreNode(Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
         this(loc,name,alias,decl,ctrl,mem,ptr,off,value,init,(byte)0);
     }
-    private StoreNode(Parser.Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init, byte size) {
+    private StoreNode(Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init, byte size) {
         super(loc, name, alias, false, decl, ctrl, mem, ptr, off, value);
         _init = init;
         _size = size;
@@ -78,7 +80,7 @@ public class StoreNode extends MemOpNode {
         Type mem0 = mem()._type;
         Type ptr0 = ptr()._type;
         // Validate argument types
-        if( ptr0.isHigh() )
+        if( ptr0.isHigh() || mem0.isHigh() )
             return TypeMem.TOP;
         if( !(mem0 instanceof TypeMem    mem) ||
             !(ptr0 instanceof TypeMemPtr ptr) )
@@ -86,9 +88,16 @@ public class StoreNode extends MemOpNode {
 
         // Sharpen memory value; required for narrowing stores where the parser
         // inserts zero/sign masking and somebody reads the TypeMem type.
+        // A declared bound must not turn an unwritten value into an
+        // initialized integer, float, or pointer.
         Type decl = declaredType();
-        if( decl != Type.BOTTOM )
+        if( decl instanceof TypeMemPtr ptrType ) decl = ptrType.withPartial(TypeMemPtr.mayBePartial(val));
+        if( decl != Type.BOTTOM && val!=Type.BOTTOM && val!=TypeScalar.BOT )
             { assert decl != Type.TOP; val = val.join(decl); }
+        // A constructor can itself be a field. Its result memory contains
+        // that field again; retain the declared signature instead of unfolding
+        // successively sharper copies of its private-memory return type.
+        if( mem._one && decl instanceof TypeFunPtr && val instanceof TypeFunPtr ) val = decl;
         TypeMem outside = TypeMem.opaque(val) ? CodeGen.CODE._start.outside(this) : TypeMem.BOT;
         // A singleton class's final constant field lives in the static image.
         // Its precise memory slice is a constant too; ordinary peepholes can
@@ -96,10 +105,12 @@ public class StoreNode extends MemOpNode {
         // A constant runtime value alone is not enough: mutable fields (notably
         // $init) still need their writes, and instance fields need allocation.
         Field fld = ptr._obj.field(_name);
-        if( _alias!=1 && ptr._one && Parser.startsClzPrefix(ptr._obj._name) &&
+        if( fld==null && off() instanceof ConFldOffNode off ) fld = off._ts.field(_name);
+        if( _alias!=1 && ptr._one && TypeStruct.startsClzPrefix(ptr._obj._name) &&
             fld!=null && fld._final && decl.isConstant() )
-            // A constant slice contains only this value's escapes. Copying
-            // bulk escapes here would freeze a transient FULL into it.
+            // This singleton slice contains just the stored value. Copying
+            // bulk memory's escapes would freeze a transient FULL bound into
+            // the constant, permanently exposing unrelated private functions.
             return TypeMem.make(_alias,val,true,true,true,null,null).escapesFrom(val,outside);
 
         // Allocation uses a private TypeMem and nothing else does.  This
@@ -107,7 +118,7 @@ public class StoreNode extends MemOpNode {
         // which is never does in a constructor.
         if( !_name.equals("[]") && mem._one )
             // Just track the stored value
-            return TypeMem.make(_alias,val,true,false,_init,null,null).escapesFrom(val,outside);
+            return TypeMem.make(_alias,val,true,false,fld==null ? _init : fld._final,null,null).escapesFrom(val,outside);
 
         // Normal aliasing Store.
         assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
@@ -320,6 +331,11 @@ public class StoreNode extends MemOpNode {
     public Parser.ParseException err() {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
+        if( !_init && ptr()._type instanceof TypeMemPtr p && p._partial )
+            return Parser.error("Cannot modify a field through an incomplete object outside its constructor",_loc);
+        if( TypeMemPtr.mayBePartial(val()._type) &&
+            !(mem()._type instanceof TypeMem mem && mem._one && !mem._clz) )
+            return Parser.error("Cannot store an incomplete object into an ordinary object",_loc);
         assert _size>0 || CodeGen.CODE._phase.ordinal() <= CodeGen.Phase.FinalizeIR.ordinal();
         if( ptr()._type == Type.TOP ) // Dead store?
             return null;

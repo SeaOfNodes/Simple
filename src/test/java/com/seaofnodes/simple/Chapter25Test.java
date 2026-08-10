@@ -5,6 +5,7 @@ import com.seaofnodes.isa.eval.EvalRisc5;
 import com.seaofnodes.isa.eval.EvalArm64;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.ElfReader;
 import com.seaofnodes.simple.codegen.ParseAll;

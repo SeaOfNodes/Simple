@@ -1,4 +1,6 @@
 package com.seaofnodes.simple;
+import com.seaofnodes.simple.parser.Var;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.node.*;
 

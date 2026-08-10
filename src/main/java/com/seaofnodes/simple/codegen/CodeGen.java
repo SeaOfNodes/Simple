@@ -1,8 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.graph.GraphObserver;
-import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.*;
 import com.seaofnodes.simple.type.*;
@@ -98,7 +97,7 @@ public class CodeGen {
     }
 
     public static boolean hasUserConstructor(TypeStruct self) {
-        Type t = Parser.TYPES.get(Parser.addClzPrefix(self._name));
+        Type t = Parser.TYPES.get(TypeStruct.addClzPrefix(self._name));
         return t instanceof TypeStruct clz && clz.field("<ctor>") != null;
     }
 
@@ -248,7 +247,7 @@ public class CodeGen {
     }
 
     public String entryClinitName() {
-        return Parser.addClzPrefix(_srcName==null ? "Test" : _srcName.replace('/','.'))+".<clinit>";
+        return TypeStruct.addClzPrefix(_srcName==null ? "Test" : _srcName.replace('/','.'))+".<clinit>";
     }
 
     // Verbose printing during compilation
@@ -367,7 +366,12 @@ public class CodeGen {
     // being called.
     public void link(FunNode fun) {
         int fidx = fun.sig().fidx();
+        FunNode old = _linker.atX(fidx);
+        if( old!=null && old!=fun ) old.moveDepsToWorklist();
         _linker.setX(fidx,fun);
+        // Calls waiting for an unloaded target depend on Start until there
+        // is a FunNode to depend on. Installing a body lets them retry.
+        if( _start!=null ) _start.moveDepsToWorklist();
         add(_globalEscapes); // A new or replacement summary may expose escapes.
     }
 
@@ -729,7 +733,7 @@ public class CodeGen {
 
                 // Publish definitions only; referenced classes belong to other objects.
                 for( String fname : elf._units )
-                    _externSymbols.putIfAbsent(Parser.addClzPrefix(fname.replace('/','.')),elf);
+                    _externSymbols.putIfAbsent(TypeStruct.addClzPrefix(fname.replace('/','.')),elf);
                 // A -L object can name dependencies alongside itself. They
                 // need metadata discovery even when no directory was supplied.
                 for( String dep : elf._deps ) {

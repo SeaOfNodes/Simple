@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeStruct;
@@ -135,7 +134,7 @@ public class CompUnit {
     static File dependencyObj(String fname, boolean local) {
         File obj = new File(CODE._buildDir+"/"+fname+".o");
         if( local && (obj.isFile() || new File(CODE._modDir+"/"+fname+".smp").isFile()) ) return obj;
-        ElfReader elf = CODE.findExternalSimple(Parser.addClzPrefix(fname.replace('/','.')));
+        ElfReader elf = CODE.findExternalSimple(TypeStruct.addClzPrefix(fname.replace('/','.')));
         return elf==null ? null : elf._file;
     }
 

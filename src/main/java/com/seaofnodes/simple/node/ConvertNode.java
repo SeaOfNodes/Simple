@@ -2,7 +2,7 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
 
-import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.type.*;
 
 import java.util.HashMap;
@@ -39,10 +39,16 @@ public class ConvertNode extends Node {
     @Override public Type compute() {
         Type src = val()._type;
         if( src.isHigh() ) return Type.TOP;
+        if( src==Type.BOTTOM || src==TypeScalar.BOT ) return src;
         if( _dst instanceof TypeMemPtr ptr ) {
-            // Keep non-nullness before the identity rewrite; shape and access
-            // still follow the declaration so compute stays monotone.
-            return src instanceof TypeMemPtr actual && actual.notNull() ? ptr.nonZero() : ptr;
+            // Assigning to a nullable field does not make a non-null value
+            // null. Keep this fact during SCCP, before idealize removes us.
+            // Shape/access still follow the declaration: switching between
+            // the entire source and destination types is not monotone.
+            if( src instanceof TypeMemPtr actual && actual.notNull() ) ptr = (TypeMemPtr)ptr.nonZero();
+            ptr = ptr.withPartial(TypeMemPtr.mayBePartial(src));
+            return src instanceof TypeMemPtr actual && actual._partial && actual._obj._name==ptr._obj._name
+                ? ptr.initialized(actual._obj) : ptr;
         }
         if( src.isa(_dst) ) return src;
         return _dst;
@@ -51,13 +57,14 @@ public class ConvertNode extends Node {
     @Override public Node idealize() {
         Type src = val()._type;
         if( src==Type.BOTTOM || src==Type.TOP ) return null;
-        if( (src.isa(_dst) && src.accessISA(_dst)) ) return val();
+        Type dst = _dst instanceof TypeMemPtr ptr ? ptr.withPartial(TypeMemPtr.mayBePartial(src)) : _dst;
+        if( (src.isa(dst) && src.accessISA(dst)) ) return val();
 
         // Managed arrays are represented by an object pointer, while C wants
         // the address of the first element.  The representation cast itself is
         // zero-code; the Add skips the array header.
         if( _dst==TypeInteger.BOT && src instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            return new AddNode(new PtrToIntNode(val()).peephole(),Parser.off(tmp._obj,"[]"));
+            return new AddNode(new PtrToIntNode(val()).peephole(),ConFldOffNode.make(tmp._obj,"[]"));
 
         // Integer (and nil-as-zero) to floating point.
         if( (src instanceof TypeInteger || src==Type.NIL) && _dst instanceof TypeFloat )
@@ -68,10 +75,10 @@ public class ConvertNode extends Node {
             return new ConvertNode(_dst,new ToIntegerNode(val()).peephole());
 
         // Narrow integers produce the declared sign/zero extension.
-        if( src instanceof TypeInteger && _dst instanceof TypeInteger dst ) {
-            if( dst._min==0 )
-                return new AndNode(null,val(),con(dst._max));
-            int shift = Long.numberOfLeadingZeros(dst._max)-1;
+        if( src instanceof TypeInteger && _dst instanceof TypeInteger ti ) {
+            if( ti._min==0 )
+                return new AndNode(null,val(),con(ti._max));
+            int shift = Long.numberOfLeadingZeros(ti._max)-1;
             Node shf = con(shift);
             if( shf._type==TypeInteger.ZERO ) return val();
             return new SarNode(null,new ShlNode(null,val(),shf.keep()).peephole(),shf.unkeep());
