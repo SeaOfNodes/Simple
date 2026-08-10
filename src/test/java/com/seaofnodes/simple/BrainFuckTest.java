@@ -5,14 +5,15 @@ import com.seaofnodes.isa.eval.EvalRisc5;
 import com.seaofnodes.isa.eval.EvalArm64;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 public class BrainFuckTest {
 
-    @Test public void testBrainFuck() throws IOException {
+    @Test public void testBrainFuckAryu8() throws IOException {
         String brain_fuck = "Hello World!\n";
         String src =
 """
@@ -20,7 +21,7 @@ public class BrainFuckTest {
 val brain_fuck = { ->
     var !program = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
     int d = 0;
-    u8[] !output = new u8[0];
+    val output = new sys.aryu8();
     u8[] !data = new u8[100];
 
     for( int pc = 0; pc < program#; pc++ ) {
@@ -34,12 +35,7 @@ val brain_fuck = { ->
         } else if (command == '-') {
             data[d]--;
         } else if (command == '.') {
-            // Output a byte; increase the output array size
-            var old = output;
-            output = new u8[output# + 1];
-            for( int i = 0; i < old#; i++ )
-                output[i] = old[i];
-            output[old#] = data[d]; // Add the extra byte on the end
+            output.add(data[d]);
         } else if (command == ',') {
             data[d] = 42;
         } else if (command == '[') {
@@ -62,7 +58,18 @@ val brain_fuck = { ->
     }
     return output;
 };
+val main = { ->
+    brain_fuck().write(sys.libc.STDOUT);
+    return 0;
+};
 """;
+        TestC.runSYS(src,"brain_fuck_aryu8",brain_fuck,-1);
+    }
+
+    @Test public void testBrainFuck() throws IOException {
+        // Retain the original workload for cross-target allocation comparisons.
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/spill/BrainFuckTest-testBrainFuck.smp"));
+        String brain_fuck = "Hello World!\n";
         TestC.runC(src,"brain_fuck", brain_fuck, 40);
 
         EvalRisc5 R5 = TestRisc5.build( src, "brain_fuck", 0, 25, false);

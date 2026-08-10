@@ -207,7 +207,9 @@ public abstract class CFGNode extends Node {
         int pre = 1;
         _pre = pre++;
         for( FunNode fun : funs ) {
-            if( fun!=null && !fun.isDead() && !fun._type.isHigh() ) {
+            // Summaries have no executable CFG. Their loop trees are built
+            // only if Eval2 later loads the corresponding bodies.
+            if( fun!=null && !fun.isDead() && !fun._type.isHigh() && fun.summary()==null ) {
                 work.push(fun);
                 if(fun.in(1) instanceof StartCUNode start && start._pre==0 ) {
                     start._pre = pre++;
@@ -238,7 +240,7 @@ public abstract class CFGNode extends Node {
         for( Node use : _outputs )
             if( use instanceof CFGNode usecfg ) {
                 if( skip( usecfg ) ) {
-                    if( usecfg._pre==0 && usecfg instanceof FunNode fun2 ) work.add( fun2 );
+                    if( usecfg._pre==0 && usecfg instanceof FunNode fun2 && fun2.summary()==null ) work.add( fun2 );
                 } else
                     pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post, work );
             }
@@ -286,9 +288,12 @@ public abstract class CFGNode extends Node {
 
     public boolean skip(CFGNode usecfg) {
         // Only walk control users that are alive.
-        // Do not walk from a Call to linked Fun's.
+        // Do not follow interprocedural edges. CLInit's call projection is
+        // only an analysis edge, not a branch in the caller's loop tree.
         return usecfg instanceof XCtrlNode ||
                 (this instanceof CallNode && usecfg instanceof FunNode) ||
+                (this instanceof CLInitNode && usecfg instanceof CProjNode proj && proj._idx==3) ||
+                (this instanceof CProjNode proj && proj._idx==3 && proj.in(0) instanceof CLInitNode && usecfg instanceof FunNode) ||
                 (this instanceof ReturnNode && usecfg instanceof CallEndNode);
     }
 

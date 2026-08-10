@@ -33,6 +33,37 @@ public class TypeTest {
             }
     }
 
+    // Refining an unknown pointer must remove possible escapes, not add them.
+    // Inlining can expose the abstract self pointer before its concrete class.
+    @Test public void testAbstractPointerEscapes() {
+        TypeMemPtr object = TypeMemPtr.make(TypeStruct.make("EscapingCallback",false,
+            Field.make("callback",TypeFunPtr.TEST,2,false)));
+        for( Type precise : new Type[]{object,TypeFunPtr.TEST} )
+            for( Type broad : new Type[]{Type.BOTTOM,TypeScalar.BOT,TypePtr.PTR,TypePtr.NPTR} ) {
+                Assert.assertTrue(precise.isa(broad));
+                TypeMem unknown = TypeMem.START.escapes(broad);
+                assertSame(XInt.FULL,unknown._escFs);
+                assertSame(XInt.FULL,unknown._escAs);
+                Assert.assertTrue(TypeMem.START.escapes(precise).isa(unknown));
+            }
+        for( Type empty : new Type[]{Type.TOP,TypeScalar.TOP,TypePtr.XPTR,TypePtr.XNPTR,TypeNil.NIL} )
+            assertSame(TypeMem.START,TypeMem.START.escapes(empty));
+    }
+
+    @Test public void testBoundedBits() {
+        int[] sparse = XInt.make(XInt.make(2),65);
+        for( int[] bits : new int[][]{XInt.EMPTY,XInt.FULL,sparse,XInt.dual(sparse)} )
+            for( int limit : new int[]{0,1,32,65,66,100} ) {
+                int next = XInt.next(bits,-1,limit);
+                for( int bit=0; bit<limit; bit++ )
+                    if( XInt.bit(bits,bit) ) {
+                        Assert.assertEquals(bit,next);
+                        next = XInt.next(bits,next,limit);
+                    }
+                Assert.assertEquals(-1,next);
+            }
+    }
+
     // Removing zero must not reset the widening history of a remaining range.
     @Test public void testNonZeroWidening() {
         for( byte widen=0; widen<=3; widen++ ) {

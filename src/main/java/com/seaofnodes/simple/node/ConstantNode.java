@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -30,7 +31,11 @@ public class ConstantNode extends TypeNode {
         _type = type;
     }
     public ConstantNode( ConstantNode con ) { super(con); }
-
+    @Override public Tag serialTag() { return Tag.Con; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed2(types.get(_con)); // NPE if fails lookup
+    }
+    static Node make( BAOS bais, Type[] types)  { return raw(types[bais.packed2()]); }
 
     // Semantic constant construction through Lower.  A unique internal
     // function identity carries a lifetime edge to the function's Return.
