@@ -101,6 +101,7 @@ public class CodeGen {
         _callingConv = null;
         _start = new StartNode(arg);
         _stop = new StopNode(src);
+        _start.setDef(1,_stop);
         _src = src;
         _arg = arg;
         _iter = new IterPeeps(workListSeed);
@@ -145,6 +146,8 @@ public class CodeGen {
     // Start and stop; end points of the generated IR
     public StartNode _start;
     public StopNode  _stop;
+    // Native calls are exposure roots even on paths with no live Return.
+    public final Ary<CallNode> _calls = new Ary<>(CallNode.class);
 
     // Global Value Numbering.  Hash over opcode and inputs; hits in this table
     // are structurally equal.

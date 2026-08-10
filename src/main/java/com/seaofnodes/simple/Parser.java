@@ -270,7 +270,7 @@ public class Parser {
         _scope.push(new Kind.Func(_privateFun!=null));
         ctrl(fun);              // Scope control from function
         // Unknown callers supply whole memory; field aliases are discovered lazily.
-        _scope.mem(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole());
+        _scope.mem(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,new ProjNode(_code._start,1,ScopeNode.MEM0).peephole()).peephole());
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
@@ -1103,7 +1103,7 @@ public class Parser {
         fun._name=shape._name+".<new>"; fun._constructor=true;
         _code.link(fun);
         Node rpc=new ParmNode("$rpc",0,TypeRPC.BOT,fun,con(TypeRPC.BOT)).init();
-        Node pub=new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).init();
+        Node pub=new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,new ProjNode(_code._start,1,ScopeNode.MEM0).peephole()).init();
         Node[] args=new Node[nargs+2];
         for( int i=0; i<nargs; i++ ) args[i+2]=new ParmNode("arg"+i,i+2,types[i],fun,con(types[i])).init();
         Node alloc=new NewNode(ptr,fun,null,off(shape," len")).init();
