@@ -73,7 +73,7 @@ return p;
     public void testStructFinal3() {
         for( String fields : new String[] { "var x; var y;", "int[] !x;", "int[] !x;" } ) {
             String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
-            try { new CodeGen(src).driver(CodeGen.Phase.FinalizeIR); fail(fields); }
+            try { new CodeGen(src).driver(CodeGen.Phase.TypeCheck); fail(fields); }
             catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
         }
     }

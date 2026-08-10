@@ -101,6 +101,7 @@ public class BulkMemPhiNode extends PhiNode {
         case ConstantNode con -> 0;
         case MemMergeNode mmm -> missingAlias(mmm);
         case MemOpNode mem -> unsplit(mem._alias);
+        case EscapeNode esc -> unsplit(esc._field._alias);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
         default -> throw new AssertionError("Unexpected memory input "+n);
         };
@@ -118,6 +119,7 @@ public class BulkMemPhiNode extends PhiNode {
         case MemMergeNode mmm -> missingAlias(mmm);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
         case MemOpNode mem -> unsplit(mem._alias);
+        case EscapeNode esc -> unsplit(esc._field._alias);
         case MemPhiNode phi -> unsplit(phi._alias);
         default -> {
             assert use instanceof ReturnNode || use instanceof CallNode || use instanceof ParmNode

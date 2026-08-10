@@ -223,7 +223,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("Stop[ return #2; return (Parm_x($fun21,i64)*x); return (Parm_x($fun22,i64)<<1); ]", code._stop.toString());
+        assertEquals("Stop[ return #2; return (Parm_x($fun35,i64)*x); return (Parm_x($fun36,i64)<<1); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -359,7 +359,7 @@ for(;;) {
 return 0;
 """);
         try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #21}?",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null calling { i64 -> i64 #35}?",e.getMessage()); }
     }
 
 

@@ -306,6 +306,7 @@ public class Evaluator {
             case NewNode      alloc -> alloc(alloc);
             case CProjNode    cproj -> ((Object[])val(cproj.ctrl()))[cproj._idx];
             case ProjNode     proj  -> ((Object[])val( proj.in(0) ))[ proj._idx];
+            case EscapeNode esc -> null;
             case MemMergeNode mem   -> null;
             case ReadOnlyNode ro    -> val(ro.in(1));
             case CallNode     call  -> Utils.TODO(); // should not reach here, go the IfNode route

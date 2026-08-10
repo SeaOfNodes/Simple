@@ -163,7 +163,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
         }
         for( int i=0; i<len; i++ ) {
             Node n = TINYBODY[i];
-            if( n instanceof StoreNode || n instanceof MemMergeNode ) {
+            if( n instanceof StoreNode || n instanceof MemMergeNode ||
+                n instanceof NewNode || n instanceof ProjNode || n instanceof EscapeNode ) {
                 for( Node in : n._inputs ) copy[i].addDef(mapped(in,copy));
                 CodeGen.CODE.add(copy[i]);
             }
@@ -211,7 +212,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
             if( n==ret ) continue;
             if( n instanceof ParmNode parm && parm.region()!=fun ) return 0;
             if( n!=fun && !(n instanceof ParmNode) &&
-                !(n instanceof StoreNode) && !(n instanceof MemMergeNode) )
+                !(n instanceof StoreNode) && !(n instanceof MemMergeNode) &&
+                !(n instanceof NewNode) && !(n instanceof ProjNode) && !(n instanceof EscapeNode) )
                 return 0;
             if( n.nOuts()>TINYBODY.length ) return 0;
             for( Node use : n._outputs ) {

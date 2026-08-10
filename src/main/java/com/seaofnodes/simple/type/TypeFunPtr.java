@@ -23,24 +23,23 @@ public class TypeFunPtr extends TypeNil {
     public Type _ret;
     // TODO:
     boolean _open;              // Extra args are true:BOTTOM, false:TOP
-    // Cheesy easy implementation for a small set; 1 bit per unique function
-    // within the same Type[].  Can be upgraded to a BitSet for larger classes
-    // of functions.  Negative means "these 63 concrete bits plus infinite
-    // unknown more"
-    public long _fidxs; // 63 unique functions per signature
+    // Hidden initializers and allocators can exceed a machine word's worth
+    // of functions. Use the expandable sets from the later chapters, without
+    // adding their escape summaries or cross-file identity remapping.
+    public int[] _fidxs;
 
     private static final Ary<TypeFunPtr> FREE = new Ary<>(TypeFunPtr.class);
-    private TypeFunPtr(byte nil, boolean open, Type[] sig, Type ret, long fidxs) { super(TFUNPTR,nil); init(nil,open,sig,ret,fidxs); }
-    private TypeFunPtr init(byte nil, boolean open, Type[] sig, Type ret, long fidxs ) {
+    private TypeFunPtr(byte nil, boolean open, Type[] sig, Type ret, int[] fidxs) { super(TFUNPTR,nil); init(nil,open,sig,ret,fidxs); }
+    private TypeFunPtr init(byte nil, boolean open, Type[] sig, Type ret, int[] fidxs ) {
         assert sig != null;
         _nil  = nil;
         _open = open;
         _sig  = sig;
         _ret  = ret;
-        _fidxs= fidxs;
+        _fidxs= XInt.intern(fidxs);
         return this;
     }
-    static TypeFunPtr malloc( byte nil, boolean open, Type[] sig, Type ret, long fidxs ) {
+    static TypeFunPtr malloc( byte nil, boolean open, Type[] sig, Type ret, int[] fidxs ) {
         return FREE.isEmpty() ? new TypeFunPtr(nil,open,sig,ret,fidxs) : FREE.pop().init(nil,open,sig,ret,fidxs);
     }
     @Override TypeFunPtr free(Type t) {
@@ -56,7 +55,13 @@ public class TypeFunPtr extends TypeNil {
     @Override boolean isFree() { return _sig==null; }
 
     // All fields directly listed
-    public static TypeFunPtr make( byte nil, boolean open, Type[] sig, Type ret, long fidxs ) {
+    public static TypeFunPtr make(byte nil, boolean open, Type[] sig, Type ret, long bits) {
+        int[] set=bits<0 ? XInt.FULL : XInt.EMPTY;
+        if( bits>=0 ) for( int bit=0; bit<63; bit++ )
+            if( (bits&(1L<<bit))!=0 ) set=XInt.make(set,bit);
+        return make(nil,open,sig,ret,set);
+    }
+    public static TypeFunPtr make( byte nil, boolean open, Type[] sig, Type ret, int[] fidxs ) {
         // Trim trailing args which match the implicit default.
         Type def = open ? Type.BOTTOM : Type.TOP;
         int nargs = sig.length;
@@ -74,7 +79,7 @@ public class TypeFunPtr extends TypeNil {
 
     @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil ? this : make(  nil,_open,_sig,_ret, _fidxs); }
     public    TypeFunPtr makeFrom( Type ret ) { return  ret ==_ret ? this : make( _nil,_open,_sig, ret, _fidxs); }
-    public    TypeFunPtr makeFrom( int fidx ) { return make((byte)2, _open, _sig,_ret,1L<<fidx ); }
+    public    TypeFunPtr makeFrom( int fidx ) { return make((byte)2, _open, _sig,_ret,XInt.make(fidx) ); }
 
 
     public static final Type[] TEMPTY = new Type[0];
@@ -114,7 +119,7 @@ public class TypeFunPtr extends TypeNil {
         // Handle extra args
         for( int i=min._sig.length; i<_sig.length; i++ )
             args[i] = _sig[i];
-        return make(xmeet0(that),_open | that._open, args, _ret.meet(that._ret), _fidxs | that._fidxs);
+        return make(xmeet0(that),_open | that._open, args, _ret.meet(that._ret), XInt.meet(_fidxs,that._fidxs));
     }
     static Type[] xmeet( Type[] ts0, Type[] ts1) {
         if( ts0==ts1 ) return ts0;
@@ -125,7 +130,7 @@ public class TypeFunPtr extends TypeNil {
         return ts;
     }
 
-    @Override TypeFunPtr xdual() { return malloc(dual0(), !_open, xdual(_sig), _ret.dual(), ~_fidxs); }
+    @Override TypeFunPtr xdual() { return malloc(dual0(), !_open, xdual(_sig), _ret.dual(), XInt.dual(_fidxs)); }
     static Type[] xdual(Type[] ts) {
         Type[] dual = new Type[ts.length];
         for( int i=0; i<ts.length; i++ )
@@ -137,7 +142,7 @@ public class TypeFunPtr extends TypeNil {
         if( _dual!=null ) return dual();
         assert !_terned;
         Type[] sigs = new Type[_sig.length];
-        TypeFunPtr d = malloc(dual0(),!_open,sigs,null,~_fidxs);
+        TypeFunPtr d = malloc(dual0(),!_open,sigs,null,XInt.dual(_fidxs));
         (_dual = d)._dual = this; // Cross link duals
         // Return rdual
         d._ret = _ret._terned ? _ret.dual() : _ret.rdual();
@@ -150,9 +155,9 @@ public class TypeFunPtr extends TypeNil {
     // RHS is NIL; do not deep-dual when crossing the centerline
     @Override public Type meet0() { return _nil==3 ? this : make((byte)3,_open,_sig,_ret,_fidxs); }
 
-    @Override public boolean isHigh() { return _nil <= 1 || (_nil==2 && _fidxs==0); }
+    @Override public boolean isHigh() { return _nil <= 1 || (_nil==2 && _fidxs==XInt.EMPTY); }
 
-    @Override public boolean _isConstant() { return (_nil==2 && Long.bitCount(_fidxs)==1) || (_nil==3 && _fidxs==0); }
+    @Override public boolean _isConstant() { return (_nil==2 && XInt.isConstant(_fidxs)) || (_nil==3 && _fidxs==XInt.EMPTY); }
 
     @Override boolean _isFinal() { return true; }
     @Override boolean _isGLB(boolean mem) { return true; }
@@ -171,13 +176,13 @@ public class TypeFunPtr extends TypeNil {
     @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
 
     public Type arg(int i) { return _sig[i]; }
-    public long fidxs() { return _fidxs; }
+    public int[] fidxs() { return _fidxs; }
     public Type ret() { return _ret; }
     public int nargs() { return _sig.length; }
-    public int fidx() { assert Long.bitCount(_fidxs)==1; return Long.numberOfTrailingZeros(_fidxs); }
+    public int fidx() { assert XInt.isConstant(_fidxs); return XInt.onlyBit(_fidxs); }
     public int nfcns() {
-        if( _fidxs < 0 ) return Integer.MAX_VALUE; // Infinite choices
-        return Long.bitCount(_fidxs);
+        if( XInt.isHigh(_fidxs) ) return Integer.MAX_VALUE; // Infinite choices
+        return XInt.bitCount(_fidxs);
     }
 
 
@@ -193,7 +198,7 @@ public class TypeFunPtr extends TypeNil {
 
     @Override
     int hash() {
-        long hash = _ret.hashCode() ^ _fidxs ^ super.hash();
+        long hash = _ret.hashCode() ^ XInt.hash(_fidxs) ^ super.hash();
         for( Type arg : _sig )
             hash = hash*19 ^ arg.hashCode();
         return Utils.fold(hash);
@@ -255,16 +260,13 @@ public class TypeFunPtr extends TypeNil {
     }
     String printFIDX() {
         String tilde = isHigh() ? "~" : "";
-        long fidxs = isHigh() ? ~_fidxs : _fidxs;
-        String fidx = fidxs==0 ? ""
-            : Long.bitCount(fidxs) == 1 ? ""+Long.numberOfTrailingZeros(fidxs)
-            : fidxs == -1 ? "ALL"
-            : "b"+Long.toBinaryString(fidxs); // Just some function bits
+        int[] fidxs = isHigh() ? XInt.dual(_fidxs) : _fidxs;
+        String fidx = fidxs==XInt.EMPTY ? "" : XInt.isConstant(fidxs) ? ""+XInt.onlyBit(fidxs)
+            : fidxs==XInt.FULL ? "ALL" : XInt.str(fidxs);
         return tilde+fidx;
     }
 
-    // Usage: for( long fidxs=fidxs(); fidxs!=0; fidxs=nextFIDX(fidxs) ) { int fidx = Long.numberOfTrailingZeros(fidxs); ... }
-    public static long nextFIDX(long fidxs) { return fidxs & (fidxs-1); }
+
 
 
     @Override Type _upgradeType(java.util.HashMap<String,Type> types) {

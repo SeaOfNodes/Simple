@@ -154,7 +154,6 @@ public class CodeGen {
     private int _fidx =0;
     public TypeFunPtr makeFun( TypeFunPtr fun ) {
         int fidx = _fidx++;
-        assert fidx<64;         // TODO: need a larger FIDX space
         return fun.makeFrom(fidx);
     }
     // Signature for MAIN
