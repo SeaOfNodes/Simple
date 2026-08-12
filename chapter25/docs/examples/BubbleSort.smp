@@ -6,7 +6,7 @@
 // Bubble sort, with reading (parsing) and writing (formatting) the data.
 
 val sort = { sys.aryi64 nums ->
-    var more = self;
+    var more = nums;
     while( more ) {
         more = null;
         for( var i = 0; i < nums.len-1; i++ )

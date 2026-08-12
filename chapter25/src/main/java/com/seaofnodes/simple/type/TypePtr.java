@@ -50,8 +50,8 @@ public class TypePtr extends TypeNil {
     // 0->xscalar, 1->nscalar, 2->nscalar, 3->scalar
     @Override Type meetX() { return _nil==0 ? XNIL : (_nil==3 ? PTR : NPTR); }
 
-    boolean _isGLB(boolean mem) { return this==PTR; }
-    @Override TypePtr _glb(boolean mem) { return PTR; }
+    @Override TypePtr _makeStorage() { return PTR; }
+
 
     // Reserve 2 tags, PTR and NPTR
     @Override int TAGOFF() { return 2; }

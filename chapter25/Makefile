@@ -63,6 +63,7 @@ TST := src/test/java
 CLZDIR:= build/classes
 main_javas   := $(wildcard $(SRC)/$(SIMPLE)/*java $(SRC)/$(SIMPLE)/*/*java $(SRC)/$(SIMPLE)/node/cpus/*/*java)
 test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
+simple_driver := $(TST)/$(SIMPLE)/Simple.java
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 # These tests do not rely on the stdlib
@@ -144,11 +145,12 @@ CPU_PORT:= x86_64_v2
 CALL_CONV:= win64
 CPU_ABI:= $(CPU_PORT)_$(CALL_CONV)
 RELEASE:= build/release
+TEST_SYS:= $(OBJS)/lib_$(CPU_ABI)/sys.o
 RELEASE_SYS:= $(RELEASE)/$(CPU_ABI)/sys.o
 RELEASE_CRT:= $(RELEASE)/$(CPU_ABI)/simple_crt.o
 C_CALL_CONV:= $(if $(filter win64,$(CALL_CONV)),ms_abi,sysv_abi)
 
-$(OBJS)/lib_$(CPU_ABI)/sys.o:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(SYS_SMPS)
+$(TEST_SYS):	$(CLZDIR)/main/.mtag $(simple_driver) $(SYS_SMPS) | $(CLZDIR)/test/.ttag
 	@echo "simping " $@
 	@$(JVM) com.seaofnodes.simple.Simple --cpu $(CPU_PORT) --abi $(CALL_CONV) --norun -o $@ src/main/smp/sys.smp
 
@@ -184,7 +186,7 @@ tests_alone:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT)
 	@$(JVM) org.junit.runner.JUnitCore $(test_alone)
 
 # Tests that DO need sys.smp
-tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_SYS) $(RELEASE_CRT)
+tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_CRT)
 	@echo "testing " $(test_sys)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_sys)
@@ -193,7 +195,7 @@ fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "fuzzing "
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_SYS) tests_raw0 tests_raw1 tests_alone tests_sys
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag tests_raw0 tests_raw1 tests_alone tests_sys
 	@echo "All tests"
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)

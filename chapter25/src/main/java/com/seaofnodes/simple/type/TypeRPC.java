@@ -73,7 +73,7 @@ public class TypeRPC extends Type {
     }
 
     @Override boolean _isConstant() { return XInt.isConstant(_rpcs); }
-    @Override boolean _isGLB(boolean mem) { return true; }
+    @Override TypeRPC _makeStorage() { return this; }
 
     // Reserve tags for ALL, singleton, generic
     @Override int TAGOFF() { return 3; }

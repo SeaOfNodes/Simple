@@ -168,7 +168,7 @@ public class CallNode extends CFGNode {
         if( fptr()._type == Type.BOTTOM )
             return null;        // Wrong, but failing earlier
         if( !(fptr()._type instanceof TypeFunPtr tfp) )
-            throw Utils.TODO();
+            return Parser.error("Expected a function, but found " + fptr()._type, _loc);
         if( !tfp.notNull() )
             return Parser.error( "Might be null calling "+tfp, _loc);
         if( nargs() != tfp.nargs() )

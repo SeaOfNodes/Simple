@@ -48,8 +48,7 @@ public abstract class TypeConAry<A> extends TypeScalar {
 
     @Override public boolean isHigh() { return this==TOP; }
     @Override boolean _isConstant() { return true; }
-    @Override Type _glb(boolean mem) { return this; }
-    @Override boolean _isGLB(boolean mem) { return true; }
+    @Override Type _makeStorage() { return this; }
 
     // Meet-over-elements type
     public Type elem() {

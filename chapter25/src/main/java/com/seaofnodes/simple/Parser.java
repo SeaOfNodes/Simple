@@ -475,7 +475,7 @@ public class Parser {
         Field[] fs = new Field[self._fields.length];
         for( int i=0; i<fs.length; i++ ) {
             Field fld = self._fields[i];
-            fs[i] = fld._t instanceof TypeFunPtr ? fld : fld.makeFrom(fld._t.glb(true));
+            fs[i] = fld.makeFrom(fld._t.makeStorage());
         }
         return TypeStruct.make(self._name,self._open,fs);
     }
@@ -891,7 +891,7 @@ public class Parser {
             _returnScope = _scope.dup();
             while( lexN+1 < _returnScope.depth() )
                 _returnScope._pop(); // Pop a nested block scope until we hit the function scope
-            _returnScope.define("$expr", expr._type.glb(false), true, expr, null);
+            _returnScope.define("$expr", inferredReturnType(expr._type), true, expr, null);
 
         } else {
             // For <init> and <clinit> - ALL FIELDS IN LAST SCOPE are live
@@ -1000,6 +1000,34 @@ public class Parser {
         return peep(new ConvertNode(t,expr));
     }
 
+    // Inferred `var` declarations describe writable slots, not the exact
+    // value used to initialize them.  Explicitly typed locals retain the
+    // user's nullability and numeric-width guarantees; `val` retains the
+    // initializer's precise type.
+    private static Type mutableInferredType(Type t) {
+        return switch( t ) {
+        case TypeInteger ti -> TypeInteger.BOT;
+        case TypeFloat   tf -> TypeFloat.F64;
+        case TypeMemPtr tmp -> tmp.makeVar();
+        case TypeFunPtr tfp -> tfp;
+        case TypeConAry<?> a -> a;
+        case TypePtr     ptr -> TypePtr.PTR;
+        case TypeScalar  ts -> TypeScalar.BOT;
+        default             -> t;
+        };
+    }
+
+    // Seed an inferred return merge with the declared numeric family instead
+    // of a transient constant/range.  Pointer nullability remains part of the
+    // inferred function result and is combined by the later Phi.
+    private static Type inferredReturnType(Type t) {
+        return switch( t ) {
+        case TypeInteger ti -> TypeInteger.BOT;
+        case TypeFloat   tf -> TypeFloat.F64;
+        default             -> t;
+        };
+    }
+
     private Node widenInt( Node expr, Type t ) {
         return (expr._type instanceof TypeInteger || expr._type==Type.NIL) && t instanceof TypeFloat
             ? peep(new ToFloatNode(expr)) : expr;
@@ -1066,7 +1094,7 @@ public class Parser {
                 if( expr._type==Type.NIL )
                     throw error("a not-null/non-zero expression");
                 t = expr._type;
-                if( !xfinal ) t = t.glb(false);  // Widen if not final
+                if( !xfinal ) t = mutableInferredType(t);
             }
 
             // Final is deep on ptrs
@@ -1903,7 +1931,7 @@ public class Parser {
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return convertExpr(peep(op),t.glb(false));
+        return convertExpr(peep(op),t);
     }
 
 
@@ -1977,9 +2005,10 @@ public class Parser {
         // bulk memory.
         selfMem.keep();
         for( Field fld : ts._fields ) {
-            Field fld2 = fld._final ? fld : (Field)fld.glb(true);
+            Type storage = fld._t.makeStorage();
+            Field escaped = fld._final ? fld : Field.make(fld._fname,storage,fld._alias,true);
             Node prior = mem();
-            Node esc = peep(new EscapeNode(fld2,self,selfMem,prior));
+            Node esc = peep(new EscapeNode(escaped,self,selfMem,prior));
             mem(mergeAlias(prior,fld._alias,esc));
         }
 
@@ -2197,7 +2226,7 @@ public class Parser {
                 throw error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
             Node op = opAssign(ch,load, decl );
             mem.keep();
-            Node st = new StoreNode(loc(), name, alias, decl.glb(true), ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
+            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
             storeMem(st,alias,mem);
             st.unkeep();
             mem.unkeep();

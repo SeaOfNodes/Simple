@@ -170,14 +170,10 @@ public class TypeInteger extends TypeScalar {
     }
     @Override public Type makeZero() { return ZERO; }
     @Override boolean _isConstant() { return _min == _max; }
-    @Override boolean _isGLB(boolean mem) { return _glb(mem)==this; }
-    @Override Type _glb(boolean mem) {
-        if( !mem ) return BOT;
-        // GLB is not well-defined in memory; depends on the size of the memory field
+    @Override Type _makeStorage() {
         if( _isConstant() ) return BOT;
         return isHigh() ? dual() : this;
     }
-
     // Reserve tags for I64,I32,U32,0,constant,generic
     @Override int TAGOFF() { return 7; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {

@@ -463,18 +463,8 @@ public class TypeStruct extends Type {
         return recurTransform(_name,_name,_open,_fref,true,Type::_makeRO);
     }
 
-    // Keeps the same struct, but lower-bounds all fields.
-    public TypeStruct glb2() {
-        return recurTransform(_uid,_name,_open,false,false,t -> t._glb(true));
-    }
-
-    @Override boolean _isGLB(boolean mem) {
-        if( VISIT.containsKey(_uid) ) return true; // Cycles assume GLB
-        VISIT.put(_uid,this);
-        for( Field f : _fields )
-            if( !f._t._isGLB(mem) )
-                return false;
-        return true;
+    @Override TypeStruct _makeStorage() {
+        return recurTransform(_uid,_name,_open,false,false,Type::_makeStorage);
     }
 
     // log_size for a struct is not defined, unless its exactly some power of

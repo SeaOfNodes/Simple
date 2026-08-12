@@ -159,8 +159,7 @@ public class TypeFunPtr extends TypeNil {
     @Override boolean _isConstant() { return (_nil==2 && XInt.isConstant(_fidxs)) || (_nil==3 && _fidxs== XInt.EMPTY); }
 
     @Override boolean _isFinal() { return true; }
-    @Override boolean _isGLB(boolean mem) { return true; }
-    @Override TypeFunPtr _glb(boolean mem) { return this; }
+    @Override TypeFunPtr _makeStorage() { return this; }
 
     @Override TypeFunPtr _close( String name, HashMap<String, Type> TYPES ) {
         Type[] sig = new Type[_sig.length];

@@ -43,15 +43,15 @@ public abstract class MemOpNode extends TypeNode {
     // Source location for late reported errors
     public final Parser.Lexer _loc;
 
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node ctrl, Node mem, Node ptr, Node off) {
-        super(glb, ctrl, mem, ptr, off);
+    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off) {
+        super(decl, ctrl, mem, ptr, off);
         _name  = name;
         _alias = alias;
         _loc = loc;
         _isLoad = isLoad;
     }
-    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type glb, Node ctrl, Node mem, Node ptr, Node off, Node value) {
-        this(loc, name, alias, isLoad, glb, ctrl, mem, ptr, off);
+    public MemOpNode(Parser.Lexer loc, String name, int alias, boolean isLoad, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value) {
+        this(loc, name, alias, isLoad, decl, ctrl, mem, ptr, off);
         addDef(value);
     }
     public MemOpNode( Node ideal, MemOpNode mop ) {

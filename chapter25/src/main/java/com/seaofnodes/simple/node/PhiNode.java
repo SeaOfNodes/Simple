@@ -219,7 +219,7 @@ public class PhiNode extends Node {
                 if( in(i).in(j) != x )
                     { needsPhi=true; break; }
             if( needsPhi ) {
-                x = make(_label,op.in(j)._type.glb(false));
+                x = make(_label,op.in(j)._type);
                 x.addDef(region());
                 for( int i=1; i<nIns(); i++ )
                     x.addDef(in(i).in(j));

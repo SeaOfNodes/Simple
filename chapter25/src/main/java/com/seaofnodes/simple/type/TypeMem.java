@@ -152,8 +152,7 @@ public class TypeMem extends Type {
     @Override boolean _isConstant() { return _one && _clz && _alias!= 1 && _t._isConstant(); }
     @Override public int log_size() { throw Utils.TODO(); }
     @Override boolean _isFinal() { return _t._isFinal(); }
-    @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
-    @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true),_one,_clz,_final,_escFs,_escAs); }
+    @Override TypeMem _makeStorage() { return make(_alias,_t._makeStorage(),_one,_clz,_final,_escFs,_escAs); }
 
     @Override TypeMem _close( String name, HashMap<String, Type> TYPES ) { return malloc(_alias,_t._close(name, TYPES ),_one,_clz,_final,_escFs,_escAs); }
 

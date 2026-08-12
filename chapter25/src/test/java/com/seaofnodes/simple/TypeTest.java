@@ -7,7 +7,7 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
-    // Test basic properties and GLB
+    // Test basic type properties
     @Test
     public void testTypeAdHoc() {
         Assert.assertEquals( TypeScalar.BOT, TypeInteger.TRUE.meet(TypeNil.NIL) );
@@ -19,13 +19,8 @@ public class TypeTest {
         TypeStruct s2 = TypeStruct.make("s2",false,
                 Field.make("a", TypeInteger.BOT,-3, false),
                 Field.make("b", TypeInteger.BOT,-4, false) );
-        TypeStruct x1ro = (TypeStruct)s1.makeRO();
         TypeMemPtr p1 = TypeMemPtr.make(s1);
-        // GLB no longer forces RO
-        //Assert.assertEquals(x1ro, ((TypeMemPtr)p1.glb(false))._obj);
         Assert.assertNotEquals(s1, s1.dual());
-        TypeStruct s1dglb = ((TypeMemPtr)p1.dual().glb(false))._obj;
-        Assert.assertTrue(x1ro.isa(s1dglb));
 
         TypeMem m1 = TypeMem.make(2,TypeNil.NIL);
         TypeMem m2 = TypeMem.make(3,TypeInteger.U16);
@@ -42,9 +37,7 @@ public class TypeTest {
         Assert.assertEquals(TypeMem.make(1,TypeScalar.BOT), m1.meet(m3));
         Assert.assertEquals(scalarMemBot, ((TypeMem)m3.meet(m4)).makeFrom( XInt.FULL, XInt.FULL));
 
-        Assert.assertEquals(TypeMem.make(2,Type.BOTTOM), m1.glb(false));
         Assert.assertEquals(TypeMem.make(2,Type.XNIL,true,true,true, XInt.FULL, XInt.FULL), m1.dual());
-        Assert.assertEquals(m4.dual(), m4.glb(false).dual());
 
         TypeMemPtr ptr1 = TypeMemPtr.make(s1);
         Assert.assertEquals(s1, ptr1._obj);
@@ -59,18 +52,8 @@ public class TypeTest {
         Assert.assertEquals(s2, ptr2nil._obj);
 
         Assert.assertNotEquals(ptr1, ptr2);
-        Type p1glb = ptr1.glb(false);
-        // GLB no longer forces RO
-        //Assert.assertNotEquals(ptr1, p1glb );
-        Type p1nro = ptr1nil.makeRO();
-        // GLB no longer forces RO
-        //Assert.assertEquals(p1nro, p1glb);
-
         Assert.assertEquals(ptr1, ptr1.dual().dual());
-        Assert.assertTrue(p1glb.makeRO().isa( ptr1.dual().glb(false)));
         Assert.assertEquals(TypeMemPtr.makeNullable(TypeStruct.BOT), ptr1.meet(ptr2nil));
-        // GLB no longer forces RO
-        //Assert.assertEquals(p1glb, ptr1.meet(TypeNil.NIL).makeRO());
 
         TypeMemPtr TOP = TypeMemPtr.TOP;
         TypeMemPtr BOT = TypeMemPtr.makeNullable(TypeStruct.BOT);
@@ -96,9 +79,6 @@ public class TypeTest {
         Assert.assertTrue(s1ro.isFinal());
 
         Assert.assertFalse(S1.isConstant());
-        Type s1glb  = S1.field("s2")._t.glb(false);
-        Type s1glb2 = S1.field("s2")._t.glb(false);
-        Assert.assertSame(s1glb,s1glb2);
     }
 
     // Test theoretical properties.
@@ -175,14 +155,6 @@ public class TypeTest {
         Type d0 = TypeStruct.SFLT1.dual();
         Type d1 = d0.dual();
         assertSame(TypeStruct.SFLT1,d1);
-    }
-
-    @Test
-    public void testGLB() {
-        Type[] ts = Type.gather();
-        for( Type t0 : ts )
-            if( !(t0 instanceof Field || t0 instanceof TypeStruct || t0 instanceof TypeTuple || t0 instanceof TypeConAry ) )
-                Assert.assertTrue(t0.isa(t0.glb(false)));
     }
 
     @Test

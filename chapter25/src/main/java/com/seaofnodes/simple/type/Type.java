@@ -480,28 +480,11 @@ public class Type /*implements Cloneable*/ {
     }
     Type _makeRO() { return this; }
 
-    // Compute greatest lower bound in the lattice.  If values are in memory,
-    // ints and floats cannot widen.
-    public final boolean isGLB(boolean mem) { return recurClose(recurOpen()._isGLB(mem)); };
-    boolean _isGLB(boolean mem) {
-        return switch(_type) {
-        case TBOT -> false;
-        case TSCALAR -> this==TypeScalar.BOT;
-        case TNIL -> false;
-        case TCTRL -> true;
-        case TXCTRL -> false;
-        case TXNIL -> false;
-        case TTOP -> false;
-        default -> throw Utils.TODO();
-        };
+    /** Declared shape used when a value is published into mutable memory. */
+    public final Type makeStorage() {
+        return recurOpen()._makeStorage().recurClose();
     }
-    public final Type glb(boolean mem) {
-        if( isGLB(mem) ) return this;
-        Type glb = recurOpen()._glb(mem).recurClose();
-        assert this.isa(glb);
-        return glb;
-    }
-    Type _glb(boolean mem) { assert is_simple(); return Type.BOTTOM; }
+    Type _makeStorage() { assert is_simple(); return BOTTOM; }
 
     // Bulk close-over all recursive types
     public static TypeStruct[] closeOver(TypeStruct[] ts, HashMap<String,Type> TYPES) {
