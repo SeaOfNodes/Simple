@@ -86,6 +86,31 @@ flt farg = arg; return _test_sqrt_noInline(farg) + _test_sqrt_noInline(farg+2.0)
     }
 
     @Test
+    public void testIterPrettyPrintIsLocalAndReadOnly() {
+        CodeGen code = new CodeGen("""
+            val f_noInline = { flt x -> while(1) { if(x) return x; } };
+            flt y=arg;
+            return f_noInline(y)+f_noInline(y+2.0);
+            """).driver(CodeGen.Phase.Iter);
+        assertNull(code._start._ltree);
+        int pre = code._start._pre;
+
+        String p0 = code.toString();
+        String p1 = code.toString();
+        assertEquals(p0,p1);
+        assertNull(code._start._ltree);
+        assertEquals(pre,code._start._pre);
+
+        int main0 = p0.indexOf("--- class:Test.<clinit>");
+        int main1 = p0.indexOf("--- class:Test.<clinit> ----------------------",main0);
+        int fun0  = p0.indexOf("--- f_noInline ",main1);
+        int fun1  = p0.indexOf("--- f_noInline ----------------------",fun0);
+        assertTrue(main0 < main1 && main1 < fun0 && fun0 < fun1);
+        assertTrue(p0.indexOf("ToFloat",main0) < p0.indexOf("Call",main0));
+        assertTrue(p0.indexOf("CallEnd",fun0) == -1 || p0.indexOf("CallEnd",fun0) > fun1);
+    }
+
+    @Test
     public void testAlloc2() {
         String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
         testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");

@@ -1020,11 +1020,9 @@ public class CodeGen {
 
     // Debugging helper
     @Override public String toString() {
-        if( _phase!=null && _phase.ordinal() > Phase.Schedule.ordinal() )
-            return IRPrinter.prettyPrint( this );
         if( _stop == null )
             return "No StopNode";
-        return _stop.p(4999);
+        return IRPrinter.prettyPrint(this);
     }
 
     // Debugging helper
