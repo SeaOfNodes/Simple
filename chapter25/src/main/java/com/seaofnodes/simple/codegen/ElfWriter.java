@@ -182,7 +182,7 @@ public class ElfWriter {
 
         // creates function and stores where it starts.
         // Filters to just this class.obj file.
-        void encodeFunctions(StopNode stop, Encoding enc, int text_idx) {
+        void encodeFunctions(StopNode stop, Encoding enc, int text_idx, boolean emitEntrySymbol) {
             for( Node stopcu : stop._inputs ) {
                 for( Node ret : stopcu._inputs ) {
                     FunNode fun = ((ReturnNode)ret).fun();
@@ -191,8 +191,15 @@ public class ElfWriter {
                     int end = enc.opStart(fun.ret()) + enc.opLen(fun.ret());
                     long value = enc.opStart(fun);
                     long size = end - value;
-                    if( fun._name != null ) // Anonymous functions have no name
-                        symbol(fun._name, text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, value, size);
+                    if( fun._name != null ) { // Anonymous functions have no name
+                        // The C runtime owns `main` and adapts argc/argv into
+                        // a normal Simple array.  Keep the Simple function on
+                        // its native ABI under a private entry symbol.
+                        String name = emitEntrySymbol && "main".equals(fun._name)
+                            ? "simple_main"
+                            : fun._name;
+                        symbol(name, text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, value, size);
+                    }
                 }
             }
         }
@@ -205,14 +212,14 @@ public class ElfWriter {
             for( FunNode fun : _code._linker )
                 if( fun != null && _code.owns(fun) ) {
                     if( "main".equals(fun._name) )
-                        return; // Top-level declared a main, take the existing one
+                        return; // encodeFunctions exported this as simple_main
                     if( entryName.equals(fun._name) )
                         clinit = fun; // Keep top-level entry, if we don't find an explicit main
                 }
             // No top-level main, so the top-level clinit becomes a default main
             if( clinit != null ) {
                 assert enc.opStart(clinit) == 0;
-                symbol("main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, enc.opStart(clinit), 0);
+                symbol("simple_main",text_idx, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, enc.opStart(clinit), 0);
                 return;
             }
             throw new IllegalStateException("Missing entry <clinit> "+entryName);
@@ -293,7 +300,7 @@ public class ElfWriter {
 
 
         // populate function symbols
-        symbols.encodeFunctions(_code._stop, _code._encoding, text._index);
+        symbols.encodeFunctions(_code._stop, _code._encoding, text._index, emitEntrySymbol);
         // Export the source compilation unit <clinit> as the C runtime "main".
         // Encoding keeps this function at text offset zero.
         if( emitEntrySymbol )

@@ -47,6 +47,13 @@ public class Chapter25Test {
         assertEquals("1",Eval2.eval(code,0));
     }
 
+    @Test
+    public void testCharacterEscapes() {
+        CodeGen code = new CodeGen("return '\\n'==10 && '\\t'==9 && '\\r'==13;")
+            .driver(CodeGen.Phase.TypeCheck);
+        assertEquals("1",Eval2.eval(code,0));
+    }
+
 
     @Test @Ignore
     public void testModule0() throws IOException {
@@ -243,7 +250,7 @@ public class Chapter25Test {
         String syms = run(new String[]{"nm",obj});
         assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
 
-        String out = run(new String[]{"gcc",obj,sys_file.toString(),"-lm","-g","-o",exe});
+        String out = run(new String[]{"gcc",obj,sys_file.toString(),TestC.runtimeObject(),"-lm","-g","-o",exe});
         assertEquals("",out);
         String rez = run(new String[]{exe});
         assertEquals(expected,rez);
@@ -278,9 +285,25 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
         File sys_file = buildTestSys(false);
         assertTrue("Missing "+sys_file+"; testBubbles depends on testSys building it",  sys_file.exists());
         String src = Files.readString( Path.of("docs/examples/BubbleSort.smp"));
-        TestC.run(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
-                  TestC.CALL_CONVENTION, null, null,
-                  "[3,  2,-17, 999 ] ", "[-17, 2, 3, 999]", -1);
+        TestC.runArgs(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
+                      TestC.CALL_CONVENTION,"-17, 2, 3, 999\n",-1,
+                      "[3,  2,-17, 999 ]");
+
+        String obj = "build/objs/BubbleSort.o";
+        String exe = "build/objs/BubbleSort"+(TestC.OS.startsWith("Windows") ? ".exe" : "");
+        Ary<String> libs = new Ary<>(new String[]{sys_file.toString()});
+        assertEquals("1, 2, 3, 4, 4, 5\n",
+                     TestC.gcc(obj,null,null,null,libs,exe,"[4, 5, 3, 1, 4, 2]"));
+        assertEquals("1, 2, 3, 4, 5\n",
+                     TestC.gcc(obj,null,null,null,libs,exe,"[1, 2, 3, 4, 5]"));
+        assertEquals("1, 2, 3, 4, 5, 6, 7, 8, 9\n",
+                     TestC.gcc(obj,null,null,null,libs,exe,"[9, 8, 7, 6, 5, 4, 3, 2, 1]"));
+
+        String usage = "Usage: please provide a list of at least two integers to sort in the format \"[1, 2, 3, 4, 5]\"\n";
+        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe));
+        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,""));
+        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[1]"));
+        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[4 5 3]"));
     }
 
 }

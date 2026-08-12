@@ -145,6 +145,8 @@ CALL_CONV:= win64
 CPU_ABI:= $(CPU_PORT)_$(CALL_CONV)
 RELEASE:= build/release
 RELEASE_SYS:= $(RELEASE)/$(CPU_ABI)/sys.o
+RELEASE_CRT:= $(RELEASE)/$(CPU_ABI)/simple_crt.o
+C_CALL_CONV:= $(if $(filter win64,$(CALL_CONV)),ms_abi,sysv_abi)
 
 $(OBJS)/lib_$(CPU_ABI)/sys.o:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(SYS_SMPS)
 	@echo "simping " $@
@@ -155,29 +157,34 @@ $(RELEASE_SYS):	$(OBJS)/lib_$(CPU_ABI)/sys.o
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@cp $< $@
 
+$(RELEASE_CRT): src/main/c/simple_crt.c
+	@echo "compiling " $@
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	@gcc -c -O2 -DCALL_CONV=$(C_CALL_CONV) -o $@ $<
+
 #######################################################
 # Base launch line for JVM tests
 JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 # Tests that do NOT need sys.smp
-tests_raw0:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
+tests_raw0:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT)
 	@echo "testing " $(test_raw0)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_raw0)
 
-tests_raw1:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
+tests_raw1:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT)
 	@echo "testing " $(test_raw1)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_raw1)
 
 # Larger standalone tests, still JUnits, still no sys.smp
-tests_alone:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
+tests_alone:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT)
 	@echo "testing " $(test_alone)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_alone)
 
 # Tests that DO need sys.smp
-tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_SYS)
+tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_SYS) $(RELEASE_CRT)
 	@echo "testing " $(test_sys)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_sys)
@@ -193,7 +200,7 @@ tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_SYS) tests_raw0 tests
 
 
 # Build a Simple jar and release stdlib
-release:	build/release/Simple.jar $(RELEASE_SYS)
+release:	build/release/Simple.jar $(RELEASE_SYS) $(RELEASE_CRT)
 
 # Build a Simple jar
 build/release/Simple.jar:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag

@@ -63,6 +63,13 @@ public abstract class GlobalCodeMotion {
 
 
     private static void breakUpGlobalConstantSingle( Node con ) {
+        // If an immediate global-value user still spans functions, it cannot
+        // yet be assigned to one clone.  Keeping the constant at Start is a
+        // valid schedule; a downstream value with concrete ownership can be
+        // split independently.
+        for( Node use : con.outs() )
+            if( use != null && useFun(use)==null )
+                return;
         // While constant has users in different functions
         while( true ) {
             // Find a function user, and another function
@@ -106,26 +113,29 @@ public abstract class GlobalCodeMotion {
     }
 
     private static FunNode useFun(Node use) {
+        return useFun(use,new BitSet());
+    }
+
+    private static FunNode useFun(Node use, BitSet visit) {
+        if( visit.get(use._nid) ) return null;
+        visit.set(use._nid);
         if( use instanceof ReturnNode ret )
             return ret.fun();
         if( use instanceof ParmNode parm )
             return parm.fun();
         CFGNode cfg = use.cfg0();
-        if( cfg==null ) return null;
-        FunNode fun = cfg.fun();
+        FunNode fun = cfg==null ? null : cfg.fun();
         // Use itself is not in a function... which makes it a 2-part
         // constant such as happens on some chips where large constants have
         // to be built up in parts.  PtrToInt followed by the array-body Add is
         // another zero-code/global-value chain, so walk through any number of
         // single-use pieces until reaching the function-owned use.
-        if( fun==null ) {
-            do {
-                assert use.nOuts()==1;
-                use = use.out(0);
-                cfg = use.cfg0();
-                fun = cfg==null ? null : cfg.fun();
-            } while( fun==null );
-        }
+        if( fun==null )
+            for( Node out : use.outs() ) {
+                FunNode f = useFun(out,(BitSet)visit.clone());
+                if( f != null && fun != null && f != fun ) return null;
+                if( f != null ) fun = f;
+            }
         return fun;
     }
 

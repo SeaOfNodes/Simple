@@ -1450,8 +1450,10 @@ public class Parser {
     // Make an array type of t.  Always record a mutable version,
     // but return the requested version.
     private TypeStruct typeAry( Type t, boolean efinal ) {
-        if( t instanceof TypeMemPtr tmp && tmp.notNull()  )
-            throw error("Arrays of reference types must always be nullable");
+        // Non-null reference arrays are valid types, even though an ordinary
+        // zero-filled `new T[len]` cannot construct one.  Allocation retains
+        // that check in alloc(); trusted runtimes (notably argv construction)
+        // may fill the private array completely before publishing it.
         String tname = ("[]"+t.str()).intern();
         TypeStruct ta = (TypeStruct)TYPES.get(tname);
         if( ta==null ) {
@@ -2406,22 +2408,33 @@ public class Parser {
             }
             if( _lexer.isEOF() )
                 throw error("Unclosed string");
-            char esc = _lexer.nextChar();
-            sb.append(switch( esc ) {
-            case 'n'  -> '\n';
-            case 't'  -> '\t';
-            case 'r'  -> '\r';
-            case '\\' -> '\\';
-            case '"'  -> '"';
-            default -> throw error("Unknown string escape \\\\"+esc);
-            });
+            sb.append(escapedChar("string"));
         }
         throw error("Unclosed string");
     }
 
+    private char escapedChar(String kind) {
+        char esc = _lexer.nextChar();
+        return switch( esc ) {
+        case 'n'  -> '\n';
+        case 't'  -> '\t';
+        case 'r'  -> '\r';
+        case '\\' -> '\\';
+        case '"'  -> '"';
+        case '\'' -> '\'';
+        default -> throw error("Unknown "+kind+" escape \\\\"+esc);
+        };
+    }
+
     // Already parsed "'"
     private Node parseChar() {
-        return require(con(TypeInteger.constant(_lexer.nextChar())),"'");
+        if( _lexer.isEOF() ) throw error("Unclosed character");
+        char c = _lexer.nextChar();
+        if( c=='\\' ) {
+            if( _lexer.isEOF() ) throw error("Unclosed character");
+            c = escapedChar("character");
+        }
+        return require(con(TypeInteger.constant(c)),"'");
     }
 
     private boolean noLowerCase(String s) {

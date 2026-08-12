@@ -8,6 +8,7 @@ import com.seaofnodes.simple.util.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
@@ -25,6 +26,12 @@ public abstract class TestC {
     };
     public static final String CPU_ABI = CPU_PORT+"_"+CALL_CONVENTION;
     public static final String RELEASE_SYS_DIR = "build/release/"+CPU_ABI;
+
+    public static String runtimeObject() {
+        String home = System.getenv("SIMPLE_HOME");
+        String root = home==null || home.isEmpty() ? "build/release" : home;
+        return Path.of(root,CPU_ABI,"simple_crt.o").toString();
+    }
 
     public static final String C_DRIVERS_DIR = "src/test/java/com/seaofnodes/simple/progs/";
 
@@ -80,7 +87,17 @@ public abstract class TestC {
         run(src, base, externPaths, simple_conv, c_conv, cfile, null, expected, spills);
     }
 
+    public static void runArgs( String src, String base, Ary<String> externPaths, String simple_conv,
+                                String expected, int spills, String... programArgs ) throws IOException {
+        run0(src,base,externPaths,simple_conv,null,null,null,expected,spills,programArgs);
+    }
+
     public static void run( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv, String cfile, String stdin, String expected, int spills ) throws IOException {
+        run0(src,base,externPaths,simple_conv,c_conv,cfile,stdin,expected,spills,new String[0]);
+    }
+
+    private static void run0( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv,
+                              String cfile, String stdin, String expected, int spills, String[] programArgs ) throws IOException {
         // Simple file base-name example:
         // foo.smp ->
         //   build/objs/foo.o   - object file
@@ -93,7 +110,10 @@ public abstract class TestC {
         CodeGen code = new CodeGen(null,"build/objs",externPaths,base,src,126L,TypeInteger.BOT);
         code.driver( CPU_PORT, simple_conv, false, cfile==null );
 
-        String result = gcc(obj, c_conv, cfile, stdin, linkObjs(externPaths), exe );
+        String[] execArgs = new String[programArgs.length+1];
+        execArgs[0] = exe;
+        System.arraycopy(programArgs,0,execArgs,1,programArgs.length);
+        String result = gcc(obj, c_conv, cfile, stdin, linkObjs(externPaths), execArgs );
         assertEquals(expected,result);
 
         // Allocation quality not degraded
@@ -135,6 +155,10 @@ public abstract class TestC {
         params.add("gcc");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
         params.add(obj);
+        // Standalone Simple programs export `simple_main`; the small C
+        // runtime owns the native main symbol and converts argc/argv into a
+        // normal Simple array before making the ABI-qualified call.
+        if( cfile==null ) params.add(runtimeObject());
         if( linkObjs != null )
             params.addAll(linkObjs.asAry());
         params.addAll(new String[] {

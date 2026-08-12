@@ -36,6 +36,14 @@ struct aryi64 {
         str.undo(2).add(']');
     };
 
+    // Comma-separated form used by command-line examples.
+    val csv = { ->
+        var str = new aryu8(new u8[1]);
+        for( int i=0; i<len; i++ )
+            str.num(buf[i]).add(',').add(' ');
+        str.undo(2).add('\n');
+    };
+
     val swap = { int i, int j ->
         i64 tmp = buf[i];
         buf[i] = buf[j];
@@ -62,9 +70,12 @@ val parseAryI64 = { u8[~] str ->
     // Parse number commas "123, " until something else
     while( s.x < s.buf# ) {
         nums.add(s.number());
+        if( s.bad ) return null;
         if( !s.match(',') )
             break;
     };
     // Close the list
-    return s.match(']') ? nums : null;
+    if( !s.match(']') ) return null;
+    s.skip();
+    return s.x == s.buf# ? nums : null;
 };
