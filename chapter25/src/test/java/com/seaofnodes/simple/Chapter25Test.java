@@ -197,14 +197,15 @@ public class Chapter25Test {
 
         // Elf files are sane
 
-        // Sys depends on io, libc, aryi64, aryu8
-        assertEquals(6,sys_elf._deps.length);
+        // Sys depends on io, libc, char, aryi64, aryu8
+        assertEquals(7,sys_elf._deps.length);
         assertSame("sys/aryu8" ,sys_elf._deps[0]);
         assertSame("sys/io"    ,sys_elf._deps[1]);
-        assertSame("sys/aryi64",sys_elf._deps[2]);
-        assertSame("sys/Ary"   ,sys_elf._deps[3]);
-        assertSame("sys/Scan"  ,sys_elf._deps[4]);
-        assertSame("sys/libc"  ,sys_elf._deps[5]);
+        assertSame("sys/char"  ,sys_elf._deps[2]);
+        assertSame("sys/ary"   ,sys_elf._deps[3]);
+        assertSame("sys/aryi64",sys_elf._deps[4]);
+        assertSame("sys/Scan"  ,sys_elf._deps[5]);
+        assertSame("sys/libc"  ,sys_elf._deps[6]);
         assertSame("class:sys" ,sys_elf._clz._name);
     }
 
@@ -304,6 +305,24 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
         assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,""));
         assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[1]"));
         assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[4 5 3]"));
+    }
+
+    @Test
+    public void testCapitalize() throws IOException {
+        File sys_file = buildTestSys(false);
+        assertTrue("Missing "+sys_file+"; testCapitalize depends on testSys building it", sys_file.exists());
+        String src = Files.readString(Path.of("docs/examples/Capitalize.smp"));
+        TestC.runArgs(src,"Capitalize",new Ary<>(new String[]{SYS_BLDDIR}),
+                      TestC.CALL_CONVENTION,"Hello world\n",-1,"hello world");
+
+        String obj = "build/objs/Capitalize.o";
+        String exe = "build/objs/Capitalize"+(TestC.OS.startsWith("Windows") ? ".exe" : "");
+        Ary<String> libs = new Ary<>(new String[]{sys_file.toString()});
+        assertEquals("Hello World\n",TestC.gcc(obj,null,null,null,libs,exe,"Hello World"));
+        assertEquals("123 apples\n",TestC.gcc(obj,null,null,null,libs,exe,"123 apples"));
+        assertEquals("Usage: please provide a string\n",TestC.gcc(obj,null,null,null,libs,exe));
+        assertEquals("Usage: please provide a string\n",TestC.gcc(obj,null,null,null,libs,exe,""));
+        assertEquals("Use quotes around multiple strings.\n",TestC.gcc(obj,null,null,null,libs,exe,"hello","world"));
     }
 
 }

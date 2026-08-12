@@ -6,14 +6,12 @@
 // Bubble sort, with reading (parsing) and writing (formatting) the data.
 
 val sort = { sys.aryi64 nums ->
-    var done = false;
-    while( !done ) {
-        done = true;
+    var more = self;
+    while( more ) {
+        more = null;
         for( var i = 0; i < nums.len-1; i++ )
-            if( nums.buf[i] > nums.buf[i+1] ) {
-                nums.swap(i,i+1);
-                done = false;
-            }
+            if( nums.buf[i] > nums.buf[i+1] )
+                more = nums.swap(i,i+1);
     }
 };
 

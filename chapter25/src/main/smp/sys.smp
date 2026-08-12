@@ -4,6 +4,7 @@
 
 var libc = libc;
 var io = io;
+var char = char;
 var aryu8 = aryu8;
 var Scan = Scan;
 var aryi64 = aryi64;

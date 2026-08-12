@@ -818,7 +818,9 @@ public class Parser {
         };
         rhs.keep();
         _scope.removeGuards(ifF);
-        if( doRHS )
+        // The RHS of `||` is parsed on the false side, so retain its updated
+        // control, memory and locals just as an explicit else arm does.
+        if( doRHS || fside.equals("||") )
             fScope = _scope;
         pred.unkeep();
 

@@ -15,7 +15,7 @@ struct aryu8 {
         int newlen = buf# * 2;
         while( len+len2 >= newlen ) newlen *= 2;
         u8[] !buf2 = new u8[newlen];
-        Ary.copy(buf2,0,buf,0,buf#);
+        ary.copy(buf2,0,buf,0,buf#);
         buf = buf2;
         self;
     };
@@ -29,10 +29,10 @@ struct aryu8 {
     };
 
     // Add all of a plain array to the aryu8
-    val addAry = { u8[~] ary ->
-        _grow(ary#);
-        Ary.copy(buf,len,ary,0,ary#);
-        len += ary#;
+    val addAry = { u8[~] xs ->
+        _grow(xs#);
+        ary.copy(buf,len,xs,0,xs#);
+        len += xs#;
         self;
     };
 

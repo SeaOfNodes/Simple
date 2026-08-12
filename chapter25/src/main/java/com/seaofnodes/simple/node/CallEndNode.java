@@ -118,6 +118,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
             : TypeTuple.STATE.dual();
         for( int i=1; i<nIns(); i++ )
             state = (TypeTuple)state.meet(in(i)._type);
+        // A reachable call whose presently linked exits are all unreachable
+        // keeps a conservative continuation.  In particular, do not let a
+        // transient no-return result tear down the caller during SCCP.
+        if( state.ctl()==Type.XCONTROL &&
+            CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() )
+            return TypeTuple.make(Type.CONTROL,TypeMem.TOP,Type.TOP);
         // At least as good as the TFP
         return state.makeFrom(2,state.ret().join(tfp.ret()));
     }

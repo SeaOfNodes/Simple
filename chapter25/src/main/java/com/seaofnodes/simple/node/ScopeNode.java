@@ -426,8 +426,10 @@ public class ScopeNode extends MemMergeNode {
         for( int i=1; i<nIns(); i++ ) {
             if( var(i)._final ) continue; // Final vars did not get modified in the loop
             Node n = in(i);
-            if( var(i).type().isHighOrConst() ) { // Cannot lift higher than a constant, so no Phi
-                n.subsume(n=ConstantNode.make(var(i).type()).init());
+            if( var(i).type().isHighOrConst() && !(n instanceof PhiNode phi && phi.inProgress()) ) { // Cannot lift higher than a constant, so no Phi
+                Node con = ConstantNode.make(var(i).type()).init();
+                n.subsume(con);
+                n = con;
             } else if( back.in(i) != scope ) {
                 PhiNode phi = (PhiNode)n;
                 assert phi.region()==scope.ctrl() && phi.in(2)==null;
