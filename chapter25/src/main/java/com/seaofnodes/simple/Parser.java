@@ -1188,6 +1188,8 @@ public class Parser {
         ts = ctorFld==null
             ? TypeStruct.make(clzName,false,fld)
             : TypeStruct.make(clzName,false,fld,ctorFld);
+        TypeFunPtr alloc = makeAllocator((TypeStruct)TYPES.get(fullName),ret,ctorFld);
+        ts = ts.add(Field.make("<new>",alloc,_code.alias(_ref._cname),true));
         TYPES.put(clzName,ts);
 
         // Insert a field in the containing class with the nested class type.
@@ -1197,6 +1199,78 @@ public class Parser {
 
         require("}");
         return require(_code.ZERO,";");
+    }
+
+    // Build the declaration-side allocation helper.  Allocation sites only
+    // call this function; all layout, initialization and publication choices
+    // are made here, where the complete struct and constructor are known.
+    private TypeFunPtr makeAllocator(TypeStruct ts, ReturnNode initRet, Field ctorFld) {
+        TypeFunPtr ctor = ctorFld==null ? null : (TypeFunPtr)ctorFld._t;
+        int nargs = ctor==null ? 0 : ctor.nargs()-2; // Hide self and selfMem
+        Type[] atypes = new Type[nargs];
+        for( int i=0; i<nargs; i++ ) atypes[i] = ctor.arg(i+2);
+        TypeMemPtr ptr = TypeMemPtr.make(ts);
+        TypeFunPtr sig = TypeFunPtr.make1((byte)2,true,atypes,ptr,_code.fidx(_ref._cname));
+        String name = (ts._name+".<new>").intern();
+
+        int oldUID = _code.UID();
+        FunNode fun = (FunNode)new FunNode(loc(),sig,name,_ref,null,_ref._start).peephole();
+        _code.link(fun);
+        Node rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,ConstantNode.seed(TypeRPC.BOT).peephole()).peephole();
+        Node pub = new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,
+                                new ProjNode(_ref._start,1,ScopeNode.MEM0).peephole()).peephole();
+        Node[] parms = new Node[nargs];
+        for( int i=0; i<nargs; i++ )
+            parms[i] = new ParmNode("arg"+i,i+2,atypes[i],fun,ConstantNode.seed(atypes[i]).peephole()).peephole();
+
+        NewNode nnn = new NewNode(ts,fun,off(ts," len")).init();
+        Node self = new ProjNode(nnn,0,ts.str()).init();
+        Node priv = new ProjNode(nnn,1,"#selfMem").init();
+        Node[] initArgs = new Node[]{fun,pub,self,priv,
+            new FunPtrNode(initRet.fun().sig(),_code._start,initRet).peephole()};
+        CallEndNode cend = rawCall(initArgs,initRet.fun());
+        Node ctl = new CProjNode(cend,0,ScopeNode.CTRL).peephole();
+        pub = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
+        priv = new ProjNode(cend,2,"#selfMem").peephole();
+
+        if( ctor != null ) {
+            Node[] cargs = new Node[nargs+5];
+            cargs[0]=ctl; cargs[1]=pub; cargs[2]=self; cargs[3]=priv;
+            for( int i=0; i<nargs; i++ ) cargs[i+4]=parms[i];
+            FunNode cfun = _code.link(ctor);
+            cargs[cargs.length-1] = new FunPtrNode(ctor,_code._start,cfun.ret()).peephole();
+            cend = rawCall(cargs,cfun);
+            ctl = new CProjNode(cend,0,ScopeNode.CTRL).peephole();
+            pub = new ProjNode(cend,1,ScopeNode.MEM0).peephole();
+            priv = new ProjNode(cend,2,"#selfMem").peephole();
+        }
+
+        for( Field field : ts._fields ) {
+            Type storage = field._t.makeStorage();
+            Field escaped = field._final ? field : Field.make(field._fname,storage,field._alias,true);
+            pub.keep();
+            Node esc = new EscapeNode(escaped,self,priv,pub).peephole();
+            MemMergeNode merge = new MemMergeNode(false,null,pub);
+            merge.alias(field._alias,esc);
+            Node next = merge.peephole();
+            pub.unkeep();
+            pub = next;
+        }
+        ReturnNode ret = (ReturnNode)new ReturnNode(ctl,pub,self,rpc,fun).peephole();
+        fun.setRet(ret);
+        fun._approxUIDs = _code.UID()-oldUID;
+        _ref.addFun(_code,fun);
+        return sig;
+    }
+
+    private CallEndNode rawCall(Node[] args, FunNode target) {
+        // Establish this known declaration-side edge immediately, but do not
+        // peephole or inline it while the surrounding factory is being built.
+        // IterPeeps therefore starts with the complete initializer caller set.
+        CallNode call = new CallNode(loc(),args).init();
+        CallEndNode cend = new CallEndNode(call,TypeRPC.constant(_code.rpc(_ref._cname))).init();
+        call.link(target);
+        return cend;
     }
 
     // Parse a struct declaration (not an allocation); file-level is a class-init, and scope structs are normal
@@ -1961,60 +2035,36 @@ public class Parser {
     }
 
     private Node allocStruct(TypeStruct ts) {
-        Ary<Node> ctorArgs = constructorArgs(); // CNC TODO- BAD THREADING SELF-MEM
-        Node size = off(ts, " len");
-
-        // Build a NewNode; takes in ctrl and size.
-        // Produces a ptr and a private mem.
-        NewNode nnn = new NewNode(ts, ctrl(), size ).init();
-        ProjNode self = new ProjNode(nnn,0,ts.str()).init().keep();
-        ProjNode smem = new ProjNode(nnn,1,"#selfMem").init();
-
-        // Find a "class:XXX" struct, with field "XXX" function ptr as the <init>
-        TypeStruct clz = (TypeStruct)TYPES.get(addClzPrefix(ts._name));
+        Ary<Node> ctorArgs = constructorArgs();
+        // A field declaration can leave a short forward type name in TYPES.
+        // Allocation happens in lexical context, so resolve that short name
+        // to the completed nested type before selecting its class helper.
+        String typeName = ts._name.indexOf('.') == -1 ? fullTypeName(ts._name) : ts._name;
+        Type resolved = TYPES.get(typeName);
+        if( resolved instanceof TypeStruct rts ) ts = rts;
+        TypeStruct clz = (TypeStruct)TYPES.get(addClzPrefix(typeName));
         if( clz==null )
             throw error("Unknown struct type '" + ts._name + "'");
-        TypeFunPtr init = (TypeFunPtr)clz.field(initFieldName(ts._name))._t;
-
-        // Call construct <init>($ctrl,$mem,NewNode.self,NewNode.#selfMem) and
-        // encourage inlining
-        Node initSelf = self._type.isa(init.arg(0)) ? self : peep(new CheckCastNode(init.arg(0),ctrl(),self));
-        Ary<Node> args = new Ary<>(Node.class){{add(ctrl()); add(mem()); add(initSelf); add(smem); add(ConstantNode.seed(init)); }};
-        Node selfMem = functionCall( args );
-        // The returned value is a merge of private *Memory* and NOT some Scalar
-
-        // Optional user constructor; same as the default constructor; private
-        // memory going in and out.
-        Field ctor = clz.field("<ctor>");
-        if( ctor != null )
-            selfMem = constructorCall((TypeFunPtr)ctor._t,self,selfMem,ctorArgs);
-        else if( !ctorArgs.isEmpty() )
-            throw error("Constructor arguments for '" + ts._name + "' but no constructor is defined");
-        if( match("{") )
-            throw error("Inline constructor blocks are no longer supported; define a constructor in '" + ts._name + "'");
-
-        // Might be TOP if parsing in dead/unreachable code
-        if( selfMem._type == Type.TOP ) {
-            _code.add(selfMem);
-            return self.unkeep();
+        Field afld = clz.field("<new>");
+        Node alloc;
+        if( afld != null ) {
+            TypeFunPtr tfp = (TypeFunPtr)afld._t;
+            FunNode fun = _code.link(tfp);
+            alloc = new FunPtrNode(tfp,_code._start,fun.ret()).peephole();
+        } else {
+            if( !ts._fref )
+                throw error("Constructor arguments for '" + ts._name + "' but no constructor is defined");
+            Type[] sig = new Type[ctorArgs._len];
+            for( int i=0; i<ctorArgs._len; i++ )
+                sig[i] = ctorArgs.at(i)._type;
+            alloc = new FRefNode((addClzPrefix(typeName)+".<new>").intern(),loc(),
+                                 TypeFunPtr.make(false,sig,TypeMemPtr.make(ts)));
         }
-
-        // Escape all new aliases.  EscapeNode inputs are the self pointer, the
-        // merged private memory, then all the named public aliases.  The
-        // output is all the newly merged public aliases - but not actually
-        // bulk memory.
-        selfMem.keep();
-        for( Field fld : ts._fields ) {
-            Type storage = fld._t.makeStorage();
-            Field escaped = fld._final ? fld : Field.make(fld._fname,storage,fld._alias,true);
-            Node prior = mem();
-            Node esc = peep(new EscapeNode(escaped,self,selfMem,prior));
-            mem(mergeAlias(prior,fld._alias,esc));
-        }
-
-        if( selfMem.unkeep().isUnused() ) selfMem.kill();
-        else _code.add(selfMem);
-        return self.unkeep();
+        Ary<Node> args = new Ary<>(Node.class);
+        args.add(ctrl()); args.add(mem());
+        for( Node arg : ctorArgs ) args.add(arg.unkeep());
+        args.add(alloc);
+        return functionCall(args);
     }
 
     private Ary<Node> constructorArgs() {
@@ -2029,29 +2079,6 @@ public class Parser {
         }
         require(")");
         return args;
-    }
-
-    // Constructors are called with two extra arguments: self and selfMem.
-    private Node constructorCall(TypeFunPtr ctor, Node self, Node selfMem, Ary<Node> ctorArgs) {
-        Ary<Node> args = new Ary<>(Node.class);
-        Node ctorSelf = self._type.isa(ctor.arg(0))
-            ? self
-            : peep(new CheckCastNode(ctor.arg(0),ctrl(),self));
-        args.add(ctrl());
-        args.add(mem());
-        args.add(ctorSelf);
-        args.add(selfMem);
-        for( Node arg : ctorArgs )
-            args.add(arg.unkeep());
-        args.add(ConstantNode.seed(ctor));
-
-        CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
-        CallEndNode cend = (CallEndNode)new CallEndNode(call,TypeRPC.constant(_code.rpc(_ref._cname))).peephole();
-        call.peephole();
-        cend = (CallEndNode)cend.keep().peephole();
-        ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
-        mem (new  ProjNode(cend,1,ScopeNode.MEM0).peephole());
-        return new ProjNode(cend.unkeep(),2,"#selfMem").peephole();
     }
 
     private Node allocArray(TypeStruct ts, Node len) {

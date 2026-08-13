@@ -27,6 +27,8 @@ struct aryi64 {
         self;
     };
 
+    val get = { int index -> return buf[index]; };
+
     // Write to aryu8
     val str = { ->
         // TODO: clunky default constructor syntax
@@ -53,12 +55,13 @@ struct aryi64 {
 };
 
 
+
 // Parse a comma-separated list of numbers, wrapped with square brackets,
 // with optional whitespace  e.g. "[ -17, 0,99,12456789   ]  ".
 // parseAryI64 & aryi64.str are bijections modulo whitespace.
 // Returns null if the parse failed, without giving a clue as to why.
 val parseAryI64 = { u8[~] str ->
-    Scan !s = new Scan(str);
+    scan !s = new scan(str);
     if( !s.match('[') ) return null;
     // Array of parsed results
     var nums = new aryi64(new i64[1]);
@@ -78,4 +81,24 @@ val parseAryI64 = { u8[~] str ->
     if( !s.match(']') ) return null;
     s.skip();
     return s.x == s.buf# ? nums : null;
+};
+
+// Parse an unwrapped comma-separated list of numbers.
+val parseCsvI64 = { u8[~] str ->
+    scan !s = new scan(str);
+    var nums = new aryi64(new i64[1]);
+    bool valid = s.skip().x < str#;
+    bool complete = false;
+    while( valid ) {
+        nums.add(s.number());
+        valid = !s.bad;
+        if( valid ) s.skip();
+        if( valid && s.x < str# ) {
+            valid = s.match(',');
+            s.skip();
+            valid = valid && s.x < str#;
+        }
+        else { complete = valid; valid = false; }
+    }
+    return complete && !s.bad && nums.len > 0 ? nums : null;
 };
