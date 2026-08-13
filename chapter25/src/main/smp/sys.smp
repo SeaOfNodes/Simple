@@ -8,3 +8,4 @@ val char = char;
 val aryu8 = aryu8;
 val Scan = Scan;
 val aryi64 = aryi64;
+val ary = ary;

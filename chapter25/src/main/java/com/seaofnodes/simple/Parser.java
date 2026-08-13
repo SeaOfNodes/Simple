@@ -2180,6 +2180,8 @@ public class Parser {
         Field fld = ts==null ? null : ts.field(name);
         if( fld==null && ts!=null )
             fld = fieldOrOpen(ts,name,false);
+        if( fld==null && ts!=null && !latestStruct(ts)._open )
+            throw error("Accessing unknown field '"+name+"' from '*"+ts._name+"'");
         // With no field, we will update the bulk memory
         int alias = fld==null ?  1          : fld._alias;
         Type decl = fld==null ? Type.BOTTOM : fld._t;

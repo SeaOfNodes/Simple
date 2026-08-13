@@ -667,7 +667,7 @@ public class x86_64_v2 extends Machine {
 
     private int imm( Node xval ) {
         assert val == null && imm == 0;
-        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti && ti.isConstant() ) {
             val = null;
             imm = (int) ti.value();
             assert imm == ti.value(); // In 32-bit range

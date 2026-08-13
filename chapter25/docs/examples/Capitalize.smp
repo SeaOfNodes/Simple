@@ -14,10 +14,9 @@ val main = { u8[~][] args ->
     }
 
     u8[~] input = args[1];
-    u8[] !output = new u8[input# + 1];
+    u8[] output = new u8[input# + 1];
+    sys.ary.copy(output,0,input,0,input#);
     output[0] = sys.char.toupper(input[0]);
-    for( int i = 1; i < input#; i++ )
-        output[i] = input[i];
     output[input#] = '\n';
     sys.io.p(output);
     return 0;

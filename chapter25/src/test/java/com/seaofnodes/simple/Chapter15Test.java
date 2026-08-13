@@ -175,7 +175,7 @@ return root;
 """);
         code.parse().opto().typeCheck();
         assertEquals("return Test._Tree;", code.print());
-        assertEquals("Test._Tree{_kids=*Test._Tree {*[]*Test._Tree?? !_kids; }?[ Test._Tree{_kids=null},null]}", Eval2.eval(code,  0));
+        assertEquals("Test._Tree{_kids=*Test._Tree {*[]*Test._Tree?[mutable]? !_kids; }?[ Test._Tree{_kids=null},null]}", Eval2.eval(code,  0));
     }
 
     @Test

@@ -251,7 +251,7 @@ return s.skip().x;
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
         catch( Exception e ) {
             // Bad error message, but basically requires a mutable 'x' field.
-            assertEquals("Argument #0 isa *Test._Scan {i64 x; *[]u8 buf; { *Test._Scan -> *Test._Scan {i64 !x; *[]u8 buf; {[ 5]} skip; } #[ 5]} skip; }, but must be a *Test._Scan {i64 !x; *[]u8 buf; { *Test._Scan -> *Test._Scan #[ 5]} skip; }",e.getMessage());
+            assertEquals("Argument #0 isa *Test._Scan {i64 x; *[]u8[final] buf; { *Test._Scan -> *Test._Scan {i64 !x; *[]u8 buf; {[ 5]} skip; } #[ 5]} skip; }, but must be a *Test._Scan {i64 !x; *[]u8[final] buf; { *Test._Scan -> *Test._Scan #[ 5]} skip; }",e.getMessage());
         }
     };
 

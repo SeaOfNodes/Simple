@@ -559,7 +559,12 @@ public class TypeStruct extends Type {
         if( isAry() && field("[]")._t instanceof TypeConAry con )
             return sb.p(con.str());
         sb.p(_name);
-        if( html || isAry() )
+        if( isAry() )
+            // Array names deliberately canonicalize mutable and immutable
+            // element variants.  The verbose debugger print must retain the
+            // otherwise invisible lattice coordinate.
+            return sb.p(_fields[1]._final ? "[final]" : "[mutable]");
+        if( html )
             return sb;
         sb.p(" {");
         for( Field f : _fields )
