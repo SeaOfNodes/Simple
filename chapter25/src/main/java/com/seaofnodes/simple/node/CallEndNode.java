@@ -101,14 +101,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // appear later - meanwhile, we use a conservative approx of memory
         // effects.
         if( (nIns()-1)+externs < tfp.nfcns() ) {
-            // If before SCCP, we might call extras or also the unknown target.
-            StartNode start = CodeGen.CODE._start;
-            addDep(start);
-            Type tmem = start._type instanceof TypeTuple tt ? tt._types[1] : (start._type.isHigh() ? TypeMem.TOP : TypeMem.BOT);
-            Type ret = tfp.ret();
             // If during Opto, assume call won't be called and thus won't return anything.
-            if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() )
-                ret = Type.TOP;
+            boolean opto = CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal();
+            Type tmem = opto ? TypeMem.TOP : TypeMem.BOT;
+            Type ret  = opto ? Type.TOP    : tfp.ret();
             return TypeTuple.make(Type.CONTROL,tmem,ret);
         }
 

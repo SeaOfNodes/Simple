@@ -174,16 +174,16 @@ val _hashCodeString = { String self ->
 };
 """;
         testCPU(src,"x86_64_v2", "SystemV",18,null);
-        testCPU(src,"riscv"    , "SystemV", 5,null);
-        testCPU(src,"arm"      , "SystemV", 4,null);
+        testCPU(src,"riscv"    , "SystemV", 7,null);
+        testCPU(src,"arm"      , "SystemV", 8,null);
     }
 
     @Test
     public void testCast() {
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
         testCPU(src,"x86_64_v2", "SystemV",3,null);
-        testCPU(src,"riscv"    , "SystemV",3,null);
-        testCPU(src,"arm"      , "SystemV",6,null);
+        testCPU(src,"riscv"    , "SystemV",6,null);
+        testCPU(src,"arm"      , "SystemV",10,null);
     }
 
     @Test

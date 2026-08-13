@@ -127,6 +127,10 @@ abstract public class Opto {
     private static void linkCG(CodeGen code, TypeFunPtr tfp, CallNode call) {
         if( tfp.nargs() != call.nargs() ) return; // Error calls hit this
         int[] fidxs = tfp.fidxs();
+        // An unresolved forward call can still carry the infinite, inferred
+        // function set into Opto.  There is no finite call graph to link yet;
+        // type checking will report the unresolved reference afterwards.
+        if( XInt.isHigh(fidxs) ) return;
         for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
             // unlinkStart deliberately leaves uncalled functions in a
             // temporarily dead limbo.  A newly discovered call revives them;

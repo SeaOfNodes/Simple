@@ -134,8 +134,8 @@ val _hashCodeString = { String self ->
 };
 """;
         testCPU(src,"x86_64_v2", "SystemV",18,null);
-        testCPU(src,"riscv"    , "SystemV", 5,null);
-        testCPU(src,"arm"      , "SystemV", 4,null);
+        testCPU(src,"riscv"    , "SystemV", 7,null);
+        testCPU(src,"arm"      , "SystemV", 8,null);
     }
 
     @Test public void testStringExport() throws IOException {
@@ -359,7 +359,7 @@ val fib = { int n ->
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build( src, "fcn", ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "fcn", ps, 2, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -375,7 +375,7 @@ val fib = { int n ->
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 4, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);
