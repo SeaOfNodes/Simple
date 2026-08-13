@@ -56,7 +56,8 @@ public abstract class GlobalCodeMotion {
                 ((con._type.isHighOrConst() && con.isConst()) ||
                  con instanceof MachNode mach && mach.isClone() && con._type.isConstant()) ) {
                 breakUpGlobalConstantSingle( con );
-                i--;        // Removed a global constant, re-run same index
+                if( con.in(0) != start )
+                    i--;    // Removed a global constant, re-run same index
             }
         }
     }

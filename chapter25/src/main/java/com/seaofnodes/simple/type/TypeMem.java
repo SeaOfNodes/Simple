@@ -123,10 +123,10 @@ public class TypeMem extends Type {
         int[] fidxs  = XInt.meet( _escFs, that._escFs );
         int[] aliases= XInt.meet( _escAs, that._escAs );
         // Singleton & class facts are kept only when both sides agree.
-        
+
         // Final is kept if either side is final, merging a final & non-final
         // memory can be argued either way here:
-        
+
         // - Keep it: merging a final & non-final memory means a later Store
         //   update will be flagged as an error.
         // - Lose it: merging a final & non-final memory means a later Load

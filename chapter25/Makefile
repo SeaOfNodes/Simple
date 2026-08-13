@@ -140,7 +140,7 @@ $(CLZDIR)/test/.ttag: $(test_javas) $(CLZDIR)/main/.mtag
 # dumped.  The default sys search needs to NOT include all the dumped test
 # files; move it down into lib/
 OBJS:= build/objs
-SYS_SMPS:= $(wildcard src/main/smp/*.smp src/main/smp/*/*.smp)
+SYS_SMPS:= $(wildcard src/main/smp/*.smp src/main/smp/*/*.smp src/main/smp/*/*/*.smp)
 CPU_PORT:= x86_64_v2
 CALL_CONV:= win64
 CPU_ABI:= $(CPU_PORT)_$(CALL_CONV)

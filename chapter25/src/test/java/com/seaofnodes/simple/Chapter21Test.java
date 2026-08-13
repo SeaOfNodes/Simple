@@ -94,9 +94,9 @@ if (v1) {
 }
 return v0;
 """;
-        testCPU(src,"x86_64_v2", "SystemV",10,"return mov(mov(Test._S));");
+        testCPU(src,"x86_64_v2", "SystemV", 9,"return mov(mov(Test._S));");
         testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(Test._S));");
-        testCPU(src,"arm"      , "SystemV",10,"return mov(mov(Test._S));");
+        testCPU(src,"arm"      , "SystemV",13,"return mov(mov(Test._S));");
     }
 
     @Test

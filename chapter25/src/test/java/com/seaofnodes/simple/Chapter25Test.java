@@ -22,6 +22,15 @@ public class Chapter25Test {
     private static final File SYS_FILE = new File(SYS_BLDDIR+"/sys.o");
 
     @Test
+    public void testForwardConstructor() {
+        CodeGen code = new CodeGen("src/test/java/com/seaofnodes/simple/test_smp/forward_ctor",
+                                   "build/objs/forward_ctor_parse",null,
+                                   "m",null,123L,TypeInteger.BOT);
+        code.driver(CodeGen.Phase.TypeCheck);
+    }
+
+
+    @Test
     public void testPostfixFieldUpdate() {
         String src = """
             struct V {
@@ -173,15 +182,17 @@ public class Chapter25Test {
 
         // Elf files are sane
 
-        // Sys depends on io, libc, char, aryi64, aryu8
-        assertEquals(7,sys_elf._deps.length);
+        // Sys depends on io, libc, char, collections, and array utilities.
+        assertEquals(9,sys_elf._deps.length);
         assertSame("sys/aryu8" ,sys_elf._deps[0]);
-        assertSame("sys/io"    ,sys_elf._deps[1]);
-        assertSame("sys/char"  ,sys_elf._deps[2]);
+        assertSame("sys/char"  ,sys_elf._deps[1]);
+        assertSame("sys/io"    ,sys_elf._deps[2]);
         assertSame("sys/ary"   ,sys_elf._deps[3]);
         assertSame("sys/aryi64",sys_elf._deps[4]);
-        assertSame("sys/Scan"  ,sys_elf._deps[5]);
-        assertSame("sys/libc"  ,sys_elf._deps[6]);
+        assertSame("sys/adt/bitset",sys_elf._deps[5]);
+        assertSame("sys/scan"  ,sys_elf._deps[6]);
+        assertSame("sys/adt"   ,sys_elf._deps[7]);
+        assertSame("sys/libc"  ,sys_elf._deps[8]);
         assertSame("class:sys" ,sys_elf._clz._name);
     }
 
@@ -283,6 +294,24 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
         assertEquals("Usage: please provide a string\n",TestC.gcc(obj,null,null,null,libs,exe));
         assertEquals("Usage: please provide a string\n",TestC.gcc(obj,null,null,null,libs,exe,""));
         assertEquals("Use quotes around multiple strings.\n",TestC.gcc(obj,null,null,null,libs,exe,"hello","world"));
+    }
+
+    @Test
+    public void testDijkstra() throws IOException {
+        String src = Files.readString(Path.of("docs/examples/Dijkstra.smp"));
+        String matrix = "0, 2, 0, 6, 0, 2, 0, 3, 8, 5, 0, 3, 0, 0, 7, 6, 8, 0, 0, 9, 0, 5, 7, 9, 0";
+        TestC.runArgs(src,"Dijkstra",new Ary<>(new String[]{SYS_BLDDIR}),
+                      TestC.CALL_CONVENTION,"2\n",-1,matrix,"0","1");
+
+        String obj = "build/objs/Dijkstra.o";
+        String exe = "build/objs/Dijkstra"+(TestC.OS.startsWith("Windows") ? ".exe" : "");
+        Ary<String> libs = new Ary<>(new String[]{SYS_FILE.toString()});
+        String usage = "Usage: please provide three inputs: a serialized matrix, a source node and a destination node\n";
+        assertEquals("7\n",TestC.gcc(obj,null,null,null,libs,exe,matrix,"0","4"));
+        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe));
+        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"","",""));
+        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"1, 0, 3, 0, 5, 1","1","2"));
+        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"0, 0, 0, 0","0","1"));
     }
 
 }

@@ -65,7 +65,7 @@ return (sq_noInline(2) <= score < sq_noInline(3))
         TestC.runSF( src, "stacked_r_3", "", 4);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 7, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);

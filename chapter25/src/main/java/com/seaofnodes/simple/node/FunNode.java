@@ -91,7 +91,7 @@ public class FunNode extends RegionNode {
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
     public void setSig( TypeFunPtr sig ) {
-        assert sig.isa(_sig);
+        assert sig.isa(_sig) || resolvesForwardSelf(sig,_sig);
         if( _sig != sig ) {
             CODE.add(this);
             // Changing the signature can allow more inlining
@@ -102,6 +102,20 @@ public class FunNode extends RegionNode {
             _sig = sig;
             unlock();
         }
+    }
+
+    // A class initializer starts parsing with an open singleton receiver and
+    // closes that same receiver after discovering its fields.  Function
+    // arguments are contravariant, so ordinary isa does not describe this
+    // parser-time forward-reference resolution even though every other part
+    // of the signature sharpens normally.
+    private static boolean resolvesForwardSelf(TypeFunPtr sig, TypeFunPtr old) {
+        if( !(sig.arg(0) instanceof TypeMemPtr now) ||
+            !(old.arg(0) instanceof TypeMemPtr prior) ||
+            now._obj._name != prior._obj._name ||
+            !prior._obj._open || now._obj._open )
+            return false;
+        return sig.makeFrom(old.arg(0),0).isa(old);
     }
 
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {

@@ -60,16 +60,16 @@ _Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(83, testCPUSize(src, "x86_64_v2","win64", 3 ));
-        assertEquals(96, testCPUSize(src, "riscv",  "SystemV", 4 ));
-        assertEquals(96, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
+        assertEquals(85, testCPUSize(src, "x86_64_v2","win64", 5 ));
+        assertEquals(96, testCPUSize(src, "riscv",  "SystemV", 6 ));
+        assertEquals(104, testCPUSize(src, "arm"  ,  "SystemV", 8 ));
 
         // do assertEquals here
-        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 6, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
-        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away", src, 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away", src, 0, 8, false);
         trap = A5.step(100);
         assertEquals(0,trap);
 
@@ -84,17 +84,17 @@ return 0;
                 return 0;
         """;
 
-        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away_2", 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away_2", 0, 6, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
-        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", src, 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", src, 0, 8, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(83, testCPUSize(src, "x86_64_v2","win64",3 ));
-        assertEquals(96, testCPUSize(src, "riscv",  "SystemV",4 ));
-        assertEquals(96, testCPUSize(src, "arm",    "SystemV",4 ));
+        assertEquals(85, testCPUSize(src, "x86_64_v2","win64",5 ));
+        assertEquals(96, testCPUSize(src, "riscv",  "SystemV",6 ));
+        assertEquals(104, testCPUSize(src, "arm",   "SystemV",8 ));
 
     }
 
@@ -108,17 +108,17 @@ p.age = (arg<<48)>>48;
 return 0;
 """;
 
-        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_fold_away", 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "sext_str_fold_away", 0, 9, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
 
-        EvalArm64 A5 = TestArm64.build("sext_str_fold_away", src, 0, 5, false);
+        EvalArm64 A5 = TestArm64.build("sext_str_fold_away", src, 0, 11, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(71, testCPUSize(src, "x86_64_v2","win64",3 ));
-        assertEquals(92, testCPUSize(src, "riscv",  "SystemV",5 ));
-        assertEquals(92, testCPUSize(src, "arm",    "SystemV",5 ));
+        assertEquals(85, testCPUSize(src, "x86_64_v2","win64",7 ));
+        assertEquals(100, testCPUSize(src, "riscv", "SystemV",9 ));
+        assertEquals(108, testCPUSize(src, "arm",   "SystemV",11));
         // do assertEquals here
     }
 

@@ -1,0 +1,46 @@
+// -*- mode: java;  -*-
+
+// A fixed-size set of non-negative integers, represented one bit per value.
+struct bitset {
+    int _nbits;
+    i64[] !_words;
+
+    new bitset = { int n ->
+        _nbits = n;
+        _words = new i64[(n+63)/64];
+    };
+
+    val get = { int bit ->
+        i64 mask = 1 << (bit & 63);
+        return (_words[bit >> 6] & mask) != 0;
+    };
+
+    val set = { int bit ->
+        int word = bit >> 6;
+        i64 mask = 1 << (bit & 63);
+        _words[word] = _words[word] | mask;
+        return self;
+    };
+
+    // Test and set
+    val tset = { int bit ->
+        int word = bit >> 6;
+        i64 mask = 1 << (bit & 63);
+        if( _words[bit >> 6] & mask )
+          return true;          // Already set
+        _words[word] = _words[word] | mask;
+        return false;           // Was false (and now set)
+    };
+
+    val clr = { int bit ->
+        int word = bit >> 6;
+        i64 mask = 1 << (bit & 63);
+        _words[word] = _words[word] & (mask ^ -1);
+        return self;
+    };
+
+    val clear = { ->
+        for( int i=0; i<_words#; i++ ) _words[i] = 0;
+        return self;
+    };
+};

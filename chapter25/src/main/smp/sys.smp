@@ -2,10 +2,11 @@
 
 // top-level default standard library import
 
-val libc = libc;
-val io = io;
-val char = char;
-val aryu8 = aryu8;
-val Scan = Scan;
-val aryi64 = aryi64;
-val ary = ary;
+val adt = adt;                  // Abstract Data Types
+val ary = ary;                  // Array utilities
+val aryi64 = aryi64;            // Variable sized array of i64
+val aryu8 = aryu8;              // Variable sized array of u8
+val char = char;                // Character utilities
+val io = io;                    // IO library
+val libc = libc;                // libc FFI bindings
+val scan = scan;                // A simple string parser
