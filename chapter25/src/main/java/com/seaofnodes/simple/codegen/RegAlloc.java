@@ -61,6 +61,9 @@ public class RegAlloc {
     // -----------------------
     // Live ranges with self-conflicts or no allowed registers
     private final IdentityHashMap<LRG,String> _failed = new IdentityHashMap<>();
+    // Loop Phis get one chance to color after only cold self-conflict splits.
+    // If the same Phi self-conflicts again, split its hot def/backedge also.
+    private final IdentityHashMap<PhiNode,String> _deferredLoopSelf = new IdentityHashMap<>();
     void fail( LRG lrg ) {
         assert lrg.leader();
         _failed.put(lrg,"");
@@ -346,6 +349,19 @@ public class RegAlloc {
         Node[] conflicts = lrg._selfConflicts.keySet().toArray(new Node[0]);
         Arrays.sort(conflicts, (x,y) -> x._nid - y._nid );
 
+        // First encounter with a loop Phi: try only cold splits this round.
+        // Remember the Phi across rounds so a persistent self-conflict forces
+        // the hot def/backedge splits on the next encounter.
+        IdentityHashMap<PhiNode,String> deferred = new IdentityHashMap<>();
+        for( Node def : conflicts ) {
+            if( def instanceof PhiNode phi && phi.region() instanceof LoopNode )
+                deferLoopSelf(phi,deferred);
+            for( Node use : def._outputs )
+                if( use instanceof PhiNode phi && phi.region() instanceof LoopNode &&
+                    phi._inputs.find(def)==2 )
+                    deferLoopSelf(phi,deferred);
+        }
+
         // For all conflicts
         for( Node def : conflicts ) {
             assert lrg(def)==lrg; // Might be conflict use-side
@@ -354,6 +370,7 @@ public class RegAlloc {
             for( int i=0; i<def._outputs._len; i++ ) {
                 Node use = def.out(i);
                 if( (use instanceof PhiNode phi &&
+                     !(deferred.containsKey(phi) && phi.region() instanceof LoopNode && phi._inputs.find(def)==2) &&
                      !(phi.region() instanceof LoopNode loop && phi.in(2)==def && def.cfg0().idepth() > loop.idepth() ) ) ||
                         (use instanceof MachNode mach && mach.twoAddress()!=0 && use.in(mach.twoAddress())==def) )
                     insertBefore( use, use._inputs.find(def), "use/self/use",round,lrg );
@@ -362,10 +379,12 @@ public class RegAlloc {
             // Phi slot 1 (and not all inputs), because Phis extend the live range.
             // TODO: split before all inputs (except the last; at least 1 split here must be extra)
             if( def instanceof PhiNode phi && !(def instanceof ParmNode) ) {
-                SplitNode split = makeSplit("def/self",round,lrg);
-                insertAfterAndReplace(split,def,false);
-                if( split.nOuts()==0 )
-                    split.killOrdered();
+                if( !deferred.containsKey(phi) ) {
+                    SplitNode split = makeSplit("def/self",round,lrg);
+                    insertAfterAndReplace(split,def,false);
+                    if( split.nOuts()==0 )
+                        split.killOrdered();
+                }
                 insertBefore(phi,1,"use/self/phi",round,lrg);
             }
             // Split before two-address ops which extend the live range
@@ -373,6 +392,13 @@ public class RegAlloc {
                 insertBefore(def,mach.twoAddress(),"use/self/two",round,lrg);
         }
         return true;
+    }
+
+    private void deferLoopSelf(PhiNode phi, IdentityHashMap<PhiNode,String> deferred) {
+        if( !_deferredLoopSelf.containsKey(phi) ) {
+            _deferredLoopSelf.put(phi,"");
+            deferred.put(phi,"");
+        }
     }
 
 
