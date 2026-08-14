@@ -80,9 +80,9 @@ val _test_sqrt_noInline = { flt x ->
 };
 flt farg = arg; return _test_sqrt_noInline(farg) + _test_sqrt_noInline(farg+2.0);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",65,null);
-        testCPU(src,"riscv"    , "SystemV",35,null);
-        testCPU(src,"arm"      , "SystemV",35,null);
+        testCPU(src,"x86_64_v2", "SystemV",48,null);
+        testCPU(src,"riscv"    , "SystemV",17,null);
+        testCPU(src,"arm"      , "SystemV",18,null);
     }
 
     @Test

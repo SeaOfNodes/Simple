@@ -5,6 +5,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.TypeRPC;
 import com.seaofnodes.simple.type.XInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
@@ -129,8 +130,15 @@ public class CallNode extends CFGNode {
         assert !linked(fun);
         fun.addDef(this);
         for( Node use : fun._outputs )
-            if( use instanceof ParmNode parm )
-                parm.addDef(parm._idx==0 ? ConstantNode.seed(cend()._rpc).peephole() : arg(parm._idx));
+            if( use instanceof ParmNode parm ) {
+                Node def = parm._idx==0 ? ConstantNode.seed(cend()._rpc).peephole() : arg(parm._idx);
+                parm.addDef(def);
+                // Linking can happen during post-SCCP inlining.  Keep an RPC
+                // Parm's cached finite set synchronized with its newly added
+                // input instead of waiting for the next worklist visit.
+                if( parm._idx==0 && parm._type instanceof TypeRPC )
+                    parm._type = parm._type.meet(def._type);
+            }
         // Call end points to function return
         CodeGen.CODE.add(cend()).addDef(fun.ret());
         return this;

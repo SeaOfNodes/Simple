@@ -812,8 +812,8 @@ public class Parser {
         Node rhs = switch( fside ) {
         case "else" -> (doRHS=match(fside)) ? parseStatement() : con(lhs._type.makeZero());
         case ":"    -> (doRHS=match(fside)) ? parseAsgn()      : con(lhs._type.makeZero());
-        case "&&"   -> rhs = pred;
-        case "||"   -> rhs = parseLogical();
+        case "&&"   -> con(lhs._type.makeZero()); // pred && expr_is_ignored
+        case "||"   -> parseLogical();            // pred || expr
         default     -> throw TODO();
         };
         rhs.keep();

@@ -3,15 +3,6 @@
 // An implementation of
 // https://sampleprograms.io/projects/dijkstra/
 
-// Parse one non-negative integer and reject trailing junk.
-val parseNode = { u8[~] text ->
-    var nums = sys.aryi64.parseCsvI64(text);
-    i64 node = -1;
-    if( nums )
-        if( nums.len == 1 && nums.get(0) >= 0 ) node = nums.get(0);
-    return node;
-};
-
 val shortestPath = { sys.aryi64 matrix, int nodes, int source, int destination ->
     i64 infinity = 1073741823;
     var distance = new i64[nodes];
@@ -44,47 +35,55 @@ val shortestPath = { sys.aryi64 matrix, int nodes, int source, int destination -
     return result;
 };
 
-val main = { u8[~][] args ->
-    if( args# != 4 ) {
-        sys.io.p("Usage: please provide three inputs: a serialized matrix, a source node and a destination node\n");
-        return 0;
-    }
-    var matrix = sys.aryi64.parseCsvI64(args[1]);
-    if( matrix ) {
-        sys.aryi64 !matrix0 = matrix;
-        bool valid = true;
-        for( int i=0; valid && i<matrix0.len; i++ ) valid = matrix0.get(i) >= 0;
-        int nodes = 0;
-        while( nodes*nodes < matrix0.len ) nodes++;
-        if( valid && nodes > 0 && nodes*nodes == matrix0.len ) {
-            i64 source = parseNode(args[2]);
-            i64 destination = parseNode(args[3]);
-            if( source >= 0 && source < nodes && destination >= 0 && destination < nodes ) {
-                i64 cost = shortestPath(matrix0,nodes,source,destination);
-                if( cost >= 0 ) {
-                    i64 place = 1;
-                    while( place <= cost/10 ) place *= 10;
-                    while( place ) {
-                        i64 digit = cost/place;
-                        if( digit == 0 ) sys.io.p("0");
-                        else if( digit == 1 ) sys.io.p("1");
-                        else if( digit == 2 ) sys.io.p("2");
-                        else if( digit == 3 ) sys.io.p("3");
-                        else if( digit == 4 ) sys.io.p("4");
-                        else if( digit == 5 ) sys.io.p("5");
-                        else if( digit == 6 ) sys.io.p("6");
-                        else if( digit == 7 ) sys.io.p("7");
-                        else if( digit == 8 ) sys.io.p("8");
-                        else sys.io.p("9");
-                        cost -= digit*place;
-                        place /= 10;
-                    }
-                    sys.io.p("\n");
-                    return 0;
-                }
-            }
-        }
-    }
+val usage = { ->
     sys.io.p("Usage: please provide three inputs: a serialized matrix, a source node and a destination node\n");
     return 0;
+};
+
+val main = { u8[~][] args ->
+    // Exactly 3 args
+    if( args# != 4 ) return usage();
+    // First is a serialized square matrix of positive numbers
+    var matrix = sys.aryi64.parseAryI64(args[1]);
+    if( !matrix ) return usage();
+    if( !matrix.len ) return usage();
+    sys.aryi64 !matrix0 = matrix;
+    // All numbers are positive
+    for( int i=0; i<matrix0.len; i++ )
+        if( matrix0.get(i) < 0 ) return usage();
+    // Matrix is square
+    int nodes = 0;
+    while( nodes*nodes < matrix0.len ) nodes++;
+    if( nodes*nodes != matrix0.len )
+        return usage();         // Not a square matrix
+
+    // src,dst are values within the matrix
+    i64 src = sys.aryu8.atoi(args[2]);
+    i64 dst = sys.aryu8.atoi(args[3]);
+    if( src < 0 || src >= nodes || dst < 0 || dst >= nodes )
+        return usage();         // Source and destination land within the graph
+
+     i64 cost = shortestPath(matrix0,nodes,src,dst);
+     if( cost >= 0 ) {
+         i64 place = 1;
+         while( place <= cost/10 ) place *= 10;
+         while( place ) {
+             i64 digit = cost/place;
+             if( digit == 0 ) sys.io.p("0");
+             else if( digit == 1 ) sys.io.p("1");
+             else if( digit == 2 ) sys.io.p("2");
+             else if( digit == 3 ) sys.io.p("3");
+             else if( digit == 4 ) sys.io.p("4");
+             else if( digit == 5 ) sys.io.p("5");
+             else if( digit == 6 ) sys.io.p("6");
+             else if( digit == 7 ) sys.io.p("7");
+             else if( digit == 8 ) sys.io.p("8");
+             else sys.io.p("9");
+             cost -= digit*place;
+             place /= 10;
+         }
+         sys.io.p("\n");
+         return 0;
+     }
+    return usage();
 };

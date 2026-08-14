@@ -273,13 +273,12 @@ public class PhiNode extends Node {
 
     @Override
     public Parser.ParseException err() {
-        if( _type != Type.BOTTOM && _type != TypeScalar.BOT ) return null;
+        if( _type != Type.BOTTOM ) return null;
 
-        // Scalar BOT means we mixed scalar families, e.g. int and ptr.
         // Global BOTTOM retains the same role for non-scalar families.
         for( int i=1; i<nIns(); i++ )
             // Already an error, but better error messages come from elsewhere
-            if( in(i)._type == Type.BOTTOM || in(i)._type == TypeScalar.BOT )
+            if( in(i)._type == Type.BOTTOM )
                 return null;
 
         SB sb = new SB().p("No common type amongst ");

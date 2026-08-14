@@ -86,6 +86,26 @@ return a && b ? 0 : 1;  // Expected answer 0
     }
 
     @Test
+    public void testLogicalValueSemantics() {
+        assertEquals("42", Eval2.eval(new CodeGen("return 7 && 42;").parse().opto(), 0));
+        assertEquals("0",  Eval2.eval(new CodeGen("return 0 && 42;").parse().opto(), 0));
+        assertEquals("7",  Eval2.eval(new CodeGen("return 7 || 42;").parse().opto(), 0));
+        assertEquals("42", Eval2.eval(new CodeGen("return 0 || 42;").parse().opto(), 0));
+    }
+
+    @Test
+    public void testMixedScalarNotPhiPredicate() {
+        CodeGen code = new CodeGen("""
+struct S {};
+S? s = arg ? new S;
+return !(!s || !arg) ? 1 : 0;
+""");
+        code.parse().opto().typeCheck();
+        assertEquals("0", Eval2.eval(code, 0));
+        assertEquals("1", Eval2.eval(code, 1));
+    }
+
+    @Test
     public void testAndPtr() throws IOException {
         // Todo: have one src here
         String src = """

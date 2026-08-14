@@ -31,7 +31,7 @@ val main = { u8[~][] args ->
     // Bubble sort array of integers
     sort(nums);
 
-    // Print the comma-separated result without the input brackets.
-    nums.csv().write(1);
+    // Print the same bracketed array-list format accepted as input.
+    nums.str().add('\n').write(1);
     return 0;
 };

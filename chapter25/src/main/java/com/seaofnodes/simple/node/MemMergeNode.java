@@ -113,7 +113,8 @@ public class MemMergeNode extends Node {
                     if( XInt.bit(mem._escAs,i) ) {
                         Node n = in(i);
                         if( n != null && !n._type.isHigh() ) {
-                            TypeMem mem2 = (TypeMem)mem.meet(n._type);
+                            TypeMem nmem2 = ((TypeMem)n._type).makeFrom(mem._escFs, mem._escAs);
+                            TypeMem mem2 = (TypeMem)mem.meet(nmem2);
                             // More escape aliases
                             if( mem2 != mem )
                                 { mem = mem2; progress = true; }

@@ -5,9 +5,7 @@ struct aryu8 {
     u32 !len = 0;
     u8[] !buf;
 
-    new aryu8 = { u8[] b ->
-        buf = b;
-    };
+    new aryu8 = { -> buf = new u8[1]; };
 
     // Grow as needed
     val _grow = { int len2 ->
@@ -63,4 +61,19 @@ struct aryu8 {
         i64 ptr = buf; // Cast buffer pointer to i64 for native C call
         libc.write(fd,ptr,len);
     };
+};
+
+
+// Parse one integer, ignore trailing data; returns 0 with an empty string.
+// If you want a more robust parsing, use the `scan` class
+val atoi = { u8[~] str ->
+    int x = 0;
+    while( x < str# && str[x] <= ' ' ) x++;
+    if( x == str# ) return 0;
+    bool neg = false;
+    if( str[x]=='-' ) { neg=true; x++; }
+    i64 n = 0;
+    while( x < str# && '0' <= str[x] <= '9' )
+        n = n*10 + str[x++]-'0';
+    return neg ? -n : n;
 };
