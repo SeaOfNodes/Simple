@@ -38,7 +38,7 @@ public class CmpMemX86 extends MemOpX86 {
             case 0: enc.add1(_imm); break;
             case 1: enc.add2(_imm); break;
             case 2: enc.add4(_imm); break;
-            case 3: enc.add8(_imm); break;
+            case 3: enc.add4(_imm); break;
             }
         } else {
             encVal(enc, _con, ptr, idx, src, _off, _scale, _swap);
