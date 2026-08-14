@@ -247,7 +247,7 @@ Options:
             if ( !TestC.CPU_PORT.equals( cpu ) || !TestC.CALL_CONVENTION.equals( abi ) )
                 throw bad("cannot run code on not native target");
             String exe = TestC.OS.startsWith("Windows") ? outBase+".exe" : outBase;
-            String result = TestC.gcc(outBase+".o", null, null, true, exe);
+            String result = TestC.gcc(outBase+".o", null, null, "", TestC.linkObjs(externPaths), exe);
             System.out.print(result);
         }
     }

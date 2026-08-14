@@ -214,7 +214,7 @@ public abstract class TestC {
         return result;
     }
 
-    private static Ary<String> linkObjs(Ary<String> externPaths) {
+    static Ary<String> linkObjs(Ary<String> externPaths) {
         if( externPaths == null )
             return null;
         Ary<String> objs = new Ary<>(String.class);
