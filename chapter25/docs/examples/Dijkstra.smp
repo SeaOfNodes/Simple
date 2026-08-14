@@ -3,12 +3,14 @@
 // An implementation of
 // https://sampleprograms.io/projects/dijkstra/
 
-val shortestPath = { sys.aryi64 matrix, int nodes, int source, int destination ->
-    i64 infinity = 1073741823;
-    var distance = new i64[nodes];
+val shortestPath = { sys.aryi64 matrix, int nodes, int src, int dst ->
+    i64 infinity = (1 << 63)-1;
+    var dist = new i64[nodes];
     var visited = new u8[nodes];
-    for( int i=0; i<nodes; i++ ) distance[i] = infinity;
-    distance[source] = 0;
+    // All nodes are infinitely far from each other
+    for( int i=0; i<nodes; i++ ) dist[i] = infinity;
+    // Starting point is zero far from starting point
+    dist[src] = 0;
 
     i64 result = -1;
     int count = 0;
@@ -16,18 +18,18 @@ val shortestPath = { sys.aryi64 matrix, int nodes, int source, int destination -
         int nearest = -1;
         i64 best = infinity;
         for( int node=0; node<nodes; node++ )
-            if( !visited[node] && distance[node] < best ) {
+            if( !visited[node] && dist[node] < best ) {
                 nearest = node;
-                best = distance[node];
+                best = dist[node];
             }
         if( nearest < 0 ) count = nodes;
-        else if( nearest == destination ) result = best;
+        else if( nearest == dst ) result = best;
         else {
             visited[nearest] = nearest+1;
             for( int node=0; node<nodes; node++ ) {
                 i64 weight = matrix.get(nearest*nodes + node);
-                if( weight > 0 && !visited[node] && best+weight < distance[node] )
-                    distance[node] = best+weight;
+                if( weight > 0 && !visited[node] && best+weight < dist[node] )
+                    dist[node] = best+weight;
             }
         }
         count++;
@@ -47,14 +49,13 @@ val main = { u8[~][] args ->
     var matrix = sys.aryi64.parseAryI64(args[1]);
     if( !matrix ) return usage();
     if( !matrix.len ) return usage();
-    sys.aryi64 !matrix0 = matrix;
     // All numbers are positive
-    for( int i=0; i<matrix0.len; i++ )
-        if( matrix0.get(i) < 0 ) return usage();
+    for( int i=0; i<matrix.len; i++ )
+        if( matrix.get(i) < 0 ) return usage();
     // Matrix is square
     int nodes = 0;
-    while( nodes*nodes < matrix0.len ) nodes++;
-    if( nodes*nodes != matrix0.len )
+    while( nodes*nodes < matrix.len ) nodes++;
+    if( nodes*nodes != matrix.len )
         return usage();         // Not a square matrix
 
     // src,dst are values within the matrix
@@ -63,7 +64,7 @@ val main = { u8[~][] args ->
     if( src < 0 || src >= nodes || dst < 0 || dst >= nodes )
         return usage();         // Source and destination land within the graph
 
-     i64 cost = shortestPath(matrix0,nodes,src,dst);
+     i64 cost = shortestPath(matrix,nodes,src,dst);
      if( cost >= 0 ) {
          new sys.aryu8().num(cost).add('\n').write(1);
          return 0;
