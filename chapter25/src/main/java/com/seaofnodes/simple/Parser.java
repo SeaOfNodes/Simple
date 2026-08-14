@@ -2050,7 +2050,9 @@ public class Parser {
         if( afld != null ) {
             TypeFunPtr tfp = (TypeFunPtr)afld._t;
             FunNode fun = _code.link(tfp);
-            alloc = new FunPtrNode(tfp,_code._start,fun.ret()).peephole();
+            alloc = fun==null
+                ? new FRefNode((addClzPrefix(typeName)+".<new>").intern(),loc())
+                : new FunPtrNode(tfp,_code._start,fun.ret()).peephole();
         } else {
             if( !ts._fref )
                 throw error("Constructor arguments for '" + ts._name + "' but no constructor is defined");

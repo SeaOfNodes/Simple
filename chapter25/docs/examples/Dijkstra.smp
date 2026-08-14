@@ -65,7 +65,7 @@ val main = { u8[~][] args ->
 
      i64 cost = shortestPath(matrix0,nodes,src,dst);
      if( cost >= 0 ) {
-         sys.aryu8.writeNumLn(1,cost);
+         new sys.aryu8().num(cost).add('\n').write(1);
          return 0;
      }
     return usage();

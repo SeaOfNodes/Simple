@@ -77,8 +77,3 @@ val atoi = { u8[~] str ->
         n = n*10 + str[x++]-'0';
     return neg ? -n : n;
 };
-
-// Write ASCII number followed by newline to fd.
-val writeNumLn = { i32 fd, i64 x ->
-    new aryu8().num(x).add('\n').write(fd);
-};
