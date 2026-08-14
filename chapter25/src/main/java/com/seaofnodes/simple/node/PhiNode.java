@@ -76,7 +76,7 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() )
+        if( r.inProgress() || in(nIns()-1)==null )
             return declaredType();
         // Set type to local top of the starting type
         Type t = Type.TOP;

@@ -1,46 +1,58 @@
 // -*- mode: java;  -*-
 
-// A fixed-size set of non-negative integers, represented one bit per value.
+// A set of non-negative integers, represented one bit per value.
 struct bitset {
-    int _nbits;
-    i64[] !_words;
+    i64[] !_bits;
 
-    new bitset = { int n ->
-        _nbits = n;
-        _words = new i64[(n+63)/64];
+    new bitset = { ->
+        _bits = new i64[1];
     };
 
+    // Return 0 for missing, non-zero for true
     val get = { int bit ->
+        if( (bit >> 6) >= _bits# ) return false;
         i64 mask = 1 << (bit & 63);
-        return (_words[bit >> 6] & mask) != 0;
+        return (_bits[bit >> 6] & mask);
     };
 
+    val _grow = { int bit ->
+        int x = bit >> 6;
+        int len = _bits#;
+        if( x < len ) return self;
+        while( x >= len ) len *= 2;
+        var bits = new i64[len];
+        for( int i=0; i<_bits#; i++ )
+            bits[i] = _bits[i];
+        _bits = bits;
+        return self;
+    };
+
+    // Set
     val set = { int bit ->
-        int word = bit >> 6;
         i64 mask = 1 << (bit & 63);
-        _words[word] = _words[word] | mask;
+        _grow(bit)._bits[bit >> 6] |= mask;
         return self;
     };
 
     // Test and set
     val tset = { int bit ->
-        int word = bit >> 6;
+        int idx = bit >> 6;
         i64 mask = 1 << (bit & 63);
-        if( _words[bit >> 6] & mask )
+        if( _grow(bit)._bits[idx] & mask )
           return true;          // Already set
-        _words[word] = _words[word] | mask;
+        _bits[idx] |= mask;
         return false;           // Was false (and now set)
     };
 
     val clr = { int bit ->
-        int word = bit >> 6;
+        if( (bit >> 6) >= _bits# ) return self;
         i64 mask = 1 << (bit & 63);
-        _words[word] = _words[word] & (mask ^ -1);
+        _bits[bit >> 6] &= (mask ^ -1);
         return self;
     };
 
     val clear = { ->
-        for( int i=0; i<_words#; i++ ) _words[i] = 0;
+        for( int i=0; i<_bits#; i++ ) _bits[i] = 0;
         return self;
     };
 };

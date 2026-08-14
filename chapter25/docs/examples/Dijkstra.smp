@@ -6,7 +6,7 @@
 val shortestPath = { sys.aryi64 matrix, int nodes, int src, int dst ->
     i64 infinity = (1 << 63)-1;
     var dist = new i64[nodes];
-    var visited = new u8[nodes];
+    var visited = new sys.adt.bitset();
     // All nodes are infinitely far from each other
     for( int i=0; i<nodes; i++ ) dist[i] = infinity;
     // Starting point is zero far from starting point
@@ -18,17 +18,17 @@ val shortestPath = { sys.aryi64 matrix, int nodes, int src, int dst ->
         int nearest = -1;
         i64 best = infinity;
         for( int node=0; node<nodes; node++ )
-            if( !visited[node] && dist[node] < best ) {
+            if( !visited.get(node) && dist[node] < best ) {
                 nearest = node;
                 best = dist[node];
             }
         if( nearest < 0 ) count = nodes;
-        else if( nearest == dst ) result = best;
         else {
-            visited[nearest] = nearest+1;
+            if( nearest == dst ) return best;
+            visited.set(nearest);
             for( int node=0; node<nodes; node++ ) {
                 i64 weight = matrix.get(nearest*nodes + node);
-                if( weight > 0 && !visited[node] && best+weight < dist[node] )
+                if( weight > 0 && !visited.get(node) && best+weight < dist[node] )
                     dist[node] = best+weight;
             }
         }

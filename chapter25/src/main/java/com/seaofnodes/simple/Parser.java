@@ -2001,6 +2001,8 @@ public class Parser {
         case '-' -> new SubNode(lhs,rhs);
         case '*' -> new MulNode(lhs,rhs);
         case '/' -> new DivNode(lhs,rhs);
+        case '|' -> new  OrNode(null,lhs,rhs);
+        case '&' -> new AndNode(null,lhs,rhs);
         default  -> throw TODO();
         };
         // Convert to float ops, or narrow int types; error if not declared type.

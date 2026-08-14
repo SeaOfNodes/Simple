@@ -259,59 +259,50 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
     @Test
     public void testBubbles() throws IOException {
         String src = Files.readString( Path.of("docs/examples/BubbleSort.smp"));
-        TestC.runArgs(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
-                      TestC.CALL_CONVENTION,"[-17, 2, 3, 999]\n",-1,
-                      "[3,  2,-17, 999 ]");
-
-        String obj = "build/objs/BubbleSort.o";
-        String exe = "build/objs/BubbleSort"+(TestC.OS.startsWith("Windows") ? ".exe" : "");
-        Ary<String> libs = new Ary<>(new String[]{SYS_FILE.toString()});
+        String exe = TestC.compile(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("[-17, 2, 3, 999]\n",
+                     TestC.exec(exe,"[3,  2,-17, 999 ]"));
         assertEquals("[1, 2, 3, 4, 4, 5]\n",
-                     TestC.gcc(obj,null,null,null,libs,exe,"[4, 5, 3, 1, 4, 2]"));
+                     TestC.exec(exe,"[4, 5, 3, 1, 4, 2]"));
         assertEquals("[1, 2, 3, 4, 5]\n",
-                     TestC.gcc(obj,null,null,null,libs,exe,"[1, 2, 3, 4, 5]"));
+                     TestC.exec(exe,"[1, 2, 3, 4, 5]"));
         assertEquals("[1, 2, 3, 4, 5, 6, 7, 8, 9]\n",
-                     TestC.gcc(obj,null,null,null,libs,exe,"[9, 8, 7, 6, 5, 4, 3, 2, 1]"));
+                     TestC.exec(exe,"[9, 8, 7, 6, 5, 4, 3, 2, 1]"));
 
         String usage = "Usage: please provide a list of at least two integers to sort in the format \"[1, 2, 3, 4, 5]\"\n";
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,""));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[1]"));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[4 5 3]"));
+        assertEquals(usage,TestC.exec(exe));
+        assertEquals(usage,TestC.exec(exe,""));
+        assertEquals(usage,TestC.exec(exe,"[1]"));
+        assertEquals(usage,TestC.exec(exe,"[4 5 3]"));
     }
 
     @Test
     public void testCapitalize() throws IOException {
         String src = Files.readString(Path.of("docs/examples/Capitalize.smp"));
-        TestC.runArgs(src,"Capitalize",new Ary<>(new String[]{SYS_BLDDIR}),
-                      TestC.CALL_CONVENTION,"Hello world\n",-1,"hello world");
-
-        String obj = "build/objs/Capitalize.o";
-        String exe = "build/objs/Capitalize"+(TestC.OS.startsWith("Windows") ? ".exe" : "");
-        Ary<String> libs = new Ary<>(new String[]{SYS_FILE.toString()});
-        assertEquals("Hello World\n",TestC.gcc(obj,null,null,null,libs,exe,"Hello World"));
-        assertEquals("123 apples\n",TestC.gcc(obj,null,null,null,libs,exe,"123 apples"));
-        assertEquals("Usage: please provide a string\n",TestC.gcc(obj,null,null,null,libs,exe));
-        assertEquals("Usage: please provide a string\n",TestC.gcc(obj,null,null,null,libs,exe,""));
-        assertEquals("Use quotes around multiple strings.\n",TestC.gcc(obj,null,null,null,libs,exe,"hello","world"));
+        String exe = TestC.compile(src,"Capitalize",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("Hello world\n",TestC.exec(exe,"hello world"));
+        assertEquals("Hello World\n",TestC.exec(exe,"Hello World"));
+        assertEquals("123 apples\n",TestC.exec(exe,"123 apples"));
+        assertEquals("Usage: please provide a string\n",TestC.exec(exe));
+        assertEquals("Usage: please provide a string\n",TestC.exec(exe,""));
+        assertEquals("Use quotes around multiple strings.\n",TestC.exec(exe,"hello","world"));
     }
 
     @Test
     public void testDijkstra() throws IOException {
         String src = Files.readString(Path.of("docs/examples/Dijkstra.smp"));
         String matrix = "[0, 2, 0, 6, 0, 2, 0, 3, 8, 5, 0, 3, 0, 0, 7, 6, 8, 0, 0, 9, 0, 5, 7, 9, 0]";
-        TestC.runArgs(src,"Dijkstra",new Ary<>(new String[]{SYS_BLDDIR}),
-                      TestC.CALL_CONVENTION,"2\n",-1,matrix,"0","1");
-
-        String obj = "build/objs/Dijkstra.o";
-        String exe = "build/objs/Dijkstra"+(TestC.OS.startsWith("Windows") ? ".exe" : "");
-        Ary<String> libs = new Ary<>(new String[]{SYS_FILE.toString()});
+        String exe = TestC.compile(src,"Dijkstra",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("2\n",TestC.exec(exe,matrix,"0","1"));
         String usage = "Usage: please provide three inputs: a serialized matrix, a source node and a destination node\n";
-        assertEquals("7\n",TestC.gcc(obj,null,null,null,libs,exe,matrix,"0","4"));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"","",""));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[1, 0, 3, 0, 5, 1]","1","2"));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[0, 0, 0, 0]","0","1"));
+        assertEquals("7\n",TestC.exec(exe,matrix,"0","4"));
+        assertEquals(usage,TestC.exec(exe));
+        assertEquals(usage,TestC.exec(exe,"","",""));
+        assertEquals(usage,TestC.exec(exe,"[1, 0, 3, 0, 5, 1]","1","2"));
+        assertEquals(usage,TestC.exec(exe,"[0, 0, 0, 0]","0","1"));
     }
 
 }

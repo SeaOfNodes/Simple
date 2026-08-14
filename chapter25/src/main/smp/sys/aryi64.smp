@@ -75,3 +75,9 @@ val parseAryI64 = { u8[~] str ->
     s.skip();
     return s.x == s.buf# ? nums : null;
 };
+
+val copy = { i64[] dst, int doff, i64[~] src, int soff, int len ->
+    for( int i=0; i<len; i++ )
+        dst[i+doff] = src[i+soff];
+    return dst;
+};
