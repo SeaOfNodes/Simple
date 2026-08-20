@@ -114,15 +114,32 @@ public abstract class ParseAll {
         code._stop.walk( (Node n) -> {
                 n.upgradeType(Parser.TYPES);
                 if( n instanceof FRefNode fref ) {
-                    TypeStruct clz = (TypeStruct)Parser.TYPES.get(fref._name);
+                    boolean alloc = fref._name.endsWith(".<new>");
+                    String clzName = alloc
+                        ? fref._name.substring(0,fref._name.length()-".<new>".length()).intern()
+                        : fref._name;
+                    TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
                     if( clz == null )
                         return null;
-                    // Class pointer:
-                    TypeMemPtr clzptr = TypeMemPtr.make((byte)2,clz,true);
-                    // Class pointer constant:
-                    ConstantNode clzCon = code.con(clzptr);
+                    Node con;
+                    if( alloc ) {
+                        Field ctor = clz.field("<new>");
+                        if( ctor == null || !(ctor._t instanceof TypeFunPtr tfp) ) {
+                            String name = clzName.startsWith(Parser.CLZ)
+                                ? clzName.substring(Parser.CLZ.length()) : clzName;
+                            int dot = name.lastIndexOf('.');
+                            throw Parser.error("Unknown struct type '"+(dot==-1 ? name : name.substring(dot+1))+"'",fref._loc);
+                        }
+                        FunNode fun = code.link(tfp);
+                        if( fun == null ) return null;
+                        con = new FunPtrNode(tfp,code._start,fun.ret()).peephole();
+                    } else {
+                        // Class pointer constant:
+                        TypeMemPtr clzptr = TypeMemPtr.make((byte)2,clz,true);
+                        con = code.con(clzptr);
+                    }
                     // Replace and optimize
-                    fref.addDef(clzCon);
+                    fref.addDef(con);
                     code.add(fref);
                 }
                 // Adds sort by NIDs, which just got shuffled

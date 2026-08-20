@@ -27,21 +27,16 @@ struct aryi64 {
         self;
     };
 
-    // Write to aryu8
+    val get = { int index -> return buf[index]; };
+
+    // Write the bracketed array-list form to aryu8.
     val str = { ->
         // TODO: clunky default constructor syntax
-        var str = new aryu8(new u8[1]).add('[');
+        var str = new aryu8().add('[');
         for( int i=0; i<len; i++ )
             str.num(buf[i]).add(',').add(' ');
-        str.undo(2).add(']');
-    };
-
-    // Comma-separated form used by command-line examples.
-    val csv = { ->
-        var str = new aryu8(new u8[1]);
-        for( int i=0; i<len; i++ )
-            str.num(buf[i]).add(',').add(' ');
-        str.undo(2).add('\n');
+        if( len ) str.undo(2);
+        return str.add(']');
     };
 
     val swap = { int i, int j ->
@@ -53,12 +48,13 @@ struct aryi64 {
 };
 
 
+
 // Parse a comma-separated list of numbers, wrapped with square brackets,
 // with optional whitespace  e.g. "[ -17, 0,99,12456789   ]  ".
 // parseAryI64 & aryi64.str are bijections modulo whitespace.
 // Returns null if the parse failed, without giving a clue as to why.
 val parseAryI64 = { u8[~] str ->
-    Scan !s = new Scan(str);
+    scan !s = new scan(str);
     if( !s.match('[') ) return null;
     // Array of parsed results
     var nums = new aryi64(new i64[1]);
@@ -78,4 +74,10 @@ val parseAryI64 = { u8[~] str ->
     if( !s.match(']') ) return null;
     s.skip();
     return s.x == s.buf# ? nums : null;
+};
+
+val copy = { i64[] dst, int doff, i64[~] src, int soff, int len ->
+    for( int i=0; i<len; i++ )
+        dst[i+doff] = src[i+soff];
+    return dst;
 };

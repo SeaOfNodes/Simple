@@ -240,20 +240,16 @@ public class ScopeNode extends MemMergeNode {
         return true;
     }
 
-    // Normal lookup was tried and failed.  Insert a forward ref outside any
-    // enclosing Kind.Func scope, skipping any nested Blocks or Allocs and
-    // return the Var.  May insert at the outermost scope, which means this
-    // must be defined externally, or it's an error.
+    // Normal lookup was tried and failed.  Append a forward ref in the current
+    // lexical scope.  Scope pops promote it outwards "as if" the final constant
+    // had been declared before the using scope.
 
     public Var defineFRef( String id, Type t, boolean xfinal, Parser.Lexer loc ) {
-        // Kind/Lexical scope index
-        int kidx = enclosingFunction();
-        int idx = _kinds.at(kidx)._lexSize;
-        Var var = new Var(idx,id,t,xfinal,loc,true);
+        Var var = new Var(nIns(),id,t,xfinal,loc,true);
         FRefNode fref = new FRefNode(id,loc).init();
         fref._type = fref._con = t;
-        // Insert in the lex scope just prior to kidx
-        insert(var,fref,kidx);
+        _vars.add(var);
+        addDef(fref);
         return var;
     }
 
@@ -406,6 +402,18 @@ public class ScopeNode extends MemMergeNode {
         }
     }
 
+    public void balanceLoopFRefs( ScopeNode scope ) {
+        for( int i = nIns(); i < scope.nIns(); i++ ) {
+            Var n = scope.var(i);
+            if( n.isFRef() ) {  // Loop body has forward refs
+                Var v = new Var(nIns(),n._name,n.type(),n._final,n._loc,true);
+                v._uninit = n._uninit;
+                _vars.add(v);
+                addDef(scope.in(i));
+            }
+        }
+    }
+
 
     // ------------------------------------------------
     // peephole the backedge scope into this loop head scope
@@ -426,8 +434,10 @@ public class ScopeNode extends MemMergeNode {
         for( int i=1; i<nIns(); i++ ) {
             if( var(i)._final ) continue; // Final vars did not get modified in the loop
             Node n = in(i);
-            if( var(i).type().isHighOrConst() ) { // Cannot lift higher than a constant, so no Phi
-                n.subsume(n=ConstantNode.make(var(i).type()).init());
+            if( var(i).type().isHighOrConst() && !(n instanceof PhiNode phi && phi.inProgress()) ) { // Cannot lift higher than a constant, so no Phi
+                Node con = ConstantNode.make(var(i).type()).init();
+                n.subsume(con);
+                n = con;
             } else if( back.in(i) != scope ) {
                 PhiNode phi = (PhiNode)n;
                 assert phi.region()==scope.ctrl() && phi.in(2)==null;
@@ -441,12 +451,48 @@ public class ScopeNode extends MemMergeNode {
     // ------------------------------------------------
     // Up-casting: using the results of an If to improve a value.
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
+    //
+    // This operation is lexical, not semantic, and thus its behavior changes
+    // the language spec.  Optimizations that hide the lexical structure
+    // (e.g. constant folding control flow) can hide what is guarded or how the
+    // guard is applied, making it somewhat fragile.  Several good use cases
+    // are covered here, but not everything you might like.
+    // TODO: Make this more robust for shapes like:
+    //  ```
+    //    if( !ary || !ary# ) exit();
+    //    for( ...; ary# ) ...;
+    //  ```
+    // Here the guard ends up guarding the whole expression (both ary and ary#
+    // are not-null), but loses that ary is not-null.  A better answer might be
+    // a dedicated logical expression node, or some sort of gather-of-checked
+    // values to Guard post-test.
+
     public void addGuards( Node ctrl, Node pred, boolean invert ) {
         assert ctrl instanceof CFGNode;
         _guards.add(ctrl);      // Marker to distinguish 0,1,2 guards
         // add pred & its cast to the normal input list, with special Vars
         if( pred==null || pred.isDead() )
             return;           // Dead, do not add any guards
+        _addGuards(ctrl,pred,invert);
+    }
+
+    private void _addGuards( Node ctrl, Node pred, boolean invert ) {
+        if( pred==null || pred.isDead() )
+            return;
+        // Short-circuit logic is represented by a Phi.  For `a || b` being
+        // false, or `a && b` being true, both individual operands have the
+        // same proven value as the whole expression.  The "skipped RHS" path
+        // is the Region input whose Phi value is the controlling If predicate.
+        if( pred instanceof PhiNode phi && phi.nIns()==3 && phi.region() instanceof RegionNode r && r.nIns()==3 )
+            for( int i=1; i<3; i++ )
+                if( r.in(i) instanceof CProjNode prj && prj.ctrl() instanceof IfNode iff ) {
+                    Node skip = shortCircuitSkippedPred(phi.in(i),iff.pred(),prj,invert);
+                    if( skip != null ) {
+                        _addGuards(ctrl,skip,invert);
+                        _addGuards(ctrl,phi.in(3-i),invert);
+                        break;
+                    }
+                }
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : CodeGen.CODE.add(new NotNode(pred).peephole());
@@ -460,6 +506,20 @@ public class ScopeNode extends MemMergeNode {
             _addGuard(false,ctrl,zeroPred);
     }
 
+    private static Node shortCircuitSkippedPred( Node val, Node pred, CProjNode prj, boolean invert ) {
+        if( val == null )
+            return null;
+        if( val == pred )
+            return (prj._idx==0)==invert ? val : null;
+        if( val instanceof NotNode not && not.in(1)==pred )
+            return (prj._idx==1)==invert ? val : null;
+        if( val._type == TypeInteger.TRUE && invert )
+            return prj._idx==0 ? pred : CodeGen.CODE.add(new NotNode(pred).peephole());
+        if( val._type == TypeInteger.FALSE && !invert )
+            return prj._idx==1 ? pred : CodeGen.CODE.add(new NotNode(pred).peephole());
+        return null;
+    }
+
     private void _addGuard(boolean nonZero, Node ctrl, Node pred) {
         Node guard = new GuardNode(nonZero,ctrl,pred).peephole();
         if( guard != pred ) {
@@ -467,7 +527,7 @@ public class ScopeNode extends MemMergeNode {
             guard.keep();
             _guards.add(pred);
             _guards.add(guard);
-            replace(pred,guard);
+            replace(pred,guard,nonZero);
         }
     }
 
@@ -512,11 +572,25 @@ public class ScopeNode extends MemMergeNode {
     }
 
 
-    private void replace( Node old, Node cast ) {
+    private void replace( Node old, Node cast, boolean nonZero ) {
         assert old!=null && old!=cast;
         for( int i=0; i<nIns(); i++ )
-            if( in(i)==old )
+            if( in(i)==old || nonZero && nullCheckedPhi(in(i),old) )
                 setDef(i,cast);
+    }
+
+    private static boolean nullCheckedPhi( Node n, Node old ) {
+        if( !(n instanceof PhiNode phi) || phi.nIns()!=3 )
+            return false;
+        if( phi.in(1)==null || phi.in(2)==null )
+            return false;
+        int zero = phi.in(1)._type == phi.in(1)._type.makeZero() ? 1 :
+                   phi.in(2)._type == phi.in(2)._type.makeZero() ? 2 : -1;
+        if( zero == -1 )
+            return false;
+        Node val = phi.in(3-zero);
+        return val==old ||
+            val instanceof GuardNode guard && guard._nonZero && guard.in(1)==old;
     }
 
     // ------------------------------------------------------------------------

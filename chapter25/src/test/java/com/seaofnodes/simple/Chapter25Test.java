@@ -18,9 +18,17 @@ import static org.junit.Assert.*;
 
 public class Chapter25Test {
 
-    private static final String SYS_MODDIR = "src/main/smp";
     private static final String SYS_BLDDIR = "build/objs/lib_"+TestC.CPU_ABI;
-    private static final String RELEASE_SYS_BLDDIR = TestC.RELEASE_SYS_DIR;
+    private static final File SYS_FILE = new File(SYS_BLDDIR+"/sys.o");
+
+    @Test
+    public void testForwardConstructor() {
+        CodeGen code = new CodeGen("src/test/java/com/seaofnodes/simple/test_smp/forward_ctor",
+                                   "build/objs/forward_ctor_parse",null,
+                                   "m",null,123L,TypeInteger.BOT);
+        code.driver(CodeGen.Phase.TypeCheck);
+    }
+
 
     @Test
     public void testPostfixFieldUpdate() {
@@ -163,56 +171,34 @@ public class Chapter25Test {
     }
 
 
-    private File buildTestSys(boolean clean) {
-        if( clean )
-            delELFiles(new File(SYS_BLDDIR));
-        File sys_file = new File(SYS_BLDDIR+"/sys.o" );
-        if( sys_file.exists() )
-            return sys_file;
-
-        // Compile SYS_MODDIR/sys.smp into SYS_BLDDIR/sys.o.  Chapter25
-        // compiler tests intentionally depend on this freshly built sys.o.
-        CodeGen code1 = new CodeGen(SYS_MODDIR, SYS_BLDDIR,null,
-                                    "sys",null,123L,TypeInteger.BOT);
-        code1.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false,0);
-        assertTrue( sys_file.exists() );
-        return sys_file;
-    }
-
     @Test
     public void testSys() {
-        delELFiles(new File(SYS_BLDDIR));
-
-        CodeGen code1 = new CodeGen(SYS_MODDIR, SYS_BLDDIR,null,
-                                    "sys",null,123L,TypeInteger.BOT);
-        code1.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false,0);
-
-        // Verify produces sys.o, sys/io.o
-        File sys_file = new File(SYS_BLDDIR+"/sys.o" );
-        assertTrue( sys_file.exists() );
+        assertTrue("Missing "+SYS_FILE+"; run make tests_sys", SYS_FILE.exists());
 
         // Can read the ELF files
-        ElfReader sys_elf = ElfReader.load( sys_file, null);
-        sys_elf.loadSimple(code1);
+        CodeGen code1 = new CodeGen("return 0;");
+        ElfReader sys_elf = ElfReader.load(SYS_FILE, null);
+        sys_elf.loadPublicTypes(code1);
 
         // Elf files are sane
 
-        // Sys depends on io, libc, aryi64, aryu8
-        assertEquals(6,sys_elf._deps.length);
+        // Sys depends on io, libc, char, collections, and array utilities.
+        assertEquals(10,sys_elf._deps.length);
         assertSame("sys/aryu8" ,sys_elf._deps[0]);
-        assertSame("sys/io"    ,sys_elf._deps[1]);
-        assertSame("sys/aryi64",sys_elf._deps[2]);
-        assertSame("sys/Ary"   ,sys_elf._deps[3]);
-        assertSame("sys/Scan"  ,sys_elf._deps[4]);
-        assertSame("sys/libc"  ,sys_elf._deps[5]);
+        assertSame("sys/char"  ,sys_elf._deps[1]);
+        assertSame("sys/io"    ,sys_elf._deps[2]);
+        assertSame("sys/ary"   ,sys_elf._deps[3]);
+        assertSame("sys/aryi64",sys_elf._deps[4]);
+        assertSame("sys/adt/bitset",sys_elf._deps[5]);
+        assertSame("sys",       sys_elf._deps[6]);
+        assertSame("sys/scan"  ,sys_elf._deps[7]);
+        assertSame("sys/adt"   ,sys_elf._deps[8]);
+        assertSame("sys/libc"  ,sys_elf._deps[9]);
         assertSame("class:sys" ,sys_elf._clz._name);
     }
 
     @Test
     public void testHelloWorld() throws IOException {
-        File sys_file = buildTestSys(false);
-        assertTrue("Missing "+sys_file+"; testHelloWorld depends on testSys building it",  sys_file.exists());
-
         String expected = "Hello, World!\n";
         String prog = "return sys.io.p(\""+expected+"\") - "+expected.length()+";";
         TestC.run(prog,"helloWorld",new Ary<>(new String[]{SYS_BLDDIR}),
@@ -221,23 +207,16 @@ public class Chapter25Test {
 
     @Test
     public void testHelloWorldDriver() throws Exception {
-        File sys_file = new File(RELEASE_SYS_BLDDIR+"/sys.o");
-        assertTrue("Missing "+sys_file+"; run make release or make tests_sys first",  sys_file.exists());
-        Simple.main(new String[]{"-L",RELEASE_SYS_BLDDIR,"--norun","docs/examples/A_helloWorld.smp"});
+        Simple.main(new String[]{"-L",SYS_BLDDIR,"--norun","docs/examples/A_helloWorld.smp"});
     }
 
     @Test
     public void testHelloWorldDriverLibFile() throws Exception {
-        File sys_file = new File(RELEASE_SYS_BLDDIR+"/sys.o");
-        assertTrue("Missing "+sys_file+"; run make release or make tests_sys first",  sys_file.exists());
-        Simple.main(new String[]{"-L",sys_file.toString(),"docs/examples/A_helloWorld.smp"});
+        Simple.main(new String[]{"-L",SYS_FILE.toString(),"docs/examples/A_helloWorld.smp"});
     }
 
     @Test
     public void testHelloWorldNoInline() throws Exception {
-        File sys_file = buildTestSys(false);
-        assertTrue("Missing "+sys_file+"; testHelloWorldNoInline depends on testSys building it",  sys_file.exists());
-
         String base = "helloWorldNoInline";
         String expected = "Hello, World!\n";
         String prog = "return sys.io.p_noInline(\""+expected+"\") - "+expected.length()+";";
@@ -250,7 +229,7 @@ public class Chapter25Test {
         String syms = run(new String[]{"nm",obj});
         assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
 
-        String out = run(new String[]{"gcc",obj,sys_file.toString(),TestC.runtimeObject(),"-lm","-g","-o",exe});
+        String out = run(new String[]{"gcc",obj,SYS_FILE.toString(),TestC.runtimeObject(),"-lm","-g","-o",exe});
         assertEquals("",out);
         String rez = run(new String[]{exe});
         assertEquals(expected,rez);
@@ -267,8 +246,6 @@ public class Chapter25Test {
 
     @Test
     public void testRedirectedRead() throws IOException {
-        File sys_file = buildTestSys(false);
-        assertTrue("Missing "+sys_file+"; testRedirectedRead depends on testSys building it",  sys_file.exists());
         String src = """
 u8[] buf = new u8[10];
 i64 ptr = buf;
@@ -282,28 +259,58 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testBubbles() throws IOException {
-        File sys_file = buildTestSys(false);
-        assertTrue("Missing "+sys_file+"; testBubbles depends on testSys building it",  sys_file.exists());
         String src = Files.readString( Path.of("docs/examples/BubbleSort.smp"));
-        TestC.runArgs(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
-                      TestC.CALL_CONVENTION,"-17, 2, 3, 999\n",-1,
-                      "[3,  2,-17, 999 ]");
-
-        String obj = "build/objs/BubbleSort.o";
-        String exe = "build/objs/BubbleSort"+(TestC.OS.startsWith("Windows") ? ".exe" : "");
-        Ary<String> libs = new Ary<>(new String[]{sys_file.toString()});
-        assertEquals("1, 2, 3, 4, 4, 5\n",
-                     TestC.gcc(obj,null,null,null,libs,exe,"[4, 5, 3, 1, 4, 2]"));
-        assertEquals("1, 2, 3, 4, 5\n",
-                     TestC.gcc(obj,null,null,null,libs,exe,"[1, 2, 3, 4, 5]"));
-        assertEquals("1, 2, 3, 4, 5, 6, 7, 8, 9\n",
-                     TestC.gcc(obj,null,null,null,libs,exe,"[9, 8, 7, 6, 5, 4, 3, 2, 1]"));
+        String exe = TestC.compile(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("[-17, 2, 3, 999]\n",
+                     TestC.exec(exe,"[3,  2,-17, 999 ]"));
+        assertEquals("[1, 2, 3, 4, 4, 5]\n",
+                     TestC.exec(exe,"[4, 5, 3, 1, 4, 2]"));
+        assertEquals("[1, 2, 3, 4, 5]\n",
+                     TestC.exec(exe,"[1, 2, 3, 4, 5]"));
+        assertEquals("[1, 2, 3, 4, 5, 6, 7, 8, 9]\n",
+                     TestC.exec(exe,"[9, 8, 7, 6, 5, 4, 3, 2, 1]"));
 
         String usage = "Usage: please provide a list of at least two integers to sort in the format \"[1, 2, 3, 4, 5]\"\n";
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,""));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[1]"));
-        assertEquals(usage,TestC.gcc(obj,null,null,null,libs,exe,"[4 5 3]"));
+        assertEquals(usage,TestC.exec(exe));
+        assertEquals(usage,TestC.exec(exe,""));
+        assertEquals(usage,TestC.exec(exe,"[1]"));
+        assertEquals(usage,TestC.exec(exe,"[4 5 3]"));
     }
 
+    @Test
+    public void testCapitalize() throws IOException {
+        String src = Files.readString(Path.of("docs/examples/Capitalize.smp"));
+        String exe = TestC.compile(src,"Capitalize",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("Hello world\n",TestC.exec(exe,"hello world"));
+        assertEquals("Hello World\n",TestC.exec(exe,"Hello World"));
+        assertEquals("123 apples\n",TestC.exec(exe,"123 apples"));
+        assertEquals("Usage: please provide a string\n",TestC.exec(exe));
+        assertEquals("Usage: please provide a string\n",TestC.exec(exe,""));
+        assertEquals("Use quotes around multiple strings.\n",TestC.exec(exe,"hello","world"));
+    }
+
+    @Test
+    public void testDijkstra() throws IOException {
+        String src = Files.readString(Path.of("docs/examples/Dijkstra.smp"));
+        String matrix = "[0, 2, 0, 6, 0, 2, 0, 3, 8, 5, 0, 3, 0, 0, 7, 6, 8, 0, 0, 9, 0, 5, 7, 9, 0]";
+        String exe = TestC.compile(src,"Dijkstra",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("2\n",TestC.exec(exe,matrix,"0","1"));
+        String usage = "Usage: please provide three inputs: a serialized matrix, a source node and a destination node\n";
+        assertEquals("7\n",TestC.exec(exe,matrix,"0","4"));
+        assertEquals(usage,TestC.exec(exe));
+        assertEquals(usage,TestC.exec(exe,"","",""));
+        assertEquals(usage,TestC.exec(exe,"[1, 0, 3, 0, 5, 1]","1","2"));
+        assertEquals(usage,TestC.exec(exe,"[0, 0, 0, 0]","0","1"));
+    }
+
+    @Test
+    public void testFileIO() throws IOException {
+        String src = Files.readString(Path.of("docs/examples/FileIO.smp"));
+        String exe = TestC.compile(src,"FileIO",new Ary<>(new String[]{SYS_BLDDIR}),
+                                   TestC.CALL_CONVENTION,null,null,-1);
+        assertEquals("File I/O succeeded\n",TestC.exec(exe));
+    }
 }

@@ -50,18 +50,58 @@ import java.util.Random;
 public class IterPeeps {
 
     public final WorkList<Node> _work;
+    final WorkList<CallEndNode> _workInline;
 
-    public IterPeeps( long seed ) { _work = new WorkList<>(seed); }
+    public IterPeeps( long seed ) {
+        _work       = new WorkList<>(seed);
+        _workInline = new WorkList<>(seed);
+    }
 
     @SuppressWarnings("unchecked")
     public <N extends Node> N add( N n ) { return (N)_work.push(n); }
 
     public void addAll( Ary<Node> ary ) { _work.addAll(ary); }
 
+    public void deferInline( CodeGen code, CallEndNode cend ) {
+        if( !code._midAssert )
+            _workInline.push(cend);
+    }
+
     /**
-     * Iterate peepholes to a fixed point
+     * Iterate peepholes and inlining to a fixed point
      */
     public void iterate( CodeGen code ) {
+        CallEndNode cend = null;
+        boolean didInline = false;
+        Ary<Node> defer = new Ary<>(Node.class);
+        while( true ) {
+            // Clean up everything that does not grow the code
+            iteratePeeps(code);
+
+            // Pick an inline candidate, no real heuristic, first come, first served
+            while( (cend=_workInline.pop()) != null) {
+                if( cend.isDead() ) continue;
+                if( cend.inline() == -1 ) defer.add(cend);
+                if( cend.inline() > 0 ) break;
+            }
+            // Found an inline candidate, so inline
+            if( cend != null ) {
+                // Inline, run peeps until clean again
+                cend.doInline();
+                didInline = true;
+                continue;
+            }
+            // No more candidates, check the defer list
+            if( !didInline ) break; // No more progress, so all the "maybe inline after cleanup" do not progress
+            // Some inlining happened, retry all the "try again after cleanup" calls
+            didInline = false;
+            code.addAll(defer);
+            defer.clear();
+        }
+    }
+
+    // Run all the code-reduction and type-lifting peeps as possible
+    private void iteratePeeps( CodeGen code ) {
         assert progressOnList(code, _work, true);
         int cnt=0;
 

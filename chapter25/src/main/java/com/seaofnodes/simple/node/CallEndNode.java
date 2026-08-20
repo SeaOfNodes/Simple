@@ -16,6 +16,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     boolean _folding;
+    // +2 must clone, so await all cleanup but OK
+    // +1 trivial now,
+    //  0: take a look,
+    // -1: somethings wrong, but might improve
+    // -2: never and stop asking,
+    private byte _inline;
     public final TypeRPC _rpc;
 
     public CallEndNode(CallNode call, TypeRPC rpc) {
@@ -51,6 +57,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     public CallNode call() { return (CallNode)in(0); }
     boolean folding() { return _folding; }
+    public byte inline() { return _inline; }
 
     @Override public CFGNode idom(Node dep) {
         // Folding the idom is the one inlining Return
@@ -101,14 +108,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // appear later - meanwhile, we use a conservative approx of memory
         // effects.
         if( (nIns()-1)+externs < tfp.nfcns() ) {
-            // If before SCCP, we might call extras or also the unknown target.
-            StartNode start = CodeGen.CODE._start;
-            addDep(start);
-            Type tmem = start._type instanceof TypeTuple tt ? tt._types[1] : (start._type.isHigh() ? TypeMem.TOP : TypeMem.BOT);
-            Type ret = tfp.ret();
             // If during Opto, assume call won't be called and thus won't return anything.
-            if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() )
-                ret = Type.TOP;
+            boolean opto = CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal();
+            Type tmem = opto ? TypeMem.TOP : TypeMem.BOT;
+            Type ret  = opto ? Type.TOP    : tfp.ret();
             return TypeTuple.make(Type.CONTROL,tmem,ret);
         }
 
@@ -118,6 +121,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
             : TypeTuple.STATE.dual();
         for( int i=1; i<nIns(); i++ )
             state = (TypeTuple)state.meet(in(i)._type);
+        // A reachable call whose presently linked exits are all unreachable
+        // keeps a conservative continuation.  In particular, do not let a
+        // transient no-return result tear down the caller during SCCP.
+        if( state.ctl()==Type.XCONTROL &&
+            CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() )
+            return TypeTuple.make(Type.CONTROL,TypeMem.TOP,Type.TOP);
         // At least as good as the TFP
         return state.makeFrom(2,state.ret().join(tfp.ret()));
     }
@@ -125,50 +134,92 @@ public class CallEndNode extends CFGNode implements MultiNode {
     @Override
     public Node idealize() {
 
-        // Worklist-based inlining.  Cannot inline if folding, or calling
-        // multiple targets or no CallNode (malformed because dying).
-        if( !_folding && nIns()==2 && in(0) instanceof CallNode call ) {
-            Node fptr = call.fptr();
-            if( fptr.isConst() && // We have an immediate call
-                // Function is being called, and its not-null
-                fptr._type instanceof TypeFunPtr tfp && tfp.notNull() && !tfp.isHigh() &&
-                // Arguments are correct
-                call.nargs()==tfp.nargs() && goodArgs(call,tfp) ) {
-                ReturnNode ret = (ReturnNode)in(1);
-                FunNode fun = ret.fun();
-                int isTrivial = trivialInlining( fptr, fun );
-
-                // Encouraged inlining because small size and constructor.
-                int maxSize = fun._name!=null && fun.isInit() && !fun.isClz() ? 200 : 100;
-                if( isTrivial==1 && fun._approxUIDs < maxSize ) {
-                    assert fun.sig().isa(tfp);
-                    assert !CodeGen.CODE._midAssert; // Triggered inlining
-                    CodeGen.CODE.add(fun);
-                    // Remove the existing function linkage
-                    call.unlink_all();
-                    // Clone the function body
-                    FunNode fun2 = fun.copyBody();
-                    // Call uses the unique new function
-                    Node fptr2 = new FunPtrNode(fun2.sig(),CodeGen.CODE._start,fun2.ret()).peephole();
-                    call.setDef(call.nIns()-1,fptr2);
-                    // Link to the new function
-                    call.link(fun2);
-                    fun = fun2;
-                    assert trivialInlining( fptr2, fun2 )==0;
-                    isTrivial = 0;
-                }
-
-                // Trivial inlining: call site calls a single function; single function
-                // is only called by this call site.
-                if( isTrivial==0 )
-                    return doTrivialInlining(fun);
-
-            } else { // Function not (yet) a constant function pointer
-                addDep(fptr);
-            }
+        _inline = inlineCandidate();
+        if( _inline == 1 ) {
+            ReturnNode ret = (ReturnNode)in(1);
+            FunNode fun = ret.fun();
+            doTrivialInlining(fun);
+            return this;
         }
+        // Delay for cleanup, before cloning
+        if( _inline >= 2 )
+            CodeGen.CODE._iter.deferInline(CodeGen.CODE,this);
 
         return null;
+    }
+
+    // Check if candidate right now, sets no flags
+    private byte inlineCandidate() {
+        if( _inline < -2 ) return -2; // Never
+        if( _folding ) return -2;     // No, and will collapse anyways
+        if( !(in(0) instanceof CallNode call) ) return -2; // malformed because mid-death
+
+        if( nIns()!=2 ) return -1;    // Not exactly 1 link, but can change
+
+        // Have exactly 1 linked function
+        ReturnNode ret = (ReturnNode)in(1);
+        FunNode fun = ret.fun();
+
+        // Heuristic forced inlining off via name
+        if( fun._name != null &&
+            fun._name.endsWith("_noInline") )
+            return -2;          // Never, stop asking
+
+        // Disallow self-recursive inlining (loop unrolling by another name).
+        for( int i=1; i < fun.nIns(); i++ )
+            if( fun.cfg(i).fun()==fun ) // Check for linked call input inside "fun"
+                { addDep(fun); return -1; } // No, but can lose the recursive edge
+
+        // Things that might improve, so not now a candidate
+        Node fptr = call.fptr();
+        // Constant Function is being called, and its not-null
+        if( !(fptr._type instanceof TypeFunPtr tfp && tfp.notNull() && tfp.isConstant()) )
+            { addDep(fptr); return -1; }
+
+        // Arguments are correct
+        if( call.nargs()!=tfp.nargs() || !goodArgs(call,tfp) )
+            { addDep(fptr); return -1; }
+
+        // Encouraged inlining because small size and constructor.
+        int maxSize = fun._name!=null && fun.isInit() && !fun.isClz() ? 200 : 100;
+        if( fun._approxUIDs >= maxSize )
+            return -2;          // Try later (if shrinking helps)
+        if( fun.body().cardinality() >= maxSize )
+            return -1;          // Try later (if cleanup makes the real body small enough)
+
+        // Can be cloned but not trivial
+        if( fun.nIns() > 2 ) { addDep(fun); return 2; }
+
+        // A candidate right now
+        return 1;
+    }
+
+    public void doInline() {
+        assert _inline > 0;    // Only called when possible to inline
+
+        ReturnNode ret = (ReturnNode)in(1);
+        FunNode fun = ret.fun();
+        CallNode call = call();
+        assert fun.sig().isa(call.fptr()._type);
+
+        // Clone first
+        if( _inline==2 ) {
+            assert !CodeGen.CODE._midAssert; // Triggered inlining
+            // Remove the existing function linkage
+            call.unlink_all();
+            // Clone the function body
+            FunNode fun2 = fun.copyBody();
+            // Call uses the unique new function
+            Node fptr2 = new FunPtrNode(fun2.sig(),CodeGen.CODE._start,fun2.ret()).peephole();
+            call.setDef(call.nIns()-1,fptr2);
+            // Link to the new function
+            call.link(fun2);
+            fun = fun2;
+        }
+
+        // Trivial inlining: call site calls a single function; single function
+        // is only called by this call site.
+        doTrivialInlining(fun);
     }
 
     boolean goodArgs( CallNode call, TypeFunPtr tfp ) {
@@ -185,65 +236,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
     }
 
 
-    // Check for trivial inlining: call only calls fun; fun only called by
-    // call.  Returns 0 for trivial, +1 for not-trivial because fptr/fun, and
-    // -1 for not-trivial because idoms.
-    public int trivialInlining( Node fptr, FunNode fun ) {
-        // Heuristic forced inlining off via name
-        if( fun._name != null &&
-            fun._name.endsWith("_noInline") )
-            return -1;
-
-        if( !fun.sig().isa(fptr._type) )
-            return -1; // Stall until these align
-
-        // Disallow self-recursive inlining (loop unrolling by another name).
-        for( int i=1; i < fun.nIns(); i++ )
-            if( fun.cfg(i).fun()==fun ) // Check for linked call input inside "fun"
-                { addDep(fun); return -1; }
-
-        CFGNode idom = call(), prior = this;
-        while( !(idom instanceof FunNode) ) {
-            if( idom==null ) {
-                addDep(prior);
-                if( prior instanceof RegionNode && !(prior instanceof StartNode) )
-                    for( int i=1; i<prior.nIns(); i++ )
-                        addDep(prior.in(i));
-                return -1;
-            }
-            prior = idom;
-            idom = idom.idom();
-        }
-
-
-        // If the *inlined* function is mid-collapse, also do not inline (yet)
-        idom = fun.ret();
-        while( idom != fun ) {
-            if( idom==null ) return -1; // Forced off, half-folded call
-            if( idom instanceof FunNode fun2 )
-                { addDep(fun2); return -1; }
-            if( idom instanceof CallEndNode cend && cend._folding )
-                { addDep(cend); return -1; }
-            idom = idom.idom();
-        }
-
-        // Only fun user is this call
-        if( fun.nIns() > 2 ) { addDep(fun); return 1; }
-        // Trivial inlining: call site calls a single function; single function
-        // is only called by this call site.
-        assert fun.in(1)==call();
-
-        return 0;
-    }
-
-
     // Do trivial inlining.  Inlining does not need to clone code, merely
     // triggers folding the Call/Fun and Return/CallEnd away.
-    private Node doTrivialInlining( FunNode fun ) {
+    private boolean doTrivialInlining( FunNode fun ) {
         assert !CodeGen.CODE._midAssert; // Triggered inlining
-        // Add the size heuristic to grow caller, preventing self-recursive
-        // functions from endlessly inlining.
-        fun()._approxUIDs += fun._approxUIDs;
         // Trivial inline: rewrite
         _folding = true;
         // Rewrite Fun so the normal RegionNode ideal collapses
@@ -260,7 +256,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // Inlining immediately blows all cache idepth fields past the inline point.
         // Bump the global version number invalidating them en-masse.
         CodeGen.CODE.invalidateIDepthCaches();
-        return this;
+        // More peeps
+        CodeGen.CODE.add(fun);
+        CodeGen.CODE.add(this);
+        CodeGen.CODE.addAll(_outputs);
+        CodeGen.CODE.addAll(_inputs);
+        return true;            // Always return true
     }
 
 

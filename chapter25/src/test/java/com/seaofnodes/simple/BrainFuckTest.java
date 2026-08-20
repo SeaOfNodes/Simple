@@ -61,7 +61,7 @@ val brain_fuck = { ->
 """;
         TestC.runC(src,"brain_fuck", brain_fuck, 40);
 
-        EvalRisc5 R5 = TestRisc5.build( src, "brain_fuck", 0, 28, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "brain_fuck", 0, 25, false);
         int trap = R5.step(100000);
         assertEquals(0,trap);
         int ptr = (int)R5.regs[com.seaofnodes.simple.node.cpus.riscv.riscv.A0];

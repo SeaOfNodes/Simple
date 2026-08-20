@@ -5,9 +5,7 @@ struct aryu8 {
     u32 !len = 0;
     u8[] !buf;
 
-    new aryu8 = { u8[] b ->
-        buf = b;
-    };
+    new aryu8 = { -> buf = new u8[1]; };
 
     // Grow as needed
     val _grow = { int len2 ->
@@ -15,7 +13,7 @@ struct aryu8 {
         int newlen = buf# * 2;
         while( len+len2 >= newlen ) newlen *= 2;
         u8[] !buf2 = new u8[newlen];
-        Ary.copy(buf2,0,buf,0,buf#);
+        ary.copy(buf2,0,buf,0,buf#);
         buf = buf2;
         self;
     };
@@ -29,10 +27,10 @@ struct aryu8 {
     };
 
     // Add all of a plain array to the aryu8
-    val addAry = { u8[~] ary ->
-        _grow(ary#);
-        Ary.copy(buf,len,ary,0,ary#);
-        len += ary#;
+    val addAry = { u8[~] xs ->
+        _grow(xs#);
+        ary.copy(buf,len,xs,0,xs#);
+        len += xs#;
         self;
     };
 
@@ -63,4 +61,28 @@ struct aryu8 {
         i64 ptr = buf; // Cast buffer pointer to i64 for native C call
         libc.write(fd,ptr,len);
     };
+};
+
+
+// Parse one integer, ignore trailing data; returns 0 with an empty string.
+// If you want a more robust parsing, use the `scan` class
+val atoi = { u8[~] str ->
+    int x = 0;
+    while( x < str# && str[x] <= ' ' ) x++;
+    if( x == str# ) return 0;
+    bool neg = false;
+    if( str[x]=='-' ) { neg=true; x++; }
+    i64 n = 0;
+    while( x < str# && '0' <= str[x] <= '9' )
+        n = n*10 + str[x++]-'0';
+    return neg ? -n : n;
+};
+
+// Zero-terminate string for libc strings.  No error checking, just copies and
+// appends a zero.
+{ u8[~] -> u8[] } str0 = { u8[~] str ->
+  u8[] !strz = new u8[str#+1];
+  ary.copy(strz,0,str,0,str#);
+  strz[str#] = '\0';
+  strz;
 };

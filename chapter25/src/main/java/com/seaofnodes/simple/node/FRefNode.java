@@ -23,7 +23,12 @@ public class FRefNode extends ConstantNode {
     public String _name;
     public final Parser.Lexer _loc;    // Source location
 
-    public FRefNode( String name, Parser.Lexer loc ) { super(FREF_TYPE); _name = name; _loc = loc; }
+    public FRefNode( String name, Parser.Lexer loc ) { this(name,loc,FREF_TYPE); }
+    public FRefNode( String name, Parser.Lexer loc, Type type ) {
+        super(type);
+        _name = name;
+        _loc = loc;
+    }
 
     @Override public String label() { return "FRef"+_name; }
 

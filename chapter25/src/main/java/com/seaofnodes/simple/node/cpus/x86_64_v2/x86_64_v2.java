@@ -511,7 +511,8 @@ public class x86_64_v2 extends Machine {
 
         // Operands swap in the encoding directly, no need for Set/Jmp to swap `bop`
         if( rhs instanceof LoadNode ld && ld.nOuts() == 1 && lhs._type.isa(ld.declaredType()) &&
-            (val!=null || bool.op()=="==" || bool.op()=="!=") )
+            (!(lhs instanceof ConstantNode con && con._con instanceof TypeInteger ti && imm32(ti.value())) ||
+             bool.op()=="==" || bool.op()=="!=") )
             return new CmpMemX86(bool, address(ld), ld.ptr(), idx, off, scale, imm(lhs), val, true );
 
         // Vs immediate
@@ -667,7 +668,7 @@ public class x86_64_v2 extends Machine {
 
     private int imm( Node xval ) {
         assert val == null && imm == 0;
-        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti) {
+        if( xval instanceof ConstantNode con && con._con instanceof TypeInteger ti && ti.isConstant() && imm32(ti.value()) ) {
             val = null;
             imm = (int) ti.value();
             assert imm == ti.value(); // In 32-bit range

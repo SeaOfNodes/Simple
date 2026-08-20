@@ -335,6 +335,18 @@ return arg ? 0 : arg;
     }
 
     @Test
+    public void testShortCircuitGuard() {
+        CodeGen code = new CodeGen("""
+struct S { int !x; };
+val get = { S s -> s.x; };
+S? !s = arg ? new S;
+if( !s || !arg ) return 0;
+return get(s);
+""");
+        code.parse().opto().typeCheck();
+    }
+
+    @Test
     public void testTrinary2() {
         CodeGen code = new CodeGen("""
 struct _Bar { int x; };
@@ -395,7 +407,7 @@ struct S{};
 return arg ? 7 : new S;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("No common type amongst 7 and *Test.S {}",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot return generic scalar",e.getMessage()); }
     }
 
     // ---------------------------------------------------------------

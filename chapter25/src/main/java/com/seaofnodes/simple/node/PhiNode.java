@@ -76,7 +76,7 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() )
+        if( r.inProgress() || in(nIns()-1)==null )
             return declaredType();
         // Set type to local top of the starting type
         Type t = Type.TOP;
@@ -219,7 +219,7 @@ public class PhiNode extends Node {
                 if( in(i).in(j) != x )
                     { needsPhi=true; break; }
             if( needsPhi ) {
-                x = make(_label,op.in(j)._type.glb(false));
+                x = make(_label,op.in(j)._type);
                 x.addDef(region());
                 for( int i=1; i<nIns(); i++ )
                     x.addDef(in(i).in(j));
@@ -273,13 +273,12 @@ public class PhiNode extends Node {
 
     @Override
     public Parser.ParseException err() {
-        if( _type != Type.BOTTOM && _type != TypeScalar.BOT ) return null;
+        if( _type != Type.BOTTOM ) return null;
 
-        // Scalar BOT means we mixed scalar families, e.g. int and ptr.
         // Global BOTTOM retains the same role for non-scalar families.
         for( int i=1; i<nIns(); i++ )
             // Already an error, but better error messages come from elsewhere
-            if( in(i)._type == Type.BOTTOM || in(i)._type == TypeScalar.BOT )
+            if( in(i)._type == Type.BOTTOM )
                 return null;
 
         SB sb = new SB().p("No common type amongst ");

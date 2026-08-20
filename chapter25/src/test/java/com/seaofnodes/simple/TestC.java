@@ -98,6 +98,17 @@ public abstract class TestC {
 
     private static void run0( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv,
                               String cfile, String stdin, String expected, int spills, String[] programArgs ) throws IOException {
+        String exe = compile(src,base,externPaths,simple_conv,c_conv,cfile,spills);
+
+        String[] execArgs = new String[programArgs.length+1];
+        execArgs[0] = exe;
+        System.arraycopy(programArgs,0,execArgs,1,programArgs.length);
+        String result = execStdin(stdin, execArgs );
+        assertEquals(expected,result);
+    }
+
+    public static String compile( String src, String base, Ary<String> externPaths, String simple_conv, String c_conv,
+                                  String cfile, int spills ) throws IOException {
         // Simple file base-name example:
         // foo.smp ->
         //   build/objs/foo.o   - object file
@@ -110,17 +121,14 @@ public abstract class TestC {
         CodeGen code = new CodeGen(null,"build/objs",externPaths,base,src,126L,TypeInteger.BOT);
         code.driver( CPU_PORT, simple_conv, false, cfile==null );
 
-        String[] execArgs = new String[programArgs.length+1];
-        execArgs[0] = exe;
-        System.arraycopy(programArgs,0,execArgs,1,programArgs.length);
-        String result = gcc(obj, c_conv, cfile, stdin, linkObjs(externPaths), execArgs );
-        assertEquals(expected,result);
+        linkExe(obj, c_conv, cfile, linkObjs(externPaths), exe);
 
         // Allocation quality not degraded
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         if( spills != -1 && !CodeGen.iterSeedOverridden() )
             assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        return exe;
     }
 
     // Link with gcc, and execute the resulting binary, returning stdout as a
@@ -146,7 +154,11 @@ public abstract class TestC {
     }
 
     public static String gcc( String obj, String c_conv, String cfile, String stdin, Ary<String> linkObjs, String... args ) throws IOException {
+        linkExe(obj,c_conv,cfile,linkObjs,args[0]);
+        return execStdin(stdin,args);
+    }
 
+    public static void linkExe( String obj, String c_conv, String cfile, Ary<String> linkObjs, String exe ) throws IOException {
         // Compile the C program.  Compiling code and constants in the low
         // 2Gig.  Pointers are 64b BUT since always in the low 2G all the
         // high bits are zero - and Simple code can be emitted treating
@@ -165,7 +177,7 @@ public abstract class TestC {
             "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
             "-g",
             "-o",
-            args[0],
+            exe,
         });
         // Calling convention for C calls, if any
         if( cfile!=null ) {
@@ -190,6 +202,13 @@ public abstract class TestC {
         assertEquals( 0, exit );
         //assertTrue(result.isEmpty()); // No data in error stream
 
+    }
+
+    public static String exec( String... args ) throws IOException {
+        return execStdin(null,args);
+    }
+
+    private static String execStdin( String stdin, String... args ) throws IOException {
         // Execute results
         ProcessBuilder smp = new ProcessBuilder(args);
         File stdinFile = null;
@@ -204,8 +223,9 @@ public abstract class TestC {
         Process p = smp.start();
         if( stdin==null )
             p.getOutputStream().close();
+        int exit;
         try { exit = (byte)p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
-        result = Files.readString(stdoutFile.toPath());
+        String result = Files.readString(stdoutFile.toPath());
         if( stdinFile != null )
             stdinFile.delete();
         stdoutFile.delete();
@@ -214,7 +234,7 @@ public abstract class TestC {
         return result;
     }
 
-    private static Ary<String> linkObjs(Ary<String> externPaths) {
+    static Ary<String> linkObjs(Ary<String> externPaths) {
         if( externPaths == null )
             return null;
         Ary<String> objs = new Ary<>(String.class);

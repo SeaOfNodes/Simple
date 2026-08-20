@@ -91,7 +91,7 @@ public class FunNode extends RegionNode {
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
     public void setSig( TypeFunPtr sig ) {
-        assert sig.isa(_sig);
+        assert sig.isa(_sig) || resolvesForwardSelf(sig,_sig);
         if( _sig != sig ) {
             CODE.add(this);
             // Changing the signature can allow more inlining
@@ -102,6 +102,20 @@ public class FunNode extends RegionNode {
             _sig = sig;
             unlock();
         }
+    }
+
+    // A class initializer starts parsing with an open singleton receiver and
+    // closes that same receiver after discovering its fields.  Function
+    // arguments are contravariant, so ordinary isa does not describe this
+    // parser-time forward-reference resolution even though every other part
+    // of the signature sharpens normally.
+    private static boolean resolvesForwardSelf(TypeFunPtr sig, TypeFunPtr old) {
+        if( !(sig.arg(0) instanceof TypeMemPtr now) ||
+            !(old.arg(0) instanceof TypeMemPtr prior) ||
+            now._obj._name != prior._obj._name ||
+            !prior._obj._open || now._obj._open )
+            return false;
+        return sig.makeFrom(old.arg(0),0).isa(old);
     }
 
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
@@ -323,12 +337,20 @@ public class FunNode extends RegionNode {
         ReturnNode ret2 = (ReturnNode)map.get(_ret);
         fun2._ret = ret2;
         ret2._fun = fun2;
+        BitSet body2 = new BitSet();
+        for( Node n : map.values() )
+            body2.set(n._nid);
 
-        // Remove all callers - this is a private copy
-        while( fun2.nIns() > 1 )
-            if( fun2.in(1) instanceof CallNode call && body.get(call._nid) )
-                call.unlink(fun2,1); // Recursive calls unlink
-            else fun2.removeDeadPath(1); // Start and external calls can just be removed
+        // Remove non-body callers.  Body-local call edges were cloned along
+        // with their CallEnds and must stay linked so their cloned types remain
+        // monotonic during the post-Opto Iter.
+        for( int i=1; i<fun2.nIns(); i++ )
+            if( !(fun2.in(i) instanceof CallNode call) || !body2.get(call._nid) )
+                fun2.removeDeadPath(i--);
+
+        for( Node old : map.keySet() )
+            if( old instanceof CallNode oldCall )
+                relinkClonedCall(oldCall,(CallNode)map.get(oldCall),map);
 
         // Flip to a new FIDX to avoid confusion with the old one.
         // This is a non-monotonic (sideways) type move, only applicable
@@ -336,6 +358,23 @@ public class FunNode extends RegionNode {
         // since this body will inline and the fidx goes dead.
         fun2._sig = _sig.makeFrom(CodeGen.CODE._fidxs.nextInline());
         return fun2;
+    }
+
+    private static void relinkClonedCall( CallNode oldCall, CallNode call, IdentityHashMap<Node,Node> map ) {
+        CallEndNode oldCend = oldCall.cend();
+        if( oldCend==null || oldCend._folding )
+            return;
+        for( int i=1; i<oldCend.nIns(); i++ ) {
+            ReturnNode oldRet = (ReturnNode)oldCend.in(i);
+            FunNode oldFun = oldRet.fun();
+            FunNode fun = (FunNode)map.get(oldFun);
+            if( fun==null ) fun = oldFun;
+            if( !call.linked(fun) )
+                call.link(fun);
+        }
+        CallEndNode cend = call.cend();
+        if( cend.nIns() > 1 )
+            cend._type = cend.compute();
     }
 
     // Clone small function
@@ -357,18 +396,20 @@ public class FunNode extends RegionNode {
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);
         Node m = map.get(n);
-        // The cloned Call should not clone any linked edges.
-        if( n instanceof CallEndNode cend && !cend._folding ) {
-            m.addDef( map.get(cend.call()) );
-        } else {
-            for( Node e : n._inputs ) {
-                Node x = e;
-                if( e != null ) {
-                    x = map.get(e);
-                    if( x == null ) x = e;
+        for( Node e : n._inputs ) {
+            Node x = e;
+            if( e != null ) {
+                if( n instanceof CallEndNode cend && e != cend.call() &&
+                    (!(e instanceof ReturnNode ret) || map.get(ret.fun()) == null) )
+                    continue;
+                x = map.get(e);
+                if( x == null ) {
+                    if( n instanceof CallEndNode cend && e != cend.call() )
+                        continue;
+                    x = e;
                 }
-                m.addDef(x);
             }
+            m.addDef(x);
         }
         for( Node x : n._outputs )
             bodyEdge(visit,body,map,x);

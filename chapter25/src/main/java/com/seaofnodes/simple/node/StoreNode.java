@@ -28,11 +28,11 @@ public class StoreNode extends MemOpNode {
      * @param off   The offset inside the struct base
      * @param value Value to be stored
      */
-    public StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
-        this(loc,name,alias,glb,ctrl,mem,ptr,off,value,init,(byte)0);
+    public StoreNode(Parser.Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
+        this(loc,name,alias,decl,ctrl,mem,ptr,off,value,init,(byte)0);
     }
-    private StoreNode(Parser.Lexer loc, String name, int alias, Type glb, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init, byte size) {
-        super(loc, name, alias, false, glb, ctrl, mem, ptr, off, value);
+    private StoreNode(Parser.Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init, byte size) {
+        super(loc, name, alias, false, decl, ctrl, mem, ptr, off, value);
         _init = init;
         _size = size;
     }
@@ -235,7 +235,7 @@ public class StoreNode extends MemOpNode {
     private static byte storeSize(Type decl) {
         // `decl` is the target field declaration, not the stored value.  In
         // particular a constant zero stored into u32 is still a 4-byte Store;
-        // taking the constant's GLB here would incorrectly select i64.
+        // taking the constant's natural width here would incorrectly select i64.
         byte size = (byte)(1 << decl.log_size());
         assert size==1 || size==2 || size==4 || size==8;
         return size;

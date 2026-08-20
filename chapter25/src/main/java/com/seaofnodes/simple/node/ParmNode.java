@@ -73,7 +73,9 @@ public class ParmNode extends PhiNode {
     @Override
     public Node idealize() {
         if( !(region() instanceof FunNode) )
-            return in(1);       // Input has collapse to e.g. starting control.
+            // A dead function can lose every caller before the Parm itself is
+            // removed; there is no replacement input in that transient form.
+            return nIns()==1 ? null : in(1); // Input has collapse to e.g. starting control.
         // If function is folding, do all possible peeps
         if( fun()._folding ) return super.idealize();
 

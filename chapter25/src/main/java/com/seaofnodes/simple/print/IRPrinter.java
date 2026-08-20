@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.print;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.Serialize;
+import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.SB;
@@ -37,30 +37,133 @@ public abstract class IRPrinter {
 
     // Bulk whole program pretty print
     public static String prettyPrint( CodeGen code ) {
-        // Loop-tree for nodeOrder
-        CFGNode.LoopTree old = code._start._ltree;
-        if( old==null )
-            code._start.buildLoopTree( code._linker, code._stop);
-        Ary<Node> nodes = Serialize.nodeOrder(code);
-        if( old == null )
-            code._start._ltree = null;
         SB sb = new SB();
-        Node prior=null;
-        for( Node n : nodes ) {
-            if( n instanceof FunNode fun ) {
-                sb.nl().p("--- ");
-                fun.sig().print(sb.p(fun._name==null ? "" : fun._name).p(" "));
-                sb.p("----------------------\n");
-            }
-            if( n instanceof MultiNode || n instanceof RegionNode || n instanceof CallNode ||
+        printLine(code._start,sb);
+
+        // Constants are shared program-wide.  Print only actual Start children
+        // here; derived values belong to the functions which use them.
+        ArrayList<Node> globals = new ArrayList<>();
+        for( Node n : code._start._outputs )
+            if( n instanceof ConstantNode ) globals.add(n);
+        globals.sort(Comparator.comparingInt(n -> n._nid));
+        for( Node n : globals ) printLine(n,sb);
+
+        ArrayList<CompUnit> cus = new ArrayList<>(code._compunits.values());
+        cus.sort(Comparator.comparing(cu -> cu._cname==null ? "" : cu._cname));
+        for( CompUnit cu : cus ) {
+            if( cu._start==null || cu._start._inputs==null ) continue;
+            sb.nl().p("=== ").p(cu._cname==null ? "" : cu._cname).p(" ===\n");
+            printLine(cu._start,sb);
+            ArrayList<Node> projs = projections(cu._start);
+            for( Node proj : projs ) printLine(proj,sb);
+
+            ArrayList<FunNode> funs = new ArrayList<>();
+            for( FunNode fun : code._linker )
+                if( fun!=null && fun._inputs!=null && fun._compunit==cu )
+                    funs.add(fun);
+            funs.sort(Comparator.comparingInt(n -> n._nid));
+            for( FunNode fun : funs ) printFunction(fun,sb);
+
+            printLine(cu._stop,sb);
+        }
+        printLine(code._stop,sb);
+        return sb.toString();
+    }
+
+    /** Print one function without ever traversing a call-graph linkage. */
+    private static void printFunction(FunNode fun, SB sb) {
+        sb.nl().p("--- ");
+        fun.sig().print(sb.p(fun._name==null ? "" : fun._name).p(" "));
+        sb.p("----------------------\n");
+
+        ArrayList<Node> post = new ArrayList<>();
+        IdentityHashMap<Node,Boolean> visit = new IdentityHashMap<>();
+        functionPost(fun,fun,visit,post);
+        Collections.reverse(post);
+
+        Node prior = null;
+        IdentityHashMap<Node,Boolean> emitted = new IdentityHashMap<>();
+        for( Node n : post ) {
+            if( emitted.containsKey(n) ) continue;
+            if( n instanceof RegionNode || n instanceof MultiNode || n instanceof CallNode ||
                 (isMultiChild(prior) && !isMultiChild(n)) )
                 sb.nl();
+            // A Region/Loop and its Phis are one block header.  In particular,
+            // do not pull loop-carried Phi inputs up between the header and
+            // the Phi; those values belong down in the loop body/backedge.
+            if( !isMultiChild(n) )
+                emitLocalDefs(n,visit,emitted,sb);
             printLine(n,sb);
-            if( n instanceof ReturnNode ret )
-                sb.p("--- ").p(ret._fun._name==null ? "" : ret._fun._name).p(" ----------------------\n");
+            emitted.put(n,Boolean.TRUE);
             prior = n;
         }
-        return sb.toString();
+        sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" ----------------------\n");
+    }
+
+    private static void emitLocalDefs(Node n,
+                                      IdentityHashMap<Node,Boolean> owned,
+                                      IdentityHashMap<Node,Boolean> emitted,
+                                      SB sb) {
+        if( n._inputs==null ) return;
+        for( Node def : n._inputs ) {
+            if( def==null || def instanceof CFGNode || def instanceof ConstantNode ||
+                def instanceof PhiNode || isMultiChild(def) ||
+                !owned.containsKey(def) || emitted.containsKey(def) )
+                continue;
+            emitLocalDefs(def,owned,emitted,sb);
+            printLine(def,sb);
+            emitted.put(def,Boolean.TRUE);
+        }
+    }
+
+    // Printer-private RPO.  This deliberately uses raw edge arrays and local
+    // identity state: no Node visit bits, cached idoms, or loop-tree metadata.
+    private static void functionPost(Node n, FunNode owner,
+                                     IdentityHashMap<Node,Boolean> visit,
+                                     ArrayList<Node> post) {
+        if( n==null || n._inputs==null || visit.put(n,Boolean.TRUE)!=null ) return;
+        if( n instanceof FunNode fun && fun!=owner ) return; // Linked callee
+        if( n instanceof ParmNode &&
+            input0(n)!=owner ) return;                       // Callee parameter
+        if( n instanceof StopCUNode || n instanceof StopNode || n instanceof StartCUNode ) return;
+        if( n instanceof CallEndNode && input0(n) instanceof CallNode call &&
+            !visit.containsKey(call) ) return;              // Foreign caller
+
+        ArrayList<Node> uses = new ArrayList<>();
+        // A Return is terminal inside its function.  All of its graph users
+        // are ownership/linkage hooks (StopCU, CallEnds, FunPtrs), never CFG
+        // continuation in the function being printed.
+        if( !(n instanceof ReturnNode) ) for( Node use : n._outputs ) {
+            if( use==null || use._inputs==null ) continue;
+            if( n instanceof CallNode && use instanceof FunNode ) continue;
+            if( use instanceof FunNode fun && fun!=owner ) continue;
+            if( use instanceof ParmNode &&
+                input0(use)!=owner ) continue;
+            uses.add(use);
+        }
+        // CFG first produces an RPO-like block order.  Stable nid ordering
+        // keeps malformed/multiply-connected graphs deterministic.
+        uses.sort(Comparator
+                  .comparingInt((Node use) -> use instanceof CFGNode ? 0 : 1)
+                  .thenComparingInt(use -> use._nid));
+        for( Node use : uses ) functionPost(use,owner,visit,post);
+
+        // Keep a multi-head and its projections contiguous.
+        if( isMultiChild(n) ) return;
+        if( isMultiHead(n) ) {
+            ArrayList<Node> ps = projections(n);
+            for( Node p : ps ) visit.put(p,Boolean.TRUE);
+            for( int i=ps.size()-1; i>=0; i-- ) post.add(ps.get(i));
+        }
+        post.add(n);
+    }
+
+    private static ArrayList<Node> projections(Node multi) {
+        ArrayList<Node> ps = new ArrayList<>();
+        for( Node use : multi._outputs )
+            if( use!=null && use._inputs!=null && isMultiChild(use) ) ps.add(use);
+        ps.sort(Comparator.comparingInt(IRPrinter::sortOrder));
+        return ps;
     }
 
     private static boolean isMultiHead(Node n) {
@@ -68,7 +171,19 @@ public abstract class IRPrinter {
     }
 
     private static boolean isMultiChild(Node n) {
-        return n!=null && n.nIns() > 0 && n.in(0) != null && isMultiHead(n.in(0));
+        Node head = input0(n);
+        // Regions group their Phis, and tuple-producing MultiNodes group their
+        // projections.  Merely being controlled by a Region/Loop does not
+        // make an ordinary CFG node a grouped child.
+        return (n instanceof PhiNode && head instanceof RegionNode) ||
+               (n instanceof Proj    && head instanceof MultiNode);
+    }
+
+    // Raw, bounds-safe graph inspection for the debugger.  In particular do
+    // not call an accessor which might assert, sharpen, cache, or lazily kill.
+    private static Node input0(Node n) {
+        return n==null || n._inputs==null || n._inputs.isEmpty()
+            ? null : n._inputs.at(0);
     }
 
 
@@ -163,7 +278,7 @@ public abstract class IRPrinter {
     }
 
     static int sortOrder( Node n ) {
-        if( n instanceof ProjNode proj ) return proj._idx;
+        if( n instanceof Proj proj ) return proj.idx();
         if( n instanceof PhiNode phi ) return phi._nid;
         if( n == null ) return 0;
         return n._nid+1000000;

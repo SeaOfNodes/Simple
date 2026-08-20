@@ -14,23 +14,26 @@ public abstract class ASMPrinter {
 
     public static SB print(SB sb, CodeGen code ) {
         Encoding enc = code._encoding;
-        if( enc == null ) return sb.p("No encoding for ").p(code._srcName);
+        Ary<CFGNode> cfg = enc == null ? code._cfg : enc._cfg;
+        if( cfg == null || cfg._len == 0 ) return sb.p("No scheduled code for ").p(code._srcName);
 
         // instruction address
         int iadr = 0;
         // Print all functions in order
-        for( int i=0; i<enc._cfg._len; i++ )
-            if( enc._cfg.at(i) instanceof FunNode fun )
-                iadr = print(iadr,sb,code,enc,fun,i);
+        for( int i=0; i<cfg._len; i++ )
+            if( cfg.at(i) instanceof FunNode fun )
+                iadr = print(iadr,sb,code,enc,cfg,fun,i);
 
         // constant pools
-        iadr = (iadr+15)&-16; // pad to 16
-        if( enc._cpool.size()>0 )
-            iadr = printConstantPool(iadr, sb, enc._cpool,enc._bigCons,true ,"Constant Pool");
+        if( enc != null ) {
+            iadr = (iadr+15)&-16; // pad to 16
+            if( enc._cpool.size()>0 )
+                iadr = printConstantPool(iadr, sb, enc._cpool,enc._bigCons,true ,"Constant Pool");
 
-        iadr = (iadr+15)&-16; // pad to 16
-        if( enc._sdata.size()>0 )
-            iadr = printConstantPool(iadr, sb,enc._sdata,enc._bigCons,false, "Static Data"  );
+            iadr = (iadr+15)&-16; // pad to 16
+            if( enc._sdata.size()>0 )
+                iadr = printConstantPool(iadr, sb,enc._sdata,enc._bigCons,false, "Static Data"  );
+        }
 
         return sb;
     }
@@ -90,7 +93,7 @@ public abstract class ASMPrinter {
     }
 
 
-    private static int print(int iadr, SB sb, CodeGen code, Encoding enc, FunNode fun, int cfgidx) {
+    private static int print(int iadr, SB sb, CodeGen code, Encoding enc, Ary<CFGNode> cfg, FunNode fun, int cfgidx) {
         // Function header
         sb.nl().p("---");
         if( fun._name != null ) sb.p(fun._name).p(" ");
@@ -100,8 +103,8 @@ public abstract class ASMPrinter {
 
         if( fun._frameAdjust != 0 )
             iadr = doInst(iadr,sb,code,enc, cfgidx,fun,true,enc!=null);
-        while( !(enc._cfg.at(cfgidx) instanceof ReturnNode) )
-            iadr = doBlock(iadr,sb,code,enc,fun,cfgidx++);
+        while( !(cfg.at(cfgidx) instanceof ReturnNode) )
+            iadr = doBlock(iadr,sb,code,enc,cfg,fun,cfgidx++);
 
         // Function separator
         sb.p("---");
@@ -112,9 +115,9 @@ public abstract class ASMPrinter {
 
     static private final int opWidth = 5;
     static private final int argWidth = 30;
-    static int doBlock(int iadr, SB sb, CodeGen code, Encoding enc, FunNode fun, int cfgidx) {
+    static int doBlock(int iadr, SB sb, CodeGen code, Encoding enc, Ary<CFGNode> cfg, FunNode fun, int cfgidx) {
         final int encWidth = code._mach==null ? 2 : code._mach.defaultOpSize()*2;
-        CFGNode bb = enc._cfg.at(cfgidx);
+        CFGNode bb = cfg.at(cfgidx);
         if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
             sb.p(label(bb)).p(":").nl();
         if( bb instanceof CallNode ) return iadr;
@@ -167,8 +170,9 @@ public abstract class ASMPrinter {
         // need to assume a jump.  There's no real hardware op here, yet.
         if( n instanceof RegionNode cfg && !(n instanceof FunNode) ) {
             if( postEncode ) return iadr; // All jumps inserted already
-            while( cfgidx < enc._cfg._len-1 ) {
-                CFGNode next = enc._cfg.at(++cfgidx);
+            Ary<CFGNode> blocks = enc == null ? code._cfg : enc._cfg;
+            while( cfgidx < blocks._len-1 ) {
+                CFGNode next = blocks.at(++cfgidx);
                 if( next == n ) return iadr; // Fall-through, no branch
                 if( next.nOuts()>1 )
                     break;      // Has code in the block, need to jump around
@@ -243,7 +247,7 @@ public abstract class ASMPrinter {
         sb.nl();
 
         // Printing more op bits than fit
-        if( isMultiOp != null ) {
+        if( isMultiOp != null && enc != null ) {
             // Multiple ops, template style, no RA, no scheduling.  Print out
             // one-line-per-newline, with encoding bits up front.
             int size = enc != null ? enc.opLen(n) : 0;
@@ -266,6 +270,9 @@ public abstract class ASMPrinter {
                 }
 
             }
+
+        } else if( isMultiOp != null ) {
+            sb.p(isMultiOp).nl();
 
         } else if( fatEncoding > 0 ) {
             // Extra bytes past the default encoding width, all put on a line by

@@ -67,6 +67,9 @@ public class ReturnNode extends CFGNode {
         if( ctrl()._type == Type.CONTROL &&
             expr()._type == Type.TOP )
             return Parser.error("No defined return type",null);
+        if( ctrl()._type == Type.CONTROL &&
+            expr()._type == TypeScalar.BOT )
+            return Parser.error("Cannot return generic scalar",null);
         // With no user constructor, <init> doubles as the public no-arg
         // constructor.  Required fields remain TOP in its private memory: a
         // typed parser poison which deliberately emitted no Store or code.

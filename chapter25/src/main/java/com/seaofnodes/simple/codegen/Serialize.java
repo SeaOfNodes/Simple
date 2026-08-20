@@ -177,7 +177,6 @@ abstract public class Serialize {
         IdentityHashMap<Node,Integer> anodes = new IdentityHashMap<>();
         for( Node n : nodes )
             anodes.put(n,anodes.size()+1); // +1 bias, reserve 0 for null
-
         // First cut: 1 byte opcode, optional per-node info, includes variable nIns
         for( Node n : nodes ) {
             baos.packed1(n.serialTag().ordinal());
@@ -367,9 +366,11 @@ abstract public class Serialize {
                 // MemMerge precise aliases are encoded by their input slot.
                 // Remap populated file-local slots into this compilation's
                 // local alias numbering; null holes carry no identity.
-                int local = n instanceof MemMergeNode && i >= GlobalBits.RESERVED && def != null
-                    ? aliases.map(fileAliases,i)
-                    : i;
+                int local = i;
+                if( n instanceof MemMergeNode && i >= GlobalBits.RESERVED ) {
+                    if( def == null )  continue;
+                    local = aliases.map(fileAliases,i);
+                }
                 n.setDefX(local,def);
                 // Call's output[0] is always the CallEnd
                 if( n instanceof CallEndNode cend && i==0 ) {

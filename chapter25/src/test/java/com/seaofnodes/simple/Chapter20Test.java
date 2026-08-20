@@ -80,9 +80,34 @@ val _test_sqrt_noInline = { flt x ->
 };
 flt farg = arg; return _test_sqrt_noInline(farg) + _test_sqrt_noInline(farg+2.0);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",65,null);
-        testCPU(src,"riscv"    , "SystemV",35,null);
-        testCPU(src,"arm"      , "SystemV",35,null);
+        testCPU(src,"x86_64_v2", "SystemV",48,null);
+        testCPU(src,"riscv"    , "SystemV",17,null);
+        testCPU(src,"arm"      , "SystemV",18,null);
+    }
+
+    @Test
+    public void testIterPrettyPrintIsLocalAndReadOnly() {
+        CodeGen code = new CodeGen("""
+            val f_noInline = { flt x -> while(1) { if(x) return x; } };
+            flt y=arg;
+            return f_noInline(y)+f_noInline(y+2.0);
+            """).driver(CodeGen.Phase.Iter);
+        assertNull(code._start._ltree);
+        int pre = code._start._pre;
+
+        String p0 = code.toString();
+        String p1 = code.toString();
+        assertEquals(p0,p1);
+        assertNull(code._start._ltree);
+        assertEquals(pre,code._start._pre);
+
+        int main0 = p0.indexOf("--- class:Test.<clinit>");
+        int main1 = p0.indexOf("--- class:Test.<clinit> ----------------------",main0);
+        int fun0  = p0.indexOf("--- f_noInline ",main1);
+        int fun1  = p0.indexOf("--- f_noInline ----------------------",fun0);
+        assertTrue(main0 < main1 && main1 < fun0 && fun0 < fun1);
+        assertTrue(p0.indexOf("ToFloat",main0) < p0.indexOf("Call",main0));
+        assertTrue(p0.indexOf("CallEnd",fun0) == -1 || p0.indexOf("CallEnd",fun0) > fun1);
     }
 
     @Test
@@ -108,7 +133,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return mov(.[]);");
         testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
     }
@@ -149,16 +174,16 @@ val _hashCodeString = { String self ->
 };
 """;
         testCPU(src,"x86_64_v2", "SystemV",18,null);
-        testCPU(src,"riscv"    , "SystemV", 5,null);
-        testCPU(src,"arm"      , "SystemV", 4,null);
+        testCPU(src,"riscv"    , "SystemV", 7,null);
+        testCPU(src,"arm"      , "SystemV", 8,null);
     }
 
     @Test
     public void testCast() {
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
         testCPU(src,"x86_64_v2", "SystemV",3,null);
-        testCPU(src,"riscv"    , "SystemV",3,null);
-        testCPU(src,"arm"      , "SystemV",3,null);
+        testCPU(src,"riscv"    , "SystemV",6,null);
+        testCPU(src,"arm"      , "SystemV",6,null);
     }
 
     @Test

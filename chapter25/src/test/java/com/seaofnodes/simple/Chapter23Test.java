@@ -86,6 +86,26 @@ return a && b ? 0 : 1;  // Expected answer 0
     }
 
     @Test
+    public void testLogicalValueSemantics() {
+        assertEquals("42", Eval2.eval(new CodeGen("return 7 && 42;").parse().opto(), 0));
+        assertEquals("0",  Eval2.eval(new CodeGen("return 0 && 42;").parse().opto(), 0));
+        assertEquals("7",  Eval2.eval(new CodeGen("return 7 || 42;").parse().opto(), 0));
+        assertEquals("42", Eval2.eval(new CodeGen("return 0 || 42;").parse().opto(), 0));
+    }
+
+    @Test
+    public void testMixedScalarNotPhiPredicate() {
+        CodeGen code = new CodeGen("""
+struct S {};
+S? s = arg ? new S;
+return !(!s || !arg) ? 1 : 0;
+""");
+        code.parse().opto().typeCheck();
+        assertEquals("0", Eval2.eval(code, 0));
+        assertEquals("1", Eval2.eval(code, 1));
+    }
+
+    @Test
     public void testAndPtr() throws IOException {
         // Todo: have one src here
         String src = """
@@ -97,7 +117,7 @@ return ptr && ptr.fld ? "true" : "false";
         assertEquals("true", Eval2.eval(code, 0));
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "class:Test.<clinit>", 1, 8, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "class:Test.<clinit>", 1, 12, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         int adr = (int)R5.regs[riscv.A0]; // Returns a Simple *u8[~] string
@@ -105,7 +125,7 @@ return ptr && ptr.fld ? "true" : "false";
         assertEquals(0x65757274,R5.ld4s(adr+4)); // "true"
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("class:Test.<clinit>", src, 1, 8, false);
+        EvalArm64 arm = TestArm64.build("class:Test.<clinit>", src, 1, 12, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         int adr2 = (int)arm.regs[0]; // Returns a Simple *u8[~] string
@@ -185,13 +205,13 @@ return (a && sq_noInline(0))
         TestC.runSF( src, "and3", "", 2);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("and3", src, 0, 5, false);
+        EvalArm64 arm = TestArm64.build("and3", src, 0, 2, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);
@@ -251,7 +271,7 @@ return s.skip().x;
         try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
         catch( Exception e ) {
             // Bad error message, but basically requires a mutable 'x' field.
-            assertEquals("Argument #0 isa *Test._Scan {i64 x; *[]u8 buf; { *Test._Scan -> *Test._Scan {i64 !x; *[]u8 buf; {[ 5]} skip; } #[ 5]} skip; }, but must be a *Test._Scan {i64 !x; *[]u8 buf; { *Test._Scan -> *Test._Scan #[ 5]} skip; }",e.getMessage());
+            assertEquals("Argument #0 isa *Test._Scan {i64 x; *[]u8[final] buf; { *Test._Scan -> *Test._Scan {i64 !x; *[]u8 buf; {[ 5]} skip; } #[ 5]} skip; }, but must be a *Test._Scan {i64 !x; *[]u8[final] buf; { *Test._Scan -> *Test._Scan #[ 5]} skip; }",e.getMessage());
         }
     };
 

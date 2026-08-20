@@ -1,0 +1,23 @@
+// -*- mode: java;  -*-
+
+// An implementation of
+// https://sampleprograms.io/projects/capitalize/
+
+val main = { u8[~][] args ->
+    if( args# > 2 ) {
+        sys.io.p("Use quotes around multiple strings.\n");
+        return 0;
+    }
+    if( args# != 2 || args[1]# == 0 ) {
+        sys.io.p("Usage: please provide a string\n");
+        return 0;
+    }
+
+    u8[~] input = args[1];
+    var output = new u8[input# + 1];
+    sys.ary.copy(output,0,input,0,input#);
+    output[0] = sys.char.toupper(input[0]);
+    output[input#] = '\n';
+    sys.io.p(output);
+    return 0;
+};

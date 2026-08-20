@@ -60,7 +60,7 @@ _Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(83, testCPUSize(src, "x86_64_v2","win64", 3 ));
+        assertEquals(82, testCPUSize(src, "x86_64_v2","win64", 3 ));
         assertEquals(96, testCPUSize(src, "riscv",  "SystemV", 4 ));
         assertEquals(96, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
 
@@ -88,11 +88,11 @@ return 0;
         int trap = R5.step(100);
         assertEquals(0,trap);
 
-        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", src, 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("sext_str_not_fold_away_2", src, 0, 3, false);
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(83, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(82, testCPUSize(src, "x86_64_v2","win64",3 ));
         assertEquals(96, testCPUSize(src, "riscv",  "SystemV",4 ));
         assertEquals(96, testCPUSize(src, "arm",    "SystemV",4 ));
 
@@ -116,9 +116,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(71, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(72, testCPUSize(src, "x86_64_v2","win64",3 ));
         assertEquals(92, testCPUSize(src, "riscv",  "SystemV",5 ));
-        assertEquals(92, testCPUSize(src, "arm",    "SystemV",5 ));
+        assertEquals(92, testCPUSize(src, "arm",    "SystemV",5));
         // do assertEquals here
     }
 
@@ -148,7 +148,7 @@ val fcn = { Person?[] ps, int x -> // exports a field with a constant fcn ptr; e
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build( src, "fcn", ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "fcn", ps, 2, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -164,7 +164,7 @@ val fcn = { Person?[] ps, int x -> // exports a field with a constant fcn ptr; e
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 2, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);

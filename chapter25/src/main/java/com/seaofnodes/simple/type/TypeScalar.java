@@ -38,8 +38,7 @@ public class TypeScalar extends Type {
 
     @Override TypeScalar xdual() { return new TypeScalar(); }
     @Override public boolean isHigh() { return this == TOP; }
-    @Override boolean _isGLB(boolean mem) { return this == BOT; }
-    @Override Type _glb(boolean mem) { return BOT; }
+    @Override Type _makeStorage() { return BOT; }
 
     // Reserve tags for both lattice endpoints.  Unlike most concrete scalar
     // families, generic scalar TOP can survive into a serialized graph.

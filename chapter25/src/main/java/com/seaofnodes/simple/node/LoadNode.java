@@ -102,8 +102,7 @@ public class LoadNode extends MemOpNode {
         // baked into the type system.  Loads into arrays DO need the ctrl
         // edge, at least until proper range-checking is in place.
         if( in(0)!=null && ptr()._type instanceof TypeMemPtr tmp &&
-            // Never can be an array
-            (!tmp._obj._open || (tmp._obj._fields.length > 1 && tmp._obj._fields[0]._fname != "#")) ) {
+            !tmp._obj.isAry() ) {
             setDef(0,null);
             return this;
         }

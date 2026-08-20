@@ -68,7 +68,7 @@ public class TypeFunPtr extends TypeNil {
 
     @Override TypeFunPtr makeFrom( byte nil ) { return  nil ==_nil ? this : make(  nil,_open,_sig,_ret, _fidxs); }
     public    TypeFunPtr makeFrom( Type ret ) { return  ret ==_ret ? this : make( _nil,_open,_sig, ret, _fidxs); }
-    public    TypeFunPtr makeFrom( int fidx ) { return make1((byte)2,_open,_sig,_ret,fidx); }
+    public    TypeFunPtr makeFrom( int fidx ) { return make1(_nil,_open,_sig,_ret,fidx); }
     public    TypeFunPtr makeFrom( Type arg, int idx ) {
         // Alter named arg
         Type[] sig = _sig.clone();
@@ -159,8 +159,7 @@ public class TypeFunPtr extends TypeNil {
     @Override boolean _isConstant() { return (_nil==2 && XInt.isConstant(_fidxs)) || (_nil==3 && _fidxs== XInt.EMPTY); }
 
     @Override boolean _isFinal() { return true; }
-    @Override boolean _isGLB(boolean mem) { return true; }
-    @Override TypeFunPtr _glb(boolean mem) { return this; }
+    @Override TypeFunPtr _makeStorage() { return this; }
 
     @Override TypeFunPtr _close( String name, HashMap<String, Type> TYPES ) {
         Type[] sig = new Type[_sig.length];
@@ -213,7 +212,7 @@ public class TypeFunPtr extends TypeNil {
     @Override int TAGOFF() { return 8; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         assert _open;           // Open: Passing extra args is fine, and extras ignored.
-        if( _nil==2 && nargs()<6 && nfcns() == 1 ) {
+        if( _nil==2 && nargs()<6 && nfcns() == 1 && fidx() < 64 ) {
             baos.write(TAGOFFS[_type] + nargs());
             baos.packed2(fidx());
         } else {

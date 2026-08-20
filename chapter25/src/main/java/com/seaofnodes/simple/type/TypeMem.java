@@ -123,10 +123,10 @@ public class TypeMem extends Type {
         int[] fidxs  = XInt.meet( _escFs, that._escFs );
         int[] aliases= XInt.meet( _escAs, that._escAs );
         // Singleton & class facts are kept only when both sides agree.
-        
+
         // Final is kept if either side is final, merging a final & non-final
         // memory can be argued either way here:
-        
+
         // - Keep it: merging a final & non-final memory means a later Store
         //   update will be flagged as an error.
         // - Lose it: merging a final & non-final memory means a later Load
@@ -152,8 +152,7 @@ public class TypeMem extends Type {
     @Override boolean _isConstant() { return _one && _clz && _alias!= 1 && _t._isConstant(); }
     @Override public int log_size() { throw Utils.TODO(); }
     @Override boolean _isFinal() { return _t._isFinal(); }
-    @Override boolean _isGLB(boolean mem) { return _t._isGLB(true); }
-    @Override public Type _glb(boolean mem) { return make(_alias,_t._glb(true),_one,_clz,_final,_escFs,_escAs); }
+    @Override TypeMem _makeStorage() { return make(_alias,_t._makeStorage(),_one,_clz,_final,_escFs,_escAs); }
 
     @Override TypeMem _close( String name, HashMap<String, Type> TYPES ) { return malloc(_alias,_t._close(name, TYPES ),_one,_clz,_final,_escFs,_escAs); }
 
@@ -230,7 +229,7 @@ public class TypeMem extends Type {
     private static int[] escapeFIDX( int[] xs, Type t ) {
         return switch(t) {
         case TypeMemPtr tmp -> escapeFIDX(xs,tmp._obj);
-        case TypeStruct ts  -> ts._open
+        case TypeStruct ts  -> ts._open && !ts.isAry()
                 ? XInt.FULL         // Open structs can have any fields
                 : XInt.meet(xs,ts.fidxs());
         case TypeFunPtr tfp -> XInt.meet(xs,tfp.fidxs());
@@ -242,7 +241,7 @@ public class TypeMem extends Type {
     private static int[] escapeAlias( int[] xs, Type t ) {
         return switch(t) {
         case TypeMemPtr tmp -> escapeAlias(xs,tmp._obj);
-        case TypeStruct ts  -> ts._open
+        case TypeStruct ts  -> ts._open && !ts.isAry()
             ? XInt.FULL         // Open structs can have any fields
             : XInt.meet(xs,ts.aliases());
         case TypeMem    mem -> XInt.meet(xs,mem._escAs);

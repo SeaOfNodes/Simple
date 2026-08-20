@@ -3,12 +3,36 @@
 // libc bindings:
 //   https://www.man7.org/linux/man-pages/man2/<libc call>.2.html
 
+// The buffers are int-versions of zero-terminated strings.
+//     int buf = aryu8.str0("some_file");
+// buf mode perm-> fd
+{  i64 i32  i32 -> i32 } open = "C";
+// buf perm -> fd
+{  i64 i32 -> i32 } creat = "C";
+
 // fd  buf len -> len
-{  i32 i64 u32 -> u32 } write = "C";
+{  i32 i64 u32 -> i32 } write = "C";
 // fd  buf len -> len
-{  i32 i64 u32 -> u32 } read = "C";
+{  i32 i64 u32 -> i32 } read = "C";
+// fd  -> err
+{  i32 -> i32 } close = "C";
+// path -> err
+{  i64 -> i32 } unlink = "C";
+
+i32 O_RDONLY = 0;
+i32 O_WRONLY = 1;
+i32 O_RDWR   = 2;
+i32 O_CREAT = 512; // 02000 on x86_64-pc-cygwin
+i32 O_TRUNC = 1024; // 04000 on x86_64-pc-cygwin
+
+i32 STDIN  = 0;
+i32 STDOUT = 1;
+i32 STDERR = 2;
+
 // status
 {  i32 -> i32 } _exit = "C";
+// Error return from many native calls
+i32 errno = "C";
 // addr len prot flags fd  off -> void*
 {  i64  i64 i32  i32   i32 i32 -> i64 } mmap = "C";
 // mmap flags

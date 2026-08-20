@@ -1,14 +1,12 @@
 // -*- mode: java;  -*-
 
 // Scanner; a simple string parser.
-struct Scan {
+struct scan {
     int !x;                     // Cursor
     bool !bad;                  // True after a malformed token
-    u8[~] buf;                  // Immutable byte array, must be set in 2nd constructor
+    u8[~] buf;                  // Buffer to parse
 
-    new Scan = { u8[~] b ->
-        buf = b;
-    };
+    new scan = { u8[~] b -> buf = b; };
 
     // Skip whitespace
     val skip = { ->

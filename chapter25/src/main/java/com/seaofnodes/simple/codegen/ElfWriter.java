@@ -317,10 +317,11 @@ public class ElfWriter {
         }
 
         // Write relocations for the constant pool
+        String cpoolPrefix = _code.entryClinitName().replaceAll("[^A-Za-z0-9_$]", "_") + "$CPOOL$";
         for( Encoding.Relo relo : enc._bigCons.values() ) {
             boolean ro = !(relo._t instanceof TypeStruct ts) || ts.isConstant();
             DataSection data = ro ? rodata : rwdata;
-            int symidx = symbols.symbol("CPOOL$"+symbols.gidx(), data._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, relo._target, relo._t.size());
+            int symidx = symbols.symbol(cpoolPrefix+symbols.gidx(), data._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, relo._target, relo._t.size());
             relocations.writeReloOffPlus(relo._opStart+relo._off, symidx, relo._elf );
         }
 

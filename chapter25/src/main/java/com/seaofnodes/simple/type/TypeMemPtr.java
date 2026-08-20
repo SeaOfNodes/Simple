@@ -68,6 +68,10 @@ public class TypeMemPtr extends TypeNil {
 
     public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one, _pub); }
     public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
+    /** Inferred mutable local: nullable, public and non-singleton. */
+    public TypeMemPtr makeVar() { return (TypeMemPtr)makeStorage(); }
+    /** Public-memory shape: nullable and non-singleton, preserving the referent. */
+    @Override TypeMemPtr _makeStorage() { return make((byte)3,_obj._makeStorage(),false,true); }
     @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one, _pub); }
     public TypeMemPtr makeHigh(byte nil) { return make(nil,_obj.makeHigh(),false); }
     @Override public Type nonZero() { return makeFrom((byte)(_nil <= 1 ? 1 : 2)); }
@@ -109,8 +113,6 @@ public class TypeMemPtr extends TypeNil {
     @Override boolean _isConstant() { return _one; }
     @Override boolean _isFinal() { return _obj._isFinal(); }
     @Override TypeMemPtr _makeRO() { return makeFrom(_obj._makeRO()); }
-    @Override boolean _isGLB(boolean mem) { return _obj._isGLB(true); }
-    @Override TypeMemPtr _glb(boolean mem) { return make((byte)3,_obj.glb2()); }
     @Override TypeMemPtr _close( String name, HashMap<String, Type> TYPES ) { return malloc(_nil,_obj._close(name, TYPES ),_one,_pub); }
 
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
