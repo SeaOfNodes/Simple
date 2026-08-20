@@ -1,4 +1,3 @@
-// -*- mode: java;  -*-
 
 val toupper = { u8 c ->
     return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c;

@@ -1,4 +1,3 @@
-// -*- mode: java;  -*-
 
 // A set of non-negative integers, represented one bit per value.
 struct bitset {
