@@ -133,19 +133,18 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     @Override
     public Node idealize() {
-
-        _inline = inlineCandidate();
-        if( _inline == 1 ) {
-            ReturnNode ret = (ReturnNode)in(1);
-            FunNode fun = ret.fun();
-            doTrivialInlining(fun);
-            return this;
-        }
-        // Delay for cleanup, before cloning
-        if( _inline >= 2 )
-            CodeGen.CODE._iter.deferInline(CodeGen.CODE,this);
-
         return null;
+    }
+
+    public byte maybeInline() {
+        byte inline = inlineCandidate();
+        if( CodeGen.CODE._midAssert )
+            return inline;
+        _inline = inline;
+        if( _inline > 0 )
+            doInline();
+
+        return _inline;
     }
 
     // Check if candidate right now, sets no flags

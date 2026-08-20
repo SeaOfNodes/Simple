@@ -45,6 +45,19 @@ public class CodeGen {
     /** True when tests deliberately randomize Iter worklist order. */
     public static boolean iterSeedOverridden() { return System.getProperty("simple.iter.seed") != null; }
 
+    // Expensive assert sampling:
+    //   -Dsimple.assert.expensive=0 disables these checks
+    //   -Dsimple.assert.expensive=1 checks every step
+    //   -Dsimple.assert.expensive=N checks once every 1<<N steps
+    private static final int EXPENSIVE_ASSERT_LOG = Integer.getInteger("simple.assert.expensive",8);
+    public static boolean expensiveAssert() { return EXPENSIVE_ASSERT_LOG > 0; }
+    public static boolean expensiveAssert( int trip ) {
+        if( EXPENSIVE_ASSERT_LOG <= 0 ) return false;
+        if( EXPENSIVE_ASSERT_LOG == 1 ) return true;
+        int shift = Math.min(EXPENSIVE_ASSERT_LOG,30);
+        return (trip & ((1<<shift)-1)) == 0;
+    }
+
     // ---------------------------
     // Module Source Root
     public final String _modDir;
@@ -458,7 +471,8 @@ public class CodeGen {
             return null;
         });
         _iter.iterate(this);
-        assert Opto.fixedPointCheck(this);
+        // Expensive assert.
+        assert !expensiveAssert() || Opto.fixedPointCheck(this);
 
         _times[Phase.Iter.ordinal()] = System.currentTimeMillis() - t0;
         return this;

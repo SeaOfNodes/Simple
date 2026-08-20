@@ -62,16 +62,10 @@ public class IterPeeps {
 
     public void addAll( Ary<Node> ary ) { _work.addAll(ary); }
 
-    public void deferInline( CodeGen code, CallEndNode cend ) {
-        if( !code._midAssert )
-            _workInline.push(cend);
-    }
-
     /**
      * Iterate peepholes and inlining to a fixed point
      */
     public void iterate( CodeGen code ) {
-        CallEndNode cend = null;
         boolean didInline = false;
         Ary<Node> defer = new Ary<>(Node.class);
         while( true ) {
@@ -79,18 +73,19 @@ public class IterPeeps {
             iteratePeeps(code);
 
             // Pick an inline candidate, no real heuristic, first come, first served
+            boolean inlined = false;
+            CallEndNode cend;
             while( (cend=_workInline.pop()) != null) {
                 if( cend.isDead() ) continue;
-                if( cend.inline() == -1 ) defer.add(cend);
-                if( cend.inline() > 0 ) break;
+                byte inline = cend.maybeInline();
+                if( inline == -1 ) defer.add(cend);
+                if( inline > 0 ) {
+                    inlined = true;
+                    break;
+                }
             }
-            // Found an inline candidate, so inline
-            if( cend != null ) {
-                // Inline, run peeps until clean again
-                cend.doInline();
-                didInline = true;
-                continue;
-            }
+            // Inlined, run peeps until clean again
+            if( inlined ) { didInline = true; continue; }
             // No more candidates, check the defer list
             if( !didInline ) break; // No more progress, so all the "maybe inline after cleanup" do not progress
             // Some inlining happened, retry all the "try again after cleanup" calls
@@ -102,7 +97,7 @@ public class IterPeeps {
 
     // Run all the code-reduction and type-lifting peeps as possible
     private void iteratePeeps( CodeGen code ) {
-        assert progressOnList(code, _work, true);
+        assert !CodeGen.expensiveAssert(1) || progressOnList(code, _work, true);
         int cnt=0;
 
         Node n;
@@ -110,6 +105,8 @@ public class IterPeeps {
             if( n.isDead() )  continue;
             cnt++;              // Useful for debugging, searching which peephole broke things
             Node x = n.peepholeOpt();
+            if( n instanceof CallEndNode cend )
+                _workInline.push(cend);
             if( x != null ) {
                 if( x.isDead() ) continue;
                 // peepholeOpt can return brand-new nodes, needing an initial type set
@@ -136,7 +133,8 @@ public class IterPeeps {
                 // If there are distant neighbors, move to worklist
                 n.moveDepsToWorklist();
                 JSViewer.show(); // Show again
-                assert progressOnList(code, _work, true); // Very expensive assert
+                // Very expensive assert.
+                assert !CodeGen.expensiveAssert(cnt) || progressOnList(code, _work, true);
             }
             if( n.isUnused() && !(n instanceof StopNode) )
                 n.kill();       // Just plain dead
@@ -174,6 +172,11 @@ public class IterPeeps {
             assert !checkType || monotonic : "Non-monotonic peep: "+n+"#"+n._nid+" old="+n._type+" new="+nval+" inputs="+inputTypes(n)+" peep="+m;
             if( list.on(n) )
                 return null;
+            if( n instanceof CallEndNode cend ) {
+                if( code._iter._workInline.on(cend) )
+                    return null;
+                assert cend.maybeInline() <= 0 : "Inline fired and not on worklist, CallEndNode#"+cend._nid;
+            }
 
             assert n.nOuts() > 0 : "Unused live node: "+n;
             m = n.peepholeOpt();
