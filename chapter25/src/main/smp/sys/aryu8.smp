@@ -1,4 +1,3 @@
-// -*- mode: java;  -*-
 
 // Ary/Vector of u8s - a resizable array of bytes.
 struct aryu8 {

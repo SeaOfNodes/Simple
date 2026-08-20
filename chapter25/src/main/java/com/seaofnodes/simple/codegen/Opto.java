@@ -246,8 +246,8 @@ abstract public class Opto {
             // Since n._type changed, visit all output neighbors
             code._iter.addAll(n._outputs);
             n.moveDepsToWorklist(code._iter);
-            // Quadratic (expensive) small-step assert
-            assert worklistCheck(code);
+            // Quadratic (expensive) small-step assert.
+            assert !CodeGen.expensiveAssert(count) || worklistCheck(code);
         }
     }
 

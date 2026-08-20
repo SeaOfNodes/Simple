@@ -1,4 +1,3 @@
-// -*- mode: java;  -*-
 
 // Scanner; a simple string parser.
 struct scan {
