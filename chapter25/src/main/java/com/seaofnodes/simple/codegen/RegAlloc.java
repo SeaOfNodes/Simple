@@ -753,6 +753,6 @@ public class RegAlloc {
             if( lrg(n)!=null && lrg(n)._reg == defreg )
                 return false;   // Clobbered
         }
-        throw Utils.TODO();
+        throw Utils.TODO("Should not reach here");
     }
 }

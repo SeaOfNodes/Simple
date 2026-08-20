@@ -229,8 +229,8 @@ public class Type /*implements Cloneable*/ {
     }
 
     // At/Set child at 'idx' to t
-    public Type at( int idx ) { throw Utils.TODO(); }
-    public void set( int idx, Type t ) { throw Utils.TODO(); }
+    public Type at( int idx ) { throw Utils.TODO("Should not reach here: type has no children"); }
+    public void set( int idx, Type t ) { throw Utils.TODO("Should not reach here: type has no children"); }
     public int nkids() { return 0; }   // Number of kids
 
 
@@ -322,7 +322,7 @@ public class Type /*implements Cloneable*/ {
             case TXCTRL-> TCTRL;
             case TNIL  -> TXNIL;
             case TXNIL -> TNIL;
-        default -> throw Utils.TODO(); // Should not reach here
+        default -> throw Utils.TODO("Should not reach here: unknown simple type");
         });
     }
 
@@ -548,7 +548,7 @@ public class Type /*implements Cloneable*/ {
         case TCTRL -> CONTROL;
         case TXCTRL->XCONTROL;
         case TNIL  -> NIL;
-        default -> throw Utils.TODO();
+        default -> throw Utils.TODO("Should not reach here: unknown simple type tag");
         };
     }
 
@@ -572,7 +572,7 @@ public class Type /*implements Cloneable*/ {
         case TFLD    ->   Field      .packed( off, bais, strs );
         case TSTRUCT ->   TypeStruct .packed( off, bais, strs );
         case TTUPLE  ->   TypeTuple  .packed( off, bais );
-        default -> throw Utils.TODO();
+        default -> throw Utils.TODO("Should not reach here: unknown packed type tag");
         };
     }
 

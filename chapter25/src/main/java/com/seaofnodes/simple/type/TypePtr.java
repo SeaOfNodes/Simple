@@ -26,7 +26,7 @@ public class TypePtr extends TypeNil {
 
     public static void gather(ArrayList<Type> ts) { ts.add(PTR); ts.add(NPTR); }
 
-    TypeNil makeFrom(byte nil) { throw Utils.TODO(); }
+    TypeNil makeFrom(byte nil) { throw Utils.TODO("Should not reach here: plain pointer nil state is canonical"); }
 
     @Override public TypeNil xmeet(Type t) {
         TypePtr that = (TypePtr) t;

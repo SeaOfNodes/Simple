@@ -43,7 +43,7 @@ public abstract class TypeConAry<A> extends TypeScalar {
                 return ti.meet(e);
             return this;
         }
-        throw Utils.TODO();
+        throw Utils.TODO("Should not reach here: constant array meet with non-element type");
     }
 
     @Override public boolean isHigh() { return this==TOP; }
@@ -65,10 +65,10 @@ public abstract class TypeConAry<A> extends TypeScalar {
     }
     // Generic element _type
     public int elemT() { return TBOT; }
-    public long at8(int idx) { throw Utils.TODO(); }
-    public int len() { throw Utils.TODO(); }
-    @Override public int log_size() { throw Utils.TODO(); }
-    public void write( BAOS baos ) { throw Utils.TODO(); }
+    public long at8(int idx) { throw Utils.TODO("Should not reach here: abstract constant array has no elements"); }
+    public int len() { throw Utils.TODO("Should not reach here: abstract constant array has no length"); }
+    @Override public int log_size() { throw Utils.TODO("Should not reach here: abstract constant array has no element size"); }
+    public void write( BAOS baos ) { throw Utils.TODO("Should not reach here: abstract constant array cannot be written"); }
 
     // Reserve tags for u8 array
     @Override int TAGOFF() { return 1; }

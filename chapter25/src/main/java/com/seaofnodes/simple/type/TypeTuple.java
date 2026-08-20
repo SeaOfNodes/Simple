@@ -94,9 +94,9 @@ public class TypeTuple extends Type {
                 return false;
         return true;
     }
-    @Override boolean _isFinal() { throw Utils.TODO(); }
+    @Override boolean _isFinal() { throw Utils.TODO("Should not reach here: tuples are not stored object values"); }
 
-    @Override TypeMemPtr _makeRO() { throw Utils.TODO(); }
+    @Override TypeMemPtr _makeRO() { throw Utils.TODO("Should not reach here: tuples cannot be made read-only"); }
 
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
         Type[] ts = new Type[_types.length];
@@ -105,7 +105,7 @@ public class TypeTuple extends Type {
         return make(ts);
     }
 
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int log_size() { throw Utils.TODO("Should not reach here: tuples have no scalar storage size"); }
     @Override public int alignment() {
         assert isConstant();
         int align = 0;

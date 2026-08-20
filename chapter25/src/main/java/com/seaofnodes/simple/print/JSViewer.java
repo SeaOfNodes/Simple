@@ -256,7 +256,6 @@ public class JSViewer implements AutoCloseable {
         return switch( n ) {
         case CFGNode cfg  -> "yellow";
         case NewNode nnn  -> "lightgreen";
-        case StructNode s -> "lightgreen";
         default -> typeColor(n._type);
         };
     }

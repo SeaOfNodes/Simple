@@ -438,10 +438,6 @@ abstract public class Serialize {
         for( Node n : code._start._outputs ) {
             if( n instanceof ConstantNode con && !visit.get(con._nid) ) {
                 for( Node use : con.outs() ) {
-                    // Special case for Cast:BOT which is basically a double-indirect constant
-                    if( use instanceof CheckCastNode cast && cast.in(0)==null )
-                        for( Node useuse : cast.outs() )
-                            conUsed(cast,useuse,visit,cons);
                     // PtrToInt is another zero-code value rooted at a global
                     // constant.  Its array-body Add is the value used by the
                     // function, so include that extra link in the ownership

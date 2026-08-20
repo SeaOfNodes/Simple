@@ -53,7 +53,7 @@ public class TypeFloat extends TypeScalar {
         case   0 -> ""+_con+((float)_con==_con ? "f" : "");
         case  32 ->  "f32";
         case  64 ->  "flt";
-        default  -> throw Utils.TODO();
+        default  -> throw Utils.TODO("Should not reach here: unknown float size");
         };
     }
     private boolean isF32() { return ((float)_con)==_con; }
@@ -116,7 +116,7 @@ public class TypeFloat extends TypeScalar {
         case 0 -> F64;
         case 1 -> F32;
         case 2 -> constant(Double.longBitsToDouble(bais.packed8()));
-        default -> throw Utils.TODO();
+        default -> throw Utils.TODO("Should not reach here: unknown float type tag");
         };
     }
 

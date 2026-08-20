@@ -10,10 +10,9 @@ import java.util.BitSet;
 /**
  * Reinterpret a non-null managed pointer as its raw integer address.
  *
- * This node changes representation families but emits no code.  In particular,
- * it is not a {@link CheckCastNode}: no control-dependent proof can turn a
- * pointer into an integer.  Array-to-C-pointer conversion adds the array body
- * offset separately.
+ * This node changes representation families but emits no code.  No
+ * control-dependent proof can turn a pointer into an integer; array-to-C-pointer
+ * conversion adds the array body offset separately.
  */
 public class PtrToIntNode extends Node {
     public PtrToIntNode(Node ptr) { super(null,ptr); }

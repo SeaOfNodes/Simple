@@ -84,7 +84,8 @@ public class CodeGen {
         assert _compunits.size()==1;
         for( CompUnit cu : _compunits.values() )
             return cu;
-        throw Utils.TODO();
+        assert false : "no compilation unit";
+        return null;
     }
 
     // True when fidx is published through a public field of a public class.

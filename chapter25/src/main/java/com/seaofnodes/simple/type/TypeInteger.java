@@ -203,7 +203,7 @@ public class TypeInteger extends TypeScalar {
         case 4 -> ZERO;
         case 5 -> constant(bais.packed8());
         case 6 -> make(bais.packed8(),bais.packed8(),(byte)(bais.packed1()-3));
-        default -> throw Utils.TODO();
+        default -> throw Utils.TODO("Should not reach here: unknown integer type tag");
         };
     }
 

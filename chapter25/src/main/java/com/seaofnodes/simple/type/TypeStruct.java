@@ -469,7 +469,7 @@ public class TypeStruct extends Type {
 
     // log_size for a struct is not defined, unless its exactly some power of
     // 2.  *Total size* is well-defined, and is available in the offsets.
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int log_size() { throw Utils.TODO("Should not reach here: structs have no scalar log size"); }
     @Override public int size() { return offset(_fields.length); }
     @Override public int alignment() {
         int align = 0;

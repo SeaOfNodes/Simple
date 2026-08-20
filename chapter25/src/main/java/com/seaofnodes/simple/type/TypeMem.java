@@ -150,7 +150,7 @@ public class TypeMem extends Type {
     @Override public TypeMem makeZero() { return TOP; }
     @Override public boolean isHigh() { return _t.isHigh(); }
     @Override boolean _isConstant() { return _one && _clz && _alias!= 1 && _t._isConstant(); }
-    @Override public int log_size() { throw Utils.TODO(); }
+    @Override public int log_size() { throw Utils.TODO("Should not reach here: memory has no scalar storage size"); }
     @Override boolean _isFinal() { return _t._isFinal(); }
     @Override TypeMem _makeStorage() { return make(_alias,_t._makeStorage(),_one,_clz,_final,_escFs,_escAs); }
 

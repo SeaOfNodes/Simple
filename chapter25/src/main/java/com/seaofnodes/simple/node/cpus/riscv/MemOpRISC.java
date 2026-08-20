@@ -27,8 +27,8 @@ public abstract class MemOpRISC extends MemOpNode implements MachNode {
 
     @Override public StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
 
-    @Override public Type compute() { throw Utils.TODO(); }
-    @Override public Node idealize() { throw Utils.TODO(); }
+    @Override public Type compute() { throw new AssertionError("Do not call compute on "+getClass().getSimpleName()); }
+    @Override public Node idealize() { throw new AssertionError("Do not call idealize on "+getClass().getSimpleName()); }
 
     // func3 is based on load/store size and extend
     abstract int func3();

@@ -280,7 +280,6 @@ public abstract class Eval2 {
         case BoolNode.LT  lt   -> lt.mode()==1
             ? (x(lt.in(1)) <  x(lt.in(2)) ? 1L : 0L)
             : (d(lt.in(1)) <  d(lt.in(2)) ? 1L : 0L);
-        case CheckCastNode cast -> val(cast.in(1));
         case GuardNode   guard -> val(guard.in(1));
         case ConstantNode con  -> con(con._con);
         case DivNode      div  -> div.mode()==1

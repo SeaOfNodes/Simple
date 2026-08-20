@@ -79,12 +79,12 @@ public abstract class Node implements Cloneable {
     // Disk/serialized opcode tags
     public enum Tag {
         Add,And,EQ,NE,LT,LE,ULT,
-        CallEnd,Call,CheckCast,ConFldOff,Con,CProj,
+        CallEnd,Call,ConFldOff,Con,CProj,
         Div,Escape,Extern,Fun,FunPtr,If,Load,Loop,
         MemMerge,Minus,Mul,
         New,Never,Not,Or,Parm,Phi,Proj,
         ReadOnly,Return,Region,RoundF32,
-        Sar,Shl,Shr,Start,Stop,Store,Struct,Sub,ToFloat,
+        Sar,Shl,Shr,Start,Stop,Store,Sub,ToFloat,
         XCtrl,Xor,StartCU,StopCU,Guard,MemPhi,BulkMemPhi,PtrToInt;
         public static final Tag[] VALS = values();
         public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
@@ -121,7 +121,6 @@ public abstract class Node implements Cloneable {
 
             case Call  ->      CallNode.make(bais);
             case CallEnd->  CallEndNode.make(bais     ,types);
-            case CheckCast -> CheckCastNode.make(bais,types);
             case CProj ->     CProjNode.make(bais,strs);
             case Con   ->  ConstantNode.make(bais     ,types);
             case Escape->    EscapeNode.make(bais     ,types);
@@ -140,7 +139,6 @@ public abstract class Node implements Cloneable {
             case Stop ->       StopNode.make(bais);
             case StartCU->  StartCUNode.make(bais,strs,types);
             case StopCU ->   StopCUNode.make(bais);
-            case Struct->    StructNode.make(bais,     types);
             case Region->    RegionNode.make(bais);
 
             default -> throw Utils.TODO();

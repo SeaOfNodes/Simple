@@ -110,8 +110,6 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Node idealize() {
-        assert !(mem() instanceof CheckCastNode);
-
         // Freeze the semantic Store variant as soon as the pointer exposes a
         // canonical field declaration.  Waiting until after structural memory
         // peeps can lose the declaration to a flow-sensitive constant field

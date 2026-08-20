@@ -999,9 +999,6 @@ public class Parser {
         // Auto-widen array to i64 (cast ptr to raw int bits)
         if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
             return peep(new AddNode(peep(new PtrToIntNode(expr)),off(tmp._obj,"[]")));
-        // Null check has to eventually pass
-        if( t == Type.NIL && expr._type instanceof TypeMemPtr tmp && tmp.notNull() )
-           return peep(new CheckCastNode(t,null,expr));
         // Widen ints to floats, narrow wide types
         return peep(new ConvertNode(t,expr));
     }

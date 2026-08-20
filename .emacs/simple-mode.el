@@ -30,7 +30,8 @@
                 (font-lock-mark-block-function . c-mark-function)))
   (setq-local font-lock-keywords nil)
   (font-lock-set-defaults)
-  (font-lock-mode 1))
+  (font-lock-mode 1)
+  (font-lock-fontify-buffer))
 
 (add-hook 'simple-mode-hook #'simple-mode-set-indentation)
 
