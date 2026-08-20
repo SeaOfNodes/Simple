@@ -114,8 +114,8 @@ flt farg = arg; return _test_sqrt_noInline(farg) + _test_sqrt_noInline(farg+2.0)
     public void testAlloc2() {
         String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
         testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
-        testCPU(src,"riscv"    , "SystemV",10,"return .[];");
-        testCPU(src,"arm"      , "SystemV",12,"return .[];");
+        testCPU(src,"riscv"    , "SystemV", 6,"return .[];");
+        testCPU(src,"arm"      , "SystemV", 6,"return .[];");
     }
 
 
@@ -183,7 +183,7 @@ val _hashCodeString = { String self ->
         String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
         testCPU(src,"x86_64_v2", "SystemV",3,null);
         testCPU(src,"riscv"    , "SystemV",6,null);
-        testCPU(src,"arm"      , "SystemV",10,null);
+        testCPU(src,"arm"      , "SystemV",6,null);
     }
 
     @Test

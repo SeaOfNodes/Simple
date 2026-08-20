@@ -24,7 +24,7 @@ public abstract class GlobalCodeMotion {
         schedEarly(code);
 
         // Break up shared global constants by functions
-        breakUpGlobalConstants(code._start );
+        breakUpGlobalConstants(code._start);
 
         code._visit.clear();
         schedLate(code);
@@ -44,19 +44,16 @@ public abstract class GlobalCodeMotion {
     }
 
     // Break up shared global constants by functions
-    private static void breakUpGlobalConstants( Node start ) {
+    private static void breakUpGlobalConstants( StartNode start ) {
 
-        // For all global constants
+        // For all explicitly Start-pinned global values.  Instruction
+        // selection keeps each zero-code/global chain member hooked to Start,
+        // so no later pass has to infer hidden global chains from data inputs.
         for( int i=0; i< start.nOuts(); i++ ) {
             Node con = start.out(i);
-            // Instruction selection can expand one shared TypeNode constant
-            // into a constant-valued machine expression.  Split either form
-            // before scheduling, since separate functions have no CFG LCA.
-            if( !(con instanceof CFGNode) &&
-                ((con._type.isHighOrConst() && con.isConst()) ||
-                 con instanceof MachNode mach && mach.isClone() && con._type.isConstant()) ) {
-                breakUpGlobalConstantSingle( con );
-                if( con.in(0) != start )
+            if( isStartPinnedGlobalValue(con) ) {
+                breakUpGlobalConstantSingle(con);
+                if( con.nIns()==0 || con.in(0) != start )
                     i--;    // Removed a global constant, re-run same index
             }
         }
@@ -64,13 +61,14 @@ public abstract class GlobalCodeMotion {
 
 
     private static void breakUpGlobalConstantSingle( Node con ) {
-        // If an immediate global-value user still spans functions, it cannot
-        // yet be assigned to one clone.  Keeping the constant at Start is a
-        // valid schedule; a downstream value with concrete ownership can be
-        // split independently.
+        // Split dependent global values first; cloning a later chain member
+        // will recursively clone its Start-pinned inputs on demand.
         for( Node use : con.outs() )
-            if( use != null && useFun(use)==null )
-                return;
+            if( use != null && useFun(use)==null ) {
+                if( !isStartPinnedGlobalValue(use) )
+                    return;
+                breakUpGlobalConstantSingle(use);
+            }
         // While constant has users in different functions
         while( true ) {
             // Find a function user, and another function
@@ -83,22 +81,16 @@ public abstract class GlobalCodeMotion {
                 if( fun==null || fun==fun2 ) fun=fun2;
                 else { done=false; break; }
             }
+            // No direct function users: keep this global value at Start.
+            if( fun==null )
+                return;
             // Single function user, so this constant is not shared
             if( done ) {
                 con.setDef(0,fun);
                 return;
             }
             // Move function users to a private constant
-            Node con2 = con.copy();   // Private constant clone
-            // Node copies made through Node(Node) carry unregistered inputs,
-            // while some machine copies construct fresh registered edges.
-            // Detach correctly in either case before pinning to the function.
-            Node old = con2.in(0);
-            if( old != null && old._outputs.find(con2) != -1 )
-                con2.setDef(0,null);
-            else
-                con2._inputs.set(0,null);
-            con2.setDef(0,fun);
+            Node con2 = cloneGlobalForFun(con,fun,new IdentityHashMap<>());
             // Move function users to this private constant
             for( int j=0; j<con._outputs._len; j++ ) {
                 Node use = con.out(j);
@@ -111,6 +103,44 @@ public abstract class GlobalCodeMotion {
                 }
             }
         }
+    }
+
+    private static Node cloneGlobalForFun(Node con, FunNode fun, IdentityHashMap<Node,Node> memo) {
+        Node memoized = memo.get(con);
+        if( memoized != null ) return memoized;
+        Node con2 = con.copy();   // Private constant clone
+        // Node copies made through Node(Node) carry unregistered inputs, while
+        // some machine copies construct fresh registered edges.  The default
+        // Node.copy path gives an input-less clone.  Normalize all of them to
+        // the original data inputs, pinned to the owning function.
+        memo.put(con,con2);
+        if( con2.nIns()==0 ) {
+            con2.addDef(fun);
+            for( int i=1; i<con.nIns(); i++ )
+                con2.addDef(cloneInputForFun(con.in(i),fun,memo));
+        } else {
+            Node oldCtrl = con2.in(0);
+            if( oldCtrl != null && oldCtrl._outputs.find(con2) != -1 )
+                con2.setDef(0,null);
+            else
+                con2._inputs.set(0,null);
+            con2.setDef(0,fun);
+            for( int i=1; i<con2.nIns(); i++ )
+                con2.setDef(i,cloneInputForFun(con.in(i),fun,memo));
+        }
+        return con2;
+    }
+
+    private static Node cloneInputForFun(Node def, FunNode fun, IdentityHashMap<Node,Node> memo) {
+        return isStartPinnedGlobalValue(def)
+            ? cloneGlobalForFun(def,fun,memo)
+            : def;
+    }
+
+    private static boolean isStartPinnedGlobalValue(Node n) {
+        return n != null && n._type != null && !(n instanceof CFGNode) &&
+            n.nIns() > 0 && n.in(0) instanceof StartNode &&
+            (n.isConst() || n instanceof MachNode mach && mach.outregmap()!=null);
     }
 
     private static FunNode useFun(Node use) {

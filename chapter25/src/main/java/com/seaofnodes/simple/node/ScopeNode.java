@@ -240,20 +240,16 @@ public class ScopeNode extends MemMergeNode {
         return true;
     }
 
-    // Normal lookup was tried and failed.  Insert a forward ref outside any
-    // enclosing Kind.Func scope, skipping any nested Blocks or Allocs and
-    // return the Var.  May insert at the outermost scope, which means this
-    // must be defined externally, or it's an error.
+    // Normal lookup was tried and failed.  Append a forward ref in the current
+    // lexical scope.  Scope pops promote it outwards "as if" the final constant
+    // had been declared before the using scope.
 
     public Var defineFRef( String id, Type t, boolean xfinal, Parser.Lexer loc ) {
-        // Kind/Lexical scope index
-        int kidx = enclosingFunction();
-        int idx = _kinds.at(kidx)._lexSize;
-        Var var = new Var(idx,id,t,xfinal,loc,true);
+        Var var = new Var(nIns(),id,t,xfinal,loc,true);
         FRefNode fref = new FRefNode(id,loc).init();
         fref._type = fref._con = t;
-        // Insert in the lex scope just prior to kidx
-        insert(var,fref,kidx);
+        _vars.add(var);
+        addDef(fref);
         return var;
     }
 
@@ -403,6 +399,18 @@ public class ScopeNode extends MemMergeNode {
                 insertDef(i,scope.in(i));
             } else
                 throw Parser.error("Cannot define a '"+n._name+"' on one arm of an if",n._loc);
+        }
+    }
+
+    public void balanceLoopFRefs( ScopeNode scope ) {
+        for( int i = nIns(); i < scope.nIns(); i++ ) {
+            Var n = scope.var(i);
+            if( n.isFRef() ) {  // Loop body has forward refs
+                Var v = new Var(nIns(),n._name,n.type(),n._final,n._loc,true);
+                v._uninit = n._uninit;
+                _vars.add(v);
+                addDef(scope.in(i));
+            }
         }
     }
 

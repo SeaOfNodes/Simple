@@ -100,6 +100,7 @@ public class Parser {
     ScopeNode _breakScope;      // Merge all the while-breaks    here
     ScopeNode _continueScope;   // Merge all the while-continues here
     ScopeNode _returnScope;     // Merge all the function exits  here
+    Ary<FRefNode> _frefs;       // Forward refs created during this parse
     TypeStruct _ctorOpenStruct; // Open struct being initialized by an allocation constructor block.
 
     // Mapping from a type name to a Type.  The string name matches
@@ -164,7 +165,9 @@ public class Parser {
 
     public Ary<FRefNode> parse( CompUnit ref ) {
         assert _scope == null && _breakScope == null && _continueScope == null && _returnScope == null;
+        assert _frefs == null;
         _lexer = new Lexer(ref._src);
+        _frefs = new Ary<>(FRefNode.class);
         // Starting Scope has control, memory, initial arguments
         _scope = new ScopeNode();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
@@ -183,12 +186,12 @@ public class Parser {
 
         if( !_lexer.isEOF() ) throw _errorSyntax("unexpected");
 
-        // At the top scope and every new var should be a FRef, and these
+        // All still-unresolved forward refs
         // should immediately resolve to a file-based name which is a Simple
         // class type.
         Ary<FRefNode> frefs = new Ary<>(FRefNode.class);
-        for( int i=2; i<_scope._vars._len; i++ ) {
-            FRefNode fref = (FRefNode)_scope._inputs.at(i);
+        for( FRefNode fref : _frefs ) {
+            if( fref.nIns() != 1 && fref._con == FRefNode.FREF_TYPE ) continue;
             CompUnit cu = ParseAll.findCompUnitOrThrow(_code,_ref,fref._name);
             fref._con = TypeMemPtr.make((byte)2,TypeStruct.make(addClzPrefix(cu._cname),true),true);
             frefs.push(fref);
@@ -201,6 +204,7 @@ public class Parser {
         _xScopes.pop();
         _scope.kill();
         _scope = null;
+        _frefs = null;
 
         return frefs;
     }
@@ -680,6 +684,8 @@ public class Parser {
         // it sets the second input to the corresponding input from the back
         // edge.  If the phi is redundant, it is replaced by its sole input.
         var exit = _breakScope;
+        head.balanceLoopFRefs(_scope);
+        exit.balanceLoopFRefs(_scope);
         head.endLoop(_scope, exit);
         head.unkeep().kill();
 
@@ -1104,7 +1110,8 @@ public class Parser {
             }
 
             // expr is a constant function
-            if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+            if( t instanceof TypeFunPtr decl && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+                t = decl.makeFrom(tfp.fidx());
                 FunNode fun = _code.link(tfp);
                 if( fun != null )
                     fun.setName(name); // Assign debug name to Simple function
@@ -1258,7 +1265,7 @@ public class Parser {
         }
         ReturnNode ret = (ReturnNode)new ReturnNode(ctl,pub,self,rpc,fun).peephole();
         fun.setRet(ret);
-        fun._approxUIDs = _code.UID()-oldUID;
+        fun._approxUIDs = _code.UID() - oldUID;
         _ref.addFun(_code,fun);
         return sig;
     }
@@ -1920,7 +1927,8 @@ public class Parser {
                 t = TypeMemPtr.make((byte)2,clz,true);
             }
             // Define the FRef
-            var = _scope.defineFRef(id,t,cu!=null,loc());
+            var = _scope.defineFRef(id,t,true,loc());
+            _frefs.push((FRefNode)_scope.in(var));
         }
 
         // Load local value
@@ -1971,7 +1979,7 @@ public class Parser {
             int selfx = _scope.kindFcn(var)._lexSize;
             // Might be a method call from inside a method, so no explicit "self".
             // Pass the in-scope "self"
-            return parsePostfixMethod(rvalue,_scope.in(selfx));
+            return parsePostfixMethod(rvalue,_scope.in(_scope.update(_scope.var(selfx),null)));
         }
         // Assign-update direct into Scope
         Node op = opAssign(ch,rvalue, var.type() );
@@ -2166,7 +2174,8 @@ public class Parser {
     }
 
     private Node defaultSelf() {
-        return _scope.in(_scope._kinds.at(_scope.enclosingFuncOrDecl())._lexSize);
+        int selfx = _scope._kinds.at(_scope.enclosingFuncOrDecl())._lexSize;
+        return _scope.in(_scope.update(_scope.var(selfx),null));
     }
 
     /**
@@ -2209,6 +2218,14 @@ public class Parser {
         }
 
         Field fld = ts==null ? null : ts.field(name);
+        if( fld==null && ts!=null && !startsClzPrefix(ts._name) ) {
+            Type clz0 = TYPES.get(addClzPrefix(ts._name));
+            if( clz0 instanceof TypeStruct clz && (fld = latestStruct(clz).field(name)) != null ) {
+                expr.unkeep();
+                ts = latestStruct(clz);
+                expr = con(TypeMemPtr.make((byte)2,ts,true)).keep();
+            }
+        }
         if( fld==null && ts!=null )
             fld = fieldOrOpen(ts,name,false);
         if( fld==null && ts!=null && !latestStruct(ts)._open )
@@ -2480,6 +2497,7 @@ public class Parser {
     private char escapedChar(String kind) {
         char esc = _lexer.nextChar();
         return switch( esc ) {
+        case '0'  -> '\u0000';
         case 'n'  -> '\n';
         case 't'  -> '\t';
         case 'r'  -> '\r';

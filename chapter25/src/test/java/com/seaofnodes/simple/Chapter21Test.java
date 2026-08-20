@@ -96,7 +96,7 @@ return v0;
 """;
         testCPU(src,"x86_64_v2", "SystemV", 9,"return mov(mov(Test._S));");
         testCPU(src,"riscv"    , "SystemV",10,"return mov(mov(Test._S));");
-        testCPU(src,"arm"      , "SystemV",13,"return mov(mov(Test._S));");
+        testCPU(src,"arm"      , "SystemV",11,"return mov(mov(Test._S));");
     }
 
     @Test
@@ -375,7 +375,7 @@ val fib = { int n ->
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 4, false);
+        EvalArm64 A5 = TestArm64.build("fcn", src, ps, 2, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);

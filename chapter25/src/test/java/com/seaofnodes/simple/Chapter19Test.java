@@ -58,7 +58,7 @@ val hashCode = { String self ->
 hashCode(new String("Hello, World!"));
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return MEM[ 2:___ 3:___ 4:.cs=Parm_s(Test.String.String,*[]u8[final]); 5:._hashCode=0;]; return MEM[ 2:___ 3:___ 4:___ 5:._hashCode=0;]; return Test.String; return Phi(Region,0,1,0,1); return Phi(Region,(!=0)._hashCode,Phi(Region,123456789,(!=0)Phi(Loop,0,(((Phi_hash<<5)-Phi_hash)+.[])))); ]", code.print());
+        assertEquals("Stop[ return Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return MEM[ 2:___ 3:___ 4:.cs=Parm_s(Test.String.String,*[]u8[final]); 5:._hashCode=0;]; return MEM[ 2:___ 3:___ 4:___ 5:._hashCode=0;]; return Test.String; return Phi(Region,0,1,0,1); return Phi(Region,(!=0)._hashCode,Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code.print());
         assertEquals("4029215624828139541", Eval2.eval(code,  2));
     }
 

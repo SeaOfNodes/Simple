@@ -77,6 +77,7 @@ public class CodeGen {
     // True when fidx is published through a public field of a public class.
     // TypeStruct.fidxs() already excludes private (underscore) fields.
     public boolean publicFIDX(int fidx) {
+        if( fidx < GlobalBits.RESERVED ) return false;
         // A public class initializer is itself an external root; unlike
         // constructors and methods, it is not reached through a class field.
         FunNode fun = _linker.atX(fidx);
@@ -128,7 +129,7 @@ public class CodeGen {
     void freezePublicInterface() {
         assert _publicFIDXs==null && _publicAliases==null;
         int[] fidxs = XInt.EMPTY;
-        for( int fidx=1; fidx<_linker._len; fidx++ )
+        for( int fidx=GlobalBits.RESERVED; fidx<_linker._len; fidx++ )
             if( publicFIDX(fidx) )
                 fidxs = XInt.make(fidxs,fidx);
         int[] aliases = XInt.EMPTY;
@@ -268,7 +269,9 @@ public class CodeGen {
 
         if( (dump & (1<<30)) != 0 )
             System.err.println("After "+_phase+":");
-        System.err.println(IRPrinter.prettyPrint(this));
+        System.err.println(_phase.ordinal() >= Phase.LocalSched.ordinal()
+                           ? asm(new SB()).toString()
+                           : IRPrinter.prettyPrint(this));
         return p2;
     }
 
@@ -444,11 +447,13 @@ public class CodeGen {
 
         // The phase shift closes all parser-in-progress states and freezes
         // unknown external inputs.  Imported nodes carry post-Opto escape
-        // precision, but Iter is a fresh pessimistic solve: non-singleton
-        // memory must restart at FULL so newly discovered private escapes can
-        // only be removed, never added.  Seed the complete graph once.
+        // precision, but Iter is a fresh pessimistic solve: memory escape
+        // summaries must restart at FULL so newly discovered private escapes
+        // can only be removed, never added.  Seed the complete graph once.
+        boolean hasImports = _externPaths != null;
         _start.walk(n -> {
-            n._type = iterEscapeReset(n._type);
+            if( !(n instanceof ConstantNode) )
+                n._type = hasImports ? iterImportReset(n._type) : iterEscapeReset(n._type);
             add(n);
             return null;
         });
@@ -466,6 +471,26 @@ public class CodeGen {
             TypeTuple rez = tt;
             for( int i=0; i<tt._types.length; i++ ) {
                 Type tx = iterEscapeReset(tt._types[i]);
+                if( tx != tt._types[i] ) rez = rez.makeFrom(i,tx);
+            }
+            return rez;
+        }
+        return t;
+    }
+
+    private static Type iterImportReset(Type t) {
+        if( t.isHigh() )
+            return t.dual();
+        if( t instanceof TypeMem mem )
+            return TypeMem.make(mem._alias,iterImportReset(mem._t),mem._one,mem._clz,mem._final,XInt.FULL,XInt.FULL);
+        if( t instanceof TypeMemPtr )
+            return t.makeStorage();
+        if( t instanceof TypeStruct )
+            return t.makeStorage();
+        if( t instanceof TypeTuple tt ) {
+            TypeTuple rez = tt;
+            for( int i=0; i<tt._types.length; i++ ) {
+                Type tx = iterImportReset(tt._types[i]);
                 if( tx != tt._types[i] ) rez = rez.makeFrom(i,tx);
             }
             return rez;
@@ -703,6 +728,7 @@ public class CodeGen {
         if( n instanceof MachNode ) {
             for( int i=0; i < n.nIns(); i++ )
                 n._inputs.set(i, _instSelect(n.in(i),map) );
+            pinGlobalValue(n);
             return n;
         }
 
@@ -716,6 +742,7 @@ public class CodeGen {
         // Walk machine op and replace inputs with mapped inputs
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );
+        pinGlobalValue(x);
         // Post selection action
         if( x instanceof MachNode mach ) {
             if( n instanceof ReturnNode ret )
@@ -724,6 +751,28 @@ public class CodeGen {
         }
 
         return x;
+    }
+
+
+    // Some machine values are Start-pinned globals or zero-code wrappers around
+    // them, e.g. pointer/function constants and PtrToInt/ReadOnly-style adapters.
+    // Before output edges are rebuilt, make ownership explicit: every global value
+    // chain member is Start-pinned in slot 0 and data-linked in later slots.
+    private void pinGlobalValue(Node n) {
+        if( n instanceof CFGNode || !(n instanceof MachNode mach) || mach.outregmap()==null || n.isPinned() )
+            return;
+        if( n.nIns()==0 )
+            return;
+        if( !(n.in(0)==null || n.in(0)==_start) )
+            return;
+        for( int i=1; i<n.nIns(); i++ ) {
+            Node def = n.in(i);
+            if( def==null ) continue;
+            if( def.isConst() ) continue;
+            if( def.nIns()==0 ) return;
+            if( def.in(0) != _start ) return;
+        }
+        n._inputs.set(0,_start);
     }
 
     // Walk all machine Nodes, and set their output edges

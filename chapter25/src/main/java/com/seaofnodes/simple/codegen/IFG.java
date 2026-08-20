@@ -207,18 +207,11 @@ abstract public class IFG {
             assert tlrg.leader();
             // Always, tlrg cannot use kills
             if( tlrg._mask.overlap(killMask) ) {
-                // Disallow clone-ables from killing registers.  Just fail
-                // them and re-clone closer to target... so no kill.
-                // Special case for Intel XOR used to zero.
-                Node n = (Node)m;
-                CFGNode effUseBlk = n.out(0) instanceof PhiNode phi ? phi.region().cfg(phi._inputs.find(n)) : n.out(0).cfg0();
-                if( m.isClone() &&  // Must be clonable
-                    (n.nOuts()>1 || // Has many users OR
-                     // Only 1 user but effective use is remote block
-                     effUseBlk != n.cfg0() ))
-                    // Then fail the clonable; it should split or move
-                    alloc.fail(alloc.lrg((Node)m));
-                // Else clonable cannot move
+                Node live = TMP.get(tlrg);
+                // Disallow clone-ables from living across killed registers.
+                // Fail them and let splitting re-clone closer to the target use.
+                if( live instanceof MachNode mach && mach.isClone() )
+                    alloc.fail(tlrg);
                 else if( !tlrg.sub(killMask) )
                     alloc.fail(tlrg);
             }
