@@ -86,7 +86,15 @@ public class TypeFunPtr extends TypeNil {
     public static TypeFunPtr TEST0 = make((byte)3,true,TINTMEM,TypeInteger.BOT, XInt.SET3);
     public static TypeFunPtr MAIN  = make((byte)3,true,TINT   ,Type.BOTTOM, XInt.FULL); // Main can return anything
     public static TypeFunPtr CALLOC= make((byte)3,true,TINTINT,TypeMemPtr .BOT, XInt.FULL);
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT);  ts.add(MAIN);ts.add(CALLOC); }
+    public static void gather(ArrayList<Type> ts) {
+        ts.add(TEST);
+        ts.add(TEST0);
+        ts.add(BOT);
+        ts.add(MAIN);
+        ts.add(CALLOC);
+        ts.add(make((byte)2,false,TINT,TypeInteger.I32, XInt.SET1));
+        ts.add(make((byte)2,true ,TINT,TypeInteger.BOT, XInt.SET3));
+    }
 
     private static final Type[] ARG_EMPTY = new Type[0];
     @Override
