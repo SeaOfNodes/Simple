@@ -69,9 +69,9 @@ abstract public class BoolNode extends Node {
                 return new NotNode(in(1));
         }
 
-        // Do we have ((x * (phi cons)) * con) ?
-        // Do we have ((x * (phi cons)) * (phi cons)) ?
-        // Push constant up through the phi: x * (phi con0*con0 con1*con1...)
+        // Do we have ((phi cons) cmp con) ?
+        // Do we have ((phi cons) cmp (phi cons)) ?
+        // Push the compare up through the phi: (phi con0 cmp con, con1 cmp con...)
         Node phicon = AddNode.phiCon(this,this instanceof EQ);
         if( phicon!=null ) return phicon;
 
