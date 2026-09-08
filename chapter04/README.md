@@ -39,9 +39,12 @@ Following are revised or new nodes
 |-----------|----------------|------------------------------------------------|-----------------------|----------------------------------------------------------------------------|
 | MultiNode | Abstract class | A node that has a tuple result                 |                       | A tuple                                                                    |
 | Start     | Control        | Start of function, now a MultiNode             |                       | A tuple with a ctrl token and an `arg` data node                           |
-| Proj      | Data           | Projection nodes extract values from MultiNode | A MultiNode and index | Result is the extracted value from the input MultiNode at offset index     |
+| Proj      | Data / Control | Projection nodes extract values from MultiNode | A MultiNode and index | Result is the extracted value from the input MultiNode at offset index     |
 | Bool      | Data           | Represents results of a comparison operator    | Two data nodes        | Result is a comparison, represented as integer value where 1=true, 0=false |
 | Not       | Data           | Logical not                                    | One data node         | Result converts 0 to 1 and vice versa                                      |
+
+> A `Proj` is a control node when it projects the control slot: `Proj#0` off `Start`.
+> Every other projection is a data node.  See `ProjNode.isCFG()`.
 
 Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
 
