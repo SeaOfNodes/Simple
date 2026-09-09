@@ -166,22 +166,24 @@ public abstract class XInt {
         if( xs==ys ) return xs;
         boolean isX=true, isY=true;
         int min = Math.min(xs.length,ys.length);
-        for( int i=1; i<min; i++ ) {
-            if( (xs[i] | ys[i])!=xs[i] ) isX=false;
-            if( (xs[i] | ys[i])!=ys[i] ) isY=false;
+        int max = Math.max(xs.length,ys.length);
+        for( int i=1; i<max; i++ ) {
+            int x = i < xs.length ? xs[i] : isHigh(xs) ? -1 : 0;
+            int y = i < ys.length ? ys[i] : isHigh(ys) ? -1 : 0;
+            if( (x | y)!=x ) isX=false;
+            if( (x | y)!=y ) isY=false;
         }
-        if( !isHigh(xs) && min < ys.length )
-            isX = false; // YS has *some* more bits set, and XS does not
-        if( !isHigh(ys) && min < xs.length )
-            isY = false; // XS has *some* more bits set, and YS does not
         if( isX ) return xs;
         if( isY ) return ys;
         // Get a free one
-        int[] ms = free(Math.max(xs.length,ys.length));
+        int[] ms = free(max);
         for( int i=1; i<min; i++ )
             ms[i] = xs[i] | ys[i];
-        if( min < xs.length )  System.arraycopy(xs,min,ms,min,xs.length-min);
-        if( min < ys.length )  System.arraycopy(ys,min,ms,min,ys.length-min);
+        for( int i=min; i<ms.length; i++ ) {
+            int x = i < xs.length ? xs[i] : isHigh(xs) ? -1 : 0;
+            int y = i < ys.length ? ys[i] : isHigh(ys) ? -1 : 0;
+            ms[i] = x | y;
+        }
         return intern(ms);
     }
 

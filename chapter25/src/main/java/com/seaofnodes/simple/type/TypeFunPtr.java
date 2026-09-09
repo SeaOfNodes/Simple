@@ -59,9 +59,19 @@ public class TypeFunPtr extends TypeNil {
         if( f2==fun ) return fun;
         return VISIT.isEmpty() ? f2.free(fun) : f2.delayFree(fun);
     }
-    public static TypeFunPtr make( boolean nil, Type[] sig, Type ret ) { return make((byte)(nil ? 3 : 2),true,sig,ret, XInt.FULL); }
+    // Trim trailing args which match the default.
+    private static TypeFunPtr makeAdjusted( byte nil, boolean open, Type[] sig, Type ret, int[] fidxs ) {
+        Type def = open ? TypeScalar.BOT : TypeScalar.TOP;
+        int nargs = sig.length;
+        while( nargs > 0 && sig[nargs-1] == def )
+            nargs--;
+        if( nargs != sig.length )
+            sig = nargs == 0 ? ARG_EMPTY : Arrays.copyOf(sig,nargs);
+        return make(nil,open,sig,ret,fidxs);
+    }
+    public static TypeFunPtr make( boolean nil, Type[] sig, Type ret ) { return makeAdjusted((byte)(nil ? 3 : 2),true,sig,ret, XInt.FULL); }
     public static TypeFunPtr make1( byte nil, boolean open, Type[] sig, Type ret, int fidx ) {
-        return make(nil,open,sig,ret,XInt.make(fidx));
+        return makeAdjusted(nil,open,sig,ret,XInt.make(fidx));
     }
 
 
@@ -94,6 +104,12 @@ public class TypeFunPtr extends TypeNil {
         ts.add(CALLOC);
         ts.add(make((byte)2,false,TINT,TypeInteger.I32, XInt.SET1));
         ts.add(make((byte)2,true ,TINT,TypeInteger.BOT, XInt.SET3));
+        ts.add(make1((byte)2,true,
+                     new Type[]{TypeInteger.BOT},
+                     TypeInteger.BOT, 65));
+        ts.add(make1((byte)2,true,
+                     new Type[]{TypeInteger.BOT, TypeScalar.BOT},
+                     TypeInteger.BOT, 65));
     }
 
     private static final Type[] ARG_EMPTY = new Type[0];

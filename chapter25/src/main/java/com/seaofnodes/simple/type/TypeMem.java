@@ -111,6 +111,8 @@ public class TypeMem extends Type {
         ts.add(BOT);
         ts.add(SELF_MEM);
         ts.add(START);
+        ts.add(make(2,TypeInteger.ZERO,true,false,true,XInt.EMPTY,XInt.make(2)));
+        ts.add(make(2,TypeInteger.BOT,false,false,false,XInt.EMPTY,XInt.FULL));
     }
 
     @Override
@@ -128,16 +130,11 @@ public class TypeMem extends Type {
         Type mt = _t.meet(that._t);
         int[] fidxs  = XInt.meet( _escFs, that._escFs );
         int[] aliases= XInt.meet( _escAs, that._escAs );
-        // Singleton & class facts are kept only when both sides agree.
-
-        // Final is kept if either side is final, merging a final & non-final
-        // memory can be argued either way here:
-
-        // - Keep it: merging a final & non-final memory means a later Store
-        //   update will be flagged as an error.
-        // - Lose it: merging a final & non-final memory means a later Load
-        //   cannot be promised the memory is unchanging.
-        return make(alias, mt, _one & that._one, _clz & that._clz, _final | that._final, fidxs, aliases);
+        // Singleton and class facts are kept only when both sides agree.
+        // Finality is a low-side fact, and flips on the dual side.
+        boolean highAlias1 = (this._alias==1 && this._t.isHigh()) || (that._alias==1 && that._t.isHigh());
+        boolean xfinal = highAlias1 ? (_final & that._final) : (_final | that._final);
+        return make(alias, mt, _one & that._one, _clz & that._clz, xfinal, fidxs, aliases);
     }
 
     @Override
