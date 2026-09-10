@@ -33,11 +33,6 @@ public class FunNode extends RegionNode {
         _compunit = compunit;
     }
     public FunNode( Parser.Lexer loc, TypeFunPtr sig, String name, CompUnit compunit, Node... nodes ) { this(loc,nodes,sig,name,compunit,false); }
-    public FunNode( TypeFunPtr sig, String name, boolean ext ) {
-        this(null,null,sig,name,null,ext);
-        assert ext;             // No need for ext
-        throw Utils.TODO();
-    }
     public FunNode( FunNode fun ) {
         super( fun, fun._loc );
         _sig = fun.sig();

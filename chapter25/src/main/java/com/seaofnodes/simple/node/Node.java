@@ -141,7 +141,7 @@ public abstract class Node implements Cloneable {
             case StopCU ->   StopCUNode.make(bais);
             case Region->    RegionNode.make(bais);
 
-            default -> throw Utils.TODO();
+            default -> throw Utils.TODO("Should not reach here");
             };
         }
     };

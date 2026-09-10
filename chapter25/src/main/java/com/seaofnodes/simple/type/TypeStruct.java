@@ -151,18 +151,11 @@ public class TypeStruct extends Type {
                     Field.make("[con]",con       ,bodyAlias,true));
     }
 
-    public TypeStruct makeHigh() {
-        Field[] fs = new Field[_fields.length];
-        for( int i=0; i<_fields.length; i++ )
-            fs[i] = _fields[i].makeFrom(Type.TOP);
-        return make(_name,_open,_fref,fs);
-    }
-
     public TypeStruct makeInit() {
         Field[] fs = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ ) {
             Type zero = _fields[i]._t.makeZero();
-            fs[i] = _fields[i].makeFrom(_fields[i]._t != Type.BOTTOM && _fields[i]._t != Type.TOP && zero.isa(_fields[i]._t) ? zero : Type.TOP);
+            fs[i] = _fields[i].makeFrom(_fields[i]._t != Type.BOTTOM && zero.isa(_fields[i]._t) ? zero : Type.TOP);
         }
         return make(_name,_open,_fref,fs);
     }
@@ -202,7 +195,7 @@ public class TypeStruct extends Type {
         TypeStruct ts = (TypeStruct)VISIT.get(namePlusFinal);
         if( ts!=null ) return ts;
         TypeStruct base = name==null ? (TypeStruct)TYPES.get(_name) : this;
-        if( base == null ) base = this;
+        assert base != null;
         boolean open = base._fref ? base._open : name != _name && name != null && _open;
         ts = base.recurPre(namePlusFinal, _name, open, base._fref );
         Field[] flds = ts._fields;
@@ -404,11 +397,9 @@ public class TypeStruct extends Type {
     }
 
     @Override boolean _isConstant() {
-        if( VISIT.containsKey(_uid) ) return true; // Cycles assume constant
+        assert !_open; // who is asking about constant open structs? if( _open ) return false; // Infinite BOT fields
+        assert !VISIT.containsKey(_uid); //expect constants to not include self-cycles.  if( VISIT.containsKey(_uid) ) return true; // Cycles assume constant
         VISIT.put(_uid,this);
-        if( _open ) return false; // Infinite BOT fields
-        // Special case for constant arrays
-
         // Check all fields for being constant
         for( Field field : _fields )
             if( !field._isConstant() )

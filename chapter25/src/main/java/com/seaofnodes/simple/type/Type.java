@@ -343,9 +343,6 @@ public class Type /*implements Cloneable*/ {
     // Make a zero version of this type, 0 for integers and null for pointers.
     public Type makeZero() { return Type.NIL; }
 
-    //// Is forward-reference
-    //public boolean isFRef() { return false; }
-
     // Cap at limits
     public Type oob() { return isHigh() ? TOP : BOTTOM; }
 

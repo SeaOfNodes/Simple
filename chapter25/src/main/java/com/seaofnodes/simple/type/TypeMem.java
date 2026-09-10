@@ -79,7 +79,6 @@ public class TypeMem extends Type {
     // Make a private memory
     public static TypeMem makePrivate(Type t) { return make(1,t,true,false,false,escapeFIDX(XInt.EMPTY,t), escapeAlias(XInt.EMPTY,t)); }
 
-    public TypeMem makeFrom(Type t) { return make(_alias,t,_one,_clz,_final,_escFs,_escAs); }
     public TypeMem makeFrom(int alias) { return make(alias,_t,_one,_clz,_final,_escFs,_escAs); }
     public TypeMem makeFrom(int[] fidxes, int[] aliases) {
         return make(_alias,_t,_one,_clz,_final,fidxes,aliases);
@@ -91,10 +90,6 @@ public class TypeMem extends Type {
     // Existing escapes plus `t` escapes
     public TypeMem escapesFrom(Type t) {
         return make(_alias,_t,_one,_clz,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
-    }
-    // Existing escapes plus `t` escapes
-    public TypeMem escapesFrom(int alias, Type t) {
-        return make(alias,t,_one,_clz,_final, escapeFIDX(_escFs,t), escapeAlias(_escAs,t));
     }
     public TypeMem escapesAliases(Type t) {
         return make(_alias,_t,_one,_clz,_final, _escFs, escapeAlias(_escAs,t));
@@ -146,7 +141,7 @@ public class TypeMem extends Type {
         TypeMem d = malloc(_alias,null,!_one,!_clz,!_final, XInt.dual(_escFs), XInt.dual(_escAs));
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
-        if( d._alias==1 && !d._one && !d._t.isHigh() ) d._final = false;
+        if( d._alias==1 && !d._one ) { assert !d._t.isHigh(); d._final = false; }
         return d;
     }
 
@@ -154,8 +149,8 @@ public class TypeMem extends Type {
     @Override public boolean isHigh() { return _t.isHigh(); }
     @Override boolean _isConstant() { return _one && _clz && _alias!= 1 && _t._isConstant(); }
     @Override public int log_size() { throw Utils.TODO("Should not reach here: memory has no scalar storage size"); }
-    @Override boolean _isFinal() { return _t._isFinal(); }
-    @Override TypeMem _makeStorage() { return make(_alias,_t._makeStorage(),_one,_clz,_final,_escFs,_escAs); }
+    @Override boolean _isFinal() { throw Utils.TODO("Should not reach here"); }
+    @Override TypeMem _makeStorage() { throw Utils.TODO("Should not reach here"); /*return make(_alias,_t._makeStorage(),_one,_clz,_final,_escFs,_escAs);*/ }
 
     @Override TypeMem _close( String name, HashMap<String, Type> TYPES ) { return malloc(_alias,_t._close(name, TYPES ),_one,_clz,_final,_escFs,_escAs); }
 

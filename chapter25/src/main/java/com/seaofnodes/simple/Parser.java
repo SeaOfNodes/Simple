@@ -157,7 +157,7 @@ public class Parser {
     // precise alias update.  ScopeNode treats this as one opaque value.
     private Node mergeAlias(Node bulk, int alias, Node precise) {
         assert bulk != null : "Missing bulk memory for alias #"+alias;
-        MemMergeNode merge = new MemMergeNode(false,null,bulk);
+        MemMergeNode merge = new MemMergeNode(null,bulk);
         merge.alias(alias,precise);
         return peep(merge);
     }
@@ -1254,7 +1254,7 @@ public class Parser {
             Field escaped = field._final ? field : Field.make(field._fname,storage,field._alias,true);
             pub.keep();
             Node esc = new EscapeNode(escaped,self,priv,pub).peephole();
-            MemMergeNode merge = new MemMergeNode(false,null,pub);
+            MemMergeNode merge = new MemMergeNode(null,pub);
             merge.alias(field._alias,esc);
             Node next = merge.peephole();
             pub.unkeep();

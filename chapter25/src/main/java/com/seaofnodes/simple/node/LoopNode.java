@@ -58,7 +58,7 @@ public class LoopNode extends RegionNode {
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
         Node top = ConstantNode.make(Type.TOP).peephole();
-        Node memout = new MemMergeNode(false);
+        Node memout = new MemMergeNode();
         memout.addDef(f); // placeholder for control
         memout.addDef(top);
         for( Node u : _outputs )

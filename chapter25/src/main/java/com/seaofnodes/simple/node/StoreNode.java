@@ -157,7 +157,7 @@ public class StoreNode extends MemOpNode {
             }
             MemMergeNode mmm = mem() instanceof BulkMemPhiNode bulk
                 ? bulk.aggregate(mem(),fld._alias,st)
-                : new MemMergeNode(false,null,mem());
+                : new MemMergeNode(null,mem());
             if( !(mem() instanceof BulkMemPhiNode) )
                 mmm.alias(fld._alias,st);
             return mmm.init();

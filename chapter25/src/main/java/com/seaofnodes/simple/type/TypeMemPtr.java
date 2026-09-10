@@ -73,7 +73,6 @@ public class TypeMemPtr extends TypeNil {
     /** Public-memory shape: nullable and non-singleton, preserving the referent. */
     @Override TypeMemPtr _makeStorage() { return make((byte)3,_obj._makeStorage(),false,true); }
     @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one, _pub); }
-    public TypeMemPtr makeHigh(byte nil) { return make(nil,_obj.makeHigh(),false); }
     @Override public Type nonZero() { return makeFrom((byte)(_nil <= 1 ? 1 : 2)); }
 
     // An abstract pointer, pointing to either a Struct or an Array.

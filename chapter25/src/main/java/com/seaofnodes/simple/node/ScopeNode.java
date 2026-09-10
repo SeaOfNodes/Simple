@@ -52,7 +52,7 @@ public class ScopeNode extends MemMergeNode {
 
     // A new ScopeNode
     public ScopeNode() {
-        super(true);
+        super();
         _vars   = new Ary<>(Var .class);
         _kinds  = new Ary<>(Kind.class);
         _guards = new Ary<>(Node.class);

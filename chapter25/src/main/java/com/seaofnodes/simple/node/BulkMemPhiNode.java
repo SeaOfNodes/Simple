@@ -248,7 +248,7 @@ public class BulkMemPhiNode extends PhiNode {
     // which the bulk has already excluded.  The named alias is newly supplied
     // (or replaces its old slice).
     MemMergeNode aggregate(Node bulk, int alias, Node precise) {
-        MemMergeNode mmm = new MemMergeNode(false,null,bulk);
+        MemMergeNode mmm = new MemMergeNode(null,bulk);
         for( int old = _aliases.nextSetBit(0); old >= 0; old = _aliases.nextSetBit(old+1) )
             if( old != alias )
                 mmm.alias(old,precisePhi(old));
