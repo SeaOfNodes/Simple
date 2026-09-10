@@ -41,17 +41,19 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        Type mem0 = aliasMem()._type;
+        Type mem0 = mem()._type;
         Type ptr0 = ptr()._type;
         // Validate argument types
         if( ptr0.isHigh() )
             return TypeScalar.TOP;
         if( !(mem0 instanceof TypeMem mem) )
             return mem0.isHigh() ? TypeScalar.TOP : TypeScalar.BOT;
+        if( mem._t == Type.TOP )
+            return TypeScalar.TOP;
         if( ptr0 == Type.NIL )
             return TypeScalar.TOP;
         if( !(ptr0 instanceof TypeMemPtr ptr) )
-            return mem0.isHigh() ? TypeScalar.TOP : scalar(mem._t);
+            return scalar(mem._t);
 
         // Load field from object
         TypeMemPtr tmp = ptr;
@@ -65,19 +67,8 @@ public class LoadNode extends MemOpNode {
         // Load member of constant array
         if( t instanceof TypeConAry ary )
             t = ary.elem();     // TODO: if offset is known, can peek the constant
-
-        // Now, do the same for memory
-        if( mem._t instanceof TypeStruct ts ) {
-            assert ts._name==tmp._obj._name;
-            Field mfld = ts.field(_name);
-            // Lift from declared type and memory input
-            if( mfld != null )
-                t = t.join(mfld._t);
-        } else if( mem._alias==_alias ) {
+        if( mem._alias==_alias )
             t = t.join(mem._t);
-        } else if( mem._t == Type.TOP ) {
-            return TypeScalar.TOP;
-        }
 
         // A deeply read-only base produces a deeply read-only value.  The
         // generic declared field type must not cast this information away.
@@ -95,13 +86,13 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        Node mem = mem();
         Node ptr = ptr();
-        Node mem = aliasMem();
 
         // Loads into structs do not need a ctrl edge, as null-ptr checking is
         // baked into the type system.  Loads into arrays DO need the ctrl
         // edge, at least until proper range-checking is in place.
-        if( in(0)!=null && ptr()._type instanceof TypeMemPtr tmp &&
+        if( in(0)!=null && ptr._type instanceof TypeMemPtr tmp &&
             !tmp._obj.isAry() ) {
             setDef(0,null);
             return this;
@@ -109,22 +100,23 @@ public class LoadNode extends MemOpNode {
 
         // Forward-ref loads eventually sharpen to a declared type
         Field fld;
-        if( ptr()._type instanceof TypeMemPtr tmp &&
+        if( ptr._type instanceof TypeMemPtr tmp &&
             (fld=tmp._obj.field(_name)) != null &&
             _alias != fld._alias) {
             assert _alias==1 || _alias == fld._alias;
+            assert !tmp._obj._open && !tmp._obj._fref;
             unlock();           // Alias participates in GVN semantics
             _alias = fld._alias;
-            // Bulk memory may already have inspected this user.  Revisit it
-            // once the declaring shape is stable; an open forward reference
-            // can still change this Load's semantics.
-            if( !tmp._obj._open && !tmp._obj._fref )
-                CodeGen.CODE.add(mem());
             return this;
         }
         // Must sharpen alias first
         if( _alias == 1 )
             return null;
+
+        if( mem instanceof MemMergeNode merge ) {
+            setDef(1,merge.alias(_alias));
+            return this;
+        }
 
         // Simple Load-after-Store on same address.
         if( mem instanceof StoreNode st &&
@@ -134,21 +126,22 @@ public class LoadNode extends MemOpNode {
             return extend(st.val());
         }
 
-        // Expose the same effective memory input already observed by compute.
-        if( mem != mem() ) {
-            for( Node ld : mem._outputs )
-                if( ld instanceof LoadNode )
-                    CodeGen.CODE.add(ld);
-            if( mem instanceof BulkMemPhiNode ) CodeGen.CODE.add(mem);
-            setDef(1,mem);
-            return this;
-        }
+        //// Expose the same effective memory input already observed by compute.
+        //if( mem != mem() ) {
+        //    for( Node ld : mem._outputs )
+        //        if( ld instanceof LoadNode )
+        //            CodeGen.CODE.add(ld);
+        //    if( mem instanceof BulkMemPhiNode ) CodeGen.CODE.add(mem);
+        //    setDef(1,mem);
+        //    return this;
+        //}
 
         // Uplift control to a prior dominating load.
         for( Node memuse : mem._outputs )
             // Find a prior load, has same mem,ptr,off but higher ctrl
             if( memuse != this && memuse instanceof LoadNode ld && ptr==ld.ptr() && off()==ld.off() &&
-                cfg0()!=null && cfg0()._idom(ld.cfg0(),this) == ld.cfg0() ) // Higher control means load is legal earlier
+                cfg0()!=null && cfg0()._idom(ld.cfg0(),this) == ld.cfg0() && // Higher control means load is legal earlier
+                addDep(ld)._type.isa(_type) ) // and not rolling backwards
                 return ld;
 
         // Load-after-Store on same address, but bypassing provably unrelated
@@ -176,28 +169,29 @@ public class LoadNode extends MemOpNode {
                 // Assume related
                 addDep(phi);
                 break outer;
-            case ConstantNode con:
-                // Load from constant memory
-                if( con._con instanceof TypeMem tmem )
-                    return ConstantNode.make(tmem._t);
-                break outer;  // Assume shortly dead
+            //case ConstantNode con:
+            //    // Load from constant memory
+            //    if( con._con instanceof TypeMem tmem )
+            //        return ConstantNode.make(tmem._t);
+            //    break outer;  // Assume shortly dead
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
                     // Direct load from e.g. new array elements
                     assert _name=="[]";
                     Type decl = declaredType();
-                    return decl==Type.BOTTOM ? null : ConstantNode.make(decl.makeZero());
-                case StartNode  start: break outer;
+                    assert decl!=Type.BOTTOM;
+                    return ConstantNode.make(decl.makeZero());
                 case CallEndNode cend: addDep(mproj); break outer; // TODO: Bypass no-alias call
-                default: throw Utils.TODO();
+                default: throw Utils.TODO("Should not reach here");
                 }
             case MemMergeNode merge:  mem = merge.alias(_alias);  break;
             case EscapeNode esc:
                 if( esc.self()==ptr ) // Proved equal
                     { mem = esc.priv(); break; }
                 // Two NewNodes are always unequal
-                if( esc.self().in(0) instanceof NewNode && ptr.in(0) instanceof NewNode )
+                assert esc.self().in(0) instanceof NewNode;
+                if( ptr.in(0) instanceof NewNode )
                     { mem = esc.pub(); break; }
                 // TODO: Can we prove unequal?
                 break outer;
@@ -214,7 +208,7 @@ public class LoadNode extends MemOpNode {
         //   if( pred ) ptr.x = e0;         val = pred ? e0
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
-        if( mem() instanceof PhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
+        if( mem instanceof PhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
             // Offset can be hoisted
             off() instanceof ConstantNode &&
             // Not control dependent
@@ -226,10 +220,6 @@ public class LoadNode extends MemOpNode {
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
-                // profit() peepholes inputs and can restore a required control
-                // edge.  Recheck before manufacturing control-free loads.
-                if( in(0)!=null )
-                    return null;
                 Node ld1 = ld(1);
                 Node ld2 = ld(2);
                 PhiNode phi = new PhiNode(_name, memphi.region(),ld1,ld2);
@@ -241,19 +231,11 @@ public class LoadNode extends MemOpNode {
         return null;
     }
 
-    // Semantic memory input for this Load.  Compute defines behavior from
-    // this view; ideal merely exposes the same edge in the graph.
-    private Node aliasMem() {
-        Node mem = mem();
-        return _alias != 1 && mem instanceof MemMergeNode merge
-            ? merge.alias(_alias)
-            : mem;
-    }
-
     private Node ld( int idx ) {
         Node mem = mem(), ptr = ptr();
         assert in(0)==null;
-        return new LoadNode(_loc,_name,_alias,null,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr, off()).peephole();
+        assert !(ptr instanceof PhiNode && ptr.in(0)==mem.in(0)); // If fails, need to use pre-merged ptr at same phi
+        return new LoadNode(_loc,_name,_alias,null,mem.in(idx),ptr, off()).peephole();
     }
 
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {
@@ -283,13 +265,13 @@ public class LoadNode extends MemOpNode {
     }
 
     // Profitable if we find a matching Store on this Phi arm.
-    private boolean profit(PhiNode phi, int idx) {
-        Node px = phi.in(idx);
+    private boolean profit(PhiNode memphi, int idx) {
+        Node px = memphi.in(idx);
         if( px==null ) return false;
-        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() )
-            // To avoid cyclic pushing a Load up then down, getting here means
-            // the load *must* replace with the high/constant.
-            return true;
+        assert !(px._type instanceof TypeMem mem && mem._t.isHighOrConst() );
+        //// To avoid cyclic pushing a Load up then down, getting here means
+        //// the load *must* replace with the high/constant.
+        //return true;
         if( px instanceof StoreNode st1 && ptr()==addDep(st1.nnptr() )&& off()==st1.off() )
             // To avoid cyclic pushing a Load up then down, getting here means
             // the load *must* match against the Store
@@ -314,19 +296,14 @@ public class LoadNode extends MemOpNode {
         // Signed extension
         int shift = Long.numberOfLeadingZeros(ti._max)-1;
         Node shf = con(shift);
-        if( shf._type==TypeInteger.ZERO ) {
-            // A freshly exposed Store value can still be globally unknown.
-            // Revisit this Load when it settles instead of replacing a typed
-            // Load with the weaker transient value.
-            if( !val._type.isa(_type) ) {
-                addDep(val);
-                return null;
-            }
+        if( shift==0 ) {
+            if( !val._type.isa(_type) )
+                { addDep(val); return null; }
             return val;
         }
         Node shl = new ShlNode(null,val,shf.keep()).peephole();
         return new SarNode(null,shl,shf.unkeep());
     }
 
-    @Override public int log_size() { return declaredType().log_size(); }
+    //@Override public int log_size() { return declaredType().log_size(); }
 }

@@ -55,10 +55,14 @@ public class StoreNode extends MemOpNode {
     @Override public String glabel() { return "." +_name+"="; }
     @Override public boolean isMem() { return true; }
 
-    public Node nnptr() { return ptr() instanceof GuardNode cast && cast._nonZero ? cast.in(1) : ptr(); }
+    public Node nnptr() {
+        if( !(ptr() instanceof GuardNode cast) ) return ptr();
+        assert cast._nonZero;
+        return cast.in(1);
+    }
     public Node val() { return in(4); }
     public int storeSize() { assert _size==1 || _size==2 || _size==4 || _size==8; return _size; }
-    @Override public int log_size() { return Integer.numberOfTrailingZeros(storeSize()); }
+    public int log_size() { return Integer.numberOfTrailingZeros(storeSize()); };
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
@@ -68,7 +72,7 @@ public class StoreNode extends MemOpNode {
     @Override
     public Type compute() {
         Type val  = val()._type;
-        Type mem0 = aliasMem()._type;
+        Type mem0 = mem()._type;
         Type ptr0 = ptr()._type;
         // Validate argument types
         if( ptr0.isHigh() )
@@ -80,10 +84,8 @@ public class StoreNode extends MemOpNode {
         // Sharpen memory value; required for narrowing stores where the parser
         // inserts zero/sign masking and somebody reads the TypeMem type.
         Type decl = declaredType();
-        if( decl != Type.BOTTOM && decl != Type.TOP )
-            val = val.join(decl);
-        //if( err()!=null )
-        //    val = Type.BOTTOM;
+        if( decl != Type.BOTTOM )
+            { assert decl != Type.TOP; val = val.join(decl); }
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
         // which is never does in a constructor.
@@ -114,38 +116,31 @@ public class StoreNode extends MemOpNode {
         // canonical field declaration.  Waiting until after structural memory
         // peeps can lose the declaration to a flow-sensitive constant field
         // state.  Imported Stores already carry a serialized non-zero width.
-        Type storage = storageType();
-        if( _size==0 && storage!=Type.BOTTOM && storage!=Type.TOP ) {
+        if( _size==0 && (_size= storageType()) != 0 ) {
             unlock();           // Width participates in GVN identity.
-            _size = storeSize(storage);
             return init();
         }
 
-        // A precise Store can confirm its alias from a precise memory input.
-        // Do not sharpen an alias-#1 (whole-memory) Store in place: users of
-        // that Store already treat it as the complete memory state.  The
-        // pointer/field path below replaces it with a precise Store wrapped in
-        // a MemMerge, preserving any other precise aliases in its input.
-        if( mem()._type instanceof TypeMem mem ) {
-            assert mem._alias > 0;
-            if( _alias != 1 && mem._alias != 1 )
-                assert _alias == mem._alias;
+        assert !(mem()._type instanceof TypeMem mem) || _alias == 1 || mem._alias == 1 || _alias == mem._alias;
+
+        // Simple store-after-MemMerge to a known alias can bypass.  Happens when inlining.
+        Node mem = mem();
+        if( _alias != 1 && mem instanceof MemMergeNode merge ) {
+            setDef(1,merge.alias(_alias));
+            return this;
         }
 
-        // Forward-ref loads eventually sharpen to a declared type
         Field fld;
-        if( _alias==1 && ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null ) {
+        if( _alias==1 && ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null && _size != 0 ) {
             // Expand Store(bulkMem,alias#1) into MemMerge(bulkMem,#N:Store(bulkMem,alias#N)).
 
             // Normally I'd like to just drop in this xform and move on, but
             // users of the bulk Store memory might nontheless depend on the
-            // sharp memory type (e.g. I64) from the stores memory.  Using the
+            // sharp memory type (e.g. I64) from the store's memory.  Using the
             // MemMerge means using the bulk memory which e.g. might be BOT.
             // Check for store users with the same alias, and use the new store
             // directly, preserving the sharper graph.
-            Type decl = storageType();
-            byte size = _size==0 && decl!=Type.BOTTOM && decl!=Type.TOP ? storeSize(decl) : _size;
-            Node st = new StoreNode(_loc,_name,fld._alias,fld._t,in(0),mem(),ptr(),off(),val(),_init,size).peephole();
+            Node st = new StoreNode(_loc,_name,fld._alias,fld._t,in(0),mem,ptr(),off(),val(),_init,_size).peephole();
             for( int i=0; i<nOuts(); i++ ) {
                 Node use = out(i);
                 if( useAlias(use)==fld._alias ) {
@@ -155,24 +150,17 @@ public class StoreNode extends MemOpNode {
                     i--;        // setDef removed use from this Store's outputs
                 }
             }
-            MemMergeNode mmm = mem() instanceof BulkMemPhiNode bulk
-                ? bulk.aggregate(mem(),fld._alias,st)
-                : new MemMergeNode(null,mem());
-            if( !(mem() instanceof BulkMemPhiNode) )
+            MemMergeNode mmm = mem instanceof BulkMemPhiNode bulk
+                ? bulk.aggregate(mem,fld._alias,st)
+                : new MemMergeNode(null,mem);
+            if( !(mem instanceof BulkMemPhiNode) )
                 mmm.alias(fld._alias,st);
             return mmm.init();
-        }
-        // Expose the same effective memory input already observed by compute.
-        Node aliasMem = aliasMem();
-        if( aliasMem != mem() ) {
-            setDef(1,aliasMem);
-            CodeGen.CODE.add(aliasMem);
-            return this;
         }
 
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
-        if( mem() instanceof StoreNode st &&
+        if( mem instanceof StoreNode st &&
             ptr()==st.ptr() &&  // Must check same object
             off()==st.off() &&  // And same offset (could be "same alias" but this handles arrays to same index)
             ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
@@ -183,18 +171,6 @@ public class StoreNode extends MemOpNode {
             setDef(1,st.mem());
             return this;
         }
-
-        // Simple store-after-MemMerge to a known alias can bypass.  Happens when inlining.
-        if( _alias != 1 && mem() instanceof MemMergeNode mem ) {
-            setDef(1,mem.alias(_alias));
-            return this;
-        }
-
-        // Resolve the semantic Store variant exactly once, after structural
-        // memory/alias peeps.  This avoids publishing a half-sharpened Store
-        // while BulkMemPhi is constructing precise slices.
-        if( storage != Type.BOTTOM && storage != Type.TOP )
-            assert _size==storeSize(storage) : "Store width changed for '"+_name+"': "+_size+" from "+storage;
 
         // Value is automatically truncated by narrow store
         if( _size!=0 && val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
@@ -230,34 +206,33 @@ public class StoreNode extends MemOpNode {
         return null;
     }
 
-    private static byte storeSize(Type decl) {
-        // `decl` is the target field declaration, not the stored value.  In
-        // particular a constant zero stored into u32 is still a 4-byte Store;
-        // taking the constant's natural width here would incorrectly select i64.
-        byte size = (byte)(1 << decl.log_size());
-        assert size==1 || size==2 || size==4 || size==8;
-        return size;
-    }
-
     // Flow-sensitive pointer types can carry a current field value (e.g. the
     // constant zero in a u32 field).  Storage width comes from the canonical
     // struct declaration.  If the pointer/definition is not available yet,
     // leave the Store undecided instead of consulting the value or `_con`.
-    private Type storageType() {
+    private byte storageType() {
+        if( !(ptr()._type instanceof TypeMemPtr tmp) )
+            return 0;
+        TypeStruct obj = (TypeStruct)Parser.TYPES.get(tmp._obj._name);
+        Field fld = obj.field(_name);
+        if( fld == null || fld._t == null )
+            return 0;
+        if( fld._t == Type.BOTTOM )
+            return 0; // Store into a final field
+        assert fld._t != Type.TOP;
         // Freshly parsed field stores retain the declaring structure on their
         // symbolic offset even after the pointer's flow type sharpens.
-        if( off() instanceof ConFldOffNode coff ) {
-            Field fld = coff._ts.field(_name);
-            if( fld != null && fld._t != null ) return fld._t;
+        if( fld._t.isConstant() ) {
+            if( !(off() instanceof ConFldOffNode coff) )
+                return 0;
+            fld = coff._ts.field(_name);
+            if( fld == null || fld._t == null )
+                return 0;
         }
-        if( !(ptr()._type instanceof TypeMemPtr tmp) ) return Type.BOTTOM;
-        Type base = Parser.TYPES.get(tmp._obj._name);
-        TypeStruct obj = base instanceof TypeStruct ts ? ts : tmp._obj;
-        Field fld = obj.field(_name);
-        // Imported optimized structs can expose the current constant field
-        // value instead of its declaration.  A constant has no storage width;
-        // an imported Store already carries its serialized, frozen `_size`.
-        return fld == null || fld._t == null || fld._t.isConstant() ? Type.BOTTOM : fld._t;
+        // Compute storage size from field type
+        byte size = (byte)(1 << fld._t.log_size());
+        assert size==1 || size==2 || size==4 || size==8;
+        return size;
     }
 
     // Alias required by a direct consumer of this Store's memory result.
@@ -266,26 +241,9 @@ public class StoreNode extends MemOpNode {
         return switch( use ) {
         case MemOpNode mem -> mem._alias;
         case MemPhiNode phi -> phi._alias;
-        case EscapeNode esc -> esc.pub()==this ? esc.fld()._alias : 0;
+        case EscapeNode esc -> throw Utils.TODO("Untested"); // esc.pub()==this ? esc.fld()._alias : 0;
         default -> 0;
         };
-    }
-
-    // Select a precise alias from a whole-memory partition.  Alias #1 is the
-    // bulk remainder itself.
-    private static Node memSlice( Node mem, int alias ) {
-        return alias != 1 && mem instanceof MemMergeNode merge
-            ? merge.alias(alias)
-            : mem;
-    }
-
-    // Semantic memory input for this Store.  Compute defines behavior from
-    // this view; ideal exposes the same edge in the graph.
-    private Node aliasMem() {
-        Node mem = mem();
-        if( _alias != 1 && mem instanceof MemMergeNode merge )
-            mem = merge.alias(_alias);
-        return mem;
     }
 
     // Check that "mem" has no uses except "this"
@@ -303,10 +261,8 @@ public class StoreNode extends MemOpNode {
     public Parser.ParseException err() {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
-        if( _size==0 && CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
-            throw Utils.TODO("Failed to decide Store size");
-        if( ptr()._type == Type.TOP )
-            return null; // This means we have an error input, report elsewhere
+        assert _size>0 || CodeGen.CODE._phase.ordinal() <= CodeGen.Phase.Opto.ordinal();
+        assert ptr()._type != Type.TOP;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
         Field f = tmp._obj.field(_name);
         if( f!=null && f._final && !_init )

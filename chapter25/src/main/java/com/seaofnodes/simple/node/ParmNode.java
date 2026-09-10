@@ -38,9 +38,6 @@ public class ParmNode extends PhiNode {
 
     @Override public String glabel() { return _label; }
 
-    @Override protected Type declaredType() { return _declaredType; }
-    @Override protected Type constrain(Type t) { return t.join(_declaredType); }
-
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
         Type t = _declaredType.upgradeType(TYPES);
         if( t == _declaredType ) return false;
@@ -69,6 +66,28 @@ public class ParmNode extends PhiNode {
 
     // Always in-progress until we run out of unknown callers
     @Override public boolean inProgress() { return in(0) instanceof FunNode fun && fun.inProgress(); }
+
+    @Override
+    public Type compute() {
+        if( !(region() instanceof RegionNode r) )
+            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+        // During parsing Phis have to be computed type pessimistically.
+        if( r.inProgress() || in(nIns()-1)==null )
+            return _declaredType;
+        // Set type to local top of the starting type
+        Type t = Type.TOP;
+        for( int i = 1; i < nIns(); i++ ) {
+            // If the region's control input is live, add this as a dependency
+            // to the control because we can be peeped should it become dead.
+            Type ctrl = addDep(r.in(i))._type;
+            if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
+                if( in(i)._type==Type.BOTTOM )
+                    return Type.BOTTOM;
+                t = t.meet(in(i)._type);
+            }
+        }
+        return t.join(_declaredType);
+    }
 
     @Override
     public Node idealize() {

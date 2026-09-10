@@ -231,6 +231,15 @@ return 0;
         assertEquals("Hello, World!",arm._stdout.toString());
     }
 
+
+    @Test
+    public void testStrLoad() {
+        CodeGen code = new CodeGen("return \"abc\"[1];");
+        code.parse().opto();
+        assertEquals("return .[];", code.print());
+    }
+
+
     @Test
     public void testFinalArray() {
         String src = """

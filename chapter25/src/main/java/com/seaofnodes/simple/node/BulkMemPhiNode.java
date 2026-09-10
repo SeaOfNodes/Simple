@@ -46,19 +46,6 @@ public class BulkMemPhiNode extends PhiNode {
 
     public boolean isSplit(int alias) { return _aliases.get(alias); }
 
-    /**
-     * Record that an alias has been split out.  The graph rewrite installing
-     * its parallel precise Phi must happen before this semantic change.
-     */
-    public void splitAlias(int alias) {
-        assert alias > 1;
-        if( _aliases.get(alias) ) return;
-        unlock();
-        if( _aliases==EMPTY )
-            _aliases = new BitSet();
-        _aliases.set(alias);
-    }
-
     @Override public Tag serialTag() { return Tag.BulkMemPhi; }
 
     @Override
@@ -94,13 +81,8 @@ public class BulkMemPhiNode extends PhiNode {
     public Node idealize() {
         Node progress = super.idealize();
         if( progress != null ) return progress;
-
-        if( !(region() instanceof RegionNode r ) )
-            return in(1);       // Input has collapse to e.g. starting control.
-        if( r.inProgress() || r.nIns()<=1 )
+        if( ((RegionNode)region()).inProgress() || region().nIns()<=1 )
             return null;        // Input is in-progress
-        if( nOuts()==0 ) return null;
-        if( nIns() <= 2 ) return null;
 
         // "Peek through" a MemMerge that covers this alias set on its default
         for( int i=1; i<nIns(); i++ )
@@ -150,8 +132,6 @@ public class BulkMemPhiNode extends PhiNode {
     private int inputAlias(Node n) {
         return switch(n) {
         case ParmNode p -> { assert p._idx==1; yield 0; }
-        case ScopeNode scope -> 0;
-        case ReturnNode ret -> 0;
         case ProjNode proj -> 0;
         case ConstantNode con -> {
             assert !(con._con instanceof TypeMem tmem && tmem._alias != 1);
@@ -160,7 +140,7 @@ public class BulkMemPhiNode extends PhiNode {
         case MemMergeNode mmm -> missingAlias(mmm,false);
         case MemOpNode mem -> unsplit(mem._alias);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
-        default -> throw Utils.TODO();
+        default -> throw Utils.TODO("Should not reach here");
         };
     }
 
@@ -174,7 +154,7 @@ public class BulkMemPhiNode extends PhiNode {
         return switch(use) {
         case ScopeNode scope -> 0;
         case ParmNode parm -> 0;
-        case MemMergeNode mmm -> mmm.in(1)==this ? missingAlias(mmm,true) : 0;
+        case MemMergeNode mmm -> missingAlias(mmm,true);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
         case MemOpNode mem -> unsplit(mem._alias);
         case MemPhiNode phi -> unsplit(phi._alias);
@@ -190,7 +170,9 @@ public class BulkMemPhiNode extends PhiNode {
     // Alias zero/one is bulk, and an already excluded precise alias cannot
     // trigger another split of this Phi.
     private int unsplit(int alias) {
-        return alias <= 1 || _aliases.get(alias) ? 0 : alias;
+        if( alias <= 1 ) return 0;
+        assert !_aliases.get(alias);
+        return alias;
     }
 
     // First alias excluded by the neighboring bulk Phi but not by this one.
@@ -207,9 +189,8 @@ public class BulkMemPhiNode extends PhiNode {
         for( int alias=2; alias<mmm.nIns(); alias++ )
             if( mmm.in(alias)!=null &&
                 mmm.alias(alias)!=mmm.in(1) &&
-                (!user || mmm.in(alias)!=this) &&
                 !_aliases.get(alias) )
-                return alias;
+                { assert (!user || mmm.in(alias)!=this); return alias; }
         return 0;
     }
 
@@ -250,17 +231,17 @@ public class BulkMemPhiNode extends PhiNode {
     MemMergeNode aggregate(Node bulk, int alias, Node precise) {
         MemMergeNode mmm = new MemMergeNode(null,bulk);
         for( int old = _aliases.nextSetBit(0); old >= 0; old = _aliases.nextSetBit(old+1) )
-            if( old != alias )
-                mmm.alias(old,precisePhi(old));
+            { assert old != alias; mmm.alias(old,precisePhi(old));}
         mmm.alias(alias,precise);
         assert checkMerge(mmm);
         mmm.init();
         // Slicing changes representation, not the set of values in memory.
         // Newly exposed precise inputs can carry conservative bulk escape
         // summaries; do not let those invent escapes absent from this Phi.
-        if( _type instanceof TypeMem old && mmm._type instanceof TypeMem mem )
-            mmm._type = TypeMem.make(mem._alias,mem._t,mem._one,mem._clz,
-                                     mem._final,old._escFs,old._escAs);
+        TypeMem old = (TypeMem)_type;
+        TypeMem mem = (TypeMem) mmm._type;
+        mmm._type = TypeMem.make(mem._alias,mem._t,mem._one,mem._clz,
+                                 mem._final,old._escFs,old._escAs);
         return mmm;
     }
 
@@ -304,8 +285,7 @@ public class BulkMemPhiNode extends PhiNode {
     private Node preciseInput(Node mem, int alias) {
         if( mem instanceof MemMergeNode mmm )
             return mmm.alias(alias);
-        if( mem instanceof BulkMemPhiNode bulk && bulk.isSplit(alias) )
-            return bulk.precisePhi(alias);
+        assert !(mem instanceof BulkMemPhiNode bulk) || !bulk.isSplit(alias);
         return mem;
     }
 

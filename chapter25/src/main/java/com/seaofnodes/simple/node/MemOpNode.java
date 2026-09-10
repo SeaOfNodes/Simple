@@ -99,7 +99,7 @@ public abstract class MemOpNode extends TypeNode {
 
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
-    public int log_size() { return _con.log_size();  }
+    //public int log_size() { return _con.log_size();  }
 
     @Override
     public boolean eq(Node n) {

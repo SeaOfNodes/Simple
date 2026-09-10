@@ -1874,7 +1874,7 @@ public class Parser {
      */
     private Node parsePrimary() {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
-        if( _lexer.peek('"') ) return newString(parseString());
+        if( _lexer.peek('"') ) return parsePostfix(newString(parseString()));
         if( matchx("true" ) ) return con(1);
         if( matchx("false") ) return _code.ZERO;
         if( matchx("null" ) ) return con(Type.NIL);

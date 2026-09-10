@@ -69,15 +69,14 @@ public class PhiNode extends Node {
     public CFGNode region() { return (CFGNode)in(0); }
     @Override public boolean isMem() { return _type instanceof TypeMem; }
     @Override public boolean isPinned() { return true; }
-    boolean isRPC() { return false; }
 
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+            return Type.TOP;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() || in(nIns()-1)==null )
-            return declaredType();
+            return Type.BOTTOM;
         // Set type to local top of the starting type
         Type t = Type.TOP;
         for( int i = 1; i < nIns(); i++ ) {
@@ -90,31 +89,23 @@ public class PhiNode extends Node {
                 t = t.meet(in(i)._type);
             }
         }
-        Type declared = declaredType();
-        Type newt = constrain(t);
 
         // phi loop widening part
-        if( region() instanceof LoopNode && // Only around loops
-            newt  instanceof TypeInteger newi &&
-            // Types changed and are falling (the optimistic case, expected to fall forever)
-            newi != _type ) {
-            if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
-                return newi.same_but_slightly_wider_than(
-                    declared instanceof TypeInteger ? declared : TypeInteger.BOT);
+        if( r instanceof LoopNode && // Only around loops
+            t != _type && // Types changed and are falling (the optimistic case, expected to fall forever)
+            !t.isConstant() &&  // No need to widen constants
+            t instanceof TypeInteger newi && // Only widen integers
+            (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) ) {
+            // Widen, to prevent infinite falling of TypeIntegers
+            return newi.same_but_slightly_wider_than();
         }
 
-        return newt;
+        return t;
     }
-
-    // Ordinary Phis have no parser-supplied type constraint.
-    protected Type declaredType() { return Type.BOTTOM; }
-    protected Type constrain(Type t) { return t; }
 
     @Override
     public Node idealize() {
-        if( !(region() instanceof RegionNode r ) )
-            return in(1);       // Input has collapse to e.g. starting control.
-        if( r.inProgress() || r.nIns()<=1 || nOuts()==0 )
+        if( ((RegionNode)region()).inProgress() || nOuts()==0 )
             return null;        // Input is in-progress
 
         // If we have only a single unique input, become it.
@@ -124,7 +115,7 @@ public class PhiNode extends Node {
 
         // No bother if region is going to fold dead paths soon
         for( int i=1; i<nIns(); i++ )
-            if( r.in(i)._type == Type.XCONTROL )
+            if( region().in(i)._type == Type.XCONTROL )
                 return null;
 
         // Generic "pull down op"
@@ -138,28 +129,6 @@ public class PhiNode extends Node {
             if( in(2) instanceof GuardNode cast && cast._nonZero && in(1)._type.makeZero()==in(1)._type && cast.in(1)!=this )  return cast.in(1);
         }
 
-        // If merging a null-checked null and the checked value, just use the value.
-        // if( val ) ..; phi(Region,False=0/null,True=val);
-        // then replace with plain val.
-        if( nIns()==3 ) {
-            int nullx = -1;
-            if( in(1)._type == in(1)._type.makeZero() ) nullx = 1;
-            if( in(2)._type == in(2)._type.makeZero() ) nullx = 2;
-            if( nullx != -1 ) {
-                Node val = in(3-nullx);
-                if( val instanceof GuardNode cast && cast._nonZero )
-                    val = cast.in(1);
-                Node ridom = r.idom(this);
-                if( ridom instanceof IfNode iff && addDep(iff.pred())==val ) {
-                    // Must walk the idom on the null side to make sure we hit False.
-                    CFGNode idom = r.cfg(nullx);
-                    while( idom != null && idom.nIns() > 0 && idom.in(0) != iff ) idom = idom.idom();
-                    if( idom instanceof CProjNode proj && proj._idx==1 )
-                        return val;
-                } else if( ridom != null ) addDep(ridom);
-            }
-        }
-
         return null;
     }
 
@@ -169,13 +138,10 @@ public class PhiNode extends Node {
         Node busy=null;
         for( int i=1; i<nIns(); i++ ) {
             Node op = in(i);
-            if( op.nOuts()==0 )
-                { op.kill(); return false; }
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
             if( in(1) instanceof MemOpNode mem ) {
-                // Mismatched aliases
-                if( mem._alias != ((MemOpNode)op)._alias ) return false;
+                assert mem._alias == ((MemOpNode)op)._alias;
                 // Load is clobbered somewhere, and can not be pulled forward past the Phi?
                 if( mem instanceof LoadNode )
                     for( Node use : op.outs() )
@@ -198,9 +164,6 @@ public class PhiNode extends Node {
                     return false;
                 }
             }
-            for( int j=1; j<in(1).nIns(); j++ )
-                if( op.in(j) instanceof ScopeNode || (op.in(j)==null ^ in(1).in(j)==null) )
-                    return false; // Lazy Phi input
         }
         return true;
     }
