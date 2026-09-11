@@ -283,7 +283,7 @@ public abstract class Eval2 {
         case GuardNode   guard -> val(guard.in(1));
         case ConstantNode con  -> con(con._con);
         case DivNode      div  -> div.mode()==1
-            ? (Object)(x(div.in(1)) /  x(div.in(2)))
+            ? (Object)(x(div.in(2))==0 ? 0L : x(div.in(1)) / x(div.in(2)))
             : (Object)((d(div.in(2))==0 ? 0D : d(div.in(1))) / d(div.in(2)));
         case EscapeNode   esc  -> esc(esc);
         case FunPtrNode   fptr -> con(fptr._con);

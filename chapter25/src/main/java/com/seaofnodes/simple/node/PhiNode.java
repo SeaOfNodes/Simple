@@ -125,11 +125,17 @@ public class PhiNode extends Node {
 
         // If merging Phi(ZERO, guardNZ(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
-            if( in(1) instanceof GuardNode cast && cast._nonZero && in(2)._type.makeZero()==in(2)._type && cast.in(1)!=this )  return cast.in(1);
-            if( in(2) instanceof GuardNode cast && cast._nonZero && in(1)._type.makeZero()==in(1)._type && cast.in(1)!=this )  return cast.in(1);
+            if( in(1) instanceof GuardNode cast && cast._nonZero && in(2)._type.makeZero()==in(2)._type && cast.in(1)!=this )  return unguard(cast.in(1));
+            if( in(2) instanceof GuardNode cast && cast._nonZero && in(1)._type.makeZero()==in(1)._type && cast.in(1)!=this )  return unguard(cast.in(1));
         }
 
         return null;
+    }
+
+    private static Node unguard(Node n) {
+        while( n instanceof GuardNode guard )
+            n = guard.in(1);
+        return n;
     }
 
     // Same op on all Phi paths; all ops have only the Phi as a use.
