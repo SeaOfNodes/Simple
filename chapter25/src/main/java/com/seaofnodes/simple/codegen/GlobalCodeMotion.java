@@ -34,9 +34,8 @@ public abstract class GlobalCodeMotion {
     private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
-        if( def instanceof ReturnNode && use instanceof CallEndNode )
-            return;
-        assert !( def instanceof CallNode && use instanceof FunNode ); // All calls unwired now
+        assert !( def instanceof ReturnNode && use instanceof CallEndNode ); // All calls unwired now
+        assert !( def instanceof   CallNode && use instanceof     FunNode ); // All calls unwired now
         visit.set(cfg._nid);
         for( Node useuse : cfg._outputs )
             _rpo_cfg(cfg,useuse,visit,rpo);
@@ -53,7 +52,7 @@ public abstract class GlobalCodeMotion {
             Node con = start.out(i);
             if( isStartPinnedGlobalValue(con) ) {
                 breakUpGlobalConstantSingle(con);
-                if( con.nIns()==0 || con.in(0) != start )
+                if( con.in(0) != start )
                     i--;    // Removed a global constant, re-run same index
             }
         }
@@ -65,8 +64,7 @@ public abstract class GlobalCodeMotion {
         // will recursively clone its Start-pinned inputs on demand.
         for( Node use : con.outs() )
             if( use != null && useFun(use)==null ) {
-                if( !isStartPinnedGlobalValue(use) )
-                    return;
+                assert isStartPinnedGlobalValue(use);
                 breakUpGlobalConstantSingle(use);
             }
         // While constant has users in different functions
@@ -77,7 +75,7 @@ public abstract class GlobalCodeMotion {
             for( Node use : con.outs() ) {
                 if( use == null ) continue;
                 FunNode fun2 = useFun(use);
-                if( fun2==null || !CodeGen.CODE.owns(fun2) ) continue;
+                assert fun2 != null && CodeGen.CODE.owns(fun2);
                 if( fun==null || fun==fun2 ) fun=fun2;
                 else { done=false; break; }
             }
@@ -144,29 +142,26 @@ public abstract class GlobalCodeMotion {
     }
 
     private static FunNode useFun(Node use) {
-        return useFun(use,new BitSet());
-    }
-
-    private static FunNode useFun(Node use, BitSet visit) {
-        if( visit.get(use._nid) ) return null;
-        visit.set(use._nid);
         if( use instanceof ReturnNode ret )
             return ret.fun();
         if( use instanceof ParmNode parm )
             return parm.fun();
         CFGNode cfg = use.cfg0();
-        FunNode fun = cfg==null ? null : cfg.fun();
+        if( cfg!=null ) {
+            FunNode fun = cfg.fun();
+            if( fun != null ) return fun;
+        }
         // Use itself is not in a function... which makes it a 2-part
         // constant such as happens on some chips where large constants have
         // to be built up in parts.  PtrToInt followed by the array-body Add is
         // another zero-code/global-value chain, so walk through any number of
         // single-use pieces until reaching the function-owned use.
-        if( fun==null )
-            for( Node out : use.outs() ) {
-                FunNode f = useFun(out,(BitSet)visit.clone());
-                if( f != null && fun != null && f != fun ) return null;
-                if( f != null ) fun = f;
-            }
+        FunNode fun = null;
+        for( Node out : use.outs() ) {
+            FunNode f = useFun(out);
+            if( f != null && fun != null && f != fun ) return null;
+            if( f != null ) fun = f;
+        }
         return fun;
     }
 
@@ -254,10 +249,10 @@ public abstract class GlobalCodeMotion {
                             // Load-use directly defines memory
                             (memuse._type instanceof TypeMem ||
                              // Load-use directly defines memory
-                             memuse instanceof CallNode ||
-                             // Load-use indirectly defines memory
-                             (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
+                             memuse instanceof CallNode) ) {
+                            assert !( memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem );
                             continue outer;
+                        }
 
                 // All uses done, schedule
                 _doSchedLate(n,ns,late);
@@ -296,33 +291,6 @@ public abstract class GlobalCodeMotion {
         if( n instanceof MemOpNode load && load._isLoad )
             lca = find_anti_dep(lca,load,early,late);
 
-
-        // Nodes setting a single register and getting killed will stay close
-        // to the uses, since they will be forced to spill anyway.  The kill
-        // check is very weak, and some may be hoisted only to spill in the RA.
-        if( n instanceof MachNode mach ) {
-            RegMask out = mach.outregmap();
-            if( out!=null && out.size1() ) {
-                int reg = mach.outregmap().firstReg();
-                // Look for kills
-                outer:
-                for( CFGNode lca2=lca; lca2 != early; lca2 = lca2.idom() ) {
-                    if( lca2 instanceof MachNode mach2 ) {
-                        for( int i=1; i<lca2.nIns(); i++ ) {
-                            RegMask mask = mach2.regmap(i);
-                            if( mask!=null && mask.test(reg) ) {
-                                early = lca2 instanceof IfNode ? lca2.idom() : lca2;
-                                break outer;
-                            }
-                        }
-                        RegMask kill = mach2.killmap();
-                        if( kill != null )
-                            throw Utils.TODO();
-                    }
-                }
-            }
-        }
-
         // Walk up from the LCA to the early, looking for best place.  This is
         // the lowest execution frequency, approximated by least loop depth and
         // deepest control flow.
@@ -339,7 +307,7 @@ public abstract class GlobalCodeMotion {
     // Block of use.  Normally from late[] schedule, except for Phis, which go
     // to the matching Region input.
     private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
-        if( use instanceof ParmNode parm && n.cfg0().fun()==parm.fun() )
+        if( use instanceof ParmNode parm )
             return late[use._nid];
         if( !(use instanceof PhiNode phi) )
             return late[use._nid];
@@ -364,7 +332,7 @@ public abstract class GlobalCodeMotion {
     private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
-        for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
+        for( CFGNode cfg=lca; cfg!=early.idom(); cfg = cfg.idom() )
             cfg._anti = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
         for( Node mem : load.mem()._outputs ) {
@@ -392,11 +360,9 @@ public abstract class GlobalCodeMotion {
                     if( phi.in(i)==load.mem() )
                         lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null);
                 break;
-            case NewNode st: break;
             case ReturnNode ret: break; // Load must already be ahead of Return
             case MemMergeNode ret: break; // Mem uses now on ScopeMin
-            case NeverNode never: break;
-            default: throw Utils.TODO();
+            default: throw Utils.TODO("Should not reach here");
             }
         }
         return lca;

@@ -97,7 +97,7 @@ public class IterPeeps {
 
     // Run all the code-reduction and type-lifting peeps as possible
     private void iteratePeeps( CodeGen code ) {
-        assert !CodeGen.expensiveAssert(1) || progressOnList(code, _work, true);
+        assert !CodeGen.expensiveAssert(1) || progressOnList(code, _work);
         int cnt=0;
 
         Node n;
@@ -108,7 +108,7 @@ public class IterPeeps {
             if( n instanceof CallEndNode cend )
                 _workInline.push(cend);
             if( x != null ) {
-                if( x.isDead() ) continue;
+                assert !x.isDead(); // Peepholes return alive answers
                 // peepholeOpt can return brand-new nodes, needing an initial type set
                 if( x._type==null ) x.setType(x.compute());
                 // Changes require neighbors onto the worklist
@@ -125,7 +125,7 @@ public class IterPeeps {
                     // If the result is not self, revisit all inputs (because
                     // there's a new user), and replace in the graph.
                     if( x != n ) {
-                        for( Node z : n. _inputs ) _work.push(z);
+                        //for( Node z : n. _inputs ) _work.push(z);
                         for( Node z : x._outputs ) _work.push(z);
                         n.subsume(x);
                     }
@@ -134,10 +134,12 @@ public class IterPeeps {
                 n.moveDepsToWorklist();
                 JSViewer.show(); // Show again
                 // Very expensive assert.
-                assert !CodeGen.expensiveAssert(cnt) || progressOnList(code, _work, true);
+                assert !CodeGen.expensiveAssert(cnt) || progressOnList(code, _work);
             }
-            if( n.isUnused() && !(n instanceof StopNode) )
+            if( n.isUnused() ) {
+                assert !(n instanceof StopNode); // StopNodes can die if all code in the compunit dies
                 n.kill();       // Just plain dead
+            }
         }
 
     }
@@ -155,26 +157,21 @@ public class IterPeeps {
     // {@link #Node.addDep} which is a side effect in an assert.  The {@link
     // #midAssert} is used to stop this side effect.
     // Pessimistic solver assert
-    public static boolean progressOnList(CodeGen code, WorkList<Node> list, boolean dir ) {
+    public static boolean progressOnList(CodeGen code, WorkList<Node> list ) {
         code._midAssert = true;
         Node changed = code._stop.walk( n -> {
             Node m = n;
             Type nval = n.compute();
+            // Ignore most in-progress things
+            if( n.iskeep() ) return null;
 
             // Types must be forwards, even if on the worklist.
-            boolean checkType = !n.iskeep() ||
-                n._nid <= 8 ||
-                (n instanceof ProjNode && n.in(0) instanceof StartNode);
-
-            boolean monotonic = dir
-                ? nval.isa(n._type) // Pesi: new value lifts over old
-                : n._type.isa(nval); // Opto: new value falls over old
-            assert !checkType || monotonic : "Non-monotonic peep: "+n+"#"+n._nid+" old="+n._type+" new="+nval+" inputs="+inputTypes(n)+" peep="+m;
+            assert nval.isa(n._type) : "Non-monotonic peep: "+n+"#"+n._nid+" old="+n._type+" new="+nval+" inputs="+inputTypes(n)+" peep="+m;
             if( list.on(n) )
-                return null;
+                return null;    // On worklist is ok!
             if( n instanceof CallEndNode cend ) {
                 if( code._iter._workInline.on(cend) )
-                    return null;
+                    return null; // On inline worklist is ok!
                 assert cend.maybeInline() <= 0 : "Inline fired and not on worklist, CallEndNode#"+cend._nid;
             }
 
@@ -251,8 +248,6 @@ public class IterPeeps {
          * True if Node is on the WorkList
          */
         public boolean on( E x ) { return _on.get(x._nid); }
-        boolean isEmpty() { return _len==0; }
-        Node[] asAry() { return Arrays.copyOf(_es,_len); }
 
         /**
          * Removes a random Node from the WorkList; null if WorkList is empty
@@ -266,11 +261,13 @@ public class IterPeeps {
             return x;
         }
 
-        public void clear() {
-            _len = 0;
-            _on.clear();
-            _R.setSeed(_seed);
-            _totalWork = 0;
-        }
+        //boolean isEmpty() { return _len==0; }
+        //Node[] asAry() { return Arrays.copyOf(_es,_len); }
+        //public void clear() {
+        //    _len = 0;
+        //    _on.clear();
+        //    _R.setSeed(_seed);
+        //    _totalWork = 0;
+        //}
     }
 }

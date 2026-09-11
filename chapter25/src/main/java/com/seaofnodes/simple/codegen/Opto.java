@@ -129,7 +129,9 @@ abstract public class Opto {
         int[] fidxs = tfp.fidxs();
         // An unresolved forward call can still carry the infinite, inferred
         // function set into Opto.  There is no finite call graph to link yet;
-        // type checking will report the unresolved reference afterwards.
+        // type checking will report the unresolved reference afterwards.  This
+        // can yet be valid if the call is eventually dead.
+        //   `if( false ) frefCall(args);`
         if( XInt.isHigh(fidxs) ) return;
         for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
             // unlinkStart deliberately leaves uncalled functions in a
@@ -171,7 +173,8 @@ abstract public class Opto {
     private static void linkStart( CodeGen code, FunNode fun ) {
         assert !fun.isDead();
         StartCUNode start = fun._compunit._start;
-        if( fun.nIns() < 2 || fun.in(1) != start ) {
+        if( fun.nIns() < 2 ) {
+            assert fun.nIns() < 2 || fun.in(1) != start;
             assert !start.isDead();
             keepInCompUnit(code,fun);
             // Function is reachable by any *remote* caller who gets the pointer!
@@ -233,15 +236,14 @@ abstract public class Opto {
 
             // Link a Call which becomes alive.  Like above, adds new Call
             // Graph edges to the graph.
-            if( n instanceof CallNode call && oval.isHigh() && !nval.isHigh() && call.fptr()._type instanceof TypeFunPtr )
+            if( n instanceof CallNode call && nval == Type.CONTROL && call.fptr()._type instanceof TypeFunPtr )
                 linkCG(code,call.tfp(),call);
 
             // If an otherwise-dead function pointer escapes, any future linked
             // caller might find and call it.  Force the function to be alive
             // and called by Start.
-            if( n instanceof StartNode && n._type instanceof TypeTuple tt )
-                linkStart(code,tt);
-
+            if( n instanceof StartNode )
+                linkStart(code,(TypeTuple)n._type);
 
             // Since n._type changed, visit all output neighbors
             code._iter.addAll(n._outputs);
@@ -302,6 +304,7 @@ abstract public class Opto {
                 int mode = 0;
                 for( int i=1; i<n.nIns(); i++ )
                     mode |= numericEvidence(n.in(i),visited);
+                assert mode != 0;
                 if( mode != 0 )  {
                     // If both evidence, FP wins
                     modeNode.setMode((byte)((mode&2)==2 ? 2 : 1)).init();
@@ -315,7 +318,8 @@ abstract public class Opto {
     // Gather numeric evidence through Phi and interprocedural return cycles.
     // The visited set makes self- and mutually-recursive calls finite.
     private static int numericEvidence(Node n, BitSet visited) {
-        if( n==null || visited.get(n._nid) ) return 0;
+        if( n == null ) return 0;
+        if( visited.get(n._nid) ) return 0;
         visited.set(n._nid);
 
         Type t = n._type;
@@ -325,18 +329,14 @@ abstract public class Opto {
             return 0; // Something unrelated, like a ptr
 
         int evidence = 0;
+        assert !(n instanceof ConvertNode); // No test case
+        assert !(n instanceof    ModeNode);
         switch( n ) {
-        case ModeNode modeNode -> evidence = modeNode.mode();
         case PhiNode phi -> {}
         case ReturnNode ret -> {}
-        case ProjNode proj when proj._idx==2 && proj.in(0) instanceof CallEndNode cend -> {
+        case ProjNode proj when proj.in(0) instanceof CallEndNode cend -> {
             for( int i=1; i<cend.nIns(); i++ )
                 evidence |= numericEvidence(cend.in(i),visited);
-        }
-        case ConvertNode convert -> {
-            Type dst = convert.dst();
-            evidence = dst instanceof TypeFloat   ? 2 :
-                       dst instanceof TypeInteger ? 1 : 0;
         }
         default -> { return 0; }
         }
@@ -354,10 +354,9 @@ abstract public class Opto {
             Node use = code._start.out(i);
             if( use instanceof ConFldOffNode off ) {
                 Node con = off.asOffset();
-                if( con != null ) { // Can be null for trying to reference missing field
-                    off.subsume( con );
-                    i--;
-                }
+                assert con != null; // Can be null for trying to reference missing field
+                off.subsume( con );
+                i--;
             }
         }
     }
