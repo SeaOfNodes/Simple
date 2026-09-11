@@ -18,7 +18,7 @@ import static org.junit.Assert.*;
 
 public class Chapter25Test {
 
-    @IGnore
+    @Ignore
     @Test
     public void testJig() {
         String src = "struct _Oan {};  return --arg; arg=++arg;";
