@@ -141,7 +141,8 @@ public class PhiNode extends Node {
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
                 return false;      // Wrong class or CFG bound or mismatched inputs
             if( in(1) instanceof MemOpNode mem ) {
-                assert mem._alias == ((MemOpNode)op)._alias;
+                // Mismatched aliases
+                if( mem._alias != ((MemOpNode)op)._alias ) return false;
                 // Load is clobbered somewhere, and can not be pulled forward past the Phi?
                 if( mem instanceof LoadNode )
                     for( Node use : op.outs() )

@@ -411,9 +411,9 @@ public class FunNode extends RegionNode {
     }
 
 
-    // FunNodes must match signature (equivalent: no 2 FunNodes are ever GVN'able)
+    // no 2 FunNodes are ever GVN'able
     @Override public boolean eq( Node n ) {
-        return _sig == ((FunNode)n)._sig;
+        return this==n;
     }
 
     @Override public int hash() {

@@ -18,6 +18,16 @@ import static org.junit.Assert.*;
 
 public class Chapter25Test {
 
+    @IGnore
+    @Test
+    public void testJig() {
+        String src = "struct _Oan {};  return --arg; arg=++arg;";
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("1",Eval2.eval(code,0));
+    }
+
+
+
     private static final String SYS_BLDDIR = "build/objs/lib_"+TestC.CPU_ABI;
     private static final File SYS_FILE = new File(SYS_BLDDIR+"/sys.o");
 
@@ -25,7 +35,7 @@ public class Chapter25Test {
     public void testForwardConstructor() {
         CodeGen code = new CodeGen("src/test/java/com/seaofnodes/simple/test_smp/forward_ctor",
                                    "build/objs/forward_ctor_parse",null,
-                                   "m",null,123L,TypeInteger.BOT);
+                                   "m",null,123L,true,TypeInteger.BOT);
         code.driver(CodeGen.Phase.TypeCheck);
     }
 
@@ -62,7 +72,6 @@ public class Chapter25Test {
         assertEquals("1",Eval2.eval(code,0));
     }
 
-
     @Test @Ignore
     public void testModule0() throws IOException {
         String MODDIR = "src/test/java/com/seaofnodes/simple/test0";
@@ -77,7 +86,7 @@ public class Chapter25Test {
         // Since A refers to B also:
         // Compile MODDIR/A/B.smp into MODDIR/A/B.o
         CodeGen code1 = new CodeGen(MODDIR, BLDDIR,null,
-                                    "A",null,123L,TypeInteger.BOT);
+                                    "A",null,123L,true,TypeInteger.BOT);
         code1.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
 
         // Verify produces A.o, A/B.o
@@ -94,7 +103,7 @@ public class Chapter25Test {
 
         // Compile again A, expecting both A.o and A/B.o to be up-to-date and not compiled
         CodeGen code2 = new CodeGen(MODDIR, BLDDIR, null,
-                                   "A",null,123L,TypeInteger.BOT);
+                                    "A",null,123L,true,TypeInteger.BOT);
         code2.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
 
         assertTrue(  a_file.exists() );
@@ -108,7 +117,7 @@ public class Chapter25Test {
         // Touch A.smp and recompile.  A/B.o should not recompile.
         new File(MODDIR+"/A.smp").setLastModified(System.currentTimeMillis());
         CodeGen code3 = new CodeGen(MODDIR, BLDDIR,null,
-                                   "A",null,123L,TypeInteger.BOT);
+                                    "A",null,123L,true,TypeInteger.BOT);
         code3.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
 
         long  a_msec3 =  a_file.lastModified();
@@ -124,7 +133,7 @@ public class Chapter25Test {
         // Modify B.smp and recompile A/B.o; it should recompile and A.o should not.
         writeB(MODDIR,7);
         CodeGen code4 = new CodeGen(MODDIR, BLDDIR,null,
-                                   "A/B",null,123L,TypeInteger.BOT);
+                                    "A/B",null,123L,true,TypeInteger.BOT);
         code4.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
 
         long  a_msec4 =  a_file.lastModified();
@@ -139,7 +148,7 @@ public class Chapter25Test {
         // Recompile A.o, it should recompile despite not being touched because
         // it depends on A/B.o which recompiled in the prior step.
         CodeGen code5 = new CodeGen(MODDIR, BLDDIR,null,
-                                   "A",null,123L,TypeInteger.BOT);
+                                    "A",null,123L,true,TypeInteger.BOT);
         code5.driver(CodeGen.Phase.Export,TestC.CPU_PORT,TestC.CALL_CONVENTION);
 
         long  a_msec5 =  a_file.lastModified();
@@ -221,7 +230,7 @@ public class Chapter25Test {
         String expected = "Hello, World!\n";
         String prog = "return sys.io.p_noInline(\""+expected+"\") - "+expected.length()+";";
         CodeGen code = new CodeGen(null,"build/objs",new Ary<>(new String[]{SYS_BLDDIR}),
-                                   base,prog,123L,TypeInteger.BOT);
+                                   base,prog,123L,true,TypeInteger.BOT);
         code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,true);
 
         String obj = "build/objs/"+base+".o";

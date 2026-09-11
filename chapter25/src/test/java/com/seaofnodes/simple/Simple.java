@@ -223,7 +223,7 @@ Options:
 
         // Compilation pipeline
         Ary<String> externPaths = libPaths.isEmpty() ? null : new Ary<>(libPaths.toArray(new String[0]));
-        CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, TypeInteger.BOT );
+        CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, true, TypeInteger.BOT );
         code.driver(Phase.LastPhase,cpu,abi, false, emit_main || do_run || do_eval, dump);
 
         if( do_codegen && print_asm )

@@ -1249,6 +1249,7 @@ public class Parser {
             priv = new ProjNode(cend,2,"#selfMem").peephole();
         }
 
+        priv.keep();
         for( Field field : ts._fields ) {
             Type storage = field._t.makeStorage();
             Field escaped = field._final ? field : Field.make(field._fname,storage,field._alias,true);
@@ -1260,6 +1261,7 @@ public class Parser {
             pub.unkeep();
             pub = next;
         }
+        priv.unkill();
         ReturnNode ret = (ReturnNode)new ReturnNode(ctl,pub,self,rpc,fun).peephole();
         fun.setRet(ret);
         fun._approxUIDs = _code.UID() - oldUID;
@@ -1697,10 +1699,11 @@ public class Parser {
         int dir = parseCompDir();
         // No compare
         if( dir==0 ) return lhs;
+        lhs.keep();
 
         // Compare
         Node rhs = parseShift().keep();
-        Node cmp = makeCompBool(dir,lhs,rhs); // Convert to a bool
+        Node cmp = makeCompBool(dir,lhs.unkeep(),rhs); // Convert to a bool
 
         // Stacked compares?
         int dir0 = parseCompDir();
@@ -1713,7 +1716,7 @@ public class Parser {
         // rhs is keeped() and becomes lhs
         // cmp is NOT keeped() and is the last test
         Node ifNode = new IfNode(ctrl(), cmp).peephole();
-        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
         Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
         // False side does nothing but capture memory & side-effects
         ScopeNode fail = _scope.dup();
@@ -1726,12 +1729,12 @@ public class Parser {
             if( Math.abs(dir) != Math.abs(dir0) )
                 throw error("Mixing relational directions in a chained relational test");
             // True side parses next arm of test
-            ctrl(ifT);
+            ctrl(ifT.unkeep());
             lhs = rhs;          // lhs is keeped() and is old RHS
             rhs = parseShift().keep();
             cmp = makeCompBool(dir,lhs.unkeep(),rhs); // Convert to a bool
             ifNode = new IfNode(ctrl(), cmp).peephole();
-            ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole();
+            ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
             ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
             // Merge result into the fail case
             ctrl(ifF);
@@ -1740,7 +1743,7 @@ public class Parser {
             dir0 = parseCompDir();
         }
         rhs.unkill();
-        ctrl(ifT);
+        ctrl(ifT.unkeep());
         RegionNode r = fail.mergeScopes(_scope, loc()).init();
         _scope = fail;
         return new PhiNode("", r,_code.ZERO,con(1)).peephole();

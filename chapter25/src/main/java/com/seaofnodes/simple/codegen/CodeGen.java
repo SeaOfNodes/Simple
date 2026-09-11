@@ -182,24 +182,24 @@ public class CodeGen {
 
     // ---------------------------
     // Test setup; no module nor file with specific argument
-    public CodeGen( String src ) { this(src, 126L ); }
+    public CodeGen( String src ) { this(src, 126L, true ); }
 
     // Test setup; no module nor file; can alter seed & argument; can re-run same CodeGen
     public CodeGen( String src, Type arg ) {
-        this(null,null,null,null, src, 126L, arg);
+        this(null,null,null,null, src, 126L, true, arg);
     }
     // Test setup; no module nor file; can alter seed & argument; can re-run same CodeGen
-    public CodeGen( String src, long workListSeed ) {
-        this(null,null,null,null, src, workListSeed, TypeInteger.BOT);
+    public CodeGen( String src, long workListSeed, boolean resetTypes ) {
+        this(null,null,null,null, src, workListSeed, resetTypes, TypeInteger.BOT);
     }
 
     // Generic CodeGen, including full module setup
     public CodeGen( String modDir, String buildDir, Ary<String> externPaths,
-                    String srcName, String src, long workListSeed, Type arg ) {
+                    String srcName, String src, long workListSeed, boolean resetTypes, Type arg ) {
         // Public singleton to avoid passing about this state to a huge count
         // of places.  Probably becomes a TLS at some point.
         CODE = this;
-        Type.reset();           // Reset to recover from failed test
+        if( resetTypes ) Type.reset();           // Reset to recover from failed test
 
         _cwd = System.getProperty("user.dir")+"/";
         _modDir   =   modDir == null ? _cwd :   modDir;
