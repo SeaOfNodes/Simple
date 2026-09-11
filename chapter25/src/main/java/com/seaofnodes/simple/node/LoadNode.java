@@ -178,8 +178,7 @@ public class LoadNode extends MemOpNode {
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
-                    // Direct load from e.g. new array elements
-                    assert _name=="[]";
+                    // Direct load from fresh zero/default-filled allocation.
                     Type decl = declaredType();
                     assert decl!=Type.BOTTOM;
                     return ConstantNode.make(decl.makeZero());
