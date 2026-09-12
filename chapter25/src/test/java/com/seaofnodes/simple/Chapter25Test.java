@@ -72,6 +72,17 @@ public class Chapter25Test {
         assertEquals("1",Eval2.eval(code,0));
     }
 
+    @Test
+    public void testFuzzerUnresolvedNumericLoop() {
+        CodeGen code = new CodeGen("""
+            arg=0;
+            while(arg+0)
+                while(-arg)
+                    arg=0;
+            """).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return 0;",code.print());
+    }
+
     @Test @Ignore
     public void testModule0() throws IOException {
         String MODDIR = "src/test/java/com/seaofnodes/simple/test0";

@@ -304,7 +304,11 @@ abstract public class Opto {
                 int mode = 0;
                 for( int i=1; i<n.nIns(); i++ )
                     mode |= numericEvidence(n.in(i),visited);
-                assert mode != 0;
+                // A closed recursive numeric component can have no remaining
+                // concrete evidence after SCCP, e.g. dead all-integer loops.
+                // With no float evidence, settle to integer.
+                if( mode == 0 )
+                    mode = 1;
                 if( mode != 0 )  {
                     // If both evidence, FP wins
                     modeNode.setMode((byte)((mode&2)==2 ? 2 : 1)).init();
@@ -330,8 +334,9 @@ abstract public class Opto {
 
         int evidence = 0;
         assert !(n instanceof ConvertNode); // No test case
-        assert !(n instanceof    ModeNode);
         switch( n ) {
+        case ModeNode modeNode when modeNode.mode() != 0 -> { return modeNode.mode(); }
+        case ModeNode modeNode -> {}
         case PhiNode phi -> {}
         case ReturnNode ret -> {}
         case ProjNode proj when proj.in(0) instanceof CallEndNode cend -> {

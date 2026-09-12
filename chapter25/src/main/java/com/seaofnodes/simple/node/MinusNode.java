@@ -37,6 +37,8 @@ public class MinusNode extends Node implements ModeNode {
     @Override
     public Type compute() {
         Type t = in(1)._type;
+        if( t==null )
+            return Type.TOP;
         if( t.isHigh() )
             return _mode==0 ? Type.TOP :
                 _mode==1 ? TypeInteger.TOP :

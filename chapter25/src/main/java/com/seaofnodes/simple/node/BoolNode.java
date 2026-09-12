@@ -37,6 +37,8 @@ abstract public class BoolNode extends Node implements ModeNode {
     public TypeInteger compute() {
         Type t1 = in(1)._type;
         Type t2 = in(2)._type;
+        if( t1==null || t2==null )
+            return BOOL;
         // Exactly equals?
         if( t1.isHigh() || t2.isHigh() )
             return (TypeInteger)BOOL.dual();
@@ -79,6 +81,8 @@ abstract public class BoolNode extends Node implements ModeNode {
             return this instanceof LT ? CodeGen.CODE.ZERO : ConstantNode.make(TRUE);
         // Can we decide int vs flt?
         Type t1 = in(1)._type, t2 = in(2)._type;
+        if( t1==null || t2==null )
+            return null;
         if( _mode==0 ) {
             byte mode = ArithNode.mode(t1,t2);
             if( mode!=0 ) return setMode(mode).init();

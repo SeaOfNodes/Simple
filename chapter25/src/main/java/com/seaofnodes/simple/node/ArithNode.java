@@ -57,6 +57,8 @@ public abstract class ArithNode extends Node implements ModeNode {
         Type bad = null;
         for( int i=1; i<n.nIns(); i++ ) {
             Type t = n.in(i)._type;
+            if( t==null )
+                return null;
             if( t.isHigh() )
                 return null;
             // A weak input is not evidence of a bad mode while the graph is
@@ -97,6 +99,8 @@ public abstract class ArithNode extends Node implements ModeNode {
     @Override
     public final Type compute() {
         Type t1 = in(1)._type, t2 = in(2)._type;
+        if( t1==null || t2==null )
+            return Type.TOP;
         if( t1.isHigh() || t2.isHigh() )
             return _mode==0 ? Type.TOP :
                 _mode==1 ? TypeInteger.TOP :
