@@ -452,14 +452,71 @@ public class ScopeNode extends MemMergeNode {
     // Up-casting: using the results of an If to improve a value.
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
     //
-    // This operation is lexical, not semantic, and thus its behavior changes
-    // the language spec.  Optimizations that hide the lexical structure
-    // (e.g. constant folding control flow) can hide what is guarded or how the
-    // guard is applied, making it somewhat fragile.  Several good use cases
-    // are covered here, but not everything you might like.
+    // This operation is lexical, not a full semantic theorem prover, and thus
+    // its behavior changes the language spec.  Optimizations that hide the
+    // lexical structure (e.g. constant folding control flow) can hide what is
+    // guarded or how the guard is applied, making it somewhat fragile.  Several
+    // good use cases are covered here, but not everything you might like.
+    //
+    // Simple lexical facts work well:
+    //
+    //  ```
+    //    if( ptr )
+    //        return ptr.field; // `ptr` is guarded non-null here.
+    //
+    //    if( a && a.ptr )
+    //        return a.ptr.x;   // `a` is guarded while parsing the RHS load,
+    //                          // and remains guarded on the true arm.
+    //  ```
+    //
+    // Short-circuit expressions are lowered as nested Phis.  We recursively
+    // decompose the recognized Phi shape, so chains such as:
+    //
+    //  ```
+    //    if( x && y && z )
+    //        use(x,y,z);
+    //  ```
+    //
+    // discover the nested `x && y` and then `x`, `y`, and `z`; this is not
+    // merely a one-level lookup.  Likewise, nested tests carry lexical guards
+    // inwards:
+    //
+    //  ```
+    //    if( x && y )
+    //        if( z && a )
+    //            if( x.ptr && z.ptr )
+    //                ...
+    //  ```
+    //
+    // Here `x` is already guarded while parsing the outer true arm, `z` while
+    // parsing the inner true arm, and both are available before the matching
+    // loads.  The later post-test decomposition is just a convenience for
+    // values still schedulable at the post-test control.
+    //
+    // The hard limit is that a semantic implication is not always a
+    // schedulable Node.  For `(x && y)`, the true side implies that `y` was
+    // true, but `y` might be a value computed only on the RHS control arm:
+    //
+    //  ```
+    //    val ptr = ...;
+    //    if( ptr && (ptr=fcn() ? 0 : arg ) {}
+    //  ```
+    //
+    // A Guard pinned after the Phi merge and using the branch-local `ptr`
+    // value would give that value a use above its defining arm.  GCM then has
+    // no legal block between the value's early control and the LCA of its
+    // uses.  Thus `_addGuards` first checks that the predicate's effective
+    // early CFG dominates the control where the Guard would be pinned.  If it
+    // does not, we skip that guard even if the fact is semantically true.
+    //
+    // A more complete answer would need a richer logical/proof node, or would
+    // need to rematerialize predicates on the guarded path instead of using
+    // branch-local nodes directly.  Plain GuardNodes are intentionally kept to
+    // facts represented by values already available at the guard control.
+    //
     // TODO: Make this more robust for shapes like:
     //  ```
-    //    if( !ary || !ary# ) exit();
+    //    if( !ary || !ary# ) exit(); // facts about ary are lost, despite the early exit
     //    for( ...; ary# ) ...;
     //  ```
     // Here the guard ends up guarding the whole expression (both ary and ary#
@@ -467,8 +524,7 @@ public class ScopeNode extends MemMergeNode {
     // a dedicated logical expression node, or some sort of gather-of-checked
     // values to Guard post-test.
 
-    public void addGuards( Node ctrl, Node pred, boolean invert ) {
-        assert ctrl instanceof CFGNode;
+    public void addGuards( CFGNode ctrl, Node pred, boolean invert ) {
         _guards.add(ctrl);      // Marker to distinguish 0,1,2 guards
         // add pred & its cast to the normal input list, with special Vars
         if( pred==null || pred.isDead() )
@@ -476,8 +532,11 @@ public class ScopeNode extends MemMergeNode {
         _addGuards(ctrl,pred,invert);
     }
 
-    private void _addGuards( Node ctrl, Node pred, boolean invert ) {
+    private void _addGuards( CFGNode ctrl, Node pred, boolean invert ) {
         if( pred==null || pred.isDead() )
+            return;
+        CFGNode early = CFGNode.earlyCFG(pred,null);
+        if( early != null && !early.dominates(ctrl) )
             return;
         // Short-circuit logic is represented by a Phi.  For `a || b` being
         // false, or `a && b` being true, both individual operands have the

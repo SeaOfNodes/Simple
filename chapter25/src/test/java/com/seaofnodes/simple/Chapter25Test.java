@@ -83,6 +83,14 @@ public class Chapter25Test {
         assertEquals("return 0;",code.print());
     }
 
+    @Test
+    public void testFuzzerBadLCA() {
+        new CodeGen("""
+            int v0=arg;
+            if(v0&&--v0?0:arg) {}
+            """).driver(CodeGen.Phase.LocalSched);
+    }
+
     @Test @Ignore
     public void testModule0() throws IOException {
         String MODDIR = "src/test/java/com/seaofnodes/simple/test0";

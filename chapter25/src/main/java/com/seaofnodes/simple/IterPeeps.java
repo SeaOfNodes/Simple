@@ -9,6 +9,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.JSViewer;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.IdentityHashMap;
 import java.util.Random;
 
 /**
@@ -97,7 +98,7 @@ public class IterPeeps {
 
     // Run all the code-reduction and type-lifting peeps as possible
     private void iteratePeeps( CodeGen code ) {
-        assert !CodeGen.expensiveAssert(1) || progressOnList(code, _work);
+        assert !CodeGen.expensiveAssert(1) || (progressOnList(code, _work) && schedulableUses(code));
         int cnt=0;
 
         Node n;
@@ -134,13 +135,14 @@ public class IterPeeps {
                 n.moveDepsToWorklist();
                 JSViewer.show(); // Show again
                 // Very expensive assert.
-                assert !CodeGen.expensiveAssert(cnt) || progressOnList(code, _work);
+                assert !CodeGen.expensiveAssert(cnt) || (progressOnList(code, _work) && schedulableUses(code));
             }
             if( n.isUnused() ) {
                 assert !(n instanceof StopNode); // StopNodes can die if all code in the compunit dies
                 n.kill();       // Just plain dead
             }
         }
+        assert !CodeGen.expensiveAssert(0) || schedulableUses(code);
 
     }
 
@@ -189,6 +191,78 @@ public class IterPeeps {
         for( Node in : n._inputs )
             sb.append(in==null ? "null" : in.getClass().getSimpleName()+"#"+in._nid+"="+in+":"+in._type+":keep="+in.iskeep()).append(',');
         return sb.append(']').toString();
+    }
+
+    // GCM assumes every movable node can be placed no earlier than its inputs
+    // and no later than the LCA of its uses.  Catch graphs where a use escapes
+    // above an input-defined branch before the later scheduling pass walks off
+    // the top of the idom tree.
+    public static boolean schedulableUses(CodeGen code) {
+        IdentityHashMap<Node,CFGNode> earlyCache = new IdentityHashMap<>();
+        Node bad = code._stop.walk( n -> {
+            if( n.iskeep() || n.isDead() || n.isConst() ||
+                n instanceof CFGNode || n instanceof PhiNode || n instanceof ProjNode )
+                return null;
+            CFGNode early = CFGNode.earlyCFG(n,code._start,earlyCache,new BitSet());
+            if( early == null || early == code._start )
+                return null;
+            CFGNode lca = null;
+            for( Node use : n._outputs ) {
+                CFGNode ublk = useBlock(n,use);
+                if( ublk != null )
+                    lca = ublk._idom(lca,null);
+            }
+            if( lca == null )
+                return null;
+            if( !early.sameFun(lca) )
+                return null;
+            assert early.dominates(lca) : badSchedule(n,early,lca);
+            return null;
+        });
+        return bad == null;
+    }
+
+    private static CFGNode useBlock(Node n, Node use) {
+        if( use == null )
+            return null;
+        if( use instanceof PhiNode phi ) {
+            CFGNode found = null;
+            for( int i=1; i<phi.nIns(); i++ )
+                if( phi.in(i)==n ) {
+                    if( i >= phi.region().nIns() )
+                        return null;
+                    found = phi.region().cfg(i)._idom(found,null);
+                }
+            return found;
+        }
+        return CFGNode.safeCFG(use);
+    }
+
+    private static String badSchedule(Node n, CFGNode early, CFGNode lca) {
+        StringBuilder sb = new StringBuilder("Unschedulable data node ")
+            .append(n.getClass().getSimpleName()).append('#').append(n._nid)
+            .append(" early=").append(cfg(early))
+            .append(" use-lca=").append(cfg(lca))
+            .append(" node=").append(n).append("\ninputs:");
+        for( int i=0; i<n.nIns(); i++ ) {
+            Node in = n.in(i);
+            sb.append("\n  in").append(i).append(": ").append(node(in))
+              .append(" cfg=").append(cfg(CFGNode.safeCFG(in)));
+        }
+        sb.append("\noutputs:");
+        for( Node use : n._outputs )
+            if( use != null )
+                sb.append("\n  use ").append(node(use))
+                  .append(" block=").append(cfg(useBlock(n,use)));
+        return sb.toString();
+    }
+
+    private static String node(Node n) {
+        return n==null ? "null" : n.getClass().getSimpleName()+"#"+n._nid+" "+n;
+    }
+
+    private static String cfg(CFGNode cfg) {
+        return cfg==null ? "null" : cfg.getClass().getSimpleName()+"#"+cfg._nid+" "+cfg;
     }
 
     /**

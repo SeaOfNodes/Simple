@@ -3,9 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.SB;
-
+import com.seaofnodes.simple.util.*;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -105,7 +103,8 @@ public class PhiNode extends Node {
 
     @Override
     public Node idealize() {
-        if( ((RegionNode)region()).inProgress() || nOuts()==0 )
+        RegionNode r = (RegionNode)region();
+        if( r.inProgress() || nOuts()==0 )
             return null;        // Input is in-progress
 
         // If we have only a single unique input, become it.
@@ -115,7 +114,7 @@ public class PhiNode extends Node {
 
         // No bother if region is going to fold dead paths soon
         for( int i=1; i<nIns(); i++ )
-            if( region().in(i)._type == Type.XCONTROL )
+            if( r.in(i)._type == Type.XCONTROL )
                 return null;
 
         // Generic "pull down op"
@@ -123,19 +122,35 @@ public class PhiNode extends Node {
         if( same_op() && (progress = drop_same_op()) != null )
             return progress;
 
-        // If merging Phi(ZERO, guardNZ(N)) - we are losing the cast JOIN effects, so just remove.
-        if( nIns()==3 ) {
-            if( in(1) instanceof GuardNode cast && cast._nonZero && in(2)._type.makeZero()==in(2)._type && cast.in(1)!=this )  return unguard(cast.in(1));
-            if( in(2) instanceof GuardNode cast && cast._nonZero && in(1)._type.makeZero()==in(1)._type && cast.in(1)!=this )  return unguard(cast.in(1));
-        }
+        // If merging Phi(ZERO, guardNZ(N)) at the matching `if(N)` join, the
+        // Phi is exactly N.  The guard arm proves N is non-zero, and the other
+        // arm contributes N's zero value.  This is only legal if N is already
+        // available at the Phi region; otherwise a return-scope/live-on-exit
+        // Phi can lose the zero arm and export a branch-local value upward.
+        Node unguard;
+        if( (unguard=matchingGuardMerge(r,1)) != null ) return unguard;
+        if( (unguard=matchingGuardMerge(r,2)) != null ) return unguard;
 
         return null;
     }
 
-    private static Node unguard(Node n) {
-        while( n instanceof GuardNode guard )
+    private Node matchingGuardMerge(RegionNode r, int nzIdx) {
+        Node zero = in(3-nzIdx);
+        if( !(in(nzIdx) instanceof GuardNode cast && cast._nonZero) ||
+            zero._type.makeZero()!=zero._type ||
+            cast.in(1)==this )
+            return null;
+        if( !(r.in(nzIdx) instanceof CProjNode nz && nz._idx==0 && nz.ctrl() instanceof IfNode iff) )
+            return null;
+        if( !(r.in(3-nzIdx) instanceof CProjNode z && z._idx==1 && z.ctrl()==iff) )
+            return null;
+        Node n = cast.in(1);
+        while( n instanceof GuardNode guard ) {
             n = guard.in(1);
-        return n;
+            throw Utils.TODO("test and remove TODO");
+        }
+        CFGNode early = CFGNode.earlyCFG(n,null);
+        return iff.pred()==cast.in(1) && (early==null || early.dominates(r)) ? n : null;
     }
 
     // Same op on all Phi paths; all ops have only the Phi as a use.

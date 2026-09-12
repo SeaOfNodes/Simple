@@ -92,6 +92,71 @@ public abstract class CFGNode extends Node {
         return lhs;
     }
 
+    // Safe read of the control input of a data node.
+    public static CFGNode safeCFG(Node n) {
+        return n != null && n.in(0) instanceof CFGNode cfg ? cfg : null;
+    }
+
+    // True when this node dominates `sub` in the current idom tree.
+    public boolean dominates(CFGNode sub) {
+        for( CFGNode cfg=sub; cfg!=null; cfg=cfg.idom() )
+            if( cfg == this )
+                return true;
+        return false;
+    }
+
+    public boolean sameFun(CFGNode that) {
+        FunNode fun = fun();
+        return fun != null && fun == that.fun();
+    }
+
+    public static boolean sameFun(CFGNode a, CFGNode b) {
+        return a != null && b != null && a.sameFun(b);
+    }
+
+    public static CFGNode deepest(CFGNode a, CFGNode b) {
+        if( a == null ) return b;
+        if( b == null ) return a;
+        return b.idepth() > a.idepth() ? b : a;
+    }
+
+    public static CFGNode earlyCFG(Node n, CFGNode start) {
+        return earlyCFG(n,start,new IdentityHashMap<>(),new BitSet());
+    }
+
+    public static CFGNode earlyCFG(Node n, CFGNode start, IdentityHashMap<Node,CFGNode> cache, BitSet active) {
+        if( n == null )
+            return null;
+        CFGNode cached = cache.get(n);
+        if( cached != null )
+            return cached;
+        if( active.get(n._nid) )
+            return safeCFG(n);
+        active.set(n._nid);
+        CFGNode early = start;
+        if( n.in(0) instanceof CFGNode cfg )
+            early = cfg;
+        for( int i=1; i<n.nIns(); i++ )
+            early = deepest(early,defCFG(n.in(i),start,cache,active));
+        active.clear(n._nid);
+        cache.put(n,early);
+        return early;
+    }
+
+    private static CFGNode defCFG(Node n, CFGNode start, IdentityHashMap<Node,CFGNode> cache, BitSet active) {
+        if( n == null )
+            return null;
+        if( n instanceof PhiNode phi )
+            return phi.region();
+        if( n instanceof CFGNode cfg )
+            return cfg;
+        if( n instanceof ProjNode )
+            return safeCFG(n);
+        if( n.isConst() )
+            return start;
+        return earlyCFG(n,start,cache,active);
+    }
+
     // Anti-dependence field support
     public int _anti;           // Per-CFG field to help find anti-deps
 

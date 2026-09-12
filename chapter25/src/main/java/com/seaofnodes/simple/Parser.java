@@ -630,8 +630,8 @@ public class Parser {
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred.keep()).peephole();
         // Setup projection nodes
-        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+        CFGNode ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        CFGNode ifF = (CFGNode)new CProjNode(ifNode.unkeep(), 1, "False").peephole();
 
         // for( ;;next ) body
         int nextPos = -1, nextEnd = -1;
@@ -734,7 +734,7 @@ public class Parser {
         // conditions here, not the union.
         _breakScope.removeGuards(_breakScope.ctrl());
         _breakScope = require(jumpTo(_breakScope ),";");
-        _breakScope.addGuards(_breakScope.ctrl(), null, false);
+        _breakScope.addGuards((CFGNode)_breakScope.ctrl(), null, false);
         return _code.ZERO;
     }
 
@@ -779,8 +779,8 @@ public class Parser {
         pred.keep();
         Node ifNode = new IfNode(ctrl(), pred).peephole();
         // Setup projection nodes
-        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
-        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
+        CFGNode ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        CFGNode ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole().keep();
         // In if true branch, the ifT proj node becomes the ctrl
         // But first clone the scope and set it as current
         ScopeNode fScope = _scope.dup(); // Duplicate current scope
