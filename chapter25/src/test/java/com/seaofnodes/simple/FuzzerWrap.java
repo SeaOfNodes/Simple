@@ -13,22 +13,42 @@ import static org.junit.Assert.assertTrue;
  */
 public class FuzzerWrap {
 
-    @Ignore
-    @Test
-    public void fuzzPeeps() {
+    private static final long[] REGRESSION_SEEDS = {
+        375135762521757909L,   // bad LCA
+        -148471672577312953L,  // bulk mem
+        -5037182906211190034L, // dead Guard control
+        -6359653295501938199L, // monotonicity, escape is dead
+    };
+
+    private static final long[] OPEN_FAILING_SEEDS = {
+    };
+
+
+    @Test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(  REGRESSION_SEEDS); }
+    @Test @Ignore public void fuzzPeepsOpenFailures() { fuzzPeepsSeeds(OPEN_FAILING_SEEDS); }
+
+    private static void fuzzPeepsSeeds(long... seeds) {
         var fuzzer = new Fuzzer();
-        for (int i=0; i<1000000; i++)
-            fuzzer.fuzzPeeps(i);
+        for (long seed : seeds)
+            fuzzer.fuzzPeepsRegression(seed);
+    }
+
+    @Test
+    public void fuzzPeepsRandom() {
+        Random R = new Random(System.currentTimeMillis());
+        var fuzzer = new Fuzzer();
+        for (int i=0; i<100; i++)
+            fuzzer.fuzzPeeps(R.nextLong());
         assertTrue(fuzzer.noExceptions());
     }
 
 
+    @Ignore
     @Test
-    public void fuzzPeepsSmall() {
-        Random R = new Random(System.currentTimeMillis());
+    public void fuzzPeepsLarge() {
         var fuzzer = new Fuzzer();
-        for (int i=0; i<100; i++)
-            fuzzer.fuzzPeeps( R.nextLong());
+        for (int i=0; i<1000000; i++)
+            fuzzer.fuzzPeeps(i);
         assertTrue(fuzzer.noExceptions());
     }
 
@@ -40,4 +60,5 @@ public class FuzzerWrap {
         for (int i=0; i<1000000; i++)
             max_nid = fuzzer.fuzzPeepTiming(i, max_nid);
     }
+
 }

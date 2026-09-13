@@ -52,6 +52,7 @@ public class IterPeeps {
 
     public final WorkList<Node> _work;
     final WorkList<CallEndNode> _workInline;
+    private int _cnt;
 
     public IterPeeps( long seed ) {
         _work       = new WorkList<>(seed);
@@ -98,13 +99,12 @@ public class IterPeeps {
 
     // Run all the code-reduction and type-lifting peeps as possible
     private void iteratePeeps( CodeGen code ) {
-        assert !CodeGen.expensiveAssert(1) || (progressOnList(code, _work) && schedulableUses(code));
-        int cnt=0;
+        assert !CodeGen.expensiveAssert(0) || (progressOnList(code, _work) && schedulableUses(code));
 
         Node n;
         while( (n=_work.pop()) != null ) {
             if( n.isDead() )  continue;
-            cnt++;              // Useful for debugging, searching which peephole broke things
+            _cnt++;              // Useful for debugging, searching which peephole broke things
             Node x = n.peepholeOpt();
             if( n instanceof CallEndNode cend )
                 _workInline.push(cend);
@@ -135,7 +135,7 @@ public class IterPeeps {
                 n.moveDepsToWorklist();
                 JSViewer.show(); // Show again
                 // Very expensive assert.
-                assert !CodeGen.expensiveAssert(cnt) || (progressOnList(code, _work) && schedulableUses(code));
+                assert !CodeGen.expensiveAssert(_cnt) || (progressOnList(code, _work) && schedulableUses(code));
             }
             if( n.isUnused() ) {
                 assert !(n instanceof StopNode); // StopNodes can die if all code in the compunit dies
@@ -162,13 +162,11 @@ public class IterPeeps {
     public static boolean progressOnList(CodeGen code, WorkList<Node> list ) {
         code._midAssert = true;
         Node changed = code._stop.walk( n -> {
-            Node m = n;
-            Type nval = n.compute();
             // Ignore most in-progress things
             if( n.iskeep() ) return null;
-
             // Types must be forwards, even if on the worklist.
-            assert nval.isa(n._type) : "Non-monotonic peep: "+n+"#"+n._nid+" old="+n._type+" new="+nval+" inputs="+inputTypes(n)+" peep="+m;
+            Type nval = n.compute();
+            assert nval.isa(n._type) : "Non-monotonic peep: "+n+"#"+n._nid+" old="+n._type+" new="+nval+" inputs="+inputTypes(n)+" peep="+n;
             if( list.on(n) )
                 return null;    // On worklist is ok!
             if( n instanceof CallEndNode cend ) {
@@ -176,9 +174,10 @@ public class IterPeeps {
                     return null; // On inline worklist is ok!
                 assert cend.maybeInline() <= 0 : "Inline fired and not on worklist, CallEndNode#"+cend._nid;
             }
-
+            // Off list: must be live, in GVN table, and no peeps.
             assert n.nOuts() > 0 : "Unused live node: "+n;
-            m = n.peepholeOpt();
+            assert code._gvn.get(n)==n : "Not in GVN table: "+n;
+            Node m = n.peepholeOpt();
             assert m==null : "Peep fired and not on worklist, "+n.getClass().getSimpleName()+"#"+n._nid+" -> "+m;
             return m;
         });
@@ -197,25 +196,26 @@ public class IterPeeps {
     // and no later than the LCA of its uses.  Catch graphs where a use escapes
     // above an input-defined branch before the later scheduling pass walks off
     // the top of the idom tree.
+    private static final IdentityHashMap<Node,CFGNode> earlyCache = new IdentityHashMap<>();
+    private static final BitSet VISIT = new BitSet();
     public static boolean schedulableUses(CodeGen code) {
-        IdentityHashMap<Node,CFGNode> earlyCache = new IdentityHashMap<>();
+        earlyCache.clear();
         Node bad = code._stop.walk( n -> {
             if( n.iskeep() || n.isDead() || n.isConst() ||
                 n instanceof CFGNode || n instanceof PhiNode || n instanceof ProjNode )
                 return null;
-            CFGNode early = CFGNode.earlyCFG(n,code._start,earlyCache,new BitSet());
-            if( early == null || early == code._start )
-                return null;
+            assert VISIT.isEmpty();
+            CFGNode early = CFGNode.earlyCFG(n,earlyCache,VISIT);
+            VISIT.clear();
+            if( early == null ) return null;
             CFGNode lca = null;
             for( Node use : n._outputs ) {
                 CFGNode ublk = useBlock(n,use);
                 if( ublk != null )
                     lca = ublk._idom(lca,null);
             }
-            if( lca == null )
-                return null;
-            if( !early.sameFun(lca) )
-                return null;
+            if( lca == null ) return null;
+            if( !early.sameFun(lca) )  return null;
             assert early.dominates(lca) : badSchedule(n,early,lca);
             return null;
         });

@@ -128,11 +128,11 @@ public class CallNode extends CFGNode {
     // Link so this calls fun
     public Node link( FunNode fun ) {
         assert !linked(fun);
-        fun.addDef(this);
+        CodeGen.CODE.add(fun).addDef(this);
         for( Node use : fun._outputs )
             if( use instanceof ParmNode parm ) {
                 Node def = parm._idx==0 ? ConstantNode.seed(cend()._rpc).peephole() : arg(parm._idx);
-                parm.addDef(def);
+                CodeGen.CODE.add(parm).addDef(def);
                 // Linking can happen during post-SCCP inlining.  Keep an RPC
                 // Parm's cached finite set synchronized with its newly added
                 // input instead of waiting for the next worklist visit.

@@ -146,7 +146,7 @@ public class StoreNode extends MemOpNode {
                 if( useAlias(use)==fld._alias ) {
                     int idx = use._inputs.find(this);
                     assert idx != -1;
-                    use.setDef(idx,st);
+                    CodeGen.CODE.add(use).setDef(idx,st);
                     i--;        // setDef removed use from this Store's outputs
                 }
             }

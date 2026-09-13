@@ -90,7 +90,8 @@ public class EscapeNode extends TypeNode {
         }
         // New allocation is dead
         if( self()._type.isHigh() )
-            return pub();
+            if( pub()._type.isa(_type) ) return pub();
+            else addDep(pub());
         return null;
     }
 

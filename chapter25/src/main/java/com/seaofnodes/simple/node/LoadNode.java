@@ -269,10 +269,7 @@ public class LoadNode extends MemOpNode {
         Node px = memphi.in(idx);
         if( px==null ) return false;
         assert !(px._type instanceof TypeMem mem && mem._t.isHighOrConst() );
-        //// To avoid cyclic pushing a Load up then down, getting here means
-        //// the load *must* replace with the high/constant.
-        //return true;
-        if( px instanceof StoreNode st1 && ptr()==addDep(st1.nnptr() ) && off()==st1.off() && st1.val()._type.isa(_type) )
+        if( px instanceof StoreNode st1 && ptr()==addDep(st1.nnptr() ) && off()==st1.off() && addDep(st1.val())._type.isa(_type) )
             // To avoid cyclic pushing a Load up then down, getting here means
             // the load *must* match against the Store
             return true;
@@ -304,6 +301,4 @@ public class LoadNode extends MemOpNode {
         Node shl = new ShlNode(null,val,shf.keep()).peephole();
         return new SarNode(null,shl,shf.unkeep());
     }
-
-    //@Override public int log_size() { return declaredType().log_size(); }
 }

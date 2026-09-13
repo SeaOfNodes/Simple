@@ -535,7 +535,7 @@ public class ScopeNode extends MemMergeNode {
     private void _addGuards( CFGNode ctrl, Node pred, boolean invert ) {
         if( pred==null || pred.isDead() )
             return;
-        CFGNode early = CFGNode.earlyCFG(pred,null);
+        CFGNode early = CFGNode.earlyCFG(pred);
         if( early != null && !early.dominates(ctrl) )
             return;
         // Short-circuit logic is represented by a Phi.  For `a || b` being

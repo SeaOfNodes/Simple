@@ -39,6 +39,12 @@ public class GuardNode extends Node {
     }
 
     @Override public Type compute() {
+        // Guard is a pinned, path-local fact.  If its control path is not
+        // executable, the fact is not executable either, regardless of how the
+        // value input sharpens later.
+        Type c = in(0)._type;
+        if( c != Type.CONTROL && c != Type.BOTTOM )
+            return Type.TOP;
         Type t = in(1)._type;
         if( t==Type.BOTTOM || t==Type.TOP ) return t;
         // The scalar envelope does not identify a value family.  Preserve it
@@ -50,6 +56,8 @@ public class GuardNode extends Node {
     }
 
     @Override public Node idealize() {
+        if( in(0)._type != Type.CONTROL && in(0)._type != Type.BOTTOM )
+            return null;
         if( in(1)._type==Type.BOTTOM || in(1)._type==Type.TOP ) return null;
         if( _type.isHighOrConst() && in(1)._type.isa(_type) )
             return in(1);

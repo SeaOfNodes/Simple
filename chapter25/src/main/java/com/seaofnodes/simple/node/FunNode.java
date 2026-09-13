@@ -94,8 +94,8 @@ public class FunNode extends RegionNode {
                 for( Node use : ret().outs() )
                     if( use instanceof CallEndNode || use instanceof FunPtrNode )
                         CODE.add(use);
-            _sig = sig;
             unlock();
+            _sig = sig;
         }
     }
 

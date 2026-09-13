@@ -61,6 +61,10 @@ Consequences:
 - The parser carries one ordinary bulk-memory value. Precise alias partitioning
   belongs to the graph and optimizer, not nested parser Scope state.
 - Alias `#1` is bulk/unresolved memory. A precise alias is `#N`, with `N != 1`.
+- Precise memory shapes always use `MemPhiNode`; bulk memory slices use
+  `BulkMemPhiNode`. Plain `PhiNode`s do not represent memory. If a memory bug
+  seems to require generic Phi memory state, suspect a representation/worklist
+  bug instead.
 - `MemMerge` inputs are disjoint slices whose union covers all memory. Its
   default input means all aliases not explicitly split out.
 - `BulkMemPhi` carries `All - exclusions`; parallel `MemPhiNode`s carry the

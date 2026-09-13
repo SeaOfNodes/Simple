@@ -149,7 +149,7 @@ public class PhiNode extends Node {
             n = guard.in(1);
             throw Utils.TODO("test and remove TODO");
         }
-        CFGNode early = CFGNode.earlyCFG(n,null);
+        CFGNode early = CFGNode.earlyCFG(n);
         return iff.pred()==cast.in(1) && (early==null || early.dominates(r)) ? n : null;
     }
 
