@@ -45,7 +45,12 @@ public class FunPtrNode extends TypeNode {
     @Override public boolean isPinned() { return true; }
     @Override public Type compute() {
         ReturnNode ret = ret();
-        return ret == null ? _con : ret.fun().sig();
+        if( ret == null ) return _con;
+        if( !(ret._type instanceof TypeTuple tt) ) return ret._type.oob();
+        TypeFunPtr tfp = ret.fun().sig();
+        // Both the sig and the return value must be true, so JOIN both
+        Type tret = tfp._ret.join(tt.ret());
+        return tfp.makeFrom(tret);
     }
     @Override public Node idealize() {
         ReturnNode ret = ret();

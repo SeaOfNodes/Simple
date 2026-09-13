@@ -43,9 +43,14 @@ public class MinusNode extends Node implements ModeNode {
             return _mode==0 ? Type.TOP :
                 _mode==1 ? TypeInteger.TOP :
                 t instanceof TypeFloat ? t : TypeFloat.F64.dual();
-        if( _mode==0 )
+        byte mode = _mode;
+        if( mode==0 ) {
+            if( t instanceof TypeFloat   ) mode=2;
+            if( t instanceof TypeInteger ) mode=1;
+        }
+        if( mode==0 )
             return Type.BOTTOM;
-        if( _mode==1 ) {
+        if( mode==1 ) {
             if( t instanceof TypeInteger i0 &&
                 i0._min != Long.MIN_VALUE && i0._max != Long.MIN_VALUE )
                 return TypeInteger.make(-i0._max,-i0._min,i0._widen);

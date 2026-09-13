@@ -268,7 +268,9 @@ public class LoadNode extends MemOpNode {
     private boolean profit(PhiNode memphi, int idx) {
         Node px = memphi.in(idx);
         if( px==null ) return false;
-        assert !(px._type instanceof TypeMem mem && mem._t.isHighOrConst() );
+        // Memory is collapsing, no bother
+        if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() )
+            return false;
         if( px instanceof StoreNode st1 && ptr()==addDep(st1.nnptr() ) && off()==st1.off() && addDep(st1.val())._type.isa(_type) )
             // To avoid cyclic pushing a Load up then down, getting here means
             // the load *must* match against the Store

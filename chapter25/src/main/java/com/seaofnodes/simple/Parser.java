@@ -2156,7 +2156,7 @@ public class Parser {
         // Self method call?  Self is a TMP-not-CLZ, then assume and pass self.
         if( match("(") ) {
             expr = parsePostfix(require(functionCall(expr,self),")"));
-        } else
+        } else if( expr != self )
             self.isKill();      // Not a method call, no need for self
         return parsePostfix(expr);
     }

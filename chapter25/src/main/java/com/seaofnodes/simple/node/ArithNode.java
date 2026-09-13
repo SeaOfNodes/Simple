@@ -94,7 +94,7 @@ public abstract class ArithNode extends Node implements ModeNode {
     // Arithmetic subclasses which have a floating-point interpretation override.
     boolean allowFloat() { return false; }
 
-    // Generic airthmetic op math: high returns high; low returns low; 2
+    // Generic arithmetic op math: high returns high; low returns low; 2
     // constants fold; only 2 non-constants call specialized math.
     @Override
     public final Type compute() {
@@ -107,7 +107,7 @@ public abstract class ArithNode extends Node implements ModeNode {
                 TypeFloat.F64.dual();
         byte mode = _mode==0 ? mode(t1,t2) : _mode;
         if( mode==0 )
-            return Type.BOTTOM;
+            return CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal() ? Type.BOTTOM : Type.TOP;
         if( mode==1 ) {
             if( t1 instanceof TypeInteger x &&
                 t2 instanceof TypeInteger y )

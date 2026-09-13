@@ -34,14 +34,17 @@ abstract public class Opto {
         // OPTIMISTIC INTERPROCEDURAL SCCP
         sccp(code, oldTypes);
 
-        // After SCCP add everything changed to the worklist and see if
-        // peepholes can make more progress.
-        moveChangesToWorklist(code, oldTypes);
-
         // SCCP can leave a recursive numeric component at BOTTOM with no
         // arithmetic mode selected.  Resolve the whole component from all
         // available int/float evidence before IterPeeps consumes the types.
         resolveNumericModes(code);
+
+        if( !code._iter._work.isEmpty() )
+            sccp(code, oldTypes);
+
+        // After SCCP add everything changed to the worklist and see if
+        // peepholes can make more progress.
+        moveChangesToWorklist(code, oldTypes);
 
         // Progress with improved types.  E.g. since we have a full Call Graph
         // here, we might do better inlining.
@@ -311,8 +314,9 @@ abstract public class Opto {
                     mode = 1;
                 if( mode != 0 )  {
                     // If both evidence, FP wins
-                    modeNode.setMode((byte)((mode&2)==2 ? 2 : 1)).init();
+                    modeNode.setMode((byte)((mode&2)==2 ? 2 : 1));
                     code.add(n);
+                    code.addAll(n.outs());
                 }
             }
             return null;

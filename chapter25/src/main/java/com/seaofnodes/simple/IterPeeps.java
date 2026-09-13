@@ -335,7 +335,7 @@ public class IterPeeps {
             return x;
         }
 
-        //boolean isEmpty() { return _len==0; }
+        public boolean isEmpty() { return _len==0; }
         //Node[] asAry() { return Arrays.copyOf(_es,_len); }
         //public void clear() {
         //    _len = 0;

@@ -14,10 +14,11 @@ import static org.junit.Assert.assertTrue;
 public class FuzzerWrap {
 
     private static final long[] REGRESSION_SEEDS = {
-        375135762521757909L,   // bad LCA
-        -148471672577312953L,  // bulk mem
+          375135762521757909L, // bad LCA
+         -148471672577312953L, // bulk mem
         -5037182906211190034L, // dead Guard control
         -6359653295501938199L, // monotonicity, escape is dead
+         6506797708065910879L, // missing ModeNode._mode is optimistic
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
