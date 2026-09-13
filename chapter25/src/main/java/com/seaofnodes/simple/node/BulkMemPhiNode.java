@@ -197,17 +197,11 @@ public class BulkMemPhiNode extends PhiNode {
     // Slice out given alias
     private MemMergeNode slice( int alias ) {
         assert !_aliases.get(alias);
-        assert !hasDup(alias);
-        // Inputs are the same; MemPhi will sharpen his own inputs
-        MemPhiNode mphi = new MemPhiNode("$"+alias,alias);
-        for( int i=0; i<nIns(); i++ ) mphi.addDef(in(i));
-        Node mem = mphi.peephole();
+        // Inputs are the same; MemPhi will sharpen his own inputs.  If a
+        // parallel precise Phi already exists, reuse it instead of building a
+        // duplicate for the same Region/alias pair.
+        Node mem = precisePhi(alias);
         assert ((TypeMem)mem._type)._alias==alias;
-        // The precise Phi is a new alias-sensitive user of every memory
-        // input.  Revisit those defs: a predecessor BulkMemPhi may now need
-        // to split this alias even though none of its inputs or types changed.
-        for( int i=1; i<mphi.nIns(); i++ )
-            CodeGen.CODE.add(mphi.in(i));
 
         BitSet aliases = ((BitSet)_aliases.clone());
         aliases.set(alias);
@@ -219,9 +213,12 @@ public class BulkMemPhiNode extends PhiNode {
         // away and hide those neighbor relationships.
         for( int i=1; i<bphi.nIns(); i++ )
             CodeGen.CODE.add(bphi.in(i));
-        Node bulk = bphi.peephole();
+        // Do not peephole bphi here, as BulkMemPhi can recursively start a
+        // second bulk rewrite before this one has finished.  Let the worklist
+        // discover any further splits
+        Node bulk = bphi.init();
         CodeGen.CODE.add(bulk);
-        CodeGen.CODE.add(mphi);
+        CodeGen.CODE.add(mem);
         return aggregate(bulk,alias,mem);
     }
 
@@ -245,47 +242,33 @@ public class BulkMemPhiNode extends PhiNode {
         return mmm;
     }
 
-    // Find the precise Phi parallel to this bulk Phi at the same merge.
+    // Find or make the precise Phi parallel to this bulk Phi at the same merge.
     private Node precisePhi(int alias) {
-        Node found = null;
+        MemPhiNode mphi = _findPhi(alias);
+        if( mphi!=null ) return mphi;
+
+        mphi = new MemPhiNode("$"+alias,alias);
+        mphi.addDef(region());
+        // Due to cycles, must set before calling peephole
+        mphi.setType(TypeMem.BOT.makeFrom(alias));
+        for( int i=1; i<nIns(); i++ )
+            mphi.addDef(CodeGen.CODE.add(preciseInput(in(i),alias)));
+        return (MemPhiNode)mphi.peephole();
+    }
+
+    MemPhiNode _findPhi(int alias) {
         for( Node use : region().outs() )
-            if( use instanceof MemPhiNode mphi && mphi._alias==alias ) {
-                assert found==null;
-                found = mphi;
-            }
-        // The parallel Phi may already have collapsed to a common input.  Do
-        // not recover it from downstream MemMerges: they are distinct program
-        // points and can legitimately carry different values for this alias.
-        // Reconstruct from this Phi's merge inputs instead.  MemPhi selects
-        // the alias from each input MemMerge and collapses when, for example,
-        // the alias is loop-invariant here.
-        if( found==null ) {
-            MemPhiNode mphi = new MemPhiNode("$"+alias,alias);
-            mphi.addDef(region());
-            // Publishing the Phi on the Region makes it visible to recursive
-            // precisePhi lookups before all loop inputs have been installed.
-            // Give that recursion a valid lattice value until peephole computes
-            // the completed precise-memory Phi.
-            mphi.setType(TypeMem.BOT.makeFrom(alias));
-            for( int i=1; i<nIns(); i++ )
-                mphi.addDef(preciseInput(in(i),alias));
-            found = mphi.peephole();
-            // A newly reconstructed precise Phi also creates new users of
-            // its memory inputs.  In particular, a BulkMemPhi input may now
-            // need to split this alias, a backwards (user-to-def) change not
-            // covered by processing the new Phi itself.
-            for( int i=1; i<mphi.nIns(); i++ )
-                CodeGen.CODE.add(mphi.in(i));
-            CodeGen.CODE.add(found);
-        }
-        return found;
+            if( use instanceof MemPhiNode mphi && mphi._alias==alias )
+                return mphi;
+        return null;
     }
 
     // Select an alias already split out of a predecessor's bulk memory.
     private Node preciseInput(Node mem, int alias) {
         if( mem instanceof MemMergeNode mmm )
             return mmm.alias(alias);
-        assert !(mem instanceof BulkMemPhiNode bulk) || !bulk.isSplit(alias);
+        if( mem instanceof BulkMemPhiNode bulk && bulk.isSplit(alias) )
+            return bulk.precisePhi(alias);
         return mem;
     }
 
@@ -296,13 +279,6 @@ public class BulkMemPhiNode extends PhiNode {
             if( alias >= mmm.nIns() || mmm.in(alias)==null )
                 return false;
         return true;
-    }
-
-    private boolean hasDup( int alias ) {
-        for( Node use : region().outs() )
-            if( use instanceof MemPhiNode mphi && mphi._alias==alias )
-                return true;
-        return false;
     }
 
     @Override public boolean eq(Node n) {

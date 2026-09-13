@@ -19,9 +19,13 @@ public class FuzzerWrap {
         -5037182906211190034L, // dead Guard control
         -6359653295501938199L, // monotonicity, escape is dead
          6506797708065910879L, // missing ModeNode._mode is optimistic
+          650692970082394944L, // recursive bulk mem split
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
+        8335100609598232836L,
+        2520958273643234516L,
+        -3772838984504063325L,
     };
 
 

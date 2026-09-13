@@ -21,68 +21,16 @@ public class Chapter25Test {
     @Ignore
     @Test
     public void testJig() {
-        String src =
-"""
-if(3) arg=arg^arg;
-else return arg;
-u8 v0=arg^--arg;
-if(v0<=1) return 37;
-else {
-    arg=arg;
-    while(3) {
-        arg=v0==++arg;
-        arg=v0;
-        break;
+        String src =" while(1?!0:arg++) {";
+        String src2 = """
+int v0=0^0;
+    while(1) {
+        arg=v0++&0;
+            int v2=0;
+                    if(v0)
+                        if(v0) v2=0;
     }
-}
-arg=arg;
-struct IC95xuj {
-    bool v1;
-    u8 v2;
-    u8 He;
-};
-if(v0<new IC95xuj.He) while(new IC95xuj.He<!new IC95xuj.He) {
-        arg=new IC95xuj.He;
-        if(new IC95xuj.v1) while(new IC95xuj.v1) if(0&&new IC95xuj.v2) continue;
-                else v0=false?new IC95xuj.v2:new IC95xuj.v1&2;
-        else if(new IC95xuj.v2!=3>-++arg*arg) while(false + new IC95xuj.v2) arg=-arg;
-            else continue;
-        v0=new IC95xuj.v2;
-        arg=-new IC95xuj.He;
-        flt v3=-arg||---v0;
-        IC95xuj !v0=new IC95xuj;
-        v3=arg;
-    }
-else {
-    v0=-new IC95xuj.He;
-    v0=---v0/---v0+new IC95xuj.He;
-    return -new IC95xuj.v1|(++arg>arg?new IC95xuj.He:++v0);
-}
-while(-new IC95xuj.He*arg<=--v0||106) return new IC95xuj;
-while(new IC95xuj.v1<new IC95xuj.v2) {
-    if(new IC95xuj.v1||v0) break;
-    else {
-            int arg=new IC95xuj.v1;
-            while(arg<new IC95xuj.v1) {
-                arg=arg+0;
-                while(new IC95xuj.v2+!new IC95xuj.He)
-                    continue;
-                arg=0==new IC95xuj;
-            }
-        }
-        v0=1&new IC95xuj.He&new IC95xuj.He^arg;
-        v0=arg||--v0<--new IC95xuj.v2|3?new IC95xuj.v2&-new IC95xuj.v2:new IC95xuj.He;
-        v0=4;
-        break;
-}
-if(new IC95xuj.He) {
-    arg=0;
-    return v0;
-}
-else
-    return new IC95xuj;
-
-""";
+    """;
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("2",Eval2.eval(code,0));
     }
