@@ -189,8 +189,10 @@ public class LoadNode extends MemOpNode {
             case EscapeNode esc:
                 if( esc.self()==ptr ) // Proved equal
                     { mem = esc.priv(); break; }
+                // Mal-formed, dying
+                if( !(esc.self().in(0) instanceof NewNode) )
+                    break outer;
                 // Two NewNodes are always unequal
-                assert esc.self().in(0) instanceof NewNode;
                 if( ptr.in(0) instanceof NewNode )
                     { mem = esc.pub(); break; }
                 // TODO: Can we prove unequal?
