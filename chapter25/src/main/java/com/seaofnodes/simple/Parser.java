@@ -298,10 +298,6 @@ public class Parser {
         if( ctrl()._type==Type.CONTROL ) {
             // Constructors get special return types
             if( fun.isClz() ) {
-                // <clinit> only returns an integer, which becomes an OS exit code
-                // if the <clinit> is run directly
-                //if( !(last._type instanceof TypeInteger) )
-                //    last = _code.ZERO;
                 assert last!=null;
             } else if( isCtor ) {
                 last = fun.parm(3);
@@ -1704,19 +1700,18 @@ public class Parser {
 
         // Compare
         Node rhs = parseShift().keep();
-        Node cmp = makeCompBool(dir,lhs.unkeep(),rhs); // Convert to a bool
+        Node cmp = makeCompBool(dir,lhs.unkeep(),rhs).keep(); // Convert to a bool
 
         // Stacked compares?
         int dir0 = parseCompDir();
         if( dir0 == 0 ) {
-            rhs.unkeep();
-            if( rhs != cmp ) rhs.isKill();
-            return cmp;
+            rhs.unkill();
+            return cmp.unkeep();
         }
 
         // rhs is keeped() and becomes lhs
         // cmp is NOT keeped() and is the last test
-        Node ifNode = new IfNode(ctrl(), cmp).peephole();
+        Node ifNode = new IfNode(ctrl(), cmp.unkeep()).peephole();
         Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
         Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
         // False side does nothing but capture memory & side-effects

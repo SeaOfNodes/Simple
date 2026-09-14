@@ -27,6 +27,7 @@ public class FuzzerWrap {
         -4022199781524079249L, // fuzzer regression
          8824787517620928178L, // unknown-mode unary minus during SCCP
          -673501011619761901L, // peephole killed self
+        -8212834489697770130L, // bad keep/unkeep in parser
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
