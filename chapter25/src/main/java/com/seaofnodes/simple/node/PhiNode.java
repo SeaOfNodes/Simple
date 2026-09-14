@@ -144,19 +144,23 @@ public class PhiNode extends Node {
             return null;
         if( !(r.in(3-nzIdx) instanceof CProjNode z && z._idx==1 && z.ctrl()==iff) )
             return null;
-        Node n = cast.in(1);
-        while( n instanceof GuardNode guard ) {
+        // Predicate was guarded?
+        Node n = cast.in(1), tested = null;
+        while( true ) {
+            if( iff.pred()==n ) tested = n;
+            if( !(n instanceof GuardNode guard && guard._nonZero) ) break;
             n = guard.in(1);
-            throw Utils.TODO("test and remove TODO");
         }
         CFGNode early = CFGNode.earlyCFG(n);
-        return iff.pred()==cast.in(1) && (early==null || early.dominates(r)) ? n : null;
+        return tested!=null && (early==null || early.dominates(r)) ? n : null;
     }
 
     // Same op on all Phi paths; all ops have only the Phi as a use.
     // None have a control input.
     private boolean same_op() {
         Node busy=null;
+        if( in(1) instanceof ConstantNode )
+            return false;
         for( int i=1; i<nIns(); i++ ) {
             Node op = in(i);
             if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )

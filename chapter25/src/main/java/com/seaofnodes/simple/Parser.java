@@ -849,8 +849,9 @@ public class Parser {
         // Immediately fail e.g. `arg ? 7 : ptr`
         ParseException err;
         if( !fside.equals("else") && (err=ret.err()) !=null ) throw err;
+        ret.keep();
         r.peephole();
-        return ret;
+        return ret.unkeep();
     }
 
     /**

@@ -195,7 +195,7 @@ fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "fuzzing "
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
-tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag tests_raw0 tests_raw1 tests_alone tests_sys
+tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag tests_raw0 tests_raw1 tests_alone tests_sys fuzzer
 	@echo "All tests"
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)

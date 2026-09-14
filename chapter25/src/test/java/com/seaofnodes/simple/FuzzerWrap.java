@@ -20,12 +20,16 @@ public class FuzzerWrap {
         -6359653295501938199L, // monotonicity, escape is dead
          6506797708065910879L, // missing ModeNode._mode is optimistic
           650692970082394944L, // recursive bulk mem split
+         8335100609598232836L, // ternary result killed by region cleanup
+         2520958273643234516L, // nested guard merge
+        -3772838984504063325L, // fuzzer regression
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
-        8335100609598232836L,
-        2520958273643234516L,
-        -3772838984504063325L,
+        -4628356252269023530L,
+        -4022199781524079249L,
+        8824787517620928178L,
+        -673501011619761901L,
     };
 
 
