@@ -31,10 +31,11 @@ public class FuzzerWrap {
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
+        478567486335112458L,
     };
 
 
-    @Test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(  REGRESSION_SEEDS); }
+    @test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(  REGRESSION_SEEDS); }
     @Test @Ignore public void fuzzPeepsOpenFailures() { fuzzPeepsSeeds(OPEN_FAILING_SEEDS); }
 
     private static void fuzzPeepsSeeds(long... seeds) {
