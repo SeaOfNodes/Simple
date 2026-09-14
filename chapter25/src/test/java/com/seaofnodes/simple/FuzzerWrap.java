@@ -35,7 +35,7 @@ public class FuzzerWrap {
     };
 
 
-    @test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(  REGRESSION_SEEDS); }
+    @Test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(  REGRESSION_SEEDS); }
     @Test @Ignore public void fuzzPeepsOpenFailures() { fuzzPeepsSeeds(OPEN_FAILING_SEEDS); }
 
     private static void fuzzPeepsSeeds(long... seeds) {
