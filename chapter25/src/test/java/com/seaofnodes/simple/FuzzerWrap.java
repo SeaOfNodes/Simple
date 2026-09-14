@@ -28,10 +28,10 @@ public class FuzzerWrap {
          8824787517620928178L, // unknown-mode unary minus during SCCP
          -673501011619761901L, // peephole killed self
         -8212834489697770130L, // bad keep/unkeep in parser
+          478567486335112458L, // dying escape node
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
-        478567486335112458L,
     };
 
 
