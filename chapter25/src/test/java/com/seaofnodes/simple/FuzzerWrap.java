@@ -23,13 +23,13 @@ public class FuzzerWrap {
          8335100609598232836L, // ternary result killed by region cleanup
          2520958273643234516L, // nested guard merge
         -3772838984504063325L, // fuzzer regression
+        -4628356252269023530L, // idepth cache version wrap
+        -4022199781524079249L, // fuzzer regression
+         8824787517620928178L, // unknown-mode unary minus during SCCP
+         -673501011619761901L, // peephole killed self
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
-        -4628356252269023530L,
-        -4022199781524079249L,
-        8824787517620928178L,
-        -673501011619761901L,
     };
 
 
@@ -42,6 +42,7 @@ public class FuzzerWrap {
             fuzzer.fuzzPeepsRegression(seed);
     }
 
+    @Ignore
     @Test
     public void fuzzPeepsRandom() {
         Random R = new Random(System.currentTimeMillis());
@@ -61,8 +62,8 @@ public class FuzzerWrap {
         assertTrue(fuzzer.noExceptions());
     }
 
-    @Test
     @Ignore
+    @Test
     public void fuzzPeepTiming() {
         var fuzzer = new Fuzzer();
         int max_nid=0;

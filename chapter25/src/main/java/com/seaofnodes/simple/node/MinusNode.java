@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
@@ -49,7 +50,7 @@ public class MinusNode extends Node implements ModeNode {
             if( t instanceof TypeInteger ) mode=1;
         }
         if( mode==0 )
-            return Type.BOTTOM;
+            return CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal() ? Type.BOTTOM : Type.TOP;
         if( mode==1 ) {
             if( t instanceof TypeInteger i0 &&
                 i0._min != Long.MIN_VALUE && i0._max != Long.MIN_VALUE )

@@ -342,19 +342,23 @@ public class CodeGen {
     // idepths are cached and valid until *inserting* CFG edges (deleting is
     // OK).  This happens with inlining, which bumps the version to bulk
     // invalidate the idepth caches.
+    private static final int IDEPTH_STRIDE = 1_000_000;
     private int _iDepthVersion = 0;
-    public void invalidateIDepthCaches() { _iDepthVersion++; }
+    public void invalidateIDepthCaches() {
+        ++_iDepthVersion;
+        assert _iDepthVersion < IDEPTH_STRIDE; // Wrapped; needs a major hack to fix
+    }
     public boolean validIDepth(int idepth) {
         if( idepth==0 ) return false;
         if( _iDepthVersion==0 ) return true;
-        return (idepth%100)==_iDepthVersion;
+        return (idepth%IDEPTH_STRIDE)==_iDepthVersion;
     }
     public int iDepthAt(int idepth) {
-        return 100*idepth+_iDepthVersion;
+        return IDEPTH_STRIDE*idepth+_iDepthVersion;
     }
     public int iDepthFrom(int idepth) {
         assert idepth==0 || validIDepth(idepth);
-        return idepth+100;
+        return idepth+IDEPTH_STRIDE;
     }
 
     // Popular visit bitset, declared here, so it gets reused all over
@@ -815,7 +819,7 @@ public class CodeGen {
     	// need to be re-hooked to stop/start less they go dead.
         for( FunNode fun : _linker ) {
             // Already linked to start, not going dead
-            if( fun==null || fun.isDead() || fun._type.isHigh() )
+            if( fun==null || fun.isDead() )
                 continue;
 
             // Imported functions are not emitted by this object.  Unlink any
@@ -854,7 +858,7 @@ public class CodeGen {
             ReturnNode ret = fun.ret();
             StartNode start = fun._compunit._start;
             assert start!=null;
-            if( fun.in(1) != start ) {
+            if( fun.nIns() <= 1 || fun.in(1) != start ) {
                 fun.insertDef(1,start);
                 for( Node use : fun._outputs )
                     if( use instanceof ParmNode parm )
@@ -875,6 +879,16 @@ public class CodeGen {
                 ret.setDef( 3, rpc.init() );
             }
         }
+
+        _stop.walk(n -> {
+            if( n instanceof CallEndNode cend )
+                for( int i=1; i<cend.nIns(); i++ )
+                    if( cend.in(i) instanceof ReturnNode )
+                        cend.delDef(i--);
+            if( n instanceof CallNode call )
+                call.unlink_all();
+            return null;
+        });
 
         _times[Phase.Unlink.ordinal()] = System.currentTimeMillis() - t0;
     }

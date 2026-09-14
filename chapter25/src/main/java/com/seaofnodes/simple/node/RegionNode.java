@@ -111,7 +111,8 @@ public class RegionNode extends CFGNode {
                     CodeGen.CODE.addAll(phi.delDef(path)._outputs);
                 }
         }
-        return isDead() ? CodeGen.CODE.XCTRL : delDef(path);
+        if( !isDead() ) delDef(path);
+        return isDead() ? CodeGen.CODE.XCTRL : this;
     }
 
     private int findDeadInput(int startIdx) {

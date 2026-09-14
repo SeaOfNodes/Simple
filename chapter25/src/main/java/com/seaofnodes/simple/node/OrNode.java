@@ -22,12 +22,13 @@ public class OrNode extends ArithNode {
     public Node idealize() {
         Node lhs = in(1);
         Node rhs = in(2);
+
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
         // Or of 0.  We do not check for (0|x) because this will already
         // canonicalize to (x|0)
-        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 && t1.isa(TypeInteger.BOT) )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 && t1.isa(TypeInteger.BOT) && forceInt(lhs) )
             return lhs;
 
         // Move constants to RHS: con*arg becomes arg*con

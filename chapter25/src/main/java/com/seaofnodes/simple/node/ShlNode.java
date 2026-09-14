@@ -33,7 +33,7 @@ public class ShlNode extends ArithNode {
 
         if( rhs._type instanceof TypeInteger shl && shl.isConstant() ) {
             // Shl of 0.
-            if( (shl.value()&63)==0 )
+            if( (shl.value()&63)==0 && forceInt(lhs) )
                 return lhs;
             // (x + c) << i  =>  (x << i) + (c << i)
             if( lhs instanceof AddNode add && addDep(add).in(2)._type instanceof TypeInteger c && c.isConstant() ) {

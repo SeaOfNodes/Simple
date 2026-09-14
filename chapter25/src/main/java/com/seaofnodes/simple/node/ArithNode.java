@@ -50,6 +50,18 @@ public abstract class ArithNode extends Node implements ModeNode {
         return 0;
     }
 
+    // Int-only ops, such as &, | and shifts, can collapse to one input.  If
+    // that input, or the live arms of a Phi input, are still mode-polymorphic
+    // ops, settle them before returning the value so the replacement remains
+    // at least as narrow as the int-only op.
+    static boolean forceInt(Node n) {
+        if( n instanceof ModeNode mode && mode.mode()==0 ) {
+            mode.setMode((byte)1);
+            n.setType(n.compute());
+        }
+        return true;
+    }
+
     // Check that a settled mode agrees with all data inputs.  Takes the Node
     // instead of a varargs list both to avoid allocation and to keep this ready
     // to become shared mode-aware Node behavior later.

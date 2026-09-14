@@ -24,10 +24,11 @@ public class SarNode extends ArithNode {
     public Node idealize() {
         Node lhs = in(1);
         Node rhs = in(2);
+
         Type t2 = rhs._type;
 
         // Sar of 0.
-        if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 && forceInt(lhs) )
             return lhs;
 
         // TODO: x >> 3 >> (y ? 1 : 2) ==> x >> (y ? 4 : 5)
