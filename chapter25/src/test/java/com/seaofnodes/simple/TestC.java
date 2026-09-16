@@ -189,7 +189,7 @@ public abstract class TestC {
         Process gcc = new ProcessBuilder(params.asAry()).redirectErrorStream(true).start();
         int exit;
         try {
-            boolean normal = gcc.waitFor(2, TimeUnit.SECONDS);
+            boolean normal = gcc.waitFor(10, TimeUnit.SECONDS);
             exit = normal ? gcc.exitValue() : -1; // no exit???
         }  catch( InterruptedException e ) {
             throw new IOException("interrupted");

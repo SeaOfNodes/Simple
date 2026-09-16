@@ -109,10 +109,11 @@ public abstract class CFGNode extends Node {
     }
 
     // True when this node dominates `sub` in the current idom tree.
-    public boolean dominates(CFGNode sub) {
+    public boolean dominates(CFGNode sub, Node dep) {
         for( CFGNode cfg=sub; cfg!=null; cfg=cfg.idom() )
             if( cfg == this )
                 return true;
+            else if( dep != null ) dep.addDep(cfg);
         return false;
     }
 

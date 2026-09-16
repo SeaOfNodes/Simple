@@ -152,7 +152,7 @@ public class PhiNode extends Node {
             n = guard.in(1);
         }
         CFGNode early = CFGNode.earlyCFG(n);
-        return tested!=null && (early==null || early.dominates(r)) ? n : null;
+        return tested!=null && (early==null || early.dominates(r,this)) ? n : null;
     }
 
     // Same op on all Phi paths; all ops have only the Phi as a use.

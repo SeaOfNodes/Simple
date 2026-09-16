@@ -216,7 +216,7 @@ public class IterPeeps {
             }
             if( lca == null ) return null;
             if( !early.sameFun(lca) )  return null;
-            assert early.dominates(lca) : badSchedule(n,early,lca);
+            assert early.dominates(lca,null) : badSchedule(n,early,lca);
             return null;
         });
         return bad == null;
