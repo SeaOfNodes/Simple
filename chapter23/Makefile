@@ -89,7 +89,7 @@ $(CLZDIR)/main/.mtag: $(main_classes) $(main_javas)
 	@# This crap is really just "javac", but with a beautiful error message.
 	@# The very very long list of java files is suppressed and counted.
 	@# The required output "Note: blah blah deprecated blah" is suppressed.
-	$(file > .argsM.txt , $(OODM))
+	$(file >.argsM.txt,$(OODM))
 	@if [ ! -z "$(OODM)" ] ; then \
 	  echo "compiling main because " $< " and " `wc -w < .argsM.txt` " more files" ; \
 	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(OODM) >& .out.txt ; then \
@@ -111,7 +111,7 @@ $(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java
 OODT :=
 $(CLZDIR)/test/.ttag: $(test_classes) $(test_javas) $(CLZDIR)/main/.mtag
 	@[ -d $(CLZDIR)/test ] || mkdir -p $(CLZDIR)/test
-	$(file > .argsT.txt $(OODT))
+	$(file >.argsT.txt,$(OODT))
 	@if [ ! -z "$(OODT)" ] ; then \
 	  echo "compiling test because " $< " and " `wc -w < .argsT.txt` " more files" ; \
 	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(OODT) >& .out.txt ; then \
@@ -177,4 +177,4 @@ lib/hamcrest-core-1.3.jar:
 # Build emacs tags (part of a tasty emacs ide experience)
 tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
-	@$(CTAGS) -e --recurse=yes --extras=+q --fields=+fksaiS $(SRC) $(TST)
+	@$(CTAGS) -e --recurse=yes --extra=+q --fields=+fksaiS $(SRC) $(TST)

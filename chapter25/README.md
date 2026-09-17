@@ -1,86 +1,124 @@
-# Chapter 25: Modules
+# Chapter 25: Modules, Separate Compilation, and SSA Construction
 
+This chapter compiles Simple source files into reusable object files, loads
+their types and ideal IR into later compilations, and links native programs
+against a separately built system library. It also contains a substantial
+parser, type, and memory-SSA redesign to support incomplete information.
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter25) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter24) it to the previous chapter.
+These are the contents of the current snapshot. Independent correctness fixes
+will move to earlier chapters first; moving the larger SSA redesign backward,
+or splitting this chapter, is deferred. See the [backport queue](../docs/chapter-backports.md).
 
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter25)
+in the [linear history](https://github.com/SeaOfNodes/Simple/tree/linear) and
+[compare it with Chapter 24](https://github.com/SeaOfNodes/Simple/compare/linear-chapter24...linear-chapter25).
 
-## Modules
+## Compilation units and names
 
-Goal: A Module plan (not yet a "system")
-Goal: No syntax for the starter 1-file-1-line helloWorld.smp "module"
-Goal: External symbols are in ".o" files, like Java ".class" - not an source file #include like C/C++
+`CompUnit` represents a source or object file. `ParseAll` discovers dependencies,
+parses needed sources, and loads previously compiled units. Source and build
+trees use corresponding relative paths; class names use dotted paths. For
+example, `a/b/foo.smp` supplies the namespace `a.b.foo`.
 
-Needs a search strategy for ".o" files, so they mirror the source code directory structure.
-Means there is a "build" root for .o files.
-Means the CLI has a --flag for the build root, or some sensible default ($cwd/build)
+Each unit has Start/Stop nodes. A function's ownership by a compilation unit is
+distinct from an edge representing unknown external callers: retaining code
+for emission must not imply that arbitrary callers can reach it.
 
-Projects with subdirectories pick up all symbols qualified names from the path-to-project-root
+The driver accepts `--root` for the project root, `-o` for output, and `-L` for
+external Simple object search paths, including an object file or a directory.
+The compiler also resolves external C symbols for native linking. Names beginning
+with `_` control privacy; public reachability depends on enclosing names too.
 
-Goal: under no circumstances can you load from an uninitialized variable  (although you can see default inits for fields that have defaults).
-Goal: nested tree-structured name spaces, to control complexity.
-Goal: field decl order within a file is fairly flexible.
+## Object files contain ideal IR
 
+The ELF writer stores native code and a `.simple` section containing canonical
+types, ideal graph nodes, and dependencies. The reader reconstructs that graph
+so imported functions can participate in optimization, including inlining.
+Calls that remain out of line are resolved by native linking.
 
-## more
+`GlobalBits` maps file identities and per-file indices to local dense indices
+for aliases, function targets, and return points. Equal local numbers from
+independent compilations must not be mistaken for equal identities. Types are
+closed and upgraded after loading, including cross-unit cyclic references.
 
-Has a defined project root (default: CWD).
+Serialization preserves declaration types separately from sharpened flow types.
+Every semantic node/type field needs matching read/write support. The source's
+expensive serialization bijection check is currently disabled, and the larger
+incremental-rebuild test `testModule0` is ignored. Neither is an active
+validation guarantee.
 
-Has a path to root: %PATH, e.g. $ROOT/a/b/c/
+## Constructing SSA before types are complete
 
-Has a file name: $ROOT/ a/b/c/  foo.smp
+Simple still parses directly to SSA without an AST. Forward references mean an
+expression's eventual type may be unavailable while parsing it. Syntax and
+resolved lexical binding therefore choose topology; types subsequently refine,
+optimize, and validate the graph.
 
-Everything in a dir is implicitly in name-space above it.
+- Arithmetic nodes defer integer versus floating-point mode selection, including
+  resolution through recursive graph components after SCCP.
+- Calls preserve their syntactic receiver slot before the callee kind is settled.
+  Symbolic field information defers layout-dependent decisions.
+- Loads and ordinary Phis no longer carry parser-supplied lower-bound types.
+- `TypeScalar` represents integer, float, memory-pointer, and function-pointer
+  values separately from global control/memory bottom.
+- `TypeStruct._open` describes an incomplete field set; `_fref` records the
+  absence of an authoritative definition. Discovering fields does not define a type.
+- Guards carry branch-proven zero/nonzero facts before the input family is known.
+  `FunPtrNode` retains an explicit edge to its function's return graph.
 
-Suppose `foo.smp` contains `PI=3.14;`
+The driver runs parsing, pessimistic iteration, SCCP, and final type checking
+before serialization and machine selection. Nontrivial inlining is coordinated
+with iteration instead of always occurring as an immediate peephole.
 
-Then the fully qualified name is: a.b.c.foo.PI
+## Memory and construction
 
-Code is implicitly in the `struct a.b.c.foo {}` namespace.
+The parser carries ordinary bulk memory. The optimizer recovers precise aliases
+using `MemMerge`, `MemPhi`, and `BulkMemPhi`. A bulk Phi covers all aliases
+except its exclusions, represented by parallel precise Phis. Every slice must
+be covered exactly once.
 
-Final constant values can be accessed by direct names.
+User constructors are declared and called as follows:
 
-Non-finals or non-constant need a constructed object.
+```java
+struct Box {
+    i64[] values;
+    new Box = { i64[] initial -> values = initial; };
+};
+return new Box(new i64[1]);
+```
 
+An allocation helper is generated at the declaration. It allocates, calls the
+hidden `<init>` and then the user constructor, and publishes initialized private
+memory through `EscapeNode`s. Parser `Var` metadata detects early field reads
+and missing initialization on constructor exits. Store widths come from target
+declarations, not from the values being stored.
 
+File-level code is represented by a class initializer (`<clinit>`), distinct
+from instance initialization. The older [module design notes](module.md) and
+[roadmap](ROADMAP.md) contain proposals and alternatives, especially concerning
+initialization order; they are not a specification of all implemented rules.
 
-Top-level code in `foo.smp` is implicitly in the foo class init,
-which runs the first time foo is touched,
-which requires a "has been init" touch on every possible-first-access,
-which is every non-local ("sideways") reference.
+## System library and examples
 
-Always the init for parents are done before children,
-so `a` completes before `a.b`, and so on.
+The former single `sys.smp` library is organized into units for libc bindings,
+I/O, characters, scanners, arrays, growable buffers, and bitsets. The native
+driver supports real program arguments. Examples in `docs/examples` include
+Bubble Sort, Capitalize, Dijkstra, and FileIO.
 
-Means `a` init can NOT reference e.g. `b,c,foo`, although
-you can define top-level fcns that refer to `b`.
+`Chapter25Test` exercises library loading and native linking, including a Hello
+World call deliberately kept out of line. That test checks the client's external
+symbol before linking against `sys.o`. Other tests cover forward constructors,
+field updates through calls, literal escapes, and reduced compiler failures.
+Independent regressions are candidates for earlier chapters.
 
-Legal in `a.smp`:  `val make_b = { -> new b{} };` // fcn is final constant
+## Building and checking
 
-Legal in `a.smp`:  `val      b =      new b{}  ;` // not constant, so requires instance & <clinit> is done
+From this directory, `make lib` supplies Java test dependencies and `make tests`
+runs the raw chapter suites, standalone suites, system tests, and fuzzer
+regressions. `make release` builds the compiler jar and native library artifacts;
+`make tags` builds editor tags. Native tools and the selected CPU/ABI must match
+the environment; the Makefile currently defaults to x86-64/win64.
 
-Means making an `a` instance in a's <clinit>, will also run a's <init>
-which can refer to instance fcns, which can refer to not-init finals?
-Limit: all fcns can only refer to instance vars *before* them.
-
-
-
-Would like to make golden instances, static singletons:
-val special = new a{/*anything already in-scope and <clinit>ed*/};
-
-
-
-The default 1-file main then:
-$ROOT==$CWD
-Code is implicitly in the *empty* name space, is in the <clinit> for the empty
-name space and gets run on project start.
-
-------
-
-Implications for e.g. sys:
-
-    .../simple/sys.smp - top level, has sys.parseAryI64
-     ../simple/sys/sys.io.smp - has `struct io { ... }`
-
-
-For now just gather the exported TYPE symbols, and a count of them, and export/input ELF.
-NO: for now split into `sys` class from instance, 
+Compiler changes can invalidate both serialized IR and native code in `sys.o`.
+Rebuild it before interpreting linked-program test results. A source-only subset
+is not equivalent to this chapter's full `make tests`.

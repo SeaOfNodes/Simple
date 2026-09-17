@@ -3,8 +3,12 @@
 In this Chapter we allow *chaining* conditionals, e.g. `(60 <= score < 90)`
 where `score` in the middle does not have to be repeated.
 
-We also present an Interprocedural Sparse Conditional Constant Propagation
-algorithm.
+The main compiler change is Interprocedural Sparse Conditional Constant
+Propagation (SCCP): an optimistic type solve which also discovers call-graph
+edges. This snapshot still uses the earlier parser/type and memory machinery;
+Chapter 25 currently contains the larger incomplete-types SSA redesign and
+separate compilation. Independent correctness fixes will move backward first;
+see the [backport review queue](../docs/chapter-backports.md).
 
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter23...linear-chapter24) it to the previous chapter.
@@ -37,7 +41,7 @@ if (60 <= score < 90) {
 This checks if score is between 60 (inclusive) and 90 (exclusive), without repeating `score`.
 
 Expressions that mix opposite directions of comparison, like using both 
-`<=` and `=>`, are not allowed, because they create ambiguous logic.
+`<=` and `>=`, are not allowed by Simple's direction rule.
 
 ```java
 if (a <= b >= c)
@@ -52,7 +56,8 @@ Stacked comparisons are *only* valid if all the comparison operators
 - `>` with `>`
 - `>` with `>=`
 
-All operators above can be combined with `==` and `!=`.
+Equality operators (`==` and `!=`) have their normal, lower precedence; they
+are not links in a relational chain.
 
 It is not allowed to mix directions in a single chain:
 ```java 
@@ -87,7 +92,8 @@ a < b && b == c
 ```
 Comparisons can be chained together in any length, and different comparison operators may be 
 mixed freely as long as they point in the same direction.
-Equality(`==`) and inequality(`!=`) operators may be combined with any other comparisons at any point in the chain.
+Each intermediate operand is evaluated once. Later operands are evaluated only
+if earlier comparisons succeed, so calls and updates in a chain short-circuit.
 
 E.g:
 ```
@@ -167,7 +173,7 @@ Without SCCP, this small program cannot remove the computation of `x` and hence
 the loop either.  A glance at the program tells us `x` must always be a `1` but
 the bottom-up (pessimistic) approach decides that since x1 is BOT, x2 must be
 BOT so x1 must be BOT.  We need the optimistic approach to break the
-statemate, and just *assume* x1 is `1`, and then we can discover than x2 is
+stalemate, and just *assume* x1 is `1`, and then we can discover that x2 is
 also a `1`.
 
 

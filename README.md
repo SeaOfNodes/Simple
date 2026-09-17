@@ -68,4 +68,14 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 22](chapter22/README.md): A Simple Hello, World!
 * [Chapter 23](chapter23/README.md): Methods and Types Revisited
 * [Chapter 24](chapter24/README.md): Chained conditionals and SCCP
-* [Chapter 25](chapter25/README.md): Modules and Separate Compilation
+* [Chapter 25](chapter25/README.md): Modules, Separate Compilation, and SSA Construction with Incomplete Types
+
+## Building across chapters
+
+The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
+`release`, or `lib` target. Start with `make lib` on a fresh checkout, then
+`make tests`. 
+
+The [chapter backport queue](docs/chapter-backports.md) records proposed small
+corrections and the per-chapter test/review workflow. Larger architectural moves
+remain deferred while that workflow is established.

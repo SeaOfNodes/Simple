@@ -1,4 +1,5 @@
 SHELL := /bin/bash
+# Shared packaging target; included after chapter source variables below.
 .DELETE_ON_ERROR:
 
 # for printing variable values
@@ -67,7 +68,7 @@ JVM=nice java -ea -cp "build/classes/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 tests:	$(default_targets)
 	@echo "testing " $(test_cp)
-	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
+	@$(JVM) org.junit.runner.JUnitCore $(test_cp) com.seaofnodes.simple.FuzzerWrap
 
 fuzzer: $(default_targets)
 	@echo "testing " $(test_cp)
@@ -96,3 +97,5 @@ lib/hamcrest-core-1.3.jar:
 tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --extra=+q --fields=+fksaiS $(SRC) $(TST)
+
+include ../build-support/chapter-release.mk

@@ -8,15 +8,30 @@ import org.junit.Ignore;
 import static org.junit.Assert.assertTrue;
 
 /**
- * To use the fuzzer run the <code>fuzzPeeps</code> methods.
- * This can be done from IntelliJ Gui or remove the `@Ignore` annotation and start the test case from the command line
- * via <code>mvn clean test -Dtest=com.seaofnodes.simple.Fuzzer08Test#fuzzPeeps</code>
+ * Normal tests run chapter-local regression seeds. Open failures and exploratory
+ * fuzzing are opt-in (run directly in the IDE or temporarily remove Ignore).
+ * Seeds depend on this chapter's generator; do not copy them between chapters.
  */
 public class FuzzerWrap {
 
+    private static final long[] REGRESSION_SEEDS = {
+    };
+
+    private static final long[] OPEN_FAILING_SEEDS = {
+    };
+
+    @Test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(REGRESSION_SEEDS); }
+    @Test @Ignore public void fuzzPeepsOpenFailures() { fuzzPeepsSeeds(OPEN_FAILING_SEEDS); }
+
+    private static void fuzzPeepsSeeds(long... seeds) {
+        var fuzzer = new Fuzzer();
+        for (long seed : seeds)
+            fuzzer.fuzzPeepsRegression(seed);
+    }
+
     @Ignore
     @Test
-    public void fuzzPeeps() {
+    public void fuzzPeepsLarge() {
         var fuzzer = new Fuzzer();
         for (int i=0; i<1000000; i++)
             fuzzer.fuzzPeeps(i);

@@ -172,4 +172,18 @@ public class Fuzzer {
     public boolean noExceptions() {
         return exceptions.isEmpty();
     }
+
+    /** Run a fixed seed without reducing or swallowing failures. */
+    public void fuzzPeepsRegression(long seed) {
+        var rand = new Random(seed);
+        var sb = new StringBuilder();
+        var valid = new ScriptGenerator(rand, sb, true).genProgram();
+        try {
+            runCheck(sb.toString(), valid);
+        } catch (Throwable e) {
+            AssertionError ae = new AssertionError("Fuzzer regression seed failed: " + seed);
+            ae.initCause(e);
+            throw ae;
+        }
+    }
 }

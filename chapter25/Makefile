@@ -236,6 +236,9 @@ lib/hamcrest-core-1.3.jar:
 	@(cd lib; wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar)
 
 # Build emacs tags (part of a tasty emacs ide experience)
+.PHONY: tags
+tags: TAGS
+
 TAGS:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --fields=+fksaiS $(SRC) $(TST)
