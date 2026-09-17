@@ -1978,6 +1978,8 @@ public class Parser {
             return parsePostfixMethod(rvalue,_scope.in(_scope.update(_scope.var(selfx),null)));
         }
         // Assign-update direct into Scope
+        if( var._final )
+            throw error("Cannot reassign final '"+var._name+"'");
         Node op = opAssign(ch,rvalue, var.type() );
         _scope.update(var,op);
         return postfix(ch) ? rvalue.unkeep() : op;
@@ -2001,13 +2003,17 @@ public class Parser {
         // flt + flt ==>> use float op
         Node op = switch(ch) {
         case 1, (char)-1,
-             '+' -> new AddNode(lhs,rhs);
-        case '-' -> new SubNode(lhs,rhs);
-        case '*' -> new MulNode(lhs,rhs);
-        case '/' -> new DivNode(lhs,rhs);
-        case '|' -> new  OrNode(null,lhs,rhs);
-        case '&' -> new AndNode(null,lhs,rhs);
-        default  -> throw TODO();
+             '+'        -> new AddNode(lhs,rhs);
+        case '-'        -> new SubNode(lhs,rhs);
+        case '*'        -> new MulNode(lhs,rhs);
+        case '/'        -> new DivNode(lhs,rhs);
+        case '|'        -> new  OrNode(null,lhs,rhs);
+        case '&'        -> new AndNode(null,lhs,rhs);
+        case '^'        -> new XorNode(loc(),lhs,rhs);
+        case Lexer.SHL  -> new ShlNode(loc(),lhs,rhs);
+        case Lexer.SAR  -> new SarNode(loc(),lhs,rhs);
+        case Lexer.SHR  -> new ShrNode(loc(),lhs,rhs);
+        default         -> throw TODO();
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
@@ -2824,8 +2830,14 @@ public class Parser {
 
         // Next oper= character, or 0.
         // As a convenience, mark "++" as a char 1 and "--" as char -1 (65535)
+        // Distinct tags for the multi-character compound operators.
+        static final char SHL = 2, SAR = 3, SHR = 4;
+
         public char matchOperAssign() {
             skipWhiteSpace();
+            if( match("<<=" ) ) return SHL;
+            if( match(">>>=") ) return SHR;
+            if( match(">>=" ) ) return SAR;
             if( _position+2 >= _input.length ) return 0;
             char ch0 = (char)_input[_position];
             if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;

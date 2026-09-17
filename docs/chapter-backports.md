@@ -19,9 +19,6 @@ the correction into the chapter's representation, not the entire modern file.
 
 | ID | Change | Proposed destination | Scope and acceptance evidence |
 |---|---|---|---|
-| B06 | Decode string escapes; reject unknown/truncated escapes | 22 through 24 | Literal scanner only. Check newline, tab, carriage return, backslash, quote, NUL, and malformed input. |
-| B07 | Decode character escapes; reject truncated literals | 22 through 24 | Separate patch sharing B06's helper. Check values and errors; `parseChar` first appears in 22. |
-| B08 | Complete `&=` and `|=` syntax sugar | 17 onward; **audit** availability of bitwise operators | A small language addition, not a correctness-only patch. Move lexer and assignment expansion together. Check locals, fields, arrays, and exactly-once address evaluation. |
 | B09 | Make diagnostic function lookup read-only | 18 onward; **audit** first mutating printer lookup | Separate `lookupFun` from cleanup-performing `link`. Verify printing preserves graph/linker state. Do not import FunPtrNode or compilation units for this fix. |
 | B10 | Preserve widening state in integer nonzero refinement | **Audit** first chapter with both widening and `nonZero`; no later than 24 | Chapter 25 `TypeInteger.nonZero` preserves `_widen`. Check lattice laws and loop refinement. Exclude TypeScalar, storage-type, and serialization changes. |
 | B11 | Diagnose return types using the optimized return expression | 18; 19 already has the correction | `ReturnNode.err()` uses `expr()._type` instead of the parse-time `mt` aggregate. Chapter 18 rejects `struct S { u8 x; }; return new S; return 0;` with a mixed integer/reference error; Chapter 19 accepts it. Also test genuinely reachable incompatible returns. This is a candidate, not yet an applied or isolated-patch-verified fix. |

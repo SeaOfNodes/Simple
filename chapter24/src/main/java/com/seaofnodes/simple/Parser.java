@@ -1311,6 +1311,8 @@ public class Parser {
         if( ch==0  )            // Normal primary, check for postfix updates
             return parsePostfix(rvalue);
         // Assign-update direct into Scope
+        if( var._final )
+            throw error("Cannot reassign final '"+var._name+"'");
         Node op = opAssign(ch,rvalue, var.type() );
         _scope.update(var,op);
         return postfix(ch) ? rvalue.unkeep() : op;
@@ -1361,11 +1363,17 @@ public class Parser {
         // flt + flt ==>> use float op
         Node op = switch(ch) {
         case 1, (char)-1,
-             '+' -> new AddNode(lhs,rhs);
-        case '-' -> new SubNode(lhs,rhs);
-        case '*' -> new MulNode(lhs,rhs);
-        case '/' -> new DivNode(lhs,rhs);
-        default  -> throw Utils.TODO();
+             '+'        -> new AddNode(lhs,rhs);
+        case '-'        -> new SubNode(lhs,rhs);
+        case '*'        -> new MulNode(lhs,rhs);
+        case '/'        -> new DivNode(lhs,rhs);
+        case '&'        -> new AndNode(loc(),lhs,rhs);
+        case '|'        -> new  OrNode(loc(),lhs,rhs);
+        case '^'        -> new XorNode(loc(),lhs,rhs);
+        case Lexer.SHL  -> new ShlNode(loc(),lhs,rhs);
+        case Lexer.SAR  -> new SarNode(loc(),lhs,rhs);
+        case Lexer.SHR  -> new ShrNode(loc(),lhs,rhs);
+        default         -> throw Utils.TODO();
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
@@ -1772,16 +1780,44 @@ public class Parser {
     private String parseString() {
         if( !peek('"') ) return null;
         _lexer.inc();
-        int start = pos();
-        while( !_lexer.isEOF() && _lexer.nextChar()!= '"' ) ;
-        if( _lexer.isEOF() )
-            throw error("Unclosed string");
-        return new String(_lexer._input,start,pos()-start-1);
+        StringBuilder sb = new StringBuilder();
+        while( !_lexer.isEOF() ) {
+            char c = _lexer.nextChar();
+            if( c=='"' ) return sb.toString();
+            if( c!='\\' ) {
+                sb.append(c);
+                continue;
+            }
+            if( _lexer.isEOF() )
+                throw error("Unclosed string");
+            sb.append(escapedChar("string"));
+        }
+        throw error("Unclosed string");
+    }
+
+    private char escapedChar(String kind) {
+        char esc = _lexer.nextChar();
+        return switch( esc ) {
+        case '0'  -> '\u0000';
+        case 'n'  -> '\n';
+        case 't'  -> '\t';
+        case 'r'  -> '\r';
+        case '\\' -> '\\';
+        case '"'  -> '"';
+        case '\'' -> '\'';
+        default -> throw error("Unknown "+kind+" escape \\\\"+esc);
+        };
     }
 
     // Already parsed "'"
     private Node parseChar() {
-        return require(con(TypeInteger.constant(_lexer.nextChar())),"'");
+        if( _lexer.isEOF() ) throw error("Unclosed character");
+        char c = _lexer.nextChar();
+        if( c=='\\' ) {
+            if( _lexer.isEOF() ) throw error("Unclosed character");
+            c = escapedChar("character");
+        }
+        return require(con(TypeInteger.constant(c)),"'");
     }
 
     //////////////////////////////////
@@ -2071,8 +2107,14 @@ public class Parser {
 
         // Next oper= character, or 0.
         // As a convenience, mark "++" as a char 1 and "--" as char -1 (65535)
+        // Distinct tags for the multi-character compound operators.
+        static final char SHL = 2, SAR = 3, SHR = 4;
+
         public char matchOperAssign() {
             skipWhiteSpace();
+            if( match("<<=" ) ) return SHL;
+            if( match(">>>=") ) return SHR;
+            if( match(">>=" ) ) return SAR;
             if( _position+2 >= _input.length ) return 0;
             char ch0 = (char)_input[_position];
             if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;

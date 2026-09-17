@@ -916,13 +916,19 @@ public class Parser {
         if( n._final )
             throw error("Cannot reassign final '"+n._name+"'");
         Node op = switch(ch) {
-        case '+'      -> new AddNode(rvalue,null);
-        case '-'      -> new SubNode(rvalue,null);
-        case '*'      -> new MulNode(rvalue,null);
-        case '/'      -> new DivNode(rvalue,null);
-        case        1 -> new AddNode(rvalue,con( 1));
-        case (char)-1 -> new AddNode(rvalue,con(-1));
-        default -> throw Utils.TODO();
+        case '+'        -> new AddNode(rvalue,null);
+        case '-'        -> new SubNode(rvalue,null);
+        case '*'        -> new MulNode(rvalue,null);
+        case '/'        -> new DivNode(rvalue,null);
+        case '&'        -> new AndNode(rvalue,null);
+        case '|'        -> new  OrNode(rvalue,null);
+        case '^'        -> new XorNode(rvalue,null);
+        case Lexer.SHL  -> new ShlNode(rvalue,null);
+        case Lexer.SAR  -> new SarNode(rvalue,null);
+        case Lexer.SHR  -> new ShrNode(rvalue,null);
+        case        1   -> new AddNode(rvalue,con( 1));
+        case (char)-1   -> new AddNode(rvalue,con(-1));
+        default         -> throw Utils.TODO();
         };
         // Return pre-value (x+=1) or post-value (x++)
         boolean pre = op.in(2)==null;
@@ -1403,8 +1409,14 @@ public class Parser {
         // Next oper= character, or 0.
         // As a convenience, mark "++" as a char 1 and "--" as char -1 (65535)
         // Disallow e.g. "arg--1" which should parse as "arg - -1"
+        // Distinct tags for the multi-character compound operators.
+        static final char SHL = 2, SAR = 3, SHR = 4;
+
         public char matchOperAssign() {
             skipWhiteSpace();
+            if( match("<<=" ) ) return SHL;
+            if( match(">>>=") ) return SHR;
+            if( match(">>=" ) ) return SAR;
             if( _position+2 >= _input.length ) return 0;
             char ch0 = (char)_input[_position];
             if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;

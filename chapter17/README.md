@@ -25,7 +25,12 @@ Allow pre-increment for identifiers only, for now: `--pc`.
 ## Operator assignment
 
 Along the same lines as post-increment, we now allow `op=` assignment
-with semantics similar to other languages.
+on local variables with semantics similar to other languages. The supported
+operators are `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=`, `<<=`, `>>=`, and `>>>=`.
+Bitwise and shift assignments require integer operands; `>>=` preserves the sign
+while `>>>=` shifts in zeros. The assignment evaluates its right-hand side once,
+stores the result narrowed to the variable's type, and yields that stored value.
+Assignments associate right-to-left, as in `x |= y <<= 2`.
 
 `x += y`
 
