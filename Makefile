@@ -13,4 +13,4 @@ tag: tags
 $(foreach action,$(ACTIONS),$(eval $(action): $(addsuffix /$(action),$(CHAPTERS))))
 
 $(CHAPTER_TARGETS):
-	+$(MAKE) -C $(dir $@) $(notdir $@)
+	+$(MAKE) --no-print-directory -C $(dir $@) $(notdir $@)

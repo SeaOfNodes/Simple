@@ -1,6 +1,6 @@
 # Chapter backport review
 
-This is a work queue, not a record of completed compiler backports. Independent
+This is a queue of pending work. Remove completed corrections from the queue. Independent
 corrections should start in the earliest affected chapter and propagate through
 every later affected snapshot. A regression in Chapter 25's `Chapter21Test`
 does not test the compiler in the `chapter21` directory.
@@ -9,17 +9,14 @@ For now, keep building SSA with incomplete types in Chapter 25. Moving that
 architecture earlier, or splitting Chapter 25, is deferred while small changes
 establish the review workflow. No renumbering is committed.
 
-## First two review candidates
+## Next review candidate
 
 | ID | Small change | Destination | Evidence and regression |
 |---|---|---|---|
-| B01 | Encode a 64-bit memory comparison with a 32-bit immediate | 21, then 22-24; 25 already fixed | `CmpMemX86.encoding`: `case 3: enc.add8(_imm)` becomes `add4`. Keep each chapter's type accessor. Check instruction length/bytes and a comparison followed by another instruction. |
 | B02 | Correct immediate-multiply REX register order | 22, then 23-24; audit 21 separately | `MulIX86.encoding`: `rex(src,dst,0)` becomes `rex(dst,src,0)`. Exercise source and destination on opposite sides of register 8. Chapter 21 uses `ImmX86`, not this one-line implementation. |
 
-The initial proposal was B01 followed by B02. The Chapter 18 investigation below
-now supplies another small first-review candidate, B11. Review one correction's
-reduced failure, smallest patch, and test results before starting another.
-No compiler fixes have been applied with this build and documentation change.
+Review B02 before starting another candidate. Keep each correction's reduced
+failure, smallest patch, and test results together for review.
 
 ## Subsequent small changes
 
@@ -68,7 +65,8 @@ and regressions. Keep one logical correction per commit across affected chapters
    changes invalidate their IR/native code. Force a full Java rebuild when shared
    APIs or constants change: older Makefiles do not track all Java dependencies.
    Do not weaken checks or drop tests.
-6. Record chapters, commands, and results here. Keep unrelated dirty changes;
+6. Report chapters, commands, and results for review; remove completed items from
+   this queue. Keep unrelated dirty changes;
    do not push without explicit approval.
 
 The top-level runner supports all 25 chapters:
@@ -89,7 +87,7 @@ starts, so run `make lib` separately before `make tests`.
 
 ## Validation record
 
-All compiler backports B01-B11 are pending.
+### Initial setup baseline
 
 On 2026-09-17, using Windows/Cygwin and OpenJDK 22.0.2:
 
