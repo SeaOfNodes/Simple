@@ -13,6 +13,48 @@ import static org.junit.Assert.*;
 public class Chapter23Test {
 
     @Test
+    public void testOrRhsLoopLocal() throws IOException {
+        checkOrRhsLoop("""
+            struct S { int f; };
+            int x = 0;
+            int result = (arg & 1) || (new S {
+                while (x < 3) x++;
+                f = ++x;
+            }).f;
+            return x * 10 + result;
+            """);
+    }
+
+    @Test
+    public void testOrRhsLoopMemory() throws IOException {
+        checkOrRhsLoop("""
+            struct S { int f; };
+            S !s = new S;
+            int result = (arg & 1) || (new S {
+                while (s.f < 3) s.f++;
+                s.f++;
+                f = s.f;
+            }).f;
+            return s.f * 10 + result;
+            """);
+    }
+
+    private static void checkOrRhsLoop(String src) throws IOException {
+        CodeGen code = new CodeGen(src).driver("riscv", "SystemV", null);
+        for (int arg : new int[]{0, 1, 2, 3}) {
+            byte[] image = new byte[1 << 20];
+            System.arraycopy(code._encoding.bits(), 0, image, 0, code._encoding._bits.size());
+            EvalRisc5 r5 = new EvalRisc5(image, 1 << 16);
+            r5.regs[riscv.A0] = arg;
+            assertEquals("Execution must finish", 0, r5.step(1000));
+            // False LHS runs the loop and final increment, returning 4.
+            // True LHS skips all RHS effects and returns the LHS value, 1.
+            assertEquals("OR result and side effects for arg=" + arg,
+                (arg & 1) == 0 ? 44 : 1, r5.regs[riscv.A0]);
+        }
+    }
+
+    @Test
     public void testJig() throws IOException {
         String src =
 """

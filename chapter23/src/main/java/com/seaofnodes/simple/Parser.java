@@ -590,7 +590,7 @@ public class Parser {
         };
         rhs.keep();
         _scope.removeGuards(ifF);
-        if( doRHS )
+        if( doRHS || fside.equals("||") )
             fScope = _scope;
         pred.unkeep();
 
