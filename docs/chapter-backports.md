@@ -9,16 +9,10 @@ For now, keep building SSA with incomplete types in Chapter 25. Moving that
 architecture earlier, or splitting Chapter 25, is deferred while small changes
 establish the review workflow. No renumbering is committed.
 
-## Next review candidate
+## Small changes
 
-| ID | Small change | Destination | Evidence and regression |
-|---|---|---|---|
-| B02 | Correct immediate-multiply REX register order | 22, then 23-24; audit 21 separately | `MulIX86.encoding`: `rex(src,dst,0)` becomes `rex(dst,src,0)`. Exercise source and destination on opposite sides of register 8. Chapter 21 uses `ImmX86`, not this one-line implementation. |
-
-Review B02 before starting another candidate. Keep each correction's reduced
-failure, smallest patch, and test results together for review.
-
-## Subsequent small changes
+Keep each correction's reduced failure, smallest patch, and test results together
+for review.
 
 An **audit** item needs an old-chapter reproducer before it is scheduled. Copy
 the correction into the chapter's representation, not the entire modern file.
@@ -34,6 +28,7 @@ the correction into the chapter's representation, not the entire modern file.
 | B09 | Make diagnostic function lookup read-only | 18 onward; **audit** first mutating printer lookup | Separate `lookupFun` from cleanup-performing `link`. Verify printing preserves graph/linker state. Do not import FunPtrNode or compilation units for this fix. |
 | B10 | Preserve widening state in integer nonzero refinement | **Audit** first chapter with both widening and `nonZero`; no later than 24 | Chapter 25 `TypeInteger.nonZero` preserves `_widen`. Check lattice laws and loop refinement. Exclude TypeScalar, storage-type, and serialization changes. |
 | B11 | Diagnose return types using the optimized return expression | 18; 19 already has the correction | `ReturnNode.err()` uses `expr()._type` instead of the parse-time `mt` aggregate. Chapter 18 rejects `struct S { u8 x; }; return new S; return 0;` with a mixed integer/reference error; Chapter 19 accepts it. Also test genuinely reachable incompatible returns. This is a candidate, not yet an applied or isolated-patch-verified fix. |
+| B12 | Encode the actual destination register for two-address immediate multiply | 21 | `MulIX86` inherits `ImmX86.encoding`, whose ModRM.reg is fixed to zero and whose REX.R is clear. With source/destination both `rcx`, multiplying by 11 emits `48 6b c1 0b` (destination `rax`) instead of `48 6b c9 0b`. With both `r9`, it emits `49 6b c1 0b` instead of `4d 6b c9 0b`. Give multiply its proper register fields while preserving Chapter 21's two-address allocation contract; do not change the opcode-extension fields used by other `ImmX86` subclasses. Later chapters use a separate multiply encoder. |
 
 After the first two reviews, batch only corrections with established independence
 and regressions. Keep one logical correction per commit across affected chapters.

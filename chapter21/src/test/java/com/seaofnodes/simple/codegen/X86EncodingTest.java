@@ -1,6 +1,5 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.CmpMemX86;
 import org.junit.Test;
 import static org.junit.Assert.*;

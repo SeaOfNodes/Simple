@@ -19,7 +19,7 @@ public class MulIX86 extends MachConcreteNode implements MachNode {
     @Override public final void encoding( Encoding enc ) {
         short dst = enc.reg(this ); // Also src1
         short src = enc.reg(in(1));
-        enc.add1(x86_64_v2.rex(src, dst, 0));
+        enc.add1(x86_64_v2.rex(dst, src, 0));
         // opcode; 0x69 or 0x6B
         enc.add1( 0x69 + (x86_64_v2.imm8(_imm) ? 2 : 0) );
         enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src) );
