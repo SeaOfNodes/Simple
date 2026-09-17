@@ -30,10 +30,10 @@ public class FuzzerWrap {
         -8212834489697770130L, // bad keep/unkeep in parser
           478567486335112458L, // dying escape node
         -5114548365532699915L, // dominate flags dependencies
+        -4710931876754133070L, // Tests monotonic phi widening
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
-        -4710931876754133070L,
     };
 
 

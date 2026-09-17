@@ -90,12 +90,10 @@ public class PhiNode extends Node {
 
         // phi loop widening part
         if( r instanceof LoopNode && // Only around loops
-            t != _type && // Types changed and are falling (the optimistic case, expected to fall forever)
-            !t.isConstant() &&  // No need to widen constants
-            t instanceof TypeInteger newi && // Only widen integers
-            (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) ) {
+            t instanceof TypeInteger ti && // Only widen integers
+            !ti.isConstant() ) {  // No need to widen constants
             // Widen, to prevent infinite falling of TypeIntegers
-            return newi.same_but_slightly_wider_than();
+            return ti.same_but_slightly_wider_than();
         }
 
         return t;
