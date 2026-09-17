@@ -19,7 +19,6 @@ the correction into the chapter's representation, not the entire modern file.
 
 | ID | Change | Proposed destination | Scope and acceptance evidence |
 |---|---|---|---|
-| B03 | Correct x86 logical-not encoding | 21 through 24 | `NotX86`: preserve a shared source/destination until after testing; correct SETcc operand fields and zero-extend its byte result. Check zero/nonzero, overlapping registers, and byte registers requiring REX. Exclude Not/Phi optimizations. |
 | B04 | Preserve comparison results while releasing parser temporaries | 24 | `parseComparison` lifetime fix in `414931c8`. Reduce seed `-8212834489697770130`; exclude unrelated `<clinit>` cleanup in that commit. |
 | B05 | Preserve RHS control, memory, and local updates in logical OR | 23 through 24; **audit** earliest implementation | Chapter 25 `parseIf` retains `_scope` for the false-side `||` expression. Test scalar and field updates and short-circuit behavior. Avoid importing GuardNode. |
 | B06 | Decode string escapes; reject unknown/truncated escapes | 22 through 24 | Literal scanner only. Check newline, tab, carriage return, backslash, quote, NUL, and malformed input. |

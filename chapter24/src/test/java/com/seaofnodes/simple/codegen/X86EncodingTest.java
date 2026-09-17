@@ -2,11 +2,55 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.CmpMemX86;
+import com.seaofnodes.simple.node.cpus.x86_64_v2.NotX86;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.MulIX86;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class X86EncodingTest {
+
+    @Test
+    public void testLogicalNotRegisters() {
+        CodeGen code = new CodeGen("return !arg;")
+            .driver(CodeGen.Phase.Select, "x86_64_v2", "SystemV");
+        var not = code._stop.walk(n -> n instanceof NotX86 ? (NotX86)n : null);
+        assertNotNull("Must exercise logical not", not);
+        int[][] registers = {{0,0}, {1,1}, {7,7}, {9,9}, {1,9}, {9,1}, {6,0}, {15,8}};
+        // TEST src,src; SETZ dstb; MOVZX dst32,dstb. Include overlapping
+        // registers, low-byte registers requiring REX, and extended registers.
+        String[] expected = {
+            "4885c00f94c00fb6c0", "4885c90f94c10fb6c9",
+            "4885ff400f94c7400fb6ff", "4d85c9410f94c1450fb6c9",
+            "4d85c90f94c10fb6c9", "4885c9410f94c1450fb6c9",
+            "4885c0400f94c6400fb6f6", "4d85c0410f94c7450fb6ff"
+        };
+        for (int i = 0; i < registers.length; i++) {
+            int dst = registers[i][0], src = registers[i][1];
+            var enc = new FixedRegisterEncoding(code, not, dst, not.in(1), src);
+            not.encoding(enc);
+            assertArrayEquals("Logical not dst=" + dst + ", src=" + src,
+                java.util.HexFormat.of().parseHex(expected[i]), enc._bits.toByteArray());
+        }
+    }
+
+    @Test
+    public void testLogicalNotExecution() throws java.io.IOException {
+        var dir = java.nio.file.Path.of("build/objs");
+        java.nio.file.Files.createDirectories(dir);
+        java.nio.file.Files.writeString(dir.resolve("x86LogicalNot.smp"),
+            "val logicalNot = { int x -> return !x; };");
+        java.nio.file.Files.writeString(dir.resolve("x86LogicalNot.c"), """
+            #include <limits.h>
+            extern long long logicalNot(long long);
+            int main(void) {
+                long long inputs[] = {0, 1, -1, LLONG_MIN, LLONG_MAX, 1LL << 32};
+                for (unsigned i = 0; i < sizeof(inputs)/sizeof(inputs[0]); i++)
+                    if (logicalNot(inputs[i]) != (inputs[i] == 0)) return 1;
+                return 0;
+            }
+            """);
+        com.seaofnodes.simple.TestC.run("build/objs", "x86LogicalNot", "", -1);
+    }
 
     @Test
     public void testMultiplyImmediateRegisters() {

@@ -17,23 +17,20 @@ public class NotX86 extends MachConcreteNode implements MachNode {
         short dst = enc.reg(this );
         short src = enc.reg(in(1));
 
-        // Pre-zero using XOR dst,dst; since zero'd will not have a
-        // byte-dependency from the setz.  Can skip REX is dst is low 8, makes
-        // this a 32b xor, which will also zero the high bits.
-        if( dst >= 8 ) enc.add1(x86_64_v2.rex(dst, dst, 0));
-        enc.add1(0x33); // opcode
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, dst));
-
         // test   rdi,rdi
         enc.add1(x86_64_v2.rex(src, src, 0));
         enc.add1(0x85);
         enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, src, src));
 
-        // setz (sete dil)
-        enc.add1(x86_64_v2.rex(dst, 0, 0));
+        // setz dstb; then zero-extend the low byte into the full register.
+        if( dst >= 4 ) enc.add1(x86_64_v2.rex(0, dst, 0, false));
         enc.add1(0x0F);
         enc.add1(0x94);
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, 0));
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, dst));
+        if( dst >= 4 ) enc.add1(x86_64_v2.rex(dst, dst, 0, false));
+        enc.add1(0x0F);
+        enc.add1(0xB6);
+        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, dst));
     }
     @Override public void asm(CodeGen code, SB sb) { sb.p(code.reg(this)); }
 }
