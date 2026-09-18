@@ -115,7 +115,7 @@ public class CodeGen {
 
     // Debugging helper
     @Override public String toString() {
-        return _stop.p(9999);
+        return IRPrinter.prettyPrint(this);
     }
 
     // Debugging helper

@@ -140,6 +140,10 @@ public class CodeGen {
     // Reverse from a constant function pointer to the IR function being called.
     // Error to call with a non-constant TFP
     public FunNode link( TypeFunPtr tfp ) { return link(tfp.fidx());  }
+    // Diagnostic lookup must not perform lazy linker cleanup.
+    public FunNode lookupFun(int fidx) { return _linker.atX(fidx); }
+    public FunNode lookupFun(TypeFunPtr tfp) { return lookupFun(tfp.fidx()); }
+
     // Return the FunNode from a fidx
     public FunNode link( int fidx ) {
         FunNode fun =_linker.atX(fidx);
@@ -436,9 +440,7 @@ public class CodeGen {
 
     // Debugging helper
     @Override public String toString() {
-        return _phase.ordinal() > Phase.Schedule.ordinal()
-            ? IRPrinter._prettyPrint( this )
-            : _stop.p(9999);
+        return IRPrinter.prettyPrint(this);
     }
 
     // Debugging helper

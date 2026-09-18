@@ -1,280 +1,98 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.type.TypeFunPtr;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.HashMap;
+import java.util.*;
 
 public class IRPrinter {
 
-    // Print a node on 1 line, columnar aligned, as:
-    // NNID NNAME DDEF DDEF  [[  UUSE UUSE  ]]  TYPE
-    // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
-    public static SB printLine( Node n, SB sb ) {
-        sb.p("%4d %-7.7s ".formatted(n._nid,n.label()));
-        if( n._inputs==null )
-            return sb.p("DEAD\n");
-        for( Node def : n._inputs )
-            sb.p(def==null ? "____" : "%4d".formatted(def._nid))
-                // Lazy Phi indicator
-                .p(n instanceof MemMergeNode && def instanceof MemMergeNode ? "^" : " ");
-        for( int i = n._inputs.size(); i<4; i++ )
-            sb.p("     ");
-        sb.p(" [[  ");
-        for( Node use : n._outputs )
-            sb.p(use==null ? "____ " : "%4d ".formatted(use._nid));
-        int lim = 6 - Math.max(n._inputs.size(),4);
-        for( int i = n._outputs.size(); i<lim; i++ )
-            sb.p("     ");
-        sb.p(" ]]  ");
-        if( n._type!= null ) sb.p(n._type.str());
-        return sb.p("\n");
+    // Inspect raw edges so a partly built/dead node is still useful to print.
+    private static String label(Node n) {
+        if( n._inputs==null ) return n.getClass().getSimpleName();
+        try { return n.label(); }
+        catch( RuntimeException | AssertionError ex ) { return n.getClass().getSimpleName(); }
     }
 
+    private static String type(Node n) {
+        if( n._type==null ) return "";
+        try { return n._type.str(); }
+        catch( RuntimeException | AssertionError ex ) { return "<incomplete type>"; }
+    }
+
+    private static String signature(FunNode fun) {
+        try { return fun.sig()==null ? "" : fun.sig().toString(); }
+        catch( RuntimeException | AssertionError ex ) { return "<incomplete signature>"; }
+    }
+
+    public static void _printLine(Node n, StringBuilder sb) {
+        if( n==null ) return;
+        sb.append("%4d %-7.7s ".formatted(n._nid,label(n)));
+        if( n._inputs==null ) { sb.append("DEAD\n"); return; }
+        for( Node def : n._inputs )
+            sb.append(def==null ? "____" : "%4d".formatted(def._nid))
+                .append(n instanceof MemMergeNode && def instanceof MemMergeNode ? '^' : ' ');
+        for( int i=n._inputs.size(); i<4; i++ ) sb.append("     ");
+        sb.append(" [[  ");
+        if( n._outputs!=null ) for( Node use : n._outputs )
+            sb.append(use==null ? "____ " : "%4d ".formatted(use._nid));
+        sb.append(" ]]  ").append(type(n)).append('\n');
+    }
+
+    public static SB printLine(Node n, SB sb) {
+        StringBuilder line = new StringBuilder();
+        _printLine(n,line);
+        return sb.p(line.toString());
+    }
 
     public static String prettyPrint(Node node, int depth) {
-        return CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Schedule.ordinal()
-            ? _prettyPrintScheduled( node, depth )
-            : _prettyPrint( node, depth );
-    }
-
-    // Another bulk pretty-printer.  Makes more effort at basic-block grouping.
-    private static String _prettyPrint( Node node, int depth ) {
-        // First, a Breadth First Search at a fixed depth.
-        BFS bfs = new BFS(node,depth);
-        // Convert just that set to a post-order
-        ArrayList<Node> rpos = new ArrayList<>();
-        BitSet visit = new BitSet();
-        for( int i=bfs._lim; i< bfs._bfs.size(); i++ )
-            postOrd( bfs._bfs.get(i), null, rpos, visit, bfs._bs);
-        // Reverse the post-order walk
-        SB sb = new SB();
-        boolean gap=false;
-        for( int i=rpos.size()-1; i>=0; i-- ) {
-            Node n = rpos.get(i);
-            if( n instanceof CFGNode || n.isMultiHead() ) {
-                if( !gap ) sb.p("\n"); // Blank before multihead
-                if( n instanceof FunNode fun ) {
-                    TypeFunPtr sig = fun.sig();
-                    sig.print(sb.p("--- ").p(sig._name==null ? "" : sig._name).p(" "),false).p("----------------------\n");
-                }
-                printLine( n, sb );         // Print head
-                while( --i >= 0 ) {
-                    Node t = rpos.get(i);
-                    if( !t.isMultiTail() ) { i++; break; }
-                    printLine( t, sb );
-                }
-                if( n instanceof ReturnNode ret ) {
-                    TypeFunPtr sig = ret.fun().sig();
-                    sig.print(sb.p("--- ").p(sig._name==null ? "" : sig._name).p(" "),false).p("----------------------\n");
-                }
-                if( !(n instanceof CallNode) ) {
-                    sb.p("\n"); // Blank after multitail
-                    gap = true;
-                }
-            } else {
-                printLine( n, sb );
-                gap = false;
-            }
+        StringBuilder sb = new StringBuilder();
+        for( Node n : DebugSchedule.schedule(node,depth) ) {
+            if( DebugSchedule.gap(n) ) sb.append('\n');
+            if( n instanceof FunNode fun )
+                sb.append("--- ").append(label(fun)).append(' ').append(signature(fun)).append(" ----------------------\n");
+            _printLine(n,sb);
         }
         return sb.toString();
     }
 
-    private static void postOrd(Node n, Node prior, ArrayList<Node> rpos, BitSet visit, BitSet bfs) {
-        if( !bfs.get(n._nid) )
-            return;  // Not in the BFS visit
-        if( n instanceof FunNode && !(prior instanceof StartNode) )
-            return;                     // Only visit Fun from Start
-        if( visit.get(n._nid) ) return; // Already post-order walked
-        visit.set(n._nid);
-        // First walk the CFG, then everything
-        if( n instanceof CFGNode ) {
-            for( Node use : n._outputs )
-                // Follow CFG, not across call/function borders, and not around backedges
-                if( use instanceof CFGNode && !(n instanceof CallNode && use instanceof FunNode) &&
-                    use.nOuts() >= 1 &&  !(use._outputs.get(0) instanceof LoopNode) )
-                    postOrd(use, n, rpos,visit,bfs);
-            for( Node use : n._outputs )
-                // Follow CFG, not across call/function borders
-                if( use instanceof CFGNode && !(n instanceof CallNode && use instanceof FunNode) )
-                    postOrd(use,n,rpos,visit,bfs);
+    // Print complete functions separately, so linked callees/callers do not
+    // appear in the middle of one another's bodies.
+    public static String prettyPrint(CodeGen code) {
+        if( code._start==null ) return prettyPrint(code._stop,9999);
+        ArrayList<Node> nodes = new ArrayList<>();
+        IdentityHashMap<Node,Boolean> seen = new IdentityHashMap<>();
+        nodes.add(code._start);
+        seen.put(code._start,Boolean.TRUE);
+        if( code._stop!=null && seen.put(code._stop,Boolean.TRUE)==null ) nodes.add(code._stop);
+        ArrayList<FunNode> funs = new ArrayList<>();
+        for( int i=0; i<nodes.size(); i++ ) {
+            Node n = nodes.get(i);
+            if( n instanceof FunNode fun ) funs.add(fun);
+            if( n._inputs!=null ) for( Node def : n._inputs )
+                if( def!=null && seen.put(def,Boolean.TRUE)==null ) nodes.add(def);
+            if( n._outputs!=null ) for( Node use : n._outputs )
+                if( use!=null && seen.put(use,Boolean.TRUE)==null ) nodes.add(use);
         }
-        // Follow all outputs
-        for( Node use : n._outputs )
-            if( use != null &&
-                !(n instanceof CallNode && use instanceof FunNode) &&
-                (n instanceof FunNode || !(use instanceof ParmNode)) )
-                postOrd(use, n, rpos,visit,bfs);
-        // Post-order
-        rpos.add(n);
-    }
-
-    // Breadth-first search, broken out in a class to keep in more independent.
-    // Maintains a root-set of Nodes at the limit (or past by 1 if MultiHead).
-    public static class BFS {
-        // A breadth first search, plus MultiHeads for any MultiTails
-        public final ArrayList<Node> _bfs;
-        public final BitSet _bs; // Visited members by node id
-        public final int _depth; // Depth limit
-        public final int _lim; // From here to _bfs._len can be roots for a reverse search
-        public BFS( Node base, int d ) {
-            _depth = d;
-            _bfs = new ArrayList<>();
-            _bs = new BitSet();
-
-            add(base);                 // Prime the pump
-            int idx=0, lim=1;          // Limit is where depth counter changes
-            while( idx < _bfs.size() ) { // Ran out of nodes below depth
-                Node n = _bfs.get(idx++);
-                for( Node def : n._inputs )
-                    if( def!=null && !_bs.get(def._nid) )
-                        add(def);
-                if( idx==lim ) {    // Depth counter changes at limit
-                    if( --d < 0 )
-                        break;      // Ran out of depth
-                    lim = _bfs.size();  // New depth limit
-                }
+        StringBuilder sb = new StringBuilder();
+        sb.append('\n');
+        _printLine(code._start,sb);
+        for( Node proj : DebugSchedule.children(code._start) ) _printLine(proj,sb);
+        ArrayList<Node> globals = new ArrayList<>();
+        for( Node n : nodes )
+            if( DebugSchedule.input0(n)==code._start &&
+                n instanceof ConstantNode ) globals.add(n);
+        globals.sort(Comparator.comparingInt(n -> n._nid));
+        for( Node n : globals ) _printLine(n,sb);
+        funs.sort(Comparator.comparingInt(n -> n._nid));
+        for( FunNode fun : funs ) {
+            sb.append("\n--- ").append(label(fun)).append(' ').append(signature(fun)).append(" ----------------------\n");
+            for( Node n : DebugSchedule.function(fun) ) {
+                if( DebugSchedule.gap(n) ) sb.append('\n');
+                _printLine(n,sb);
             }
-            // Toss things past the limit except multi-heads
-            while( idx < _bfs.size() ) {
-                Node n = _bfs.get(idx);
-                if( n.isMultiHead() ) idx++;
-                else del(idx);
-            }
-            // Root set is any node with no inputs in the visited set
-            lim = _bfs.size();
-            for( int i=_bfs.size()-1; i>=0; i-- )
-                if( !any_visited(_bfs.get(i)) )
-                    swap( i,--lim);
-            _lim = lim;
+            sb.append("--- ").append(label(fun)).append(" ----------------------\n");
         }
-        void swap( int x, int y ) {
-            if( x==y ) return;
-            Node tx = _bfs.get(x);
-            Node ty = _bfs.get(y);
-            _bfs.set(x,ty);
-            _bfs.set(y,tx);
-        }
-        void add(Node n) {
-            _bfs.add(n);
-            _bs.set(n._nid);
-        }
-        void del(int idx) {
-            _bs.clear(_bfs.get(idx)._nid);
-            Utils.del(_bfs, idx);
-        }
-        boolean any_visited( Node n ) {
-            for( Node def : n._inputs )
-                if( def!=null && _bs.get(def._nid) )
-                    return true;
-            return false;
-        }
-    }
-
-    // Bulk pretty printer, knowing scheduling information is available
-    private static String _prettyPrintScheduled( Node node, int depth ) {
-        // Backwards DFS walk to depth.
-        HashMap<Integer,Integer> ds = new HashMap<>();
-        ArrayList<Node> ns = new ArrayList<>();
-        _walk(ds,ns,node,depth);
-        // Remove data projections, these are force-printed behind their multinode head
-        for( int i=0; i<ns.size(); i++ ) {
-            if( ns.get(i) instanceof ProjNode proj && !(proj.in(0) instanceof CFGNode) ) {
-                Utils.del(ns,i--);
-                ds.remove(proj._nid);
-            }
-        }
-        // Print by block with least idepth
-        SB sb = new SB();
-        Ary<Node> bns = new Ary<>(Node.class);
-        while( !ds.isEmpty() ) {
-            CFGNode blk = null;
-            for( Node n : ns ) {
-                CFGNode cfg = n instanceof CFGNode cfg0 && cfg0.blockHead() ? cfg0 : n.cfg0();
-                if( blk==null || cfg.idepth() < blk.idepth() || (blk instanceof FunNode && !(cfg instanceof FunNode)))
-                    blk = cfg;
-            }
-            Integer d = ds.remove(blk._nid);
-            ns.remove(blk);
-
-            // Print block header
-            sb.p("%-13.13s".formatted(label(blk)+":"));
-            sb.p( "     ".repeat(4) ).p(" [[  ");
-            if( blk instanceof StartNode ) ;
-            else if( blk instanceof RegionNode || blk instanceof StopNode )
-                for( int i=(blk instanceof StopNode ? 3 : 1); i<blk.nIns(); i++ )
-                    label(sb,blk.cfg(i));
-            else
-                label(sb,blk.cfg(0));
-            sb.p(" ]]  \n");
-            printLine(blk,sb);
-
-            // Collect block contents that are in the depth limit
-            bns.clear();
-            int xd = Integer.MAX_VALUE;
-            for( Node use : blk._outputs ) {
-                Integer i = ds.get(use._nid);
-                if( i!=null && !(use instanceof CFGNode cfg && cfg.blockHead()) ) {
-                    if( bns.find(use)==-1 )
-                        bns.add(use);
-                    xd = Math.min(xd,i);
-                }
-            }
-            // Print Phis up front, if any
-            for( int i=0; i<bns.size(); i++ )
-                if( bns.get(i) instanceof PhiNode phi )
-                    printLine( phi, sb,bns,i--,ds,ns);
-
-            // Print block contents in depth order, bumping depth until whole block printed
-            for( ; !bns.isEmpty(); xd++ )
-                for( int i=0; i<bns.size(); i++ ) {
-                    Node n = bns.get(i);
-                    if( ds.get(n._nid)==xd ) {
-                        printLine( n, sb, bns, i--, ds,ns );
-                        if( n instanceof MultiNode && !(n instanceof CFGNode) ) {
-                            for( Node use : n._outputs ) {
-                                printLine(use,sb,bns,bns.indexOf(use),ds,ns);
-                            }
-                        }
-                    }
-                }
-            sb.p("\n");
-        }
+        sb.append('\n');
+        _printLine(code._stop,sb);
         return sb.toString();
     }
-
-    private static void _walk( HashMap<Integer,Integer> ds, ArrayList<Node> ns, Node node, int d ) {
-        Integer nd = ds.get(node._nid);
-        if( nd!=null && d <= nd ) return; // Been there, done that
-        Integer old = ds.put(node._nid,d) ;
-        if( old == null )
-          ns.add(node);
-        if( d == 0 ) return;    // Depth cutoff
-        for( Node def : node._inputs )
-            if( def != null &&
-                !(node instanceof LoopNode loop && loop.back()==def) &&
-                // Don't walk into or out of functions
-                !(node instanceof CallEndNode && def instanceof ReturnNode) &&
-                !(node instanceof FunNode && def instanceof CallNode) &&
-                !(node instanceof ParmNode && !(def instanceof FunNode))
-            )
-                _walk(ds,ns,def,d-1);
-    }
-
-    static String label( CFGNode blk ) {
-        if( blk instanceof StartNode ) return "START";
-        return (blk instanceof LoopNode ? "LOOP" : "L")+blk._nid;
-    }
-    static void label( SB sb, CFGNode blk ) {
-        if( !blk.blockHead() ) blk = blk.cfg(0);
-        sb.p( "%-9.9s ".formatted( label( blk ) ) );
-    }
-    static void printLine( Node n, SB sb, Ary<Node> bns, int i, HashMap<Integer,Integer> ds, ArrayList<Node> ns ) {
-        printLine( n, sb );
-        if( i != -1 ) bns.del(i);
-        ds.remove(n._nid);
-        ns.remove(n);
-    }
-
 }

@@ -328,9 +328,7 @@ public class CodeGen {
 
     // Debugging helper
     @Override public String toString() {
-        return _phase.ordinal() > Phase.Schedule.ordinal()
-            ? IRPrinter._prettyPrint( this )
-            : _stop.p(9999);
+        return IRPrinter.prettyPrint(this);
     }
 
     // Debugging helper

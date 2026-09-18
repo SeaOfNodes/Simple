@@ -33,8 +33,10 @@ public class CallNode extends CFGNode {
         return sb.append(")");
     }
     public String name() {
-        if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() )
-            return CodeGen.CODE.link(tfp)._name;
+        if( fptr()._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+            FunNode fun = CodeGen.CODE.link(tfp);
+            if( fun!=null ) return fun._name;
+        }
         return null;
     }
 
