@@ -198,6 +198,11 @@ Consequences:
 
 ## Serialization and code generation
 
+- Class storage must be writable during `<clinit>`, even when all final field
+  values are constant. `Encoding.Relo.readOnly()` owns this distinction for
+  pool emission, ELF symbols, in-memory linking, and assembly printing. Ordinary
+  constant objects remain read-only. `val x = 42; return 0;` exposed a native
+  read-only write that emulator memory did not reject.
 - Object files carry canonical types plus ideal Simple IR. Every new semantic
   type field, node field, tag, alias map, or mode needs balanced serialization,
   deserialization, type upgrading, equality, and bijection testing.
@@ -220,6 +225,16 @@ Consequences:
    allocation, and byte encoding. Compare IR, `CodeGen.asm()`, and `objdump`.
 6. Rebuild `sys.o` after compiler changes that affect serialized IR or native
    code; stale system objects can make results appear inconsistent.
+7. Preserve the full process exit status and capture stderr. Chapter 22's Hello
+   World printed its expected output before crashing; Cygwin returned 2816,
+   which `(byte)waitFor()` turned into zero. Expected stdout alone cannot prove
+   successful execution. Normal TestC/driver execution now throws on failure;
+   the legacy module-test helper explicitly treats exit codes as results.
+8. Chapter 25's `make -j 4 tests` runs test groups in separate JVMs. Native
+   artifact names must be distinct across groups: Chapter22Test uses
+   `helloWorld`, Chapter25Test uses `helloWorldSys`, and driver variants have
+   separate output directories. `NativeExecutionTest` covers overwriting an
+   executable between link and execution, full exit statuses, and driver errors.
 
 Useful test ladder:
 

@@ -53,6 +53,12 @@ public class Encoding {
         Relo( Node op, Type t, byte off, byte elf ) {
             _op=op;  _t=t;  _off=off; _elf=elf;
         }
+        public boolean readOnly() {
+            // Class initializers still write their fields, even when every
+            // final value is constant.  Their storage must remain writable.
+            return !(_t instanceof TypeStruct ts) ||
+                (!Parser.startsClzPrefix(ts._name) && ts.isConstant());
+        }
     }
 
     Encoding( CodeGen code ) {
@@ -510,8 +516,7 @@ public class Encoding {
         Ary<Relo>[] raligns = new Ary[5];
         for( Node op : _bigCons.keySet() ) {
             Relo relo = _bigCons.get(op);
-            // non-constant structs in the r/w data, everything else in r/o data
-            if( (relo._t instanceof TypeStruct ts && !ts.isConstant()) == ro )
+            if( relo.readOnly() != ro )
                 continue;
             int align = relo._t.alignment();
             Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>(Relo.class)) : raligns[align];

@@ -45,8 +45,7 @@ public abstract class ASMPrinter {
         Ary<Relo>[] raligns = new Ary[5];
         for( Node op : bigCons.keySet() ) {
             Relo relo = bigCons.get(op);
-            // non-constant structs in the r/w data, everything else in r/o data
-            if( (relo._t instanceof TypeStruct ts && !ts.isConstant()) == ro )
+            if( relo.readOnly() != ro )
                 continue;
             int align = relo._t.alignment();
             Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>( Relo.class)) : raligns[align];

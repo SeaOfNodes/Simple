@@ -23,8 +23,7 @@ public class LinkMem {
         // Patch local ops, e.g. loading float constants from the constant pool
         for( Node op : enc._bigCons.keySet() ) {
             Encoding.Relo relo = enc._bigCons.get(op);
-            boolean ro = !(relo._t instanceof TypeStruct ts) || ts.isConstant();
-            int target = relo._target+(ro ? cpool : sdata);
+            int target = relo._target+(relo.readOnly() ? cpool : sdata);
             ((RIPRelSize)relo._op).patch(enc, relo._opStart, enc.opLen(relo._op), target - relo._opStart);
         }
 

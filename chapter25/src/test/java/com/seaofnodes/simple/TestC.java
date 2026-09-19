@@ -138,7 +138,10 @@ public abstract class TestC {
     public static String gcc( String main, double ignore, String... objs ) throws IOException {
         String BLDDIR = "build/objs/test0/";
         String exe = BLDDIR+main+(OS.startsWith("Windows") ? ".exe" : "");
-        return gcc(objs[0],null,null,false,exe);
+        linkExe(objs[0],null,null,null,exe);
+        // Module tests intentionally use the program exit code as their result.
+        ExecResult result = execute(null,exe);
+        return result.exit==0 ? result.out : "exec exit code: "+result.exit;
     }
 
     // Link with gcc, and execute the resulting binary, returning stdout as a
@@ -209,29 +212,46 @@ public abstract class TestC {
     }
 
     private static String execStdin( String stdin, String... args ) throws IOException {
+        ExecResult result = execute(stdin,args);
+        if( result.exit!=0 )
+            throw new IOException(String.join(" ",args)+"\nexec exit code: "+result.exit+
+                                  "\nstdout:\n"+result.out+"\nstderr:\n"+result.err);
+        return result.out;
+    }
+
+    private record ExecResult(int exit, String out, String err) {}
+
+    private static ExecResult execute( String stdin, String... args ) throws IOException {
         // Execute results
         ProcessBuilder smp = new ProcessBuilder(args);
-        File stdinFile = null;
-        File stdoutFile = File.createTempFile("simple-stdout",".txt");
-        smp.redirectOutput(stdoutFile);
-        if( stdin!=null && stdin.isEmpty() ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
-        else if( stdin!=null ) {
-            stdinFile = File.createTempFile("simple-stdin",".txt");
-            Files.writeString(stdinFile.toPath(),stdin);
-            smp.redirectInput(stdinFile);
+        Path stdinFile = null;
+        Path stdoutFile = Files.createTempFile("simple-stdout",".txt");
+        Path stderrFile = Files.createTempFile("simple-stderr",".txt");
+        Process p = null;
+        try {
+            smp.redirectOutput(stdoutFile.toFile());
+            smp.redirectError(stderrFile.toFile());
+            if( stdin!=null && stdin.isEmpty() ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
+            else if( stdin!=null ) {
+                stdinFile = Files.createTempFile("simple-stdin",".txt");
+                Files.writeString(stdinFile,stdin);
+                smp.redirectInput(stdinFile.toFile());
+            }
+            p = smp.start();
+            if( stdin==null )
+                p.getOutputStream().close();
+            // Windows statuses have 32 bits; narrowing can turn a failure into 0.
+            int exit = p.waitFor();
+            return new ExecResult(exit,Files.readString(stdoutFile),Files.readString(stderrFile));
+        } catch( InterruptedException e ) {
+            if( p!=null ) p.destroyForcibly();
+            Thread.currentThread().interrupt();
+            throw new IOException("interrupted",e);
+        } finally {
+            if( stdinFile!=null ) Files.deleteIfExists(stdinFile);
+            Files.deleteIfExists(stdoutFile);
+            Files.deleteIfExists(stderrFile);
         }
-        Process p = smp.start();
-        if( stdin==null )
-            p.getOutputStream().close();
-        int exit;
-        try { exit = (byte)p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
-        String result = Files.readString(stdoutFile.toPath());
-        if( stdinFile != null )
-            stdinFile.delete();
-        stdoutFile.delete();
-        if( exit!=0 )
-            return "exec exit code: "+exit;
-        return result;
     }
 
     static Ary<String> linkObjs(Ary<String> externPaths) {

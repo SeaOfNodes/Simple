@@ -8,6 +8,9 @@ import com.seaofnodes.simple.util.Ary;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
@@ -235,21 +238,39 @@ int v0=0^0;
     }
 
     @Test
+    public void testConstantClassInitialization() throws IOException {
+        TestC.runSF("val x = 42; return 0;","constantClassInt","",0);
+        TestC.runSF("val f = { -> 7; }; return 0;","constantClassFunction","",0);
+    }
+
+    @Test
     public void testHelloWorld() throws IOException {
         String expected = "Hello, World!\n";
         String prog = "return sys.io.p(\""+expected+"\") - "+expected.length()+";";
-        TestC.run(prog,"helloWorld",new Ary<>(new String[]{SYS_BLDDIR}),
+        // tests_raw1 concurrently builds Chapter22Test's helloWorld executable.
+        TestC.run(prog,"helloWorldSys",new Ary<>(new String[]{SYS_BLDDIR}),
                   TestC.CALL_CONVENTION, null, null, expected,0);
     }
 
     @Test
     public void testHelloWorldDriver() throws Exception {
-        Simple.main(new String[]{"-L",SYS_BLDDIR,"--norun","docs/examples/A_helloWorld.smp"});
+        String out = "build/objs/helloWorldDriver/";
+        Simple.main(new String[]{"-L",SYS_BLDDIR,"-o",out,"--norun","docs/examples/A_helloWorld.smp"});
+        assertTrue(Files.isRegularFile(Path.of(out,"A_helloWorld.o")));
     }
 
     @Test
     public void testHelloWorldDriverLibFile() throws Exception {
-        Simple.main(new String[]{"-L",SYS_FILE.toString(),"docs/examples/A_helloWorld.smp"});
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrintStream saved = System.out;
+        try( PrintStream capture = new PrintStream(output,true,StandardCharsets.UTF_8) ) {
+            System.setOut(capture);
+            Simple.main(new String[]{"-L",SYS_FILE.toString(),"-o","build/objs/helloWorldDriverLibFile/",
+                                    "docs/examples/A_helloWorld.smp"});
+        } finally {
+            System.setOut(saved);
+        }
+        assertEquals("Hello, World!\n",output.toString(StandardCharsets.UTF_8));
     }
 
     @Test
