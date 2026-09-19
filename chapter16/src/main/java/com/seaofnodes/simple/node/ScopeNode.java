@@ -268,6 +268,13 @@ public class ScopeNode extends ScopeMinNode {
     // This Scope looks for direct variable uses, or certain simple
     // combinations, and replaces the variable with the upcast variant.
     public Node upcast( Node ctrl, Node pred, boolean invert ) {
+        // A single negation is handled below. For !!p (including p != null),
+        // also refine the underlying p without changing the Boolean result.
+        if( pred instanceof NotNode not && not.in(1) instanceof NotNode ) {
+            pred.keep();        // Recursive peepholes may rediscover this Not.
+            upcast(ctrl,not.in(1),!invert);
+            pred.unkeep();
+        }
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());

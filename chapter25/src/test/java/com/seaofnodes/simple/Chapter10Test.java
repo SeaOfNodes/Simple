@@ -7,6 +7,64 @@ import static org.junit.Assert.fail;
 
 public class Chapter10Test {
 
+    private static final String NULLABLE_POINT_SOURCE = """
+        struct Point { int x; new Point = { int v -> x = v; }; };
+        Point?[] !points = new Point?[2];
+        points[arg] = new Point(42);
+        Point? p = points[1];
+        """;
+
+    @Test
+    public void testNullGuards() {
+        // Issue #246: != null lowers to !!p. Follow every negation, on either arm.
+        for( String body : new String[] {
+            "if (p != null) return p.x; return -1;",
+            "if (null != p) return p.x; return -1;",
+            "if (!!!!p) return p.x; return -1;",
+            "if (!!!p) return -1; return p.x;",
+            "val b = !!p; if (b) return p.x + b - 1; return -1;",
+            "if (!(p == null || arg == 0)) return p.x; return -1;"
+        } )
+            for( long seed : new long[] { 1, 42, 126 } ) {
+                CodeGen code = new CodeGen(NULLABLE_POINT_SOURCE+body,seed,true)
+                    .driver(CodeGen.Phase.TypeCheck);
+                assertEquals(body,"-1",Eval2.eval(code,0));
+                assertEquals(body,"42",Eval2.eval(code,1));
+                code.driver(CodeGen.Phase.LocalSched);
+            }
+    }
+
+    @Test
+    public void testShortCircuitGuardScheduling() {
+        // The call result exists only on the RHS path, not above the merge.
+        CodeGen code = new CodeGen("""
+            val f = { int n -> (n+1)&7; };
+            int x = 0;
+            if (!!(arg && (x=f(arg)))) return x;
+            return -1;
+            """).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("-1",Eval2.eval(code,0));
+        assertEquals("2",Eval2.eval(code,1));
+        assertEquals("-1",Eval2.eval(code,7));
+        code.driver(CodeGen.Phase.LocalSched);
+    }
+
+    @Test
+    public void testNullGuardErrors() {
+        for( String body : new String[] {
+            "return p.x;",
+            "if (!!points) return p.x; return -1;",
+            "if (!!p) { int x = p.x; } return p.x;"
+        } ) {
+            try {
+                new CodeGen(NULLABLE_POINT_SOURCE+body).driver(CodeGen.Phase.TypeCheck);
+                fail(body);
+            } catch( Parser.ParseException e ) {
+                assertEquals(body,"Might be null accessing 'x'",e.getMessage());
+            }
+        }
+    }
+
     @Test
     public void testFuzzer() {
         CodeGen code = new CodeGen(

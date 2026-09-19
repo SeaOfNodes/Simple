@@ -345,10 +345,23 @@ public class ScopeNode extends MemMergeNode {
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
     public void addGuards( Node ctrl, Node pred, boolean invert ) {
         assert ctrl instanceof CFGNode;
-        _guards.add(ctrl);      // Marker to distinguish 0,1,2 guards
+        _guards.add(ctrl);      // Marker between guard sets
         // add pred & its cast to the normal input list, with special Vars
         if( pred==null || pred.isDead() )
             return;           // Dead, do not add any guards
+        _addGuards(ctrl,pred,invert);
+    }
+
+    private void _addGuards( Node ctrl, Node pred, boolean invert ) {
+        if( pred==null || pred.isDead() )
+            return;
+        // A single negation is handled below. For !!p (including p != null),
+        // also refine the underlying p without changing the Boolean result.
+        if( pred instanceof NotNode not && not.in(1) instanceof NotNode ) {
+            pred.keep();        // Recursive peepholes may rediscover this Not.
+            _addGuards(ctrl,not.in(1),!invert);
+            pred.unkeep();
+        }
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : IterPeeps.add(new NotNode(pred).peephole());
@@ -380,7 +393,7 @@ public class ScopeNode extends MemMergeNode {
     // Remove matching pred/cast pairs from this guarded region.
     public ScopeNode removeGuards( Node ctrl ) {
         assert ctrl instanceof CFGNode;
-        // 0,1 or 2 guards
+        // Pop the guards up to this region's marker.
         while( true ) {
             Node g = _guards.pop();
             if( g == ctrl ) break;

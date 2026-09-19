@@ -525,7 +525,7 @@ public class ScopeNode extends MemMergeNode {
     // values to Guard post-test.
 
     public void addGuards( CFGNode ctrl, Node pred, boolean invert ) {
-        _guards.add(ctrl);      // Marker to distinguish 0,1,2 guards
+        _guards.add(ctrl);      // Marker between guard sets
         // add pred & its cast to the normal input list, with special Vars
         if( pred==null || pred.isDead() )
             return;           // Dead, do not add any guards
@@ -538,6 +538,14 @@ public class ScopeNode extends MemMergeNode {
         CFGNode early = CFGNode.earlyCFG(pred);
         if( early != null && !early.dominates(ctrl,null) )
             return;
+        // A single negation is handled below. For !!p (including p != null)
+        // or a negated short-circuit Phi, also discover the underlying facts.
+        if( pred instanceof NotNode not &&
+            (not.in(1) instanceof NotNode || not.in(1) instanceof PhiNode) ) {
+            pred.keep();        // Recursive peepholes may rediscover this Not.
+            _addGuards(ctrl,not.in(1),!invert);
+            pred.unkeep();
+        }
         // Short-circuit logic is represented by a Phi.  For `a || b` being
         // false, or `a && b` being true, both individual operands have the
         // same proven value as the whole expression.  The "skipped RHS" path
@@ -594,7 +602,7 @@ public class ScopeNode extends MemMergeNode {
     // Remove matching pred/cast pairs from this guarded region.
     public void removeGuards( Node ctrl ) {
         assert ctrl instanceof CFGNode;
-        // 0,1 or 2 guards
+        // Pop the guards up to this region's marker.
         while( true ) {
             Node g = _guards.pop();
             if( g == ctrl ) break;

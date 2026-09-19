@@ -270,7 +270,7 @@ public abstract class Eval2 {
         case MulFNode     mlf  -> d(mlf.in(1)) *  d(mlf.in(2));
         case MulNode      mul  -> x(mul.in(1)) *  x(mul.in(2));
         case NewNode      alloc-> alloc(alloc);
-        case NotNode      not  -> x(not.in(1)) == 0 ? 1L : 0L;
+        case NotNode      not  -> not(not);
         case OrNode       or   -> x(or .in(1)) |  x(or .in(2));
         case ProjNode     proj -> proj._type instanceof TypeMem ? "$mem" : val(proj.in(0));
         case ReadOnlyNode read -> val(read.in(1));
@@ -285,6 +285,12 @@ public abstract class Eval2 {
         case XorNode      xor  -> x(xor.in(1)) ^  x(xor.in(2));
         default -> throw Utils.TODO();
         };
+    }
+
+    private static Object not( NotNode not ) {
+        Object n = val(not.in(1));
+        return ( n==null || (n instanceof Double D && D==0.0) || n instanceof Long L && L==0 )
+            ? 1L : 0L;
     }
 
     // Fetch without unboxing, searching up-Frame

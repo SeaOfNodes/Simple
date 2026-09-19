@@ -385,10 +385,38 @@ public class ScopeNode extends MemMergeNode {
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
     public void addGuards( Node ctrl, Node pred, boolean invert ) {
         assert ctrl instanceof CFGNode;
-        _guards.add(ctrl);      // Marker to distinguish 0,1,2 guards
+        _guards.add(ctrl);      // Marker between guard sets
         // add pred & its cast to the normal input list, with special Vars
         if( pred==null || pred.isDead() )
             return;           // Dead, do not add any guards
+        _addGuards(ctrl,pred,invert);
+    }
+
+    private void _addGuards( Node ctrl, Node pred, boolean invert ) {
+        if( pred==null || pred.isDead() )
+            return;
+        if( !availableAt(pred,(CFGNode)ctrl,new BitSet()) )
+            return;
+        // A single negation is handled below. For !!p (including p != null)
+        // or a negated short-circuit Phi, also discover the underlying facts.
+        if( pred instanceof NotNode not &&
+            (not.in(1) instanceof NotNode || not.in(1) instanceof PhiNode) ) {
+            pred.keep();        // Recursive peepholes may rediscover this Not.
+            _addGuards(ctrl,not.in(1),!invert);
+            pred.unkeep();
+        }
+        // A false || or true && proves both operands. Only guard values
+        // available at this control, not ones confined to the RHS branch.
+        if( pred instanceof PhiNode phi && phi.nIns()==3 && phi.region() instanceof RegionNode r && r.nIns()==3 )
+            for( int i=1; i<3; i++ )
+                if( r.in(i) instanceof CProjNode prj && prj.ctrl() instanceof IfNode iff ) {
+                    Node skip = shortCircuitSkippedPred(phi.in(i),iff.pred(),prj,invert);
+                    if( skip != null ) {
+                        _addGuards(ctrl,skip,invert);
+                        _addGuards(ctrl,phi.in(3-i),invert);
+                        break;
+                    }
+                }
         // Invert the If conditional
         if( invert )
             pred = pred instanceof NotNode not ? not.in(1) : CodeGen.CODE.add(new NotNode(pred).peephole());
@@ -406,6 +434,35 @@ public class ScopeNode extends MemMergeNode {
         }
     }
 
+    // A Phi's value is available at its Region. Other data nodes require all
+    // their inputs, including pinned control, to dominate the proposed guard.
+    private static boolean availableAt(Node n, CFGNode ctrl, BitSet visit) {
+        if( n==null || n instanceof ConstantNode || visit.get(n._nid) ) return true;
+        visit.set(n._nid);
+        if( n instanceof PhiNode phi ) n = phi.region();
+        if( n instanceof CFGNode cfg ) {
+            for( CFGNode dom=ctrl; dom!=null; dom=dom.idom() )
+                if( dom==cfg ) return true;
+            return false;
+        }
+        for( Node def : n._inputs )
+            if( !availableAt(def,ctrl,visit) ) return false;
+        return true;
+    }
+
+    private static Node shortCircuitSkippedPred( Node val, Node pred, CProjNode prj, boolean invert ) {
+        if( val == null ) return null;
+        if( val == pred )
+            return (prj._idx==0)==invert ? val : null;
+        if( val instanceof NotNode not && not.in(1)==pred )
+            return (prj._idx==1)==invert ? val : null;
+        if( val._type == TypeInteger.TRUE && invert )
+            return prj._idx==0 ? pred : CodeGen.CODE.add(new NotNode(pred).peephole());
+        if( val._type == TypeInteger.FALSE && !invert )
+            return prj._idx==1 ? pred : CodeGen.CODE.add(new NotNode(pred).peephole());
+        return null;
+    }
+
     private void _addGuard(Type guard, Node ctrl, Node pred) {
         Type tcast = guard.join(pred._type);
         if( tcast != pred._type && !tcast.isHigh() ) {
@@ -420,7 +477,7 @@ public class ScopeNode extends MemMergeNode {
     // Remove matching pred/cast pairs from this guarded region.
     public ScopeNode removeGuards( Node ctrl ) {
         assert ctrl instanceof CFGNode;
-        // 0,1 or 2 guards
+        // Pop the guards up to this region's marker.
         while( true ) {
             Node g = _guards.pop();
             if( g == ctrl ) break;

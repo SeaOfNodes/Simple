@@ -7,6 +7,46 @@ import static org.junit.Assert.fail;
 
 public class Chapter10Test {
 
+    // Issue #246: null-check guards start in Chapter 10; arrays arrive in Chapter 15.
+    private static final String NULLABLE_POINT_SOURCE = """
+        struct Point { int x; };
+        Point point = new Point;
+        point.x = 42;
+        Point? p = null;
+        if (arg) p = point;
+        """;
+
+    @Test
+    public void testNullGuards() {
+        for( String body : new String[] {
+            "if (p != null) return p.x; return -1;",
+            "if (null != p) return p.x; return -1;",
+            "if (!!!!p) return p.x; return -1;",
+            "if (!!!p) return -1; return p.x;",
+            "int b = !!p; if (b) return p.x + b - 1; return -1;"
+        } ) {
+            StopNode stop = new Parser(NULLABLE_POINT_SOURCE+body).parse().iterate();
+            assertEquals(body,-1L,com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,0));
+            assertEquals(body,42L,com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,1));
+        }
+    }
+
+    @Test
+    public void testNullGuardErrors() {
+        for( String body : new String[] {
+            "return p.x;",
+            "if (!!point) return p.x; return -1;",
+            "if (!!p) { int x = p.x; } return p.x;"
+        } ) {
+            try {
+                new Parser(NULLABLE_POINT_SOURCE+body).parse().iterate();
+                fail(body);
+            } catch( RuntimeException e ) {
+                assertEquals(body,"Might be null accessing 'x'",e.getMessage());
+            }
+        }
+    }
+
     @Test
     public void testFuzzer() {
         Parser parser = new Parser(
