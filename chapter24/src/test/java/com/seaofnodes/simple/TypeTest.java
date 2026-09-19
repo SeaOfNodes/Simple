@@ -7,6 +7,27 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
+    // Struct hashes omit field types, so interning compares unlike leaf kinds.
+    @Test
+    public void testCyclicLeafKinds() {
+        TypeStruct bottom = TypeStruct.make("B14LeafKinds",false,
+                Field.make("x",Type.BOTTOM,2,false, false));
+        TypeStruct one = TypeStruct.make("B14LeafKinds",false,
+                Field.make("x",TypeFloat.constant(1.0),2,false, false));
+        TypeStruct two = TypeStruct.make("B14LeafKinds",false,
+                Field.make("x",TypeFloat.constant(2.0),2,false, false));
+
+        // Meeting creates a new struct while cyclic equality is active. Its
+        // float leaf must compare unequal to the previously interned BOTTOM.
+        TypeStruct meet = (TypeStruct)one.meet(two);
+        assertSame(TypeFloat.F32,meet._fields[0]._t);
+        assertSame(meet,two.meet(one));
+        assertSame(meet,TypeStruct.make("B14LeafKinds",false,
+                Field.make("x",TypeFloat.F32,2,false, false)));
+        assertSame(bottom,meet.meet(bottom));
+        assertSame(meet.dual(),one.dual().join(two.dual()));
+    }
+
     // Test basic properties and GLB
     @Test
     public void testTypeAdHoc() {
