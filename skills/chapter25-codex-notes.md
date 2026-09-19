@@ -5,6 +5,9 @@ habits, and project-owner preferences that are easy to miss when reading only
 the implementation. `WIP-HANDOFF.md` and `parser-simplification-plan.md` retain
 the detailed history; portions of their old branch/status reports are stale
 after the Chapter 25 squash.
+For cross-chapter work, read [the backport queue and validation record](../docs/chapter-backports.md).
+It owns pending items and detailed reproductions; these notes capture reusable
+lessons rather than duplicating that history.
 
 ## Collaboration preferences
 
@@ -19,6 +22,63 @@ after the Chapter 25 squash.
   not permission to clean the tree.
 - Do not push without explicit approval. Prefer commits at meaningful test
   frontiers with messages describing the architectural change.
+- Give brief progress updates during long investigations and test runs. Cliff's
+  PowerShell UI can appear blank while Codex is thinking; report concrete
+  findings, the current check, and any blocker.
+
+## Tutorial backports
+
+- The preferred direction is: introduce a fix in the earliest applicable chapter,
+  then use the same implementation in later snapshots where practical. Tutorial
+  progression takes priority over importing the fully general Chapter 25 solution.
+  Use a locally sensible fix when the general solution requires concepts not yet
+  introduced; report substantial representation changes for review.
+- Find the chapter where the relevant feature first appears, not just the chapter
+  that can parse the original reproducer. Reduce away later syntax/features when
+  possible. Put the regression in that earliest `ChapterNTest.java`, and forward
+  port it into the same test class in every later affected chapter directory.
+- Every directory contains its own compiler snapshot. Testing Chapter 25's
+  inherited `Chapter10Test` does not validate the Chapter 10 compiler. Use the
+  top-level runner, e.g. `make -k tests CHAPTERS="chapter10 chapter11"`, with all
+  affected directories explicitly listed. Establish the destination baseline
+  before changing it; older Makefiles may need a forced rebuild after API changes.
+- Keep unrelated discoveries separate in `docs/chapter-backports.md`. Completed
+  fixes leave the pending queue; preserve their validation history. A green suite
+  after changing graph/test order does not prove an intermittent failure fixed.
+- Store disposable probes/logs under an appropriate ignored build directory.
+  Preserve durable reproducers in tests or the review record, not only scratch
+  files. The B13 `chapter25/tmp` probes were removed at Cliff's request after he
+  reviewed and pushed the fix; future sessions must not rely on those files.
+
+## Null guards: B13 / issue #246 lessons
+
+- Null refinement starts in Chapter 10; arrays in 15; scoped expression guards
+  in 17; short-circuit syntax in 23. Chapters 10-16 refine local bindings with
+  casts/constants, 17-24 use scoped CastNode facts, and 25 uses GuardNode with
+  incomplete types. Before Chapter 13, the early-return regression needs an
+  explicit `else` to get the false-arm refinement.
+- `p != null` can become `!!p`. Control simplification may strip both negations
+  while guard discovery still misses non-null `p`. Compare the guarded load's
+  input after parsing, not just the simplified If predicate.
+- Existing code already handles one Not. Recurse for nested Not (or Not of a
+  short-circuit Phi where supported), flip the proven truth, and preserve the
+  Boolean value. Unconditionally duplicating single-Not guards caused a Dijkstra
+  SCCP assertion during B13 development; that approach was discarded.
+- Keep the predicate alive across recursive peepholes (`keep`/`unkeep`), and
+  separate recursive guard discovery from the public guard-set marker. Otherwise
+  temporary predicates can die or recursive calls can disturb guard removal.
+- Short-circuit refinement must not guard an RHS-only value where it is not
+  available. Chapters 23-24 use `availableAt` with existing CFG dominators;
+  Chapter 25 uses its existing `earlyCFG`/dominance machinery. Do not import this
+  machinery into Chapter 10 merely to handle nested negation.
+- `Chapter10Test.testNullGuards` and `testNullGuardErrors` cover positive and
+  rejected uses throughout 10-25; `testShortCircuitGuardScheduling` adds RHS-only
+  call-result coverage in 23-25. Check both runtime outcomes and scheduling, not
+  just successful type checking. Eval2's Not must handle pointers/null as well as
+  numeric zero; B13 ported that helper from 25 to 18-24.
+- As of the 2026-09-19 review, B13 is complete and Cliff reports it pushed.
+  The separate B14 cyclic-equality failure had a deterministic type-only
+  reproducer despite green B13 suites; see the type lessons below.
 
 ## Central parser rule
 
@@ -87,6 +147,16 @@ Consequences:
 
 ## Types and monotonicity
 
+- Cyclic structural equality starts in Chapter 23. Chapters 9-22 compare
+  interned children by identity and check type kinds in `Type.equals`.
+  In recursive equality, leaf dispatch must also check `_type` before calling
+  subclass `eq`: that method assumes matching kinds. B14 adds this check in
+  23-24; 25 already had it. No earlier representation change is needed.
+- Struct hashes in 23 onward omit field types to handle cycles. Same-named
+  structs with different leaf kinds therefore collide intentionally. Exercise
+  that path deterministically by interning a BOTTOM-field struct before
+  meeting two float-constant variants; `TypeTest.testCyclicLeafKinds` in 23-25
+  checks the resulting field, canonical identity, and meet/dual behavior.
 - The type lattice must remain complete, symmetric, and bounded. Run TypeTest
   after changing Type/Field equality, hashing, duality, meet/join, interning,
   serialization, or gather sets.
@@ -163,6 +233,14 @@ TypeTest after lattice changes
 serialize/deserialization bijection after persisted graph changes
 ```
 
-As of the Chapter 25 squash preparation, `make tests_raw0` passes 360 tests and
-Chapter25Test passes its system, Hello World, and Bubble Sort coverage with a
-freshly rebuilt `sys.o`.
+Default fuzzer wrappers use explicit regression seed lists; exploratory fuzzing
+is opt-in. A passing wrapper with an empty list is not exploratory coverage, and
+`OPEN_FAILING_SEEDS` remain unresolved until explicitly verified and promoted.
+For dated suite counts and known failures, consult the backport validation record
+rather than treating an old count as the current baseline.
+
+When comparing historical fuzzer results, check what the harness compares:
+Chapter 18 compares peepholes off/on; Chapter 19 switches to optimizer worklist
+seeds. A change of oracle does not establish that an older discrepancy is
+fixed. Validate the full failing seed before promoting it, even when a
+reduced source exposes a separately fixed diagnostic.
