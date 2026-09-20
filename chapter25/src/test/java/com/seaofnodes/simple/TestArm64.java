@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.cpus.arm.arm;
@@ -14,7 +15,7 @@ public class TestArm64 {
 
     public static EvalArm64 build( String main, String src, int arg, int spills, boolean print ) throws IOException {
         // Compile and export Simple
-        CodeGen code = new CodeGen(src).driver("arm", "SystemV",true,false);
+        CodeGen code = new CheckedCodeGen(src).driver("arm", "SystemV",true,false);
 
         // Allocation quality not degraded
         int delta = spills>>3;

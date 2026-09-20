@@ -447,7 +447,7 @@ abstract public class IFG {
 
         // Pick single-def clonables that are not right next to their single-use.
         // Rank by the area recovered by cloning closer to the use.
-        if( !lrg._multiDef && lrg._machDef.isClone() && lrg._machUse != null ) {
+        if( !lrg._multiDef && lrg._machDef!=null && lrg._machUse!=null && lrg._machDef.isClone() ) {
             Node def = ((Node)lrg._machDef);
             Node use = ((Node)lrg._machUse);
             CFGNode cfg = def.cfg0();
@@ -527,7 +527,7 @@ abstract public class IFG {
 
     private static int biasable(Node split) {
         if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
-        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1;   // Yes biasable, advance is slot 1
+        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1;   // Prefer the backedge in loops
         if( !(split instanceof MachNode mach) ) return 0; // Not biasable
         return mach.twoAddress();                         // Only biasable if 2-addr
     }

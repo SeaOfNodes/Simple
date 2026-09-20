@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -58,7 +59,7 @@ public abstract class TestC {
         String obj = bin+".o";
         String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src, arg).driver( CPU_PORT, simple_conv, obj);
+        CodeGen code = new CheckedCodeGen(src, arg).driver( CPU_PORT, simple_conv, obj);
 
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);
@@ -113,10 +114,9 @@ public abstract class TestC {
         ProcessBuilder smp = new ProcessBuilder(args);
         if( stdin ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
         Process p = smp.start();
-        try { exit = (byte)p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
+        try { exit = p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         result = new String(p.getInputStream().readAllBytes());
-        if( exit!=0 )
-            System.err.println("exec exit code: "+exit);
+        assertEquals("Program exit status",0,exit);
         return result;
     }
 }

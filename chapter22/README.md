@@ -41,7 +41,7 @@ semantics - just the ability to nest type definitions.
 struct Outer { 
     struct Inner {
         int in;
-        int pi = 3.14;
+        flt pi = 3.14;
     };
     int out;
 };
@@ -53,6 +53,7 @@ need to be stored in each instances.  Instead one copy is kept in a global
 space (not really a *class* object yet) and loaded from there.
 
 In this example:
+
 - Instances of the `Outer` struct have a single `int` field `out`.
 - Instances of the `Inner` struct have a single `int` field `in`.
 - There exists a `Outer.Inner.pi` field in a global space with value `3.14`.
@@ -68,7 +69,7 @@ We can now call external / FFI functions, and they are declared like any other
 variable except being assigned "C".  Here is the binding for the libc `write`
 call:
 
-`{ i32 fd, i32 buf, i32 len -> i32 } write = "C";`
+`{ i32 fd, i64 buf, u32 len -> u32 } write = "C";`
 
 Any final variable assigned as "C" will be considered defined externally.  The
 syntax of this might change slightly to avoid ambiguity with assign the same
@@ -82,7 +83,8 @@ name `write` has to be unique when linking.
 
 The `sys` struct includes `libc` bindings, and any default library code
 including e.g. printing support and collections.  As of this chapter it
-includes minimal libc bindings and an easy print:
+includes minimal libc bindings and an easy print. This excerpt shows the
+parts used above:
 
 ```java
 // top-level default import
@@ -91,7 +93,7 @@ struct sys {
     /** https://www.man7.org/linux/man-pages/man2/<libc call>.2.html */
     struct libc {
         // fd  buf len -> len
-        {  i32 i64 i32 -> i32 } write = "C";
+        {  i32 i64 u32 -> u32 } write = "C";
         // addr len prot flags fd  off -> void*
         {  i64  i64 i32  i32   i32 i32 -> i64 } mmap = "C";
         // mmap flags
@@ -105,8 +107,7 @@ struct sys {
     struct io {
         val p = { u8[~] str ->
             i64 ptr = str;  // cast array base to i64
-            i32 len = str#; // cast length to signed
-            return sys.libc.write(1,ptr,len);
+            return sys.libc.write(1,ptr,str#);
         };
     };
 };
@@ -166,29 +167,69 @@ The form  ``` `0` ``` makes a `u8` value with the ASCII character `0`.
 
 ## Continuous Improvement
 
-In the rush to get executable code from 
-[Chapters 19](https://github.com/SeaOfNodes/Simple/tree/linear-chapter19),
-[Chapters 20](https://github.com/SeaOfNodes/Simple/tree/linear-chapter20), and
-[Chapters 21](https://github.com/SeaOfNodes/Simple/tree/linear-chapter21), we
-wrote a lot of code in a hurry.  That also means we wrote a lot of bugs (sad
-face), and will be paying the price for a few chapters.  In this chapter we
-also found and fixed a number of bugs, here's a sample:
+Executing larger programs exposes mistakes that graph-only tests can miss.
+During the original development of this chapter, these included x86 instruction
+encodings and flag clobbers, scheduling around loop backedges and memory stores,
+and stale dominator depths during inlining. Corrections are being moved into the
+earliest applicable chapters so readers can build on working compiler snapshots.
+Native tests check both output and process exit status; emulator tests check the
+returned values and memory as well as successful execution.
 
-- x86 encoding bugs:
-- - `imul` with immediate forms and `setXX` had incorrect `REX` forms.
-- - x86 `div` was taking `RAX,RDX` as the second *input* register; they are already 
-    hardwired as the *first* input register.
-- - Many x86 ops that kill `flags` did not state so in the port.
-- - Short forms for some x86 ops (e.g. using the `inc` vs `add+1`)
-- Global Code Motion `ScheduleLate` missed visiting values only visible around
-  loop backedges; also was adding extra dependence edges between loads and
-  stores with different aliasing.
-- Inlining would reset the **idepth** (as expected) but then use the existing
-  `CallNode` and `FunNode` that are *folding* but not yet peep'd away - leading
-  to incorrect **idepth** calculations.
-  
-Many more bugs got fixed, but this sample should give an idea of the continuous
-improvements going on.  These happen because we have finally reached a point
-where we can aggressive test again - we are writing Real (Simple) Code (tm) and
-running it... and crashing on these bugs.  Compilers are big, complex, beasties
-and some amount of bugs and bug fixing is to be expected.
+## RegAlloc improvements: better color bias
+
+Chapter 21 introduced conservative copy coalescing. Here we improve the register
+preferences used when related live ranges cannot coalesce. A copy chain can take
+an already assigned register even at its terminal definition; a loop Phi prefers
+its backedge's register, avoiding a move on each iteration when possible.
+
+When no live range is trivially colorable, cheap values make better spill
+candidates. We favor a cloneable definition with distant or multiple uses over
+one already adjacent to its only use, then callee-save values whose long spans
+are cheap to split. Register order breaks ties between callee saves. These are
+small preferences, not a general cost model. Grouping popular values by register
+class is left for Chapter 23, cold loop splits for 24, and area/cost ranking for 25.
+
+Run `make spill-stats` in this directory. Each row below uses **this chapter's
+compiler**, default worklist seed 123, and the same source/target combinations
+as the earlier cohort. The Windows run combines x86 SystemV/Win64 and RISC-V/ARM
+SystemV. Diagnostic graphs and mask regressions do not contribute to the totals.
+
+| Program cohort | Compilations | Split/move count | Loop-weighted count |
+|---|---:|---:|---:|
+| Chapter 20 | 39 | 324 | 443 |
+| Chapter 21 | 52 | 447 | 986 |
+| Chapter 22 | 24 | 67 | 67 |
+| **Total** | **115** | **838** | **1,496** |
+
+`_spills` counts retained SplitNodes, including register moves; `_spillScaled`
+weights each by `8^loopDepth`. These are compiler estimates, not measured runtime
+memory traffic. The reporter also prints individual allocations and CPU/ABI sums.
+Chapter 21's original `int age` person example is preserved as `person21`; this
+chapter's `i32 age` version and revised infinite-loop example belong to cohort 22.
+
+For a controlled comparison, the same compiler and correctness fixes with
+Chapter 21's color preferences and spill ordering produce 885 moves and 1,543
+weighted moves. This chapter saves **47 weighted moves (3.0%)**. RISC-V BrainFuck
+improves from 42 to 28 and ARM from 34 to 28 in each of its two cohorts. Some
+MergeSort cases and RISC-V Sieve each cost one more move. Summing the whole suite
+shows whether those local tradeoffs pay off.
+
+The original Chapter 22 snapshot, which mixed several later heuristics, produced
+854 moves and 1,736 weighted moves on these same 115 compilations. The corrected,
+staged version saves 240 weighted moves (13.8%). Neither comparison should be
+confused with comparing entire compiler chapters: lowering also changes. For
+example, the frozen Chapter 20 String input has no explicit return, and Chapter
+22's default-return handling eliminates that workload at the default seed.
+
+The full suite passes 416 tests plus the fuzzer; the statistics runner passes
+55 selected tests. Routine backend comparisons use a fixed optimizer seed:
+shuffling optimizer worklists should normalize to essentially the same graph,
+so repeating allocation on those graphs adds little coverage. Use seed variation
+when investigating optimizer normalization or worklist-order failures.
+
+Two pre-existing failures found during the review remain in the
+[backport queue](../docs/chapter-backports.md): String fails during loop
+analysis/scheduling at other optimizer seeds, and returning a function pointer
+fails during relocation after Opto incorrectly deletes the referenced function.
+Their reproductions and validation history are retained
+there as separate correctness work.

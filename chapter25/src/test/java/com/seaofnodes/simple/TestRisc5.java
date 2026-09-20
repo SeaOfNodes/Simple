@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.FunNode;
@@ -14,7 +15,7 @@ public abstract class TestRisc5 {
 
     public static EvalRisc5 build( String src, String main, int arg, int spills, boolean print ) throws IOException {
         // Compile and export Simple
-        CodeGen code = new CodeGen(src).driver("riscv", "SystemV",true,false);
+        CodeGen code = new CheckedCodeGen(src).driver("riscv", "SystemV",true,false);
 
         // Allocation quality not degraded
         int delta = spills>>3;

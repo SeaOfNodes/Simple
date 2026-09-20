@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,15 +44,13 @@ public abstract class TestC {
         String obj = bin+".o";
         String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
+        CodeGen code = new CheckedCodeGen(src).driver( CPU_PORT, simple_conv, obj);
+        SpillStats.recordNative(code,CPU_PORT,simple_conv);
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);
 
         // Allocation quality not degraded
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
     }
 
     public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {
@@ -97,10 +96,9 @@ public abstract class TestC {
         ProcessBuilder smp = new ProcessBuilder(args);
         if( stdin ) smp.redirectInput(ProcessBuilder.Redirect.INHERIT);
         Process p = smp.start();
-        try { exit = (byte)p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
+        try { exit = p.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         result = new String(p.getInputStream().readAllBytes());
-        if( exit!=0 )
-            System.err.println("exec exit code: "+exit);
+        assertEquals("Program exit status",0,exit);
         return result;
     }
 }

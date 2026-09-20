@@ -190,14 +190,14 @@ public class RegAlloc {
         while( !graphColor(round) ) {
             split(round);
             if( round >= 7 )    // Really expect to be done soon
-                throw Utils.TODO("Allocator taking too long");
+                throw new IllegalStateException("Register allocation made no progress after eight rounds");
             round++;
         }
         postColor();                       // Remove no-op spills
         _done = true;
     }
 
-    private boolean verifyFunctionLocalEdges() {
+    boolean verifyFunctionLocalEdges() {
         for( CFGNode bb : _code._cfg )
             for( Node use : bb._outputs ) {
                 FunNode useFun = funOf(use);
@@ -300,7 +300,9 @@ public class RegAlloc {
         if( lrg._mask.isEmpty() ) {
             if( lrg._1regDefCnt <= 1 &&
                 lrg._1regUseCnt <= 1 &&
-                (lrg._1regDefCnt + lrg._1regUseCnt) > 0 )
+                (lrg._1regDefCnt + lrg._1regUseCnt) > 0 &&
+                // A fixed-register clone with flexible uses must split at the uses.
+                !(lrg._1regDefCnt==1 && lrg._machDef.isClone() && lrg._1regUseCnt==0) )
                 return splitEmptyMaskSimple(round,lrg);
             // Repeated single-reg uses from a single def.  Special for archs
             // with more fixed regs.
@@ -734,16 +736,22 @@ public class RegAlloc {
                 break;
             hi = hi.in(1);
         }
-        // Check no clobbers
-        for( int idx = j-1; bb.out(idx) != hi; idx++) {
+        // Walk backward from the later copy, including instructions without results.
+        for( int idx = j-1; bb.out(idx) != hi; idx--) {
             Node n = bb.out(idx);
-            if( lrg(n)!=null && lrg(n)._reg == defreg )
+            if( clobbers(n,defreg) )
                 return false;   // Clobbered
         }
         lo.setDefOrdered(1,hi.in(1));
         return true;
     }
 
+
+    private boolean clobbers(Node n, int reg) {
+        LRG lrg = lrg(n);
+        return lrg!=null && (lrg._reg==reg || lrg._reg==-1 && lrg._mask.size1() && lrg._mask.firstReg()==reg) ||
+            n instanceof MachNode mach && mach.killmap()!=null && mach.killmap().test(reg);
+    }
 
     public boolean sameBlockNoClobber( SplitNode split ) {
         Node def = split.in(1);
@@ -758,7 +766,7 @@ public class RegAlloc {
             Node n = cfg.out(idx);
             if( n==def0 ) return true;    // No clobbers
             if( lrg(n) == lrg(def) ) return false; // Self conflict
-            if( lrg(n)!=null && lrg(n)._reg == defreg )
+            if( clobbers(n,defreg) )
                 return false;   // Clobbered
         }
         throw Utils.TODO("Should not reach here");

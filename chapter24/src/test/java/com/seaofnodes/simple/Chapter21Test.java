@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
@@ -12,6 +13,54 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
+
+    @Test public void testNarrowStores() throws IOException {
+        for( String type : new String[]{"i8","u8","i16","u16"} ) {
+            String src = "struct S { "+type+" x; }; S !s = new S; s.x = arg; return 0;";
+            CodeGen code = new CodeGen(src).driver("riscv","SystemV",null);
+            int stores=0;
+            for( var bb : code._cfg )
+                for( var node : bb.outs() )
+                    if( node instanceof com.seaofnodes.simple.node.cpus.riscv.StoreRISC st ) {
+                        stores++;
+                        assertEquals("Byte/short stores have no FP encoding",-1,st.regmap(4).nextReg((short)31));
+                    }
+            assertEquals(1,stores);
+            byte[] image = new byte[1<<20];
+            byte[] bits = code._encoding.bits();
+            System.arraycopy(bits,0,image,0,bits.length);
+            EvalRisc5 cpu = new EvalRisc5(image,1<<16);
+            cpu.regs[riscv.A0] = 0x8765;
+            assertEquals(0,cpu.step(100));
+            assertEquals(type.endsWith("8") ? 0x65 : 0x8765,
+                         type.endsWith("8") ? cpu.ld1z(1<<16) : cpu.ld2z(1<<16));
+            code = new CodeGen(src).driver(CodeGen.Phase.Encoding,"x86_64_v2",TestC.CALL_CONVENTION);
+            stores=0;
+            for( var bb : code._cfg )
+                for( var node : bb.outs() )
+                    if( node instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.StoreX86 st ) {
+                        stores++;
+                        assertEquals("Byte/short stores have no XMM encoding",-1,st.regmap(4).nextReg((short)15));
+                    }
+            assertEquals(1,stores);
+        }
+    }
+
+    @Test public void testNativeExitStatus() throws IOException {
+        Path source = Path.of("build/objs/nativeExit.c");
+        Files.createDirectories(source.getParent());
+        Files.writeString(source,"int main() { return 7; }\n");
+        try {
+            TestC.gcc(source.toString(),null,null,false,
+                      "build/objs/nativeExit"+(TestC.OS.startsWith("Windows") ? ".exe" : ""));
+        } catch( AssertionError error ) {
+            assertTrue(error.getMessage(),error.getMessage().contains("Program exit status"));
+            return;
+        }
+        fail("A failing native program must fail the test, even with empty stdout");
+    }
+
     @Test public void testArmSubtractRegisters() {
         EvalArm64 cpu = new EvalArm64(new byte[16],16);
         cpu.st4(0,0xCB020020); // SUB X0,X1,X2, no shift or flag update.
@@ -82,7 +131,7 @@ return new s0.v1;
     }
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
+        CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         if( spills != -1 )
@@ -323,11 +372,11 @@ val sieve = { int N ->
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run(src, "sieve", null, sprimes, 257);
+        TestC.run(src, "sieve", null, sprimes, 186);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", src, 100, 160, false);
+        EvalRisc5 R5 = TestRisc5.build("sieve", src, 100, 92, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -339,7 +388,7 @@ val sieve = { int N ->
 
         // Evaluate on ARM5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 160, false);
+        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 94, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];
@@ -450,7 +499,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 """;
         String arg_count = "191.000000\n";
 
-        TestC.run(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
+        TestC.run(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 32 : 15);
 
         EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", src, 0, 4, false);
 

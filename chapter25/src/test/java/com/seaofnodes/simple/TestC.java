@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -118,7 +119,7 @@ public abstract class TestC {
         String obj = pathBase+".o";
         String exe = pathBase+(OS.startsWith("Windows") ? ".exe" : "");
         // Compile simple, emit ELF
-        CodeGen code = new CodeGen(null,"build/objs",externPaths,base,src,126L,true,TypeInteger.BOT);
+        CodeGen code = new CheckedCodeGen(null,"build/objs",externPaths,base,src,126L,true,TypeInteger.BOT);
         code.driver( CPU_PORT, simple_conv, false, cfile==null );
 
         linkExe(obj, c_conv, cfile, linkObjs(externPaths), exe);

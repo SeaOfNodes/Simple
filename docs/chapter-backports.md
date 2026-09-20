@@ -12,6 +12,61 @@ establish the review workflow. No renumbering is committed.
 Keep each correction's reduced failure, smallest patch, and test results together
 for review.
 
+## Follow-ups exposed by the Chapter 22 allocator review
+
+- **Narrow-store register masks:** fixed locally in 22-24, with
+  `Chapter21Test.testNarrowStores`. Bring the x86 restriction to 20-21,
+  and the RISC-V restriction to 21; 19's masks and 20's RISC-V mask are
+  already general-register-only, and 25 already has both fixes. Byte/short stores
+  cannot consume XMM/FPR values. The old x86 `_sz >= 2` compares a character to
+  an integer and always accepts XMM; the intended threshold is `'4'`. RISC-V
+  previously accepted its full memory mask for every width. With Chapter 21's
+  bias in 22, `testSextSuccess` emitted an invalid FP byte store on RISC-V and
+  asserted in `StoreX86.encVal` on x86. Preserve cohort data when backporting:
+  correcting a mask can substantially change spill counts even without tuning.
+- **FunPtrNode backport: defer until register allocation work is complete.** The
+  minimal reproducer is `return {->42;};`; `return sys.io.p;` fails for the same
+  reason. Both fail on x86, RISC-V, and ARM at the default seed 123. The first
+  iterative Opto pass preserves the target. The subsequent pruning loop in
+  `CodeGen.opto` equates no linked calls with no callers for anonymous and `sys.`
+  functions, clears their unknown-caller Start edge, and deletes their bodies.
+  Their function-address ConstantNodes have no edge to keep the bodies alive.
+  The returned pointer survives while its Return disappears from Stop.
+
+  Instruction selection resets NIDs and never selects the deleted function, so
+  the linker still maps its pointer to an ideal FunNode. In the reduced anonymous
+  case that node is 256; the x86 machine graph has UID 19. `Encoding.relo` accepts
+  the stale target and `patchLocalRelocations` indexes `_opStart[256]`. Enlarging
+  the array would merely hide a missing function body and produce a wrong address.
+
+  `val f = {->42;}; return f;` retains the named function and encodes on all three
+  targets. An isolated build that excludes anonymous functions from pruning also
+  encodes both anonymous reproductions, confirming the cause; it does not fix
+  escaped `sys.` addresses. Cliff's chosen direction is to investigate backporting
+  Chapter 25's `FunPtrNode`, whose edge to the function Return keeps the function
+  body alive. This supersedes the proposed address-reference scan. Leave both
+  examples as documented known failures while finishing the allocator chapters;
+  do not fold this reachability change into that work.
+
+  After register allocation, find the earliest applicable chapter and carry the
+  function-pointer representation and its retention rules together: pointer
+  creation, Opto's unknown-caller pruning, instruction selection, global constant
+  cloning, and relocation must agree on the retained function. Adapt these to
+  each chapter without importing unrelated Chapter 25 module/escape machinery.
+  Validate a returned pointer by calling it, and cover library pointers and
+  genuinely unused helpers. Chapter 21 lacks this pruning pass and also treats a constant-only
+  default main differently, so its old encoding-only coverage was not equivalent.
+  Diagnostic logs are in `chapter22/build/funptr-review`; the reduced sources and
+  causal trace above are the durable reproduction.
+- **String without an explicit return in 22:** use the unchanged source in
+  `Chapter20Test.testString`, with the same driver and seeds 0-29. All three CPUs
+  fail before allocation, in loop-tree construction or GCM (missing loop owner,
+  dead CallEnd, or a FunNode cast to LoopNode, depending on seed). The original
+  snapshot reproduces the same 90 failures; seed 123 folds the work away. Reduce
+  this around Chapter 22's default-return/dead-call handling before changing a
+  central reachability invariant. Do not count a different seed or added return
+  as fixing this input.
+
 ## AOT class initialization: larger independent work
 
 Proposed on 2026-09-19; deferred behind the smaller BXX cleanup above. This is
@@ -69,7 +124,7 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 | Group | Eventual home | Why not in the small queue yet |
 |---|---|---|
-| Register allocation and spilling | 20 onward | Chapters 20-21 correction/support passes complete locally; review Chapter 21 statistics before Chapter 22. Staged quality work remains below. |
+| Register allocation and spilling | 20 onward | Shared corrections/support now carried through 25; staged allocator/cohort/README reviews are complete through 22, with 23 next. |
 | Conditional Store and array Load control | Memory/arrays chapters | Reproduce under the earlier alias model before extracting fixes from the new memory implementation. |
 | SCCP dependencies, function revival, reachability | 24; some foundations may fit 18 | Separate old-IR corrections from new Guard/Escape/BulkMemPhi and external-caller machinery. |
 | TypeScalar, numeric modes, guards, symbolic fields, open/forward types | Revisit earlier homes later | A connected incomplete-types architecture, including phase ordering and errors. |
@@ -78,9 +133,10 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 ## Register allocation: correctness first, staged improvements
 
-Review on 2026-09-20. The staged plan follows; Chapters 20-21
-have since been implemented and validated as recorded below. Later snapshots
-remain pending. Compared RegAlloc, BuildLRG, IFG,
+Review on 2026-09-20. The staged plan follows; Chapters 20-22
+have since been implemented and validated as recorded below. Shared corrections
+and test support have also been carried through 23-25; their quality/cohort/README
+reviews remain pending. Compared RegAlloc, BuildLRG, IFG,
 LRG, Coalesce, RegMask, and split support across 20-25, with the original fix
 commits. Allocation starts in 20; 19 has instruction selection/register masks
 but no coloring allocator. Most changes are in 20->21 and 24->25. The 22->23
@@ -139,6 +195,13 @@ to add persistent deferral state to the first allocator chapter.
 - Record actual `_spills` and `_spillScaled` for each compilation, keyed by test,
   CPU, ABI, and fixed seed. Both count retained SplitNodes; `_spillScaled` weights
   each by `8^loopDepth`. These are move/split metrics, not solely memory traffic.
+- Use one fixed optimizer seed for routine backend validation. Seeds shuffle
+  IterPeeps/Opto worklists, whose output should normalize modulo NIDs and equivalent
+  operand orderings; similar post-Opto graphs give little additional allocation,
+  scheduling, or encoding coverage. Reserve seed sweeps for optimizer/worklist
+  investigations or demonstrated order-sensitive failures. Inspect post-Opto
+  differences before multiplying backend runs. Prefer varied programs, register
+  constraints, targets/ABIs, and execution checks for allocator coverage.
 - Compare total scaled counts as the existing quality measure, and report raw
   totals plus the largest local changes. Report per CPU/ABI as well as the whole
   suite so a regression on one target is visible. Include compilations without
@@ -153,14 +216,14 @@ to add persistent deferral state to the first allocator chapter.
   of the heuristic's exact spill count.
 - `splitBypass` originally scanned from `j-1` with `idx++` throughout 20-25,
   reaching its own destination and rejecting nonadjacent bypasses. Corrected
-  in 20-21 with intervening kill-mask checks and a regression; 22-25 remain pending.
+  through 25 with intervening kill-mask checks and a regression.
   Pre-color copy reuse also checks fixed-register definitions before they have
   an assigned `_reg`. Chapter 25 is not a complete correctness reference.
 
 Suggested execution order: support/measurement, small mask/LRG correctness
 fixes, constrained-register and self-conflict regressions/fixes, then one
 quality technique at a time. Run each affected snapshot's full suite at each
-accepted boundary. Chapters 20-21 have now been implemented; stop for Cliff's review before 22.
+accepted boundary. Chapters 20-22 have now been implemented; stop for Cliff's review before 23.
 Review each chapter's README along the way. Chapter 21's encoding discussion
 has been shortened, with the bit-level notes retained as a separate reference. End each README with its
 RegAlloc improvement, measured cohort table, and commentary; the Chapter 25
@@ -206,6 +269,66 @@ Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
 
+### Shared allocator fixes/support: forwarded through 25, 2026-09-20
+
+At Cliff's request, carried the common Chapter 22 corrections into 23-25 in
+this review batch, avoiding repeated chapter-by-chapter review of the same
+changes. Preserved each later allocator's existing grouping, split-delay, and
+area/cost choices; the staged quality/cohort/README reviews still resume at 23.
+
+The shared packet includes bounded register-mask iteration and nonempty
+single-bit tests; commutative BuildLRG output fallback/null masks; resultless
+kill handling; fixed-register clone progress; null sample/traversal guards;
+and backward copy bypass with kill masks and uncolored fixed definitions.
+Chapters 23-24 also receive the corrected clone adjacency/multiple-use test,
+narrow-store masks, and native process exit-status assertions. Chapter 25
+already has the store/exit-status fixes and retains its module-aware verifier.
+
+Forwarded all eight RegAllocTestSupport diagnostic groups and Chapter20Test/
+Chapter21Test hooks. Generic allocation, encoding, native, and emulator helpers
+use CheckedCodeGen, whose regAlloc override checks function ownership, register
+masks, two-address constraints, and Phis immediately after allocation. Encoding
+adds untyped branches and rewrites tail calls, so running these checks afterward
+is too late: even Call.regmap may consult CFG.fun. This test-only hook preserves
+25's driver serialization/import-unlink ordering. Chapter 22 uses the same hook.
+
+Unmodified destination baselines passed. Against their saved main classes,
+five diagnostic groups fail in 23/24 (masks, resultless kills, clone progress,
+commutative Phi fallback, copy clobbers), and three fail in 25 (masks, clone
+progress, copy clobbers). All eight pass in all three corrected destinations.
+Final `make -j 4 tests` passes 23: 428 + 1 fuzzer, 24: 451 + 1 fuzzer,
+and 25: 459 tests across all six groups (8 + 386 + 34 + 18 + 1 + 12).
+Chapter 22 still passes 416 + 1 fuzzer; its separate `make spill-stats` passes
+55 tests / 115 allocations with the unchanged 838 raw / 1,496 weighted total.
+
+For this common-fix comparison, froze each destination's existing local program
+suite and default seed. Included its Chapter20-24 allocator/native cases as
+applicable, BrainFuck, and MergeSort; excluded diagnostic graphs/new regressions.
+These are within-chapter before/after comparisons, not the historical cohort
+rows needed for the later README reviews. In particular, 25's module suite is
+covered by the full tests, not included in these spill sums.
+
+| Compiler / same local suite | Allocations | Raw before | Raw after | Weighted before | Weighted after |
+|---|---:|---:|---:|---:|---:|
+| 23 | 119 | 629 | 614 | 1,511 | 1,279 |
+| 24 | 174 | 968 | 953 | 2,620 | 2,381 |
+| 25 | 146 | 660 | 656 | 1,255 | 1,244 |
+
+| Compiler | ARM weighted | RISC-V weighted | x86 SystemV weighted | x86 Win64 weighted |
+|---|---:|---:|---:|---:|
+| 23 | 413 -> 343 | 417 -> 345 | 95 -> 95 | 586 -> 496 |
+| 24 | 643 -> 573 | 647 -> 575 | 95 -> 95 | 1,235 -> 1,138 |
+| 25 | 348 -> 347 | 346 -> 343 | 123 -> 114 | 438 -> 440 |
+
+Changed goldens only after measuring the aggregate: in 23/24, NewtonInteger
+Win64 55 -> 48, Sieve Win64 257 -> 186 / RISC-V 160 -> 92 / ARM 160 -> 94,
+and arg_count Win64 42 -> 32. In 25, NewtonFloat SystemV 48 -> 40 and arg_count
+Win64 31 -> 35. That local increase is accepted against the overall reduction.
+All measured cases now complete their legality, quality, native/emulator checks:
+53 tests in 23, 77 in 24, and 67 in 25. Logs, original classes, and disposable
+measurement sources are under each chapter's `build/forward-regalloc`.
+The separate FunPtrNode reachability backport remains deferred as requested.
+
 ### Inlined return typing and ARM emulator: corrected, 2026-09-20
 
 The ARM seed-9 String failure was an optimizer bug: inlining can delete a FunNode
@@ -234,6 +357,83 @@ Fresh baselines passed before edits. Full suites after correction: 20: 376+1;
 355 weighted; Chapter 21's two cohorts remain 401/653 and 483/1,141. These regressions
 are excluded from spill measurements. Logs/reducers are in each affected chapter's
 ignored `build/arm-top`; the earlier chapter-by-chapter allocator review gate remains.
+
+### Chapter 22 allocator: ready for review, 2026-09-20
+
+Carried forward the corrected Chapter 21 allocator and its diagnostic checks,
+retaining native frame/call support (`CallEndMach` in 22). Five inherited
+regressions fail against the original 22 classes: mask iteration/empty masks,
+resultless register kills, fixed-register clone progress, commutative Phi fallback,
+and copy bypass across clobbers. All eight diagnostic groups pass now.
+
+Chapter 22 keeps the stronger copy-chain and loop-backedge color bias, and cheap
+cloneable/callee-save spill ordering. Cloneable candidates must have samples;
+coalescing can leave either absent. The adjacent-use test now compares
+`defIndex+1 < useIndex`, not `defIndex < useIndex+1`, and treats multiple uses
+explicitly. Popular-use grouping is removed for introduction in 23; cold loop
+split deferral and area/cost ranking remain for 24 and 25.
+
+The native test helper had lost its exit-status assertion. Restored checking of
+its full integer exit code; `testNativeExitStatus` proves an empty-output program
+returning 7 fails. `testNarrowStores` first failed against the old RISC-V mask,
+then against the old x86 mask; both now reject FP registers for byte/short stores,
+and signed/unsigned RISC-V byte/short writes execute with the expected bytes.
+These restrictions already exist in 25; remaining destinations are queued above.
+
+Preserved cohorts 20 and 21 rather than silently accepting changed inputs:
+`person21` holds the original 64-bit age example, and `testInfiniteReturn` belongs
+to 22 while the old loop remains in 21. Cohort 22 includes its new allocation
+programs and repeated encoding/emulator compilations; diagnostic tests stay out.
+
+| Cohort, all using Chapter 22 | Compilations | Original splits | Current splits | Original weighted | Current weighted |
+|---|---:|---:|---:|---:|---:|
+| Chapter 20 | 39 | 322 | 324 | 448 | 443 |
+| Chapter 21 | 52 | 465 | 447 | 1,221 | 986 |
+| Chapter 22 | 24 | 67 | 67 | 67 | 67 |
+| **Total** | **115** | **854** | **838** | **1,736** | **1,496** |
+
+The original full suite passed 399 tests plus the fuzzer. Its frozen-cohort run
+completed all 115 allocations and execution checks, with 15 differences from
+Chapter 21's spill expectations. The final `make -j 4 tests` passes 416 tests plus
+the fuzzer; `make spill-stats` passes 55 tests, 115 allocations, and all quality,
+register-legality, function-ownership, native, and emulator checks. Sources and
+expectations were force-recompiled before checking. The README ends with the
+cohort table and explains the metrics; its FFI examples now match `sys.smp`.
+
+A controlled ablation substitutes only Chapter 21's IFG bias/ordering, keeping
+all other code and the new narrow-store restrictions fixed. It completes all
+115 allocations and runtime checks: 885 splits / 1,543 weighted, versus 838 /
+1,496 with the new preferences, a 47 weighted move (3.0%) improvement. The scratch
+ablation expects 42 instead of 41 bytes for the x86 narrow-store example because
+its chosen registers need an extra REX byte; runtime and mask checks remain on.
+Quality differences are reported with nonzero exit status, not suppressed.
+
+| Target/ABI, all cohorts | Compilations | Chapter 21 preferences, weighted | Chapter 22 preferences, weighted |
+|---|---:|---:|---:|
+| x86 SystemV | 22 | 267 | 268 |
+| x86 Win64 | 15 | 414 | 415 |
+| RISC-V SystemV | 39 | 437 | 407 |
+| ARM SystemV | 39 | 425 | 406 |
+
+Against the controlled ablation, BrainFuck saves 14 on RISC-V and 6 on ARM in
+both cohorts; ARM `testAlloc2` saves 4. Several MergeSort variants and RISC-V Sieve
+increase by one. Against the original mixed snapshot, Sieve saves 72 weighted
+moves on each target and Win64 argCount saves 10. This shows why individual spill
+goldens are reviewed against the aggregate rather than requiring every case to
+improve. Chapter totals also reflect lowering: the frozen String example has no
+explicit return and folds away at seed 123 in 22.
+
+The supplementary 13-program, three-target, 30-seed encoding sweep completes
+990 of 1,170 compilations with register checks. The remaining 180 fail on String
+(before allocation) and FltArg (relocation); the original classes reproduce all
+180 and additionally fail five allocator diagnostic groups per seed. No new
+program failures were introduced by the allocator work. The two source-level
+failures are queued above, not hidden by changing inputs, seeds, or expectations.
+Cliff clarified after this run that optimizer seed variation is not productive
+routine allocator coverage: normalized post-Opto graphs should produce similar
+backend work. Retain these historical reproductions, but use fixed-seed backend
+validation going forward; seed variation belongs to optimizer investigations.
+Stop for Cliff's review before starting Chapter 23.
 
 ### Chapter 21 allocator: ready for review, 2026-09-20
 
@@ -279,7 +479,7 @@ summarizes encoding/ELF, links the retained encoding reference, and ends with
 coalescing, both cohort rows, and the controlled comparison. Logs and isolated
 baseline/ablation sources are under `chapter21/build/regalloc-review` (ignored).
 The allocator changes remain confined to Chapter 21; the subsequent return/emulator
-correction is recorded separately above. Chapter 22 allocator work awaits review.
+correction is recorded separately above. Chapter 22 allocator work is recorded below the review heading.
 
 ### Chapter 20 allocator: ready for review, 2026-09-20
 

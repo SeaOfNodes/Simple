@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +13,13 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter22Test {
+    @Test public void testInfiniteReturn() {
+        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
+        testCPU(src,"x86_64_v2","SystemV",0,"return Top;");
+        testCPU(src,"riscv","SystemV",2,"return Top;");
+        testCPU(src,"arm","SystemV",2,"return Top;");
+    }
+
 
     @Test @Ignore
     public void testJig() throws IOException {
@@ -23,11 +31,9 @@ public class Chapter22Test {
     }
 
     static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
+        SpillStats.record(code,"Chapter22",cpu,os);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
         return code;

@@ -1,4 +1,6 @@
 package com.seaofnodes.simple;
+
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -90,7 +92,7 @@ public class Chapter23Test {
 
 
     static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
+        CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         if( spills != -1 )

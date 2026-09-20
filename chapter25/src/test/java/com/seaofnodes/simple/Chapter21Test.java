@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
@@ -9,6 +10,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
+
     @Test public void testArmSubtractRegisters() {
         EvalArm64 cpu = new EvalArm64(new byte[16],16);
         cpu.st4(0,0xCB020020); // SUB X0,X1,X2, no shift or flag update.
@@ -79,7 +82,7 @@ return new _s0.v1;
     }
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
+        CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
         if( spills != -1 && !CodeGen.iterSeedOverridden() )
@@ -447,7 +450,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 """;
         String arg_count = "191.000000\n";
 
-        TestC.runC(src, "arg_count", arg_count, TestC.CALL_CONVENTION.equals("win64") ? 31 : 15);
+        TestC.runC(src, "arg_count", arg_count, TestC.CALL_CONVENTION.equals("win64") ? 35 : 15);
 
         EvalRisc5 R5 = TestRisc5.build( src, "addAll", 0, 4, false);
 

@@ -131,6 +131,14 @@ lessons rather than duplicating that history.
   Local increases are acceptable when offset elsewhere; report per-target and
   overall totals. `_spills` counts surviving SplitNodes, and `_spillScaled`
   weights those moves by `8^loopDepth`; neither means only memory stores.
+- Use a fixed optimizer seed for routine allocator/scheduler/encoder validation.
+  Seeds shuffle IterPeeps/Opto worklists; optimization is intended to normalize
+  to the same graph modulo node IDs and equivalent operand orderings. Repeating
+  the backend on essentially the same graph adds little coverage. Reserve seed
+  sweeps for investigating optimizer normalization, missing dependencies, or a
+  demonstrated order-sensitive failure; inspect post-Opto graph differences
+  before expanding backend runs. Prefer distinct programs, register constraints,
+  targets/ABIs, and actual execution for backend coverage.
 - Separate allocation completion/register legality/runtime results from quality
   expectations. Reaching the round limit is a correctness bug; raising the
   limit or changing spill goldens does not prove progress fixed. Heuristics
@@ -147,12 +155,28 @@ lessons rather than duplicating that history.
   membership, seeds, or targets when comparing chapters.
 - Chapter 20's corrected baseline costs one extra weighted move (354->355 over
   39 compilations); document this as a correctness cost. Advanced quality
-  heuristics remain staged. Chapter 21 is now implemented; stop for Cliff's
-  review before 22. Its shortened README links the retained encoding reference.
+  heuristics remain staged. Chapters 20-22 are now implemented; common correctness
+  fixes and diagnostic hooks have also been forwarded through 25 at Cliff's request.
+  Resume the quality/cohort/README review at 23. Chapter 21's shortened README links the retained encoding reference.
 - Chapter 21 changed several inherited inputs/ABIs. Its Chapter20Test now freezes
   all 13 original programs; Chapter21AllocTest retains the four revised cases,
   counted with the native variants as cohort 21. On Windows the cohorts are
   39 and 52 compilations. Preserve source/target membership when moving forward.
+- Chapter 22 adds stronger copy-chain/backedge bias and cheap-spill ordering;
+  popular-use grouping remains for 23. Preserve `person21` (64-bit age) separately
+  from 22's narrower person example, and keep its revised infinite-loop input in
+  cohort 22. The Windows cohort counts are 39, 52, and 24.
+- Validate the instruction masks independently of the chosen register: a broad
+  mask can hide behind favorable color bias. Byte/short x86 and RISC-V stores
+  must exclude floating-point registers. Size fields such as `_sz` may hold a
+  printable character: compare to `'4'`, not integer `2`. Chapters 22-24 now carry
+  25's store restrictions; x86 20-21 and RISC-V 21 remain queued.
+- The historical Chapter 22 seed sweep exposed failures outside allocation;
+  it is not a template for routine allocator validation.
+  Chapter 22's frozen String source fails before allocation and its returned
+  function-pointer case fails during relocation at seeds 0-29, on all targets.
+  Both reproduce in the original snapshot; report these failures explicitly.
+  Do not replace the seed or add a return merely to make the sweep green.
 - Use an ablation in the same compiler to measure each staged heuristic. Native
   ABI/lowering changes make the Chapter 20 and 21 totals different even with the
   same sources. In 21, coalescing saves 127 weighted moves, but deferring later
@@ -174,6 +198,15 @@ lessons rather than duplicating that history.
   before coloring, a fixed-register definition can clobber despite `_reg==-1`.
   Cloning is valid only if its output mask can satisfy the use. A fixed-register
   clone with flexible uses needs use-side splits, not a no-op def-side path.
+- Check function ownership and register masks immediately after allocation,
+  before encoding rewrites tail calls or adds untyped branches. Call.regmap can
+  itself depend on CFG.fun/idom. The test-only CheckedCodeGen override keeps
+  these checks at the right phase without changing the driver; in 25 this also
+  preserves ideal-graph serialization/import unlinking before instruction selection.
+- Shared correctness/support can be forwarded as one review batch, while leaving
+  each chapter's quality heuristics and historical cohort/README review staged.
+  Compare each destination's unchanged local suite before/after for such a batch;
+  do not present those unequal local suites as the chapter progression table.
 - The staged plan and historical fix inventory are in
   `docs/chapter-backports.md`; its review is not evidence of completed backports.
 
@@ -306,8 +339,9 @@ Consequences:
 - One-step idealization must preserve the type knowledge already established.
   `IterPeeps.progressOnList` and `Opto.worklistCheck` are invariant checks, not
   assertions to weaken.
-- Worklist order must not affect semantics. Rotate deterministic seeds to
-  expose missing dependencies; never fix a bug by merely favoring one order.
+- Worklist order must not affect semantics or prevent optimizer normalization.
+  Use deterministic seed variation when investigating missing dependencies or
+  order-sensitive optimization; never fix a bug by merely favoring one order.
 
 ## Functions and escape analysis
 
@@ -317,6 +351,16 @@ Consequences:
   whether an error exists. Earlier snapshots keep separate Return nodes; they
   already accept dead mixed-type exits and do not enforce one common return type.
 
+- Chapters 22-23's post-Opto name-based function pruning is not escape analysis:
+  no linked calls does not mean no callers when a function address survives.
+  In 22, `return {->42;};` and `return sys.io.p;` lose their bodies but retain
+  pointer constants and stale ideal linker targets, then fail in relocation after
+  machine NIDs reset. Diagnose retention before resizing relocation tables. A
+  named-function workaround or keeping only anonymous functions is insufficient
+  for the library-pointer case. Cliff wants Chapter 25's FunPtrNode investigated
+  as the backport, including the Return edge and callable-function retention
+  rules, after register allocation work is complete. Keep the Chapter 22 examples
+  as documented known failures until then; do not add an interim address scan.
 - A constant Simple function address must be a `FunPtrNode`, not an ordinary
   `ConstantNode`, so the pointer retains an edge to the function Return.
 - Before Opto, a live FunPtr keeps its function callable even if no Call is

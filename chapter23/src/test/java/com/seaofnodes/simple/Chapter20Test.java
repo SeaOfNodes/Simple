@@ -1,5 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
+
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.ASMPrinter;
@@ -29,6 +31,14 @@ return f(s);
     }
 
 
+    @Test public void testAllocatorMasks() { com.seaofnodes.simple.codegen.RegAllocTestSupport.masks(); }
+    @Test public void testAllocatorUnion() { com.seaofnodes.simple.codegen.RegAllocTestSupport.union(); }
+    @Test public void testAllocatorCopyClobber() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.copyClobber(); }
+    @Test public void testAllocatorCommutativePhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.commutativePhi(); }
+    @Test public void testAllocatorKills() { com.seaofnodes.simple.codegen.RegAllocTestSupport.killWithoutResult(); }
+    @Test public void testAllocatorDependencies() { com.seaofnodes.simple.codegen.RegAllocTestSupport.nullUseMask(); }
+    @Test public void testAllocatorCloneClass() { com.seaofnodes.simple.codegen.RegAllocTestSupport.cloneRegisterClass(); }
+
     @Test public void testPrintingRegisters() throws Exception {
         com.seaofnodes.simple.codegen.PrintRegTestSupport.check();
     }
@@ -43,7 +53,7 @@ return f(s);
     }
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src);
+        CodeGen code = new CheckedCodeGen(src);
         code.driver(CodeGen.Phase.RegAlloc,cpu,os);
         int delta = spills>>3;
         if( delta==0 ) delta = 1;
@@ -88,7 +98,7 @@ val sqrt = { int x ->
 int cast_int = arg+2;
 return sqrt(arg) + sqrt(cast_int);
 """;
-        testCPU(src,"x86_64_v2", "Win64"  ,55,null);
+        testCPU(src,"x86_64_v2", "Win64"  ,48,null);
         testCPU(src,"riscv"    , "SystemV",19,null);
         testCPU(src,"arm"      , "SystemV",19,null);
     }

@@ -207,20 +207,7 @@ abstract public class IFG {
             assert tlrg.leader();
             // Always, tlrg cannot use kills
             if( tlrg._mask.overlap(killMask) ) {
-                // Disallow clone-ables from killing registers.  Just fail
-                // them and re-clone closer to target... so no kill.
-                // Special case for Intel XOR used to zero.
-                Node n = (Node)m;
-                CFGNode effUseBlk = n.out(0) instanceof PhiNode phi ? phi.region().cfg(phi._inputs.find(n)) : n.out(0).cfg0();
-                if( m.isClone() &&  // Must be clonable
-                    (n.nOuts()>1 || // Has many users OR
-                     // Only 1 user but effective use is remote block
-                     effUseBlk != n.cfg0() ))
-                    // Then fail the clonable; it should split or move
-                    alloc.fail(alloc.lrg((Node)m));
-                // Else clonable cannot move
-                else if( !tlrg.sub(killMask) )
-                    alloc.fail(tlrg);
+                if( !tlrg.sub(killMask) ) alloc.fail(tlrg);
             }
         }
     }
@@ -438,13 +425,13 @@ abstract public class IFG {
     private static int pickRiskyScore( LRG lrg ) {
         // Pick single-def clonables that are not right next to their single-use.
         // Failing to color these will clone them closer to their uses.
-        if( !lrg._multiDef && lrg._machDef.isClone() ) {
-            Node def = ((Node)lrg._machDef);
-            Node use = ((Node)lrg._machUse);
+        if( !lrg._multiDef && lrg._machDef!=null && lrg._machUse!=null && lrg._machDef.isClone() ) {
+            Node def = (Node)lrg._machDef;
+            Node use = (Node)lrg._machUse;
             CFGNode cfg = def.cfg0();
-            if( cfg != use.cfg0() || // Different blocks OR
+            if( lrg._multiUse || cfg != use.cfg0() || // Many uses or different blocks OR
               // Same block, but not close
-              cfg._outputs.find(def) < cfg._outputs.find(use)+1 )
+              cfg._outputs.find(def)+1 < cfg._outputs.find(use) )
                 return 1000000;
         }
 
@@ -452,7 +439,7 @@ abstract public class IFG {
         // and very cheap to spill.
         if( lrg._machDef instanceof CalleeSaveNode )
             return 1000000-2-lrg._mask.firstReg();
-        if( lrg._splitDef != null && lrg._splitDef. in(1) instanceof CalleeSaveNode &&
+        if( lrg._splitDef != null && lrg._splitDef.in(1) instanceof CalleeSaveNode &&
             lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
             return 1000000-1;
 
@@ -506,7 +493,7 @@ abstract public class IFG {
 
     private static int biasable(Node split) {
         if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
-        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1;   // Yes biasable, advance is slot 1
+        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1; // Prefer the backedge in loops
         if( !(split instanceof MachNode mach) ) return 0; // Not biasable
         return mach.twoAddress();                         // Only biasable if 2-addr
     }

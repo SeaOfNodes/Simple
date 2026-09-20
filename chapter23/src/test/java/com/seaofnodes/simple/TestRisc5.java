@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.Node;
@@ -20,7 +21,7 @@ public abstract class TestRisc5 {
     public static EvalRisc5 build( String dir, String file, String main, int arg, int spills, boolean print ) throws IOException {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
-        CodeGen code = new CodeGen(src).driver("riscv", "SystemV",null);
+        CodeGen code = new CheckedCodeGen(src).driver("riscv", "SystemV",null);
         if( print ) { code.print_as_hex(); System.out.print(code.asm()); }
 
         // Allocation quality not degraded
