@@ -20,7 +20,6 @@ the correction into the chapter's representation, not the entire modern file.
 | ID | Change | Proposed destination | Scope and acceptance evidence |
 |---|---|---|---|
 | B11 | Diagnose return types using the optimized return expression | 18; 19 already has the correction | `ReturnNode.err()` uses `expr()._type` instead of the parse-time `mt` aggregate. Chapter 18 rejects `struct S { u8 x; }; return new S; return 0;` with a mixed integer/reference error; Chapter 19 accepts it. Also test genuinely reachable incompatible returns. This is a candidate, not yet an applied or isolated-patch-verified fix. |
-| B12 | Encode the actual destination register for two-address immediate multiply | 21 | `MulIX86` inherits `ImmX86.encoding`, whose ModRM.reg is fixed to zero and whose REX.R is clear. With source/destination both `rcx`, multiplying by 11 emits `48 6b c1 0b` (destination `rax`) instead of `48 6b c9 0b`. With both `r9`, it emits `49 6b c1 0b` instead of `4d 6b c9 0b`. Give multiply its proper register fields while preserving Chapter 21's two-address allocation contract; do not change the opcode-extension fields used by other `ImmX86` subclasses. Later chapters use a separate multiply encoder. |
 
 After the first two reviews, batch only corrections with established independence
 and regressions. Keep one logical correction per commit across affected chapters.
@@ -130,6 +129,28 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### B12: immediate multiply destination corrected locally, 2026-09-19
+
+The x86 backend has distinct integer register (`MulX86`, 0F AF), integer
+immediate (`MulIX86`, 69/6B), and floating-point (`MulFX86`, MULSD) encoders.
+Chapter 21 incorrectly routed immediate multiply through `ImmX86`, which
+encodes an opcode extension in ModRM.reg. IMUL needs the destination there,
+including its high bit in REX.R. Chapter 20 has no executable encoder yet;
+22-25 already have a dedicated immediate multiply encoder.
+
+Chapter 21 now uses that dedicated encoder while preserving its
+`twoAddress() == 1` allocation contract. Other `ImmX86` subclasses are unchanged.
+For `rcx *= 11`, the regression failed with ModRM C1 instead of C9; the fix emits
+`48 6b c9 0b`. For `r9 *= 11`, it emits `4d 6b c9 0b`.
+
+`Chapter21Test.testX86MultiplySameRegister` is carried through 21-25. It forces
+rax/rcx/r9/r15 and positive/negative imm8/imm32 values, independently of allocator
+choices, and checks register fields, opcode, immediate, length, and each
+chapter's allocation contract. Existing distinct-register checks remain in
+22-24. Unmodified baselines and final full `make tests` targets passed in all
+five snapshots, with assertions enabled; Chapter 25 passed 446 tests.
+Logs: `chapter25/build/b12-review/{baseline,red,fixed}.log`.
 
 ### Issue #251: dead-node printing corrected locally, 2026-09-19
 
