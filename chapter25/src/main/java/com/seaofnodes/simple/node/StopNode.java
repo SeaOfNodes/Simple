@@ -88,13 +88,13 @@ public class StopNode extends CFGNode {
     }
 
     @Override public int idepth() {
-        if( _idepth!=0 ) return _idepth;
+        if( validIDepth() ) return _idepth;
         int d=0;
         for( Node ret : _inputs )
             // All public results are hooked on the Stop, including data
             // values, so must check CFG
             if( ret instanceof CFGNode cfg )
                 d = Math.max(d,cfg.idepth()+1);
-        return _idepth=d;
+        return cacheIDepth(d);
     }
 }

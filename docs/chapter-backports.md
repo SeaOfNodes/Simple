@@ -9,20 +9,8 @@ For now, keep building SSA with incomplete types in Chapter 25. Moving that
 architecture earlier, or splitting Chapter 25, is deferred while small changes
 establish the review workflow. No renumbering is committed.
 
-## Small changes
-
 Keep each correction's reduced failure, smallest patch, and test results together
 for review.
-
-An **audit** item needs an old-chapter reproducer before it is scheduled. Copy
-the correction into the chapter's representation, not the entire modern file.
-
-| ID | Change | Proposed destination | Scope and acceptance evidence |
-|---|---|---|---|
-| B11 | Diagnose return types using the optimized return expression | 18; 19 already has the correction | `ReturnNode.err()` uses `expr()._type` instead of the parse-time `mt` aggregate. Chapter 18 rejects `struct S { u8 x; }; return new S; return 0;` with a mixed integer/reference error; Chapter 19 accepts it. Also test genuinely reachable incompatible returns. This is a candidate, not yet an applied or isolated-patch-verified fix. |
-
-After the first two reviews, batch only corrections with established independence
-and regressions. Keep one logical correction per commit across affected chapters.
 
 ## AOT class initialization: larger independent work
 
@@ -81,7 +69,7 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 | Group | Eventual home | Why not in the small queue yet |
 |---|---|---|
-| Dominator caches, scheduling, global constant cloning | 11 / 18 / 19 as applicable | Current changes mix inlining, scheduling, and compilation-unit ownership. Need a reduced old-IR failure. |
+| Scheduling and global constant cloning | 11 / 19 as applicable | Separate scheduling and compilation-unit ownership changes; need reduced old-IR failures. |
 | Register allocation and spilling | 20 onward | Need constrained-register/spill regressions; changed golden spill counts are insufficient evidence. |
 | Conditional Store and array Load control | Memory/arrays chapters | Reproduce under the earlier alias model before extracting fixes from the new memory implementation. |
 | SCCP dependencies, function revival, reachability | 24; some foundations may fit 18 | Separate old-IR corrections from new Guard/Escape/BulkMemPhi and external-caller machinery. |
@@ -89,6 +77,7 @@ Chapter 25 suite, including `make -j 4 tests`.
 | TypeScalar, numeric modes, guards, symbolic fields, open/forward types | Revisit earlier homes later | A connected incomplete-types architecture, including phase ordering and errors. |
 | BulkMemPhi/MemPhi, private constructor memory, allocation helpers | Revisit memory / constructors / methods | Move invariants and regressions together. |
 | Serialization, global identity remapping, module escape summaries | Separate compilation | Remain with modules. |
+| Remove CFGNode._anti | move the field into a temp array during GCM | 
 
 ## Review and test protocol
 
@@ -129,6 +118,69 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### Dominator caches: unified locally, 2026-09-19
+
+Real dominator searches begin in 6. The original Region pointer cache in 6-9
+returned the old, still-live dominator after its predecessors were rewired.
+Regions now recompute through the shared depth-based `domLCA` walk in 6-25,
+including one, two, or more predecessors. Existing dependency direction and
+24-25's dead-predecessor filtering are preserved.
+
+Per review, 6-17 use a char depth with no version. Chapters 18-25 use separate
+char depth/version fields, checked before depth narrowing and global version
+increments. Added the invalidation hook to 18-20's inlining; 21-25 already had
+it. Region, Loop and Stop all validate their caches, and folding functions use
+their caller-side depth. CFG copy constructors preserve both fields, as do
+ordinary clones. Packed versions in 21-24 failed after 100 invalidations;
+25's packed depth overflowed at 2148. Both limits are now 65535, with explicit
+overflow assertions.
+
+Development checks covered rewiring, depth overflow, actual inlining with warmed
+caches, repeated invalidation, copy preservation, and version overflow. At
+Cliff's request, the dedicated dominator helpers/tests and their Makefile
+accommodations were subsequently removed as unnecessary for this bookkeeping.
+Existing printer regressions still check that both cache fields stay unchanged.
+
+Baseline full targets passed in 6-24. After full Java rebuilds, all affected
+snapshot suites passed with assertions enabled. Chapter 25 initially passed
+`make tests` and `make -j 4 tests` in a scratch copy with a pre-existing stray
+`v` removed from Node.java. After Cliff authorized removing that typo from the
+live tree, its Java sources and system object rebuilt and `make -j 4 tests`
+passed there too (451 tests, exit status zero).
+
+Logs: `chapter25/build/dominator-review/{baseline,fixed,later,final18-24,chapter25-scratch,chapter25-final,chapter25-live}.log`.
+Reusable cache rules are in the skills notes.
+
+### B11: optimized return-type checking backported locally, 2026-09-19
+
+The false mixed-return rejection begins in Chapter 18, where function returns
+first merge through one Return/return-value Phi. `ReturnNode.err()` now checks
+`expr()._type`, as in Chapter 19. The parse-time `mt` meet could retain a type
+from an unreachable return forever. Removed that aggregate from 18-24; it was
+already unused in 19-24 and absent in 25. Parsed kind flags remain only for
+formatting diagnostics. Chapter 24's additional TOP check is preserved.
+
+Earlier snapshots were checked with reduced syntax. Struct/reference returns
+appear in 10; floating-point returns in 12. Chapters 10-17 already accept the
+dead reference/int examples, and 12-17 accept the dead float/int examples.
+They retain separate Return nodes and do not require one common type across
+reachable returns. The B11 false rejection therefore has no earlier compiler
+patch; introducing common-return-type checking there would be separate work.
+
+`Chapter10Test.testDeadReferenceReturn` starts in 10 and is copied through 25;
+`Chapter12Test.testDeadNumericReturns` starts in 12 and is copied through 25.
+They cover both constant If arms and unreachable returns after an unconditional
+return; numeric cases also verify execution results. Both tests failed in 18
+before the correction with `No common type amongst ...`.
+`Chapter18Test.testReachableMixedReturns` in 18-25 still rejects reachable
+int/float and int/reference alternatives, using each chapter's diagnostic.
+
+Unmodified baseline targets passed in 9-25. Final full `make tests` targets
+passed with assertions enabled in every changed snapshot, 10-25; Chapter 25
+passed 448 tests. Its reference test selects the entry function explicitly,
+because constructors add other Returns to the same compilation unit.
+Logs: `chapter25/build/b11-review/{probe,probe-later,baseline,red,fixed,chapter25-fixed}.log`.
 
 ### B12: immediate multiply destination corrected locally, 2026-09-19
 

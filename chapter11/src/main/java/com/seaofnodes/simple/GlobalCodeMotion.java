@@ -148,7 +148,7 @@ public abstract class GlobalCodeMotion {
         assert early != null;
         CFGNode lca = null;
         for( Node use : n._outputs )
-            lca = use_block(n,use, late).idom(lca);
+            lca = use_block(n,use, late).domLCA(lca);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
@@ -226,7 +226,7 @@ public abstract class GlobalCodeMotion {
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
             if( stblk._anti==load._nid ) {
-                lca = stblk.idom(lca); // Raise Loads LCA
+                lca = stblk.domLCA(lca); // Raise Loads LCA
                 if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
                 return lca;            // Cap this stores' anti-dep to here

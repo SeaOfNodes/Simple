@@ -565,9 +565,28 @@ public abstract class Node {
      * <p>
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
-    public int _idepth;         // IDOM depth approx; Zero is unset; non-zero is cached legit
-    final int _idepth(int idx) { return _idepth==0 ? (_idepth=in(idx).idepth()+1) : _idepth; }
-    int idepth() { return _idepth(0); }
+    public char _idepth;         // IDOM depth approx; Zero is unset; non-zero is cached legit
+
+    // Find the lowest common ancestor in the current dominator tree.
+    Node domLCA(Node rhs) {
+        if( rhs==null ) return this;
+        Node lhs = this;
+        while( lhs != rhs ) {
+            if( lhs==null || rhs==null ) return null;
+            int comp = lhs.idepth() - rhs.idepth();
+            if( comp >= 0 ) lhs = lhs.idom();
+            if( comp <= 0 ) rhs = rhs.idom();
+        }
+        return lhs;
+    }
+
+    int idepth() { return _idepth!=0 ? _idepth : cacheIDepth(idom().idepth()+1); }
+    // Zero depth means uncached. Check before narrowing so overflow cannot wrap.
+    final int cacheIDepth(int depth) {
+        assert 0 <= depth && depth <= Character.MAX_VALUE : "Dominator depth exceeds 65535";
+        return _idepth = (char)depth;
+    }
+
 
     // Return the immediate dominator of this Node.
     Node idom() { return in(0); }

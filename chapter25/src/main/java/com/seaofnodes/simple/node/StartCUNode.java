@@ -25,7 +25,7 @@ public class StartCUNode extends StartNode {
     @Override public CFGNode cfg0() { return (CFGNode)in(0); }
 
     // IDom is cfg0() and depth is always Start+1 which is 0+1 or 1
-    @Override public int idepth() { return CodeGen.CODE.iDepthAt(1); }
+    @Override public int idepth() { return 1; }
     @Override public CFGNode idom(Node dep) { return cfg0(); }
     @Override public void gather( HashMap<String,Integer> strs ) {
         Serialize.gather(strs,_fname);

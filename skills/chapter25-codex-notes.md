@@ -50,6 +50,32 @@ lessons rather than duplicating that history.
   files. The B13 `chapter25/tmp` probes were removed at Cliff's request after he
   reviewed and pushed the fix; future sessions must not rely on those files.
 
+## Dominator caches and searches
+
+- Real dominator searches start in Chapter 6 (If and Region), before CFGNode
+  appears in 11. Regions recompute their dominator from current predecessors
+  using the shared `domLCA` walk; do not cache a dominator pointer just because
+  the old node is still alive. Rewiring a merge can change its dominator.
+- Chapters 6-17 cache a `char` depth with zero meaning unset. From 18, inlining
+  requires a separate `char` cache version and a checked global version bump.
+  Keep depth/version as separate fields rather than packing arithmetic into an
+  int. Assert before narrowing a depth or incrementing the version: 65535 is
+  the largest representable value, and wrapping must fail clearly.
+- Copy both cache fields when copying a CFG node. Ordinary `Node.copy()` clones
+  already preserve them; CFG copy constructors must do so explicitly. Inlining
+  invalidates afterward, but future local CFG transforms may preserve valid
+  caches outside their edit region.
+- Every cached depth override, including Region, Loop and Stop, participates in
+  version validation. Start has fixed depth zero; an unfolded function is a
+  root, while a folding function uses its new caller-side depth. Preserve the
+  chapter's dependency direction and dead-predecessor rules when sharing walks.
+- Cliff requested removing the dedicated dominator bookkeeping tests/helpers;
+  do not restore them without a substantive failure to cover. Keep existing
+  printer cache snapshots checking both fields; cast char depths to int for
+  numeric display.
+- Keep single-return accessors and overrides compact on one line, including
+  `idepth()` and `validIDepth()`.
+
 ## Null guards: B13 / issue #246 lessons
 
 - Null refinement starts in Chapter 10; arrays in 15; scoped expression guards
@@ -177,6 +203,12 @@ Consequences:
   expose missing dependencies; never fix a bug by merely favoring one order.
 
 ## Functions and escape analysis
+
+- Unified function returns start in Chapter 18. Check return compatibility from
+  the optimized return expression, not a parse-time meet that includes dead
+  exits. Parse-time type-kind flags may describe an error, but must not decide
+  whether an error exists. Earlier snapshots keep separate Return nodes; they
+  already accept dead mixed-type exits and do not enforce one common return type.
 
 - A constant Simple function address must be a `FunPtrNode`, not an ordinary
   `ConstantNode`, so the pointer retains an edge to the function Return.

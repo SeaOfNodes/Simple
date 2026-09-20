@@ -6,6 +6,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Chapter10Test {
+    @Test public void testDeadReferenceReturn() {
+        for( String body : new String[] {
+            "return new S; return 0;",
+            "if(1) return new S; else return 0;"
+        } ) {
+            String src = "struct S { int x; }; " + body;
+            var stop = new Parser(src).parse().iterate();
+            org.junit.Assert.assertTrue(body,
+                stop.ret().expr()._type instanceof com.seaofnodes.simple.type.TypeMemPtr);
+        }
+    }
+
+
 
     // Issue #246: null-check guards start in Chapter 10; arrays arrive in Chapter 15.
     private static final String NULLABLE_POINT_SOURCE = """

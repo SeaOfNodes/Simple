@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
@@ -73,6 +74,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         fun.setDef(2,call.ctrl());  // Bypass the Call;
                         fun.ret().setDef(3,null);   // Return is folding also
                         IterPeeps.addAll(fun._outputs);
+                        CodeGen.CODE.invalidateIDepthCaches();
                         return this;
                     }
                 } else {

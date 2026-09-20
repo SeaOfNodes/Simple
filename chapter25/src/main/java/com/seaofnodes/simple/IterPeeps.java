@@ -212,7 +212,7 @@ public class IterPeeps {
             for( Node use : n._outputs ) {
                 CFGNode ublk = useBlock(n,use);
                 if( ublk != null )
-                    lca = ublk._idom(lca,null);
+                    lca = ublk.domLCA(lca,null);
             }
             if( lca == null ) return null;
             if( !early.sameFun(lca) )  return null;
@@ -231,7 +231,7 @@ public class IterPeeps {
                 if( phi.in(i)==n ) {
                     if( i >= phi.region().nIns() )
                         return null;
-                    found = phi.region().cfg(i)._idom(found,null);
+                    found = phi.region().cfg(i).domLCA(found,null);
                 }
             return found;
         }

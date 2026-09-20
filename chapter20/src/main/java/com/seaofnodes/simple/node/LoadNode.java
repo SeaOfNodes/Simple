@@ -65,7 +65,7 @@ public class LoadNode extends MemOpNode {
         for( Node memuse : mem._outputs )
             // Find a prior load, has same mem,ptr,off but higher ctrl
             if( memuse != this && memuse instanceof LoadNode ld && ptr==ld.ptr() && off()==ld.off() &&
-                cfg0()!=null && cfg0()._idom(ld.cfg0(),this) == ld.cfg0() ) // Higher control means load is legal earlier
+                cfg0()!=null && cfg0().domLCA(ld.cfg0(),this) == ld.cfg0() ) // Higher control means load is legal earlier
                 return ld;
 
         // Load-after-Store on same address, but bypassing provably unrelated

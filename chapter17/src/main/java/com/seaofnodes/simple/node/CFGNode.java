@@ -36,21 +36,28 @@ public abstract class CFGNode extends Node {
      * <p>
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
-    public int _idepth;
-    public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
+    public char _idepth;
+    public int idepth() { return _idepth!=0 ? _idepth : cacheIDepth(idom().idepth()+1); }
+    // Zero depth means uncached. Check before narrowing so overflow cannot wrap.
+    final int cacheIDepth(int depth) {
+        assert 0 <= depth && depth <= Character.MAX_VALUE : "Dominator depth exceeds 65535";
+        return _idepth = (char)depth;
+    }
+
 
     // Return the immediate dominator of this Node and compute dom tree depth.
     public CFGNode idom(Node dep) { return cfg(0); }
     public final CFGNode idom() { return idom(null); }
 
     // Return the LCA of two idoms
-    public CFGNode _idom(CFGNode rhs, Node dep) {
+    public CFGNode domLCA(CFGNode rhs, Node dep) {
         if( rhs==null ) return this;
         CFGNode lhs = this;
         while( lhs != rhs ) {
-            var comp = lhs.idepth() - rhs.idepth();
-            if( comp >= 0 ) lhs = ((CFGNode)lhs.addDep(dep)).idom();
-            if( comp <= 0 ) rhs = ((CFGNode)rhs.addDep(dep)).idom();
+            if( lhs==null || rhs==null ) return null;
+            int comp = lhs.idepth() - rhs.idepth();
+            if( comp >= 0 ) lhs = (dep==null ? lhs : (CFGNode)lhs.addDep(dep)).idom();
+            if( comp <= 0 ) rhs = (dep==null ? rhs : (CFGNode)rhs.addDep(dep)).idom();
         }
         return lhs;
     }

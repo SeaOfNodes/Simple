@@ -24,5 +24,7 @@ public class LoopNode extends RegionNode {
         return inProgress() ? null : super.idealize();
     }
 
+    @Override int idepth() { return _idepth!=0 ? _idepth : cacheIDepth(entry().idepth()+1); }
+
     @Override Node idom() { return entry(); }
 }

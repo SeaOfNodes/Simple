@@ -54,12 +54,10 @@ public class RegionNode extends Node {
                     if( out(i) instanceof PhiNode phi && phi.nIns()==nIns() )
                         phi.delDef(path);
             }
-            _idom = null;       // Clear idom cache
             return isDead() ? new ConstantNode(Type.XCONTROL) : delDef(path);
         }
         // If down to a single input, become that input
         if( nIns()==2 && !hasPhi() ) {
-            _idom = null;       // Clear idom cache
             return in(1);       // Collapse if no Phis; 1-input Phis will collapse on their own
         }
         return null;
@@ -80,27 +78,21 @@ public class RegionNode extends Node {
     }
 
     // Immediate dominator of Region is a little more complicated.
-    private Node _idom;         // Immediate dominator cache
+    @Override int idepth() {
+        if( _idepth!=0 ) return _idepth;
+        int depth=0;
+        for( Node n : _inputs )
+            if( n!=null )
+                depth = Math.max(depth,n.idepth()+1);
+        return cacheIDepth(depth);
+    }
+
     @Override Node idom() {
-        if( _idom != null ) {
-            if( _idom.isDead() ) _idom=null;
-            else return _idom; // Return cached copy
-        }
-        if( nIns()==2 ) return in(1); // 1-input is that one input
-        if( nIns()!=3 ) return null;  // Fails for anything other than 2-inputs
-        // Walk the LHS & RHS idom trees in parallel until they match, or either fails
-        Node lhs = in(1).idom();
-        Node rhs = in(2).idom();
-        while( lhs != rhs ) {
-          if( lhs==null || rhs==null ) return null;
-          var comp = lhs._idepth - rhs._idepth;
-          if( comp >= 0 ) lhs = lhs.idom();
-          if( comp <= 0 ) rhs = rhs.idom();
-        }
-        if( lhs==null ) return null;
-        _idepth = lhs._idepth+1;
-        if( !IterPeeps.midAssert() ) _idom=lhs;
-        return lhs;
+        Node lca = null;
+        // Recompute from predecessors: CFG edits can change the dominator.
+        for( int i=1; i<nIns(); i++ )
+            lca = in(i).domLCA(lca);
+        return lca;
     }
 
     // True if last input is null

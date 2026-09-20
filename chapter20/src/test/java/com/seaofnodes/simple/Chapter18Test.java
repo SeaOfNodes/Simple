@@ -10,6 +10,22 @@ import static org.junit.Assert.*;
 import static org.junit.Assert.fail;
 
 public class Chapter18Test {
+    @Test public void testReachableMixedReturns() {
+        for( String[] test : new String[][] {
+            {"if(arg) return 7; else return 2.5;", "No common type amongst int and f64"},
+            {"struct S { int x; }; if(arg) return new S; else return 0;",
+             "No common type amongst int and reference"}
+        } ) {
+            try {
+                new CodeGen(test[0]).parse().opto().typeCheck();
+                fail("Expected incompatible return types: " + test[0]);
+            } catch( Parser.ParseException e ) {
+                assertEquals(test[1],e.getMessage());
+            }
+        }
+    }
+
+
     @Test public void testPrintingForwardReferenceScope() throws Exception {
         new CodeGen("return 0;").parse();
         var declared = TypeMemPtr.make(TypeStruct.makeFRef("PrintForward"));

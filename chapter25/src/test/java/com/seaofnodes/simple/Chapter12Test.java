@@ -5,6 +5,20 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 public class Chapter12Test {
+    @Test public void testDeadNumericReturns() {
+        for( String[] test : new String[][] {
+            {"if(1) return 7; else return 2.5;", "7"},
+            {"if(0) return 7; else return 2.5;", "2.5"},
+            {"return 7; return 2.5;", "7"},
+            {"return 2.5; return 7;", "2.5"}
+        } ) {
+            String src = test[0];
+            var code = new CodeGen(src).parse().opto().typeCheck();
+            assertEquals(src,test[1],Eval2.eval(code,0));
+        }
+    }
+
+
     @Test
     public void testJig() {
         CodeGen code = new CodeGen(

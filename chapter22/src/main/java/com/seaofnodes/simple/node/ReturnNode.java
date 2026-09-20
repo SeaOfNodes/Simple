@@ -81,8 +81,7 @@ public class ReturnNode extends CFGNode {
         return ctrl().getClass() == RegionNode.class && ((RegionNode)ctrl()).inProgress();
     }
 
-    // Gather parse-time return types for error reporting
-    private Type mt = Type.TOP;
+    // Remember parsed type kinds for diagnostics; the optimized expression decides validity.
     private boolean ti=false, tf=false, tp=false, tn=false;
 
     // Add a return exit to the current parsing function
@@ -91,7 +90,6 @@ public class ReturnNode extends CFGNode {
 
         // Gather parse-time return types for error reporting
         Type t = expr._type;
-        mt = mt.meet(t);
         ti |= t instanceof TypeInteger x;
         tf |= t instanceof TypeFloat   x;
         tp |= t instanceof TypeMemPtr  x;
@@ -117,7 +115,7 @@ public class ReturnNode extends CFGNode {
     }
 
     @Override public Parser.ParseException err() {
-        return expr()._type/*mt*/==Type.BOTTOM ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
+        return expr()._type==Type.BOTTOM ? mixerr(ti,tf,tp,tn,_fun._loc) : null;
     }
 
     static Parser.ParseException mixerr( boolean ti, boolean tf, boolean tp, boolean tn, Parser.Lexer loc ) {

@@ -54,5 +54,6 @@ public class ConstantNode extends Node {
 
     // Dead control is its own idom root
     Node idom() { return null; }
+    @Override int idepth() { return 0; }
 
 }

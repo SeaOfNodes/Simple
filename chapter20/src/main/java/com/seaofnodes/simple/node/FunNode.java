@@ -109,8 +109,8 @@ public class FunNode extends RegionNode {
         return null;
     }
 
-    // Bypass Region idom, always assume depth == 1, one more than Start
-    @Override public int idepth() { return (_idepth=1); }
+    // Unfolded functions are roots; inlining reconnects their depth to the caller.
+    @Override public int idepth() { return _folding ? super.idepth() : 1; }
     // Bypass Region idom, always assume idom is Start
     @Override public CFGNode idom(Node dep) { return cfg(1); }
 

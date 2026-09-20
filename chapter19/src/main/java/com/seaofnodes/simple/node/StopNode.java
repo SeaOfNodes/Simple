@@ -55,10 +55,10 @@ public class StopNode extends CFGNode {
     }
 
     @Override public int idepth() {
-        if( _idepth!=0 ) return _idepth;
+        if( validIDepth() ) return _idepth;
         int d=0;
         for( Node ret : _inputs )
             d = Math.max(d,((ReturnNode)ret).idepth()+1);
-        return _idepth=d;
+        return cacheIDepth(d);
     }
 }

@@ -26,7 +26,7 @@ public class PrintTestSupport {
             ins.put(n,n._inputs.toArray(new Node[0]));
             outs.put(n,n._outputs.toArray(new Node[0]));
             hashes.put(n,hash.getInt(n));
-            if( n instanceof CFGNode cfg ) depths.put(n,cfg._idepth);
+            if( n instanceof CFGNode cfg ) depths.put(n,(int)cfg._idepth);
         }
         print.run();
         for( Node n : nodes ) {

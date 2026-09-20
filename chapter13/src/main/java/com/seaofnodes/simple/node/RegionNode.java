@@ -92,19 +92,18 @@ public class RegionNode extends CFGNode {
     // Immediate dominator of Region is a little more complicated.
     @Override public int idepth() {
         if( _idepth!=0 ) return _idepth;
-        int d=0;
+        int depth=0;
         for( Node n : _inputs )
             if( n!=null )
-                d = Math.max(d,((CFGNode)n).idepth()+1);
-        return _idepth=d;
+                depth = Math.max(depth,((CFGNode)n).idepth()+1);
+        return cacheIDepth(depth);
     }
 
     @Override public CFGNode idom(Node dep) {
         CFGNode lca = null;
-        // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
-        // Because this does not cache, it can be linear in the size of the program.
+        // Recompute from predecessors: CFG edits can change the dominator.
         for( int i=1; i<nIns(); i++ )
-            lca = cfg(i)._idom(lca,dep);
+            lca = cfg(i).domLCA(lca,dep);
         return lca;
     }
 

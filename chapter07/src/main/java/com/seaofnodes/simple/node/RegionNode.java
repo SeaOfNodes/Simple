@@ -61,22 +61,21 @@ public class RegionNode extends Node {
     }
 
     // Immediate dominator of Region is a little more complicated.
-    private Node _idom;         // Immediate dominator cache
+    @Override int idepth() {
+        if( _idepth!=0 ) return _idepth;
+        int depth=0;
+        for( Node n : _inputs )
+            if( n!=null )
+                depth = Math.max(depth,n.idepth()+1);
+        return cacheIDepth(depth);
+    }
+
     @Override Node idom() {
-        if( _idom != null ) return _idom; // Return cached copy
-        if( nIns()!=3 ) return null;      // Fails for anything other than 2-inputs
-        // Walk the LHS & RHS idom trees in parallel until they match, or either fails
-        Node lhs = in(1).idom();
-        Node rhs = in(2).idom();
-        while( lhs != rhs ) {
-          if( lhs==null || rhs==null ) return null;
-          var comp = lhs._idepth - rhs._idepth;
-          if( comp >= 0 ) lhs = lhs.idom();
-          if( comp <= 0 ) rhs = rhs.idom();
-        }
-        if( lhs==null ) return null;
-        _idepth = lhs._idepth+1;
-        return (_idom=lhs);
+        Node lca = null;
+        // Recompute from predecessors: CFG edits can change the dominator.
+        for( int i=1; i<nIns(); i++ )
+            lca = in(i).domLCA(lca);
+        return lca;
     }
 
     // True if last input is null

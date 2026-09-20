@@ -71,6 +71,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         fun.setDef(2,call.ctrl());  // Bypass the Call;
                         fun.ret().setDef(3,null);   // Return is folding also
                         CodeGen.CODE.addAll(fun._outputs);
+                        CodeGen.CODE.invalidateIDepthCaches();
                         return this;
                     }
                 } else {

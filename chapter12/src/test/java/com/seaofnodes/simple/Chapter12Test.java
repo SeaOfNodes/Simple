@@ -9,6 +9,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Chapter12Test {
+    @Test public void testDeadNumericReturns() {
+        for( String[] test : new String[][] {
+            {"if(1) return 7; else return 2.5;", "7"},
+            {"if(0) return 7; else return 2.5;", "2.5"},
+            {"return 7; return 2.5;", "7"},
+            {"return 2.5; return 7;", "2.5"}
+        } ) {
+            String src = test[0];
+            var stop = new Parser(src).parse().iterate();
+            assertEquals(src,test[1],com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,0).toString());
+        }
+    }
+
+
     @Test
     public void testJig() {
         Parser parser = new Parser(

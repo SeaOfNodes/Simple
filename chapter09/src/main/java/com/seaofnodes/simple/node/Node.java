@@ -57,7 +57,7 @@ public abstract class Node {
      * <p>
      * See {@link <a href="https://en.wikipedia.org/wiki/Dominator_(graph_theory)">...</a>}
      */
-    int _idepth;
+    char _idepth;
 
     /**
      * A private Global Static mutable counter, for unique node id generation.
@@ -586,12 +586,28 @@ public abstract class Node {
     }
 
     // Return the immediate dominator of this Node and compute dom tree depth.
-    Node idom() {
-        Node idom = in(0);
-        if( idom._idepth==0 ) idom.idom(); // Recursively set _idepth
-        if( _idepth==0 ) _idepth = idom._idepth+1;
-        return idom;
+    Node idom() { return in(0); }
+
+    // Find the lowest common ancestor in the current dominator tree.
+    Node domLCA(Node rhs) {
+        if( rhs==null ) return this;
+        Node lhs = this;
+        while( lhs != rhs ) {
+            if( lhs==null || rhs==null ) return null;
+            int comp = lhs.idepth() - rhs.idepth();
+            if( comp >= 0 ) lhs = lhs.idom();
+            if( comp <= 0 ) rhs = rhs.idom();
+        }
+        return lhs;
     }
+
+    int idepth() { return _idepth!=0 ? _idepth : cacheIDepth(idom().idepth()+1); }
+    // Zero depth means uncached. Check before narrowing so overflow cannot wrap.
+    final int cacheIDepth(int depth) {
+        assert 0 <= depth && depth <= Character.MAX_VALUE : "Dominator depth exceeds 65535";
+        return _idepth = (char)depth;
+    }
+
 
     // Make a shallow copy (same class) of this Node, with given inputs and
     // empty outputs and a new Node ID.  The original inputs are ignored.

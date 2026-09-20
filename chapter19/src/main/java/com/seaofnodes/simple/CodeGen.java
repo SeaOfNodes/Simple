@@ -8,6 +8,16 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 
 public class CodeGen {
+
+    // Inlining can insert CFG edges and invalidate cached depth ordering.
+    private char _iDepthVersion;
+    public char iDepthVersion() { return _iDepthVersion; }
+    public void invalidateIDepthCaches() {
+        assert _iDepthVersion < Character.MAX_VALUE : "Dominator cache version exceeds 65535";
+        ++_iDepthVersion;
+    }
+
+
     // Last created CodeGen as a global; used all over to avoid passing about a
     // "context".
     public static CodeGen CODE;

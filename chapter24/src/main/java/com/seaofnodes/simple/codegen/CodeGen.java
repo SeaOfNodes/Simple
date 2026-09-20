@@ -94,22 +94,12 @@ public class CodeGen {
     public  int getALIAS() { return _alias++; }
 
 
-    // idepths are cached and valid until *inserting* CFG edges (deleting is
-    // OK).  This happens with inlining, which bumps the version to bulk
-    // invalidate the idepth caches.
-    private int _iDepthVersion = 0;
-    public void invalidateIDepthCaches() { _iDepthVersion++; }
-    public boolean validIDepth(int idepth) {
-        if( idepth==0 ) return false;
-        if( _iDepthVersion==0 ) return true;
-        return (idepth%100)==_iDepthVersion;
-    }
-    public int iDepthAt(int idepth) {
-        return 100*idepth+_iDepthVersion;
-    }
-    public int iDepthFrom(int idepth) {
-        assert idepth==0 || validIDepth(idepth);
-        return idepth+100;
+    // Inlining can insert CFG edges and invalidate cached depth ordering.
+    private char _iDepthVersion;
+    public char iDepthVersion() { return _iDepthVersion; }
+    public void invalidateIDepthCaches() {
+        assert _iDepthVersion < Character.MAX_VALUE : "Dominator cache version exceeds 65535";
+        ++_iDepthVersion;
     }
 
     // Popular visit bitset, declared here, so it gets reused all over
@@ -452,7 +442,7 @@ public class CodeGen {
         if( _cfg==null ) return "no CFG";
         SB sb = new SB();
         for( CFGNode cfg : _cfg ) {
-            sb.fix(8,""+cfg._idepth);
+            sb.fix(8,""+(int)cfg._idepth);
             IRPrinter.printLine( cfg, sb );
         }
         return sb.toString();
