@@ -147,8 +147,29 @@ lessons rather than duplicating that history.
   membership, seeds, or targets when comparing chapters.
 - Chapter 20's corrected baseline costs one extra weighted move (354->355 over
   39 compilations); document this as a correctness cost. Advanced quality
-  heuristics remain staged. Stop after 20 for Cliff's review. When reaching 21,
-  shorten its excessive encoding detail as requested.
+  heuristics remain staged. Chapter 21 is now implemented; stop for Cliff's
+  review before 22. Its shortened README links the retained encoding reference.
+- Chapter 21 changed several inherited inputs/ABIs. Its Chapter20Test now freezes
+  all 13 original programs; Chapter21AllocTest retains the four revised cases,
+  counted with the native variants as cohort 21. On Windows the cohorts are
+  39 and 52 compilations. Preserve source/target membership when moving forward.
+- Use an ablation in the same compiler to measure each staged heuristic. Native
+  ABI/lowering changes make the Chapter 20 and 21 totals different even with the
+  same sources. In 21, coalescing saves 127 weighted moves, but deferring later
+  heuristics costs 174 against the old combined snapshot; disclose both.
+- Chapter 21's spill reporter defers quality-golden failures until reporting ends,
+  so all target/runtime checks still run. The command must still exit nonzero.
+  Keep full native process exit codes and check each emulator's own result memory.
+- An ARM store of Top can originate in the optimizer, before allocation. Inlining
+  deletes the function entry before its Return necessarily folds away; compute
+  the return type from its live inputs. Never infer unreachable return data from
+  `_fun.isDead()` alone. This correction is now present in 20-25, with a seeded
+  interpreted-result regression; 20 first uses linked Return types at call ends.
+- Validate beyond encoding. The repaired seed-9 String case then exposed missing
+  register-register SUB support in the ARM emulator (now corrected in 21-25).
+  Check real results and unchanged flags; successful allocation/encoding alone
+  does not establish execution correctness. The 1,170-case Chapter 21 seed sweep
+  now passes through encoding, and the original ARM/RISC-V hash results agree.
 - Copy cleanup/reuse must check kill masks even when an instruction has no LRG;
   before coloring, a fixed-register definition can clobber despite `_reg==-1`.
   Cloning is valid only if its output mask can satisfy the use. A fixed-register

@@ -11,6 +11,21 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testArmSubtractRegisters() {
+        EvalArm64 cpu = new EvalArm64(new byte[16],16);
+        cpu.st4(0,0xCB020020); // SUB X0,X1,X2, no shift or flag update.
+        for( long[] pair : new long[][]{{7,3},{3,7},{Long.MIN_VALUE,1},{1L<<40,3}} ) {
+            cpu._pc = 0;
+            cpu.regs[1] = pair[0]; cpu.regs[2] = pair[1];
+            cpu.N=true; cpu.Z=false; cpu.C=true; cpu.V=true;
+            assertEquals(0,cpu.step(1));
+            assertEquals(pair[0]-pair[1],cpu.regs[0]);
+            assertTrue(cpu.N); assertFalse(cpu.Z); assertTrue(cpu.C); assertTrue(cpu.V);
+        }
+    }
+
+
+    @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
     @Test public void testRisc64BitStore() {
         byte[] mem = new byte[24];
         EvalRisc5 cpu = new EvalRisc5(mem,mem.length);
@@ -50,10 +65,9 @@ public class Chapter21Test {
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+        SpillStats.record(code,"Chapter21",cpu,os);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
     }
@@ -148,11 +162,11 @@ public class Chapter21Test {
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run("sieve",sprimes, 257);
+        TestC.run("sieve",sprimes, 178);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 160, false);
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 89, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -164,7 +178,7 @@ public class Chapter21Test {
 
         // Evaluate on ARM5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", 100, 160, false);
+        EvalArm64 A5 = TestArm64.build("sieve", 100, 93, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];
@@ -243,7 +257,7 @@ public class Chapter21Test {
         // than what Win64 allows - so Win64 gets a lot more spills here.
         String arg_count = "191.000000\n";
         TestC.run("arg_count", arg_count,
-                  TestC.CALL_CONVENTION.equals("Win64") ? 42 : 15);
+                  TestC.CALL_CONVENTION.equals("Win64") ? 32 : 15);
 
 
         EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0, 0, false);

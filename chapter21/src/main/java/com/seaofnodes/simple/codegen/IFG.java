@@ -207,20 +207,7 @@ abstract public class IFG {
             assert tlrg.leader();
             // Always, tlrg cannot use kills
             if( tlrg._mask.overlap(killMask) ) {
-                // Disallow clone-ables from killing registers.  Just fail
-                // them and re-clone closer to target... so no kill.
-                // Special case for Intel XOR used to zero.
-                Node n = (Node)m;
-                CFGNode effUseBlk = n.out(0) instanceof PhiNode phi ? phi.region().cfg(phi._inputs.find(n)) : n.out(0).cfg0();
-                if( m.isClone() &&  // Must be clonable
-                    (n.nOuts()>1 || // Has many users OR
-                     // Only 1 user but effective use is remote block
-                     effUseBlk != n.cfg0() ))
-                    // Then fail the clonable; it should split or move
-                    alloc.fail(alloc.lrg((Node)m));
-                // Else clonable cannot move
-                else if( !tlrg.sub(killMask) )
-                    alloc.fail(tlrg);
+                if( !tlrg.sub(killMask) ) alloc.fail(tlrg);
             }
         }
     }
@@ -419,7 +406,7 @@ abstract public class IFG {
         int best=sptr;
         int bestScore = pickRiskyScore(color_stack[best]);
         for( int i=sptr+1; i<color_stack.length; i++ ) {
-            if( bestScore == 1000000 ) return best; // Already max score
+            if( bestScore == 999999 ) return best; // Already max score
             int iScore = pickRiskyScore(color_stack[i]);
             if( iScore > bestScore )
                 { best = i; bestScore = iScore; }
@@ -436,25 +423,13 @@ abstract public class IFG {
     // Picking a live range that is very close to coloring might allow it to
     // color despite being risky.
     private static int pickRiskyScore( LRG lrg ) {
-        // Pick single-def clonables that are not right next to their single-use.
-        // Failing to color these will clone them closer to their uses.
-        if( !lrg._multiDef && lrg._machDef.isClone() ) {
-            Node def = ((Node)lrg._machDef);
-            Node use = ((Node)lrg._machUse);
-            CFGNode cfg = def.cfg0();
-            if( cfg != use.cfg0() || // Different blocks OR
-              // Same block, but not close
-              cfg._outputs.find(def) < cfg._outputs.find(use)+1 )
-                return 1000000;
-        }
-
         // Always pick callee-save registers as being very large area recovered
         // and very cheap to spill.
         if( lrg._machDef instanceof CalleeSaveNode )
-            return 1000000-2-lrg._mask.firstReg();
-        if( lrg._splitDef != null && lrg._splitDef. in(1) instanceof CalleeSaveNode &&
+            return 999998;
+        if( lrg._splitDef != null && lrg._splitDef.in(1) instanceof CalleeSaveNode &&
             lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
-            return 1000000-1;
+            return 999999;
 
         // TODO: cost/benefit model.  Perhaps counting loop-depth (freq) of def/use for cost
         // and "area" for benefit
@@ -465,39 +440,36 @@ abstract public class IFG {
         if( mask.size1() ) return reg;
         // Check chain of splits up the def-chain.  Take first allocated
         // register, and if it's available in the mask, take it.
-        Node def = lrg._splitDef, use = lrg._splitUse;
-        int tidx=0, cnt=0;
+        Node defSplit = lrg._splitDef, useSplit = lrg._splitUse;
+        int tidx, cnt=0;
 
-        while( def != null || use != null ) {
+        while( (tidx=biasable(defSplit)) != 0 || biasable(useSplit) != 0 ) {
             if( cnt++ > 10 ) break;
 
-            if( def != null ) {
-                short bias = biasColor( alloc, def, mask );
+            if( tidx != 0 ) {
+                short bias = biasColor( alloc, defSplit, mask );
                 if( bias >= 0 ) return bias; // Good bias
-                if( bias == -2 ) def = null; // Kill this side, no more searching
-                else if( (tidx=biasable(def)) == 0 ) def = null;
-            }
+                if( bias == -2 ) defSplit = null; // Kill this side, no more searching
+            } else defSplit = null;
 
-            if( use != null ) {
-                short bias = biasColor( alloc, use, mask );
+            if( biasable(useSplit) != 0 ) {
+                short bias = biasColor( alloc, useSplit, mask );
                 if( bias >= 0 ) return bias; // Good bias
-                if( bias == -2 ) use = null; // Kill this side, no more searching
-                else if( biasable(use)==0 ) use = null;
-            }
+                if( bias == -2 ) useSplit = null; // Kill this side, no more searching
+            } else useSplit = null;
 
-            if( def != null ) {
-                short bias = biasColorNeighbors( alloc, def, mask );
+            if( defSplit != null ) {
+                short bias = biasColorNeighbors( alloc, defSplit, mask );
                 if( bias >= 0 ) return bias;
                 // Advance def side
-                def = def.in(tidx);
-                if( alloc.lrg(def)==null ) def=null;
+                defSplit = defSplit.in(tidx);
+                if( alloc.lrg(defSplit)==null ) defSplit=null;
             }
 
-            if( use != null ) {
-                short bias = biasColorNeighbors( alloc, use, mask );
+            if( useSplit != null ) {
+                short bias = biasColorNeighbors( alloc, useSplit, mask );
                 if( bias >= 0 ) return bias;
-                use = use.out(0);
-                if( biasable(use)==0 ) use=null;
+                useSplit = useSplit.out(0);
             }
 
         }
@@ -506,7 +478,7 @@ abstract public class IFG {
 
     private static int biasable(Node split) {
         if( split instanceof SplitNode ) return 1; // Yes biasable, advance is slot 1
-        if( split instanceof PhiNode phi ) return phi.region() instanceof LoopNode ? 2 : 1;   // Yes biasable, advance is slot 1
+        if( split instanceof PhiNode ) return 1;   // Yes biasable, advance is slot 1
         if( !(split instanceof MachNode mach) ) return 0; // Not biasable
         return mach.twoAddress();                         // Only biasable if 2-addr
     }

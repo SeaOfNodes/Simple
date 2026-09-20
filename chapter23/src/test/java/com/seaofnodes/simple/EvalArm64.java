@@ -289,13 +289,13 @@ public class EvalArm64 {
                 break;
             }
 
-            case 0x8B: {
-                // add(shifted register)
+            case 0x8B, 0xCB: {
+                // add/sub(register), unshifted form emitted by Simple
                 int rn = (ir >> 5)  & 0x1F;
                 int rm = (ir >> 16) & 0x1F;
                 long lhs = regs[rn];
                 long rhs = regs[rm];
-                rval = lhs + rhs;
+                rval = opcode1==0x8B ? lhs + rhs : lhs - rhs;
                 break;
             }
 

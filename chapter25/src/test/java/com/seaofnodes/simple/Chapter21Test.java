@@ -9,6 +9,20 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testArmSubtractRegisters() {
+        EvalArm64 cpu = new EvalArm64(new byte[16],16);
+        cpu.st4(0,0xCB020020); // SUB X0,X1,X2, no shift or flag update.
+        for( long[] pair : new long[][]{{7,3},{3,7},{Long.MIN_VALUE,1},{1L<<40,3}} ) {
+            cpu._pc = 0;
+            cpu.regs[1] = pair[0]; cpu.regs[2] = pair[1];
+            cpu.N=true; cpu.Z=false; cpu.C=true; cpu.V=true;
+            assertEquals(0,cpu.step(1));
+            assertEquals(pair[0]-pair[1],cpu.regs[0]);
+            assertTrue(cpu.N); assertFalse(cpu.Z); assertTrue(cpu.C); assertTrue(cpu.V);
+        }
+    }
+
+
     @Test public void testRisc64BitStore() {
         byte[] mem = new byte[24];
         EvalRisc5 cpu = new EvalRisc5(mem,mem.length);

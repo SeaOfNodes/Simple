@@ -16,7 +16,7 @@ public class BrainFuckTest {
         String brain_fuck = "Hello World!\n";
         TestC.run("brain_fuck", brain_fuck, 40);
 
-        EvalRisc5 R5 = TestRisc5.build("brain_fuck", 0, 28, false);
+        EvalRisc5 R5 = TestRisc5.build("brain_fuck", 0, 211, false);
         int trap = R5.step(100000);
         assertEquals(0,trap);
         int ptr = (int)R5.regs[riscv.A0];
@@ -24,7 +24,7 @@ public class BrainFuckTest {
         for( int i=0; i<brain_fuck.length(); i++ )
             assertEquals(brain_fuck.charAt(i), R5.ld1z(ptr+4+i));
 
-        EvalArm64 A5 = TestArm64.build("brain_fuck", 0, 28, false);
+        EvalArm64 A5 = TestArm64.build("brain_fuck", 0, 34, false);
         int trap_arm = A5.step(100000);
         assertEquals(0,trap_arm);
         assertEquals(0,trap);
@@ -32,7 +32,7 @@ public class BrainFuckTest {
         assertEquals(brain_fuck.length(),A5.ld4s(ptr_arm));
 
         for( int i=0; i<brain_fuck.length(); i++ )
-            assertEquals(brain_fuck.charAt(i), A5.ld1z(ptr+4+i));
+            assertEquals(brain_fuck.charAt(i), A5.ld1z(ptr_arm+4+i));
     }
 
 }

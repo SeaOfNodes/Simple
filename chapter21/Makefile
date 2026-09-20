@@ -72,6 +72,12 @@ tests:	$(default_targets)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
+spill-stats: $(default_targets)
+	@[ -d build/objs ] || mkdir -p build/objs
+	@$(JVM) com.seaofnodes.simple.SpillStats
+
+.PHONY: spill-stats
+
 fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap

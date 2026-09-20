@@ -10,6 +10,23 @@ import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @Test public void testInlinedReturnValue() {
+        String src = """
+struct S { int x; };
+val f = { S s -> s.x = g(); };
+val g = { -> 123; };
+S !s = new S;
+return f(s);
+""";
+        // The entry of g can disappear before its Return is folded into f.
+        // Exercise both worklist orders; deleting the entry does not kill 123.
+        for( int seed=0; seed<64; seed++ ) {
+            CodeGen code = new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,seed).parse().opto().typeCheck();
+            assertEquals("seed "+seed, "123", Eval2.eval(code,0));
+        }
+    }
+
+
     @org.junit.Rule public final org.junit.rules.ErrorCollector _errors = new org.junit.rules.ErrorCollector();
     @Test public void testAllocatorMasks() { com.seaofnodes.simple.codegen.RegAllocTestSupport.masks(); }
     @Test public void testAllocatorUnion() { com.seaofnodes.simple.codegen.RegAllocTestSupport.union(); }

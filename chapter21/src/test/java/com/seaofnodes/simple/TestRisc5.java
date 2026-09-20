@@ -21,13 +21,12 @@ public abstract class TestRisc5 {
         // Compile and export Simple
         String src = Files.readString(Path.of(dir+"/"+file+".smp"));
         CodeGen code = new CodeGen(src).driver("riscv", "SystemV",null);
+        com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+        SpillStats.record(code,"Chapter21","riscv","SystemV");
         if( print ) { code.print_as_hex(); System.out.print(code.asm()); }
 
         // Allocation quality not degraded
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
 
         // Image
         byte[] image = new byte[1<<20]; // A megabyte (1024*1024 bytes)

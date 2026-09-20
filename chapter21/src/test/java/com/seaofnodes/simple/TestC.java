@@ -43,6 +43,8 @@ public abstract class TestC {
         String obj = bin+".o";
         // Compile simple, emit ELF
         CodeGen code = new CodeGen(src).driver( CPU_PORT, simple_conv, obj);
+        com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+        SpillStats.record(code,"Chapter21",CPU_PORT,simple_conv);
 
         // Compile the C program
         var params = new String[] {
@@ -58,8 +60,8 @@ public abstract class TestC {
             "CALL_CONV="+c_conv,
         };
         Process gcc = new ProcessBuilder(params).redirectErrorStream(true).start();
-        byte error;
-        try { error = (byte)gcc.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
+        int error;
+        try { error = gcc.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         String result = new String(gcc.getInputStream().readAllBytes());
         if( error!=0 ) {
             System.err.println("gcc error code: "+error);
@@ -70,7 +72,7 @@ public abstract class TestC {
 
         // Execute results
         Process smp = new ProcessBuilder(bin).redirectErrorStream(true).start();
-        try { error = (byte)smp.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
+        try { error = smp.waitFor(); } catch( InterruptedException e ) { throw new IOException("interrupted"); }
         result = new String(smp.getInputStream().readAllBytes());
         if( error!=0 ) {
             System.err.println("exec error code: "+error);
@@ -80,10 +82,7 @@ public abstract class TestC {
         assertEquals(expected,result);
 
         // Allocation quality not degraded
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
 
     }
 }
