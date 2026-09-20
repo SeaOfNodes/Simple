@@ -110,6 +110,14 @@ public class TypeFunPtr extends TypeNil {
         ts.add(make1((byte)2,true,
                      new Type[]{TypeInteger.BOT, TypeScalar.BOT},
                      TypeInteger.BOT, 65));
+        // Explicit trailing defaults must agree with the implicit argument tail.
+        for( boolean open : new boolean[]{false,true} ) {
+            Type def = open ? TypeScalar.BOT : TypeScalar.TOP;
+            ts.add(make1((byte)2,open,TINT,TypeInteger.I32,1));
+            ts.add(make1((byte)2,open,new Type[]{TypeInteger.BOT,def,def},TypeInteger.I32,1));
+            ts.add(make1((byte)2,open,new Type[]{def,def},TypeInteger.I32,1));
+            ts.add(make1((byte)2,open,new Type[]{def,TypeInteger.BOT},TypeInteger.I32,1));
+        }
     }
 
     private static final Type[] ARG_EMPTY = new Type[0];

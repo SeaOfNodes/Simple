@@ -72,7 +72,6 @@ Chapter 25 suite, including `make -j 4 tests`.
 | Register allocation and spilling | 20 onward | Need constrained-register/spill regressions; changed golden spill counts are insufficient evidence. |
 | Conditional Store and array Load control | Memory/arrays chapters | Reproduce under the earlier alias model before extracting fixes from the new memory implementation. |
 | SCCP dependencies, function revival, reachability | 24; some foundations may fit 18 | Separate old-IR corrections from new Guard/Escape/BulkMemPhi and external-caller machinery. |
-| Lattice fixes in `7f3b8856` | Owning type introduction | The commit mixes TypeFunPtr, TypeMem, and new XInt/escape-summary behavior. Not a generic earlier-lattice patch. |
 | TypeScalar, numeric modes, guards, symbolic fields, open/forward types | Revisit earlier homes later | A connected incomplete-types architecture, including phase ordering and errors. |
 | BulkMemPhi/MemPhi, private constructor memory, allocation helpers | Revisit memory / constructors / methods | Move invariants and regressions together. |
 | Serialization, global identity remapping, module escape summaries | Separate compilation | Remain with modules. |
@@ -116,6 +115,28 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### TypeFunPtr normalization: complete locally, 2026-09-20
+
+Backported the trailing-default normalization from `7f3b8856` to 23-24, where
+open/closed function argument tails first appear. Their complete `make` factory
+trims trailing BOTTOM arguments for open signatures and TOP arguments for closed
+signatures before interning; the existing meet uses that factory too. Raw cyclic
+allocation stays unchanged. Earlier chapters use fixed TypeTuple signatures.
+Chapter 25 already normalizes with scalar BOT/TOP and retains its implementation.
+
+Added only `gather` cases in 23-25: open/closed signatures, repeated trailing
+defaults, all-default signatures, and defaults before a real argument. No new
+test methods or files. The expanded existing lattice-law tests also passed
+before the 23-24 fix; these cases extend coverage rather than prove an old law
+failure. The other changes in `7f3b8856` concern Chapter 25's TypeMem final flags
+and XInt sets, already fixed there; neither representation exists earlier.
+
+Fresh baselines and forced-rebuild validation passed `make -j 4 tests` in
+23 (416 + 1), 24 (439 + 1), and 25 (449 total), with assertions enabled.
+Focused TypeTest runs also passed all six tests in each chapter. Edited files
+are LF-only and `git diff --check` passes. Logs:
+`chapter25/build/tfp-normalization/{baseline,repro,validate}.log`.
 
 ### Scheduling without isPinned: complete locally, 2026-09-20
 

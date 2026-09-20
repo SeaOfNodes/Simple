@@ -228,6 +228,12 @@ Consequences:
   that path deterministically by interning a BOTTOM-field struct before
   meeting two float-constant variants; `TypeTest.testCyclicLeafKinds` in 23-25
   checks the resulting field, canonical identity, and meet/dual behavior.
+- Function signatures acquire implicit open/closed argument tails in 23.
+  Normalize trailing defaults before interning: global BOTTOM/TOP in 23-24,
+  scalar BOT/TOP in 25. Preserve defaults before a later non-default argument.
+  Keep normalization out of raw cyclic allocation, whose child slots are still
+  incomplete. Add representative signatures to `TypeFunPtr.gather` for the
+  existing lattice-law tests; no separate test harness is needed.
 - The type lattice must remain complete, symmetric, and bounded. Run TypeTest
   after changing Type/Field equality, hashing, duality, meet/join, interning,
   serialization, or gather sets.

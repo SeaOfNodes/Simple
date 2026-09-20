@@ -57,6 +57,13 @@ public class TypeFunPtr extends TypeNil {
 
     // All fields directly listed
     public static TypeFunPtr make( byte nil, boolean open, Type[] sig, Type ret, long fidxs ) {
+        // Trim trailing args which match the implicit default.
+        Type def = open ? Type.BOTTOM : Type.TOP;
+        int nargs = sig.length;
+        while( nargs > 0 && sig[nargs-1] == def )
+            nargs--;
+        if( nargs != sig.length )
+            sig = nargs == 0 ? TEMPTY : Arrays.copyOf(sig,nargs);
         TypeFunPtr fun = malloc(nil,open,sig,ret,fidxs);
         TypeFunPtr f2  = fun.intern();
         if( f2==fun ) return fun;
@@ -79,7 +86,17 @@ public class TypeFunPtr extends TypeNil {
     public static TypeFunPtr TEST0 = make((byte)3,false,TINTMEM,TypeInteger.BOT, 3);
     public static TypeFunPtr MAIN  = make((byte)3,false,TINT   ,Type.BOTTOM,-1); // Main can return anything
     public static TypeFunPtr CALLOC= make((byte)3,false,TINTINT,TypeMemPtr .BOT,-1);
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST0); ts.add(BOT);  ts.add(MAIN);ts.add(CALLOC); }
+    public static void gather(ArrayList<Type> ts) {
+        ts.add(TEST); ts.add(TEST0); ts.add(BOT); ts.add(MAIN); ts.add(CALLOC);
+        // Explicit trailing defaults must agree with the implicit argument tail.
+        for( boolean open : new boolean[]{false,true} ) {
+            Type def = open ? Type.BOTTOM : Type.TOP;
+            ts.add(make((byte)2,open,TINT,TypeInteger.I32,1));
+            ts.add(make((byte)2,open,new Type[]{TypeInteger.BOT,def,def},TypeInteger.I32,1));
+            ts.add(make((byte)2,open,new Type[]{def,def},TypeInteger.I32,1));
+            ts.add(make((byte)2,open,new Type[]{def,TypeInteger.BOT},TypeInteger.I32,1));
+        }
+    }
 
     @Override
     Type xmeet(Type t) {
