@@ -130,14 +130,22 @@ public class RegAlloc {
     }
 
 
+    // Diagnostic lookup: do not compress leaders or rewrite the node mapping.
+    private LRG _lrg(Node n) {
+        LRG lrg = _lrgs.get(n);
+        if( lrg != null )
+            while( lrg._leader != null ) lrg = lrg._leader;
+        return lrg;
+    }
+
     public short regnum( Node n ) {
-        LRG lrg = lrg(n);
+        LRG lrg = _lrg(n);
         return lrg==null ? -1 : lrg._reg;
     }
 
     // Printable register number for node n
     String reg( Node n ) {
-        LRG lrg = lrg(n);
+        LRG lrg = _lrg(n);
         return lrg==null ? null : reg(lrg);
     }
     String reg( LRG lrg ) {

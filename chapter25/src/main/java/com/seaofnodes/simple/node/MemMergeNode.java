@@ -32,7 +32,7 @@ public class MemMergeNode extends Node {
             Node n = in(j);
             while( n instanceof ScopeNode loop ) {
                 sb.append("Lazy_");
-                n = loop.mem(j);
+                n = loop.mem();
             }
             if( n==null ) sb.append("___ ");
             else n._print0(sb, visited).append(" ");

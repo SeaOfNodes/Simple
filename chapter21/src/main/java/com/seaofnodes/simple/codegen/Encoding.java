@@ -49,12 +49,14 @@ public class Encoding {
     public static class Relo {
         public final Node _op;
         public final Type _t;          // Constant type
+        public final int _align;       // Log alignment, captured for diagnostic display
         public final byte _off;        // Offset from start of opcode
         public final byte _elf;        // ELF relocation type, e.g. 2/PC32
         public int _target;      // Where constant is finally placede
         public int _opStart;     // Opcode start
         Relo( Node op, Type t, byte off, byte elf ) {
             _op=op;  _t=t;  _off=off; _elf=elf;
+            _align = t.log_size();
         }
     }
     public final HashMap<Node,Relo> _bigCons = new HashMap<>();

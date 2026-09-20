@@ -1,4 +1,7 @@
 package com.seaofnodes.simple;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
+
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
@@ -10,6 +13,28 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter23Test {
+    @Test public void testDiagnosticTypeAccessors() throws Exception {
+        new CodeGen("return 0;").parse();
+        var tfp = TypeFunPtr.TEST;
+        var con = ConstantNode.raw(tfp);
+        var call = new CallNode(null,con,con,con);
+        var field = Type.class.getDeclaredField("VISIT");
+        field.setAccessible(true);
+        var visit = (java.util.Map<Object,Type>)field.get(null);
+        var marker = new Object();
+        visit.put(marker,Type.BOTTOM);
+        try {
+            assertEquals(0,TypeInteger.ZERO.alignment());
+            assertEquals(0,TypeInteger.ZERO.value());
+            org.junit.Assert.assertTrue(tfp._isConstant());
+            con.toString();
+            call.name();
+            con.p(1);
+            org.junit.Assert.assertSame(Type.BOTTOM,visit.get(marker));
+            assertEquals(1,visit.size());
+        } finally { visit.clear(); }
+    }
+
 
     @Test @Ignore
     public void testJig() throws IOException {

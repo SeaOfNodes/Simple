@@ -214,6 +214,36 @@ Consequences:
   aligned with `modrm`; reversing it silently selects the wrong extended
   registers. The Chapter 25 Bubble Sort failure exposed this in `MulIX86`.
 
+## Side-effect-free diagnostics: B09 lessons
+
+- Type construction and interning are allowed during printing. Do not add
+  alternate linker-key comparisons or other machinery merely to avoid interning;
+  canonical types and fast identity comparisons are normal type-system operations.
+- Type layout queries are forbidden during printing, including queries that
+  currently return cached answers. Layout lives in TypeStruct for convenience,
+  but is separate from type identity and lattice operations. It may eventually
+  move elsewhere to support removing dead fields or packing fields with limited
+  states. Capture size, alignment, and section choice during encoding; printers
+  display that recorded layout instead of asking Types to compute one.
+- Use the `_` prefix for no-side-effect variants of accessors: `CodeGen._link`,
+  `RegAlloc._lrg`, `Var._type`, and the existing leaf `_isConstant` predicates.
+  The printer's local `_idepth` does not populate compiler dominator caches.
+  Keep mutating compiler accessors available for their normal jobs.
+- Audit the whole call chain from `Node.p(depth)`, `print`/`toString`, labels,
+  scope/graph viewers, and machine `asm` methods. `link` prunes dead functions
+  starting in Chapter 24; 19-23 can use ordinary `link`, including its interned
+  return-erased key. Scope memory reads can create lazy Phis, `Var.type()` can
+  resolve declarations, and register lookups can compress union-find links.
+- Use identity bookkeeping for graph inspection: `Node.hashCode()` writes
+  `_hash`, which also controls GVN locking. Leaf diagnostic type accessors can
+  use their existing `_` implementations without entering shared Type.VISIT
+  recursion; this is separate from permission to intern types.
+- Test cold caches, unresolved declarations, lazy memory, stale linker entries,
+  uncompressed register chains, and forbidden layout queries. Do not assert that
+  printing leaves the type intern table unchanged. B09 regressions start in
+  Chapter11Test/18Test/19Test/20Test/23Test/24Test and propagate to later snapshots;
+  Chapter25Test also covers constant-pool display.
+
 ## Debugging workflow
 
 1. Reduce the first semantic or invariant failure before changing architecture.

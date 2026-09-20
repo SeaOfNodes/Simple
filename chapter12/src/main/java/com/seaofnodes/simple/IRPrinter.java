@@ -5,6 +5,7 @@ import java.lang.StringBuilder;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 
 public class IRPrinter {
 
@@ -187,19 +188,40 @@ public class IRPrinter {
         }
     }
 
+    // Diagnostic block ordering from raw control edges.  Do not call idepth():
+    // it fills compiler caches (and can walk lazy dominator accessors).
+    private static int _idepth(CFGNode cfg, HashMap<Integer,Integer> depths) {
+        if( cfg == null || cfg instanceof StartNode ) return 0;
+        Integer old = depths.get(cfg._nid);
+        if( old != null ) return old;
+        depths.put(cfg._nid,0); // Break cycles in partially constructed graphs.
+        int d = 0;
+        if( cfg instanceof LoopNode ) {
+            d = _idepth((CFGNode)cfg.in(1),depths)+1;
+        } else if( cfg instanceof RegionNode || cfg instanceof StopNode ) {
+            for( Node n : cfg._inputs )
+                if( n instanceof CFGNode pred ) d = Math.max(d,_idepth(pred,depths)+1);
+        } else if( cfg.in(0) instanceof CFGNode pred ) {
+            d = _idepth(pred,depths)+1;
+        }
+        depths.put(cfg._nid,d);
+        return d;
+    }
+
     // Bulk pretty printer, knowing scheduling information is available
     public static String prettyPrintScheduled( Node node, int depth, boolean llvmFormat ) {
         // Backwards DFS walk to depth.
-        HashMap<Node,Integer> ds = new HashMap<>();
+        IdentityHashMap<Node,Integer> ds = new IdentityHashMap<>();
         _walk(ds,node,depth);
-        // Print by block with least idepth
+        // Print by block with least diagnostic depth
+        HashMap<Integer,Integer> depths = new HashMap<>();
         StringBuilder sb = new StringBuilder();
         ArrayList<Node> bns = new ArrayList<>();
         while( !ds.isEmpty() ) {
             CFGNode blk = null;
             for( Node n : ds.keySet() ) {
                 CFGNode cfg = n instanceof CFGNode cfg0 && cfg0.blockHead() ? cfg0 : (CFGNode)n.in(0);
-                if( blk==null || cfg.idepth() < blk.idepth() )
+                if( blk==null || _idepth(cfg,depths) < _idepth(blk,depths) )
                     blk = cfg;
             }
             ds.remove(blk);
@@ -239,7 +261,7 @@ public class IRPrinter {
         return sb.toString();
     }
 
-    private static void _walk( HashMap<Node,Integer> ds, Node node, int d ) {
+    private static void _walk( IdentityHashMap<Node,Integer> ds, Node node, int d ) {
         Integer nd = ds.get(node);
         if( nd!=null && d <= nd ) return; // Been there, done that
         ds.put(node,d);
@@ -257,7 +279,7 @@ public class IRPrinter {
         if( !blk.blockHead() ) blk = blk.cfg(0);
         sb.append( "%-9.9s ".formatted( label( blk ) ) );
     }
-    static void printLine( Node n, StringBuilder sb, boolean llvmFormat, ArrayList<Node> bns, int i, HashMap<Node,Integer> ds ) {
+    static void printLine( Node n, StringBuilder sb, boolean llvmFormat, ArrayList<Node> bns, int i, IdentityHashMap<Node,Integer> ds ) {
         printLine( n, sb, llvmFormat );
         Utils.del(bns,i);
         ds.remove(n);

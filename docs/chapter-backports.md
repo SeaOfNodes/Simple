@@ -19,13 +19,65 @@ the correction into the chapter's representation, not the entire modern file.
 
 | ID | Change | Proposed destination | Scope and acceptance evidence |
 |---|---|---|---|
-| B09 | Make diagnostic function lookup read-only | 18 onward; **audit** first mutating printer lookup | Separate `lookupFun` from cleanup-performing `link`. Verify printing preserves graph/linker state. Do not import FunPtrNode or compilation units for this fix. |
 | B10 | Preserve widening state in integer nonzero refinement | **Audit** first chapter with both widening and `nonZero`; no later than 24 | Chapter 25 `TypeInteger.nonZero` preserves `_widen`. Check lattice laws and loop refinement. Exclude TypeScalar, storage-type, and serialization changes. |
 | B11 | Diagnose return types using the optimized return expression | 18; 19 already has the correction | `ReturnNode.err()` uses `expr()._type` instead of the parse-time `mt` aggregate. Chapter 18 rejects `struct S { u8 x; }; return new S; return 0;` with a mixed integer/reference error; Chapter 19 accepts it. Also test genuinely reachable incompatible returns. This is a candidate, not yet an applied or isolated-patch-verified fix. |
 | B12 | Encode the actual destination register for two-address immediate multiply | 21 | `MulIX86` inherits `ImmX86.encoding`, whose ModRM.reg is fixed to zero and whose REX.R is clear. With source/destination both `rcx`, multiplying by 11 emits `48 6b c1 0b` (destination `rax`) instead of `48 6b c9 0b`. With both `r9`, it emits `49 6b c1 0b` instead of `4d 6b c9 0b`. Give multiply its proper register fields while preserving Chapter 21's two-address allocation contract; do not change the opcode-extension fields used by other `ImmX86` subclasses. Later chapters use a separate multiply encoder. |
 
 After the first two reviews, batch only corrections with established independence
 and regressions. Keep one logical correction per commit across affected chapters.
+
+## AOT class initialization: larger independent work
+
+Proposed on 2026-09-19; deferred behind the smaller BXX cleanup above. This is
+a substantial, self-contained Chapter 25 change, not an entangled backport.
+Earlier chapter applicability has not been established.
+
+The goal is to pre-allocate AOT class objects in ELF data and pre-fill their
+fields, letting ordinary graph optimization remove redundant initialization.
+Lazy-loaded classes retain runtime initialization for now.
+
+- Represent static object creation with a dedicated node, or a ConstantNode
+  carrying a TypeStruct with the appropriate final field values. Preserve the
+  class's identity and canonical layout independently of its current field
+  values; equal contents must not merge distinct class objects.
+- Use normal StoreNode peepholes to remove same-value-over-same-value stores.
+  If needed, add a peephole that folds initializing stores into the static
+  creator's type. Create a replacement ConstantNode/type; never mutate a shared
+  constant's type. Prove that folding preserves initialization ordering and
+  does not expose a final value prematurely through another reference.
+- When `<clinit>` reduces to returning the static object, with no remaining
+  I/O or public-memory effects, its runtime work can disappear. Initially it
+  is sufficient to emit a trivial `<clinit>` and keep its calls. Omitting the
+  function or calls is a later optimization; mixed initializers retain their
+  remaining effects. Adapt this conceptual return to the existing class-memory
+  representation rather than assuming the current `<clinit>` returns a pointer.
+- Extend encoding's relocation information to describe addresses stored inside
+  data: functions, other class objects, and constant objects such as strings.
+  Emit the required data-section relocations, including their symbol, field
+  offset, width, and addend. Keep native linking and emulator linking consistent.
+- Give the function and data distinct stable symbols, e.g. `A.B.<clinit>` and
+  `A.B.$class`. The defining CompUnit owns the class object and emits its one
+  definition in its ELF. Other compilation units, including source currently
+  being compiled, reference those symbols without emitting another copy of the
+  class data. Unifying loaded Simple types/IR alone does not unify native data;
+  preserve ownership and identity across partial compiles and serialization.
+- Target four-byte function **and data** pointers, with code and data addresses
+  restricted to the low 4 GB. Function pointers stay four bytes; data pointers
+  must be brought into agreement. Account for layout, loads/stores, relocations,
+  native runtime/FFI boundaries, and actual placement; do not silently truncate
+  an out-of-range address. This is a proposed representation constraint, not a
+  claim that the current runtime already satisfies it.
+- Emit immutable, fully preinitialized objects in read-only storage. Objects
+  with mutable fields or remaining runtime initialization writes stay writable.
+  Retain the current writable-class-storage correction until those writes have
+  actually been eliminated.
+
+Acceptance should cover scalar and pointer fields, shared/cyclic object
+references, preserved effects in mixed initializers, and serialization
+round-trips. A diamond of separately compiled users must share one class-object
+address and observe each other's mutations. Check ELF definitions/relocations,
+address-range enforcement, native execution, emulator execution, and the full
+Chapter 25 suite, including `make -j 4 tests`.
 
 ## Larger or entangled changes: defer
 
@@ -79,6 +131,40 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### B09: complete locally, 2026-09-19
+
+Audited `Node.p(depth)`, recursive printing, labels, scope/graph viewers, and
+assembly helpers. Corrections follow the first affected representation:
+
+- 11-24: scheduled IR display uses local `_idepth` state; 11-14 also use
+  identity maps to avoid setting Node hashes/GVN locks.
+- 18-24: memory display reads raw lazy aliases instead of creating Phis;
+  scope display uses `Var._type` without resolving forward references.
+  25's stale alias-based memory display reads its actual bulk-memory input.
+- 19-23: printers use ordinary `link` and tolerate missing targets. Per Cliff's
+  review, type interning is allowed: the proposed non-interning linker scan and
+  `sameTarget` helper were removed. 24-25 use `CodeGen._link` to preserve dead
+  entries, including through 25's `funcName`; optimizing `link` still cleans up.
+- 20-25: register display uses `_lrg` without compressing chains or rewriting
+  node mappings. Function predicates use the existing leaf `_isConstant` from
+  23; integer size/value accessors also avoid entering shared recursion state.
+- 21-25: pool display uses identity bookkeeping and recorded alignment, plus
+  recorded struct size from 22 and section choice in 25. Printers do not ask
+  Types for layouts, even when an answer might already be cached. Layout is
+  separate from type identity and may eventually move out of TypeStruct.
+
+Regressions cover graph caches/edges, lazy Phis, unresolved declarations, stale
+linker entries, register chains, leaf type accessors, and forbidden layout queries.
+Isolated original Chapter 18 classes fail the lazy-memory and forward-reference
+tests; original printers also reproduce cache mutation, register compression,
+shared-scratch assertions, and dead-linker pruning. Tests permit type interning.
+
+Every affected compiler snapshot (11-25) passed its full `make tests` target with
+assertions enabled after the review adjustment, including 443 tests in 25.
+The constant-pool regression rejects size/alignment queries even if they would
+return cached answers. Log: `chapter25/build/b09-review/revised.log`.
+Durable rules are in the skills notes.
 
 ### B13 / issue #246: complete, 2026-09-19
 

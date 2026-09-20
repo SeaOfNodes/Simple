@@ -43,7 +43,7 @@ public class ConstantNode extends Node {
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( _con instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+        if( _con instanceof TypeFunPtr tfp && tfp.isConstant() && tfp.notNull() ) {
             FunNode fun = CodeGen.CODE.link(tfp);
             if( fun!=null && fun._name != null )
                 return sb.append("{ ").append(fun._name).append("}");

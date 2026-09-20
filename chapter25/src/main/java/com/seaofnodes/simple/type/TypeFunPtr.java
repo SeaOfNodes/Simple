@@ -180,7 +180,7 @@ public class TypeFunPtr extends TypeNil {
 
     @Override public boolean isHigh() { return _nil <= 1 || (_nil==2 && _fidxs== XInt.EMPTY); }
 
-    @Override boolean _isConstant() { return (_nil==2 && XInt.isConstant(_fidxs)) || (_nil==3 && _fidxs== XInt.EMPTY); }
+    @Override public boolean _isConstant() { return (_nil==2 && XInt.isConstant(_fidxs)) || (_nil==3 && _fidxs== XInt.EMPTY); }
 
     @Override boolean _isFinal() { return true; }
     @Override TypeFunPtr _makeStorage() { return this; }

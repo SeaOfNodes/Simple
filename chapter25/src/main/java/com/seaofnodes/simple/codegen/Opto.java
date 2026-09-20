@@ -140,7 +140,7 @@ abstract public class Opto {
             // unlinkStart deliberately leaves uncalled functions in a
             // temporarily dead limbo.  A newly discovered call revives them;
             // do not use the cleanup lookup which removes dead linker entries.
-            FunNode fun = code.lookupFun(fidx);
+            FunNode fun = code._link(fidx);
             // null here means an external function; i.e. this Call
             // calls to an outside library and all its arguments escape.
             if( fun != null && !call.linked(fun) ) {

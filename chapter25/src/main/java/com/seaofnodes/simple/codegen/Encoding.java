@@ -46,17 +46,24 @@ public class Encoding {
     public static class Relo {
         public final Node _op;
         public final Type _t;          // Constant type
+        public final int _align;       // Log alignment, captured for diagnostic display
+        public final int _structSize;  // Capture layout during encoding, not printing
         public final byte _off;        // Offset from start of opcode
         public final byte _elf;        // ELF relocation type, e.g. 2/PC32
         public int _target;            // Where constant is finally placed
         public int _opStart;           // Opcode start
         Relo( Node op, Type t, byte off, byte elf ) {
             _op=op;  _t=t;  _off=off; _elf=elf;
+            _align = t.alignment();
+            _structSize = t instanceof TypeStruct ts ? ts.size() : 0;
+            _readOnly = readOnly(t);
         }
-        public boolean readOnly() {
+        public boolean readOnly() { return _readOnly; }
+        private final boolean _readOnly;
+        private static boolean readOnly(Type t) {
             // Class initializers still write their fields, even when every
             // final value is constant.  Their storage must remain writable.
-            return !(_t instanceof TypeStruct ts) ||
+            return !(t instanceof TypeStruct ts) ||
                 (!Parser.startsClzPrefix(ts._name) && ts.isConstant());
         }
     }

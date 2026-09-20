@@ -1,11 +1,16 @@
 package com.seaofnodes.simple;
 
+
 import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @Test public void testPrintingRegisters() throws Exception {
+        com.seaofnodes.simple.codegen.PrintRegTestSupport.check();
+    }
+
 
     @Test
     public void testJig() {

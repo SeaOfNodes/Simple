@@ -45,7 +45,7 @@ public class ConstantNode extends TypeNode {
             CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
             return raw(type);
         if( type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
-            FunNode fun = CodeGen.CODE.lookupFun(tfp);
+            FunNode fun = CodeGen.CODE._link(tfp);
             if( fun != null )
                 return new FunPtrNode(tfp,CodeGen.CODE._start,fun.ret()).init();
             // TODO: A singleton FIDX can also emerge after merging and
@@ -74,8 +74,8 @@ public class ConstantNode extends TypeNode {
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( _con instanceof TypeFunPtr tfp && tfp.isConstant() ) {
-            FunNode fun = CodeGen.CODE.lookupFun(tfp);
+        if( _con instanceof TypeFunPtr tfp && tfp._isConstant() && tfp.notNull() ) {
+            FunNode fun = CodeGen.CODE._link(tfp);
             if( fun!=null && fun._name != null )
                 return sb.append("{ ").append(fun._name).append("}");
         }

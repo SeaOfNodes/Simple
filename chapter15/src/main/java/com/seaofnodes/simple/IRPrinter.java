@@ -187,6 +187,26 @@ public class IRPrinter {
         }
     }
 
+    // Diagnostic block ordering from raw control edges.  Do not call idepth():
+    // it fills compiler caches (and can walk lazy dominator accessors).
+    private static int _idepth(CFGNode cfg, HashMap<Integer,Integer> depths) {
+        if( cfg == null || cfg instanceof StartNode ) return 0;
+        Integer old = depths.get(cfg._nid);
+        if( old != null ) return old;
+        depths.put(cfg._nid,0); // Break cycles in partially constructed graphs.
+        int d = 0;
+        if( cfg instanceof LoopNode ) {
+            d = _idepth((CFGNode)cfg.in(1),depths)+1;
+        } else if( cfg instanceof RegionNode || cfg instanceof StopNode ) {
+            for( Node n : cfg._inputs )
+                if( n instanceof CFGNode pred ) d = Math.max(d,_idepth(pred,depths)+1);
+        } else if( cfg.in(0) instanceof CFGNode pred ) {
+            d = _idepth(pred,depths)+1;
+        }
+        depths.put(cfg._nid,d);
+        return d;
+    }
+
     // Bulk pretty printer, knowing scheduling information is available
     public static String prettyPrintScheduled( Node node, int depth, boolean llvmFormat ) {
         // Backwards DFS walk to depth.
@@ -200,14 +220,15 @@ public class IRPrinter {
                 ds.remove(proj._nid);
             }
         }
-        // Print by block with least idepth
+        // Print by block with least diagnostic depth
+        HashMap<Integer,Integer> depths = new HashMap<>();
         StringBuilder sb = new StringBuilder();
         ArrayList<Node> bns = new ArrayList<>();
         while( !ds.isEmpty() ) {
             CFGNode blk = null;
             for( Node n : ns ) {
                 CFGNode cfg = n instanceof CFGNode cfg0 && cfg0.blockHead() ? cfg0 : n.cfg0();
-                if( blk==null || cfg.idepth() < blk.idepth() )
+                if( blk==null || _idepth(cfg,depths) < _idepth(blk,depths) )
                     blk = cfg;
             }
             ds.remove(blk._nid);

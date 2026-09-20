@@ -1,4 +1,7 @@
 package com.seaofnodes.simple;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
+
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
@@ -7,6 +10,23 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter24Test {
+    @Test public void testPrintingDeadFunction() throws Exception {
+        var code = new CodeGen("return 0;").parse();
+        var tfp = TypeFunPtr.TEST;
+        var fun = new FunNode(null,tfp,"deadPrinterTarget",null);
+        org.junit.Assert.assertTrue(fun.isDead());
+        code.link(fun);
+        var con = ConstantNode.raw(tfp);
+        var call = new CallNode(null,con,con,con);
+        con.toString();
+        call.name();
+        code.funcName(tfp.fidx());
+        org.junit.Assert.assertSame(fun,code._link(tfp));
+        // Optimizer lookup still performs its usual lazy cleanup.
+        org.junit.Assert.assertNull(code.link(tfp));
+        org.junit.Assert.assertNull(code._link(tfp));
+    }
+
 
     @Test
     public void testJig() throws IOException {

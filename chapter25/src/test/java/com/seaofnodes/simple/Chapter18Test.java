@@ -1,4 +1,7 @@
 package com.seaofnodes.simple;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.node.*;
+
 
 import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.codegen.CodeGen;
@@ -8,6 +11,31 @@ import static org.junit.Assert.*;
 import static org.junit.Assert.fail;
 
 public class Chapter18Test {
+    @Test public void testPrintingForwardReferenceScope() throws Exception {
+        new CodeGen("return 0;").parse();
+        var declared = TypeMemPtr.make(TypeStruct.make("PrintForward",true,true));
+        var scope = new ScopeNode();
+        scope.define("ptr",declared,false,new ConstantNode(TypeInteger.ZERO),null);
+        Parser.TYPES.put("PrintForward",TypeMemPtr.make(TypeStruct.make("PrintForward",false,false)));
+        var field = Var.class.getDeclaredField("_type");
+        field.setAccessible(true);
+        var v = scope.var(0);
+        org.junit.Assert.assertSame(declared,field.get(v));
+        scope.toString();
+        org.junit.Assert.assertSame(declared,field.get(v));
+    }
+
+    @Test public void testPrintingLazyMemory() throws Exception {
+        var code = new CodeGen("return 0;").parse();
+        var base = new ConstantNode(com.seaofnodes.simple.type.TypeMem.BOT);
+        var outer = new ScopeNode();
+        var inner = new ScopeNode();
+        outer.addDef(null); outer.addDef(base);
+        inner.addDef(null); inner.addDef(outer);
+        var mem = new MemMergeNode(null,base,inner);
+        PrintTestSupport.unchanged(mem, () -> org.junit.Assert.assertTrue(mem.toString().contains("Lazy_")));
+    }
+
 
     @Test
     public void testJig() {

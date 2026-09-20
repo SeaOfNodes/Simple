@@ -35,7 +35,7 @@ public class FunPtrNode extends TypeNode {
 
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        FunNode fun = CodeGen.CODE.lookupFun(((TypeFunPtr)_con).fidx());
+        FunNode fun = CodeGen.CODE._link(((TypeFunPtr)_con).fidx());
         return fun!=null && fun._name!=null
             ? sb.append("{ ").append(fun._name).append("}")
             : sb.append(_con);

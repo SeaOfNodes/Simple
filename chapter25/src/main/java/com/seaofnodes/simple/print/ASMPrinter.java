@@ -8,7 +8,9 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 public abstract class ASMPrinter {
 
@@ -43,16 +45,15 @@ public abstract class ASMPrinter {
         sb.p("--- ").p(msg).p(" ------").nl();
         // radix sort the big constants by alignment
         Ary<Relo>[] raligns = new Ary[5];
-        for( Node op : bigCons.keySet() ) {
-            Relo relo = bigCons.get(op);
+        for( Relo relo : bigCons.values() ) {
             if( relo.readOnly() != ro )
                 continue;
-            int align = relo._t.alignment();
+            int align = relo._align;
             Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>( Relo.class)) : raligns[align];
             relos.add(relo);
         }
 
-        HashSet<Type> targets = new HashSet<>();
+        Set<Type> targets = Collections.newSetFromMap(new IdentityHashMap<>());
 
         // By alignment
         int dadr=0;
@@ -64,7 +65,7 @@ public abstract class ASMPrinter {
                 targets.add(relo._t);
                 sb.hex2(iadr+dadr).p("  ");
                 if( relo._t instanceof TypeStruct ts ) {
-                    int sz = ts.size();
+                    int sz = relo._structSize;
                     int log = 1<<align;
                     sz = (sz + (log -1)) & -log; // Round up final padding
                     for( int i=0; i<sz; i++ )

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
@@ -8,6 +9,20 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 public class Chapter11Test {
+    @Test public void testPrintingPreservesGraph() throws Exception {
+        var stop = new Parser("while(arg < 10) arg = arg + 1; return arg;").parse().iterate();
+        GlobalCodeMotion.buildCFG(stop);
+        var bfs = new IRPrinter.BFS(stop,99);
+        for( var n : bfs._bfs )
+            if( n instanceof com.seaofnodes.simple.node.CFGNode cfg ) cfg._idepth = 0;
+        new com.seaofnodes.simple.node.ConstantNode(com.seaofnodes.simple.type.TypeInteger.constant(123456));
+        com.seaofnodes.simple.node.PrintTestSupport.unchanged(stop, () -> {
+            String first = stop.p(99);
+            assertEquals(first,stop.p(99));
+            stop.toString();
+        });
+    }
+
 
     // A placeholder test used to rapidly rotate through fuzzer produced issues
     @Test

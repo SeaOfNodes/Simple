@@ -20,6 +20,10 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter25Test {
+    @Test public void testPrintingConstantPool() throws Exception {
+        com.seaofnodes.simple.codegen.PrintRegTestSupport.checkConstantPool();
+    }
+
 
     @Ignore
     @Test

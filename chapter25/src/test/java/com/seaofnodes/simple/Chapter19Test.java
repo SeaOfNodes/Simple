@@ -1,4 +1,7 @@
 package com.seaofnodes.simple;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
+
 
 import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.codegen.CodeGen;
@@ -7,6 +10,25 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter19Test {
+    @Test public void testPrintingFunctionLookup() {
+        var code = new CodeGen("return 0;").parse();
+        var tfp = TypeFunPtr.make1((byte)2,false,new Type[]{TypeInteger.constant(987654)},TypeInteger.constant(123456),30);
+        var con = ConstantNode.raw(tfp);
+        var call = new CallNode(null,code._start,con,con);
+        // Diagnostic lookup may construct/intern the return-erased linker key.
+        con.toString();
+        org.junit.Assert.assertNull(call.name());
+
+        var fun = new FunNode(null,tfp,"printerTarget",null);
+        fun._name = "printerTarget";
+        fun.addDef(code._start);
+        code.link(fun);
+        var otherReturn = tfp.makeFrom(TypeInteger.constant(654321));
+        org.junit.Assert.assertSame(fun,code._link(otherReturn));
+        org.junit.Assert.assertTrue(con.toString().contains("printerTarget"));
+        assertEquals("printerTarget",call.name());
+    }
+
 
     @Test
     public void testJig() {

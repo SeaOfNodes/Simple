@@ -26,6 +26,8 @@ public class Var {
         _loc = loc;
         _fref = fref;
     }
+    // Raw declared type, without resolving a forward reference while printing.
+    public Type _type() { return _type; }
     public Type type() {
         if( !_type.isFRef() ) return _type;
         // Update self to no longer use the forward ref type

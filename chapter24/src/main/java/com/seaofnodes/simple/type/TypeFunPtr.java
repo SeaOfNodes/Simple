@@ -135,7 +135,7 @@ public class TypeFunPtr extends TypeNil {
 
     @Override public boolean isHigh() { return _nil <= 1 || (_nil==2 && _fidxs==0); }
 
-    @Override boolean _isConstant() { return (_nil==2 && Long.bitCount(_fidxs)==1) || (_nil==3 && _fidxs==0); }
+    @Override public boolean _isConstant() { return (_nil==2 && Long.bitCount(_fidxs)==1) || (_nil==3 && _fidxs==0); }
 
     @Override boolean _isFinal() { return true; }
     @Override boolean _isGLB(boolean mem) { return true; }

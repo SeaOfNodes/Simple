@@ -65,7 +65,7 @@ public class ScopeNode extends MemMergeNode {
         for( int i=0; i<nIns(); i++ ) {
             if( j < depth() && i == _kinds.at(j)._lexSize ) { sb.append("| "); j++; }
             Var v = _vars.at(i);
-            sb.append(v.type());
+            sb.append(v._type());
             sb.append(" ");
             if( v._final ) sb.append("!");
             sb.append(v._name);

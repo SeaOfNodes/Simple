@@ -50,7 +50,7 @@ public class ScopeNode extends MemMergeNode {
         for( int i=0; i<nIns(); i++ ) {
             if( j < _lexSize._len && i == _lexSize.at(j) ) { sb.append("| "); j++; }
             Var v = _vars.get(i);
-            sb.append(v.type().print(new SB()));
+            sb.append(v._type().print(new SB()));
             sb.append(" ");
             if( v._final ) sb.append("!");
             sb.append(v._name);

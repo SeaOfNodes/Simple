@@ -378,8 +378,8 @@ public class CodeGen {
     public FunNode link( TypeFunPtr tfp ) { return link(tfp.fidx());  }
     // Read-only linker lookup, suitable for printers and debugger display.
     // In particular, do not lazily remove a partially dead function.
-    public FunNode lookupFun(int fidx) { return _linker.atX(fidx); }
-    public FunNode lookupFun(TypeFunPtr tfp) { return lookupFun(tfp.fidx()); }
+    public FunNode _link(int fidx) { return _linker.atX(fidx); }
+    public FunNode _link(TypeFunPtr tfp) { return _link(tfp.fidx()); }
     // Return the FunNode from a fidx
     public FunNode link( int fidx ) {
         FunNode fun =_linker.atX(fidx);
@@ -409,7 +409,7 @@ public class CodeGen {
     public String externFunc(int fidx) { return _externFunc.get(fidx); }
 
     public String funcName(int fidx ) {
-        FunNode fun = link(fidx);
+        FunNode fun = _link(fidx);
         if( fun!=null ) return fun._name;
         return externFunc(fidx);
     }

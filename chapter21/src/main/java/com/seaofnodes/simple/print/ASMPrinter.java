@@ -6,7 +6,9 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 public abstract class ASMPrinter {
 
@@ -28,15 +30,14 @@ public abstract class ASMPrinter {
         Encoding enc = code._encoding;
         if(  enc!=null && !enc._bigCons.isEmpty() ) {
             iadr = (iadr+15)&-16; // pad to 16
-            HashSet<Type> targets = new HashSet<>();
+            Set<Type> targets = Collections.newSetFromMap(new IdentityHashMap<>());
             sb.p("--- Constant Pool ------").nl();
             // By log size
             for( int log = 3; log >= 0; log-- ) {
-                for( Node op : enc._bigCons.keySet() ) {
-                    Encoding.Relo relo = enc._bigCons.get(op);
+                for( Encoding.Relo relo : enc._bigCons.values() ) {
                     if( targets.contains(relo._t) ) continue;
                     targets.add(relo._t);
-                    if( relo._t.log_size()==log ) {
+                    if( relo._align==log ) {
                         sb.hex2(iadr).p("  ");
                         if( relo._t instanceof TypeTuple tt ) {
                             for( Type tx : tt._types ) {

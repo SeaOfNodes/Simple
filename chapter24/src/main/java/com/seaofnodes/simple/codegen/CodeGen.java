@@ -140,7 +140,10 @@ public class CodeGen {
     // Reverse from a constant function pointer to the IR function being called.
     // Error to call with a non-constant TFP
     public FunNode link( TypeFunPtr tfp ) { return link(tfp.fidx());  }
-    // Return the FunNode from a fidx
+    // Read-only diagnostic lookup; preserve stale entries.
+    public FunNode _link(TypeFunPtr tfp) { return _link(tfp.fidx()); }
+    public FunNode _link(int fidx) { return _linker.atX(fidx); }
+    // Return the FunNode from a fidx, cleaning up dead entries.
     public FunNode link( int fidx ) {
         FunNode fun =_linker.atX(fidx);
         if( fun!=null && fun.isDead() ) {
