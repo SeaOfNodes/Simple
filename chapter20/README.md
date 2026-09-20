@@ -34,6 +34,9 @@ bugs linger until we can actually run the code.
 This means that other chapters have updates and bug-fixes to the work being
 described here.
 
+Specific to the register allocator, we will be gradually adding improvements to
+it, chapter by chapter for quite a few chapters.  Register allocators generally
+end with a large number of heuristics which we will add slowly.
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter20) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter19...linear-chapter20) it to the previous chapter.
 
@@ -218,11 +221,7 @@ The rest of the fields are dedicated to various spilling heuristics:
 - `_1regDefCnt` `_1regUseCnt` - Count of defs and uses which are pinned to a
   single register.  These typically require a hard-split just before (use) or
   after (def) to free up the register choices.
-- `_killed` - LRG lost all registers due to an op killing its available
-  registers; commonly happens to LRGs which span a `Call` and generally
-  requires splitting some callee-save live range (spilling a callee-save
-  register) and move the LRG into the now available register.
-  
+
 
 ## Live Ranges and Conflicts
 
@@ -400,7 +399,8 @@ This set of splits is fairly aggressive... but test cases requiring a split in
 each of the listed locations are including in Chapter 20's test cases.  We
 cannot even attempt a color while we have self conflicts, so its important to
 break up these live ranges quickly.  This tends to over-split and the allocator
-leans on Biased Coloring and Coalescing to remove some of the extras.
+leans on Biased Coloring and the final copy cleanup to remove some of the
+extras. Conservative coalescing will be introduced in a later chapter.
 
 
 ### Split Hard Conflict
@@ -414,12 +414,15 @@ For simple hard-conflicts (a single def and single use), we have the exact def
 and use kept in the Live Range itself.  We split once after the def and once
 before the use (and only on sides with restricted registers).
 
-Another common case is popular constants (e.g. 0): a single def with many uses,
-and some of the uses require certain registers.  Instead of splitting the
-popular constant everywhere, we first split it into "register classes" and see
-if we can remove the hard conflict with fewer spills.
-
 For more complex cases we use the capacity spilling/loop-nest technique.
+Cloneable values can be recreated near their uses, but only when the clone's
+output register class can satisfy that use. Otherwise we need a move. A fixed
+register constant with flexible uses must also split at its uses; doing nothing
+at its definition would repeat the same hard conflict forever.
+
+Popular constants (e.g. 0) often have many uses requiring different registers.
+Grouping these uses into register classes can save moves, but we defer that
+heuristic to a later chapter.
 
 
 ### Split By Loop Nest
@@ -469,3 +472,59 @@ bypass some split-after-splits, which can remove some redundant copying.
 
 The registers remain available in the `RegAlloc` object via `alloc.regnum( Node n )` 
 and will be used by a following instruction encoding pass.
+
+
+## RegAlloc improvements: correctness and a measured baseline
+
+This chapter starts with a small allocator. Hard conflicts must actually be
+broken: a split cannot be skipped just because another copy is in the same
+block, nor folded away when that would restore the conflict. Loop backedges
+need the same care, especially when Phis represent parallel assignments.
+Register kills apply even to instructions with no output value. Finally,
+removing a redundant copy requires a backward scan for intervening definitions
+and register kills. These are correctness rules, independent of spill quality.
+
+We sort failed live ranges before splitting so changes in identity-map order do
+not decide the allocation. The allocator also has null-safe split printing and
+an optional function-local-edge diagnostic. The tests check register masks,
+two-address operands, and Phi register agreement; tiny machine graphs exercise
+hard conflicts independently of optimizer choices. Native execution comes with
+encoding in Chapter 21.
+
+### Spill-count summed across tests
+
+Run `make spill-stats` to execute the tests and print each compilation's counts,
+CPU/ABI subtotals, and the total below. Assertions remain enabled, and a failing
+test makes the command fail. The optimizer's default seed is 123.
+
+The Chapter 20 program cohort is all 11 source examples in `Chapter20Test`, plus
+`BrainFuckTest.testBrainfuck` and `MergeSortTest.testMergeSort`, on x86-64,
+RISC-V, and ARM using SystemV: 13 programs and 39 compilations, including the
+zero-spill cases. The synthetic allocator regression graphs are correctness
+checks, not additional program benchmarks.
+
+| Program-test cohort | Allocator chapter | Compilations | Split moves | Loop-weighted moves |
+|---|---:|---:|---:|---:|
+| Chapter 20 | 20 | 39 | 236 | 355 |
+
+`_spills` counts surviving split moves, including register-to-register copies;
+it does not count only stack stores. `_spillScaled` weights each move by
+`8^loopDepth`, a rough cost estimate rather than measured execution frequency.
+The weighted subtotals are 152 for x86-64, 101 for RISC-V, and 102 for ARM.
+
+### Comments on the measurements
+
+Before the correctness fixes, this same cohort had 235 moves and a weighted
+count of 354. The corrected baseline is one higher in each measure: x86-64's
+weighted count rises by two, ARM's by one, while RISC-V's falls by two. This is
+a small correctness cost, not a claimed quality improvement. Individual cases
+move more: the x86 array example rises from three to five, while its integer
+Newton example stays at 23. Looking at just one example would be misleading.
+
+Later chapters will add one quality technique at a time and end with this kind
+of table: Chapter 21 will measure both the Chapter 20 and Chapter 21 program
+cohorts using its allocator, and Chapter 25 will have rows for cohorts 20-25.
+Keep the program/target membership and seeds fixed when comparing a row between
+chapters, and separate changes in the optimizer or instruction selection from
+changes in allocation. A local regression may be worthwhile when the total
+improves; an allocation failure or illegal register assignment never is.

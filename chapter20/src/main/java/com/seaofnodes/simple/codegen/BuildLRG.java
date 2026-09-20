@@ -41,8 +41,8 @@ abstract public class BuildLRG {
                         int uidx = n.out(0)._inputs.find(n);
                         RegMask mask1 = n.in (1) instanceof MachNode machx ? machx.outregmap() : alloc.lrg(n.in(1))._mask;
                         RegMask mask2 = n.in (2) instanceof MachNode machx ? machx.outregmap() : alloc.lrg(n.in(2))._mask;
-                        RegMask masko = n.out(0) instanceof MachNode machx ? machx.regmap(uidx): alloc.lrg(n      )._mask;
-                        if( !mask1.overlap(masko) && mask2.overlap(masko) )
+                        RegMask masko = n.out(0) instanceof MachNode machx ? machx.regmap(uidx): mach.outregmap();
+                        if( masko!=null && !mask1.overlap(masko) && mask2.overlap(masko) )
                             n.swap12();
                     }
 
@@ -56,7 +56,7 @@ abstract public class BuildLRG {
                             LRG lrg2 = alloc.lrg(n.in(i));
                             if( lrg2 != null ) { // Anti-dep or other, no LRG
                                 RegMask use_mask = mach.regmap(i);
-                                if( !lrg2.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
+                                if( use_mask!=null && !lrg2.machUse(mach,(short)i,use_mask.size1()).and(use_mask) )
                                     alloc.fail(lrg2); // Empty register mask, must split
                             }
                         }
@@ -64,7 +64,7 @@ abstract public class BuildLRG {
                 }
 
                 // MultiNodes have projections which set registers
-                if( n instanceof MultiNode )
+                if( n instanceof MultiNode && !(n instanceof CFGNode) )
                     for( Node proj : n.outs() )
                         if( proj instanceof MachNode )
                             defLRG(alloc,proj);

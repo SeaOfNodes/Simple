@@ -69,12 +69,102 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 | Group | Eventual home | Why not in the small queue yet |
 |---|---|---|
-| Register allocation and spilling | 20 onward | Need constrained-register/spill regressions; changed golden spill counts are insufficient evidence. |
+| Register allocation and spilling | 20 onward | Chapter 20 correction/support pass complete locally; review before Chapter 21. Staged quality work remains below. |
 | Conditional Store and array Load control | Memory/arrays chapters | Reproduce under the earlier alias model before extracting fixes from the new memory implementation. |
 | SCCP dependencies, function revival, reachability | 24; some foundations may fit 18 | Separate old-IR corrections from new Guard/Escape/BulkMemPhi and external-caller machinery. |
 | TypeScalar, numeric modes, guards, symbolic fields, open/forward types | Revisit earlier homes later | A connected incomplete-types architecture, including phase ordering and errors. |
 | BulkMemPhi/MemPhi, private constructor memory, allocation helpers | Revisit memory / constructors / methods | Move invariants and regressions together. |
 | Serialization, global identity remapping, module escape summaries | Separate compilation | Remain with modules. |
+
+## Register allocation: correctness first, staged improvements
+
+Review on 2026-09-20. The staged plan follows; Chapter 20
+has since been implemented and validated as recorded below. Later snapshots
+remain pending. Compared RegAlloc, BuildLRG, IFG,
+LRG, Coalesce, RegMask, and split support across 20-25, with the original fix
+commits. Allocation starts in 20; 19 has instruction selection/register masks
+but no coloring allocator. Most changes are in 20->21 and 24->25. The 22->23
+allocator changes are imports/API cleanup; 23->24 has no allocator changes.
+
+Cliff's direction: correctness fixes belong at the earliest applicable chapter;
+quality improvements should accumulate gradually. Debugging/printing/support
+can start in 20. Judge spill changes across a fixed suite, allowing a local
+increase when compensated elsewhere. Do not copy the entire Chapter 25 allocator
+into 20, and do not classify a whole historical commit by its title.
+
+### Correctness work to extract
+
+| Work | Current evidence / source | Earliest intended home |
+|---|---|---|
+| Register-mask and LRG bookkeeping | Original 20: `RegMask(int)` assigns `bit=64` instead of subtracting 64, and empty `firstReg()` returns 128. `LRG._union` replaces `_machUse` without its `_uidx`, and can retain null from an immutable mask intersection. Fixed in 21; see `7e1deb4c`, `8d6de0e1`. | 20 |
+| BuildLRG/IFG instruction contracts | 21 checks null use masks, avoids revisiting CFG projections, processes kills even without an output LRG, and distinguishes an instruction's fixed output from a range narrowed elsewhere. The 25 commutative-input fallback uses `mach.outregmap()` rather than a possibly nonexistent LRG. | 20, after reduced graph/source regressions |
+| Self-conflicts and effective splits | 21 visits extending uses before rewriting definitions, permits needed backedge splits, checks intervening clobbers/self-conflicts before reusing splits, and avoids immediately folding away capacity splits. `35057d50`, `cc32b0cf`, and `880329e6` explicitly address failed progress. | 20; preserve Phi parallel-assignment semantics |
+| Legal rematerialization | 22 checks a clone's output mask against the use mask before choosing a clone over a move. Otherwise repeated cloning can preserve the original hard conflict. The 25 kill handling chooses the live cloneable value to split rather than the killing instruction (`c05d7df4`). | 20; isolate correctness from ranking cloneable spill candidates |
+| Empty-mask split bookkeeping | 25 saves the original def use-count before inserting a split, checks for a missing sample use, and skips null traversal roots. | 20 where the affected helper/path exists |
+| Persistent multi-def/fixed-register conflicts | 25 directly splits single-register uses and sometimes splits the deep side of a loop (`c05d7df4`). Its `_ns._len > 5` and related thresholds mix progress with tuning. | Reduce a no-progress case in 20, then extract the smallest sufficient rule; do not transplant thresholds as a proven invariant |
+| Encoding and stack ABI support | Correct frame sizing, incoming/outgoing stack arguments, and stack-to-stack move encoding are required once native emission exists (`7e1deb4c`). | 21, where encoding is introduced; retain CPU/ABI distinctions |
+
+Each correctness packet needs a failure demonstrated against the destination's
+old implementation, then allocation completion and legal register use. From
+21, also execute native/emulated results. An eight-round cutoff failure is a
+correctness failure, not permission to increase the cutoff. Some entries above
+are established historical fixes; applicability of the larger 25 changes to
+older graphs still needs reproduction.
+
+### Proposed quality progression
+
+| Chapter | Additional quality technique |
+|---|---|
+| 20 | Keep the existing basic coloring, biased coloring, rematerialization, and loop-boundary splitting, corrected for legality/progress. |
+| 21 | Conservative copy coalescing, already introduced here. Keep its mask/adjacency correctness fixes with it. |
+| 22 | Stronger color preferences: follow loop backedges for bias, improve copy-chain searches, and refine cheap-spill ordering for callee saves/cloneables. |
+| 23 | Group popular single-def values by their uses' required register classes instead of splitting each use. Include safe use-list mutation and call-crossing restrictions when introduced. |
+| 24 | Try cold splits first for loop-Phi self-conflicts, with a remembered one-attempt limit and aggressive fallback. The delay is optional; its fallback is mandatory. |
+| 25 | Rank recovered live-range area against loop-scaled split cost (`a03bc567`), plus any further measured tuning. |
+
+This progression would move some heuristics currently bundled into 21 later;
+it is not just a forward copy. Keep each introduced technique in subsequent
+chapters and update the chapter prose with it. Chapter 20's README already
+discusses popular-value grouping and coalescing beyond its current code, so
+that prose needs realignment too. The one-attempt loop-Phi delay from
+`a03bc567` is a quality feature with its own progress safeguard, not a reason
+to add persistent deferral state to the first allocator chapter.
+
+### Support and measurement
+
+- Start deterministic split ordering, null-safe split printing, useful LRG/mask
+  diagnostics, and an optional function-local-edge verifier in 20. Preserve the
+  existing side-effect-free `_` printer accessors. Actual stack offsets require
+  the frame layout introduced in 21; module-specific exceptions stay in 25.
+- Record actual `_spills` and `_spillScaled` for each compilation, keyed by test,
+  CPU, ABI, and fixed seed. Both count retained SplitNodes; `_spillScaled` weights
+  each by `8^loopDepth`. These are move/split metrics, not solely memory traffic.
+- Compare total scaled counts as the existing quality measure, and report raw
+  totals plus the largest local changes. Report per CPU/ABI as well as the whole
+  suite so a regression on one target is visible. Include compilations without
+  a current golden spill assertion; do not exclude failures or disable checks
+  to obtain an aggregate. Freeze test membership and seeds for each comparison.
+- Compare before/after within each chapter. For tutorial progression, also use
+  the common program/target subset: totals from different suites or changed IR
+  are not a controlled allocator comparison.
+- Existing helpers assert individual spill goldens (often with tolerance).
+  Review those local changes against the measured aggregate before updating
+  expectations. Correctness tests must assert completion/results independently
+  of the heuristic's exact spill count.
+- `splitBypass` originally scanned from `j-1` with `idx++` throughout 20-25,
+  reaching its own destination and rejecting nonadjacent bypasses. Corrected
+  in 20 with intervening kill-mask checks and a regression; 21-25 remain pending.
+  Pre-color copy reuse also checks fixed-register definitions before they have
+  an assigned `_reg`. Chapter 25 is not a complete correctness reference.
+
+Suggested execution order: support/measurement, small mask/LRG correctness
+fixes, constrained-register and self-conflict regressions/fixes, then one
+quality technique at a time. Run each affected snapshot's full suite at each
+accepted boundary. Chapter 20 has now been implemented; do not proceed to 21 until Cliff reviews it.
+Review each chapter's README along the way. Chapter 21's encoding discussion
+should be shortened when that chapter is reached. End each README with its
+RegAlloc improvement, measured cohort table, and commentary; the Chapter 25
+table must have rows for cohorts 20-25 using the Chapter 25 compiler.
 
 ## Review and test protocol
 
@@ -115,6 +205,52 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### Chapter 20 allocator: ready for review, 2026-09-20
+
+Implemented only in 20, per Cliff's chapter-by-chapter review gate. Corrected
+high-word/empty register masks and boundary iteration, LRG mask merging/use-slot
+bookkeeping, null register-mask dependencies, commutative outputs used by Phis,
+CFG projection visitation, and kills from instructions without output LRGs.
+Splits now preserve progress through self-conflicts/backedges and intervening
+clobbers. Rematerialization must satisfy the use mask; fixed-register clones
+with flexible uses go through use-side splitting instead of a no-op simple
+split. Copy cleanup scans backward and respects both fixed definitions and kill
+masks. Removed the unused `splitEmptyMask` path and its `_killed` bookkeeping.
+
+Support includes deterministic failed-range ordering, null-safe split printing,
+a function-local-edge diagnostic, and `make spill-stats`. The program tests also
+check assigned register masks, two-address constraints, and Phi agreement.
+Seven small machine-graph/mask regressions fail against the saved original
+implementation and pass after correction, including a round-limit failure for
+incompatible clone/use register classes. These are separate from the quality
+corpus; they do not supply extra zero-spill examples to improve a total.
+
+The complete program cohort includes Chapter20Test's 11 examples plus BrainFuck
+and MergeSort on all three SystemV targets: 39 compilations, default seed 123.
+The fresh original baseline passes 368 tests plus the fuzzer regression. After
+forced rebuilds, `make -j 4 tests` passes 375 plus 1. The 11 ordinary examples
+also pass 990 compilations across seeds 0-29 and three CPUs, with the current
+register/ownership checks enabled. Native execution begins in Chapter 21.
+
+| SystemV target | Compilations | Original splits | Corrected splits | Original weighted | Corrected weighted |
+|---|---:|---:|---:|---:|---:|
+| x86-64 | 13 | 80 | 82 | 150 | 152 |
+| RISC-V | 13 | 82 | 80 | 103 | 101 |
+| ARM | 13 | 73 | 74 | 101 | 102 |
+| Total | 39 | 235 | 236 | 354 | 355 |
+
+This is a one-move correctness cost, not a quality win. Adjusted three local
+weighted goldens after reviewing the full aggregate: x86 array 3->5, x86 String
+18->21, ARM String 3->5 (the original actual ARM count was 2 within tolerance).
+All assertions remain active. The stats runner emits per-compilation data and
+fails on any JUnit failure; the Chapter20Test collector allows all three target
+checks to run before reporting golden differences. The README preserves Cliff's
+new introduction, removes premature coalescing/popular-use-grouping claims,
+and ends with the measured baseline and discussion of statistical comparison.
+No advanced coalescing, color-bias, grouping, cold-first, or area/cost heuristic
+was imported. Logs and the original-code snapshots are under
+`chapter20/build/regalloc-review/`. Chapters 21-25 are unchanged.
 
 ### TypeFunPtr normalization: complete locally, 2026-09-20
 

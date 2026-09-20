@@ -121,6 +121,41 @@ lessons rather than duplicating that history.
   recursive calls keep this regression meaningful. Check all chain members,
   registered data edges, and one shared copy per function.
 
+## Register allocation review
+
+- Allocation starts in 20; native encoding in 21. Backport legality and
+  no-progress fixes to the first applicable chapter, but introduce spill-quality
+  heuristics gradually. Do not import the complete Chapter 25 allocator into 20.
+  Printing, deterministic ordering, and diagnostic support may start in 20.
+- Compare measured spill totals over the same tests, targets/ABIs, and seeds.
+  Local increases are acceptable when offset elsewhere; report per-target and
+  overall totals. `_spills` counts surviving SplitNodes, and `_spillScaled`
+  weights those moves by `8^loopDepth`; neither means only memory stores.
+- Separate allocation completion/register legality/runtime results from quality
+  expectations. Reaching the round limit is a correctness bug; raising the
+  limit or changing spill goldens does not prove progress fixed. Heuristics
+  which defer necessary splitting must retain a bounded fallback.
+- Review the README with each allocator chapter. End it with a RegAlloc
+  improvements section, a measured table, and commentary. Each row names a
+  program cohort, all compiled by that directory's compiler: 20 in Chapter 20,
+  20-21 in Chapter 21, through 20-25 in Chapter 25. Include the BrainFuck and
+  MergeSort allocator cases in the Chapter 20 cohort (39 compilations, not just
+  Chapter20Test's 33). Keep diagnostic machine graphs separate from quality data.
+- `make spill-stats` starts in 20. Helpers explicitly name the program cohort;
+  the JUnit listener labels individual cases and sums CPU/ABI and cohort totals.
+  Assertions stay enabled and failures propagate. Do not silently change cohort
+  membership, seeds, or targets when comparing chapters.
+- Chapter 20's corrected baseline costs one extra weighted move (354->355 over
+  39 compilations); document this as a correctness cost. Advanced quality
+  heuristics remain staged. Stop after 20 for Cliff's review. When reaching 21,
+  shorten its excessive encoding detail as requested.
+- Copy cleanup/reuse must check kill masks even when an instruction has no LRG;
+  before coloring, a fixed-register definition can clobber despite `_reg==-1`.
+  Cloning is valid only if its output mask can satisfy the use. A fixed-register
+  clone with flexible uses needs use-side splits, not a no-op def-side path.
+- The staged plan and historical fix inventory are in
+  `docs/chapter-backports.md`; its review is not evidence of completed backports.
+
 ## Null guards: B13 / issue #246 lessons
 
 - Null refinement starts in Chapter 10; arrays in 15; scoped expression guards

@@ -42,11 +42,6 @@ public class LRG {
     public MachNode _machDef, _machUse;
     short _uidx;                // _machUse input
 
-    // Mask set to empty via a kill-mask.  This is usually a capacity kill,
-    // which means we need to split and spill into memory - which means even if
-    // the def-side has many registers, it MUST spill.
-    boolean _killed;
-
     // Some splits used in biased coloring
     MachConcreteNode _splitDef, _splitUse;
 
@@ -130,9 +125,12 @@ public class LRG {
 
         if( _machUse==null ) {
             _machUse = lrg._machUse;
+            _uidx = lrg._uidx;
         } else if( lrg._machUse!=null ) {
-            if( _1regUseCnt==0 )
+            if( _1regUseCnt==0 ) {
                 _machUse = lrg._machUse;
+                _uidx = lrg._uidx;
+            }
             else if( _machUse==lrg._machUse )
                 _1regUseCnt--;
         }
@@ -143,7 +141,8 @@ public class LRG {
         _splitUse = deepSplit(_splitUse,lrg._splitUse);
 
         // Fold together masks
-        _mask = _mask.and(lrg._mask);
+        RegMask mask = _mask.and(lrg._mask);
+        _mask = mask==null ? _mask.copy().and(lrg._mask) : mask;
         return this;
     }
 

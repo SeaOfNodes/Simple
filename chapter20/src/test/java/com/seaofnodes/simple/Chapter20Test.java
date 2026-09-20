@@ -10,6 +10,15 @@ import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @org.junit.Rule public final org.junit.rules.ErrorCollector _errors = new org.junit.rules.ErrorCollector();
+    @Test public void testAllocatorMasks() { com.seaofnodes.simple.codegen.RegAllocTestSupport.masks(); }
+    @Test public void testAllocatorUnion() { com.seaofnodes.simple.codegen.RegAllocTestSupport.union(); }
+    @Test public void testAllocatorCopyClobber() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.copyClobber(); }
+    @Test public void testAllocatorCommutativePhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.commutativePhi(); }
+    @Test public void testAllocatorKills() { com.seaofnodes.simple.codegen.RegAllocTestSupport.killWithoutResult(); }
+    @Test public void testAllocatorDependencies() { com.seaofnodes.simple.codegen.RegAllocTestSupport.nullUseMask(); }
+    @Test public void testAllocatorCloneClass() { com.seaofnodes.simple.codegen.RegAllocTestSupport.cloneRegisterClass(); }
+
     @Test public void testPrintingRegisters() throws Exception {
         com.seaofnodes.simple.codegen.PrintRegTestSupport.check();
     }
@@ -23,20 +32,24 @@ public class Chapter20Test {
         assertEquals("0", Eval2.eval(code,  2));
     }
 
-    static void testCPU( String src, String cpu, String os, int spills, String stop ) {
-        CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
-        if( stop != null )
-            assertEquals(stop, code._stop.toString());
+    // Collect differences so every target runs; JUnit still fails the test.
+    private void testTarget(String src, String cpu, String os, int spills, String stop) {
+        _errors.checkSucceeds(() -> { testCPU(src,cpu,os,spills,stop); return null; });
     }
 
-    private static void testAllCPUs( String src, int spills, String stop ) {
-        testCPU(src,"x86_64_v2", "SystemV",spills,stop);
-        testCPU(src,"riscv"    , "SystemV",spills,stop);
-        testCPU(src,"arm"      , "SystemV",spills,stop);
+    static void testCPU(String src, String cpu, String os, int spills, String stop) {
+        CodeGen code = new CodeGen(src);
+        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
+        com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+        SpillStats.record(code,"Chapter20",cpu,os);
+        assertEquals("Expect spills: "+cpu,spills,code._regAlloc._spillScaled,Math.max(1,spills>>3));
+        if( stop!=null ) assertEquals(stop,code._stop.toString());
+    }
+
+    private void testAllCPUs( String src, int spills, String stop ) {
+        testTarget(src,"x86_64_v2", "SystemV",spills,stop);
+        testTarget(src,"riscv"    , "SystemV",spills,stop);
+        testTarget(src,"arm"      , "SystemV",spills,stop);
     }
 
     @Test public void testAlloc0() {
@@ -45,9 +58,9 @@ public class Chapter20Test {
 
     @Test public void testBasic1() {
         String src = "return arg | 2;";
-        testCPU(src,"x86_64_v2", "SystemV",1,"return (ori,mov(arg));");
-        testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
-        testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
+        testTarget(src,"x86_64_v2", "SystemV",1,"return (ori,mov(arg));");
+        testTarget(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
+        testTarget(src,"arm"      , "SystemV",0,"return (ori,arg);");
     }
 
     @Test
@@ -65,9 +78,9 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",26,null);
-        testCPU(src,"riscv"    , "SystemV",19,null);
-        testCPU(src,"arm"      , "SystemV",26,null);
+        testTarget(src,"x86_64_v2", "SystemV",26,null);
+        testTarget(src,"riscv"    , "SystemV",19,null);
+        testTarget(src,"arm"      , "SystemV",26,null);
     }
 
     @Test
@@ -86,9 +99,9 @@ val sqrt = { flt x ->
 flt farg = arg;
 return sqrt(farg) + sqrt(farg+2.0);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",25,null);
-        testCPU(src,"riscv"    , "SystemV",21,null);
-        testCPU(src,"arm"      , "SystemV",18,null);
+        testTarget(src,"x86_64_v2", "SystemV",25,null);
+        testTarget(src,"riscv"    , "SystemV",21,null);
+        testTarget(src,"arm"      , "SystemV",18,null);
     }
 
     @Test
@@ -110,9 +123,9 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testCPU(src,"x86_64_v2", "SystemV",3,"return .[];");
-        testCPU(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
-        testCPU(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
+        testTarget(src,"x86_64_v2", "SystemV",5,"return .[];");
+        testTarget(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
+        testTarget(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
     }
 
     @Test
@@ -153,9 +166,9 @@ s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);
 """;
-        testCPU(src,"x86_64_v2", "SystemV",18,null);
-        testCPU(src,"riscv"    , "SystemV", 3,null);
-        testCPU(src,"arm"      , "SystemV", 3,null);
+        testTarget(src,"x86_64_v2", "SystemV",21,null);
+        testTarget(src,"riscv"    , "SystemV", 3,null);
+        testTarget(src,"arm"      , "SystemV", 5,null);
     }
 
     @Test
@@ -179,9 +192,9 @@ if (b2) if (b1) return 1;
 if (b1) return 2;
 return 0;
 """;
-        testCPU(src,"x86_64_v2", "SystemV",0,"return Phi(Region,1,2,0);");
-        testCPU(src,"riscv"    , "SystemV",0,"return Phi(Region,1,2,0);");
-        testCPU(src,"arm"      , "SystemV",0,"return Phi(Region,1,2,0);");
+        testTarget(src,"x86_64_v2", "SystemV",0,"return Phi(Region,1,2,0);");
+        testTarget(src,"riscv"    , "SystemV",0,"return Phi(Region,1,2,0);");
+        testTarget(src,"arm"      , "SystemV",0,"return Phi(Region,1,2,0);");
     }
 
     @Test
@@ -194,8 +207,8 @@ while (arg > 0) {
 }
 return arg;
 """;
-        testCPU(src,"x86_64_v2", "SystemV",3,null);
-        testCPU(src,"riscv"    , "SystemV",2,null);
-        testCPU(src,"arm"      , "SystemV",2,null);
+        testTarget(src,"x86_64_v2", "SystemV",3,null);
+        testTarget(src,"riscv"    , "SystemV",2,null);
+        testTarget(src,"arm"      , "SystemV",2,null);
     }
 }

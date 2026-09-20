@@ -127,16 +127,11 @@ abstract public class IFG {
 
         if( n instanceof PhiNode )
             return;
-        // A copy does not define a new value, and the src and dst can use the
-        // same register.  Remove the input from TMP/liveout set before
-        // interfering.
-        //if( n instanceof MachNode m && m.isSplit() )
-        //    TMP.remove(alloc.lrg(n.in(1))); // Kill spill-use
+        // Instructions can clobber registers without defining an LRG.
+        if( n instanceof MachNode m ) kills(alloc,m);
 
         // Interfere n with all live
         if( lrg!=null ) {
-            if( n instanceof MachNode m )
-                kills(alloc,m);
             // Interfere n with all live
             for( LRG tlrg : TMP.keySet() ) {
                 assert tlrg.leader();
@@ -148,9 +143,9 @@ abstract public class IFG {
                     // last tlrg register at some point, either tlrg or lrg
                     // must fail.  If *n* (a subset of lrg) needs the single
                     // last tlrg register then only tlrg must fail.
-                    if( lrg.size1() && !tlrg.clr(lrg._mask.firstReg()) )
-                        alloc.fail(tlrg);
-                    else addIFG(lrg,tlrg); // Add interference
+                    if( ((MachNode)n).outregmap().size1() ) {
+                        if( !tlrg.clr(lrg._mask.firstReg()) ) alloc.fail(tlrg);
+                    } else addIFG(lrg,tlrg); // Add interference
             }
         }
 
@@ -171,7 +166,7 @@ abstract public class IFG {
             // Look for a must-use single register conflicting with some other must-def.
             if( n instanceof MachNode m ) {
                 RegMask ni_mask = m.regmap(i);
-                if( ni_mask.size1() ) { // Must-use single register
+                if( ni_mask!=null && ni_mask.size1() ) { // Must-use single register
                     // Search all current live
                     for( LRG tlrg : TMP.keySet() ) {
                         assert tlrg.leader();
@@ -204,15 +199,7 @@ abstract public class IFG {
             assert tlrg.leader();
             // Always, tlrg cannot use kills
             if( tlrg._mask.overlap(killMask) ) {
-                // Disallow clone-ables from killing registers.  Just fail
-                // them and re-clone closer to target... so no kill.
-                // Special case for Intel XOR used to zero.
-                if( m.isClone() )
-                    alloc.fail(alloc.lrg((Node)m));
-                else if( !tlrg.sub(killMask) ) {
-                    tlrg._killed = true; // Failed by a kill-mask
-                    alloc.fail(tlrg);
-                }
+                if( !tlrg.sub(killMask) ) alloc.fail(tlrg);
             }
         }
     }
@@ -234,7 +221,7 @@ abstract public class IFG {
     private static void mergeLiveOut( RegAlloc alloc, CFGNode priorbb, int i ) {
         CFGNode bb = priorbb.cfg(i);
         if( bb == null ) return; // Start has no prior
-        if( !bb.blockHead() ) bb = bb.cfg0();
+        while( !bb.blockHead() ) bb = bb.cfg0();
         //if( i==0 && !(bb instanceof StartNode) ) bb = bb.cfg0();
         assert bb.blockHead();
 

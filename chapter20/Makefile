@@ -71,6 +71,10 @@ tests:	$(default_targets)
 	@$(JVM) org.junit.runner.JUnitCore $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
+# Report measured spill totals while retaining the tests' assertions.
+spill-stats: $(default_targets)
+	@$(JVM) com.seaofnodes.simple.SpillStats
+
 fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
@@ -89,7 +93,7 @@ view:	$(main_classes)
 	@echo "viewing "
 	@$(JVM) com.seaofnodes.simple.print.JSViewer
 
-.PHONY: clean
+.PHONY: clean spill-stats
 clean:
 	rm -rf build
 	rm -f TAGS
