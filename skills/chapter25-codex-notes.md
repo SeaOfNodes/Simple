@@ -216,6 +216,10 @@ Consequences:
 
 ## Side-effect-free diagnostics: B09 lessons
 
+- `Node._inputs` remains allocated after `kill()`. Use `isDead()` when printing
+  or filtering dead nodes; an empty input array alone does not imply death.
+  Bounds-safe edge inspection only needs null-node and input-count checks.
+
 - Type construction and interning are allowed during printing. Do not add
   alternate linker-key comparisons or other machinery merely to avoid interning;
   canonical types and fast identity comparisons are normal type-system operations.

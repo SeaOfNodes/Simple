@@ -18,7 +18,7 @@ public abstract class IRPrinter {
     public static SB printLine( Node n, SB sb ) {
         if( n==null ) return sb;
         sb.p("%4d %-7.7s ".formatted(n._nid,n.label()));
-        if( n._inputs==null )
+        if( n.isDead() )
             return sb.p("DEAD\n");
         for( Node def : n._inputs )
             sb.p(def==null ? "____" : "%4d".formatted(def._nid))

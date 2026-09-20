@@ -131,6 +131,25 @@ Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
 
+### Issue #251: dead-node printing corrected locally, 2026-09-19
+
+[Issue #251](https://github.com/SeaOfNodes/Simple/issues/251) identifies dead-node
+checks against a null `_inputs` array. Constructors and clones allocate the
+array; `kill()` empties it without setting it to null. Line printers now use
+`isDead()` throughout 7-25, including both columnar and LLVM formats in 10-17.
+Chapter 25's whole-program printer uses the same predicate to omit dead
+functions and nodes. Its bounds-safe input accessor simply checks the input
+count. Printing does not prune the linker.
+
+`Chapter07Test.testDeadNodePrinting` in every snapshot 7-25 checks retained input
+storage, the `DEAD` marker, and live inputless nodes. Chapter 25 also tests
+omitting a dead function while preserving its linker entry. The regressions
+fail against isolated original printers in 7, 10, 18, and 25. Full `make tests`
+passed with assertions enabled in every affected snapshot, including 447 tests
+in 25. The initial Chapter 17 test assumed an inputless Start; its setup was
+corrected for that chapter's representation and its full target rerun.
+Logs: `chapter25/build/issue251-review/{original,fixed,chapter17-fixed}.log`.
+
 ### Issue #247: emulator 64-bit stores corrected locally, 2026-09-19
 
 [Issue #247](https://github.com/SeaOfNodes/Simple/issues/247) identifies `st8`

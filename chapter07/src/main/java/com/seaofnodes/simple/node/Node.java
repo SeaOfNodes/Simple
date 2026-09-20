@@ -119,7 +119,7 @@ public abstract class Node {
     // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
     public void _printLine(StringBuilder sb ) {
         sb.append("%4d %-7.7s ".formatted(_nid,label()));
-        if( _inputs==null ) {
+        if( isDead() ) {
             sb.append("DEAD\n");
             return;
         }

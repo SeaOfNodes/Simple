@@ -16,7 +16,7 @@ public abstract class IRPrinter {
     public static SB printLine( Node n, SB sb ) {
         if( n==null ) return sb;
         sb.p("%4d %-7.7s ".formatted(n._nid,n.label()));
-        if( n._inputs==null )
+        if( n.isDead() )
             return sb.p("DEAD\n");
         for( Node def : n._inputs )
             sb.p(def==null ? "____" : "%4d".formatted(def._nid))
@@ -51,7 +51,7 @@ public abstract class IRPrinter {
         ArrayList<CompUnit> cus = new ArrayList<>(code._compunits.values());
         cus.sort(Comparator.comparing(cu -> cu._cname==null ? "" : cu._cname));
         for( CompUnit cu : cus ) {
-            if( cu._start==null || cu._start._inputs==null ) continue;
+            if( cu._start==null || cu._start.isDead() ) continue;
             sb.nl().p("=== ").p(cu._cname==null ? "" : cu._cname).p(" ===\n");
             printLine(cu._start,sb);
             ArrayList<Node> projs = projections(cu._start);
@@ -59,7 +59,7 @@ public abstract class IRPrinter {
 
             ArrayList<FunNode> funs = new ArrayList<>();
             for( FunNode fun : code._linker )
-                if( fun!=null && fun._inputs!=null && fun._compunit==cu )
+                if( fun!=null && !fun.isDead() && fun._compunit==cu )
                     funs.add(fun);
             funs.sort(Comparator.comparingInt(n -> n._nid));
             for( FunNode fun : funs ) printFunction(fun,sb);
@@ -104,7 +104,7 @@ public abstract class IRPrinter {
                                       IdentityHashMap<Node,Boolean> owned,
                                       IdentityHashMap<Node,Boolean> emitted,
                                       SB sb) {
-        if( n._inputs==null ) return;
+        if( n.isDead() ) return;
         for( Node def : n._inputs ) {
             if( def==null || def instanceof CFGNode || def instanceof ConstantNode ||
                 def instanceof PhiNode || isMultiChild(def) ||
@@ -121,7 +121,7 @@ public abstract class IRPrinter {
     private static void functionPost(Node n, FunNode owner,
                                      IdentityHashMap<Node,Boolean> visit,
                                      ArrayList<Node> post) {
-        if( n==null || n._inputs==null || visit.put(n,Boolean.TRUE)!=null ) return;
+        if( n==null || n.isDead() || visit.put(n,Boolean.TRUE)!=null ) return;
         if( n instanceof FunNode fun && fun!=owner ) return; // Linked callee
         if( n instanceof ParmNode &&
             input0(n)!=owner ) return;                       // Callee parameter
@@ -134,7 +134,7 @@ public abstract class IRPrinter {
         // are ownership/linkage hooks (StopCU, CallEnds, FunPtrs), never CFG
         // continuation in the function being printed.
         if( !(n instanceof ReturnNode) ) for( Node use : n._outputs ) {
-            if( use==null || use._inputs==null ) continue;
+            if( use==null || use.isDead() ) continue;
             if( n instanceof CallNode && use instanceof FunNode ) continue;
             if( use instanceof FunNode fun && fun!=owner ) continue;
             if( use instanceof ParmNode &&
@@ -161,7 +161,7 @@ public abstract class IRPrinter {
     private static ArrayList<Node> projections(Node multi) {
         ArrayList<Node> ps = new ArrayList<>();
         for( Node use : multi._outputs )
-            if( use!=null && use._inputs!=null && isMultiChild(use) ) ps.add(use);
+            if( use!=null && !use.isDead() && isMultiChild(use) ) ps.add(use);
         ps.sort(Comparator.comparingInt(IRPrinter::sortOrder));
         return ps;
     }
@@ -182,7 +182,7 @@ public abstract class IRPrinter {
     // Raw, bounds-safe graph inspection for the debugger.  In particular do
     // not call an accessor which might assert, sharpen, cache, or lazily kill.
     private static Node input0(Node n) {
-        return n==null || n._inputs==null || n._inputs.isEmpty()
+        return n==null || n._inputs.isEmpty()
             ? null : n._inputs.at(0);
     }
 

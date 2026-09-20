@@ -14,7 +14,7 @@ public class IRPrinter {
     // 1234 sssss 1234 1234 1234 1234 1234 1234 tttttt
     public static void _printLine( Node n, StringBuilder sb ) {
         sb.append("%4d %-7.7s ".formatted(n._nid,n.label()));
-        if( n._inputs==null ) {
+        if( n.isDead() ) {
             sb.append("DEAD\n");
             return;
         }
@@ -46,7 +46,7 @@ public class IRPrinter {
     // Nodes as referred to as %id
     public static void _printLineLlvmFormat( Node n, StringBuilder sb ) {
         nodeId(sb, n).append(": ");
-        if( n._inputs==null ) {
+        if( n.isDead() ) {
             sb.append("DEAD\n");
             return;
         }
