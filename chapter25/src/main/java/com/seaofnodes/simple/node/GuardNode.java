@@ -32,7 +32,6 @@ public class GuardNode extends Node {
 
     @Override public String label() { return _nonZero ? "(!=0)" : "(==0)"; }
     @Override public String uniqueName() { return "Guard_"+_nid; }
-    @Override public boolean isPinned() { return true; }
 
     @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return in(1)._print0(sb.append(label()),visited);

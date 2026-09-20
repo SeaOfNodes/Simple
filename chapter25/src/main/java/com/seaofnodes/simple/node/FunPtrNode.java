@@ -42,7 +42,6 @@ public class FunPtrNode extends TypeNode {
     }
 
     @Override public boolean isConst() { return true; }
-    @Override public boolean isPinned() { return true; }
     @Override public Type compute() {
         ReturnNode ret = ret();
         if( ret == null ) return _con;

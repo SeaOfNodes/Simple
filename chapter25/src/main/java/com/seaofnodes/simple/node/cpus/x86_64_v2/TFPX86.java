@@ -20,10 +20,6 @@ public class TFPX86 extends FunPtrNode implements MachNode, RIPRelSize {
     TFPX86( TypeFunPtr fptr, String ext ) { super(fptr,CodeGen.CODE._start,null); _type = fptr; _ext = ext; }
     @Override public String op() { return "ldx"; }
     @Override public String label() { return op(); }
-    // The ideal FunPtrNode is pinned because its Return input is a lifetime
-    // hook.  After selection this is an ordinary cloneable load-address
-    // instruction and must be scheduled down near its actual use.
-    @Override public boolean isPinned() { return false; }
     @Override public boolean isClone() { return true; }
     @Override public TFPX86 copy() { return new TFPX86(this); }
     @Override public RegMask regmap(int i) { return null; }

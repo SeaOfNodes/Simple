@@ -166,9 +166,6 @@ public abstract class CFGNode extends Node {
         return fun != null && fun == that.fun();
     }
 
-    // Anti-dependence field support
-    public int _anti;           // Per-CFG field to help find anti-deps
-
     // Find nearest enclosing FunNode
     public FunNode fun() {
         CFGNode cfg = this;

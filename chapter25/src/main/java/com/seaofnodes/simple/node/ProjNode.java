@@ -47,7 +47,6 @@ public class ProjNode extends Node implements Proj {
     }
 
     @Override public boolean isMem() { return _type instanceof TypeMem; }
-    @Override public boolean isPinned() { return true; }
 
     @Override
     public Type compute() {

@@ -626,8 +626,6 @@ public abstract class Node implements Cloneable {
     /** Is this Node Memory related */
     public boolean isMem() { return false; }
 
-    /** Pinned in the schedule; these are data nodes whose input#0 is not allowed to change */
-    public boolean isPinned() { return false; }
 
     // Semantic change to the graph (so NOT a peephole), used by the Parser.
     // If any input is a float, flip to a float-flavored opcode and widen any
@@ -682,7 +680,11 @@ public abstract class Node implements Cloneable {
     // Does not need to be implemented in isCFG() nodes.
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
 
-    public Node copy() {
+    public Node copy() { return copyEmpty(); }
+
+    // Exact-class copy with fresh identity and no edges.  Unlike machine
+    // rematerialization copies, this never registers or copies input edges.
+    public final Node copyEmpty() {
         Node n;
         try { n = (Node)clone(); }
         catch( Exception e ) { throw new RuntimeException(e); }

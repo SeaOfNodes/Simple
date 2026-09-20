@@ -37,7 +37,6 @@ public class ProjNode extends Node implements MultiUse {
 
     @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
     @Override public boolean isMem() { return _type instanceof TypeMem; }
-    @Override public boolean isPinned() { return true; }
 
     @Override
     public Type compute() {

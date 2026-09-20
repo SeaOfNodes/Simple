@@ -11,6 +11,44 @@ import static org.junit.Assert.*;
 import static org.junit.Assert.fail;
 
 public class Chapter18Test {
+    @Test public void testFunctionLocalConstantChains() {
+        String src = "val f = { int x -> x ? f(x-1)*305420988+x/305420988 : 1; }; "+
+                     "val g = { int x -> x ? g(x-1)/305420988+x*305420988 : 1; }; "+
+                     "return f(arg)+g(arg);";
+        CodeGen code = new CodeGen(src);
+        code.driver(CodeGen.Phase.Schedule,"riscv","SystemV");
+        var owners = new java.util.IdentityHashMap<CFGNode,Boolean>();
+        code._stop.walk(n -> {
+            if( !(n instanceof com.seaofnodes.simple.node.cpus.riscv.AddIRISC add) ||
+                !(add.in(1) instanceof com.seaofnodes.simple.node.cpus.riscv.LUI upper) ||
+                ((TypeInteger)upper._con).value()+((add._imm12<<20)>>20)!=305420988 )
+                return null;
+            CFGNode fun = n.cfg0();
+            while( fun!=null && !(fun instanceof FunNode) ) fun = fun.idom();
+            assertTrue("Constant must belong to a function",fun instanceof FunNode);
+            assertNull("Share one constant chain within each function",owners.put(fun,true));
+            // Follow all parts of a machine constant, including shared inputs.
+            var todo = new java.util.ArrayList<Node>();
+            var seen = new java.util.IdentityHashMap<Node,Boolean>();
+            todo.add(n);
+            for( int j=0; j<todo.size(); j++ ) {
+                Node part = todo.get(j);
+                if( seen.put(part,true)!=null ) continue;
+                CFGNode owner = part.cfg0();
+                while( owner!=null && !(owner instanceof FunNode) ) owner = owner.idom();
+                assertSame("Every constant-building operation is function-local",fun,owner);
+                for( int i=1; i<part.nIns(); i++ ) {
+                    Node def = part.in(i);
+                    if( def==null || def instanceof CFGNode ) continue;
+                    assertTrue("Copies must register their data edges",def._outputs.find(part)!=-1);
+                    if( def._type.isConstant() ) todo.add(def);
+                }
+            }
+            return null;
+        });
+        assertTrue("Exercise constants shared across functions",owners.size()>=2);
+    }
+
     @Test public void testReachableMixedReturns() {
         for( String[] test : new String[][] {
             {"if(arg) return 7; else return 2.5;", "No common type amongst int and f64"},

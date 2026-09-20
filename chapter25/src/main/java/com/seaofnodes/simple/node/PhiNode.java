@@ -66,7 +66,6 @@ public class PhiNode extends Node {
 
     public CFGNode region() { return (CFGNode)in(0); }
     @Override public boolean isMem() { return _type instanceof TypeMem; }
-    @Override public boolean isPinned() { return true; }
 
     @Override
     public Type compute() {

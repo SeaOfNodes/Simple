@@ -24,7 +24,6 @@ public abstract class CFGNode extends Node {
     public CFGNode(Node... nodes) { super(nodes); }
 
     @Override public boolean isCFG() { return true; }
-    @Override public boolean isPinned() { return true; }
 
     public CFGNode cfg(int idx) { return (CFGNode)in(idx); }
 
@@ -77,9 +76,6 @@ public abstract class CFGNode extends Node {
     // Loop nesting depth
     public int _loopDepth;
     public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(0).loopDepth()) : _loopDepth; }
-
-    // Anti-dependence field support
-    public int _anti;           // Per-CFG field to help find anti-deps
 
     // ------------------------------------------------------------------------
     // Support routines for Global Code Motion

@@ -733,7 +733,6 @@ public class CodeGen {
         if( n instanceof MachNode ) {
             for( int i=0; i < n.nIns(); i++ )
                 n._inputs.set(i, _instSelect(n.in(i),map) );
-            pinGlobalValue(n);
             return n;
         }
 
@@ -747,7 +746,6 @@ public class CodeGen {
         // Walk machine op and replace inputs with mapped inputs
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );
-        pinGlobalValue(x);
         // Post selection action
         if( x instanceof MachNode mach ) {
             if( n instanceof ReturnNode ret )
@@ -758,27 +756,6 @@ public class CodeGen {
         return x;
     }
 
-
-    // Some machine values are Start-pinned globals or zero-code wrappers around
-    // them, e.g. pointer/function constants and PtrToInt/ReadOnly-style adapters.
-    // Before output edges are rebuilt, make ownership explicit: every global value
-    // chain member is Start-pinned in slot 0 and data-linked in later slots.
-    private void pinGlobalValue(Node n) {
-        if( n instanceof CFGNode || !(n instanceof MachNode mach) || mach.outregmap()==null || n.isPinned() )
-            return;
-        if( n.nIns()==0 )
-            return;
-        if( !(n.in(0)==null || n.in(0)==_start) )
-            return;
-        for( int i=1; i<n.nIns(); i++ ) {
-            Node def = n.in(i);
-            if( def==null ) continue;
-            if( def.isConst() ) continue;
-            if( def.nIns()==0 ) return;
-            if( def.in(0) != _start ) return;
-        }
-        n._inputs.set(0,_start);
-    }
 
     // Walk all machine Nodes, and set their output edges
     private void _instOuts( Node n, BitSet visit ) {

@@ -544,8 +544,6 @@ public abstract class Node implements OutNode {
     /** Is this Node Memory related */
     public boolean isMem() { return false; }
 
-    /** Pinned in the schedule; these are data nodes whose input#0 is not allowed to change */
-    public boolean isPinned() { return false; }
 
     // Semantic change to the graph (so NOT a peephole), used by the Parser.
     // If any input is a float, flip to a float-flavored opcode and widen any

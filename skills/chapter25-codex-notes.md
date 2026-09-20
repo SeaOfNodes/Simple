@@ -18,6 +18,7 @@ lessons rather than duplicating that history.
   concrete node-number traces are preferred over speculative broad rewrites.
 - Printers are valid debugging tools. If printing changes behavior, fixing the
   printer/accessor side effect is immediately high priority.
+- Keep edited text files LF-only, including on Windows.
 - Preserve unrelated dirty changes. Emacs lock/backup files are common and are
   not permission to clean the tree.
 - Do not push without explicit approval. Prefer commits at meaningful test
@@ -75,6 +76,50 @@ lessons rather than duplicating that history.
   numeric display.
 - Keep single-return accessors and overrides compact on one line, including
   `idepth()` and `validIDepth()`.
+
+
+## Global code motion and constant ownership
+
+- GCM starts in 11; function-local constant graphs start with functions in 18.
+  Use an early definitions-first walk and a late uses-first worklist. Visit
+  Region/Loop Phis during early scheduling, and wake loop Phis and waiting loads
+  during late scheduling. The two walks must agree: otherwise late scheduling
+  can reach unscheduled arithmetic through a loop Phi. For ArrayList-backed
+  outputs, walk the original index range when early scheduling appends uses.
+- `isPinned()` is unnecessary: early scheduling preserves an existing input 0
+  and computes a block only for nodes with a null input 0, after walking their
+  inputs. Proj input 0 names its producer, so it must not be replaced by control.
+  For ordinary values, existing control is an earliest-placement bound; late
+  scheduling can still move them downward. Chapters 11-14 retain their fixed
+  late-placement cases explicitly in GCM (Proj, New, Parser.ZERO, and Cast from
+  13). Later GCM already handles fixed CFG/Phi/Proj placement structurally.
+- After early scheduling, global constant-building operations have Start in
+  input 0. Snapshot and keep those originals, then clone their input graphs with
+  one identity map per function. Reuse each copy throughout its function; keep
+  originals intact until all users are rewritten. This covers Cast/Constant
+  stacks and machine expansions without recursively inferring users' ownership.
+- `Node.copyEmpty()` makes an exact-class clone with fresh ID and empty edges.
+  GCM wires it with `addDef`; do not use machine `copy()` overrides here, whose
+  rematerialization contracts differ about whether input edges are registered.
+  Preserve ordinary copy/cache fields; clear graph edges, dependencies and hash.
+- In 18-19, calls remain linked: a Parm input is evaluated in its caller, and
+  the unknown-caller input stays global. From 20, unlinked Parm values belong to
+  the callee. Preserve 25's compilation-unit ownership checks.
+- Let early scheduling place machine constant expansions. Pinning them during
+  instruction selection can attach them to the old ideal Start rather than the
+  selected Start, forcing later code to recover from the wrong root.
+- Keep anti-dependence marks in a pass-local array, not CFGNode. In 11-20 the
+  evaluator independently reschedules nodes, so retain the full store placement
+  range when constraining loads; using only GCM's final store block breaks
+  `SchedulerTest.testStoreInIf2`. From 21, the chosen store block suffices.
+  Preserve each chapter's alias/tuple memory representation when finding stores.
+- Changes in node order can expose encoding bugs. Chapter 21's empty-block scan
+  mistook entry to a nested loop for a backedge; require the same loop-tree node,
+  as in 22 onward. Native Sieve is sensitive to this and must actually execute.
+- Test function-local chains with two surviving function bodies. In 24, returning
+  function pointers alone does not put their bodies in the scheduled graph;
+  recursive calls keep this regression meaningful. Check all chain members,
+  registered data edges, and one shared copy per function.
 
 ## Null guards: B13 / issue #246 lessons
 

@@ -21,7 +21,6 @@ public class CastNode extends Node {
     @Override
     public String uniqueName() { return "Cast_" + _nid; }
 
-    @Override public boolean isPinned() { return true; }
     @Override public boolean isConst() { return true; }
 
     @Override

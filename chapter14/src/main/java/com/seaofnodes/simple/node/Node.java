@@ -539,8 +539,6 @@ public abstract class Node implements OutNode {
     /** Return block start from a isCFG() */
     public Node getBlockStart() { return null; }
 
-    /** Pinned in the schedule */
-    public boolean isPinned() { return false; }
 
     // Semantic change to the graph (so NOT a peephole), used by the Parser.
     // If any input is a float, flip to a float-flavored opcode and widen any

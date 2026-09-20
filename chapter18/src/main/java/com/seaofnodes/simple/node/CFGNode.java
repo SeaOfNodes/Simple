@@ -78,9 +78,6 @@ public abstract class CFGNode extends Node {
         return lhs;
     }
 
-    // Anti-dependence field support
-    public int _anti;           // Per-CFG field to help find anti-deps
-
     // ------------------------------------------------------------------------
     // Loop nesting
     public LoopNode loop() { return _ltree._head; }

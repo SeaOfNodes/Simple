@@ -26,7 +26,6 @@ public class NewNode extends Node {
         return sb.append(_ptr._obj.str());
     }
 
-    @Override public boolean isPinned() { return true; }
 
     @Override
     public Type compute() { return _ptr; }

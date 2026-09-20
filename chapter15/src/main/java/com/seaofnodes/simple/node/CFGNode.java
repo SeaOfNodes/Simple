@@ -75,9 +75,6 @@ public abstract class CFGNode extends Node {
     public int _loopDepth;
     public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(0).loopDepth()) : _loopDepth; }
 
-    // Anti-dependence field support
-    public int _anti;           // Per-CFG field to help find anti-deps
-
     // ------------------------------------------------------------------------
     // Support routines for Global Code Motion
 

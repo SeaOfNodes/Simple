@@ -9,6 +9,52 @@ import static org.junit.Assert.fail;
 import org.junit.Ignore;
 
 public class Chapter18Test {
+    @Test public void testFunctionLocalConstantChains() {
+        String src = "val f = { int x -> x ? f(x-1)*305420988+x/305420988 : 1; }; "+
+                     "val g = { int x -> x ? g(x-1)/305420988+x*305420988 : 1; }; "+
+                     "return f(arg)+g(arg);";
+        CodeGen code = new CodeGen(src);
+        code.parse().opto().typeCheck();
+        Node con = code._stop.walk(n -> n instanceof ConstantNode &&
+                                  n._type==TypeInteger.constant(305420988) ? n : null);
+        assertNotNull(con);
+        Node[] uses = con._outputs.asAry();
+        // Preserve a stacked Cast/Constant chain through scheduling.
+        Node cast = new CastNode(TypeInteger.BOT,code._start,con);
+        cast = new CastNode(TypeInteger.BOT,code._start,cast);
+        for( Node use : uses )
+            for( int i=1; i<use.nIns(); i++ )
+                if( use.in(i)==con ) use.setDef(i,cast);
+        code.GCM();
+        var owners = new java.util.IdentityHashMap<CFGNode,Boolean>();
+        code._stop.walk(n -> {
+            if( !(n instanceof CastNode) || !(n.in(1) instanceof CastNode) ) return null;
+            CFGNode fun = n.cfg0();
+            while( fun!=null && !(fun instanceof FunNode) ) fun = fun.idom();
+            assertTrue("Constant must belong to a function",fun instanceof FunNode);
+            assertNull("Share one constant chain within each function",owners.put(fun,true));
+            // Follow all parts of the constant chain, including shared inputs.
+            var todo = new java.util.ArrayList<Node>();
+            var seen = new java.util.IdentityHashMap<Node,Boolean>();
+            todo.add(n);
+            for( int j=0; j<todo.size(); j++ ) {
+                Node part = todo.get(j);
+                if( seen.put(part,true)!=null ) continue;
+                CFGNode owner = part.cfg0();
+                while( owner!=null && !(owner instanceof FunNode) ) owner = owner.idom();
+                assertSame("Every constant-building operation is function-local",fun,owner);
+                for( int i=1; i<part.nIns(); i++ ) {
+                    Node def = part.in(i);
+                    if( def==null || def instanceof CFGNode ) continue;
+                    assertTrue("Copies must register their data edges",def._outputs.find(part)!=-1);
+                    if( def._type.isConstant() ) todo.add(def);
+                }
+            }
+            return null;
+        });
+        assertTrue("Exercise constants shared across functions",owners.size()>=2);
+    }
+
     @Test public void testReachableMixedReturns() {
         for( String[] test : new String[][] {
             {"if(arg) return 7; else return 2.5;", "No common type amongst int and f64"},

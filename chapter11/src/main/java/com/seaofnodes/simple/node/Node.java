@@ -540,8 +540,6 @@ public abstract class Node implements OutNode {
     /** Return block start from a isCFG() */
     public Node getBlockStart() { return null; }
 
-    /** Pinned in the schedule */
-    public boolean isPinned() { return false; }
 
     // ------------------------------------------------------------------------
     // Peephole utilities

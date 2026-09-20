@@ -69,7 +69,6 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 | Group | Eventual home | Why not in the small queue yet |
 |---|---|---|
-| Scheduling and global constant cloning | 11 / 19 as applicable | Separate scheduling and compilation-unit ownership changes; need reduced old-IR failures. |
 | Register allocation and spilling | 20 onward | Need constrained-register/spill regressions; changed golden spill counts are insufficient evidence. |
 | Conditional Store and array Load control | Memory/arrays chapters | Reproduce under the earlier alias model before extracting fixes from the new memory implementation. |
 | SCCP dependencies, function revival, reachability | 24; some foundations may fit 18 | Separate old-IR corrections from new Guard/Escape/BulkMemPhi and external-caller machinery. |
@@ -77,7 +76,6 @@ Chapter 25 suite, including `make -j 4 tests`.
 | TypeScalar, numeric modes, guards, symbolic fields, open/forward types | Revisit earlier homes later | A connected incomplete-types architecture, including phase ordering and errors. |
 | BulkMemPhi/MemPhi, private constructor memory, allocation helpers | Revisit memory / constructors / methods | Move invariants and regressions together. |
 | Serialization, global identity remapping, module escape summaries | Separate compilation | Remain with modules. |
-| Remove CFGNode._anti | move the field into a temp array during GCM | 
 
 ## Review and test protocol
 
@@ -118,6 +116,76 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### Scheduling without isPinned: complete locally, 2026-09-20
+
+Removed `isPinned()` and all overrides in 11-25. Early scheduling walks inputs,
+then assigns a block only when input 0 is null. Existing control and Phi/Proj
+bindings stay intact. For ordinary values, that control is an earliest-placement
+bound, not a prohibition on sinking during late scheduling.
+
+Chapters 11-14 also used the predicate for late placement; GCM now preserves
+those cases explicitly (Proj, New, Parser.ZERO, and Cast from 13), alongside its
+existing CFG/Phi handling. From 15, late scheduling already handles its fixed
+CFG/Phi/Proj cases structurally.
+
+The preceding GCM suites supplied the passing baseline. After forced Java
+rebuilds, every full snapshot suite in 11-25 passed `make -j 4 tests`, with
+assertions enabled and unchanged expectations/counts (449 total in 25). Existing
+constant-chain, guard, loop, allocation, native, and emulator tests all pass.
+No remaining `isPinned` declaration or call exists in the chapter sources.
+Edited files retain LF endings; `git diff --check` passes.
+Logs: `chapter25/build/pinned-review/{chapter25,backports}.log`.
+
+### GCM and global constant cloning: unified locally, 2026-09-20
+
+GCM starts in 11; functions make constant ownership relevant in 18. Chapters
+11-25 now share the early definitions-first / late uses-first worklist strategy,
+including Region/Loop Phi discovery, waiting-load wakeups, and LCA over every
+matching Phi input. Anti-dependence marks moved from CFGNode into a temporary
+GCM array. Removed the obsolete fixed-register placement heuristic in 21-24.
+
+Chapters 18-25 clone entire global constant-building graphs with one identity
+map per function, reusing shared subgraphs within that function. Originals stay
+intact until all rewrites finish. `Node.copyEmpty()` supplies exact-class clones
+with fresh IDs and empty edges, avoiding incompatible machine `copy()` contracts.
+Removed 25's redundant instruction-selection pinning to the old ideal Start.
+
+Necessary chapter differences remain explicit: 18-19's linked Parm inputs
+belong to their callers; from 20, unlinked Parms belong to the callee. In 11-20,
+the evaluator independently reschedules nodes, so anti-dependencies retain the
+full store placement range. Trying the later single-block rule fails the existing
+`SchedulerTest.testStoreInIf2`. Alias/tuple memory representations stay local to
+their chapters; 25 retains its compilation-unit ownership check.
+
+The new Chapter18Test regression in every snapshot 18-25 exercises two surviving
+recursive functions, repeated uses, registered edges, and function-local chains:
+stacked Cast/Constant nodes in 18-20 and RISC LUI/AddI expansions in 21-25. It
+fails against isolated original GCM classes in 18 and 20, and passes afterward.
+Original 21 and 25 already pass the machine-chain case; those changes simplify
+and unify the implementation rather than correcting that particular case.
+
+Changed ordering exposed 21's existing empty-block layout bug: entering a nested
+loop was mistaken for a backedge, producing a bad native Sieve branch. Backported
+22's same-loop-tree check; native and emulated Sieve pass. Updated 21's tighter
+scaled spill expectations: stringHash RISC 5->3 and ARM 6->3; BrainFuck RISC
+44->28. BrainFuck executes on both emulators; a separate direct-entry RISC
+hashCode probe verifies both initial hashing and the cached result.
+
+Validation: unmodified full baselines passed in 11-25. After forced Java rebuilds,
+all full chapter targets pass with assertions and `make -j 4 tests`: ordinary
+counts in 11-24 are 166, 169, 184, 204, 215, 233, 285, 316, 358, 368, 385, 397,
+416, and 439, plus the separately invoked fuzzer wrappers where applicable.
+Chapter 25 passes 449 tests across its groups. All edited files use LF endings.
+Logs: `chapter25/build/gcm-review/{baseline,before-test,focus-all,final,final25}.log`;
+`final.log` covers successful 11-24 runs and `final25.log` the final 25 rebuild/run.
+
+Independent follow-up: a direct-entry ARM emulator probe of 21's exported
+`hashCode` traps with code 3 under both original and updated GCM. It uses the
+existing stringHash.smp library, a String containing the u8 array "test", and a
+zero cached hash; the cause is not diagnosed. Do not claim the green suite or
+lower spill count validates this extra case. Scratch reproducer: `StringProof.java`
+in the same review directory; the RISC equivalent returns/caches 3556498.
 
 ### Dominator caches: unified locally, 2026-09-19
 
