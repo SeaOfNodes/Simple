@@ -19,7 +19,6 @@ the correction into the chapter's representation, not the entire modern file.
 
 | ID | Change | Proposed destination | Scope and acceptance evidence |
 |---|---|---|---|
-| B10 | Preserve widening state in integer nonzero refinement | **Audit** first chapter with both widening and `nonZero`; no later than 24 | Chapter 25 `TypeInteger.nonZero` preserves `_widen`. Check lattice laws and loop refinement. Exclude TypeScalar, storage-type, and serialization changes. |
 | B11 | Diagnose return types using the optimized return expression | 18; 19 already has the correction | `ReturnNode.err()` uses `expr()._type` instead of the parse-time `mt` aggregate. Chapter 18 rejects `struct S { u8 x; }; return new S; return 0;` with a mixed integer/reference error; Chapter 19 accepts it. Also test genuinely reachable incompatible returns. This is a candidate, not yet an applied or isolated-patch-verified fix. |
 | B12 | Encode the actual destination register for two-address immediate multiply | 21 | `MulIX86` inherits `ImmX86.encoding`, whose ModRM.reg is fixed to zero and whose REX.R is clear. With source/destination both `rcx`, multiplying by 11 emits `48 6b c1 0b` (destination `rax`) instead of `48 6b c9 0b`. With both `r9`, it emits `49 6b c1 0b` instead of `4d 6b c9 0b`. Give multiply its proper register fields while preserving Chapter 21's two-address allocation contract; do not change the opcode-extension fields used by other `ImmX86` subclasses. Later chapters use a separate multiply encoder. |
 
@@ -131,6 +130,38 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### Issue #247: emulator 64-bit stores corrected locally, 2026-09-19
+
+[Issue #247](https://github.com/SeaOfNodes/Simple/issues/247) identifies `st8`
+writing the upper half with `st2`. The identical bug exists in EvalRisc5 and
+EvalArm64 in every snapshot 21-25, starting with their introduction. Both now
+use `st4` for the upper half, writing all eight bytes rather than leaving the
+upper two unchanged.
+
+`Chapter21Test.testRisc64BitStore` and `testArm64BitStore` are carried through
+21-25. They check individual little-endian bytes independently of the load
+helper, round trips, positive/negative/extreme values, overwriting with zero,
+and untouched neighboring memory. All ten cases failed before the correction
+at the first unwritten byte (0xA5 instead of 0x23).
+
+Full `make tests` passed with assertions enabled in each snapshot 21-25,
+including 445 tests in Chapter 25. Log:
+`chapter25/build/issue247-review/fixed.log`.
+
+### B10 audit: still pending in Chapter 24, 2026-09-19
+
+The fix is present in Chapter 25 (introduced with commit `51f1f8f4`), but has
+not reached Chapter 24. Integer `nonZero` appears in 15; `_widen` first appears
+in 24, so earlier snapshots do not need this backport.
+
+An assertions-enabled probe of the current compiled snapshots tested `[0,255]`
+and `[-255,0]` at widening levels 0-3. Chapter 24 resets all six nonzero widening
+levels to zero; Chapter 25 preserves all of them. Both pass refinement (`isa`),
+idempotence, double-dual, singleton normalization, and zero-input checks. This
+establishes the missing type-level backport; it is not a loop-failure reproducer.
+Probe: `chapter25/build/b10-review/B10Probe.java`. No compiler correction was
+made during this audit; B10 remains in the pending queue above.
 
 ### B09: complete locally, 2026-09-19
 

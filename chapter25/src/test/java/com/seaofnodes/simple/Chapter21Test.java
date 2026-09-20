@@ -9,6 +9,34 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testRisc64BitStore() {
+        byte[] mem = new byte[24];
+        EvalRisc5 cpu = new EvalRisc5(mem,mem.length);
+        check64BitStore(mem,cpu::st8,cpu::ld8);
+    }
+
+    @Test public void testArm64BitStore() {
+        byte[] mem = new byte[24];
+        EvalArm64 cpu = new EvalArm64(mem,mem.length);
+        check64BitStore(mem,cpu::st8,cpu::ld8);
+    }
+
+    // Check bytes independently of ld8, including overwrite and adjacent memory.
+    private static void check64BitStore(byte[] mem,
+                                       java.util.function.BiConsumer<Integer,Long> store,
+                                       java.util.function.IntToLongFunction load) {
+        java.util.Arrays.fill(mem,(byte)0xA5);
+        for( long value : new long[]{0x0123456789ABCDEFL,0xFEDCBA9876543210L,
+                                     -1L,0L,Long.MIN_VALUE,Long.MAX_VALUE} ) {
+            store.accept(8,value);
+            for( int i=0; i<mem.length; i++ ) {
+                int expected = i>=8 && i<16 ? (int)(value >>> (8*(i-8)))&0xFF : 0xA5;
+                assertEquals("byte "+i,expected,mem[i]&0xFF);
+            }
+            assertEquals(value,load.applyAsLong(8));
+        }
+    }
+
 
     @Test
     public void testJig() throws IOException {

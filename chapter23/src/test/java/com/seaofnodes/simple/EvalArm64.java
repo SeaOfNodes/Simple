@@ -55,7 +55,7 @@ public class EvalArm64 {
     public void st1(int x, int  val) { _buf[x] = (byte)val; }
     public void st2(int x, int  val) { st1(x,val); st1(x+1,val>> 8); }
     public void st4(int x, int  val) { st2(x,val); st2(x+2,val>>16); }
-    public void st8(int x, long val) { st4(x,(int)val); st2(x+4,(int)(val>>32)); }
+    public void st8(int x, long val) { st4(x,(int)val); st4(x+4,(int)(val>>32)); }
 
     public int step(int maxops) {
         int trap = 0;
