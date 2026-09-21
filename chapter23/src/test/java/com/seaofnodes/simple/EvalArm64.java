@@ -307,11 +307,11 @@ public class EvalArm64 {
                 break;
             }
 
-            case 0x91: {  // add(immediate)
+            case 0x91, 0xD1: { // ADD/SUB (immediate), unsigned imm12, optional LSL #12
                 int rn = (ir >> 5) & 0x1F;
-                int immediate = ir << 10 >> 20;
-                // only hit it twice
-                rval = regs[rn] + immediate;
+                long immediate = (ir >>> 10) & 0xFFF;
+                if( (ir & (1<<22))!=0 ) immediate <<= 12;
+                rval = opcode1==0x91 ? regs[rn] + immediate : regs[rn] - immediate;
                 break;
             }
             case 0x92: {        // and(immediate)
@@ -330,6 +330,7 @@ public class EvalArm64 {
             }
 
             case 0x94, 0x95, 0x96, 0x97: { // bl
+                rdid = -1; // BL writes only X30, not a displacement-selected register.
                 rval = pc + 4;
                 regs[arm.X30] = rval;
                 int imm26 = (ir & 0x03FFFFFF);
@@ -573,15 +574,15 @@ public class EvalArm64 {
                 break;
             }
             case 0xD6: {
-                if( (ir & 0xFFFF) != 0 ) throw Utils.TODO();
-                if( ((ir>>16) & 0xFF) != 0x5F ) throw Utils.TODO(); // 0x3F is register call
+                int op = ir & 0xFFFFFC1F;
+                int rn = (ir >>> 5) & 31;
+                int target = (int)regs[rn]; // Read before BLR overwrites X30.
                 rdid = -1;
-                int rn = ir << 22 >> 27;
-                assert rn == 0;
-                pc = (int)regs[30];
-                // Return to zero breaks simulation
-                if( pc==0 ) break outer;
-                pc -= 4;        // Undo post-increment
+                if( op==0xD63F0000 ) regs[arm.X30] = pc+4; // BLR
+                else if( op!=0xD65F0000 ) { trap = 3; break; } // RET
+                pc = target;
+                if( op==0xD65F0000 && pc==0 ) break outer;
+                pc -= 4;
                 break;
             }
 

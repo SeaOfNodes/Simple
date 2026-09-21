@@ -1,8 +1,8 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,7 +18,7 @@ public class MergeSortTest {
         for( int prime : primes )
             sb.p(prime).p(", ");
         String sprimes = sb.p("]").toString();
-        TestC.run("sort", sprimes, 40);
+        TestC.run("sort", sprimes, 34);
 
 
         EvalRisc5 R5 = TestRisc5.build("src/test/java/com/seaofnodes/simple/progs", "sort", "merge_sort", 0, 36, false);

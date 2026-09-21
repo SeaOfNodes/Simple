@@ -289,76 +289,57 @@ public class RegAlloc {
         return true;
     }
 
-    // Single-def live range with an empty mask.  There are many single-reg
-    // uses.  Theory is there's many repeats of the same reg amongst the uses.
-    // In of splitting once per use, start by splitting into groups based on
-    // required input register.
+    // Popular single-def value: share a split among uses with compatible masks.
     boolean splitEmptyMaskByUse( byte round, LRG lrg ) {
         Node def = (Node)lrg._machDef;
+        // Snapshot distinct users: rewriting an input changes def's output list,
+        // and a call can use the same value in more than one argument.
+        Ary<Node> uses = new Ary<>(Node.class);
+        for( Node use : def._outputs )
+            if( uses.find(use)==-1 ) uses.push(use);
 
-        // Look at each use, and break into non-overlapping register classes.
         Ary<RegMask> rclass = new Ary<>(RegMask.class);
-        boolean done=false;
         int ncalls=0;
-        while( !done ) {
-            done = true;
-            for( Node use : def._outputs )
-                if( use instanceof MachNode mach ) {
-                    if( mach instanceof CallNode ) ncalls++;
-                    for( int i=1; i<use.nIns(); i++ )
-                        if( use.in(i)==def )
-                            done = putIntoRegClass( rclass, mach.regmap(i) );
-                }
-        }
-
-        // See how many register classes we split into.  Generally not
-        // productive to split like this across calls, which are going to kill
-        // all registers anyways.
-        if( rclass._len <= 1 || ncalls > 1 ) return false;
-
-        // Split by class
-        Ary<Node> ns = new Ary<>(Node.class);
-        for( RegMask rmask : rclass ) {
-            ns.addAll(def._outputs);
-            Node split = makeSplit(def,"popular",round,lrg,rmask);
-            split.insertAfter( def );
-            if( split.nIns()>1 ) split.setDef(1,def);
-            // all uses by class to split
-            for( int j=0; j < def._outputs._len; j++ ) {
-                Node use = def._outputs.at(j);
-                if( use instanceof MachNode mach && use!=split ) {
-                    // Check all use inputs for n, in case there's several
-                    for( int i = 1; i < use.nIns(); i++ )
-                        // Find a def input, and check register class
-                        if( use.in( i ) == def && mach.regmap( i ).overlap( rmask ) ) {
-                            RegMask m = mach.regmap( i );
-                            if( m!=null && mach.regmap( i ).overlap( rmask ) )
-                                // Modify use to use the split version specialized to this rclass
-                                { use.setDefOrdered( i, split ); j--; break; }
-                        }
-                }
+        for( Node use : uses )
+            if( use instanceof MachNode mach ) {
+                // Sharing copies across several calls usually loses to their kills.
+                if( use instanceof CallNode && ++ncalls > 1 ) return false;
+                for( int i=1; i<use.nIns(); i++ )
+                    if( use.in(i)==def && mach.regmap(i)!=null )
+                        putIntoRegClass(rclass,mach.regmap(i));
             }
-            ns.clear();
+        if( rclass._len <= 1 ) return false;
+
+        for( RegMask rmask : rclass ) {
+            Node split = makeSplit(def,"popular",round,lrg,rmask);
+            split.insertAfter(def);
+            if( split.nIns()>1 ) split.setDef(1,def);
+            for( Node use : uses )
+                if( use instanceof MachNode mach )
+                    for( int i=1; i<use.nIns(); i++ ) {
+                        RegMask mask = mach.regmap(i);
+                        if( use.in(i)==def && mask!=null && mask.overlap(rmask) ) {
+                            assert rmask.and(mask)==rmask;
+                            use.setDefOrdered(i,split);
+                        }
+                    }
         }
         return true;
     }
 
-
-    // Put use into a register class, perhaps adding a class or perhaps
-    // narrowing a class (and causing a repeat)
-    private static boolean putIntoRegClass( Ary<RegMask> rclass, RegMask rmask ) {
+    // Narrowing preserves all earlier users of a class; new classes are disjoint.
+    // Each use contains its first overlapping class, so one pass suffices.
+    private static void putIntoRegClass( Ary<RegMask> rclass, RegMask rmask ) {
         for( int i=0; i<rclass._len; i++ ) {
             RegMask omask = rclass.at(i);
-            if( omask.and(rmask) == omask ) return true; // Within the same register class
-            if( omask.overlap(rmask) ) {
+            if( !omask.overlap(rmask) ) continue;
+            if( omask.and(rmask)!=omask )
                 rclass.set(i,new RegMask(omask.copy().and(rmask)));
-                return false;   // Need go again
-            }
+            return;
         }
-        // Add a new class, no need to go again
         rclass.push(rmask);
-        return true;
     }
+
 
     // Self conflicts require Phis (or two-address).
     // Insert a split after every def.

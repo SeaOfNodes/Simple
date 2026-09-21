@@ -155,9 +155,9 @@ lessons rather than duplicating that history.
   membership, seeds, or targets when comparing chapters.
 - Chapter 20's corrected baseline costs one extra weighted move (354->355 over
   39 compilations); document this as a correctness cost. Advanced quality
-  heuristics remain staged. Chapters 20-22 are now implemented; common correctness
+  heuristics remain staged. Chapters 20-23 are now implemented; common correctness
   fixes and diagnostic hooks have also been forwarded through 25 at Cliff's request.
-  Resume the quality/cohort/README review at 23. Chapter 21's shortened README links the retained encoding reference.
+  Resume the quality/cohort/README review at 24. Chapter 21's shortened README links the retained encoding reference.
 - Chapter 21 changed several inherited inputs/ABIs. Its Chapter20Test now freezes
   all 13 original programs; Chapter21AllocTest retains the four revised cases,
   counted with the native variants as cohort 21. On Windows the cohorts are
@@ -166,6 +166,16 @@ lessons rather than duplicating that history.
   popular-use grouping remains for 23. Preserve `person21` (64-bit age) separately
   from 22's narrower person example, and keep its revised infinite-loop input in
   cohort 22. The Windows cohort counts are 39, 52, and 24.
+- Chapter 23 groups popular single-def uses by compatible register masks. One
+  intersection pass suffices: narrowing a class preserves its earlier users,
+  and newly added classes are disjoint. Snapshot distinct users before rewiring,
+  ignore null register masks, and count a call once despite repeated arguments.
+  The grouping correction/regression is already forwarded through 25.
+- Chapter 23's frozen cohorts count 39, 52, 24, and 30 allocations. Preserve
+  `stringHash21` (with the old guard); its revised source and newly enabled Jig
+  tests belong to 23. Grouping on/off gives identical 933 raw / 1,745 weighted
+  moves here; report the zero gain rather than implying every heuristic helps
+  this suite. The earlier-cohort increase includes changed optimizer behavior.
 - Validate the instruction masks independently of the chosen register: a broad
   mask can hide behind favorable color bias. Byte/short x86 and RISC-V stores
   must exclude floating-point registers. Size fields such as `_sz` may hold a
@@ -194,6 +204,14 @@ lessons rather than duplicating that history.
   Check real results and unchanged flags; successful allocation/encoding alone
   does not establish execution correctness. The 1,170-case Chapter 21 seed sweep
   now passes through encoding, and the original ARM/RISC-V hash results agree.
+- For ARM execution probes, finish in-memory export so external relocations
+  (especially calloc) are patched, then select the intended function entry.
+  Encoding alone leaves placeholder branches. Check return PC, SP, callee-saved
+  registers, and the result; passing an instruction budget is not completion.
+- ARM call/frame fixes are present in 21-25: ADD/SUB immediates are unsigned
+  magnitudes, frames use byte counts and 16-byte alignment, BL writes only X30,
+  and RET names X30 explicitly. Test instruction words independently of the
+  compiler so matching encoder/emulator mistakes cannot validate each other.
 - Copy cleanup/reuse must check kill masks even when an instruction has no LRG;
   before coloring, a fixed-register definition can clobber despite `_reg==-1`.
   Cloning is valid only if its output mask can satisfy the use. A fixed-register

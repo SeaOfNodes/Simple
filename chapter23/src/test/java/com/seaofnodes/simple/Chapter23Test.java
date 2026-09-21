@@ -16,6 +16,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter23Test {
+    @Test public void testPopularUses() { com.seaofnodes.simple.codegen.RegAllocTestSupport.popularUses(); }
+
     @Test public void testDiagnosticTypeAccessors() throws Exception {
         new CodeGen("return 0;").parse();
         var tfp = TypeFunPtr.TEST;
@@ -62,7 +64,8 @@ public class Chapter23Test {
     }
 
     private static void checkOrRhsLoop(String src) throws IOException {
-        CodeGen code = new CodeGen(src).driver("riscv", "SystemV", null);
+        CodeGen code = new CheckedCodeGen(src).driver("riscv", "SystemV", null);
+        SpillStats.record(code,"Chapter23","riscv","SystemV");
         for (int arg : new int[]{0, 1, 2, 3}) {
             byte[] image = new byte[1 << 20];
             System.arraycopy(code._encoding.bits(), 0, image, 0, code._encoding._bits.size());
@@ -93,10 +96,8 @@ var apply = { i64 x, { i64 -> u32 } fcn ->
 
     static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.record(code,"Chapter23",cpu,os);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
         return code;

@@ -11,6 +11,94 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testArmCallInstructions() {
+        EvalArm64 cpu = new EvalArm64(new byte[512],256);
+        for( int delta : new int[]{4,32,-4} ) {
+            cpu._pc = 128;
+            for( int i=0; i<32; i++ ) cpu.regs[i]=1000+i;
+            cpu.st4(128,0x94000000 | ((delta>>2)&0x03FFFFFF)); // BL
+            assertEquals(0,cpu.step(1));
+            assertEquals(128+delta,cpu._pc);
+            for( int i=0; i<32; i++ ) assertEquals(i==30 ? 132 : 1000+i,cpu.regs[i]);
+        }
+        for( int rn : new int[]{9,30} )
+            for( boolean call : new boolean[]{false,true} ) {
+                cpu._pc=4;
+                cpu.regs[rn]=64;
+                cpu.st4(4,(call ? 0xD63F0000 : 0xD65F0000) | (rn<<5)); // BLR / RET
+                assertEquals(0,cpu.step(1));
+                assertEquals(64,cpu._pc);
+                if( call ) assertEquals(8,cpu.regs[30]);
+            }
+    }
+
+    @Test public void testArmImmediateArithmetic() {
+        EvalArm64 cpu = new EvalArm64(new byte[16],16);
+        // Unsigned imm12, including bit 11 and the optional 12-bit shift.
+        for( int[] test : new int[][]{{0x91200020,2148},{0xD1200020,-1948},
+                                     {0x91400420,4196},{0xD1400420,-3996}} ) {
+            cpu._pc=0; cpu.regs[1]=100;
+            cpu.N=true; cpu.Z=false; cpu.C=true; cpu.V=true;
+            cpu.st4(0,test[0]);
+            assertEquals(0,cpu.step(1));
+            assertEquals(test[1],cpu.regs[0]);
+            assertTrue(cpu.N); assertFalse(cpu.Z); assertTrue(cpu.C); assertTrue(cpu.V);
+        }
+    }
+
+    @Test public void testArmCallsAndFrames() throws IOException {
+        String src = """
+            val sum = { int n ->
+                if( n<=0 ) return 1;
+                return sum(n-1)+n;
+            };
+            val run = { int n -> return sum(n)+sum(n+1); };
+            """;
+        assertTrue("Ordinary calls must survive optimization",checkArmCalls(src,"run",4,27)>0);
+    }
+
+    private static int checkArmCalls(String src, String entryName, int arg, int result) throws IOException {
+        CodeGen code = new CodeGen(src).driver("arm","SystemV",null);
+        byte[] image = new byte[1<<20];
+        System.arraycopy(code._encoding.bits(),0,image,0,code._encoding.bits().length);
+        EvalArm64 cpu = new EvalArm64(image,1<<16);
+        boolean entry=false;
+        int frames=0, calls=0;
+        for( var bb : code._cfg ) {
+            if( bb instanceof com.seaofnodes.simple.node.FunNode fun ) {
+                int off = code._encoding._opStart[fun._nid];
+                if( entryName.equals(fun._name) ) { cpu._pc=off; entry=true; }
+                int frame=fun._frameAdjust;
+                assertEquals(0,frame&15);
+                if( frame>0 ) {
+                    frames++;
+                    assertEquals(0xD10003FF | (frame<<10),cpu.ld4s(off)); // SUB SP,SP,#bytes
+                }
+            }
+            if( bb instanceof com.seaofnodes.simple.node.ReturnNode ret ) {
+                int off=code._encoding._opStart[ret._nid];
+                int frame=ret.fun()._frameAdjust;
+                if( frame>0 ) {
+                    assertEquals(0x910003FF | (frame<<10),cpu.ld4s(off)); // ADD SP,SP,#bytes
+                    off+=4;
+                }
+                assertEquals(0xD65F03C0,cpu.ld4s(off)); // RET X30
+            }
+            if( bb instanceof com.seaofnodes.simple.node.cpus.arm.CallARM ) calls++;
+        }
+        assertTrue("Must execute the program entry",entry);
+        assertTrue("Exercise stack frames",frames>0);
+        for( int i=19; i<=29; i++ ) cpu.regs[i]=1000+i;
+        cpu.regs[0]=arg;
+        assertEquals(0,cpu.step(10000));
+        assertEquals("Must return to the harness",0,cpu._pc);
+        assertEquals(result,cpu.regs[0]);
+        assertEquals(1<<16,cpu.regs[31]);
+        for( int i=19; i<=29; i++ ) assertEquals(1000+i,cpu.regs[i]);
+        return calls;
+    }
+
+
     @Test public void testArmSubtractRegisters() {
         EvalArm64 cpu = new EvalArm64(new byte[16],16);
         cpu.st4(0,0xCB020020); // SUB X0,X1,X2, no shift or flag update.

@@ -1,6 +1,6 @@
 # Chapter 23: Methods and Revisiting Types
 
-In this chapter add *methods*, functions defined in structs which take a
+In this chapter we add *methods*, functions defined in structs which take a
 hidden `self` argument and can access the struct fields.  Here is an
 `indexOf` method in a String-like class:
 
@@ -114,7 +114,7 @@ struct List { List *next; Object payload }
 No sharpening of `Object` to `int` nor `String` because every List object
 has a payload of `Object` and `Object` MEET `int` is back to `Object`.
 
-It we allow truely cyclic types then in these kinds of places we can discover
+If we allow truly cyclic types then in these kinds of places we can discover
 (or infer) a sharper type: `*List<int> { *List<int> next, int payload }`
 basically building up *generics* in the optimizer.  This is not generics in the
 language nor type-variables per-se, but it goes a long way towards them.
@@ -377,7 +377,7 @@ Type productions.
 
 In the end, the new `List` cyclic type is wholly interned - with a R/W version
 of `List#2` pointing back to the R/W `List#2` and the R/O version `List#12`
-pointing back to the same R/W `List#12`.
+pointing back to the same R/O `List#12`.
 
 
 
@@ -427,33 +427,93 @@ implementation; they are not reified.
 struct vecInt {
     u32 !len;   // Actual number of elements
     int[] !buf; // Array of integers.
-    
+
     // Since "add" is declared with `val` in the original struct definition,
     // it is a final field and is moved out of here to the class.
-    
-    // Method: Add an element to a vector, possibly returning a new larger vector.
-    val add = { int e ->
-        if( len >= buf# ) _grow(buf#*2)
-        buf[len++] = e; 
-        self;
-    };
-    
+
     // Method: Internal: copy buf to a new size
-    val _grow = { int sz -> 
-        val buf2 = new int[sz];
+    val _grow = { int sz ->
+        var buf2 = new int[sz];
         for( int i=0; i<len; i++ )
             buf2[i] = buf[i];
-        free(buf);  // Needs a better Mem Management solution
+        buf = buf2;
     };
+
+    // Method: Add an element, growing the backing array when needed.
+    val add = { int e ->
+        if( len >= buf# ) _grow(buf#*2);
+        buf[len++] = e;
+        return self;
+    };
+
 
 };
 
-val primes = new vecInt{}.add(2).add(3).add(5).add(7);
-
+val primes = new vecInt{buf = new int[4];}.add(2).add(3).add(5).add(7).add(11);
 ```
 
 Here the `val add` field is a *value* field, a constant function value.  It is
 moved out of the basic `vecInt` object into `vecInt`'s *class*, and takes no
 storage space in `vecInt` objects.  The same happens for `_grow`.  The size of
-a `vecInt` is thus a `u32` word, a pointer to an `int[]` plus
-`buf#*sizeof(int)`, plus any padding (probably none here).
+a `vecInt` instance is thus its `u32` length and array pointer, plus alignment
+padding. The array header and elements occupy a separate allocation. Reclaiming
+the old buffer after growth is outside this example. Appending
+`return primes.len*100+primes.buf[4];` produces 511 on both RISC-V and ARM.
+
+## RegAlloc improvements: grouping popular uses
+
+Chapter 22 improved color preferences and cheap-spill ordering. This chapter
+adds a way to split a popular value whose uses demand incompatible registers.
+For example, several shifts may need the same count register while another use
+needs a different register. Sharing one copy for each compatible group can avoid
+inserting a separate copy at every use.
+
+The allocator applies this to a single-definition live range with an empty
+register mask and more than two fixed-register uses. It intersects overlapping
+use masks into groups; narrowing a group keeps it compatible with its earlier
+users, so one pass suffices. Disjoint masks start separate groups. It snapshots
+distinct users before rewiring their inputs, ignores scheduling-only edges,
+and counts a call once even when the value supplies several arguments.
+
+Grouping declines values used by multiple calls, whose register kills tend to
+undo the benefit of a shared copy. The usual loop-boundary splitting remains
+the fallback, including splitting an existing copy when all uses have the same
+loop depth. Cold-first loop splitting is left for Chapter 24; area/cost spill
+ranking remains for Chapter 25.
+
+Run `make spill-stats` in this directory. All rows below use **this chapter's
+compiler**, seed 123, and frozen source/target combinations from each cohort.
+The Windows run combines x86 SystemV/Win64 and RISC-V/ARM SystemV. Diagnostic
+machine graphs are checked separately and do not contribute to the counts.
+
+| Program cohort | Compilations | Split/move count | Loop-weighted count |
+|---|---:|---:|---:|
+| Chapter 20 | 39 | 332 | 458 |
+| Chapter 21 | 52 | 450 | 989 |
+| Chapter 22 | 24 | 67 | 67 |
+| Chapter 23 | 30 | 84 | 231 |
+| **Total** | **145** | **933** | **1,745** |
+
+`_spills` counts retained SplitNodes, including register moves; `_spillScaled`
+weights them by `8^loopDepth`. These estimate compiler-generated moves, not
+runtime memory traffic. The reporter prints individual compilations and sums
+by CPU/ABI, and still reports failure when a spill expectation or execution
+check fails.
+
+With grouping disabled and everything else held fixed, this suite produces
+**the same 933 moves / 1,745 weighted moves**. The original grouping code also
+has those totals. This suite therefore shows no spill improvement from grouping;
+the reduced machine-graph regression exercises its compatibility and call rules,
+including a null-mask crash in the old implementation. A plausible allocator
+heuristic needs measurements on workloads that reach it before claiming a win.
+
+For the older cohorts alone, Chapter 22's compiler produced 838 moves / 1,496
+weighted moves; this compiler produces 849 / 1,514. That comparison includes
+changes outside allocation. In particular, Chapter 20's frozen String input
+survives optimization here and costs 16 weighted moves; Chapter 22 eliminated
+it at this seed. It would be misleading to attribute that difference to grouping.
+
+The original 64-bit `person21` and guarded `stringHash21` inputs preserve cohort
+21. The revised String input and two encoding tests enabled in this chapter
+belong to cohort 23. Keeping these cohorts fixed makes subsequent comparisons
+meaningful even as the language and its tests grow.

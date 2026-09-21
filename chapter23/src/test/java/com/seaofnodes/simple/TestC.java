@@ -60,15 +60,13 @@ public abstract class TestC {
         String exe = OS.startsWith("Windows") ? bin+".exe" : bin;
         // Compile simple, emit ELF
         CodeGen code = new CheckedCodeGen(src, arg).driver( CPU_PORT, simple_conv, obj);
+        SpillStats.recordNative(code,CPU_PORT,simple_conv);
 
         String result = gcc(obj, c_conv, cfile, false, exe );
         assertEquals(expected,result);
 
         // Allocation quality not degraded
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
     }
 
     public static String gcc( String obj, String c_conv, String cfile, boolean stdin, String... args ) throws IOException {

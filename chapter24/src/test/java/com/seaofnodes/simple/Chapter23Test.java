@@ -16,6 +16,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter23Test {
+    @Test public void testPopularUses() { com.seaofnodes.simple.codegen.RegAllocTestSupport.popularUses(); }
+
     @Test public void testDiagnosticTypeAccessors() throws Exception {
         new CodeGen("return 0;").parse();
         var tfp = TypeFunPtr.TEST;

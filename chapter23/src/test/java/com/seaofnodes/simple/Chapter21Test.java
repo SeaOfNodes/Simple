@@ -13,6 +13,118 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testArmCallInstructions() {
+        EvalArm64 cpu = new EvalArm64(new byte[512],256);
+        for( int delta : new int[]{4,32,-4} ) {
+            cpu._pc = 128;
+            for( int i=0; i<32; i++ ) cpu.regs[i]=1000+i;
+            cpu.st4(128,0x94000000 | ((delta>>2)&0x03FFFFFF)); // BL
+            assertEquals(0,cpu.step(1));
+            assertEquals(128+delta,cpu._pc);
+            for( int i=0; i<32; i++ ) assertEquals(i==30 ? 132 : 1000+i,cpu.regs[i]);
+        }
+        for( int rn : new int[]{9,30} )
+            for( boolean call : new boolean[]{false,true} ) {
+                cpu._pc=4;
+                cpu.regs[rn]=64;
+                cpu.st4(4,(call ? 0xD63F0000 : 0xD65F0000) | (rn<<5)); // BLR / RET
+                assertEquals(0,cpu.step(1));
+                assertEquals(64,cpu._pc);
+                if( call ) assertEquals(8,cpu.regs[30]);
+            }
+    }
+
+    @Test public void testArmImmediateArithmetic() {
+        EvalArm64 cpu = new EvalArm64(new byte[16],16);
+        // Unsigned imm12, including bit 11 and the optional 12-bit shift.
+        for( int[] test : new int[][]{{0x91200020,2148},{0xD1200020,-1948},
+                                     {0x91400420,4196},{0xD1400420,-3996}} ) {
+            cpu._pc=0; cpu.regs[1]=100;
+            cpu.N=true; cpu.Z=false; cpu.C=true; cpu.V=true;
+            cpu.st4(0,test[0]);
+            assertEquals(0,cpu.step(1));
+            assertEquals(test[1],cpu.regs[0]);
+            assertTrue(cpu.N); assertFalse(cpu.Z); assertTrue(cpu.C); assertTrue(cpu.V);
+        }
+    }
+
+    @Test public void testArmCallsAndFrames() throws IOException {
+        String src = """
+            val sum = { int n ->
+                if( n<=0 ) return 1;
+                return sum(n-1)+n;
+            };
+            val run = { int n -> return sum(n)+sum(n+1); };
+            """;
+        assertTrue("Ordinary calls must survive optimization",checkArmCalls(src,"run",4,27)>0);
+    }
+
+    @Test public void testArmVectorGrowth() throws IOException {
+        String src = """
+            struct _Vec {
+                u32 !len;
+                int[] !buf;
+                val grow = { int sz ->
+                    var buf2 = new int[sz];
+                    for( int i=0; i<len; i++ ) buf2[i]=buf[i];
+                    buf=buf2;
+                };
+                val add = { int e ->
+                    if( len>=buf# ) grow(buf#*2);
+                    buf[len++]=e;
+                    return self;
+                };
+            };
+            val run = { int arg ->
+                val v = new _Vec{buf=new int[4];}.add(2).add(3).add(5).add(7).add(11);
+                return v.len*100+v.buf[arg];
+            };
+            """;
+        checkArmCalls(src,"run",4,511);
+    }
+
+    private static int checkArmCalls(String src, String entryName, int arg, int result) throws IOException {
+        CodeGen code = new CodeGen(src).driver("arm","SystemV",null);
+        byte[] image = new byte[1<<20];
+        System.arraycopy(code._encoding.bits(),0,image,0,code._encoding.bits().length);
+        EvalArm64 cpu = new EvalArm64(image,1<<16);
+        boolean entry=false;
+        int frames=0, calls=0;
+        for( var bb : code._cfg ) {
+            if( bb instanceof com.seaofnodes.simple.node.FunNode fun ) {
+                int off = code._encoding._opStart[fun._nid];
+                if( entryName.equals(fun._name) ) { cpu._pc=off; entry=true; }
+                int frame=fun._frameAdjust;
+                assertEquals(0,frame&15);
+                if( frame>0 ) {
+                    frames++;
+                    assertEquals(0xD10003FF | (frame<<10),cpu.ld4s(off)); // SUB SP,SP,#bytes
+                }
+            }
+            if( bb instanceof com.seaofnodes.simple.node.ReturnNode ret ) {
+                int off=code._encoding._opStart[ret._nid];
+                int frame=ret.fun()._frameAdjust;
+                if( frame>0 ) {
+                    assertEquals(0x910003FF | (frame<<10),cpu.ld4s(off)); // ADD SP,SP,#bytes
+                    off+=4;
+                }
+                assertEquals(0xD65F03C0,cpu.ld4s(off)); // RET X30
+            }
+            if( bb instanceof com.seaofnodes.simple.node.cpus.arm.CallARM ) calls++;
+        }
+        assertTrue("Must execute the program entry",entry);
+        assertTrue("Exercise stack frames",frames>0);
+        for( int i=19; i<=29; i++ ) cpu.regs[i]=1000+i;
+        cpu.regs[0]=arg;
+        assertEquals(0,cpu.step(10000));
+        assertEquals("Must return to the harness",0,cpu._pc);
+        assertEquals(result,cpu.regs[0]);
+        assertEquals(1<<16,cpu.regs[31]);
+        for( int i=19; i<=29; i++ ) assertEquals(1000+i,cpu.regs[i]);
+        return calls;
+    }
+
+
     @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
 
     @Test public void testNarrowStores() throws IOException {
@@ -104,7 +216,8 @@ public class Chapter21Test {
     }
 
 
-    @Test
+    // Enabled in Chapter 23; measured there by Chapter23AllocTest.
+    @Test @Ignore
     public void testJig() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
@@ -114,10 +227,8 @@ public class Chapter21Test {
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.record(code,"Chapter21",cpu,os);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
     }
@@ -131,7 +242,7 @@ public class Chapter21Test {
     }
 
     @Test public void testInfinite() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
+        String src = "struct S { int i; }; S !s = new S; while(1) s.i++;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");
@@ -258,7 +369,7 @@ public class Chapter21Test {
 
     @Test public void testPerson() throws IOException {
         String person = "6\n";
-        TestC.run("person", person, 0);
+        TestC.run("person21", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
@@ -269,7 +380,7 @@ public class Chapter21Test {
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build("person21", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -285,7 +396,7 @@ public class Chapter21Test {
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("person", ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("person21", ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);

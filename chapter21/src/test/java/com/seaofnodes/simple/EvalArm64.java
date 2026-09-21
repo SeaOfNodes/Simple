@@ -97,18 +97,15 @@ public class EvalArm64 {
                     continue ;
                 }
                 case 0x25: {
-                    // bl (just calloc)
+                    // BL, including ordinary calls
                     rval = pc + 4;
                     regs[arm.X30] = rval;
-                    if(pc + 4 == 0) {
-                        regs[rdid] = rval;
-                        break outer;
-                    }
                     int imm26 = (ir & 0x03FFFFFF);
                     int imm = (imm26 << 6) >> 6;
                     pc = pc + (imm << 2) ;
                     if (pc == SENTINEL_CALLOC) {
                         long size = regs[arm.X0]*regs[arm.X1];
+                        size = (size+7) & -8;
                         regs[arm.X0] = _heap;
                         _heap += (int)size;
                         // unwind pc
@@ -637,12 +634,11 @@ public class EvalArm64 {
                     rval = opcode1==0x8B ? lhs + rhs : lhs - rhs;
                     break;
                 }
-                case 0x91: {
-                    // add(immediate)
+                case 0x91, 0xD1: { // ADD/SUB (immediate), unsigned imm12, optional LSL #12
                     int rn = (ir >> 5) & 0x1F;
-                    int immediate = ir << 10 >> 20;
-                    // only hit it twice
-                    rval = regs[rn] + immediate;
+                    long immediate = (ir >>> 10) & 0xFFF;
+                    if( (ir & (1<<22))!=0 ) immediate <<= 12;
+                    rval = opcode1==0x91 ? regs[rn] + immediate : regs[rn] - immediate;
                     break;
                 }
                 case 0xD3: {
@@ -674,10 +670,16 @@ public class EvalArm64 {
                     break;
                 }
                 case 0xD6: {
+                    int op = ir & 0xFFFFFC1F;
+                    int rn = (ir >>> 5) & 31;
+                    int target = (int)regs[rn]; // Read before BLR overwrites X30.
                     rdid = -1;
-                    if(ld4s(pc + 4) == 0) {
-                        break outer;
-                    }
+                    if( op==0xD63F0000 ) regs[arm.X30] = pc+4; // BLR
+                    else if( op!=0xD65F0000 ) { trap = 3; break; } // RET
+                    pc = target;
+                    if( op==0xD65F0000 && pc==0 ) break outer;
+                    pc -= 4;
+                    break;
                 }
                 // bitwise
                 case 0x8A: {

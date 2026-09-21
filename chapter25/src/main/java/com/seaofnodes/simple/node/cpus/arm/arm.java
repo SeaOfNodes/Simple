@@ -319,6 +319,11 @@ public class arm extends Machine {
         short self = enc.reg(n);
         short reg1 = enc.reg(n2);
 
+        // ADD/SUB encode an unsigned magnitude; switch operation for a negative addend.
+        if( imm12<0 && (opcode==OPI_ADD || opcode==OPI_SUB) ) {
+            opcode ^= OPI_ADD ^ OPI_SUB;
+            imm12 = -imm12;
+        }
         int body = imm_inst(opcode, imm12&0xFFF, reg1, self);
         enc.add4(body);
     }
@@ -429,7 +434,7 @@ public class arm extends Machine {
     }
 
     public static int ret(int opcode) {
-        return (opcode << 10);
+        return (opcode << 10) | (X30 << 5);
     }
 
     // FMOV (scalar, immediate)

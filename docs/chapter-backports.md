@@ -124,7 +124,7 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 | Group | Eventual home | Why not in the small queue yet |
 |---|---|---|
-| Register allocation and spilling | 20 onward | Shared corrections/support now carried through 25; staged allocator/cohort/README reviews are complete through 22, with 23 next. |
+| Register allocation and spilling | 20 onward | Shared corrections/support now carried through 25; staged allocator/cohort/README reviews are complete through 23, with 24 next. |
 | Conditional Store and array Load control | Memory/arrays chapters | Reproduce under the earlier alias model before extracting fixes from the new memory implementation. |
 | SCCP dependencies, function revival, reachability | 24; some foundations may fit 18 | Separate old-IR corrections from new Guard/Escape/BulkMemPhi and external-caller machinery. |
 | TypeScalar, numeric modes, guards, symbolic fields, open/forward types | Revisit earlier homes later | A connected incomplete-types architecture, including phase ordering and errors. |
@@ -133,9 +133,9 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 ## Register allocation: correctness first, staged improvements
 
-Review on 2026-09-20. The staged plan follows; Chapters 20-22
+Review on 2026-09-20. The staged plan follows; Chapters 20-23
 have since been implemented and validated as recorded below. Shared corrections
-and test support have also been carried through 23-25; their quality/cohort/README
+and test support have also been carried through 24-25; their quality/cohort/README
 reviews remain pending. Compared RegAlloc, BuildLRG, IFG,
 LRG, Coalesce, RegMask, and split support across 20-25, with the original fix
 commits. Allocation starts in 20; 19 has instruction selection/register masks
@@ -223,7 +223,7 @@ to add persistent deferral state to the first allocator chapter.
 Suggested execution order: support/measurement, small mask/LRG correctness
 fixes, constrained-register and self-conflict regressions/fixes, then one
 quality technique at a time. Run each affected snapshot's full suite at each
-accepted boundary. Chapters 20-22 have now been implemented; stop for Cliff's review before 23.
+accepted boundary. Chapters 20-23 have now been implemented; stop for Cliff's review before 24.
 Review each chapter's README along the way. Chapter 21's encoding discussion
 has been shortened, with the bit-level notes retained as a separate reference. End each README with its
 RegAlloc improvement, measured cohort table, and commentary; the Chapter 25
@@ -268,6 +268,89 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### ARM calls and stack frames: corrected in 21-25, 2026-09-20
+
+The Chapter 23 README vector example exposed ordinary BL corrupting an argument
+register in the emulator and RetARM subtracting eight times the frame size.
+FunARM also emitted ADD with a wrapped negative immediate, masked by the
+emulator's signed decoding; RET omitted its X30 operand. Corrected the encoder
+and emulator together in 21-25, the first chapters with actual ARM encoding.
+Frames use SUB/ADD with byte counts and 16-byte alignment, including leaf spills.
+Negative arithmetic immediates switch ADD/SUB rather than wrapping. BL writes
+only X30; RET/BLR use their encoded register (read before overwriting X30).
+Chapter 21's older decoder already avoided BL writeback, but did not execute RET.
+
+Instruction regressions and recursive calls check actual return values, emitted
+frame/RET words, preserved registers, stack restoration, and bounded completion.
+The vector-growth regression starts at 23, where struct methods arrive, and uses
+25's explicit constructor syntax there. All regressions fail against the saved
+pre-fix compiler/emulator. The original README example now returns 511 on ARM,
+matching RISC-V, and restores SP. Full `make -j 4 tests` passes in 21 (404 + 1
+fuzzer), 22 (419 + 1), 23 (441 + 1), 24 (456 + 1), and 25 (464 across six groups).
+Spill reports retain the same allocation counts and raw/weighted totals:
+21: 91 allocations, 884 / 1,794; 22: 115, 838 / 1,496; 23: 145, 933 / 1,745.
+Logs and saved pre-fix classes are under each chapter's `build/arm-call-review`.
+
+### Chapter 23 allocator: ready for review, 2026-09-20
+
+The prior batch already supplied shared correctness/support through 25. This
+pass keeps Chapter 22's color bias/cheap-spill ordering and introduces popular-use
+grouping: a single-definition empty-mask range with more than two fixed-register
+uses may share copies by compatible register class. Existing same-depth split
+fallback remains; cold-first splitting and area/cost ranking remain for 24/25.
+
+Simplified grouping to one pass. Intersecting a class preserves compatibility
+with all earlier users of that class; new classes are disjoint, so rescanning
+is unnecessary. Snapshot distinct users before rewiring, skip null register
+masks, and count each call once even if it uses the value in several slots.
+Values used by multiple calls still fall back to ordinary splitting. The old
+code throws a null-mask NPE in the new reduced graph regression. Its corrected
+version checks shared copies, overlapping masks, repeated input edges, preserved
+scheduling dependencies, and one-call/two-call handling. Carried this same fix
+and regression through 24-25 to avoid repeating its review in later chapters.
+
+Added `make spill-stats` with frozen cohorts 20-23. Keep `person21`, and preserve
+21's guarded String file as `stringHash21`; 23's simplified String and two newly
+enabled Jig encoding tests live in Chapter23AllocTest. Cohort 23 also includes
+its two executed RISC-V short-circuit regressions. The reporter defers quality
+failures while still executing remaining targets/results, and exits nonzero.
+Restored the inherited ARM BrainFuck check to use the ARM result pointer.
+
+| Cohort, using Chapter 23 | Allocations | Raw splits | Weighted splits |
+|---|---:|---:|---:|
+| 20 | 39 | 332 | 458 |
+| 21 | 52 | 450 | 989 |
+| 22 | 24 | 67 | 67 |
+| 23 | 30 | 84 | 231 |
+| **Total** | **145** | **933** | **1,745** |
+
+The saved original compiler, corrected grouping, and a controlled ablation
+which disables only the grouping dispatch all produce these same totals.
+There is **no demonstrated spill improvement** from grouping on this suite.
+By target the totals are ARM 303 raw / 464 weighted, RISC-V 324 / 499,
+x86 SystemV 153 / 286, and x86 Win64 153 / 496. The new machine-graph regression
+covers behavior that the program suite does not distinguish; it is excluded
+from the original-compiler measurement and contributes no allocation statistics.
+
+Across the earlier cohorts, Chapter 22's 838 / 1,496 becomes 849 / 1,514 here.
+These are different compilers, not an allocator-only comparison: the frozen
+Chapter 20 String source survives optimization in 23 (9 + 4 + 3 weighted moves)
+where 22 folded it away. Its goldens are updated accordingly. Array type printing
+also changes `[u8]` to `[]u8`; only its rendered expectation changes.
+
+The original Chapter 23 full suite passed 428 + 1 fuzzer. Final `make -j 4 tests`
+passes 437 + 1; `make spill-stats` passes 72 tests / 145 allocations, including
+quality, ownership, register, native, and emulator checks. The forwarded grouping
+fix passes full 24 (452 + 1) and 25 (460 across six groups) suites. Original
+snapshots, controlled ablation, and detailed logs are under
+`chapter23/build/regalloc-review`; later chapter logs are in `build/grouping-review`.
+
+Reviewed the README's type discussion and vector example, corrected buffer
+installation/mutability/initialization and object-versus-array storage, and ended
+it with the grouping explanation, cohort table, and the unchanged ablation
+result. Its ARM execution failure is corrected in the call/frame record above.
+FunPtrNode reachability work remains deferred until the allocator reviews finish.
 
 ### Shared allocator fixes/support: forwarded through 25, 2026-09-20
 
