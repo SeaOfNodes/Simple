@@ -158,23 +158,24 @@ those found by the peephole rules; we can then run the peephole rules on nodes
 with improved types, to see if unrelated peepholes can fire - such as newly
 discovered constants replacing computations with ConstantNodes.
 
-Example:
+The following is SSA pseudocode; `phi` denotes a merge, not Simple syntax.
 
-```java
+```text
 int x0 = 1;          // x0 = 1
 while( rand ) {
     x1 = phi(x0,x2); // x1 = BOT = phi(1,BOT)
     x2 = 2 - x1;     // x2 = BOT = 2 - BOT
 }
-return x2
+return x1
 ```
 
-Without SCCP, this small program cannot remove the computation of `x` and hence
-the loop either.  A glance at the program tells us `x` must always be a `1` but
+Without SCCP, this small program cannot fold the computation of `x`.
+A glance at the program tells us `x` must always be a `1` but
 the bottom-up (pessimistic) approach decides that since x1 is BOT, x2 must be
 BOT so x1 must be BOT.  We need the optimistic approach to break the
 stalemate, and just *assume* x1 is `1`, and then we can discover that x2 is
-also a `1`.
+also a `1`. Folding the value does not prove the loop terminates or make
+its condition and side effects removable.
 
 
 The algorithm progresses from left to right and stops when no more changes
@@ -194,9 +195,9 @@ Since our control flow is in the same graph as our data flow (that's the major
 point of Sea-of-Nodes!), we need not do anything special and our algorithm is
 *conditional* already.  Again an example is interesting:
 
-Example:
+Again using SSA pseudocode:
 
-```java
+```text
 int x0 = 1;          // x0 = 1
 while( rand ) {
     x1 = phi(x0,x4); // x1 = BOT = phi(1,BOT)
@@ -205,7 +206,7 @@ while( rand ) {
     else x3 = 99;    // x3 = 99
     x4 = phi(x2,x3); // x4 = BOT = phi(BOT,99)
 }
-return x4
+return x1
 ```
 
 Again the algorithm progresses from left to right, although this time not all
@@ -259,7 +260,7 @@ Such edges make up a [Call Graph](https://en.wikipedia.org/wiki/Call_graph).
 We extend the normal SCCP algorithm to observe when a `Call`s function pointer
 input changes - when it picks up new function targets.  There are only a finite
 number so we represent them exactly with *function indices* as described in an
-early chapter.  (Separate compilation adds a special index for the infinite
+earlier chapter.  (Separate compilation adds a special index for the infinite
 unknown functions that are called outside this compilation unit).
 
 Once we observe a new *fidx* at a `Call`, we *link* the `Call` with the `Fun`,
@@ -277,3 +278,57 @@ Other than discovering a few new edges as the algorithm proceeds, the core
 algorithm is unchanged.  We are guaranteed to terminate with a fixed point
 solution, and may discover e.g. certain call parameters are constants (or
 e.g. not-null) on all calling paths.
+
+
+## RegAlloc improvements: try cold loop splits first
+
+A loop Phi and its backedge can belong to one live range even though their
+values must coexist at some instruction. This self-conflict requires splitting
+the range. Chapter 23 split the Phi's definition and incoming values right away.
+This chapter first leaves the hot definition/backedge alone and tries the
+outside-loop copies. If coloring succeeds, it avoids moves on every iteration.
+Other conflicts, including two-address operations, keep their existing handling.
+
+The allocator remembers which Phis have had this chance. If the same Phi
+self-conflicts again, the next attempt uses the ordinary aggressive splitting.
+The record uses Phi identity because live ranges are rebuilt each round. It
+also covers a backedge-only conflict where the first attempt inserts no copy:
+that attempt must still consume the one permitted delay. A regression checks
+both the cheaper first attempt and the mandatory fallback.
+
+Run `make spill-stats`. All rows use **Chapter 24's compiler**, optimizer seed
+123, and the same source/target combinations as the earlier cohort tables.
+These Windows results combine x86 SystemV/Win64 and RISC-V/ARM SystemV.
+
+| Program cohort | Compilations | Split/move count | Loop-weighted count |
+|---|---:|---:|---:|
+| Chapter 20 | 39 | 331 | 457 |
+| Chapter 21 | 52 | 436 | 975 |
+| Chapter 22 | 24 | 67 | 67 |
+| Chapter 23 | 30 | 66 | 115 |
+| Chapter 24 | 67 | 432 | 1,342 |
+| **Total** | **212** | **1,332** | **2,956** |
+
+`_spills` counts retained SplitNodes, including register moves. `_spillScaled`
+weights those moves by `8^loopDepth`; it is a cost estimate, not measured memory
+traffic. Diagnostic machine graphs contribute no allocations to this table.
+The reporter checks allocation legality and native/emulated results even when
+spill expectations differ, and exits unsuccessfully for either kind of failure.
+
+With only the cold-first rule disabled, the same compiler and programs produce
+**1,338 moves / 2,962 weighted moves**. The rule saves six of each. A RISC-V
+MergeSort case adds one move, offset by improvements in other MergeSort cases,
+Sieve, and an ARM loop case. Aggregate measurements justify accepting that
+local regression; the improvement here is modest, not universal.
+
+On cohorts 20-23 alone, Chapter 23 produced 933 / 1,745; Chapter 24 produces
+900 / 1,614. Only six of each reduction comes from this allocator change. The
+rest comes from other compiler changes, including SCCP; comparing chapters
+alone would overstate the heuristic's benefit.
+
+The older cohorts retain the 64-bit Person, guarded String, and smaller emulator
+argument list. Revised Jig, BubbleSort, Newton, and stack-argument inputs belong
+to cohort 24 alongside this chapter's existing tests. The frozen String workload
+also exposed a missing null check in the inlining dominator walk; that correctness
+fix is included on both sides of the heuristic comparison. Area/cost spill
+ranking remains for Chapter 25.

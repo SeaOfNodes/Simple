@@ -155,9 +155,9 @@ lessons rather than duplicating that history.
   membership, seeds, or targets when comparing chapters.
 - Chapter 20's corrected baseline costs one extra weighted move (354->355 over
   39 compilations); document this as a correctness cost. Advanced quality
-  heuristics remain staged. Chapters 20-23 are now implemented; common correctness
+  heuristics remain staged. Chapters 20-24 are now implemented; common correctness
   fixes and diagnostic hooks have also been forwarded through 25 at Cliff's request.
-  Resume the quality/cohort/README review at 24. Chapter 21's shortened README links the retained encoding reference.
+  Resume the quality/cohort/README review at 25. Chapter 21's shortened README links the retained encoding reference.
 - Chapter 21 changed several inherited inputs/ABIs. Its Chapter20Test now freezes
   all 13 original programs; Chapter21AllocTest retains the four revised cases,
   counted with the native variants as cohort 21. On Windows the cohorts are
@@ -176,6 +176,17 @@ lessons rather than duplicating that history.
   tests belong to 23. Grouping on/off gives identical 933 raw / 1,745 weighted
   moves here; report the zero gain rather than implying every heuristic helps
   this suite. The earlier-cohort increase includes changed optimizer behavior.
+- Chapter 24 gives loop-Phi self-conflicts one cold-only splitting attempt;
+  remember Phi identity across rebuilt LRGs and force the ordinary fallback on
+  the next conflict. A backedge-only attempt can make no graph change and must
+  still consume that allowance. The same regression runs in 24 and 25.
+- Chapter 24 preserves cohorts 20-23 and adds 67 allocations for cohort 24.
+  Distinguish moved inline sources from changed programs: keep the old 64-bit
+  Person and small emulator argument list, and attribute revised inputs to 24.
+  Cold-first splitting saves only 6 raw / 6 weighted moves here; the much larger
+  cross-chapter reduction includes optimizer changes. Its frozen String program
+  also found a lost null guard in the inlining dominator walk; keep that fix on
+  both sides when measuring the allocator heuristic.
 - Validate the instruction masks independently of the chosen register: a broad
   mask can hide behind favorable color bias. Byte/short x86 and RISC-V stores
   must exclude floating-point registers. Size fields such as `_sz` may hold a

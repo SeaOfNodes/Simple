@@ -216,27 +216,10 @@ public class Chapter21Test {
     }
 
 
-    @Test
+    // Frozen Jig runs in Chapter23AllocTest; the revised input is in Chapter24AllocTest.
+    @Test @Ignore
     public void testJig() throws IOException {
-        String src =
-"""
-struct s0 {
-    bool v1;
-    i16 v2;
-    int v3;
-    i8 v4;
-    byte v5;
-};
-while(new s0.v3)
-    while(new s0.v5<<new s0.v4) {}
-if(0) {
-    if(0) {
-        flt !P5ZUD4=new s0.v2;
-    }
-    while(0) {}
-}
-return new s0.v1;
-""";
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
@@ -244,10 +227,8 @@ return new s0.v1;
 
     static void testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.record(code,"Chapter21",cpu,os);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
     }
@@ -261,7 +242,7 @@ return new s0.v1;
     }
 
     @Test public void testInfinite() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
+        String src = "struct S { int i; }; S !s = new S; while(1) s.i++;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");
@@ -542,19 +523,8 @@ val fib = {int n ->
     }
 
     @Test public void testPerson() throws IOException {
-        String src =
-                """
-                struct Person {
-                    i32 age;
-                };
-
-                val fcn = { Person?[] ps, int x ->
-                    if( ps[x] )
-                        ps[x].age++;
-                };
-                """;
         String person = "6\n";
-        TestC.run(src, "person", null, person, 0);
+        TestC.run("person21", person, 0);
 
         // Memory layout starting at PS:
         int ps = 1<<16;         // Person array pointer starts at heap start
@@ -565,7 +535,7 @@ val fib = {int n ->
         int p1 = ps+4*8+1*8;
         // P2 = { age } // sizeof=8
         int p2 = ps+4*8+2*8;
-        EvalRisc5 R5 = TestRisc5.build("person", src, ps, 0, false);
+        EvalRisc5 R5 = TestRisc5.build("person21", ps, 0, false);
         R5.regs[riscv.A1] = 1;  // Index 1
         R5.st8(ps,3);           // Length
         R5.st8(ps+1*8,p0);
@@ -581,7 +551,7 @@ val fib = {int n ->
         assertEquals(17+1,R5.ld8(p1));
         assertEquals(60+0,R5.ld8(p2));
 
-        EvalArm64 A5 = TestArm64.build("person", src, ps, 0, false);
+        EvalArm64 A5 = TestArm64.build("person21", ps, 0, false);
         A5.regs[arm.X1] = 1;  // Index 1
         A5.st8(ps, 3);
         A5.st8(ps+1*8,p0);
@@ -601,19 +571,12 @@ val fib = {int n ->
     @Test public void testArgCount() throws IOException {
         // Test passes more args than registers in Sys5, which is far far more
         // than what Win64 allows - so Win64 gets a lot more spills here.
-        String src =
-"""
-val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, int x8, flt f9, int i10, flt f11, int i12, flt f13, int i14, flt f15, int x16, flt f17 int x18, flt f19 ->
-    return
-    i0 + f1+ i2+ f3+ i4+ f5+ i6+ f7+ x8 +f9 +
-    i10+f11+i12+f13+i14+f15+x16+f17+x18+f19 ;
-};
-""";
         String arg_count = "191.000000\n";
+        TestC.run("arg_count", arg_count,
+                  TestC.CALL_CONVENTION.equals("Win64") ? 32 : 15);
 
-        TestC.run(src, "arg_count", null, arg_count, TestC.CALL_CONVENTION.equals("Win64") ? 32 : 15);
 
-        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", src, 0, 4, false);
+        EvalRisc5 R5 = TestRisc5.build("no_stack_arg_count", 0, 0, false);
 
         // Todo: handle stack(imaginary stack in emulator)
         // pass in float arguments
@@ -643,7 +606,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
         assertEquals(22.8, result, 0.00001);
 
         // arm
-        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", src, 0, 4, false);
+        EvalArm64 A5 = TestArm64.build("no_stack_arg_count", 0, 0, false);
 
         A5.fregs[arm.D0 - arm.D_OFFSET] = 1.1;
         A5.fregs[arm.D1 - arm.D_OFFSET] = 1.1;

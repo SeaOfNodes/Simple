@@ -13,27 +13,19 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter22Test {
-
-    @Test
-    public void testJig() throws IOException {
-        String src =
-"""
-val fib = {int n ->
-    int temp=0;
-    int f1=1;
-    int f2=1;
-    int i=n;
-    while( i>1 ){
-        temp = f1+f2;
-        f1=f2;
-        f2=temp;
-        i=i-1;
+    @Test public void testInfiniteReturn() {
+        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
+        testCPU(src,"x86_64_v2","SystemV",0,"return Top;");
+        testCPU(src,"riscv","SystemV",2,"return Top;");
+        testCPU(src,"arm","SystemV",2,"return Top;");
     }
-    return f2;
-};
 
-fib(10);
-""";
+
+    // Frozen Jig runs in Chapter23AllocTest; the revised input is in Chapter24AllocTest.
+    @Test @Ignore
+    public void testJig() throws IOException {
+        String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
+        //String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
         testCPU(src,"x86_64_v2", "Win64"  ,-1,null);
         testCPU(src,"riscv"    , "SystemV",-1,null);
         testCPU(src,"arm"      , "SystemV",-1,null);
@@ -41,10 +33,8 @@ fib(10);
 
     static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.record(code,"Chapter22",cpu,os);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
         return code;

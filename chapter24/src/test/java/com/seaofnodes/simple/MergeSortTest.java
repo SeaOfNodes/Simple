@@ -57,7 +57,7 @@ public class MergeSortTest {
         for( int prime : primes )
             sb.p(prime).p(", ");
         String sprimes = sb.p("]").toString();
-        TestC.run(src, "sort", null, sprimes, 40);
+        TestC.run(src, "sort", null, sprimes, 34);
 
 
         EvalRisc5 R5 = TestRisc5.build("src/test/java/com/seaofnodes/simple/progs",src,  "sort", "merge_sort", 0, 36, false);

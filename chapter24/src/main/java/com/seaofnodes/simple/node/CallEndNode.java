@@ -82,8 +82,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     // Disallow self-recursive inlining (loop unrolling by another name).
                     // Disallow if still folding other things, as it makes other
                     // dependency checks carry long chains of half-folded calls.
+                    // Dead control may end the walk before an enclosing function.
                     CFGNode idom = call;
-                    while( true ) {
+                    while( idom!=null ) {
                         idom = idom.idom();
                         if( idom instanceof FunNode ) break;
                         if( idom instanceof CallEndNode cend && cend._folding ) break;
@@ -107,7 +108,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
                         // Bump the global version number invalidating them en-masse.
                         CodeGen.CODE.invalidateIDepthCaches();
                         return this;
-                    } else {
+                    } else if( idom!=null ) {
                         addDep(idom);
                     }
                 } else {

@@ -12,6 +12,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter24Test {
+    @Test public void testColdLoopSelfConflict() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coldLoopSelfConflict(); }
+
     @Test public void testPrintingDeadFunction() throws Exception {
         var code = new CodeGen("return 0;").parse();
         var tfp = TypeFunPtr.TEST;

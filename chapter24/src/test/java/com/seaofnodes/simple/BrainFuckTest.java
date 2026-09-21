@@ -79,7 +79,7 @@ val brain_fuck = { ->
         assertEquals(brain_fuck.length(),A5.ld4s(ptr_arm));
 
         for( int i=0; i<brain_fuck.length(); i++ )
-            assertEquals(brain_fuck.charAt(i), A5.ld1z(ptr+4+i));
+            assertEquals(brain_fuck.charAt(i), A5.ld1z(ptr_arm+4+i));
     }
 
 }

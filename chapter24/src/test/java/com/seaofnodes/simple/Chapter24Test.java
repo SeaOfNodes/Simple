@@ -12,6 +12,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter24Test {
+    @Test public void testColdLoopSelfConflict() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coldLoopSelfConflict(); }
+
     @Test public void testPrintingDeadFunction() throws Exception {
         var code = new CodeGen("return 0;").parse();
         var tfp = TypeFunPtr.TEST;
@@ -40,10 +42,8 @@ public class Chapter24Test {
 
     static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
         CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
-        int delta = spills>>3;
-        if( delta==0 ) delta = 1;
-        if( spills != -1 )
-            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        SpillStats.record(code,"Chapter24",cpu,os);
+        SpillStats.checkSpills(spills,code._regAlloc._spillScaled);
         if( stop != null )
             assertEquals(stop, code._stop.toString());
         return code;

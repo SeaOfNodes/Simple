@@ -124,7 +124,7 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 | Group | Eventual home | Why not in the small queue yet |
 |---|---|---|
-| Register allocation and spilling | 20 onward | Shared corrections/support now carried through 25; staged allocator/cohort/README reviews are complete through 23, with 24 next. |
+| Register allocation and spilling | 20 onward | Shared corrections/support now carried through 25; staged allocator/cohort/README reviews are complete through 24, with 25 next. |
 | Conditional Store and array Load control | Memory/arrays chapters | Reproduce under the earlier alias model before extracting fixes from the new memory implementation. |
 | SCCP dependencies, function revival, reachability | 24; some foundations may fit 18 | Separate old-IR corrections from new Guard/Escape/BulkMemPhi and external-caller machinery. |
 | TypeScalar, numeric modes, guards, symbolic fields, open/forward types | Revisit earlier homes later | A connected incomplete-types architecture, including phase ordering and errors. |
@@ -133,7 +133,7 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 ## Register allocation: correctness first, staged improvements
 
-Review on 2026-09-20. The staged plan follows; Chapters 20-23
+Review on 2026-09-20. The staged plan follows; Chapters 20-24
 have since been implemented and validated as recorded below. Shared corrections
 and test support have also been carried through 24-25; their quality/cohort/README
 reviews remain pending. Compared RegAlloc, BuildLRG, IFG,
@@ -223,7 +223,7 @@ to add persistent deferral state to the first allocator chapter.
 Suggested execution order: support/measurement, small mask/LRG correctness
 fixes, constrained-register and self-conflict regressions/fixes, then one
 quality technique at a time. Run each affected snapshot's full suite at each
-accepted boundary. Chapters 20-23 have now been implemented; stop for Cliff's review before 24.
+accepted boundary. Chapters 20-24 have now been implemented; stop for Cliff's review before 25.
 Review each chapter's README along the way. Chapter 21's encoding discussion
 has been shortened, with the bit-level notes retained as a separate reference. End each README with its
 RegAlloc improvement, measured cohort table, and commentary; the Chapter 25
@@ -268,6 +268,59 @@ starts, so run `make lib` separately before `make tests`.
 Historical results below are dated evidence, not a substitute for a fresh
 baseline. Logs live in ignored build directories and may no longer exist.
 Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
+
+### Chapter 24 allocator: ready for review, 2026-09-20
+
+Introduced Chapter 25's cold-first loop-Phi self-conflict splitting in 24.
+Remember each deferred Phi across rebuilt live ranges; a second conflict uses
+ordinary aggressive splitting. The graph regression covers both a Phi conflict
+and a backedge-only conflict where the first attempt makes no graph change.
+It fails with the saved allocator and with a deliberately disabled fallback,
+and passes in 24 and 25 (where this strategy was already present).
+
+Kept cohorts 20-23 at 39 / 52 / 24 / 30 allocations, including the earlier
+64-bit Person, guarded String, and smaller emulator argument list. Chapter 24's
+revised Jig, BubbleSort, Newton, and stack-argument cases move to Chapter24AllocTest;
+its own existing tests add the rest of cohort 24. Native/emulator helpers retain
+24's inline-source APIs. Restored the ARM BrainFuck check's own result pointer in 24-25.
+
+The frozen Chapter20Test.testString exposes a pre-existing CallEndNode.idealize
+NPE on all three targets, before allocation. Chapter 24's new dominator loop
+lost 23's null termination check. Restored that check and avoid adding a null
+dependency when no enclosing function is found; 25 uses a different inliner.
+The unchanged String test fails against the original snapshot and passes after
+this local correction. Both sides of the allocator comparison include the fix.
+
+| Cohort, using Chapter 24 | Allocations | Raw splits | Weighted splits |
+|---|---:|---:|---:|
+| 20 | 39 | 331 | 457 |
+| 21 | 52 | 436 | 975 |
+| 22 | 24 | 67 | 67 |
+| 23 | 30 | 66 | 115 |
+| 24 | 67 | 432 | 1,342 |
+| **Total** | **212** | **1,332** | **2,956** |
+
+With only cold-first splitting absent, totals are 1,338 / 2,962: six fewer moves
+and six fewer weighted moves. Per-target raw/weighted totals are ARM 430 / 710,
+RISC-V 451 / 745, x86 SystemV 152 / 285, and x86 Win64 299 / 1,216. The respective
+savings are 2 / 2, 1 / 1, 1 / 1, and 2 / 2. RISC-V cohort-20 MergeSort adds one;
+other MergeSort cases, Sieve, and ARM testFlags2 offset it. Native MergeSort's
+weighted expectation becomes 34 (observed 35 without this heuristic), replacing
+the older loose 40 expectation. No allocation or execution failure was hidden.
+
+On cohorts 20-23 alone, 23's 933 / 1,745 becomes 900 / 1,614. Of that change,
+only 6 / 6 is the new allocator rule; other compiler changes account for 27 / 125.
+Reviewed the README, labelled its SSA examples as pseudocode, corrected which
+Phi is available at loop exit, and avoided implying a constant value proves a
+loop removable. It ends with the cold-first explanation, cohort table, and
+controlled comparison. Area/cost ranking and Chapter 25's cohort review remain.
+
+Validation: the original 24 suite passed 456 + 1 fuzzer. Final `make -j 4 tests`
+passes 470 + 1; `make spill-stats` passes 106 tests / 212 allocations, including
+runtime, register/ownership, and quality checks. The forwarded regression passes
+25's full 465 tests across six groups. Snapshots, comparisons, and negative
+controls are in `chapter24/build/regalloc-review`; 25's full log is in its
+`build/regalloc-review/full.log`. Edited files use LF endings.
 
 ### ARM calls and stack frames: corrected in 21-25, 2026-09-20
 
