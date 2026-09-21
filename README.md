@@ -72,6 +72,9 @@ The Simple language is styled after a subset of C or Java.
 
 ## Building across chapters
 
+The optional [interactive graph viewer](graph/README.md) is shared in `graph/`.
+Chapters 18–25 launch it with `make view` from the chapter directory.
+
 The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 `release`, or `lib` target. Start with `make lib` on a fresh checkout, then
 `make tests`. 

@@ -5,6 +5,9 @@ import com.seaofnodes.simple.type.*;
 import java.io.IOException;
 import java.util.Stack;
 import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.net.URI;
 import java.util.Collection;
 import static com.seaofnodes.simple.CodeGen.CODE;
 
@@ -25,7 +28,20 @@ public class JSViewer implements AutoCloseable {
 
     JSViewer() throws Exception {
         // Launch server; handshake
-        SERVER = new SimpleWebSocket(Paths.get("docs/index.html").toUri(),12345) ;
+        SERVER = new SimpleWebSocket(viewerURI(),12345);
+    }
+
+    // The browser application is shared by all chapters. Search upwards so
+    // chapter, repository-root, and linearized checkouts use the same assets.
+    static URI viewerURI() throws IOException {
+        String url = System.getProperty("simple.graph.url");
+        if( url != null ) return URI.create(url);
+        for( Path dir = Paths.get("").toAbsolutePath(); dir != null; dir = dir.getParent() ) {
+            Path page = dir.resolve("graph/web/index.html");
+            if( Files.isRegularFile(page) ) return page.toUri();
+        }
+        throw new IOException("Cannot find graph/web/index.html; run inside the Simple checkout "
+                              + "or set -Dsimple.graph.url=<viewer URL>");
     }
 
     void run( ) throws Exception {

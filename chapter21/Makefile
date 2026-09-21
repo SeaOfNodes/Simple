@@ -94,7 +94,7 @@ build/release/simple.jar:	$(main_classes) $(test_classes)
 # Launch viewer
 view:	$(main_classes)
 	@echo "viewing "
-	@$(JVM) com.seaofnodes.simple.JSViewer
+	@$(JVM) com.seaofnodes.simple.print.JSViewer
 
 .PHONY: clean
 clean:

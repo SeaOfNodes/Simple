@@ -152,9 +152,10 @@ build/release/simple.jar:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@jar cf build/release/simple.jar -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
 # Launch viewer
-view:	$(main_classes)
+.PHONY: view
+view:	$(CLZDIR)/main/.mtag
 	@echo "viewing "
-	@$(JVM) com.seaofnodes.simple.JSViewer
+	@$(JVM) com.seaofnodes.simple.print.JSViewer
 
 .PHONY: clean
 clean:

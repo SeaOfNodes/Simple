@@ -7,7 +7,11 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.net.URI;
 import java.util.Collection;
+import java.util.Arrays;
 import java.util.Stack;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
@@ -28,7 +32,20 @@ public class JSViewer implements AutoCloseable {
 
     JSViewer() throws Exception {
         // Launch server; handshake
-        SERVER = new SimpleWebSocket(Paths.get("docs/index.html").toUri(),12345) ;
+        SERVER = new SimpleWebSocket(viewerURI(),12345);
+    }
+
+    // The browser application is shared by all chapters. Search upwards so
+    // chapter, repository-root, and linearized checkouts use the same assets.
+    static URI viewerURI() throws IOException {
+        String url = System.getProperty("simple.graph.url");
+        if( url != null ) return URI.create(url);
+        for( Path dir = Paths.get("").toAbsolutePath(); dir != null; dir = dir.getParent() ) {
+            Path page = dir.resolve("graph/web/index.html");
+            if( Files.isRegularFile(page) ) return page.toUri();
+        }
+        throw new IOException("Cannot find graph/web/index.html; run inside the Simple checkout "
+                              + "or set -Dsimple.graph.url=<viewer URL>");
     }
 
     void run( ) throws Exception {
@@ -137,10 +154,10 @@ public class JSViewer implements AutoCloseable {
         // Just the Nodes first, in a cluster no edges
         sb.i().p("subgraph cluster_Nodes {\n").ii(); // Magic "cluster_" in the subgraph name
         for( Node n : all ) {
-            if( n instanceof ProjNode || n instanceof CProjNode || n instanceof MemMergeNode )
+            if( n instanceof ProjNode || n instanceof CProjNode )
                 continue; // Do not emit, rolled into MultiNode or Scope cluster already
-            sb.i().p(n.uniqueName()).p(" [ ");
-            if( n instanceof MultiNode && !(n instanceof StartNode) ) {
+            sb.i().p(nodeName(n)).p(" [ ");
+            if( n instanceof MultiNode ) {
                 // Make a box with the MultiNode on top, and all the projections on the bottom
                 sb.    p("shape=plaintext label=<\n").ii();
                 sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n");
@@ -150,10 +167,11 @@ public class JSViewer implements AutoCloseable {
                 sb.i().p("<TR><TD>\n").ii();
                 sb.i().p("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">").p("\n");
                 sb.i().p("<TR>");
-                n._outputs.sort((x,y) -> x instanceof ProjNode xp && y instanceof ProjNode yp ? (xp._idx - yp._idx) : ((x==null ? 99999 : x._nid) - (y==null ? 99999 : y._nid)));
+                Node[] outputs = n._outputs.asAry();
+                Arrays.sort(outputs,(x,y) -> Integer.compare(idx(x),idx(y)));
                 boolean empty_row=true;
-                for( Node use : n._outputs ) {
-                    int idx = idx(n);
+                for( Node use : outputs ) {
+                    int idx = idx(use);
                     if( idx != -1 ) {
                         cell(sb,use.glabel(),use,"p"+idx);
                         empty_row=false;
@@ -179,9 +197,9 @@ public class JSViewer implements AutoCloseable {
         for (Node n : all) {
             if (n instanceof RegionNode region) {
                 sb.i().p("{ rank=same; ");
-                sb.p(region.uniqueName()).p(";");
+                sb.p(nodeName(region)).p(";");
                 for (Node phi : region._outputs)
-                    if (phi instanceof PhiNode) sb.p(phi.uniqueName()).p(";");
+                    if (phi instanceof PhiNode) sb.p(nodeName(phi)).p(";");
                 sb.p("}\n");
             }
         }
@@ -278,10 +296,10 @@ public class JSViewer implements AutoCloseable {
     // Called with an open div
     private static SB colorcell(SB sb, String text, Node n, boolean dark) {
         if( dark ) sb.p("<font color=\"white\">");
-        sb.p(text);
+        sb.p(htmlText(text));
         if( n._type!=null ) {
             sb.p("<br /><font point-size=\"10\">");
-            n._type.gprint(sb);
+            sb.p(htmlText(n._type.gprint()));
             sb.p("</font>");
         }
         if( dark ) sb.p("</font>");
@@ -289,7 +307,16 @@ public class JSViewer implements AutoCloseable {
     }
 
 
-    private static String makeScopeName(ScopeNode sn, int level) { return sn.uniqueName() + "_" + level; }
+    // DOT identity must not depend on labels (module/function names contain punctuation).
+    private static String nodeName(Node n) { return "n" + n._nid; }
+
+    // glabel/gprint already use entities such as &lt; and &rarr;.
+    private static String htmlText(String text) {
+        return text.replaceAll("&(?!#[0-9]+;|#x[0-9a-fA-F]+;|[a-zA-Z]+;)", "&amp;")
+            .replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private static String makeScopeName(ScopeNode sn, int level) { return nodeName(sn) + "_" + level; }
     private static String makePortName(String scopeName, String varName) { return scopeName + "_" + varName; }
 
     // Walk the node edges
@@ -305,8 +332,7 @@ public class JSViewer implements AutoCloseable {
                 n instanceof ProjNode ||
                 n instanceof CProjNode ||
                 // ScopeNodes are done separately
-                n instanceof ScopeNode ||
-                n instanceof MemMergeNode
+                n instanceof ScopeNode
                 )
                 continue;
             if( n.isDead() )
@@ -315,20 +341,20 @@ public class JSViewer implements AutoCloseable {
             for( int i=0; i<n.nIns(); i++ ) {
                 Node def = n.in(i);
                 if( def==null ) continue;
-                sb.i().p(n.uniqueName()).p(" -> ");
+                sb.i().p(nodeName(n)).p(" -> ");
                 if( n instanceof PhiNode && def instanceof RegionNode ) {
                     // Draw a dotted use->def edge from Phi to Region.
-                    sb.p(def.uniqueName());
+                    sb.p(nodeName(def));
                     sb.p(" [style=dotted taillabel=").p(i).p("];\n");
                 } else {
                     // Most edges land here use->def
                     if( def instanceof CProjNode proj ) {
-                        String mname = proj.ctrl().uniqueName();
+                        String mname = nodeName(proj.ctrl());
                         sb.p(mname).p(":p").p(proj._idx);
                     } else if( def instanceof ProjNode proj ) {
-                        String mname = proj.in(0).uniqueName();
+                        String mname = nodeName(proj.in(0));
                         sb.p(mname).p(":p").p(proj._idx);
-                    } else sb.p(def.uniqueName());
+                    } else sb.p(nodeName(def));
                     // Number edges, so we can see how they track
                     sb.p("[taillabel=").p(i);
                     // Color the edge
@@ -342,11 +368,13 @@ public class JSViewer implements AutoCloseable {
 
             // Bonus edge if hooked by parser
             if( (n.iskeep() || n.isUnused()) && scopeName != null ) {
-                sb.i().p(scopeName).p(" -> ").p(n.uniqueName()).p(" [ style=dashed color=grey];\n");
+                sb.i().p(scopeName).p(" -> ").p(nodeName(n)).p(" [ style=dashed color=grey];\n");
             }
             // Force functions above return
-            if( n instanceof ReturnNode ret && !ret.fun().isDead() )
-                sb.i().p(ret.ctrl().uniqueName()).p(" -> ").p(ret.fun().uniqueName()).p("[style=invis]\n");
+            if( n instanceof ReturnNode ret && !ret.fun().isDead() ) {
+                defPort(sb.i(),ret.ctrl()).p(" -> ");
+                defPort(sb,ret.fun()).p("[style=invis]\n");
+            }
         }
     }
 
@@ -397,7 +425,7 @@ public class JSViewer implements AutoCloseable {
     private static SB defPort(SB sb, Node def) {
         int idx = idx(def);
         return idx != -1
-            ? sb.p(def.in(0).uniqueName()).p(":p").p(idx)
-            : sb.p(def.uniqueName());
+            ? sb.p(nodeName(def.in(0))).p(":p").p(idx)
+            : sb.p(nodeName(def));
     }
 }

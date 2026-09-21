@@ -8,6 +8,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.net.InetSocketAddress;
+import java.nio.file.Path;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.SimpleFileServer;
 
 // Why-Oh-Why is this needed?
 
@@ -19,34 +23,66 @@ import java.util.Base64;
 class SimpleWebSocket extends ServerSocket {
     final  InputStream _in;
     final OutputStream _out;
+    private HttpServer _http;
+    private Socket _client;
 
     SimpleWebSocket(URI uri, int port) throws IOException, NoSuchAlgorithmException {
         super(port);
-        // Launch client
-        java.awt.Desktop.getDesktop().browse(uri);
-        // Look for client; get in/out streams
-        Socket sock = accept();
-        _in  = sock. getInputStream();
-        _out = sock.getOutputStream();
+        try {
+            // Use an ordinary web URL; desktop dispatch of file: URLs can silently
+            // raise the browser without opening the page.
+            if( "file".equals(uri.getScheme()) ) {
+                Path page = Path.of(uri);
+                _http = SimpleFileServer.createFileServer(
+                    new InetSocketAddress("127.0.0.1",0), page.getParent(),
+                    SimpleFileServer.OutputLevel.NONE);
+                _http.start();
+                uri = URI.create("http://127.0.0.1:" + _http.getAddress().getPort()
+                                 + "/" + page.getFileName());
+            }
+            // Print the address even if the desktop silently fails to open a tab.
+            System.out.println("Graph viewer: " + uri);
+            if( Boolean.parseBoolean(System.getProperty("simple.graph.open", "true")) )
+                java.awt.Desktop.getDesktop().browse(uri);
+            // Look for client; get in/out streams
+            Socket sock = accept();
+            _client = sock;
+            _in  = sock. getInputStream();
+            _out = sock.getOutputStream();
 
 
-        // Establish web socket with handshake; easier with a buffered reader
-        BufferedReader br = new BufferedReader(new InputStreamReader(_in));
-        String key = null;
-        while( br.ready() ) {
-            String line = br.readLine();
-            if( line.startsWith("Sec-WebSocket-Key: ") )
-                key = line.substring(19);
+            // Establish web socket with handshake; easier with a buffered reader
+            BufferedReader br = new BufferedReader(new InputStreamReader(_in, StandardCharsets.US_ASCII));
+            String key = null;
+            // TCP can deliver the request in several chunks. ready() is not an
+            // end-of-headers test; wait for the terminating empty line.
+            String line;
+            while( (line = br.readLine()) != null && !line.isEmpty() ) {
+                if( line.startsWith("Sec-WebSocket-Key: ") )
+                    key = line.substring(19);
+            }
+            if( key==null || line==null ) {
+                sock.close();
+                super.close();
+                throw new IOException("Incomplete WebSocket upgrade request");
+            }
+            // Magic handshake
+            byte[] response = ("HTTP/1.1 101 Switching Protocols\r\n"
+                               + "Connection: Upgrade\r\n"
+                               + "Upgrade: websocket\r\n"
+                               + "Sec-WebSocket-Accept: "
+                               + Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-1").digest((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").getBytes( StandardCharsets.UTF_8 )))
+                               + "\r\n\r\n").getBytes( StandardCharsets.UTF_8 );
+            _out.write(response,0,response.length);
+            _out.flush();
+        } catch( IOException | NoSuchAlgorithmException | RuntimeException | Error failure ) {
+            if( _http != null ) _http.stop(0);
+            if( _client != null ) {
+                try { _client.close(); } catch( IOException ignored ) {}
+            }
+            try { super.close(); } catch( IOException ignored ) {}
+            throw failure;
         }
-        assert key!=null;
-        // Magic handshake
-        byte[] response = ("HTTP/1.1 101 Switching Protocols\r\n"
-                           + "Connection: Upgrade\r\n"
-                           + "Upgrade: websocket\r\n"
-                           + "Sec-WebSocket-Accept: "
-                           + Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-1").digest((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").getBytes( StandardCharsets.UTF_8 )))
-                           + "\r\n\r\n").getBytes( StandardCharsets.UTF_8 );
-        _out.write(response,0,response.length);
     }
 
     final byte[] _ins = new byte[1024];
@@ -139,10 +175,18 @@ class SimpleWebSocket extends ServerSocket {
     }
 
     @Override public void close() throws IOException {
-        if( _out != null ) {
-            _out.write(0b10001000);
-            _out.flush();
+        try {
+            if( _out != null ) {
+                _out.write(new byte[]{(byte)0x88, 0}); // Complete, empty close frame
+                _out.flush();
+            }
+        } finally {
+            if( _http != null ) _http.stop(0);
+            try {
+                if( _client != null ) _client.close();
+            } finally {
+                super.close();
+            }
         }
-        super.close();
     }
 }

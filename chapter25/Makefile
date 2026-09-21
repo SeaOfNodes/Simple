@@ -212,9 +212,10 @@ build/release/Simple.jar:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@jar cfm $@ build/release/MANIFEST.MF -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
 # Launch viewer
-view:	$(main_classes)
+.PHONY: view
+view:	$(CLZDIR)/main/.mtag
 	@echo "viewing "
-	@$(JVM) com.seaofnodes.simple.JSViewer
+	@$(JVM) com.seaofnodes.simple.print.JSViewer
 
 #######################################################
 .PHONY: clean

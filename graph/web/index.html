@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Simple Viewer</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html, body { height:100%; margin:0; }
+    .viewer { height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+    .source { padding:8px; border-bottom:1px solid #ccc; }
+    #program { width:min(600px,80vw); vertical-align:middle; }
+    #status { margin-top:4px; }
+    #graph { min-height:0; overflow:hidden; }
+    #graph svg { display:block; }
+    .controls { display:flex; justify-content:center; align-items:center; gap:4px; padding:4px; }
+    .button { color:white; background:black; font-size:20px; min-width:30px; }
+    .button:disabled { background:grey; }
+    .count { font-size:20px; min-width:35px; text-align:center; }
+  </style>
+  <script src="vendor/d3.v7.min.js"></script>
+  <script src="vendor/graphviz.umd.js"></script>
+  <script src="vendor/d3-graphviz.js"></script>
+</head>
+<body>
+  <div class="viewer">
+    <div class="source">
+      <label for="program">Simple program:</label><br>
+      <textarea id="program" rows="3" autofocus></textarea>
+      <button id="compile" type="button" disabled>Compile</button>
+      <div id="status" role="status">Connecting to compiler...</div>
+    </div>
+    <div id="graph"></div>
+    <div class="controls">
+      <button id="doPrev" type="button" onclick="doPrev()" class="button" aria-label="Previous frame">&#11164;</button>
+      <span id="N" class="count">0</span>
+      <span>/</span>
+      <span id="len" class="count">0</span>
+      <button id="doNext" type="button" onclick="doNext()" class="button" aria-label="Next frame">&#11166;</button>
+      <button id="doExit" type="button" onclick="doExit()" class="button">Exit</button>
+    </div>
+  </div>
+  <script src="viewer.js"></script>
+</body>
+</html>
