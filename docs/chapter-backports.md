@@ -1,75 +1,80 @@
 # Chapter backport review
 
-This is a queue of pending work. Remove completed corrections from the queue. Independent
-corrections should start in the earliest affected chapter and propagate through
-every later affected snapshot. A regression in Chapter 25's `Chapter21Test`
-does not test the compiler in the `chapter21` directory.
+This is a queue of pending work. Completed corrections leave the queue; the
+[validation summary](#validation-record) records their scope. Detailed old logs
+are disposable build artifacts. Reusable rules live in
+[the AI notes](../skills/chapter25-codex-notes.md).
 
-For now, keep building SSA with incomplete types in Chapter 25. Moving that
-architecture earlier, or splitting Chapter 25, is deferred while small changes
-establish the review workflow. No renumbering is committed.
+Introduce independent fixes in the earliest applicable chapter and propagate
+them through every affected snapshot. Testing Chapter 25's inherited tests does
+not validate the compilers in the earlier chapter directories. Keep building
+SSA with incomplete types in Chapter 25 for now; moving that architecture or
+renumbering chapters is deferred.
 
-Keep each correction's reduced failure, smallest patch, and test results together
-for review.
+## Pending corrections
 
-## Follow-ups exposed by the Chapter 22 allocator review
+- **B10: preserve integer widening in `nonZero`, Chapter 24.** Still missing:
+  `[0,255]` and `[-255,0]` with widening levels 1-3 become level zero. Chapter 25
+  passes `_widen` to `make`; 24 does not. Widening first appears in 24, so 15-23's
+  older `nonZero` needs no patch. The previous audit established the type-level
+  discrepancy, not a loop-failure reproducer. Source: `51f1f8f4`.
+- **FunPtrNode lifetime backport, now next after the allocator review.**
+  `return {->42;};` and `return sys.io.p;` fail during relocation in Chapter 22
+  on all three targets at seed 123. Opto's name-based pruning equates no linked
+  calls with no callers and deletes anonymous/library function bodies. A plain
+  function-address ConstantNode keeps the pointer, but has no edge to keep the
+  Return alive. Instruction selection resets NIDs; the linker retains an ideal
+  target and `patchLocalRelocations` indexes outside the machine graph.
 
-- **Narrow-store register masks:** fixed locally in 22-24, with
-  `Chapter21Test.testNarrowStores`. Bring the x86 restriction to 20-21,
-  and the RISC-V restriction to 21; 19's masks and 20's RISC-V mask are
-  already general-register-only, and 25 already has both fixes. Byte/short stores
-  cannot consume XMM/FPR values. The old x86 `_sz >= 2` compares a character to
-  an integer and always accepts XMM; the intended threshold is `'4'`. RISC-V
-  previously accepted its full memory mask for every width. With Chapter 21's
-  bias in 22, `testSextSuccess` emitted an invalid FP byte store on RISC-V and
-  asserted in `StoreX86.encVal` on x86. Preserve cohort data when backporting:
-  correcting a mask can substantially change spill counts even without tuning.
-- **FunPtrNode backport: defer until register allocation work is complete.** The
-  minimal reproducer is `return {->42;};`; `return sys.io.p;` fails for the same
-  reason. Both fail on x86, RISC-V, and ARM at the default seed 123. The first
-  iterative Opto pass preserves the target. The subsequent pruning loop in
-  `CodeGen.opto` equates no linked calls with no callers for anonymous and `sys.`
-  functions, clears their unknown-caller Start edge, and deletes their bodies.
-  Their function-address ConstantNodes have no edge to keep the bodies alive.
-  The returned pointer survives while its Return disappears from Stop.
+  Backport Chapter 25's FunPtrNode/Return retention rules together with pointer
+  creation, unknown-caller pruning, instruction selection, constant cloning, and
+  relocation. Determine the earliest applicable home; 21 lacks this pruning
+  pass. `val f={->42;}; return f;` surviving is not a fix for anonymous/library
+  addresses. Do not enlarge relocation arrays or add an interim address scan.
+  Validate returned pointers by calling them, including library pointers, while
+  still deleting genuinely unused helpers. Keep module/escape machinery in 25.
+- **Chapter 22 String without an explicit return.** The unchanged source in
+  `Chapter20Test.testString` fails before allocation in loop-tree construction
+  or GCM at the historically tested seeds 0-29, on all targets. The original
+  snapshot has the same failures; seed 123 folds the work away. Reduce default
+  return/dead-call handling. A new return or a different seed is not a fix;
+  this historical sweep is not a reason to sweep routine backend tests.
+- **Chapter 25 null-dereference diagnostic.** This setup was accepted despite
+  dereferencing null on the taken arm; investigate separately from B13:
 
-  Instruction selection resets NIDs and never selects the deleted function, so
-  the linker still maps its pointer to an ideal FunNode. In the reduced anonymous
-  case that node is 256; the x86 machine graph has UID 19. `Encoding.relo` accepts
-  the stale target and `patchLocalRelocations` indexes `_opStart[256]`. Enlarging
-  the array would merely hide a missing function body and produce a wrong address.
+  ```java
+  struct Point { int x; new Point={int v -> x=v;}; };
+  Point?[] !points=new Point?[2]; points[arg]=new Point(42);
+  Point? p=points[1];
+  if(p==null) return p.x; return -1;
+  ```
 
-  `val f = {->42;}; return f;` retains the named function and encodes on all three
-  targets. An isolated build that excludes anonymous functions from pruning also
-  encodes both anonymous reproductions, confirming the cause; it does not fix
-  escaped `sys.` addresses. Cliff's chosen direction is to investigate backporting
-  Chapter 25's `FunPtrNode`, whose edge to the function Return keeps the function
-  body alive. This supersedes the proposed address-reference scan. Leave both
-  examples as documented known failures while finishing the allocator chapters;
-  do not fold this reachability change into that work.
+- **Chapter 18 fuzzer seed `973358943756616234`.** Remains in
+  `OPEN_FAILING_SEEDS`. The reduction below exposes nullable field lookup with
+  peepholes disabled and, historically, a mixed-return error with them enabled.
+  B11 fixes the latter reduced diagnostic; neither it nor Chapter 19's change
+  from an off/on oracle to worklist-seed comparison proves the full seed fixed.
 
-  After register allocation, find the earliest applicable chapter and carry the
-  function-pointer representation and its retention rules together: pointer
-  creation, Opto's unknown-caller pruning, instruction selection, global constant
-  cloning, and relocation must agree on the retained function. Adapt these to
-  each chapter without importing unrelated Chapter 25 module/escape machinery.
-  Validate a returned pointer by calling it, and cover library pointers and
-  genuinely unused helpers. Chapter 21 lacks this pruning pass and also treats a constant-only
-  default main differently, so its old encoding-only coverage was not equivalent.
-  Diagnostic logs are in `chapter22/build/funptr-review`; the reduced sources and
-  causal trace above are the durable reproduction.
-- **String without an explicit return in 22:** use the unchanged source in
-  `Chapter20Test.testString`, with the same driver and seeds 0-29. All three CPUs
-  fail before allocation, in loop-tree construction or GCM (missing loop owner,
-  dead CallEnd, or a FunNode cast to LoopNode, depending on seed). The original
-  snapshot reproduces the same 90 failures; seed 123 folds the work away. Reduce
-  this around Chapter 22's default-return/dead-call handling before changing a
-  central reachability invariant. Do not count a different seed or added return
-  as fixing this input.
+  ```java
+  struct s0 { u8 v1; };
+  s0? !UmPOLQK=null;
+  if(0) while(0&UmPOLQK.v1) {}
+  if(UmPOLQK.v1) {}
+  return new s0;
+  while(0) {}
+  ```
+
+- **Chapter 25 ARM extern data.** `i32 errno="C"; return 0;`, compiled through
+  Encoding with ARM/SystemV, reaches `arm.load_str_imm` with register -1 for the
+  extern-data value stored by `<clinit>`. Both the saved original and final
+  compiler reproduce it. This is an extern-data lowering/encoding issue, not
+  the repaired float-store allocation conflict. The historical Bubble Sort
+  replay allocates successfully but also exposes this failure if ARM encoding
+  is requested. Do not describe its allocation statistics as runtime coverage.
 
 ## AOT class initialization: larger independent work
 
-Proposed on 2026-09-19; deferred behind the smaller BXX cleanup above. This is
+Proposed on 2026-09-19; deferred behind the smaller queue above. This is
 a substantial, self-contained Chapter 25 change, not an entangled backport.
 Earlier chapter applicability has not been established.
 
@@ -124,896 +129,125 @@ Chapter 25 suite, including `make -j 4 tests`.
 
 | Group | Eventual home | Why not in the small queue yet |
 |---|---|---|
-| Register allocation and spilling | 20 onward | Shared corrections/support now carried through 25; staged allocator/cohort/README reviews are complete through 24, with 25 next. |
 | Conditional Store and array Load control | Memory/arrays chapters | Reproduce under the earlier alias model before extracting fixes from the new memory implementation. |
 | SCCP dependencies, function revival, reachability | 24; some foundations may fit 18 | Separate old-IR corrections from new Guard/Escape/BulkMemPhi and external-caller machinery. |
 | TypeScalar, numeric modes, guards, symbolic fields, open/forward types | Revisit earlier homes later | A connected incomplete-types architecture, including phase ordering and errors. |
 | BulkMemPhi/MemPhi, private constructor memory, allocation helpers | Revisit memory / constructors / methods | Move invariants and regressions together. |
 | Serialization, global identity remapping, module escape summaries | Separate compilation | Remain with modules. |
 
-## Register allocation: correctness first, staged improvements
+## Register allocation: completed chapter progression
 
-Review on 2026-09-20. The staged plan follows; Chapters 20-24
-have since been implemented and validated as recorded below. Shared corrections
-and test support have also been carried through 24-25; their quality/cohort/README
-reviews remain pending. Compared RegAlloc, BuildLRG, IFG,
-LRG, Coalesce, RegMask, and split support across 20-25, with the original fix
-commits. Allocation starts in 20; 19 has instruction selection/register masks
-but no coloring allocator. Most changes are in 20->21 and 24->25. The 22->23
-allocator changes are imports/API cleanup; 23->24 has no allocator changes.
+The allocator review is complete through Chapter 25. Each README ends with the
+introduced technique, measured program cohorts, and commentary. `make spill-stats`
+reports actual retained moves, per target and cohort, with assertions enabled.
 
-Cliff's direction: correctness fixes belong at the earliest applicable chapter;
-quality improvements should accumulate gradually. Debugging/printing/support
-can start in 20. Judge spill changes across a fixed suite, allowing a local
-increase when compensated elsewhere. Do not copy the entire Chapter 25 allocator
-into 20, and do not classify a whole historical commit by its title.
-
-### Correctness work to extract
-
-| Work | Current evidence / source | Earliest intended home |
+| Chapter | Additional technique | Final cohort sizes |
 |---|---|---|
-| Register-mask and LRG bookkeeping | Original 20: `RegMask(int)` assigns `bit=64` instead of subtracting 64, and empty `firstReg()` returns 128. `LRG._union` replaces `_machUse` without its `_uidx`, and can retain null from an immutable mask intersection. Fixed in 21; see `7e1deb4c`, `8d6de0e1`. | 20 |
-| BuildLRG/IFG instruction contracts | 21 checks null use masks, avoids revisiting CFG projections, processes kills even without an output LRG, and distinguishes an instruction's fixed output from a range narrowed elsewhere. The 25 commutative-input fallback uses `mach.outregmap()` rather than a possibly nonexistent LRG. | 20, after reduced graph/source regressions |
-| Self-conflicts and effective splits | 21 visits extending uses before rewriting definitions, permits needed backedge splits, checks intervening clobbers/self-conflicts before reusing splits, and avoids immediately folding away capacity splits. `35057d50`, `cc32b0cf`, and `880329e6` explicitly address failed progress. | 20; preserve Phi parallel-assignment semantics |
-| Legal rematerialization | 22 checks a clone's output mask against the use mask before choosing a clone over a move. Otherwise repeated cloning can preserve the original hard conflict. The 25 kill handling chooses the live cloneable value to split rather than the killing instruction (`c05d7df4`). | 20; isolate correctness from ranking cloneable spill candidates |
-| Empty-mask split bookkeeping | 25 saves the original def use-count before inserting a split, checks for a missing sample use, and skips null traversal roots. | 20 where the affected helper/path exists |
-| Persistent multi-def/fixed-register conflicts | 25 directly splits single-register uses and sometimes splits the deep side of a loop (`c05d7df4`). Its `_ns._len > 5` and related thresholds mix progress with tuning. | Reduce a no-progress case in 20, then extract the smallest sufficient rule; do not transplant thresholds as a proven invariant |
-| Encoding and stack ABI support | Correct frame sizing, incoming/outgoing stack arguments, and stack-to-stack move encoding are required once native emission exists (`7e1deb4c`). | 21, where encoding is introduced; retain CPU/ABI distinctions |
+| 20 | Basic coloring, rematerialization and loop splitting, with shared legality/progress fixes | 39 |
+| 21 | Conservative copy coalescing | 39, 52 |
+| 22 | Stronger copy-chain/backedge bias and cheap-spill ordering | 39, 52, 24 |
+| 23 | Group popular single-def uses by compatible register classes | 39, 52, 24, 30 |
+| 24 | One cold-only attempt for loop-Phi self-conflicts, then mandatory fallback | 39, 52, 24, 30, 67 |
+| 25 | Existing area/cost ranking and later conflict strategies | 39, 52, 24, 30, 67, 10 |
 
-Each correctness packet needs a failure demonstrated against the destination's
-old implementation, then allocation completion and legal register use. From
-21, also execute native/emulated results. An eight-round cutoff failure is a
-correctness failure, not permission to increase the cutoff. Some entries above
-are established historical fixes; applicability of the larger 25 changes to
-older graphs still needs reproduction.
+Shared corrections include RegMask/LRG bookkeeping, null use masks, kills without
+an output LRG, self-conflict splitting, compatible rematerialization, clobber-aware
+copy reuse/bypass, deterministic ordering, and side-effect-free diagnostics. The
+final audit adds the missing narrow x86 masks in 20-21 and RISC-V mask in 21;
+fixed-neighbor color bias in 20-25; and ARM memory register-bank selection,
+float opcodes, and matching emulator fixes in 21-25.
 
-### Proposed quality progression
+Chapter 25's additional fixed-use/deep-side splitting thresholds remain there.
+The def-use-count snapshot and null-use guard support its extra split branch;
+20-24 do not have that branch. Earlier kill handling subtracts killed registers;
+25 can choose to split cloneables earlier. No independent earlier-chapter
+correctness failure was established for these strategy differences. They are
+not uncompleted promises to copy the complete allocator backwards. Compilation-
+unit ownership and void/metadata handling also stay with the later representation.
 
-| Chapter | Additional quality technique |
-|---|---|
-| 20 | Keep the existing basic coloring, biased coloring, rematerialization, and loop-boundary splitting, corrected for legality/progress. |
-| 21 | Conservative copy coalescing, already introduced here. Keep its mask/adjacency correctness fixes with it. |
-| 22 | Stronger color preferences: follow loop backedges for bias, improve copy-chain searches, and refine cheap-spill ordering for callee saves/cloneables. |
-| 23 | Group popular single-def values by their uses' required register classes instead of splitting each use. Include safe use-list mutation and call-crossing restrictions when introduced. |
-| 24 | Try cold splits first for loop-Phi self-conflicts, with a remembered one-attempt limit and aggressive fallback. The delay is optional; its fallback is mandatory. |
-| 25 | Rank recovered live-range area against loop-scaled split cost (`a03bc567`), plus any further measured tuning. |
+The final ARM failure was substantive: the original Newton float programs reached
+the allocation round limit because a float store demanded a GPR; the deeper loop
+split kept cutting the wrong portion of the range. Permitting the supported FP
+registers removes that conflict. Encoding must then use the allocated register
+bank, with five-bit register numbers, for both immediate and indexed loads/stores.
+The emulator must preserve floating bits and scale double offsets by eight.
 
-This progression would move some heuristics currently bundled into 21 later;
-it is not just a forward copy. Keep each introduced technique in subsequent
-chapters and update the chapter prose with it. Chapter 20's README already
-discusses popular-value grouping and coalescing beyond its current code, so
-that prose needs realignment too. The one-attempt loop-Phi delay from
-`a03bc567` is a quality feature with its own progress safeguard, not a reason
-to add persistent deferral state to the first allocator chapter.
+Chapter 25 freezes the 212 earlier compilation entries in
+[documented source fixtures](../chapter25/src/test/java/com/seaofnodes/simple/spill/README.md).
+Constructor/library adaptations change IR, so this is a program-cohort comparison,
+not identical machine graphs. Those rows replay allocation and legality checks;
+current Chapter25Test native checks and a fresh system-library encoding contribute
+ten more allocations. Total: **2,597 moves / 5,579 loop-weighted moves** over 222
+compilations. Chapter 25's area/cost implementation is retained. Substituting the
+earlier ranking saves five moves on the clients but fails a fresh `sys` allocation
+at the eight-round limit; a failed library cannot be omitted from the comparison.
 
-### Support and measurement
-
-- Start deterministic split ordering, null-safe split printing, useful LRG/mask
-  diagnostics, and an optional function-local-edge verifier in 20. Preserve the
-  existing side-effect-free `_` printer accessors. Actual stack offsets require
-  the frame layout introduced in 21; module-specific exceptions stay in 25.
-- Record actual `_spills` and `_spillScaled` for each compilation, keyed by test,
-  CPU, ABI, and fixed seed. Both count retained SplitNodes; `_spillScaled` weights
-  each by `8^loopDepth`. These are move/split metrics, not solely memory traffic.
-- Use one fixed optimizer seed for routine backend validation. Seeds shuffle
-  IterPeeps/Opto worklists, whose output should normalize modulo NIDs and equivalent
-  operand orderings; similar post-Opto graphs give little additional allocation,
-  scheduling, or encoding coverage. Reserve seed sweeps for optimizer/worklist
-  investigations or demonstrated order-sensitive failures. Inspect post-Opto
-  differences before multiplying backend runs. Prefer varied programs, register
-  constraints, targets/ABIs, and execution checks for allocator coverage.
-- Compare total scaled counts as the existing quality measure, and report raw
-  totals plus the largest local changes. Report per CPU/ABI as well as the whole
-  suite so a regression on one target is visible. Include compilations without
-  a current golden spill assertion; do not exclude failures or disable checks
-  to obtain an aggregate. Freeze test membership and seeds for each comparison.
-- Compare before/after within each chapter. For tutorial progression, also use
-  the common program/target subset: totals from different suites or changed IR
-  are not a controlled allocator comparison.
-- Existing helpers assert individual spill goldens (often with tolerance).
-  Review those local changes against the measured aggregate before updating
-  expectations. Correctness tests must assert completion/results independently
-  of the heuristic's exact spill count.
-- `splitBypass` originally scanned from `j-1` with `idx++` throughout 20-25,
-  reaching its own destination and rejecting nonadjacent bypasses. Corrected
-  through 25 with intervening kill-mask checks and a regression.
-  Pre-color copy reuse also checks fixed-register definitions before they have
-  an assigned `_reg`. Chapter 25 is not a complete correctness reference.
-
-Suggested execution order: support/measurement, small mask/LRG correctness
-fixes, constrained-register and self-conflict regressions/fixes, then one
-quality technique at a time. Run each affected snapshot's full suite at each
-accepted boundary. Chapters 20-24 have now been implemented; stop for Cliff's review before 25.
-Review each chapter's README along the way. Chapter 21's encoding discussion
-has been shortened, with the bit-level notes retained as a separate reference. End each README with its
-RegAlloc improvement, measured cohort table, and commentary; the Chapter 25
-table must have rows for cohorts 20-25 using the Chapter 25 compiler.
+The earlier tables are refreshed where the final mask fixes changed them:
+Chapter 20 is 238 / 357; Chapter 21 is 840 / 1,456. Coalescing on/off now saves
+230 / 433 moves in Chapter 21 with identical legality fixes. Chapters 22-24's
+aggregate values are unchanged. Full details and comparison limits belong in
+the individual READMEs rather than a second evolving set of tables here.
 
 ## Review and test protocol
 
-1. Run the destination's unmodified `make tests`. Record baseline failures and
-   resolve them before accepting a compiler backport into that chapter.
-2. Add a deterministic regression proving the old failure. Prefer tiny source
-   programs; use encoding checks when register placement is the property at issue.
-3. Apply the smallest correction; run the focused regression and full chapter
-   `make tests`. Stop for Cliff's review before the next trial fix.
-4. Propagate the accepted fix and regression through every affected later
-   snapshot. Run each snapshot's full `make tests`, not just 25's inherited tests.
-5. Run TypeTest for lattice changes and rebuild system objects when compiler
-   changes invalidate their IR/native code. Force a full Java rebuild when shared
-   APIs or constants change: older Makefiles do not track all Java dependencies.
-   Do not weaken checks or drop tests.
-6. Report chapters, commands, and results for review; remove completed items from
-   this queue. Keep unrelated dirty changes;
-   do not push without explicit approval.
+1. Establish the destination baseline. Reproduce a real failure with a small
+   source or constrained machine graph before classifying a change as a bug fix.
+2. Apply the smallest correction, propagate it to all affected snapshots, and
+   run each snapshot's focused checks and full `make tests`. Respect the current
+   user-authorized review boundary; do not push without explicit instructions.
+3. Force Java rebuilds when older Makefiles miss dependencies. Rebuild `sys.o`
+   after compiler changes; include a fresh library compilation in allocator
+   measurements rather than relying on an up-to-date object.
+4. Keep legality/progress/runtime checks separate from spill expectations.
+   Eight-round exhaustion is a failure; neither increasing the cutoff nor
+   changing a golden proves it fixed. Preserve test membership, targets/ABIs,
+   and fixed seeds. Do not sweep optimizer seeds for routine backend validation.
+5. Report aggregate and local changes. Use same-compiler heuristic comparisons;
+   changed frontend/lowering graphs are not allocator-only measurements.
+6. Keep edited text LF-only, preserve unrelated changes, and run `git diff --check`.
 
-The top-level runner supports all 25 chapters:
-
-```sh
-make lib                   # dependencies, before tests on a fresh checkout
-make tests
-make -k tests              # visit all chapters; failures still fail the command
-make tests CHAPTERS="chapter21 chapter22"
-make tags release CHAPTERS="chapter01 chapter24 chapter25"
-```
-
-Runs are sequential, and child failures propagate. `make tag` aliases `tags`.
-Java, GNU make, bash, ctags (for tags), and the existing native test tools must
-be on PATH. Early release targets package classes into jars; they do not imply
-standalone executable compiler drivers. Older Makefiles discover jars when make
-starts, so run `make lib` separately before `make tests`.
+The top-level runner accepts explicit chapter lists, e.g.
+`make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
 
-Historical results below are dated evidence, not a substitute for a fresh
-baseline. Logs live in ignored build directories and may no longer exist.
-Reusable implementation lessons are in `skills/chapter25-codex-notes.md`.
-
-### Chapter 24 allocator: ready for review, 2026-09-20
-
-Introduced Chapter 25's cold-first loop-Phi self-conflict splitting in 24.
-Remember each deferred Phi across rebuilt live ranges; a second conflict uses
-ordinary aggressive splitting. The graph regression covers both a Phi conflict
-and a backedge-only conflict where the first attempt makes no graph change.
-It fails with the saved allocator and with a deliberately disabled fallback,
-and passes in 24 and 25 (where this strategy was already present).
-
-Kept cohorts 20-23 at 39 / 52 / 24 / 30 allocations, including the earlier
-64-bit Person, guarded String, and smaller emulator argument list. Chapter 24's
-revised Jig, BubbleSort, Newton, and stack-argument cases move to Chapter24AllocTest;
-its own existing tests add the rest of cohort 24. Native/emulator helpers retain
-24's inline-source APIs. Restored the ARM BrainFuck check's own result pointer in 24-25.
-
-The frozen Chapter20Test.testString exposes a pre-existing CallEndNode.idealize
-NPE on all three targets, before allocation. Chapter 24's new dominator loop
-lost 23's null termination check. Restored that check and avoid adding a null
-dependency when no enclosing function is found; 25 uses a different inliner.
-The unchanged String test fails against the original snapshot and passes after
-this local correction. Both sides of the allocator comparison include the fix.
-
-| Cohort, using Chapter 24 | Allocations | Raw splits | Weighted splits |
-|---|---:|---:|---:|
-| 20 | 39 | 331 | 457 |
-| 21 | 52 | 436 | 975 |
-| 22 | 24 | 67 | 67 |
-| 23 | 30 | 66 | 115 |
-| 24 | 67 | 432 | 1,342 |
-| **Total** | **212** | **1,332** | **2,956** |
-
-With only cold-first splitting absent, totals are 1,338 / 2,962: six fewer moves
-and six fewer weighted moves. Per-target raw/weighted totals are ARM 430 / 710,
-RISC-V 451 / 745, x86 SystemV 152 / 285, and x86 Win64 299 / 1,216. The respective
-savings are 2 / 2, 1 / 1, 1 / 1, and 2 / 2. RISC-V cohort-20 MergeSort adds one;
-other MergeSort cases, Sieve, and ARM testFlags2 offset it. Native MergeSort's
-weighted expectation becomes 34 (observed 35 without this heuristic), replacing
-the older loose 40 expectation. No allocation or execution failure was hidden.
-
-On cohorts 20-23 alone, 23's 933 / 1,745 becomes 900 / 1,614. Of that change,
-only 6 / 6 is the new allocator rule; other compiler changes account for 27 / 125.
-Reviewed the README, labelled its SSA examples as pseudocode, corrected which
-Phi is available at loop exit, and avoided implying a constant value proves a
-loop removable. It ends with the cold-first explanation, cohort table, and
-controlled comparison. Area/cost ranking and Chapter 25's cohort review remain.
-
-Validation: the original 24 suite passed 456 + 1 fuzzer. Final `make -j 4 tests`
-passes 470 + 1; `make spill-stats` passes 106 tests / 212 allocations, including
-runtime, register/ownership, and quality checks. The forwarded regression passes
-25's full 465 tests across six groups. Snapshots, comparisons, and negative
-controls are in `chapter24/build/regalloc-review`; 25's full log is in its
-`build/regalloc-review/full.log`. Edited files use LF endings.
-
-### ARM calls and stack frames: corrected in 21-25, 2026-09-20
-
-The Chapter 23 README vector example exposed ordinary BL corrupting an argument
-register in the emulator and RetARM subtracting eight times the frame size.
-FunARM also emitted ADD with a wrapped negative immediate, masked by the
-emulator's signed decoding; RET omitted its X30 operand. Corrected the encoder
-and emulator together in 21-25, the first chapters with actual ARM encoding.
-Frames use SUB/ADD with byte counts and 16-byte alignment, including leaf spills.
-Negative arithmetic immediates switch ADD/SUB rather than wrapping. BL writes
-only X30; RET/BLR use their encoded register (read before overwriting X30).
-Chapter 21's older decoder already avoided BL writeback, but did not execute RET.
-
-Instruction regressions and recursive calls check actual return values, emitted
-frame/RET words, preserved registers, stack restoration, and bounded completion.
-The vector-growth regression starts at 23, where struct methods arrive, and uses
-25's explicit constructor syntax there. All regressions fail against the saved
-pre-fix compiler/emulator. The original README example now returns 511 on ARM,
-matching RISC-V, and restores SP. Full `make -j 4 tests` passes in 21 (404 + 1
-fuzzer), 22 (419 + 1), 23 (441 + 1), 24 (456 + 1), and 25 (464 across six groups).
-Spill reports retain the same allocation counts and raw/weighted totals:
-21: 91 allocations, 884 / 1,794; 22: 115, 838 / 1,496; 23: 145, 933 / 1,745.
-Logs and saved pre-fix classes are under each chapter's `build/arm-call-review`.
-
-### Chapter 23 allocator: ready for review, 2026-09-20
-
-The prior batch already supplied shared correctness/support through 25. This
-pass keeps Chapter 22's color bias/cheap-spill ordering and introduces popular-use
-grouping: a single-definition empty-mask range with more than two fixed-register
-uses may share copies by compatible register class. Existing same-depth split
-fallback remains; cold-first splitting and area/cost ranking remain for 24/25.
-
-Simplified grouping to one pass. Intersecting a class preserves compatibility
-with all earlier users of that class; new classes are disjoint, so rescanning
-is unnecessary. Snapshot distinct users before rewiring, skip null register
-masks, and count each call once even if it uses the value in several slots.
-Values used by multiple calls still fall back to ordinary splitting. The old
-code throws a null-mask NPE in the new reduced graph regression. Its corrected
-version checks shared copies, overlapping masks, repeated input edges, preserved
-scheduling dependencies, and one-call/two-call handling. Carried this same fix
-and regression through 24-25 to avoid repeating its review in later chapters.
-
-Added `make spill-stats` with frozen cohorts 20-23. Keep `person21`, and preserve
-21's guarded String file as `stringHash21`; 23's simplified String and two newly
-enabled Jig encoding tests live in Chapter23AllocTest. Cohort 23 also includes
-its two executed RISC-V short-circuit regressions. The reporter defers quality
-failures while still executing remaining targets/results, and exits nonzero.
-Restored the inherited ARM BrainFuck check to use the ARM result pointer.
-
-| Cohort, using Chapter 23 | Allocations | Raw splits | Weighted splits |
-|---|---:|---:|---:|
-| 20 | 39 | 332 | 458 |
-| 21 | 52 | 450 | 989 |
-| 22 | 24 | 67 | 67 |
-| 23 | 30 | 84 | 231 |
-| **Total** | **145** | **933** | **1,745** |
-
-The saved original compiler, corrected grouping, and a controlled ablation
-which disables only the grouping dispatch all produce these same totals.
-There is **no demonstrated spill improvement** from grouping on this suite.
-By target the totals are ARM 303 raw / 464 weighted, RISC-V 324 / 499,
-x86 SystemV 153 / 286, and x86 Win64 153 / 496. The new machine-graph regression
-covers behavior that the program suite does not distinguish; it is excluded
-from the original-compiler measurement and contributes no allocation statistics.
-
-Across the earlier cohorts, Chapter 22's 838 / 1,496 becomes 849 / 1,514 here.
-These are different compilers, not an allocator-only comparison: the frozen
-Chapter 20 String source survives optimization in 23 (9 + 4 + 3 weighted moves)
-where 22 folded it away. Its goldens are updated accordingly. Array type printing
-also changes `[u8]` to `[]u8`; only its rendered expectation changes.
-
-The original Chapter 23 full suite passed 428 + 1 fuzzer. Final `make -j 4 tests`
-passes 437 + 1; `make spill-stats` passes 72 tests / 145 allocations, including
-quality, ownership, register, native, and emulator checks. The forwarded grouping
-fix passes full 24 (452 + 1) and 25 (460 across six groups) suites. Original
-snapshots, controlled ablation, and detailed logs are under
-`chapter23/build/regalloc-review`; later chapter logs are in `build/grouping-review`.
-
-Reviewed the README's type discussion and vector example, corrected buffer
-installation/mutability/initialization and object-versus-array storage, and ended
-it with the grouping explanation, cohort table, and the unchanged ablation
-result. Its ARM execution failure is corrected in the call/frame record above.
-FunPtrNode reachability work remains deferred until the allocator reviews finish.
-
-### Shared allocator fixes/support: forwarded through 25, 2026-09-20
-
-At Cliff's request, carried the common Chapter 22 corrections into 23-25 in
-this review batch, avoiding repeated chapter-by-chapter review of the same
-changes. Preserved each later allocator's existing grouping, split-delay, and
-area/cost choices; the staged quality/cohort/README reviews still resume at 23.
-
-The shared packet includes bounded register-mask iteration and nonempty
-single-bit tests; commutative BuildLRG output fallback/null masks; resultless
-kill handling; fixed-register clone progress; null sample/traversal guards;
-and backward copy bypass with kill masks and uncolored fixed definitions.
-Chapters 23-24 also receive the corrected clone adjacency/multiple-use test,
-narrow-store masks, and native process exit-status assertions. Chapter 25
-already has the store/exit-status fixes and retains its module-aware verifier.
-
-Forwarded all eight RegAllocTestSupport diagnostic groups and Chapter20Test/
-Chapter21Test hooks. Generic allocation, encoding, native, and emulator helpers
-use CheckedCodeGen, whose regAlloc override checks function ownership, register
-masks, two-address constraints, and Phis immediately after allocation. Encoding
-adds untyped branches and rewrites tail calls, so running these checks afterward
-is too late: even Call.regmap may consult CFG.fun. This test-only hook preserves
-25's driver serialization/import-unlink ordering. Chapter 22 uses the same hook.
-
-Unmodified destination baselines passed. Against their saved main classes,
-five diagnostic groups fail in 23/24 (masks, resultless kills, clone progress,
-commutative Phi fallback, copy clobbers), and three fail in 25 (masks, clone
-progress, copy clobbers). All eight pass in all three corrected destinations.
-Final `make -j 4 tests` passes 23: 428 + 1 fuzzer, 24: 451 + 1 fuzzer,
-and 25: 459 tests across all six groups (8 + 386 + 34 + 18 + 1 + 12).
-Chapter 22 still passes 416 + 1 fuzzer; its separate `make spill-stats` passes
-55 tests / 115 allocations with the unchanged 838 raw / 1,496 weighted total.
-
-For this common-fix comparison, froze each destination's existing local program
-suite and default seed. Included its Chapter20-24 allocator/native cases as
-applicable, BrainFuck, and MergeSort; excluded diagnostic graphs/new regressions.
-These are within-chapter before/after comparisons, not the historical cohort
-rows needed for the later README reviews. In particular, 25's module suite is
-covered by the full tests, not included in these spill sums.
-
-| Compiler / same local suite | Allocations | Raw before | Raw after | Weighted before | Weighted after |
-|---|---:|---:|---:|---:|---:|
-| 23 | 119 | 629 | 614 | 1,511 | 1,279 |
-| 24 | 174 | 968 | 953 | 2,620 | 2,381 |
-| 25 | 146 | 660 | 656 | 1,255 | 1,244 |
-
-| Compiler | ARM weighted | RISC-V weighted | x86 SystemV weighted | x86 Win64 weighted |
-|---|---:|---:|---:|---:|
-| 23 | 413 -> 343 | 417 -> 345 | 95 -> 95 | 586 -> 496 |
-| 24 | 643 -> 573 | 647 -> 575 | 95 -> 95 | 1,235 -> 1,138 |
-| 25 | 348 -> 347 | 346 -> 343 | 123 -> 114 | 438 -> 440 |
-
-Changed goldens only after measuring the aggregate: in 23/24, NewtonInteger
-Win64 55 -> 48, Sieve Win64 257 -> 186 / RISC-V 160 -> 92 / ARM 160 -> 94,
-and arg_count Win64 42 -> 32. In 25, NewtonFloat SystemV 48 -> 40 and arg_count
-Win64 31 -> 35. That local increase is accepted against the overall reduction.
-All measured cases now complete their legality, quality, native/emulator checks:
-53 tests in 23, 77 in 24, and 67 in 25. Logs, original classes, and disposable
-measurement sources are under each chapter's `build/forward-regalloc`.
-The separate FunPtrNode reachability backport remains deferred as requested.
-
-### Inlined return typing and ARM emulator: corrected, 2026-09-20
-
-The ARM seed-9 String failure was an optimizer bug: inlining can delete a FunNode
-while its Return still carries live control, memory, and data. ReturnNode.compute
-mistook the deleted entry for an unreachable return and supplied Top to its
-caller. Chapter 20 introduced direct use of the linked Return's type, exposing
-this stale guard. Removed it in 20-21, matching the existing 22-25 implementation.
-Chapter 19 does not read that linked return type and passes the reduced probe.
-
-Reduced source: `struct S { int x; }; val f={ S s -> s.x=g(); };
-val g={ -> 123; }; S !s=new S; return f(s);`. The old 20 compiler returns null
-instead of 123 at seed 58; 21 fails at seed 8. The regression checks interpreted
-results across seeds 0-63 in Chapter20Test in every snapshot 20-25.
-
-Execution then exposed missing register-register SUB decoding in EvalArm64.
-Added the unshifted SUB form already emitted by Simple in 21-25. The matching
-Chapter21Test checks positive/negative results, 64-bit overflow, and preserved
-flags; it traps with the old emulator. The original String source at seed 9 now
-encodes and executes on both ARM and RISC-V, producing the independently computed
-hash `-2449306563677080489`. All 1,170 encoding/register checks pass over the frozen
-13-program cohort, three targets, and seeds 0-29.
-
-Fresh baselines passed before edits. Full suites after correction: 20: 376+1;
-21: 401+1; 22: 399+1; 23: 418+1; 24: 441+1; 25's six groups:
-8, 378, 34, 18, 1, 12. Spill totals are unchanged: Chapter 20 remains 236 splits /
-355 weighted; Chapter 21's two cohorts remain 401/653 and 483/1,141. These regressions
-are excluded from spill measurements. Logs/reducers are in each affected chapter's
-ignored `build/arm-top`; the earlier chapter-by-chapter allocator review gate remains.
-
-### Chapter 22 allocator: ready for review, 2026-09-20
-
-Carried forward the corrected Chapter 21 allocator and its diagnostic checks,
-retaining native frame/call support (`CallEndMach` in 22). Five inherited
-regressions fail against the original 22 classes: mask iteration/empty masks,
-resultless register kills, fixed-register clone progress, commutative Phi fallback,
-and copy bypass across clobbers. All eight diagnostic groups pass now.
-
-Chapter 22 keeps the stronger copy-chain and loop-backedge color bias, and cheap
-cloneable/callee-save spill ordering. Cloneable candidates must have samples;
-coalescing can leave either absent. The adjacent-use test now compares
-`defIndex+1 < useIndex`, not `defIndex < useIndex+1`, and treats multiple uses
-explicitly. Popular-use grouping is removed for introduction in 23; cold loop
-split deferral and area/cost ranking remain for 24 and 25.
-
-The native test helper had lost its exit-status assertion. Restored checking of
-its full integer exit code; `testNativeExitStatus` proves an empty-output program
-returning 7 fails. `testNarrowStores` first failed against the old RISC-V mask,
-then against the old x86 mask; both now reject FP registers for byte/short stores,
-and signed/unsigned RISC-V byte/short writes execute with the expected bytes.
-These restrictions already exist in 25; remaining destinations are queued above.
-
-Preserved cohorts 20 and 21 rather than silently accepting changed inputs:
-`person21` holds the original 64-bit age example, and `testInfiniteReturn` belongs
-to 22 while the old loop remains in 21. Cohort 22 includes its new allocation
-programs and repeated encoding/emulator compilations; diagnostic tests stay out.
-
-| Cohort, all using Chapter 22 | Compilations | Original splits | Current splits | Original weighted | Current weighted |
-|---|---:|---:|---:|---:|---:|
-| Chapter 20 | 39 | 322 | 324 | 448 | 443 |
-| Chapter 21 | 52 | 465 | 447 | 1,221 | 986 |
-| Chapter 22 | 24 | 67 | 67 | 67 | 67 |
-| **Total** | **115** | **854** | **838** | **1,736** | **1,496** |
-
-The original full suite passed 399 tests plus the fuzzer. Its frozen-cohort run
-completed all 115 allocations and execution checks, with 15 differences from
-Chapter 21's spill expectations. The final `make -j 4 tests` passes 416 tests plus
-the fuzzer; `make spill-stats` passes 55 tests, 115 allocations, and all quality,
-register-legality, function-ownership, native, and emulator checks. Sources and
-expectations were force-recompiled before checking. The README ends with the
-cohort table and explains the metrics; its FFI examples now match `sys.smp`.
-
-A controlled ablation substitutes only Chapter 21's IFG bias/ordering, keeping
-all other code and the new narrow-store restrictions fixed. It completes all
-115 allocations and runtime checks: 885 splits / 1,543 weighted, versus 838 /
-1,496 with the new preferences, a 47 weighted move (3.0%) improvement. The scratch
-ablation expects 42 instead of 41 bytes for the x86 narrow-store example because
-its chosen registers need an extra REX byte; runtime and mask checks remain on.
-Quality differences are reported with nonzero exit status, not suppressed.
-
-| Target/ABI, all cohorts | Compilations | Chapter 21 preferences, weighted | Chapter 22 preferences, weighted |
-|---|---:|---:|---:|
-| x86 SystemV | 22 | 267 | 268 |
-| x86 Win64 | 15 | 414 | 415 |
-| RISC-V SystemV | 39 | 437 | 407 |
-| ARM SystemV | 39 | 425 | 406 |
-
-Against the controlled ablation, BrainFuck saves 14 on RISC-V and 6 on ARM in
-both cohorts; ARM `testAlloc2` saves 4. Several MergeSort variants and RISC-V Sieve
-increase by one. Against the original mixed snapshot, Sieve saves 72 weighted
-moves on each target and Win64 argCount saves 10. This shows why individual spill
-goldens are reviewed against the aggregate rather than requiring every case to
-improve. Chapter totals also reflect lowering: the frozen String example has no
-explicit return and folds away at seed 123 in 22.
-
-The supplementary 13-program, three-target, 30-seed encoding sweep completes
-990 of 1,170 compilations with register checks. The remaining 180 fail on String
-(before allocation) and FltArg (relocation); the original classes reproduce all
-180 and additionally fail five allocator diagnostic groups per seed. No new
-program failures were introduced by the allocator work. The two source-level
-failures are queued above, not hidden by changing inputs, seeds, or expectations.
-Cliff clarified after this run that optimizer seed variation is not productive
-routine allocator coverage: normalized post-Opto graphs should produce similar
-backend work. Retain these historical reproductions, but use fixed-seed backend
-validation going forward; seed variation belongs to optimizer investigations.
-Stop for Cliff's review before starting Chapter 23.
-
-### Chapter 21 allocator: ready for review, 2026-09-20
-
-Carries the Chapter 20 legality/progress/support fixes into 21 while retaining
-native frame/ABI handling and conservative coalescing. Stronger color bias,
-clone/callee-save ranking, and popular-use grouping are deferred to the planned
-later chapters. The existing loop-entry-tail treatment remains; removing it
-increased weighted counts in a controlled trial. Coalescing's mask, interference,
-capacity rollback, and adjacency-remapping checks pass. Five inherited regression
-cases fail against the original compiler and pass now: mask iteration/empty masks,
-resultless kills, incompatible clone/use classes (round limit), commutative Phi
-uses, and copy cleanup across clobbers. The other two inherited cases already pass.
-
-`make -j 4 tests`: original 385 + 1; corrected 399 + 1 at the allocator boundary (401 + 1 after the return/emulator
-corrections above), after forced rebuilds,
-including native x86/Win64 and RISC-V/ARM emulator checks. All 1,170 allocation
-and register-constraint checks pass for the 13 frozen Chapter 20 inputs, three
-CPUs, and seeds 0-29. The subsequent encoding sweep also passes after the return-typing correction
-recorded above; the original ARM seed-9 failure is resolved.
-Native harnesses now retain full process exit codes, and ARM BrainFuck checks its
-own result pointer. `make spill-stats` passes all 45 selected tests (43 at the allocator boundary) and records
-91 compilations; spill-golden mismatches are deferred during reporting so they do
-not suppress later targets/runtime checks, but still make the command fail.
-
-| Cohort, all using Chapter 21 | Compilations | Original splits | Current splits | Original weighted | Current weighted |
-|---|---:|---:|---:|---:|---:|
-| Chapter 20, three SystemV targets | 39 | 340 | 401 | 445 | 653 |
-| Chapter 21, fixed Windows native/emulator suite | 52 | 454 | 483 | 1,175 | 1,141 |
-| Total | 91 | 794 | 884 | 1,620 | 1,794 |
-
-Same corrected compiler without coalescing: 1,074 splits / 1,921 weighted; with
-coalescing: 884 / 1,794, saving 190 / 127. Relative to the original combined
-heuristics, staging costs 174 weighted moves (+10.7%). RISC-V BrainFuck is the
-largest regression; sieve improves on all three targets. Do not claim an overall
-quality improvement over the original snapshot. Chapter-to-chapter raw totals
-also reflect changed lowering and native ABI obligations, not just coalescing.
-
-Frozen Chapter 20 sources (including original BrainFuck/MergeSort) now reside in
-Chapter20Test. The four revised source/ABI cases formerly there are preserved in
-Chapter21AllocTest and counted in 21; its native BrainFuck/MergeSort variants also
-belong to 21. No diagnostic graphs count toward quality totals. The README now
-summarizes encoding/ELF, links the retained encoding reference, and ends with
-coalescing, both cohort rows, and the controlled comparison. Logs and isolated
-baseline/ablation sources are under `chapter21/build/regalloc-review` (ignored).
-The allocator changes remain confined to Chapter 21; the subsequent return/emulator
-correction is recorded separately above. Chapter 22 allocator work is recorded below the review heading.
-
-### Chapter 20 allocator: ready for review, 2026-09-20
-
-Implemented only in 20, per Cliff's chapter-by-chapter review gate. Corrected
-high-word/empty register masks and boundary iteration, LRG mask merging/use-slot
-bookkeeping, null register-mask dependencies, commutative outputs used by Phis,
-CFG projection visitation, and kills from instructions without output LRGs.
-Splits now preserve progress through self-conflicts/backedges and intervening
-clobbers. Rematerialization must satisfy the use mask; fixed-register clones
-with flexible uses go through use-side splitting instead of a no-op simple
-split. Copy cleanup scans backward and respects both fixed definitions and kill
-masks. Removed the unused `splitEmptyMask` path and its `_killed` bookkeeping.
-
-Support includes deterministic failed-range ordering, null-safe split printing,
-a function-local-edge diagnostic, and `make spill-stats`. The program tests also
-check assigned register masks, two-address constraints, and Phi agreement.
-Seven small machine-graph/mask regressions fail against the saved original
-implementation and pass after correction, including a round-limit failure for
-incompatible clone/use register classes. These are separate from the quality
-corpus; they do not supply extra zero-spill examples to improve a total.
-
-The complete program cohort includes Chapter20Test's 11 examples plus BrainFuck
-and MergeSort on all three SystemV targets: 39 compilations, default seed 123.
-The fresh original baseline passes 368 tests plus the fuzzer regression. After
-forced rebuilds, `make -j 4 tests` passes 375 plus 1. The 11 ordinary examples
-also pass 990 compilations across seeds 0-29 and three CPUs, with the current
-register/ownership checks enabled. Native execution begins in Chapter 21.
-
-| SystemV target | Compilations | Original splits | Corrected splits | Original weighted | Corrected weighted |
-|---|---:|---:|---:|---:|---:|
-| x86-64 | 13 | 80 | 82 | 150 | 152 |
-| RISC-V | 13 | 82 | 80 | 103 | 101 |
-| ARM | 13 | 73 | 74 | 101 | 102 |
-| Total | 39 | 235 | 236 | 354 | 355 |
-
-This is a one-move correctness cost, not a quality win. Adjusted three local
-weighted goldens after reviewing the full aggregate: x86 array 3->5, x86 String
-18->21, ARM String 3->5 (the original actual ARM count was 2 within tolerance).
-All assertions remain active. The stats runner emits per-compilation data and
-fails on any JUnit failure; the Chapter20Test collector allows all three target
-checks to run before reporting golden differences. The README preserves Cliff's
-new introduction, removes premature coalescing/popular-use-grouping claims,
-and ends with the measured baseline and discussion of statistical comparison.
-No advanced coalescing, color-bias, grouping, cold-first, or area/cost heuristic
-was imported. Logs and the original-code snapshots are under
-`chapter20/build/regalloc-review/`. Chapters 21-25 are unchanged.
-
-### TypeFunPtr normalization: complete locally, 2026-09-20
-
-Backported the trailing-default normalization from `7f3b8856` to 23-24, where
-open/closed function argument tails first appear. Their complete `make` factory
-trims trailing BOTTOM arguments for open signatures and TOP arguments for closed
-signatures before interning; the existing meet uses that factory too. Raw cyclic
-allocation stays unchanged. Earlier chapters use fixed TypeTuple signatures.
-Chapter 25 already normalizes with scalar BOT/TOP and retains its implementation.
-
-Added only `gather` cases in 23-25: open/closed signatures, repeated trailing
-defaults, all-default signatures, and defaults before a real argument. No new
-test methods or files. The expanded existing lattice-law tests also passed
-before the 23-24 fix; these cases extend coverage rather than prove an old law
-failure. The other changes in `7f3b8856` concern Chapter 25's TypeMem final flags
-and XInt sets, already fixed there; neither representation exists earlier.
-
-Fresh baselines and forced-rebuild validation passed `make -j 4 tests` in
-23 (416 + 1), 24 (439 + 1), and 25 (449 total), with assertions enabled.
-Focused TypeTest runs also passed all six tests in each chapter. Edited files
-are LF-only and `git diff --check` passes. Logs:
-`chapter25/build/tfp-normalization/{baseline,repro,validate}.log`.
-
-### Scheduling without isPinned: complete locally, 2026-09-20
-
-Removed `isPinned()` and all overrides in 11-25. Early scheduling walks inputs,
-then assigns a block only when input 0 is null. Existing control and Phi/Proj
-bindings stay intact. For ordinary values, that control is an earliest-placement
-bound, not a prohibition on sinking during late scheduling.
-
-Chapters 11-14 also used the predicate for late placement; GCM now preserves
-those cases explicitly (Proj, New, Parser.ZERO, and Cast from 13), alongside its
-existing CFG/Phi handling. From 15, late scheduling already handles its fixed
-CFG/Phi/Proj cases structurally.
-
-The preceding GCM suites supplied the passing baseline. After forced Java
-rebuilds, every full snapshot suite in 11-25 passed `make -j 4 tests`, with
-assertions enabled and unchanged expectations/counts (449 total in 25). Existing
-constant-chain, guard, loop, allocation, native, and emulator tests all pass.
-No remaining `isPinned` declaration or call exists in the chapter sources.
-Edited files retain LF endings; `git diff --check` passes.
-Logs: `chapter25/build/pinned-review/{chapter25,backports}.log`.
-
-### GCM and global constant cloning: unified locally, 2026-09-20
-
-GCM starts in 11; functions make constant ownership relevant in 18. Chapters
-11-25 now share the early definitions-first / late uses-first worklist strategy,
-including Region/Loop Phi discovery, waiting-load wakeups, and LCA over every
-matching Phi input. Anti-dependence marks moved from CFGNode into a temporary
-GCM array. Removed the obsolete fixed-register placement heuristic in 21-24.
-
-Chapters 18-25 clone entire global constant-building graphs with one identity
-map per function, reusing shared subgraphs within that function. Originals stay
-intact until all rewrites finish. `Node.copyEmpty()` supplies exact-class clones
-with fresh IDs and empty edges, avoiding incompatible machine `copy()` contracts.
-Removed 25's redundant instruction-selection pinning to the old ideal Start.
-
-Necessary chapter differences remain explicit: 18-19's linked Parm inputs
-belong to their callers; from 20, unlinked Parms belong to the callee. In 11-20,
-the evaluator independently reschedules nodes, so anti-dependencies retain the
-full store placement range. Trying the later single-block rule fails the existing
-`SchedulerTest.testStoreInIf2`. Alias/tuple memory representations stay local to
-their chapters; 25 retains its compilation-unit ownership check.
-
-The new Chapter18Test regression in every snapshot 18-25 exercises two surviving
-recursive functions, repeated uses, registered edges, and function-local chains:
-stacked Cast/Constant nodes in 18-20 and RISC LUI/AddI expansions in 21-25. It
-fails against isolated original GCM classes in 18 and 20, and passes afterward.
-Original 21 and 25 already pass the machine-chain case; those changes simplify
-and unify the implementation rather than correcting that particular case.
-
-Changed ordering exposed 21's existing empty-block layout bug: entering a nested
-loop was mistaken for a backedge, producing a bad native Sieve branch. Backported
-22's same-loop-tree check; native and emulated Sieve pass. Updated 21's tighter
-scaled spill expectations: stringHash RISC 5->3 and ARM 6->3; BrainFuck RISC
-44->28. BrainFuck executes on both emulators; a separate direct-entry RISC
-hashCode probe verifies both initial hashing and the cached result.
-
-Validation: unmodified full baselines passed in 11-25. After forced Java rebuilds,
-all full chapter targets pass with assertions and `make -j 4 tests`: ordinary
-counts in 11-24 are 166, 169, 184, 204, 215, 233, 285, 316, 358, 368, 385, 397,
-416, and 439, plus the separately invoked fuzzer wrappers where applicable.
-Chapter 25 passes 449 tests across its groups. All edited files use LF endings.
-Logs: `chapter25/build/gcm-review/{baseline,before-test,focus-all,final,final25}.log`;
-`final.log` covers successful 11-24 runs and `final25.log` the final 25 rebuild/run.
-
-Independent follow-up: a direct-entry ARM emulator probe of 21's exported
-`hashCode` traps with code 3 under both original and updated GCM. It uses the
-existing stringHash.smp library, a String containing the u8 array "test", and a
-zero cached hash; the cause is not diagnosed. Do not claim the green suite or
-lower spill count validates this extra case. Scratch reproducer: `StringProof.java`
-in the same review directory; the RISC equivalent returns/caches 3556498.
-
-### Dominator caches: unified locally, 2026-09-19
-
-Real dominator searches begin in 6. The original Region pointer cache in 6-9
-returned the old, still-live dominator after its predecessors were rewired.
-Regions now recompute through the shared depth-based `domLCA` walk in 6-25,
-including one, two, or more predecessors. Existing dependency direction and
-24-25's dead-predecessor filtering are preserved.
-
-Per review, 6-17 use a char depth with no version. Chapters 18-25 use separate
-char depth/version fields, checked before depth narrowing and global version
-increments. Added the invalidation hook to 18-20's inlining; 21-25 already had
-it. Region, Loop and Stop all validate their caches, and folding functions use
-their caller-side depth. CFG copy constructors preserve both fields, as do
-ordinary clones. Packed versions in 21-24 failed after 100 invalidations;
-25's packed depth overflowed at 2148. Both limits are now 65535, with explicit
-overflow assertions.
-
-Development checks covered rewiring, depth overflow, actual inlining with warmed
-caches, repeated invalidation, copy preservation, and version overflow. At
-Cliff's request, the dedicated dominator helpers/tests and their Makefile
-accommodations were subsequently removed as unnecessary for this bookkeeping.
-Existing printer regressions still check that both cache fields stay unchanged.
-
-Baseline full targets passed in 6-24. After full Java rebuilds, all affected
-snapshot suites passed with assertions enabled. Chapter 25 initially passed
-`make tests` and `make -j 4 tests` in a scratch copy with a pre-existing stray
-`v` removed from Node.java. After Cliff authorized removing that typo from the
-live tree, its Java sources and system object rebuilt and `make -j 4 tests`
-passed there too (451 tests, exit status zero).
-
-Logs: `chapter25/build/dominator-review/{baseline,fixed,later,final18-24,chapter25-scratch,chapter25-final,chapter25-live}.log`.
-Reusable cache rules are in the skills notes.
-
-### B11: optimized return-type checking backported locally, 2026-09-19
-
-The false mixed-return rejection begins in Chapter 18, where function returns
-first merge through one Return/return-value Phi. `ReturnNode.err()` now checks
-`expr()._type`, as in Chapter 19. The parse-time `mt` meet could retain a type
-from an unreachable return forever. Removed that aggregate from 18-24; it was
-already unused in 19-24 and absent in 25. Parsed kind flags remain only for
-formatting diagnostics. Chapter 24's additional TOP check is preserved.
-
-Earlier snapshots were checked with reduced syntax. Struct/reference returns
-appear in 10; floating-point returns in 12. Chapters 10-17 already accept the
-dead reference/int examples, and 12-17 accept the dead float/int examples.
-They retain separate Return nodes and do not require one common type across
-reachable returns. The B11 false rejection therefore has no earlier compiler
-patch; introducing common-return-type checking there would be separate work.
-
-`Chapter10Test.testDeadReferenceReturn` starts in 10 and is copied through 25;
-`Chapter12Test.testDeadNumericReturns` starts in 12 and is copied through 25.
-They cover both constant If arms and unreachable returns after an unconditional
-return; numeric cases also verify execution results. Both tests failed in 18
-before the correction with `No common type amongst ...`.
-`Chapter18Test.testReachableMixedReturns` in 18-25 still rejects reachable
-int/float and int/reference alternatives, using each chapter's diagnostic.
-
-Unmodified baseline targets passed in 9-25. Final full `make tests` targets
-passed with assertions enabled in every changed snapshot, 10-25; Chapter 25
-passed 448 tests. Its reference test selects the entry function explicitly,
-because constructors add other Returns to the same compilation unit.
-Logs: `chapter25/build/b11-review/{probe,probe-later,baseline,red,fixed,chapter25-fixed}.log`.
-
-### B12: immediate multiply destination corrected locally, 2026-09-19
-
-The x86 backend has distinct integer register (`MulX86`, 0F AF), integer
-immediate (`MulIX86`, 69/6B), and floating-point (`MulFX86`, MULSD) encoders.
-Chapter 21 incorrectly routed immediate multiply through `ImmX86`, which
-encodes an opcode extension in ModRM.reg. IMUL needs the destination there,
-including its high bit in REX.R. Chapter 20 has no executable encoder yet;
-22-25 already have a dedicated immediate multiply encoder.
-
-Chapter 21 now uses that dedicated encoder while preserving its
-`twoAddress() == 1` allocation contract. Other `ImmX86` subclasses are unchanged.
-For `rcx *= 11`, the regression failed with ModRM C1 instead of C9; the fix emits
-`48 6b c9 0b`. For `r9 *= 11`, it emits `4d 6b c9 0b`.
-
-`Chapter21Test.testX86MultiplySameRegister` is carried through 21-25. It forces
-rax/rcx/r9/r15 and positive/negative imm8/imm32 values, independently of allocator
-choices, and checks register fields, opcode, immediate, length, and each
-chapter's allocation contract. Existing distinct-register checks remain in
-22-24. Unmodified baselines and final full `make tests` targets passed in all
-five snapshots, with assertions enabled; Chapter 25 passed 446 tests.
-Logs: `chapter25/build/b12-review/{baseline,red,fixed}.log`.
-
-### Issue #251: dead-node printing corrected locally, 2026-09-19
-
-[Issue #251](https://github.com/SeaOfNodes/Simple/issues/251) identifies dead-node
-checks against a null `_inputs` array. Constructors and clones allocate the
-array; `kill()` empties it without setting it to null. Line printers now use
-`isDead()` throughout 7-25, including both columnar and LLVM formats in 10-17.
-Chapter 25's whole-program printer uses the same predicate to omit dead
-functions and nodes. Its bounds-safe input accessor simply checks the input
-count. Printing does not prune the linker.
-
-`Chapter07Test.testDeadNodePrinting` in every snapshot 7-25 checks retained input
-storage, the `DEAD` marker, and live inputless nodes. Chapter 25 also tests
-omitting a dead function while preserving its linker entry. The regressions
-fail against isolated original printers in 7, 10, 18, and 25. Full `make tests`
-passed with assertions enabled in every affected snapshot, including 447 tests
-in 25. The initial Chapter 17 test assumed an inputless Start; its setup was
-corrected for that chapter's representation and its full target rerun.
-Logs: `chapter25/build/issue251-review/{original,fixed,chapter17-fixed}.log`.
-
-### Issue #247: emulator 64-bit stores corrected locally, 2026-09-19
-
-[Issue #247](https://github.com/SeaOfNodes/Simple/issues/247) identifies `st8`
-writing the upper half with `st2`. The identical bug exists in EvalRisc5 and
-EvalArm64 in every snapshot 21-25, starting with their introduction. Both now
-use `st4` for the upper half, writing all eight bytes rather than leaving the
-upper two unchanged.
-
-`Chapter21Test.testRisc64BitStore` and `testArm64BitStore` are carried through
-21-25. They check individual little-endian bytes independently of the load
-helper, round trips, positive/negative/extreme values, overwriting with zero,
-and untouched neighboring memory. All ten cases failed before the correction
-at the first unwritten byte (0xA5 instead of 0x23).
-
-Full `make tests` passed with assertions enabled in each snapshot 21-25,
-including 445 tests in Chapter 25. Log:
-`chapter25/build/issue247-review/fixed.log`.
-
-### B10 audit: still pending in Chapter 24, 2026-09-19
-
-The fix is present in Chapter 25 (introduced with commit `51f1f8f4`), but has
-not reached Chapter 24. Integer `nonZero` appears in 15; `_widen` first appears
-in 24, so earlier snapshots do not need this backport.
-
-An assertions-enabled probe of the current compiled snapshots tested `[0,255]`
-and `[-255,0]` at widening levels 0-3. Chapter 24 resets all six nonzero widening
-levels to zero; Chapter 25 preserves all of them. Both pass refinement (`isa`),
-idempotence, double-dual, singleton normalization, and zero-input checks. This
-establishes the missing type-level backport; it is not a loop-failure reproducer.
-Probe: `chapter25/build/b10-review/B10Probe.java`. No compiler correction was
-made during this audit; B10 remains in the pending queue above.
-
-### B09: complete locally, 2026-09-19
-
-Audited `Node.p(depth)`, recursive printing, labels, scope/graph viewers, and
-assembly helpers. Corrections follow the first affected representation:
-
-- 11-24: scheduled IR display uses local `_idepth` state; 11-14 also use
-  identity maps to avoid setting Node hashes/GVN locks.
-- 18-24: memory display reads raw lazy aliases instead of creating Phis;
-  scope display uses `Var._type` without resolving forward references.
-  25's stale alias-based memory display reads its actual bulk-memory input.
-- 19-23: printers use ordinary `link` and tolerate missing targets. Per Cliff's
-  review, type interning is allowed: the proposed non-interning linker scan and
-  `sameTarget` helper were removed. 24-25 use `CodeGen._link` to preserve dead
-  entries, including through 25's `funcName`; optimizing `link` still cleans up.
-- 20-25: register display uses `_lrg` without compressing chains or rewriting
-  node mappings. Function predicates use the existing leaf `_isConstant` from
-  23; integer size/value accessors also avoid entering shared recursion state.
-- 21-25: pool display uses identity bookkeeping and recorded alignment, plus
-  recorded struct size from 22 and section choice in 25. Printers do not ask
-  Types for layouts, even when an answer might already be cached. Layout is
-  separate from type identity and may eventually move out of TypeStruct.
-
-Regressions cover graph caches/edges, lazy Phis, unresolved declarations, stale
-linker entries, register chains, leaf type accessors, and forbidden layout queries.
-Isolated original Chapter 18 classes fail the lazy-memory and forward-reference
-tests; original printers also reproduce cache mutation, register compression,
-shared-scratch assertions, and dead-linker pruning. Tests permit type interning.
-
-Every affected compiler snapshot (11-25) passed its full `make tests` target with
-assertions enabled after the review adjustment, including 443 tests in 25.
-The constant-pool regression rejects size/alignment queries even if they would
-return cached answers. Log: `chapter25/build/b09-review/revised.log`.
-Durable rules are in the skills notes.
-
-### B13 / issue #246: complete, 2026-09-19
-
-Cliff reports the correction pushed. Nested negation in `p != null` / `!!p`
-now discovers the underlying pointer guard in every snapshot 10-25, retaining
-each chapter's guard representation. Chapters 23-24 also decompose short-circuit
-Phis with availability checks; Eval2 in 18-24 now handles pointer/null Not.
-
-`Chapter10Test.testNullGuards` failed before the backport in 10-24 and passes
-afterward; `testNullGuardErrors` checks rejected uses. Both tests live in every
-snapshot 10-25. `testShortCircuitGuardScheduling` covers RHS-only call results
-in 23-25; Chapter 25 also rotates optimizer seeds. Full `make tests` passed in
-each directory 10-25. Ordinary test counts were 149, 164, 166, 181, 201, 212,
-230, 282, 309, 350, 359, 374, 386, 403, 425 in 10-24; Chapter 25 passed 428
-total. No assertions or existing expectations were weakened.
-Logs: `chapter25/build/issue246-review/`, particularly
-`chapters18-24-fixed.log` and `chapters23-25-final.log`.
-
-Independent findings retained for follow-up:
-
-- B14's cyclic-equality failure remained reproducible despite green B13
-  suites; it is corrected separately below.
-- A pre-existing Chapter 25 diagnostic concern remains outside B13: with the
-  issue's nullable array setup, `if (p == null) return p.x; return -1;` was
-  accepted despite dereferencing null on the taken arm. Original setup:
-  `struct Point { int x; new Point = { int v -> x = v; }; };`
-  `Point?[] !points = new Point?[2]; points[arg] = new Point(42);`
-  `Point? p = points[1];`. This needs separate investigation.
-
-### B14: complete locally, 2026-09-19
-
-Added the existing Chapter 25 leaf type-kind check to `Type.cycle_eq` in 23-24.
-Cyclic structural equality first appears in 23. Inspection of 9-22 found the
-older interned-child identity representation with kind checks in `Type.equals`;
-the equivalent BOTTOM/float-struct meet probe passes in 22 without a correction.
-No earlier compiler change is needed for B14.
-
-`TypeTest.testCyclicLeafKinds` in 23-25 interns same-named structs with `x`
-typed BOTTOM, 1.0, and 2.0, then meets the latter two. Before the correction it
-throws ClassCastException through `TypeFloat.eq` in 23 and 24; 25 passes.
-Afterward all three pass, checking F32 field type, canonical interning,
-commutativity, absorption by the BOTTOM-field struct, and the dual/join result.
-
-Validation with assertions enabled (Windows/Cygwin, JDK 21.0.4):
-
-- Unmodified baseline: `make -k tests CHAPTERS="chapter22 chapter23 chapter24 chapter25"`
-  passed each full target.
-- After a full Java rebuild of 23-24, the focused regression and full TypeTest
-  passed in 23-25 (6 TypeTest cases in each).
-- `make -k tests CHAPTERS="chapter23 chapter24 chapter25"` passed: 404 and 426
-  ordinary tests plus their fuzzer wrappers in 23 and 24; 429 total in 25
-  (365 raw0, 32 raw1, 8 standalone, 16 system, 1 fuzzer, 7 remaining).
-
-Logs: `chapter25/build/b14-review/{baseline,before-fix,fixed}.log`.
-
-### Build and fuzzer baseline, 2026-09-17
-
-Windows/Cygwin, OpenJDK 22.0.2: all 25 chapters passed `tags` and `release`.
-Build setup supplied missing early targets and corrected argument-list writes
-in 22-24; no compiler behavior was backported. Chapter 22 initially failed
-TypeTest with a TypeConAry/TypeRPC cast error, then passed a forced rebuild
-(369 ordinary tests plus fuzzer), consistent with stale classes.
-
-The initial all-chapter test baseline failed Chapter 18's random fuzzer on
-seed `973358943756616234`. At Cliff's request, wrappers in 8-24 now follow
-25's explicit seed-list structure, and 8-15 invoke their wrappers from
-`make tests`. Exploratory fuzzing is opt-in. All 25 full chapter targets
-passed after these harness changes; 8-15 passed again after wrapper invocation
-was added. Logs: `build/review/seed-lists-all-tests.log` and
-`seed-lists-08-15-tests.log`.
-
-**The Chapter 18 compiler failure remains open.** Its seed is in
-`OPEN_FAILING_SEEDS`, and explicitly running it still failed. Regression lists
-started empty, so green default wrappers added no fuzz regression coverage.
-Reduced input:
-
-```java
-struct s0 { u8 v1; };
-s0? !UmPOLQK=null;
-if(0) while(0&UmPOLQK.v1) {}
-if(UmPOLQK.v1) {}
-return new s0;
-while(0) {}
-```
-
-This exposes two distinct concerns: nullable field lookup can fail during
-parsing with peepholes disabled; with peepholes enabled it reaches a
-mixed-return error. B11 isolates the latter further to
-`struct S { u8 x; }; return new S; return 0;`, rejected in 18 and accepted in
-19. Chapter 19 also changes the fuzzer comparison from peepholes off/on to
-two optimizer worklist seeds. Neither that harness change nor B11 alone proves
-the original seed fixed. Keep it open until the full seed passes.
-Log: `build/review/chapter18-open-seed.log` (intentional failure).
+This is a condensed completion record, not a list of current suite counts for
+old revisions. Earlier detailed traces are in Git history; durable invariants
+have been consolidated into the [AI notes](../skills/chapter25-codex-notes.md).
+Unresolved reproductions have been promoted to the pending queue above.
+
+| Completed work | Scope and evidence retained |
+|---|---|
+| B14 cyclic leaf-kind equality | 23-24 backport; 25 already correct. Cyclic equality starts in 23. `TypeTest.testCyclicLeafKinds` fails before the fix; earlier interned-child equality already checks kinds. Full affected suites passed. |
+| B13 / #246 null guards | Nested Not/null guard discovery from 10; short-circuit Phi availability in 23-24. Regression and full suites in 10-25 passed. Separate null-dereference diagnostic remains queued. |
+| B09 and #251 debug printing | Side-effect-free print/accessor paths from their first applicable chapters; `_` diagnostic naming, type interning allowed, layouts forbidden. Dead nodes use `isDead()`, not null `_inputs`, from 7. Original-printer negative checks and full affected suites passed. |
+| #247 emulator stores | Full eight-byte writes in ARM/RISC-V emulators, 21-25. Independent byte-pattern/overwrite regressions failed before the fix; all affected suites passed. |
+| B12 x86 immediate multiply | Dedicated destination-register encoder in 21; 22-25 already had it. Low/extended-register encoding regressions and full 21-25 suites passed. |
+| B11 optimized return checking | Remove parse-time meet in 18-24; 18 checks the optimized result type. Earlier separate Returns already accept dead mixed-type exits. Regressions start in 10/12; full 10-25 suites passed. |
+| Dominator caches | Shared searches from 6; char depth in 6-17, separate char depth/version from 18, checked overflow and preserved clone fields. Inlining invalidation in 18-20. Full affected suites passed; dedicated bookkeeping helpers/tests were removed at Cliff's request. |
+| GCM, constant cloning, isPinned removal | Shared scheduling from 11, per-function cloning of stacked constants from 18; preserve chapter-specific anti-dependencies and linked Parm ownership. Full 11-25 suites passed. Keep clone-based copyEmpty and non-final graph fields per review. |
+| TypeFunPtr normalization | Trailing-default normalization in 23-24; 25 already correct. Only gather cases added; lattice laws and full 23-25 suites passed. Other `7f3b8856` representations remain in 25. |
+| Inlining Return types and ARM execution | Live return expressions outlast a deleted inline entry (20-25); ARM register SUB, call instructions, frame byte counts/alignment, and vector growth (21-25 as applicable). Reduced negative cases and full affected suites passed. The earlier standalone ARM String/hash failure is resolved. |
+| Native test reliability | Full process exit status, stdout plus successful execution, and distinct concurrent HelloWorld artifact names. Crashes no longer pass merely because output matches or an exit status narrows to zero. |
+| Allocator progression 20-25 | Fixed cohorts, legality checks, native/emulated execution from 21, and same-compiler comparisons. Final results below. |
+| Build/fuzzer harness baseline | All 25 chapter targets passed after build setup and explicit seed lists. Empty default lists were not exploratory fuzz coverage; the Chapter 18 open seed remains queued. |
+
+Final allocator audit, 2026-09-20, Windows/Cygwin with assertions:
+
+| Snapshot | Full suite | Spill report |
+|---|---|---|
+| 20 | 378 tests + fuzzer | 39 compilations, 238 / 357 |
+| 21 | 408 tests + fuzzer | 91 compilations, 840 / 1,456 |
+| 22 | 422 tests + fuzzer | 115 compilations, 838 / 1,496 |
+| 23 | 444 tests + fuzzer | 145 compilations, 933 / 1,745 |
+| 24 | 473 tests + fuzzer | 212 compilations, 1,332 / 2,956 |
+| 25 | 468 tests across parallel groups, including fuzzer | 222 compilations, 2,597 / 5,579 |
+
+All full suites and final spill reports passed. The Chapter 25 run rebuilt
+`sys.o`. Negative checks against saved original classes reproduce fixed-neighbor
+bias, narrow-store masks, and ARM floating-memory encoding failures. The original
+Newton ARM allocation also failed before the fix. The Chapter 21 coalescing-off
+comparison passes all allocation/runtime checks but reports nine changed spill
+goldens, intentionally exiting nonzero. The Chapter 25 earlier-ranking ablation
+fails fresh library allocation, so its client-only totals are explicitly partial.
+Logs and saved original classes: `chapter{20..25}/build/regalloc-final/`.

@@ -221,8 +221,8 @@ confused with comparing entire compiler chapters: lowering also changes. For
 example, the frozen Chapter 20 String input has no explicit return, and Chapter
 22's default-return handling eliminates that workload at the default seed.
 
-The full suite passes 416 tests plus the fuzzer; the statistics runner passes
-55 selected tests. Routine backend comparisons use a fixed optimizer seed:
+The full suite and statistics runner pass. Routine backend comparisons use a
+fixed optimizer seed:
 shuffling optimizer worklists should normalize to essentially the same graph,
 so repeating allocation on those graphs adds little coverage. Use seed variation
 when investigating optimizer normalization or worklist-order failures.

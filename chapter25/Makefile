@@ -242,3 +242,9 @@ tags: TAGS
 TAGS:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --fields=+fksaiS $(SRC) $(TST)
+
+# Frozen earlier allocation cohorts, followed by Chapter 25's native tests.
+spill-stats: $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_SYS) $(RELEASE_CRT)
+	@$(JVM) com.seaofnodes.simple.SpillStats
+
+.PHONY: spill-stats

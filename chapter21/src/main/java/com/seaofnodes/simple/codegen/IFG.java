@@ -507,7 +507,7 @@ abstract public class IFG {
             if( reg == -1 && alrg._mask.size1() )
                 reg = alrg._mask.firstReg();
             if( reg != -1 ) {
-                mask.clr(alrg._reg);
+                mask.clr(reg);
                 if( mask.size1() )
                     return mask.firstReg();
             }

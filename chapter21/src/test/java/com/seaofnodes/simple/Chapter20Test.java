@@ -9,6 +9,23 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @Test public void testAllocatorFixedNeighbor() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.uncoloredFixedNeighbor(); }
+
+    @Test public void testNarrowStoreMasks() {
+        for( String type : new String[]{"i8","u8","i16","u16"} ) {
+            CodeGen code = new CodeGen("struct S { "+type+" x; }; S !s=new S; s.x=arg; return 0;")
+                .driver(CodeGen.Phase.RegAlloc,"x86_64_v2","SystemV");
+            int stores=0;
+            for( var bb : code._cfg )
+                for( var node : bb.outs() )
+                    if( node instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.StoreX86 st ) {
+                        stores++;
+                        assertEquals(-1,st.regmap(4).nextReg((short)15));
+                    }
+            assertEquals(1,stores);
+        }
+    }
+
     @Test public void testInlinedReturnValue() {
         String src = """
 struct S { int x; };
@@ -289,7 +306,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 return output;
 """;
         testTarget(src,"x86_64_v2", "SystemV",40,null);
-        testTarget(src,"riscv"    , "SystemV",211,null);
+        testTarget(src,"riscv"    , "SystemV",42,null);
         testTarget(src,"arm"      , "SystemV",34,null);
         //assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }

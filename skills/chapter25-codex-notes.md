@@ -6,8 +6,8 @@ the implementation. `WIP-HANDOFF.md` and `parser-simplification-plan.md` retain
 the detailed history; portions of their old branch/status reports are stale
 after the Chapter 25 squash.
 For cross-chapter work, read [the backport queue and validation record](../docs/chapter-backports.md).
-It owns pending items and detailed reproductions; these notes capture reusable
-lessons rather than duplicating that history.
+It owns pending reproductions and a condensed completion record; these notes
+capture reusable lessons. Detailed superseded validation history remains in Git.
 
 ## Collaboration preferences
 
@@ -44,7 +44,8 @@ lessons rather than duplicating that history.
   affected directories explicitly listed. Establish the destination baseline
   before changing it; older Makefiles may need a forced rebuild after API changes.
 - Keep unrelated discoveries separate in `docs/chapter-backports.md`. Completed
-  fixes leave the pending queue; preserve their validation history. A green suite
+  fixes leave the pending queue; retain a concise validation summary and move
+  unresolved discoveries out of the history into the actual queue. A green suite
   after changing graph/test order does not prove an intermittent failure fixed.
 - Store disposable probes/logs under an appropriate ignored build directory.
   Preserve durable reproducers in tests or the review record, not only scratch
@@ -153,11 +154,9 @@ lessons rather than duplicating that history.
   the JUnit listener labels individual cases and sums CPU/ABI and cohort totals.
   Assertions stay enabled and failures propagate. Do not silently change cohort
   membership, seeds, or targets when comparing chapters.
-- Chapter 20's corrected baseline costs one extra weighted move (354->355 over
-  39 compilations); document this as a correctness cost. Advanced quality
-  heuristics remain staged. Chapters 20-24 are now implemented; common correctness
-  fixes and diagnostic hooks have also been forwarded through 25 at Cliff's request.
-  Resume the quality/cohort/README review at 25. Chapter 21's shortened README links the retained encoding reference.
+- The staged review is complete through 25. Keep 21's shortened README and its
+  separate encoding reference. The final narrow-store mask fixes changed the
+  measured totals for 20 and 21; use the current READMEs, not older review counts.
 - Chapter 21 changed several inherited inputs/ABIs. Its Chapter20Test now freezes
   all 13 original programs; Chapter21AllocTest retains the four revised cases,
   counted with the native variants as cohort 21. On Windows the cohorts are
@@ -190,8 +189,8 @@ lessons rather than duplicating that history.
 - Validate the instruction masks independently of the chosen register: a broad
   mask can hide behind favorable color bias. Byte/short x86 and RISC-V stores
   must exclude floating-point registers. Size fields such as `_sz` may hold a
-  printable character: compare to `'4'`, not integer `2`. Chapters 22-24 now carry
-  25's store restrictions; x86 20-21 and RISC-V 21 remain queued.
+  printable character: compare to `'4'`, not integer `2`. The narrow-store
+  restrictions are now present from x86 20 and RISC-V 21 onward.
 - The historical Chapter 22 seed sweep exposed failures outside allocation;
   it is not a template for routine allocator validation.
   Chapter 22's frozen String source fails before allocation and its returned
@@ -200,8 +199,8 @@ lessons rather than duplicating that history.
   Do not replace the seed or add a return merely to make the sweep green.
 - Use an ablation in the same compiler to measure each staged heuristic. Native
   ABI/lowering changes make the Chapter 20 and 21 totals different even with the
-  same sources. In 21, coalescing saves 127 weighted moves, but deferring later
-  heuristics costs 174 against the old combined snapshot; disclose both.
+  same sources. Include the same legality fixes on both sides. Mask corrections
+  can substantially change coalescing results; refresh old tables and commentary.
 - Chapter 21's spill reporter defers quality-golden failures until reporting ends,
   so all target/runtime checks still run. The command must still exit nonzero.
   Keep full native process exit codes and check each emulator's own result memory.
@@ -236,8 +235,32 @@ lessons rather than duplicating that history.
   each chapter's quality heuristics and historical cohort/README review staged.
   Compare each destination's unchanged local suite before/after for such a batch;
   do not present those unequal local suites as the chapter progression table.
-- The staged plan and historical fix inventory are in
-  `docs/chapter-backports.md`; its review is not evidence of completed backports.
+- Chapter 25's spill corpus preserves the earlier 212 source/target entries,
+  with documented constructor, receiver, library and mutability adaptations.
+  These are allocation/legality replays, not historical runtime harnesses. Its
+  own cohort includes current Chapter25Test allocations and a fresh library
+  encoding. See `chapter25/src/test/java/com/seaofnodes/simple/spill/README.md`.
+  Do not silently use current inherited tests as though their sources were frozen.
+- Rebuild and measure the system library even if sys.o is up to date. In the
+  final 25 review, the older ranking and a multi-use-clone preference looked
+  better on clients but exhausted allocation rounds on fresh sys compilation.
+  Both trials were rejected. Keep the existing area/cost ranking; client-only
+  totals do not prove whole-suite improvement. The driver uses seed 456, old
+  cohort replay uses 123, and current test helpers normally use 126.
+- ARM load/store opcodes must follow the allocated register bank, not the
+  source Type. Emit the SIMD bit for both addressing modes, normalize D0-D31
+  to register numbers 0-31, and permit FP registers only at supported widths.
+  A GPR-only float-store mask made 25's old Newton programs repeatedly split
+  the wrong side of a loop. The paired fixes start in 21's executable backend.
+  Emulator FP memory operations must preserve bits and scale double offsets
+  by eight. Use independent instruction words as well as compiler round trips.
+- Fixed-neighbor bias must clear the computed register, including a neighbor's
+  sole allowed register before it is colored; `_reg` can still be -1. The shared
+  correction and regression start in 20. A passing corpus can miss this path.
+- Chapter 25's extra multi-def/fixed-use thresholds and kill/rematerialization
+  choices remain local strategies. Earlier splitEmptyMaskSimple lacks the extra
+  branch that needs 25's original-def-use-count snapshot. Do not label a textual
+  difference a missing correctness fix without establishing the affected path.
 
 ## Null guards: B13 / issue #246 lessons
 

@@ -483,7 +483,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x1: {
                     if(opcode1 == arm.OPF_STORE_R_32) {
-                        st4((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
+                        st4((int)regs[rn] + (int)regs[rm], Float.floatToRawIntBits((float)fregs[rdid]));
                     }else {
                         trap = (2+1);
                     }
@@ -522,7 +522,7 @@ public class EvalArm64 {
                 case 0x0: {
                     // store
                     if(opcode1 == arm.OPF_STORE_IMM_32) {
-                        st4((int)rval, (int)regs[rdid]);
+                        st4((int)rval, Float.floatToRawIntBits((float)fregs[rdid]));
                     }  else trap = (2+1);
 
                     rdid = -1;
@@ -531,7 +531,7 @@ public class EvalArm64 {
                 case 0x1: {
                     // LDR (immediate)
                     if(opcode1 == arm.OPF_LOAD_IMM_32) {
-                        frval = ld4s((int)rval);
+                        frval = ld4f((int)rval);
                     } else trap = (2+1);
                     break;
                 }
@@ -685,7 +685,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x1: {
                     if(opcode1 == arm.OPF_STORE_R_64) {
-                        st8((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
+                        st8((int)regs[rn] + (int)regs[rm], Double.doubleToRawLongBits(fregs[rdid]));
                     }else {
                         trap = (2+1);
                     }
@@ -713,7 +713,7 @@ public class EvalArm64 {
                 int base = ir >> 5 & 0x1F;
                 int imm = (ir >> 10) & 0xFFF;
 
-                imm *= 4;
+                imm *= 8;
                 is_f = true;
                 rval = regs[base] + imm;
                 int opc = (ir >> 22) & 0x3;
@@ -723,7 +723,7 @@ public class EvalArm64 {
                 case 0x0: {
                     // store
                     if(opcode1 == arm.OPF_STORE_IMM_64) {
-                        st8((int)rval, regs[rdid]);
+                        st8((int)rval, Double.doubleToRawLongBits(fregs[rdid]));
                     }  else trap = (2+1);
 
                     rdid = -1;
@@ -732,7 +732,7 @@ public class EvalArm64 {
                 case 0x1: {
                     // LDR (immediate)
                     if(opcode1 == arm.OPF_LOAD_IMM_64) {
-                        frval = ld8((int)rval);
+                        frval = ld8f((int)rval);
                     } else trap = (2+1);
                     break;
                 }

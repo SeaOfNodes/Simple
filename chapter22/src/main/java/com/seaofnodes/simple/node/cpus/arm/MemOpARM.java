@@ -45,7 +45,7 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
         if( i==1 ) return null; // memory
         if( i==2 ) return arm.RMASK; // ptr/base
         if( i==3 ) return arm.RMASK; // off/index
-        if( i==4 ) return arm.RMASK; // value
+        if( i==4 ) return size() >= 4 ? arm.MEM_MASK : arm.RMASK; // value
         return null; // Anti-dependence
     }
 
@@ -54,6 +54,15 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
         short ptr = enc.reg(ptr());
         short off = enc.reg(off());
         short val = enc.reg(xval);
+        // The allocated register selects integer vs SIMD/FP encoding, even for
+        // bitwise copies. ARM numbers each register bank from zero in the opcode.
+        boolean fp = val >= arm.D0;
+        assert !fp || size >= 4;
+        if( fp ) {
+            opcode_imm |= 1<<4;
+            opcode_reg |= 1<<5;
+            val -= arm.D0;
+        }
         int body = off() == null
             ? arm.load_str_imm(opcode_imm, _off, ptr, val, size)
             : arm.indr_adr(opcode_reg, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);

@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.ElfReader;
 import com.seaofnodes.simple.codegen.ParseAll;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -282,7 +283,7 @@ int v0=0^0;
         String base = "helloWorldNoInline";
         String expected = "Hello, World!\n";
         String prog = "return sys.io.p_noInline(\""+expected+"\") - "+expected.length()+";";
-        CodeGen code = new CodeGen(null,"build/objs",new Ary<>(new String[]{SYS_BLDDIR}),
+        CodeGen code = new CheckedCodeGen(null,"build/objs",new Ary<>(new String[]{SYS_BLDDIR}),
                                    base,prog,123L,true,TypeInteger.BOT);
         code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,true);
 

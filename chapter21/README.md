@@ -112,9 +112,9 @@ by `8^loopDepth`.
 
 | Test cohort | Allocations | Splits | Loop-weighted splits |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 401 | 653 |
-| Chapter 21 | 52 | 483 | 1,141 |
-| Total | 91 | 884 | 1,794 |
+| Chapter 20 | 39 | 379 | 484 |
+| Chapter 21 | 52 | 461 | 972 |
+| Total | 91 | 840 | 1,456 |
 
 The Chapter 20 row freezes all 13 original inputs, including BrainFuck and
 MergeSort, on three SystemV targets. They live in `Chapter20Test`. The revised
@@ -126,23 +126,20 @@ row; compare the same host and targets.
 
 | Controlled comparison, same 91 compilations | Splits | Loop-weighted splits |
 |---|---:|---:|
-| Current compiler with coalescing disabled | 1,074 | 1,921 |
-| Current compiler with coalescing | 884 | 1,794 |
-| Original Chapter 21 snapshot, including later heuristics | 794 | 1,620 |
+| Current compiler with coalescing disabled | 1,070 | 1,889 |
+| Current compiler with coalescing | 840 | 1,456 |
 
-The controlled run disables only the `Coalesce.coalesce` call in `graphColor`;
-allocation, register-constraint, and runtime checks still pass. Its different
-spill goldens are reported as failures, as intended for this experiment.
+The controlled run disables only `Coalesce.coalesce` in `graphColor`. Allocation,
+register constraints, and runtime checks pass in both runs. The disabled run
+reports nine changed spill goldens and exits unsuccessfully, as intended.
+Coalescing saves 230 moves (21.5%) and 433 weighted moves (22.9%). Local increases
+can still occur; the aggregate, rather than one example, judges the tradeoff.
 
-Coalescing saves 190 moves (17.7%) and 127 weighted moves (6.6%) against the same
-corrected compiler without coalescing. It is not uniformly beneficial; use the
-summed measurements to judge the change.
-
-Deferring the later heuristics has a visible cost against the old snapshot:
-weighted totals rise by 174 (10.7%). RISC-V BrainFuck rises from 28 to 211 in the
-native case, while sieve improves from 257 to 178 on x86/Win64, 160 to 89 on
-RISC-V, and 160 to 93 on ARM. These are reported costs of the staged tutorial,
-not evidence that the simplified allocator beats the original combined one.
-Chapter 20's 355 weighted splits also cannot be read as a coalescing baseline:
+The final audit backported narrow x86/RISC-V store masks and corrected ARM
+register-bank selection and floating-point memory operations. Restricting byte
+stores to legal registers lowers RISC-V BrainFuck from 211 to 42 weighted moves
+in each of its two cohorts, reducing the previous table by 44 raw / 338 weighted
+moves. These correctness fixes are included on both sides of the comparison.
+Earlier measurements made with the broader masks are historical, not the current
+baseline. Chapter 20's 357 weighted moves are not a coalescing baseline either:
 Chapter 21 changes machine lowering and implements native ABI obligations.
-The controlled comparison above holds those changes fixed.

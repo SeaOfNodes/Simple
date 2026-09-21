@@ -30,6 +30,19 @@ public class RegAllocTestSupport {
         return code;
     }
 
+    public static void uncoloredFixedNeighbor() throws Exception {
+        CodeGen code = graph();
+        RegAlloc alloc = new RegAlloc(code);
+        Op def = new Op(new RegMask(3L),null,null,false,code._start);
+        LRG lrg = alloc.newLRG(def);
+        LRG neighbor = new LRG((short)99);
+        neighbor._mask = A;
+        lrg.addNeighbor(neighbor); // Uncolored, but its only possible color is A.
+        var bias = IFG.class.getDeclaredMethod("biasColorNeighbors",RegAlloc.class,Node.class,RegMask.class);
+        bias.setAccessible(true);
+        assertEquals((short)1,bias.invoke(null,alloc,def,new RegMaskRW(3L,0L)));
+    }
+
     public static void masks() {
         for( int reg : new int[]{0,63,64,65,127} ) {
             RegMask mask = new RegMask(reg);

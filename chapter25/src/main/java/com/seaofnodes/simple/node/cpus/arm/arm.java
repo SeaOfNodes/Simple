@@ -169,7 +169,7 @@ public class arm extends Machine {
     public static int OPF_STORE_R_64    = 0b11111100001;
     public static int OPF_STORE_R_32    = 0b10111100001;
 
-    public static int OPF_STORE_IMM_32  = 0b1111110100;
+    public static int OPF_STORE_IMM_32  = 0b1011110100;
     public static int OPF_STORE_IMM_64  = 0b1111110100;
 
 

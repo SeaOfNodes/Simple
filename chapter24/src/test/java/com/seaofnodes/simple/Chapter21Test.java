@@ -13,6 +13,38 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testArmFloatMemory() throws IOException {
+        for( String type : new String[]{"f32","f64"} ) {
+            String src = type+"[] !a=new "+type+"[3]; a[arg]=1.25; return a[1];";
+            CodeGen code = new CodeGen(src).driver("arm","SystemV",null);
+            byte[] image = new byte[1<<20];
+            byte[] bits = code._encoding.bits();
+            System.arraycopy(bits,0,image,0,bits.length);
+            EvalArm64 cpu = new EvalArm64(image,1<<16);
+            cpu.regs[arm.X0]=1;
+            assertEquals(0,cpu.step(1000));
+            assertEquals(1.25,cpu.fregs[0],0);
+        }
+        // Independently exercise both SIMD widths and addressing modes. Keep
+        // the GPR value different so accidentally reading that bank is visible.
+        for( boolean wide : new boolean[]{false,true} )
+            for( boolean indexed : new boolean[]{false,true} ) {
+                EvalArm64 cpu = new EvalArm64(new byte[512],256);
+                cpu.regs[1]=128; cpu.regs[2]=16; cpu.regs[3]=99;
+                cpu.fregs[3]=-13.25;
+                int store = (wide ? 0xFD000000 : 0xBD000000) | ((16/(wide?8:4))<<10) | (1<<5) | 3;
+                if( indexed ) store=(wide ? 0xFC226823 : 0xBC226823); // STR D3/S3,[X1,X2]
+                cpu.st4(0,store);
+                cpu.st4(4,store | (1<<22)); // LDR to the same SIMD register.
+                assertEquals(0,cpu.step(1));
+                assertEquals(-13.25,wide ? cpu.ld8f(144) : cpu.ld4f(144),0);
+                cpu.fregs[3]=0;
+                assertEquals(0,cpu.step(1));
+                assertEquals(-13.25,cpu.fregs[3],0);
+            }
+    }
+
+
     @Test public void testArmCallInstructions() {
         EvalArm64 cpu = new EvalArm64(new byte[512],256);
         for( int delta : new int[]{4,32,-4} ) {

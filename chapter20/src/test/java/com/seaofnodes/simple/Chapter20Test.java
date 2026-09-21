@@ -10,6 +10,23 @@ import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @Test public void testAllocatorFixedNeighbor() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.uncoloredFixedNeighbor(); }
+
+    @Test public void testNarrowStoreMasks() {
+        for( String type : new String[]{"i8","u8","i16","u16"} ) {
+            CodeGen code = new CodeGen("struct S { "+type+" x; }; S !s=new S; s.x=arg; return 0;")
+                .parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2","SystemV").GCM().localSched().regAlloc();
+            int stores=0;
+            for( var bb : code._cfg )
+                for( var node : bb.outs() )
+                    if( node instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.StoreX86 st ) {
+                        stores++;
+                        assertEquals(-1,st.regmap(4).nextReg((short)15));
+                    }
+            assertEquals(1,stores);
+        }
+    }
+
     @Test public void testInlinedReturnValue() {
         String src = """
 struct S { int x; };

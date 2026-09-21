@@ -26,7 +26,7 @@ public class StoreRISC extends MemOpRISC {
         if( i==1 ) return null; // mem
         if( i==2 ) return riscv.RMASK; // ptr
         // 2 - index
-        if( i==4 ) return riscv.MEM_MASK; // Wide mask to store GPR and FPR
+        if( i==4 ) return _sz >= '4' ? riscv.MEM_MASK : riscv.RMASK; // No byte/short FP stores
         return null; // Anti-dependence
     }
     @Override public RegMask outregmap() { return null; }

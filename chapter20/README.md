@@ -505,21 +505,20 @@ checks, not additional program benchmarks.
 
 | Program-test cohort | Allocator chapter | Compilations | Split moves | Loop-weighted moves |
 |---|---:|---:|---:|---:|
-| Chapter 20 | 20 | 39 | 236 | 355 |
+| Chapter 20 | 20 | 39 | 238 | 357 |
 
 `_spills` counts surviving split moves, including register-to-register copies;
 it does not count only stack stores. `_spillScaled` weights each move by
 `8^loopDepth`, a rough cost estimate rather than measured execution frequency.
-The weighted subtotals are 152 for x86-64, 101 for RISC-V, and 102 for ARM.
+The weighted subtotals are 154 for x86-64, 101 for RISC-V, and 102 for ARM.
 
 ### Comments on the measurements
 
-Before the correctness fixes, this same cohort had 235 moves and a weighted
-count of 354. The corrected baseline is one higher in each measure: x86-64's
-weighted count rises by two, ARM's by one, while RISC-V's falls by two. This is
-a small correctness cost, not a claimed quality improvement. Individual cases
-move more: the x86 array example rises from three to five, while its integer
-Newton example stays at 23. Looking at just one example would be misleading.
+Before the correctness fixes, this cohort had 235 moves / 354 weighted moves.
+The final corrected baseline costs three more of each. The final narrow x86
+store-mask backport accounts for two of those moves: an integer byte/short store
+cannot consume an XMM register. This is a correctness cost, not a quality gain.
+The fixed-neighbor color-bias correction changes no counts in this cohort.
 
 Later chapters will add one quality technique at a time and end with this kind
 of table: Chapter 21 will measure both the Chapter 20 and Chapter 21 program

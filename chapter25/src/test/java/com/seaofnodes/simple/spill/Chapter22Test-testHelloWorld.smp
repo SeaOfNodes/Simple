@@ -1,0 +1,4 @@
+{i32 i64 u32 -> u32} write="C";
+val _p={u8[~] str -> i64 ptr=str; return write(1,ptr,str#);};
+_p("Hello, World!");
+return 0;

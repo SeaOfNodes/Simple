@@ -122,3 +122,66 @@ the environment; the Makefile currently defaults to x86-64/win64.
 Compiler changes can invalidate both serialized IR and native code in `sys.o`.
 Rebuild it before interpreting linked-program test results. A source-only subset
 is not equivalent to this chapter's full `make tests`.
+
+## RegAlloc improvements: live-range area and split cost
+
+Chapter 24 tried cold copies before splitting a loop Phi's hot edges. This
+chapter also estimates how much scheduled code a spill frees from register
+pressure, divided by the estimated cost of the new copies. Callee-save ranges
+cover a whole function. Cloneable constants can be rebuilt nearer their uses.
+Copies inside loops cost more: the estimate weights them by `8^loopDepth`.
+These are inexpensive approximations, especially for values with many uses.
+
+The other Chapter 25 conflict-handling rules remain here: direct splitting of
+several fixed-register uses and deeper splits for some multi-definition ranges.
+Their size thresholds are heuristics, not general invariants to backport to the
+first allocator. Shared legality fixes still start in the earliest affected
+chapter. The final audit corrected fixed-neighbor color bias in 20-25, narrow
+store masks in 20-21, and ARM register-bank/float-memory encoding in 21-25.
+
+Run `make spill-stats`. Each row uses **Chapter 25's compiler**. The first five
+rows preserve the earlier 212 program/target entries, adapted to this chapter's
+syntax and library organization; the [fixture notes](src/test/java/com/seaofnodes/simple/spill/README.md)
+list those adaptations and the measurement limits. They use optimizer seed 123.
+The last row includes nine allocations from `Chapter25Test` at its existing
+seeds plus a fresh system-library compilation at the driver's seed 456. Reusing
+`sys.o` must not make that substantial workload disappear from the measurements.
+These results are from Windows x86-64; earlier cohorts also include RISC-V/ARM
+SystemV and x86 SystemV. The reporter prints per-target totals as well.
+
+| Program cohort | Compilations | Split/move count | Loop-weighted count |
+|---|---:|---:|---:|
+| Chapter 20 | 39 | 381 | 612 |
+| Chapter 21 | 52 | 464 | 1,185 |
+| Chapter 22 | 24 | 103 | 131 |
+| Chapter 23 | 30 | 122 | 346 |
+| Chapter 24 | 67 | 744 | 1,479 |
+| Chapter 25 | 10 | 783 | 1,826 |
+| **Total** | **222** | **2,597** | **5,579** |
+
+`_spills` counts retained SplitNodes, including register-to-register moves;
+`_spillScaled` applies the loop weight. Neither measures just memory traffic.
+The old cohorts are allocation replays with register-legality checks, not reruns
+of their native harnesses. `Chapter25Test` still runs its native/result checks.
+Use `make -j 4 tests` for the full chapter, including inherited emulator tests.
+
+### Comments on the measurements
+
+There is no uniform improvement to claim. Substituting Chapter 24's ranking
+while keeping the rest of this compiler unchanged saves five moves on the 221
+client compilations (2,206 / 4,719 versus 2,211 / 4,724), but fails to allocate
+the system library within eight rounds. It is therefore an incomplete comparison,
+not a lower valid whole-suite total. The existing area/cost ranking is retained;
+the round limit and correctness checks are unchanged. The system library itself
+contributes 386 moves / 855 weighted moves.
+
+A trial that favored all multi-use cloneable constants saved one move against
+the earlier ranking on those clients, but also failed the fresh library build.
+It was rejected. This is why both aggregate statistics and complete compilation
+and execution checks matter; a favorable subtotal cannot justify a change.
+
+The earlier-cohort total rises from Chapter 24's 1,332 / 2,956 to 1,814 / 3,753.
+Chapter 25 adds class initializers, module ownership, different escape analysis,
+and syntax/library adaptations. These are different machine graphs; the increase
+cannot be attributed to allocator quality alone. Compare a heuristic within one
+compiler and fixed corpus before drawing conclusions from the chapter tables.
