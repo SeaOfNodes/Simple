@@ -3,6 +3,7 @@ const program = document.getElementById("program");
 const status = document.getElementById("status");
 let socket;
 let renderer;
+let layout;
 let rendererReady = false;
 let rendering = false;
 let frames = [];
@@ -12,11 +13,12 @@ let done = false;
 let compiling = false;
 let connection = "Connecting to compiler...";
 let failure = "";
+let busy = "";
 
 function updateUI() {
   status.textContent = failure || (connection !== "Connected" ? connection :
     !rendererReady ? "Connected; initializing graph renderer..." :
-    compiling ? "Compiling... " + frames.length + " frames received" :
+    busy ? busy : compiling ? "Compiling... " + frames.length + " frames received" :
     done ? frames.length + " frames ready" : "Connected");
   document.getElementById("N").textContent = current < 0 ? "0" : String(current + 1);
   document.getElementById("len").textContent = String(frames.length);
@@ -25,11 +27,14 @@ function updateUI() {
     !rendererReady || rendering || current + 1 >= frames.length;
   document.getElementById("compile").disabled =
     !socket || socket.readyState !== WebSocket.OPEN || compiling || rendering;
+  document.getElementById("fit").disabled = rendering || current < 0;
+  document.getElementById("assocs").disabled = !frames[current]?.snap;
 }
 
 function reportError(error) {
   failure = "Viewer error: " + (error && error.message || error || "Graph rendering failed");
   rendering = false;
+  busy = "";
   updateUI();
   console.error(error);
 }
@@ -51,23 +56,34 @@ function get_program() {
   done = false;
   compiling = true;
   failure = "";
+  document.getElementById("detail").hidden = true;
   updateUI();
   socket.send(program.value);
 }
 
-function render(index) {
+async function render(index) {
   if (!rendererReady || rendering || index < 0 || index >= frames.length) return;
   const frameGeneration = generation;
   rendering = true;
-  updateUI();
   const frame = frames[index];
+  busy = frame.snap && !frame.layout ? "Laying out frame " + (index + 1) + "..." : "Drawing...";
+  updateUI();
   if (frame.pos >= 0) program.setSelectionRange(frame.pos, frame.pos + 1);
   try {
-    renderer.renderDot(frame.dot, () => {
-      rendering = false;
-      if (generation === frameGeneration) current = index;
-      updateUI();
-    });
+    document.getElementById("elk").hidden = !frame.snap;
+    document.getElementById("dot").hidden = !!frame.snap;
+    if (frame.snap) {
+      if (!layout) layout = new GraphLayout();
+      if (!frame.layout) frame.layout = await layout.run(frame.snap);
+      if (generation === frameGeneration) renderer.show(frame.snap, frame.layout);
+    } else {
+      document.getElementById("detail").hidden = true;
+      await drawDot(frame.dot);
+    }
+    rendering = false;
+    busy = "";
+    if (generation === frameGeneration) current = index;
+    updateUI();
   } catch (error) {
     reportError(error);
   }
@@ -87,8 +103,18 @@ program.addEventListener("keydown", event => {
   }
 });
 document.getElementById("compile").addEventListener("click", get_program);
+document.getElementById("fit").addEventListener("click", () => {
+  if (frames[current]?.snap) { renderer.auto = true; renderer.fit(); }
+  else render(current);
+});
+document.getElementById("assocs").addEventListener("change", event => renderer.assocs(event.target.checked));
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") renderer.select(0);
+});
 
 try {
+  renderer = new GraphView(document.getElementById("elk"));
+  rendererReady = true;
   socket = new WebSocket("ws://" + (location.hostname || "127.0.0.1") + ":12345");
   socket.onopen = () => {
     connection = "Connected";
@@ -135,21 +161,8 @@ try {
     updateUI();
   };
 
-  // The bundled renderer contains its own WASM engine; no worker script is needed.
-  const graph = document.getElementById("graph");
-  renderer = d3.select("#graph").graphviz({
-      useWorker: false, fit: true, width: graph.clientWidth, height: graph.clientHeight
-    })
-    .onerror(reportError)
-    .on("initEnd", () => {
-      rendererReady = true;
-      updateUI();
-      if (frames.length && current < 0) render(0);
-    })
-    .transition(() => d3.transition("main").ease(d3.easeLinear).duration(500));
   window.addEventListener("resize", () => {
-    renderer.width(graph.clientWidth).height(graph.clientHeight);
-    if (current >= 0) render(current);
+    if (current >= 0 && !frames[current].snap) render(current);
   });
 } catch (error) {
   reportError(error);

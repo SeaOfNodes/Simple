@@ -53,8 +53,6 @@ def check(chapter, browser_name):
                 page.wait_for_function("current === 1 && !rendering")
                 page.locator("#doPrev").click()
                 page.wait_for_function("current === 0 && !rendering")
-                # Keep the real renderer, but shorten animation for the remaining steps.
-                page.evaluate('renderer.transition(() => d3.transition("test").duration(0))')
                 for source in ("return 1 + 2;",
                                "int x=0; while(x<arg) { x=x+1; } return x;"):
                     previous = page.evaluate("generation")
@@ -71,15 +69,22 @@ def check(chapter, browser_name):
                     assert page.locator("#doNext").is_disabled()
                     assert "error" not in page.locator("#status").inner_text().lower()
                     if number == 25:
-                        # An undeclared DOT endpoint appears as a bare numeric-ID node.
-                        assert not page.locator("#graph g.node").evaluate_all("""
-                            nodes => nodes.filter(node => {
-                              const id = node.querySelector('title').textContent;
-                              const texts = [...node.querySelectorAll('text')];
-                              return /^n[0-9]+$/.test(id) && texts.length === 1 &&
-                                     texts[0].textContent === id;
-                            }).length
-                        """), "Graph contains an undeclared endpoint"
+                        assert page.locator("#elk g.node").count() == page.evaluate("frames[current].snap.nodes.length")
+                        # Revisit cached geometry and keep the selected node across steps.
+                        page.evaluate("""() => {
+                            window.lastLayout = frames[current].layout;
+                            window.pickId = frames[current].snap.roots[0];
+                            renderer.select(pickId);
+                            layout.run = () => { throw new Error('Cached frame was laid out again'); };
+                        }""")
+                        page.locator("#doPrev").click()
+                        page.wait_for_function("index => current === index && !rendering", arg=total - 2)
+                        page.locator("#doNext").click()
+                        page.wait_for_function("index => current === index && !rendering", arg=total - 1)
+                        assert page.evaluate("frames[current].layout === lastLayout && renderer.pick === pickId")
+                        page.evaluate("delete layout.run")
+                        assert page.locator("#detail").is_visible()
+                        page.keyboard.press("Escape")
                     print(chapter, browser_name, total, "frames rendered:", source, flush=True)
                 assert not errors, errors
                 page.screenshot(path=str(artifacts / "viewer.png"))

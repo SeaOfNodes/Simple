@@ -8,13 +8,10 @@ public class GraphJson {
         return sb.toString();
     }
 
-    // Temporary envelope while the browser still renders DOT. The snapshot is
-    // complete on its own; step 2 can remove dot without changing its schema.
-    public static String frame(GraphSnapshot snap, int pos, String dot) {
+    public static String frame(GraphSnapshot snap, int pos) {
         var sb = new StringBuilder("{\"snap\":");
         snap(sb, snap);
-        sb.append(",\"pos\":").append(pos).append(",\"dot\":");
-        str(sb, dot);
+        sb.append(",\"pos\":").append(pos);
         return sb.append('}').toString();
     }
 

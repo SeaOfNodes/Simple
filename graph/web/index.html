@@ -5,21 +5,42 @@
   <title>Simple Viewer</title>
   <link rel="icon" href="data:,">
   <style>
-    html, body { height:100%; margin:0; }
+    html, body { height:100%; margin:0; font-family:sans-serif; }
     .viewer { height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
     .source { padding:8px; border-bottom:1px solid #ccc; }
     #program { width:min(600px,80vw); vertical-align:middle; }
     #status { margin-top:4px; }
-    #graph { min-height:0; overflow:hidden; }
+    #graph { min-height:0; overflow:hidden; position:relative; background:#fafbfc; }
+    #elk, #dot { width:100%; height:100%; }
     #graph svg { display:block; }
+    .tools { display:flex; align-items:center; gap:14px; margin-top:8px; font-size:12px; }
+    .hint { color:#616c78; }
+    .ctrl { color:#b63838; } .mem { color:#2867b2; } .data { color:#536477; }
+    .edge { fill:none; stroke-width:1.5; }
+    .edge.CTRL { stroke-width:2; }
+    .edge.ASSOC { stroke-dasharray:4 4; }
+    .edge.selected { stroke-width:3.5; }
+    .node { cursor:pointer; }
+    .box { stroke:#758191; stroke-width:1; }
+    .node.selected .box { stroke:#1569b9; stroke-width:3; }
+    .head { font-size:10px; fill:#596674; }
+    .label { font-size:12px; fill:#152330; font-weight:600; }
+    .type { font-size:11px; fill:#455768; }
+    .port { stroke:#536477; stroke-width:1; }
+    .slot { font-size:10px; fill:#364352; paint-order:stroke; stroke:#fafbfc; stroke-width:3; }
+    #detail { position:absolute; top:8px; right:8px; margin:0; padding:12px; max-width:320px;
+      max-height:45%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;
+      background:#fffffff2; border:1px solid #bac5d0; border-radius:4px; font-size:12px; }
     .controls { display:flex; justify-content:center; align-items:center; gap:4px; padding:4px; }
     .button { color:white; background:black; font-size:20px; min-width:30px; }
     .button:disabled { background:grey; }
     .count { font-size:20px; min-width:35px; text-align:center; }
   </style>
   <script src="vendor/d3.v7.min.js"></script>
-  <script src="vendor/graphviz.umd.js"></script>
-  <script src="vendor/d3-graphviz.js"></script>
+  <script src="vendor/elk-api.js"></script>
+  <script src="layout.js"></script>
+  <script src="render.js"></script>
+  <script src="legacy.js"></script>
 </head>
 <body>
   <div class="viewer">
@@ -28,8 +49,14 @@
       <textarea id="program" rows="3" autofocus></textarea>
       <button id="compile" type="button" disabled>Compile</button>
       <div id="status" role="status">Connecting to compiler...</div>
+      <div class="tools">
+        <button id="fit" type="button" disabled>Fit</button>
+        <label><input id="assocs" type="checkbox"> Associations</label>
+        <span class="ctrl">Control</span><span class="data">Data</span><span class="mem">Memory</span>
+        <span class="hint">Scroll to zoom · drag to pan · click a node for details</span>
+      </div>
     </div>
-    <div id="graph"></div>
+    <div id="graph"><div id="elk"></div><div id="dot" hidden></div><pre id="detail" hidden></pre></div>
     <div class="controls">
       <button id="doPrev" type="button" onclick="doPrev()" class="button" aria-label="Previous frame">&#11164;</button>
       <span id="N" class="count">0</span>

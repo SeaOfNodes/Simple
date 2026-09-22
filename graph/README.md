@@ -1,9 +1,11 @@
 # Shared graph viewer
 
 The browser application lives in `web/` and is shared by chapters 18–25.
-`web/index.html` contains the page, `web/viewer.js` manages playback and rendering,
-and `web/vendor/` contains the existing D3 and Graphviz bundles. There is one
-checked-in copy of each; chapters do not copy them during builds.
+`web/index.html` contains the page and `web/viewer.js` manages playback.
+`web/layout.js` runs ELK layout in a browser worker; `web/render.js` draws SVG
+and handles selection, pan and zoom. `web/legacy.js` loads Graphviz on demand
+for earlier chapters. Libraries live in `web/vendor/`, with one checked-in
+copy of each; chapters do not copy them during builds.
 
 From a chapter directory, run `make view`. The chapter's `JSViewer` finds
 `graph/web/index.html` by walking up from the working directory, serves its
@@ -13,7 +15,7 @@ repository root, or the root of a linearized checkout. Java launches from elsewh
 `-Dsimple.graph.url=<viewer URL>` before the main class.
 
 The viewer uses the existing WebSocket connection. Chapter 25 sends structured
-JSON snapshots alongside DOT in each frame; earlier chapters send bare DOT.
+JSON snapshots in each frame; earlier chapters send bare DOT.
 No JavaScript package installation, frontend build, or separate server process
 is required.
 For development over HTTP, run this from the repository root:
@@ -28,6 +30,12 @@ The compiler WebSocket still uses port 12345; run one viewer session at a time.
 The initial program compiles on connection. For another program, click **Compile**
 or press **Ctrl+Enter** (**Cmd+Enter** on macOS), then use the arrows to step
 through the captured frames. Keep `make view` running while using the tab.
+
+In chapter 25, scroll to zoom, drag to pan, and use **Fit** to show the whole
+graph again. Clicking a node shows its full label, type and input slots, and
+highlights its edges. Selection follows that node's ID across frames; Escape
+clears it. **Associations** shows scope bindings and lifetime edges, which are
+hidden by default. Input slots retain their indices, including null slots.
 
 The launcher prints the viewer URL before opening the browser. If the desktop
 only raises an existing browser window, paste that URL into a new tab. Use
@@ -60,7 +68,7 @@ The connection messages are:
 | Compiler to browser | `!` | Request the source program |
 | Browser to compiler | Source text | Compile and capture a new sequence |
 | Compiler to browser | `digraph ...` | One complete DOT snapshot |
-| Compiler to browser | JSON `{snap, pos, dot}` | Chapter 25's complete snapshot and current drawing |
+| Compiler to browser | JSON `{snap, pos}` | Chapter 25's complete graph and parser position |
 | Browser to compiler | `+` | Acknowledge/request another frame |
 | Compiler to browser | `#` | End of sequence |
 | Browser to compiler | `null` | End the session |
@@ -75,29 +83,45 @@ Chapter 25's JSON frame has this shape:
       {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null}
     ]
   },
-  "pos": -1,
-  "dot": "digraph view_0 { ... }"
+  "pos": -1
 }
 ```
 
-`GraphJson.write(snap)` serializes the graph alone. `GraphJson.frame(snap, pos,
-dot)` adds the temporary playback envelope. `comp` changes for each submitted
+`GraphJson.write(snap)` serializes the graph alone. `GraphJson.frame(snap, pos)`
+adds the playback envelope. `comp` changes for each submitted
 program, and `step` starts at zero. `nodes` carries the complete graph, including
 each node's `id`, `label`, `type`, `kind`, `edges`, and `proj`. Enum values use
 their names; absent types, labels and projections use JSON null. Missing node
 references use ID zero. `pos` is the parser position, or -1 outside parsing.
 
-The browser caches the parsed objects in `frames`; `frames[i].snap` is available
-for inspecting the new model. It still renders `frames[i].dot`. This temporarily
-sends both representations; the ELK step will remove the DOT portion. One `+`
-acknowledges the whole frame. The chapter 25 writer sends UTF-8 bytes and supports
-WebSocket's 64-bit length header for frames larger than 65535 bytes.
+The browser caches the parsed objects in `frames`. It computes geometry on the
+first visit to a frame and keeps it in `frames[i].layout`; revisiting a frame
+uses exactly that geometry. Viewport changes do not rerun layout. Nodes and
+edges have stable SVG IDs within a compilation. There is no animation yet.
+One `+` acknowledges the whole frame. The chapter 25 writer sends UTF-8 bytes
+and supports WebSocket's 64-bit length header for frames larger than 65535 bytes.
 
 Earlier chapters' DOT frames may contain a `// POS:` comment identifying the
 parser position. The browser owns frame history and backward/forward playback.
 
-The next layout implementation belongs here. The compiler-side adapter and
-JSON boundary are in place; the running renderer still consumes DOT.
+Chapter 25 no longer generates DOT for the interactive viewer. The browser
+uses ELK's layered layout with fixed input ports and orthogonal routing.
+Layout follows def-to-use flow downward, while the displayed arrows point
+from use to def, matching Simple's edges. Control edges get a higher layout
+priority; known Loop/Phi backedges get a lower priority. Associations are drawn
+as a separate overlay and do not constrain layout. Projections remain real
+nodes for now.
+
+This first layout is flat. It does not discover compiler loops, compute RPO,
+or build a SESE hierarchy. ELK breaks cycles for drawing, which can still put
+whole-program cycles in an awkward order. Compiler-provided grouping and CFG
+ordering are follow-up work, along with preserving positions across rewrites.
+Each visited frame currently retains a full snapshot and layout; bounded
+history, checkpoints and deltas are also follow-up work.
+
+ELK runs locally from the pinned elkjs 0.12.0 worker; see
+[`web/vendor/elk-README.md`](web/vendor/elk-README.md) for provenance and licensing.
+No npm or Maven step is needed to use it.
 
 The linearization workflow includes this directory as a shared root resource.
 Chapters 4 and 25 compile the shared Java sources from this directory; the
@@ -202,9 +226,10 @@ These sites capture different meanings of “after.” Recursive peepholes can
 also produce intermediate frames. Replacing `JSViewer.show()` with a generic
 callback alone would preserve that ambiguity.
 
-The chapter25 interactive exporter now sorts a copy of `_outputs` for display,
-uses numeric node IDs independent of labels, and escapes HTML label text.
-The older exporters still need the same review before extending their adapters.
+Chapter 25's interactive viewer now uses the adapter's numeric IDs and plain-text
+labels; browser rendering does not interpret labels as HTML. Capture traverses
+`_outputs` without changing their order. The older DOT exporters still need
+review before extending their adapters.
 
 A follow-up should introduce an optional compilation observer, owned by the
 compilation/session, with explicit events for an attempted rewrite, an applied
