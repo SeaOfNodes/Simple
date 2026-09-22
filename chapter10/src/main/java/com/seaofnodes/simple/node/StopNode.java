@@ -57,8 +57,7 @@ public class StopNode extends Node {
         return addDef(node);
     }
 
-    public StopNode iterate(            ) { return IterPeeps.iterate(this,false).typeCheck(); }
-    public StopNode iterate(boolean show) { return IterPeeps.iterate(this,show ).typeCheck(); }
+    public StopNode iterate() { return IterPeeps.iterate(this).typeCheck(); }
     StopNode typeCheck() {
         String err = walk( Node::err );
         if( err != null ) throw new RuntimeException(err);

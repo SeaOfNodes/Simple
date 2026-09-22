@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.print.IRPrinter;
-import com.seaofnodes.simple.print.JSViewer;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -78,14 +77,12 @@ public abstract class Node implements Cloneable {
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 
-    // Unique label for graph visualization, e.g. "Add12" or "Region30" or "EQ99"
+    // Unique label for debugging, e.g. "Add12" or "Region30" or "EQ99"
     public String uniqueName() {
-        // Get rid of $ as graphviz doesn't like it
-        String label = label().replaceAll("\\$", "");
-        return label + _nid;
+        return label() + _nid;
     }
 
-    // Graphical label, e.g. "+" or "Region" or "=="
+    // Operator symbol used by assembly/debug printing.
     public String glabel() { return label(); }
 
     // Extra fun stuff, for assembly printing.  Jump labels, parser locations,
@@ -375,13 +372,13 @@ public abstract class Node implements Cloneable {
      * Try to peephole at this node and return a better replacement Node.
      * Always returns some not-null Node (often this).
      */
-    public final Node peephole( ) {
-        if( _type==null )       // Brand-new node, never peeped before
-            JSViewer.show();
+    public final Node peephole() {
+        var obs = CodeGen.CODE._midAssert ? null : CodeGen.CODE._obs;
+        if( obs != null ) obs.before(this);
         Node n = peepholeOpt();
-        if( n!=null )           // Made progress?
-            JSViewer.show();    // Show again
-        return n==null ? this : deadCodeElim(n._nid >= _nid ? n.peephole() : n); // Cannot return null for no-progress
+        Node rez = n == null ? this : deadCodeElim(n._nid >= _nid ? n.peephole() : n);
+        if( obs != null ) obs.after(this, n == null ? null : rez, false);
+        return rez;
     }
 
     /**
@@ -544,6 +541,8 @@ public abstract class Node implements Cloneable {
     // retry the peephole.  Track a set of Nodes dependent on `this`, and
     // revisit them if `this` changes.
     Ary<Node> _deps;
+    public int nDeps() { return _deps == null ? 0 : _deps.size(); }
+    public Node dep(int idx) { return _deps.get(idx); }
 
     /**
      * Add a node to the list of dependencies.  Only add it if its not an input
@@ -554,6 +553,8 @@ public abstract class Node implements Cloneable {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( CODE._midAssert ) return dep;
+        var obs = CodeGen.CODE._midAssert ? null : CodeGen.CODE._obs;
+        if( obs != null ) obs.dep(this, dep);
         if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
         if( dep._deps   .find(this) != -1 ) return dep; // Already on list
         if( dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors

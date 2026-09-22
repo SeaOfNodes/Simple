@@ -1,5 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.graph.GraphObserver;
+
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -13,6 +15,12 @@ import java.util.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
+
+    // Current compilation context; the observer belongs to the parser.
+    public static Parser PARSER;
+    public GraphObserver<Node> _obs;
+    public int pos() { return _lexer._position; }
+
 
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
@@ -80,6 +88,7 @@ public class Parser {
     public static Map<String, TypeStruct> OBJS = new HashMap<>();
 
     public Parser(String source, TypeInteger arg) {
+        PARSER = this;
         Node.reset();
         IterPeeps.reset();
         OBJS.clear();
@@ -109,8 +118,7 @@ public class Parser {
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
 
-    public StopNode parse() { return parse(false); }
-    public StopNode parse(boolean show) {
+    public StopNode parse() {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
@@ -123,7 +131,6 @@ public class Parser {
         _xScopes.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
         STOP.peephole();
-        if( show ) showGraph();
         return STOP;
     }
 
@@ -164,7 +171,6 @@ public class Parser {
         else if (matchx("break")   ) return parseBreak();
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
-        else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")       ) return null; // Empty statement
         // declarations of vars with struct type are handled in parseExpressionStatement due
         // to ambiguity
@@ -381,14 +387,7 @@ public class Parser {
         return ret;
     }
 
-    /**
-     * Dumps out the node graph
-     * @return {@code null}
-     */
-    Node showGraph() {
-        System.out.println(new GraphVisualizer().generateDotOutput(STOP,_scope,_xScopes));
-        return null;
-    }
+
 
     /**
      * Parses an expression statement or a declaration statement where type is a struct

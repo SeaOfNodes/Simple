@@ -17,7 +17,6 @@ statement
     | whileStatement
     | breakStatement
     | continueStatment
-    | metaStatement
     ;
 
 PRIMTYPE
@@ -53,9 +52,6 @@ ifStatement
     : 'if' '(' expression ')' statement ('else' statement)?
     ;
 
-metaStatement
-    : '#showGraph' ';'
-    ;
 
 expressionStatement
     : IDENTIFIER '=' expression ';'

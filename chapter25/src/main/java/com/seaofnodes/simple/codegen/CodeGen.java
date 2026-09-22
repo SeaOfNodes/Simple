@@ -275,14 +275,7 @@ public class CodeGen {
     private int dump(int dump) {
         int p2 = _phase.ordinal();
         if( (dump & (1<<p2)) == 0 ) return p2;
-        if( (dump & (1<<29)) != 0 ) {
-            String fn = ""+p2+"-"+_phase+".dot";
-            try {
-                Files.writeString(Path.of(fn),
-                                  new GraphVisualizer().generateDotOutput(compunit(), null, null));
-            } catch(IOException e) { throw Utils.TODO("Cannot write DOT file"); }
-            return p2;
-        }
+
 
         if( (dump & (1<<30)) != 0 )
             System.err.println("After "+_phase+":");
@@ -866,16 +859,14 @@ public class CodeGen {
     public Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 
     // Global schedule (code motion) nodes
-    public CodeGen GCM() { return GCM(false); }
-    public CodeGen GCM( boolean show) {
+    public CodeGen GCM() {
         assert _phase.ordinal() <= Phase.Select.ordinal();
         _phase = Phase.Schedule;
         long t0 = System.currentTimeMillis();
 
         GlobalCodeMotion.buildCFG(this);
         _times[Phase.Schedule.ordinal()] = System.currentTimeMillis() - t0;
-        if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(compunit(),null,null));
+
         return this;
     }
 

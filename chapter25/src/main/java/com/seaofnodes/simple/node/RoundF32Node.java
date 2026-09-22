@@ -9,8 +9,6 @@ public class RoundF32Node extends Node {
     public RoundF32Node(Node lhs) { super(null, lhs); }
     @Override public Tag serialTag() { return Tag.RoundF32; }
 
-    @Override public String glabel() { return "(f32)"; }
-
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return in(1)._print0(sb.append("((f32)"), visited).append(")");

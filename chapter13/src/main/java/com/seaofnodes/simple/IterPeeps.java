@@ -65,9 +65,14 @@ public abstract class IterPeeps {
         while( (n=WORK.pop()) != null ) {
             if( n.isDead() )  continue;
             cnt++;              // Useful for debugging, searching which peephole broke things
+            var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
+            if( obs != null ) obs.before(n);
             Node x = n.peepholeOpt();
             if( x != null ) {
-                if( x.isDead() ) continue;
+                if( x.isDead() ) {
+                    if( obs != null ) obs.after(n, x, true);
+                    continue;
+                }
                 // peepholeOpt can return brand-new nodes, needing an initial type set
                 if( x._type==null ) x.setType(x.compute());
                 // Changes require neighbors onto the worklist
@@ -90,6 +95,7 @@ public abstract class IterPeeps {
             }
             if( n.isUnused() && !(n instanceof StopNode) )
                 n.kill();       // Just plain dead
+            if( obs != null ) obs.after(n, x, true);
         }
 
         return stop;

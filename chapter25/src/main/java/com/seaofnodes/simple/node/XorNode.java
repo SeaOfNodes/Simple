@@ -9,8 +9,6 @@ public class XorNode extends ArithNode {
     @Override public Tag serialTag() { return Tag.Xor; }
 
     @Override public String op() { return "^"; }
-    @Override public String glabel() { return "^"; }
-
     @Override long doOp( long x, long y ) { return x ^ y; }
     @Override TypeInteger doOp( TypeInteger x, TypeInteger y ) {
         return TypeInteger.BOT;

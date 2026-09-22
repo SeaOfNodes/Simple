@@ -11,4 +11,7 @@
     <artifactId>chapter19</artifactId>
     <packaging>jar</packaging>
     <name>Chapter 19</name>
+    <properties>
+        <simple.graph.directory>${project.basedir}/../graph</simple.graph.directory>
+    </properties>
 </project>

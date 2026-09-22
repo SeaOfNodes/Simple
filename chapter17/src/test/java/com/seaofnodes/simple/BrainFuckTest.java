@@ -66,7 +66,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 }
 return output;
                 """);
-        StopNode stop = parser.parse(false).iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Hello World!\n", Evaluator.evaluate(stop, 0, 10000).toString());
     }
 }

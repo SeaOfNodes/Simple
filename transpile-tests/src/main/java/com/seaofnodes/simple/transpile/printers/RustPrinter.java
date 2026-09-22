@@ -109,15 +109,9 @@ public class RustPrinter {
                 out.println("parser.nodes.disable_peephole = true;");
             }
             out.println("let stop = parser.parse().unwrap();");
-            if (test.showAfterParse) {
-                out.println("parser.show_graph();");
-            }
             if (test.iterate) {
                 out.println("parser.iterate(stop);");
                 out.println("parser.type_check(stop).unwrap();\n");
-            }
-            if (test.showAfterIterate) {
-                out.println("parser.show_graph();");
             }
             if (test.irPrinter) {
                 out.println("println!(\"{}\", pretty_print" + (test.irPrinterLLVM ? "_llvm" : "") + "(&parser.nodes, stop, 99));");

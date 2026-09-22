@@ -1,10 +1,13 @@
  package com.seaofnodes.simple;
 
+import com.seaofnodes.graph.GraphObserver;
+
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.util.HashMap;
 
 public class CodeGen {
+    public GraphObserver<Node> _obs;
 
     // Inlining can insert CFG edges and invalidate cached depth ordering.
     private char _iDepthVersion;
@@ -52,7 +55,7 @@ public class CodeGen {
         Node._disablePeephole = disable;
         _stop = P.parse();
         _start = Parser.START;   // Capture global start
-        JSViewer.show();
+        if( _obs != null ) _obs.phase("Parse");
         P = null;                // No longer parsing
         return this;
     }
@@ -66,6 +69,7 @@ public class CodeGen {
 
         // TODO:
         // Optimistic
+        if( _obs != null ) _obs.phase("Opto");
         return this;
     }
 
@@ -84,15 +88,13 @@ public class CodeGen {
     }
 
 
-    public CodeGen GCM() { return GCM(false); }
-    public CodeGen GCM( boolean show) {
+    public CodeGen GCM() {
         assert _phase == Phase.TypeCheck;
         _phase = Phase.Schedule;
 
         // Build the loop tree, fix never-exit loops
         _start.buildLoopTree(_stop);
-        if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null));
+
 
         // TODO:
         // loop unroll, peel, RCE, etc

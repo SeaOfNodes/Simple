@@ -10,7 +10,7 @@ public class Chapter04Test {
 
     @Test
     public void testPeephole() {
-        Parser parser = new Parser("return 1+arg+2; #showGraph;");
+        Parser parser = new Parser("return 1+arg+2; ");
         ReturnNode ret = parser.parse();
         assertEquals("return (arg+3);", ret.print());
     }
@@ -38,7 +38,7 @@ public class Chapter04Test {
 
     @Test
     public void testPeephole3() {
-        Parser parser = new Parser("return 1+arg+2+arg+3; #showGraph;");
+        Parser parser = new Parser("return 1+arg+2+arg+3; ");
         ReturnNode ret = parser.parse();
         assertEquals("return ((arg*2)+6);", ret.print());
     }
@@ -52,7 +52,7 @@ public class Chapter04Test {
 
     @Test
     public void testVarArg() {
-        Parser parser = new Parser("return arg; #showGraph;", TypeInteger.BOT);
+        Parser parser = new Parser("return arg; ", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
         assertTrue(ret.in(0) instanceof ProjNode);
         assertTrue(ret.in(1) instanceof ProjNode);
@@ -60,49 +60,49 @@ public class Chapter04Test {
 
     @Test
     public void testConstantArg() {
-        Parser parser = new Parser("return arg; #showGraph;", TypeInteger.constant(2));
+        Parser parser = new Parser("return arg; ", TypeInteger.constant(2));
         ReturnNode ret = parser.parse();
         assertEquals("return 2;", ret.print());
     }
 
     @Test
     public void testCompEq() {
-        Parser parser = new Parser("return 3==3; #showGraph;");
+        Parser parser = new Parser("return 3==3; ");
         ReturnNode ret = parser.parse();
         assertEquals("return 1;", ret.print());
     }
 
     @Test
     public void testCompEq2() {
-        Parser parser = new Parser("return 3==4; #showGraph;");
+        Parser parser = new Parser("return 3==4; ");
         ReturnNode ret = parser.parse();
         assertEquals("return 0;", ret.print());
     }
 
     @Test
     public void testCompNEq() {
-        Parser parser = new Parser("return 3!=3; #showGraph;");
+        Parser parser = new Parser("return 3!=3; ");
         ReturnNode ret = parser.parse();
         assertEquals("return 0;", ret.print());
     }
 
     @Test
     public void testCompNEq2() {
-        Parser parser = new Parser("return 3!=4; #showGraph;");
+        Parser parser = new Parser("return 3!=4; ");
         ReturnNode ret = parser.parse();
         assertEquals("return 1;", ret.print());
     }
 
     @Test
     public void testBug1() {
-        Parser parser = new Parser("int a=arg+1; int b=a; b=1; return a+2; #showGraph;");
+        Parser parser = new Parser("int a=arg+1; int b=a; b=1; return a+2; ");
         ReturnNode ret = parser.parse();
         assertEquals("return (arg+3);", ret.print());
     }
 
     @Test
     public void testBug2() {
-        Parser parser = new Parser("int a=arg+1; a=a; return a; #showGraph;");
+        Parser parser = new Parser("int a=arg+1; a=a; return a; ");
         ReturnNode ret = parser.parse();
         assertEquals("return (arg+1);", ret.print());
     }

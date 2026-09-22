@@ -306,7 +306,7 @@ else {
         }
 }
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ return 9; return 0; return 0; return 0; ]", stop.toString());
     }
 
@@ -466,7 +466,7 @@ while (arg) {
 }
 return i;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return .f;", stop.toString());
     }
 
@@ -486,7 +486,7 @@ while(arg) {
 }
 return arg;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return Phi(Loop15,arg,Phi(Region37,.f,0));", stop.toString());
     }
 
@@ -504,7 +504,7 @@ if (arg) {
 }
 return v;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return new S;", stop.toString());
     }
 

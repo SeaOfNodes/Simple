@@ -1,5 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.graph.GraphObserver;
+
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -11,6 +13,12 @@ import com.seaofnodes.simple.type.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
+
+    // Current compilation context; the observer belongs to the parser.
+    public static Parser PARSER;
+    public GraphObserver<Node> _obs;
+    public int pos() { return _lexer._position; }
+
 
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
@@ -27,6 +35,7 @@ public class Parser {
 
     public Parser(String source) {
         _lexer = new Lexer(source);
+        PARSER = this;
         Node.reset();
         START = new StartNode();
     }

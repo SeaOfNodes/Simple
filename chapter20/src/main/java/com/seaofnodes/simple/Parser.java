@@ -2,7 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
 import java.text.ParseException;
 import java.util.*;
@@ -132,8 +131,7 @@ public class Parser {
     private Node ctrl() { return _scope.ctrl(); }
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
-    public void parse() { parse(false); }
-    public void parse(boolean show) {
+    public void parse() {
         _xScopes.push(_scope);
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
@@ -155,7 +153,6 @@ public class Parser {
             init.unkeep().kill();
         INITS.clear();
         _code._stop.peephole();
-        if( show ) showGraph();
     }
 
     /**
@@ -277,7 +274,6 @@ public class Parser {
         else if (matchx("break")   ) return parseBreak();
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
-        else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")       ) return null; // Empty statement
         // Break ambiguity around leading function types and starting a block
         else if (peek('{') && !isTypeFun() ) {
@@ -578,14 +574,7 @@ public class Parser {
         return expr;
     }
 
-    /**
-     * Dumps out the node graph
-     * @return {@code null}
-     */
-    Node showGraph() {
-        System.out.println(new GraphVisualizer().generateDotOutput(_code._stop,_scope,_xScopes));
-        return null;
-    }
+
 
     /** Parse: [name '='] expr
      */

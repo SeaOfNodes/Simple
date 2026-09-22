@@ -13,16 +13,12 @@ statement
     | blockStatment
     | expressionStatement
     | ifStatement
-    | metaStatement
     ;
 
 ifStatement
     : 'if' '(' expression ')' statement ('else' statement)?
     ;
 
-metaStatement
-    : '#showGraph' ';'
-    ;
 
 expressionStatement
     : IDENTIFIER '=' expression ';'

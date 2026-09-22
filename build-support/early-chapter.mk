@@ -17,6 +17,11 @@ jars := lib/junit-4.12.jar$(SEP)lib/hamcrest-core-1.3.jar
 main_classes := $(CLZDIR)/main/.mtag
 test_classes := $(CLZDIR)/test/.ttag
 
+include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
+
+.PHONY: build
+build: $(main_classes)
+
 $(main_classes): $(main_javas)
 	@mkdir -p $(CLZDIR)/main
 	javac $(JAVAC_ARGS) -d $(CLZDIR)/main $(main_javas)
@@ -42,4 +47,4 @@ lib/hamcrest-core-1.3.jar:
 	@mkdir -p lib
 	wget -O $@ https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar
 
-include ../build-support/chapter-release.mk
+include $(firstword $(wildcard ../build-support/chapter-release.mk build-support/chapter-release.mk))

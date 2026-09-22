@@ -15,7 +15,6 @@ statement
     | whileStatement
     | breakStatement
     | continueStatement
-    | metaStatement
     | structDeclaration
     | expressionStatement
     ;
@@ -31,7 +30,6 @@ breakStatement : 'break' ';' ;
 
 continueStatement : 'continue' ';' ;
 
-metaStatement : '#showGraph' ';' ;
 
 structDeclaration : 'struct' IDENTIFIER '{' block '}'  ;
 

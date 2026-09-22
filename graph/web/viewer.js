@@ -79,20 +79,13 @@ async function render(index) {
   const frameGeneration = generation;
   rendering = true;
   const frame = frames[index];
-  busy = frame.snap && !frame.layout ? "Laying out frame " + (index + 1) + "..." : "Drawing...";
+  busy = !frame.layout ? "Laying out frame " + (index + 1) + "..." : "Drawing...";
   updateUI();
   if (frame.pos >= 0) program.setSelectionRange(frame.pos, frame.pos + 1);
   try {
-    document.getElementById("elk").hidden = !frame.snap;
-    document.getElementById("dot").hidden = !!frame.snap;
-    if (frame.snap) {
-      if (!layout) layout = new GraphLayout();
-      if (!frame.layout) frame.layout = await layout.run(frame.snap);
-      if (generation === frameGeneration) renderer.show(frame.snap, frame.layout, frame.evt);
-    } else {
-      document.getElementById("detail").hidden = true;
-      await drawDot(frame.dot);
-    }
+    if (!layout) layout = new GraphLayout();
+    if (!frame.layout) frame.layout = await layout.run(frame.snap);
+    if (generation === frameGeneration) renderer.show(frame.snap, frame.layout, frame.evt);
     rendering = false;
     busy = "";
     if (generation === frameGeneration) current = index;
@@ -117,8 +110,8 @@ program.addEventListener("keydown", event => {
 });
 document.getElementById("compile").addEventListener("click", get_program);
 document.getElementById("fit").addEventListener("click", () => {
-  if (frames[current]?.snap) { renderer.auto = true; renderer.fit(); }
-  else render(current);
+  renderer.auto = true;
+  renderer.fit();
 });
 document.getElementById("assocs").addEventListener("change", event => renderer.assocs(event.target.checked));
 document.getElementById("near").addEventListener("change", () => renderer.mark());
@@ -143,22 +136,16 @@ try {
       done = true;
       compiling = false;
       updateUI();
-    } else if (message.startsWith("{") || message.startsWith("digraph")) {
+    } else if (message.startsWith("{")) {
       let frame;
       try {
-        if (message.startsWith("{")) {
-          frame = JSON.parse(message);
-          if (frame.error) {
-            failure = "Compile error: " + frame.error;
-            updateUI();
-            return;
-          }
-          if (frame.snap.ver !== 1) throw new Error("Unsupported graph version: " + frame.snap.ver);
-        } else {
-          // Earlier chapters still send bare DOT.
-          const pos = message.match(/\/\/ POS:\s*(\d+)/);
-          frame = {dot: message, pos: pos ? Number(pos[1]) : -1};
+        frame = JSON.parse(message);
+        if (frame.error) {
+          failure = "Compile error: " + frame.error;
+          updateUI();
+          return;
         }
+        if (frame.snap.ver !== 1) throw new Error("Unsupported graph version: " + frame.snap.ver);
       } catch (error) {
         reportError(error);
         return;
@@ -181,9 +168,6 @@ try {
     updateUI();
   };
 
-  window.addEventListener("resize", () => {
-    if (current >= 0 && !frames[current].snap) render(current);
-  });
 } catch (error) {
   reportError(error);
 }

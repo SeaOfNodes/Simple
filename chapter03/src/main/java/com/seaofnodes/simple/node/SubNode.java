@@ -8,8 +8,6 @@ public class SubNode extends Node {
 
     @Override public String label() { return "Sub"; }
 
-    @Override public String glabel() { return "-"; }
-
     @Override
     StringBuilder _print1(StringBuilder sb) {
         in(1)._print0(sb.append("("));

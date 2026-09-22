@@ -151,14 +151,12 @@ public abstract class Node implements Cloneable {
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public String label() { return serialTag().toString(); }
 
-    // Unique label for graph visualization, e.g. "Add12" or "Region30" or "EQ99"
+    // Unique label for debugging, e.g. "Add12" or "Region30" or "EQ99"
     public String uniqueName() {
-        // Get rid of $ as graphviz doesn't like it
-        String label = label().replaceAll("\\$", "");
-        return label + _nid;
+        return label() + _nid;
     }
 
-    // Graphical label, e.g. "+" or "Region" or "=="
+    // Operator symbol used by assembly/debug printing.
     public String glabel() { return label(); }
 
     // Extra fun stuff, for assembly printing.  Jump labels, parser locations,

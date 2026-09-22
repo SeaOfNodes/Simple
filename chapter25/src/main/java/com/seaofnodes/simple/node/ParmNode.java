@@ -36,8 +36,6 @@ public class ParmNode extends PhiNode {
 
     @Override public String label() { return MemOpNode.mlabel(_label); }
 
-    @Override public String glabel() { return _label; }
-
     @Override boolean _upgradeType( HashMap<String,Type> TYPES) {
         Type t = _declaredType.upgradeType(TYPES);
         if( t == _declaredType ) return false;

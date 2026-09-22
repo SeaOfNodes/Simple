@@ -25,7 +25,6 @@ public class FunPtrNode extends TypeNode {
     public FunNode fun() { return ret().fun(); }
 
     @Override public String label() { return "#"+_con; }
-    @Override public String glabel() { return "#"+_con.gprint(); }
     @Override public String uniqueName() { return "FunPtr_" + _nid; }
     @Override public Node copy() {
         FunPtrNode fptr = new FunPtrNode((TypeFunPtr)_con,null,null);

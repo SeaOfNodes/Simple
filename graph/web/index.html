@@ -11,7 +11,7 @@
     #program { width:min(600px,80vw); vertical-align:middle; }
     #status { margin-top:4px; }
     #graph { min-height:0; overflow:hidden; position:relative; background:#fafbfc; }
-    #elk, #dot { width:100%; height:100%; }
+    #elk { width:100%; height:100%; }
     #graph svg { display:block; }
     .tools { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:8px; font-size:12px; }
     .hint { color:#616c78; }
@@ -42,7 +42,6 @@
   <script src="vendor/elk-api.js"></script>
   <script src="layout.js"></script>
   <script src="render.js"></script>
-  <script src="legacy.js"></script>
 </head>
 <body>
   <div class="viewer">
@@ -61,7 +60,7 @@
       </div>
       <div id="event" class="hint" role="status"></div>
     </div>
-    <div id="graph"><div id="elk"></div><div id="dot" hidden></div><pre id="detail" hidden></pre></div>
+    <div id="graph"><div id="elk"></div><pre id="detail" hidden></pre></div>
     <div class="controls">
       <button id="doPrev" type="button" onclick="doPrev()" class="button" aria-label="Previous frame">&#11164;</button>
       <span id="N" class="count">0</span>

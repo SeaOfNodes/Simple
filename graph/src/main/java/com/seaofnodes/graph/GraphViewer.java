@@ -5,16 +5,9 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Shared launcher and source/compile loop. Subclasses supply their compiler. */
-public abstract class GraphViewer implements AutoCloseable {
-    private final GraphSocket _server;
-
-    protected GraphViewer() throws IOException { _server = new GraphSocket(viewerURI(), 12345); }
-    protected abstract void compile(String src);
-
-    protected final void frame(GraphSnapshot snap, int pos, GraphEvent evt) throws IOException {
-        _server.put(GraphJson.frame(snap, pos, evt));
-    }
+/** Shared launcher and source/compile loop. Chapter observers supply their compiler. */
+public final class GraphViewer {
+    private GraphViewer() {}
 
     private static URI viewerURI() throws IOException {
         String url = System.getProperty("simple.graph.url");
@@ -27,23 +20,23 @@ public abstract class GraphViewer implements AutoCloseable {
                               + "or set -Dsimple.graph.url=<viewer URL>");
     }
 
-    public final void run() throws IOException {
-        _server.put("!");
-        while( true ) {
-            String src = _server.get();
-            if( src == null || src.equals("null") ) return;
-            if( src.equals("+") ) continue; // Frames are currently sent eagerly.
-            System.out.println(src);
-            try {
-                compile(src);
-            } catch( RuntimeException e ) {
-                System.err.println(e);
-                _server.put(GraphJson.error(e.toString()));
-            } finally {
-                _server.put("#");
+    public static void run(GraphCapture<?> obs) throws IOException {
+        try( var server = new GraphSocket(viewerURI(), 12345) ) {
+            server.put("!");
+            while( true ) {
+                String src = server.get();
+                if( src == null || src.equals("null") ) return;
+                if( src.equals("+") ) continue; // Frames are currently sent eagerly.
+                System.out.println(src);
+                try {
+                    obs.run(src, server);
+                } catch( RuntimeException e ) {
+                    System.err.println(e);
+                    server.put(GraphJson.error(e.toString()));
+                } finally {
+                    server.put("#");
+                }
             }
         }
     }
-
-    @Override public final void close() throws IOException { _server.close(); }
 }

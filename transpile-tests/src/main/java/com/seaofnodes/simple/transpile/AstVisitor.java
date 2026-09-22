@@ -48,20 +48,8 @@ class AstVisitor extends TreeScanner<Void, Void> {
             var methodSelect = node.getMethodSelect().toString();
             var args = node.getArguments();
 
-            if (methodSelect.endsWith(".parse")) {
-                current.showAfterParse = switch (args.size()) {
-                    case 0 -> false;
-                    case 1 -> (Boolean) literal(args.getFirst());
-                    default -> throw new RuntimeException("unexpected parse arguments" + node);
-                };
-            }
             if (methodSelect.endsWith(".iterate")) {
                 current.iterate = true;
-                current.showAfterIterate = switch (args.size()) {
-                    case 0 -> false;
-                    case 1 -> (Boolean) literal(args.getFirst());
-                    default -> throw new RuntimeException("unexpected parse arguments" + node);
-                };
             }
             if (methodSelect.endsWith("assertEquals")) {
                 if (inCatch) {
@@ -141,9 +129,6 @@ class AstVisitor extends TreeScanner<Void, Void> {
                     default -> throw new RuntimeException("Parser constructor with unexpected arguments: " + node);
                 }
                 current.parserInput = (String) literal(args.get(0));
-            } else if (node.getIdentifier().toString().equals("GraphVisualizer")) {
-                // only happens in Chapter02Tests
-                current.showAfterParse = true;
             }
         }
         return super.visitNewClass(node, unused);

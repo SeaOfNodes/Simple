@@ -156,7 +156,7 @@ int a = 1;
 while(arg) a = 2;
 return a;
 """);
-        StopNode stop = parser.parse(false);
+        StopNode stop = parser.parse();
         assertEquals("return Phi(Loop7,1,2);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof ProjNode);
     }

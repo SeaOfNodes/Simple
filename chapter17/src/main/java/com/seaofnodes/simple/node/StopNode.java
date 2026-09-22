@@ -4,7 +4,6 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.GlobalCodeMotion;
-import com.seaofnodes.simple.GraphVisualizer;
 
 import java.util.BitSet;
 
@@ -68,17 +67,15 @@ public class StopNode extends CFGNode {
         return addDef(node);
     }
 
-    public StopNode iterate(            ) { return IterPeeps.iterate(this).typeCheck().GCM(false); }
-    public StopNode iterate(boolean show) { return IterPeeps.iterate(this).typeCheck().GCM(show ); }
+    public StopNode iterate() { return IterPeeps.iterate(this).typeCheck().GCM(); }
     StopNode typeCheck() {
         String err = walk( Node::err );
         if( err != null ) throw new RuntimeException(err);
         return this;
     }
-    StopNode GCM(boolean show) {
+    StopNode GCM() {
         Parser.START.buildLoopTree(this);
-        if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(this,null,null));
+
         GlobalCodeMotion.buildCFG(this);
         return this;
     }

@@ -23,14 +23,14 @@ from playwright.sync_api import sync_playwright
 
 def check(chapter, browser_name):
     number = int(chapter.removeprefix("chapter"))
-    package = "com.seaofnodes.simple." + ("print." if number == 4 or number >= 20 else "")
+    package = "com.seaofnodes.simple.print."
     artifacts = ROOT / "build/graph-browser" / (chapter + "-" + browser_name)
     artifacts.mkdir(parents=True, exist_ok=True)
     log = artifacts / "compiler.log"
     with log.open("w") as output:
         process = subprocess.Popen([
             "java", "-ea", "-Dsimple.graph.open=false", "-cp", "build/classes/main",
-            package + "JSViewer"], cwd=ROOT/chapter, stdout=output, stderr=subprocess.STDOUT)
+            package + "SimpleGraphObserver"], cwd=ROOT/chapter, stdout=output, stderr=subprocess.STDOUT)
         try:
             for _ in range(200):
                 text = log.read_text()
@@ -49,12 +49,15 @@ def check(chapter, browser_name):
                 page.wait_for_function("done && current === 0 && !rendering", timeout=15000)
                 assert page.locator("#graph svg g.node").count() > 0
                 assert page.locator("#doPrev").is_disabled()
-                page.locator("#doNext").click()
-                page.wait_for_function("current === 1 && !rendering")
-                page.locator("#doPrev").click()
-                page.wait_for_function("current === 0 && !rendering")
-                sources = ("return 1 + 2;", "int x=arg+1; return x+x+2;" if number == 4 else
-                           "int x=0; while(x<arg) { x=x+1; } return x;")
+                if number > 1:
+                    page.locator("#doNext").click()
+                    page.wait_for_function("current === 1 && !rendering")
+                    page.locator("#doPrev").click()
+                    page.wait_for_function("current === 0 && !rendering")
+                sources = (("return 1;", "return 2;") if number == 1 else
+                           ("return 1 + 2;", "return 3 * 4;") if number == 2 else
+                           ("return 1 + 2;", "int x=arg+1; return x+x+2;") if number <= 5 else
+                           ("return 1 + 2;", "int x=0; while(x<arg) { x=x+1; } return x;"))
                 for source in sources:
                     previous = page.evaluate("generation")
                     page.locator("#program").fill(source)
@@ -63,13 +66,22 @@ def check(chapter, browser_name):
                         "previous => generation > previous && done && current === 0 && !rendering",
                         arg=previous, timeout=15000)
                     total = int(page.locator("#len").inner_text())
-                    assert total > 1
-                    for index in range(1, total):
-                        page.locator("#doNext").click()
+                    assert total >= 1
+                    # Later chapters also parse library code. Sample long histories.
+                    steps = (range(1, total) if total <= 100 else
+                             sorted({1, total // 4, total // 2, 3 * total // 4, total - 2, total - 1}))
+                    print(chapter, total, "frames captured; rendering", len(steps) + 1, flush=True)
+                    prev = 0
+                    for index in steps:
+                        if index == prev + 1:
+                            page.locator("#doNext").click()
+                        else:
+                            page.evaluate("index => render(index)", index)
                         page.wait_for_function("index => current === index && !rendering", arg=index)
+                        prev = index
                     assert page.locator("#doNext").is_disabled()
                     assert "error" not in page.locator("#status").inner_text().lower()
-                    if number in (4, 25):
+                    if total > 1:
                         assert page.locator("#elk g.node").count() == page.evaluate("frames[current].snap.nodes.length")
                         # Revisit cached geometry and keep the selected node across steps.
                         page.evaluate("""() => {
@@ -86,7 +98,7 @@ def check(chapter, browser_name):
                         page.evaluate("delete layout.run")
                         assert page.locator("#detail").is_visible()
                         page.keyboard.press("Escape")
-                    print(chapter, browser_name, total, "frames rendered:", source, flush=True)
+                    print(chapter, browser_name, "playback passed:", source, flush=True)
                 assert not errors, errors
                 page.screenshot(path=str(artifacts / "viewer.png"))
                 page.locator("#doExit").click()
@@ -117,7 +129,7 @@ def check(chapter, browser_name):
             if process.poll() is None:
                 process.terminate()
                 process.wait(timeout=5)
-    print(chapter, browser_name, "startup, forward/back, recompile, all frames, disconnect, and offline startup passed")
+    print(chapter, browser_name, "startup, forward/back, recompile, playback, disconnect, and offline startup passed")
 
 
 if __name__ == "__main__":

@@ -21,7 +21,6 @@ public abstract class ArithNode extends Node implements ModeNode {
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes) {
         baos.packed1(_mode);
     }
-    @Override public String glabel() { return op(); }
     abstract String op();
 
     @Override

@@ -81,7 +81,7 @@ if( (arg/13)==0 ) {
 int r = g+h;
 return p-r;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
     }
 

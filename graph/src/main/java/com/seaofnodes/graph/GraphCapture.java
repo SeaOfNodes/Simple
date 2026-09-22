@@ -5,23 +5,43 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.UUID;
 
-/** Shared capture, event nesting and neighborhoods. Chapter hooks only read the IR. */
+/** Shared compilation lifecycle, capture, event nesting and neighborhoods. */
 public abstract class GraphCapture<N> extends GraphObserver<N> {
 
     private final GraphAdapter<N> _graph;
-    private final String _comp = UUID.randomUUID().toString();
+    private String _comp;
+    private GraphSocket _server;
     private final ArrayList<Peep> _peeps = new ArrayList<>();
     private long _next, _step;
-    private boolean _off;
+    private boolean _off = true;
 
     protected GraphCapture(GraphAdapter<N> graph) { _graph = graph; }
 
+    // Create the chapter's compiler, attach this observer, and run its phases.
+    protected abstract void compile(String src);
+    // The remaining hooks only inspect context, except detach which clears it.
     protected abstract String phase();
     protected abstract int pos();
     protected abstract void roots(ArrayList<N> roots);
     protected abstract void detach();
 
-    protected abstract void frame(GraphSnapshot snap, int pos, GraphEvent evt) throws IOException;
+    final void run(String src, GraphSocket server) {
+        _comp = UUID.randomUUID().toString();
+        _next = _step = 0;
+        _server = server;
+        _off = false;
+        try {
+            compile(src);
+        } finally {
+            _off = true;
+            try {
+                detach();
+            } finally {
+                _peeps.clear();
+                _server = null;
+            }
+        }
+    }
 
     private class Peep {
         final N node;
@@ -114,11 +134,10 @@ public abstract class GraphCapture<N> extends GraphObserver<N> {
         // Assign steps on emission; attempts without progress do not consume frames.
         snap = new GraphSnapshot(snap.ver(), _comp, _step++, snap.roots(), snap.nodes());
         try {
-            frame(snap, pos, evt);
+            _server.put(GraphJson.frame(snap, pos, evt));
         } catch( IOException e ) {
             // A disconnected display must not interrupt optimization.
             _off = true;
-            detach();
             System.err.println("Graph viewer disconnected: " + e.getMessage());
         }
     }

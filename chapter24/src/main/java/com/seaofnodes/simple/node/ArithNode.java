@@ -11,7 +11,6 @@ public abstract class ArithNode extends Node {
     Parser.Lexer _loc;
 
     public ArithNode( Parser.Lexer loc, Node lhs, Node rhs) { super(null, lhs, rhs); _loc = loc; }
-    @Override public String glabel() { return op(); }
     abstract String op();
 
     @Override

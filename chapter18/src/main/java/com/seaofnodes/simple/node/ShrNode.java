@@ -11,8 +11,6 @@ public class ShrNode extends LogicalNode {
     @Override public String label() { return "Shr"; }
     @Override public String op() { return ">>>"; }
 
-    @Override public String glabel() { return "&gt;&gt;&gt;"; }
-
     @Override
     public Type compute() {
         Type t1 = in(1)._type, t2 = in(2)._type;

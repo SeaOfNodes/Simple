@@ -59,7 +59,7 @@ public abstract class IterPeeps {
     /**
      * Iterate peepholes to a fixed point
      */
-    public static StopNode iterate(StopNode stop, boolean show) {
+    public static StopNode iterate(StopNode stop) {
         assert progressOnList(stop);
         int cnt=0;
 
@@ -67,9 +67,14 @@ public abstract class IterPeeps {
         while( (n=WORK.pop()) != null ) {
             if( n.isDead() )  continue;
             cnt++;              // Useful for debugging, searching which peephole broke things
+            var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
+            if( obs != null ) obs.before(n);
             Node x = n.peepholeOpt();
             if( x != null ) {
-                if( x.isDead() ) continue;
+                if( x.isDead() ) {
+                    if( obs != null ) obs.after(n, x, true);
+                    continue;
+                }
                 // peepholeOpt can return brand-new nodes, needing an initial type set
                 if( x._type==null ) x.setType(x.compute());
                 // Changes require neighbors onto the worklist
@@ -90,10 +95,9 @@ public abstract class IterPeeps {
                 n.moveDepsToWorklist();
                 assert progressOnList(stop); // Very expensive assert
             }
+            if( obs != null ) obs.after(n, x, true);
         }
 
-        if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
         return stop;
     }
 

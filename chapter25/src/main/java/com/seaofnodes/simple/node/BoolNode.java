@@ -24,9 +24,6 @@ abstract public class BoolNode extends Node implements ModeNode {
     abstract public String op(); // String opcode name
 
     @Override
-    public String glabel() { return op(); }
-
-    @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("("), visited);
         in(2)._print0(sb.append(op()), visited);
@@ -154,7 +151,6 @@ abstract public class BoolNode extends Node implements ModeNode {
         public LT(Node lhs, Node rhs, byte mode) { super(lhs,rhs, mode); }
         @Override public Tag serialTag() { return Tag.LT; }
         public String op() { return "<" ; }
-        public String glabel() { return "&lt;"; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <  i2._min ) return TRUE;
             if( i1._min >= i2._max ) return FALSE;
@@ -169,7 +165,6 @@ abstract public class BoolNode extends Node implements ModeNode {
         public LE(Node lhs, Node rhs, byte mode) { super(lhs,rhs,mode); }
         @Override public Tag serialTag() { return Tag.LE; }
         public String op() { return "<="; }
-        public String glabel() { return "&lt;="; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( i1._max <= i2._min ) return TRUE;
             if( i1._min >  i2._max ) return FALSE;
@@ -188,7 +183,6 @@ abstract public class BoolNode extends Node implements ModeNode {
         }
         @Override public Tag serialTag() { return Tag.ULT; }
         public String op() { return "u<" ; }
-        public String glabel() { return "u&lt;"; }
         TypeInteger doOp(TypeInteger i1, TypeInteger i2) {
             if( Long.compareUnsigned(i1._max,i2._min) <  0 ) return TRUE;
             if( Long.compareUnsigned(i1._min,i2._max) >= 0 ) return FALSE;

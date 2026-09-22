@@ -14,7 +14,7 @@ public class Chapter13Test {
 """
 return 3.14;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 3.14;", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop,  0));
     }
@@ -56,7 +56,7 @@ LLI? next = head.next;
 if( next==null ) return 1;
 return next.i;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
         assertEquals(2L, Evaluator.evaluate(stop,  3));
     }
@@ -75,7 +75,7 @@ i0.f = f0;
 f0.i = i0;
 return f0.i.f.i.i;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 17;", stop.toString());
     }
 
@@ -87,7 +87,7 @@ struct N { N next; int i; }
 N n = new N;
 return n.next;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return null;", stop.toString());
     }
 
@@ -100,7 +100,7 @@ N n = new N;
 n.next = new N;
 return n.next;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return new N;", stop.toString());
     }
 
@@ -149,7 +149,7 @@ return n.i;
 """
 struct S{};
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return 0;", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
     }
@@ -173,7 +173,7 @@ struct S1 { S2? s; }
 struct S2 { int x; }
 return new S1.s=new S2;
 """);
-        StopNode stop = parser.parse().iterate(false);
+        StopNode stop = parser.parse().iterate();
         assertEquals("return new S1;", stop.toString());
     }
 
@@ -190,7 +190,7 @@ p2.pi.i = 2;
 if (arg) p1 = new P;
 return p1.pi.i + 1;
 """);
-        try { parser.parse(false).iterate();  fail(); }
+        try { parser.parse().iterate();  fail(); }
         catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
     }
 

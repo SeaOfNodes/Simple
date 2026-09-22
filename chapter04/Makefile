@@ -36,10 +36,7 @@ CLZDIR:= build/classes
 main_javas   := $(wildcard $(SRC)/$(SIMPLE)/*java $(SRC)/$(SIMPLE)/*/*java)
 test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
-# Compile the common adapter into this chapter without copying its sources.
-GRAPH_DIR := $(firstword $(wildcard ../graph graph))
-graph_javas := $(wildcard $(GRAPH_DIR)/src/main/java/com/seaofnodes/graph/*.java)
-main_javas += $(graph_javas)
+include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
 classes = $(main_classes) $(test_classes)
@@ -81,10 +78,6 @@ fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
-.PHONY: view
-view: build
-	java -ea -cp "$(CLZDIR)/main" com.seaofnodes.simple.print.JSViewer
-
 
 .PHONY: clean
 clean:
@@ -109,4 +102,4 @@ tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --extra=+q --fields=+fksaiS $(SRC) $(TST)
 
-include ../build-support/chapter-release.mk
+include $(firstword $(wildcard ../build-support/chapter-release.mk build-support/chapter-release.mk))

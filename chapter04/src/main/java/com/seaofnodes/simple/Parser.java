@@ -27,7 +27,6 @@ public class Parser {
     // Current compilation context, like START; the observer belongs to the parser.
     public static Parser PARSER;
     public GraphObserver<Node> _obs;
-    public ReturnNode _ret;
     public int pos() { return _lexer._position; }
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
@@ -73,8 +72,7 @@ public class Parser {
 
     private Node ctrl(Node n) { return _scope.ctrl(n); }
 
-    public ReturnNode parse() { return parse(false); }
-    public ReturnNode parse(boolean show) {
+    public ReturnNode parse() {
         // Enter a new scope for the initial control and arguments
         _scope.push();
         _scope.define(ScopeNode.CTRL, new ProjNode(START, 0, ScopeNode.CTRL).peephole());
@@ -82,9 +80,6 @@ public class Parser {
         var ret = (ReturnNode) parseBlock();
         _scope.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
-        if( show ) showGraph();
-        _ret = ret;
-        if( _obs != null ) _obs.phase("Parse");
         return ret;
     }
 
@@ -103,7 +98,7 @@ public class Parser {
         Node n = null;
         while (!peek('}') && !_lexer.isEOF()) {
             Node n0 = parseStatement();
-            if (n0 != null) n = n0; // Allow null returns from eg showGraph
+            if (n0 != null) n = n0; // Empty statements can return null
         };
         // Exit scope
         _scope.pop();
@@ -122,7 +117,6 @@ public class Parser {
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
         else if (match ("{"  )) return require(parseBlock(),"}");
-        else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")) return null; // Empty statement
         else return parseExpressionStatement();
     }
@@ -143,14 +137,7 @@ public class Parser {
         return ret;
     }
 
-    /**
-     * Dumps out the node graph
-     * @return {@code null}
-     */
-    private Node showGraph() {
-        System.out.println(new GraphVisualizer().generateDotOutput(this));
-        return null;
-    }
+
 
     /**
      * Parses an expression statement

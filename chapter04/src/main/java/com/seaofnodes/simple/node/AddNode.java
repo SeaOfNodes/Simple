@@ -7,8 +7,6 @@ public class AddNode extends Node {
 
     @Override public String label() { return "Add"; }
 
-    @Override public String glabel() { return "+"; }
-
     @Override
     StringBuilder _print1(StringBuilder sb) {
         in(1)._print0(sb.append("("));

@@ -9,8 +9,6 @@ public class SarNode extends ArithNode {
 
     @Override public String label() { return "Sar"; }
     @Override public String op() { return ">>"; }
-    @Override public String glabel() { return "&gt;&gt;"; }
-
     @Override long doOp( long x, long y ) { return x >> y; }
     @Override TypeInteger doOp( TypeInteger x, TypeInteger y ) {
         if( y.isConstant() ) {

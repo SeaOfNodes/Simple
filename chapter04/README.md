@@ -108,7 +108,7 @@ tests can (and do) pass in other integer values by calling `new Parser` with
 an argument:
 
 ```java
-Parser parser = new Parser("return arg; #showGraph;", TypeInteger.constant(2));
+Parser parser = new Parser("return arg; ", TypeInteger.constant(2));
 ```
 
 The graph:
@@ -151,7 +151,7 @@ public final Node peephole( ) {
 If you don't pass an argument you get `TypeInteger.BOT`
 
 ```java 
-    Parser parser = new Parser("return arg; #showGraph;");
+    Parser parser = new Parser("return arg; ");
     ...
     
 public Parser(String source) {

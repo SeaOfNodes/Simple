@@ -64,6 +64,7 @@ CLZDIR:= build/classes
 main_javas   := $(wildcard $(SRC)/$(SIMPLE)/*java $(SRC)/$(SIMPLE)/*/*java $(SRC)/$(SIMPLE)/node/cpus/*/*java)
 test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
+include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java)) com.seaofnodes.simple.codegen.X86EncodingTest
 classes = $(main_classes) $(test_classes)
@@ -72,7 +73,7 @@ libs = $(wildcard lib/*jar)
 jars = $(subst $(space),$(SEP),$(libs))
 
 
-default_targets := $(CLZDIR)/.tag $(test_classes)
+default_targets := $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 # Optionally add ctags to the default target if a reasonable one was found.
 ifneq ($(CTAGS),)
 default_targets += tags
@@ -81,18 +82,17 @@ endif
 default: $(default_targets)
 
 #######################################################
-# Compile just the out-of-date files
+# Compile the chapter and shared viewer sources together
 
-OODM :=
-$(CLZDIR)/main/.mtag: $(main_classes) $(main_javas)
+$(CLZDIR)/main/.mtag: $(main_javas) Makefile
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
 	@# This crap is really just "javac", but with a beautiful error message.
 	@# The very very long list of java files is suppressed and counted.
 	@# The required output "Note: blah blah deprecated blah" is suppressed.
-	$(file >.argsM.txt,$(OODM))
-	@if [ ! -z "$(OODM)" ] ; then \
+	$(file >.argsM.txt,$(main_javas))
+	@if [ ! -z "$(main_javas)" ] ; then \
 	  echo "compiling main because " $< " and " `wc -w < .argsM.txt` " more files" ; \
-	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(OODM) >& .out.txt ; then \
+	  if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas) >& .out.txt ; then \
             cat .out.txt ; \
             exit 1; \
           fi ; \
@@ -101,9 +101,8 @@ $(CLZDIR)/main/.mtag: $(main_classes) $(main_javas)
 	@touch $(CLZDIR)/main/.mtag
 	@rm -f .argsM.txt
 
-# Collect just the out-of-date files
-$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java
-	$(eval OODM += $$<)
+$(main_classes): $(CLZDIR)/main/.mtag
+
 
 
 #######################################################
@@ -157,11 +156,6 @@ build/release/simple.jar:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@jar cf build/release/simple.jar -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
-# Launch viewer
-.PHONY: view
-view:	$(CLZDIR)/main/.mtag
-	@echo "viewing "
-	@$(JVM) com.seaofnodes.simple.print.JSViewer
 
 .PHONY: clean
 clean:
@@ -185,3 +179,6 @@ lib/hamcrest-core-1.3.jar:
 tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --extra=+q --fields=+fksaiS $(SRC) $(TST)
+
+.PHONY: build
+build: $(CLZDIR)/main/.mtag

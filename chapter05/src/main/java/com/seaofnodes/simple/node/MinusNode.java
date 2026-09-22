@@ -8,8 +8,6 @@ public class MinusNode extends Node {
 
     @Override public String label() { return "Minus"; }
 
-    @Override public String glabel() { return "-"; }
-
     @Override
     StringBuilder _print1(StringBuilder sb) {
         in(1)._print0(sb.append("(-"));

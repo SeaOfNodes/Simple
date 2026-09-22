@@ -36,6 +36,7 @@ CLZDIR:= build/classes
 main_javas   := $(wildcard $(SRC)/$(SIMPLE)/*java $(SRC)/$(SIMPLE)/*/*java $(SRC)/$(SIMPLE)/node/cpus/*/*java)
 test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
+include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java)) com.seaofnodes.simple.codegen.X86EncodingTest
 classes = $(main_classes) $(test_classes)
@@ -53,7 +54,7 @@ endif
 default: $(default_targets)
 
 # Compile just the out-of-date files
-$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java
+$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java $(graph_javas)
 	@echo "compiling " $@ " because " $?
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
 	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas)
@@ -91,10 +92,6 @@ build/release/simple.jar:	$(main_classes) $(test_classes)
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@jar cf build/release/simple.jar -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
-# Launch viewer
-view:	$(main_classes)
-	@echo "viewing "
-	@$(JVM) com.seaofnodes.simple.print.JSViewer
 
 .PHONY: clean
 clean:
@@ -118,3 +115,6 @@ lib/hamcrest-core-1.3.jar:
 tags:	$(main_javas) $(test_javas)
 	@rm -f TAGS
 	@$(CTAGS) -e --recurse=yes --extra=+q --fields=+fksaiS $(SRC) $(TST)
+
+.PHONY: build
+build: $(main_classes)

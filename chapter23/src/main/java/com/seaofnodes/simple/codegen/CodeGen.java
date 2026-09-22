@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.graph.GraphObserver;
+
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
@@ -12,6 +14,7 @@ import java.util.*;
 
 @SuppressWarnings("unchecked")
 public class CodeGen {
+    public GraphObserver<Node> _obs;
     public static final String PORTS = "com.seaofnodes.simple.node.cpus";
     // Last created CodeGen as a global; used all over to avoid passing about a
     // "context".
@@ -152,7 +155,7 @@ public class CodeGen {
 
         P.parse();
         _tParse = (int)(System.currentTimeMillis() - t0);
-        JSViewer.show();
+        if( _obs != null ) _obs.phase("Parse");
         return this;
     }
 
@@ -222,6 +225,7 @@ public class CodeGen {
         // Optimistic
         // TODO:
         // loop unroll, peel, RCE, etc
+        if( _obs != null ) _obs.phase("Opto");
         return this;
     }
     public <N extends Node> N add( N n ) { return _iter.add(n); }
@@ -371,16 +375,14 @@ public class CodeGen {
     public Ary<CFGNode> _cfg = new Ary<>(CFGNode.class);
 
     // Global schedule (code motion) nodes
-    public CodeGen GCM() { return GCM(false); }
-    public CodeGen GCM( boolean show) {
+    public CodeGen GCM() {
         assert _phase.ordinal() <= Phase.Select.ordinal();
         _phase = Phase.Schedule;
         long t0 = System.currentTimeMillis();
 
         GlobalCodeMotion.buildCFG(this);
         _tGCM = (int)(System.currentTimeMillis() - t0);
-        if( show )
-            System.out.println(new GraphVisualizer().generateDotOutput(_stop,null,null));
+
         return this;
     }
 

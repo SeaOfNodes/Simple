@@ -11,6 +11,9 @@ import com.seaofnodes.simple.node.*;
  */
 public class Parser {
 
+    public int pos() { return _lexer._position; }
+
+
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
      * can make constants everywhere without having to thread the StartNode

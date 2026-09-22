@@ -31,11 +31,8 @@ public class LoadNode extends MemOpNode {
     }
     @Override public Tag serialTag() { return Tag.Load; }
 
-    // GraphVis DOT code (must be valid Java identifiers) and debugger labels
+    // Debugger label
     @Override public String  label() { return "ld_"+mlabel(); }
-    // GraphVis node-internal labels
-    @Override public String glabel() { return "." +_name; }
-
     @Override
     public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
 

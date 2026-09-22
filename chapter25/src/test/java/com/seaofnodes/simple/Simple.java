@@ -54,7 +54,6 @@ Options:
   --dump-after-encode      - dump intermediate representation after encoding pass
   --dump-after-all         - dump intermediate representation after all passes
   --dump                   - dump final intermediate representation only
-  --dot                    - dump grapical representation of intermediate code into *.dot file(s)
 """
 );
         System.exit(0);
@@ -91,7 +90,6 @@ Options:
         boolean do_run = true;
         boolean do_codegen = false;
         boolean emit_main = false;
-        boolean dump_dot = false;
         boolean print_time = false;
         boolean print_size = false;
         boolean print_asm = false;
@@ -126,7 +124,6 @@ Options:
             case "--dump-after-export":       dump |=  1<<Phase.Export    .ordinal()   ; break;
             case "--dump":                    dump |=  1<<Phase.LastPhase .ordinal()   ; break;
             case "--dump-after-all":          dump |= (2<<Phase.LastPhase .ordinal())-1; break;
-            case "--dot":                     dump_dot = true; break;
             case "-S":                        print_asm = true; break;
             case "--eval":                    do_eval = true ; do_run = false; break;
             case "--run":                     do_run  = true ; break;

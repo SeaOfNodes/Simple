@@ -1,6 +1,6 @@
 digraph chapter04 {
 /*
-return 1+arg+2; #showGraph;
+return 1+arg+2;
 */
 	rankdir=BT;
 	ordering="in";

@@ -25,10 +25,8 @@ public class Simple {
 
     static final int DUMP_FINAL              = 1<<16;
 
-    static final int DUMP_DOT                = 1<<29;
     static final int DUMP_PASS_NAME          = 1<<30;
     static final int DUMP_AFTER_ALL          = 0xff | DUMP_PASS_NAME;
-    static final int DUMP_DOT_AFTER_ALL      = 0xff | DUMP_DOT;
 
     static final int DUMP_DISASSEMBLE        = 1<<31;
 
@@ -50,7 +48,6 @@ Options:
   --dump-after-reg-alloc     - dump intermediate representation after register allocation pass
   --dump-after-encode        - dump intermediate representation after encoding pass
   --dump-after-all           - dump intermediate representation after all passes
-  --dot                      - dump grapical representation of intermediate code into *.dot file(s)
   -S                         - dump generated assembler code
   --eval ...                 - evaluate the compiled code in emulator
   --run ...                  - run the compiled code natively
@@ -84,47 +81,24 @@ Options:
 
     static void dump(CodeGen code, int dump, int pass) {
         if ((dump & pass) != 0) {
-            if ((dump & DUMP_DOT) != 0) {
-                String fn = switch (pass) {
-                    case DUMP_AFTER_PARSE        -> "01-parse.dot";
-                    case DUMP_AFTER_OPTO         -> "02-opto.dot";
-                    case DUMP_AFTER_TYPE_CHECK   -> "03-type_check.dot";
-                    case DUMP_AFTER_LOOP_TREE    -> "04-loop_tree.dot";
-                    case DUMP_AFTER_INSTR_SELECT -> "05-instr_select.dot";
-                    case DUMP_AFTER_GCM          -> "06-gcm.dot";
-                    case DUMP_AFTER_LOCAL_SCHED  -> "07-local_sched.dot";
-                    case DUMP_AFTER_REG_ALLOC    -> "08-reg_allos.dot";
-                    case DUMP_AFTER_ENCODE       -> "09-local_sched.dot";
-                    case DUMP_FINAL              -> "10-final.dot";
+            if ((dump & DUMP_PASS_NAME) != 0) {
+                System.err.println(switch (pass) {
+                    case DUMP_AFTER_PARSE        -> "After Parse:";
+                    case DUMP_AFTER_OPTO         -> "After OPTO:";
+                    case DUMP_AFTER_TYPE_CHECK   -> "After Type Check:";
+                    case DUMP_AFTER_LOOP_TREE    -> "After Loop Tree:";
+                    case DUMP_AFTER_INSTR_SELECT -> "After Instruction Selection:";
+                    case DUMP_AFTER_GCM          -> "After GCM:";
+                    case DUMP_AFTER_LOCAL_SCHED  -> "After Local Scheduling:";
+                    case DUMP_AFTER_REG_ALLOC    -> "After Register Allocation:";
+                    case DUMP_AFTER_ENCODE       -> "After Instruction Encoding:";
+                    case DUMP_FINAL              -> "Final:";
                     default                      -> throw Utils.TODO();
-                };
-
-                try {
-                    Files.writeString(Path.of(fn),
-                        new GraphVisualizer().generateDotOutput(code._stop, null, null));
-                } catch(IOException e) {
-                    System.err.println("ERROR: Cannot write DOT file");
-                    System.exit(1);
-                }
-            } else {
-                if ((dump & DUMP_PASS_NAME) != 0) {
-                    System.err.println(switch (pass) {
-                        case DUMP_AFTER_PARSE        -> "After Parse:";
-                        case DUMP_AFTER_OPTO         -> "After OPTO:";
-                        case DUMP_AFTER_TYPE_CHECK   -> "After Type Check:";
-                        case DUMP_AFTER_LOOP_TREE    -> "After Loop Tree:";
-                        case DUMP_AFTER_INSTR_SELECT -> "After Instruction Selection:";
-                        case DUMP_AFTER_GCM          -> "After GCM:";
-                        case DUMP_AFTER_LOCAL_SCHED  -> "After Local Scheduling:";
-                        case DUMP_AFTER_REG_ALLOC    -> "After Register Allocation:";
-                        case DUMP_AFTER_ENCODE       -> "After Instruction Encoding:";
-                        case DUMP_FINAL              -> "Final:";
-                        default                      -> throw Utils.TODO();
-                    });
-                }
-
-                System.err.println(IRPrinter.prettyPrint(code._stop, 9999));
+                });
             }
+
+            System.err.println(IRPrinter.prettyPrint(code._stop, 9999));
+
         }
     }
 
@@ -193,7 +167,6 @@ loop:   for (int i = 0; i < args.length; i++) {
                     case "--dump-after-reg-alloc":    dump |= DUMP_AFTER_REG_ALLOC; break;
                     case "--dump-after-encode":       dump |= DUMP_AFTER_ENCODE; break;
                     case "--dump-after-all":          dump |= DUMP_AFTER_ALL; break;
-                    case "--dot":                     dump |= DUMP_DOT; break;
                     case "-S":                        dump |= DUMP_DISASSEMBLE; break;
                     case "--eval":                    do_eval = true; first_arg = i + 1; break loop;
                     case "--run":                     do_run = true; first_arg = i + 1; break loop;

@@ -9,9 +9,7 @@ public class TestMethod {
     // if this is set you can ignore the rest
     public String parseErrorMessage;
     public boolean disablePeephole;
-    public boolean showAfterParse;
     public boolean iterate;
-    public boolean showAfterIterate;
     public boolean irPrinter;
     public boolean irPrinterLLVM;
     public String assertStopEquals;

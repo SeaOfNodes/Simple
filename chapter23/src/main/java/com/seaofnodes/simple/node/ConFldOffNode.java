@@ -21,7 +21,6 @@ public class ConFldOffNode extends ConstantNode {
     @Override public String label() {
         return _fname == " len" ? "sizeof("+_name+")" : "#"+_fname;
     }
-    @Override public String glabel() { return label(); }
     @Override public String uniqueName() { return "Off_" + _nid; }
 
     @Override

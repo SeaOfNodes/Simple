@@ -1,6 +1,6 @@
 digraph chapter03 {
 /*
-int a=1; int b=2; int c=0; { int b=3; c=a+b; #showGraph; } return c; #showGraph;
+int a=1; int b=2; int c=0; { int b=3; c=a+b;  } return c;
 */
 	rankdir=BT;
 	ordering="in";

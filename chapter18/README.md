@@ -228,7 +228,7 @@ recursive calls).
 
 ## Graph Visualizer
 
-Run as `make view` or `java JSViewer`, type your program in the text box, click
+Run as `make view`, type your program in the text box, click
 outside the box and then use the arrow keys to view IR generator both forwards
 and backwards.
 

@@ -12,12 +12,8 @@ statement
     | declStatement
     | blockStatment
     | expressionStatement
-    | metaStatement
     ;
 
-metaStatement
-    : '#showGraph' ';'
-    ;
 
 expressionStatement
     : IDENTIFIER '=' expression ';'

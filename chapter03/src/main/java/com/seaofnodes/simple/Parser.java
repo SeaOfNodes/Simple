@@ -1,5 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.graph.GraphObserver;
+
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -13,6 +15,12 @@ import java.util.*;
  * This is a simple recursive descent parser. All lexical analysis is done here as well.
  */
 public class Parser {
+
+    // Current compilation context; the observer belongs to the parser.
+    public static Parser PARSER;
+    public GraphObserver<Node> _obs;
+    public int pos() { return _lexer._position; }
+
 
     /**
      * A Global Static, unique to each compilation.  This is a public, so we
@@ -43,6 +51,7 @@ public class Parser {
 
     public Parser(String source) {
         _lexer = new Lexer(source);
+        PARSER = this;
         Node.reset();
         _scope = new ScopeNode();
         START = new StartNode();
@@ -50,11 +59,9 @@ public class Parser {
 
     String src() { return new String( _lexer._input ); }
 
-    public ReturnNode parse() { return parse(false); }
-    public ReturnNode parse(boolean show) {
+    public ReturnNode parse() {
         var ret = (ReturnNode) parseBlock();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
-        if( show ) showGraph();
         return ret;
     }
 
@@ -73,7 +80,7 @@ public class Parser {
         Node n = null;
         while (!peek('}') && !_lexer.isEOF()) {
             Node n0 = parseStatement();
-            if (n0 != null) n = n0; // Allow null returns from eg showGraph
+            if (n0 != null) n = n0; // Empty statements can return null
         };
         // Exit scope
         _scope.pop();
@@ -92,7 +99,6 @@ public class Parser {
         if (matchx("return")  ) return parseReturn();
         else if (matchx("int")) return parseDecl();
         else if (match ("{"  )) return require(parseBlock(),"}");
-        else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")) return null; // Empty statement
         else return parseExpressionStatement();
     }
@@ -110,14 +116,7 @@ public class Parser {
         return new ReturnNode(START, expr).peephole();
     }
 
-    /**
-     * Dumps out the node graph
-     * @return {@code null}
-     */
-    private Node showGraph() {
-        System.out.println(new GraphVisualizer().generateDotOutput(this));
-        return null;
-    }
+
 
     /**
      * Parses an expression statement

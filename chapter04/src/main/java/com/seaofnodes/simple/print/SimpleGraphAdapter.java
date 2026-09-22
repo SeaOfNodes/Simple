@@ -17,7 +17,7 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected Node out(Node n, int idx) { return n.out(idx); }
 
     private ArrayList<Edge> edges(Node n) {
-        String[] names = n instanceof ScopeNode scope ? scope.reverseNames() : null;
+        String[] names = n instanceof ScopeNode scope && n.nIns() != 0 ? scope.reverseNames() : null;
         var edges = new ArrayList<Edge>();
         for( int i = 0; i < n.nIns(); i++ ) {
             Role role = n instanceof ScopeNode || n instanceof ConstantNode ? Role.ASSOC

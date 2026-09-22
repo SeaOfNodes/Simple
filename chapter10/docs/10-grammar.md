@@ -17,7 +17,6 @@ statement
     | whileStatement
     | breakStatement
     | continueStatment
-    | metaStatement
     ;
 
 field
@@ -48,9 +47,6 @@ ifStatement
     : 'if' '(' expression ')' statement ('else' statement)?
     ;
 
-metaStatement
-    : '#showGraph' ';'
-    ;
 
 expressionStatement
     : IDENTIFIER '=' expression ';'

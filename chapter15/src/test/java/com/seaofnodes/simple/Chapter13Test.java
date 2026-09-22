@@ -190,7 +190,7 @@ p2.pi.i = 2;
 if (arg) p1 = new P;
 return p1.pi.i + 1;
 """);
-        try { parser.parse(false).iterate();  fail(); }
+        try { parser.parse().iterate();  fail(); }
         catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
     }
 

@@ -10,8 +10,6 @@ public class PhiNode extends Node {
 
     @Override public String label() { return "Phi_"+_label; }
 
-    @Override public String glabel() { return "&phi;_"+_label; }
-
     @Override
     StringBuilder _print1(StringBuilder sb) {
         sb.append("Phi(");
