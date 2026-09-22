@@ -48,8 +48,8 @@ for Firefox testing. Test logs/screenshots are written under `build/graph-browse
 
 Each chapter currently retains its Java graph exporter, compiler hooks, and
 WebSocket transport. The browser code has no dependency on a chapter's Java
-classes. Moving the transport into a shared Java library is a separate step;
-the frontend extraction does not add dependencies to the compiler builds.
+classes. The adapters below share snapshot capture; moving the transport into
+the shared Java code is a separate step.
 
 The legacy protocol is:
 
@@ -65,15 +65,96 @@ The legacy protocol is:
 DOT frames may contain a `// POS:` comment identifying the parser position.
 The browser owns frame history and backward/forward playback.
 
-The next layout implementation belongs here. Its chapter interface should use
-versioned snapshots with stable IDs, node labels/roles, indexed inputs, edge
-roles, and optional source/grouping metadata. Keep compiler-specific traversal
-in chapter adapters, and layout, routing, animation, and interaction here.
-Full snapshots are a useful first interface; deltas can follow if needed.
+The next layout implementation belongs here. The compiler-side adapter below
+is its first building block; the running viewer still consumes DOT.
 
 The linearization workflow includes this directory as a shared root resource.
-The compiler remains self-contained in each chapter; the optional interactive
-viewer additionally needs this directory from the same checkout.
+Chapters 4 and 25 compile the shared Java sources from this directory; the
+interactive viewer also loads the web assets from this checkout.
+
+## Chapter adapters
+
+The shared Java code is in `src/main/java/com/seaofnodes/graph/`:
+
+- `GraphAdapter<N>` is an abstract base with hooks for `id`, `desc`, and indexed
+  edge access (`nIns`/`in`, `nOuts`/`out`). Its final `snap` method walks definitions and
+  uses iteratively, handles cycles, and sorts the copied records by ID.
+- `GraphSnapshot` is detached data: compilation key, step, roots, and nodes.
+  Each node has an ID, plain-text label/type, kind, edges to its defs, and optional
+  projection metadata. It contains no chapter classes or layout coordinates.
+  Node and edge lists are concrete `ArrayList`s, treated as read-only after capture.
+
+Root IDs use `int[]`. Capture uses a node table indexed by ID for visitation and
+root deduplication; no boxed integer lists, sets or map keys are needed.
+Indexed edge access reads each chapter's native storage without copying it into
+a different collection type.
+
+Both chapters implement `com.seaofnodes.simple.print.SimpleGraphAdapter`,
+extending `GraphAdapter<Node>`. No changes to `Node` or its subclasses are
+needed. The chapter owns classification and extraction; the base owns traversal
+and snapshot assembly. No new Java interface is involved.
+
+For chapter 4:
+
+```java
+var parser = new Parser("return 1+arg+2;");
+var ret = parser.parse();
+var adapter = new SimpleGraphAdapter();
+var frame = adapter.snap("compile-1", 0, ret, parser._scope);
+```
+
+For chapter 25:
+
+```java
+var code = new CodeGen("while(arg < 10) arg = arg + 1; return arg;").parse();
+var adapter = new SimpleGraphAdapter();
+var frame = adapter.snap("compile-1", 0, code._stop);
+```
+
+During a peephole, pass the current node and any unattached replacement as
+additional roots. Null roots are ignored. Capture runs on the compiler thread
+at a point where the graph is not changing; consumers can retain the returned
+records after compilation resumes. The adapter does not compute types, invoke
+peepholes, schedule nodes, or rearrange use lists.
+
+Node IDs are the chapter's `_nid`, scoped by the caller's compilation key. Use
+a new key whenever a parser/compiler resets IDs. A snapshot rejects two distinct
+nodes sharing one ID. Each edge belongs to its use node and names the referenced
+`def` ID and the input slot `idx` on that use: `use.in(idx) == def`. The adapter
+derives these edges from the compiler's `_inputs`; `_outputs` only speeds up
+traversal. Repeated definitions produce distinct edges with different slot
+indices. Each input slot has an `Edge` record, including holes with `def == 0`.
+Edges remain in input-slot order under their use node.
+Projection nodes retain their own IDs and identify their parent and tuple
+index, allowing the renderer to fold them into ports later. A missing parent
+has `par == 0`; real node IDs are never zero.
+
+Chapter 4 adds control/data roles and scope binding names. Chapter 25 adds
+memory roles and node kinds for Phis, Regions, Loops,
+Functions and compilation-unit boundaries. These are existing IR facts, not
+computed region membership or a SESE hierarchy. Scope bindings and constant
+lifetime edges are associations, so they need not constrain CFG layout.
+Types may be absent on newly constructed nodes. Source locations, grouping,
+observer events, serialization and delta encoding remain follow-up work.
+
+Make compiles these shared sources directly into each participating chapter's
+classes using `javac`. From the repository root:
+
+```sh
+make -C chapter04 build
+make -C chapter25 build
+```
+
+`build` compiles the compiler and adapter without running tests or opening a
+browser. Shared source changes trigger recompilation. No Maven executable,
+Maven-built artifacts, generated source copies or separately installed graph
+JARs are needed. Existing `make tests`, `make release` and chapter 25's
+`make view` also include the shared sources through their normal prerequisites.
+
+For the existing Maven/CI build path, `build-helper:add-source` describes the
+same source directory. The two chapter POMs select `../graph`, while the root
+POM defaults to `graph` for linearized checkouts. These entries are independent
+of the Make build.
 
 ## Peephole hook investigation
 

@@ -65,6 +65,10 @@ main_javas   := $(wildcard $(SRC)/$(SIMPLE)/*java $(SRC)/$(SIMPLE)/*/*java $(SRC
 test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 simple_driver := $(TST)/$(SIMPLE)/Simple.java
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
+# Compile the common adapter into this chapter without copying its sources.
+GRAPH_DIR := $(firstword $(wildcard ../graph graph))
+graph_javas := $(wildcard $(GRAPH_DIR)/src/main/java/com/seaofnodes/graph/*.java)
+main_javas += $(graph_javas)
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 # These tests do not rely on the stdlib
 test_alone := com.seaofnodes.simple.BrainFuckTest com.seaofnodes.simple.MergeSortTest com.seaofnodes.simple.TypeTest
@@ -99,6 +103,9 @@ default_targets += tags
 endif
 
 default: $(default_targets)
+
+.PHONY: build
+build: $(CLZDIR)/main/.mtag
 
 #######################################################
 # Compile Java as a whole source set.  javac tracks Java dependencies
