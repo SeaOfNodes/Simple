@@ -27,7 +27,7 @@ public class SubNode extends Node {
                 return TypeInteger.constant(i0.value()-i1.value());
             return i0.meet(i1);
         }
-        return Type.BOTTOM;
+        return TypeInteger.BOT;
     }
 
     @Override

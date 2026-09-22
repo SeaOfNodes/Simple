@@ -22,7 +22,7 @@ public class MinusNode extends Node {
             if( i0.isHigh() ) return TypeInteger.TOP;
             return i0==TypeInteger.BOT ? TypeInteger.BOT : TypeInteger.make(-i0._max,-i0._min);
         }
-        return TypeInteger.TOP.meet(in(1)._type);
+        return in(1)._type.isHigh() ? TypeInteger.TOP : TypeInteger.BOT;
     }
 
     @Override

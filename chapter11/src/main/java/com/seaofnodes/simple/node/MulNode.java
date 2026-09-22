@@ -19,12 +19,16 @@ public class MulNode extends Node {
 
     @Override
     public Type compute() {
-        if (in(1)._type instanceof TypeInteger i0 &&
-            in(2)._type instanceof TypeInteger i1) {
+        Type t1 = in(1)._type, t2 = in(2)._type;
+        if( t1==Type.TOP || t1==TypeInteger.TOP ||
+            t2==Type.TOP || t2==TypeInteger.TOP )
+            return TypeInteger.TOP;
+        if (t1 instanceof TypeInteger i0 &&
+            t2 instanceof TypeInteger i1) {
             if (i0.isConstant() && i1.isConstant())
                 return TypeInteger.constant(i0.value()*i1.value());
         }
-        return in(1)._type.meet(in(2)._type);
+        return TypeInteger.BOT;
     }
 
     @Override

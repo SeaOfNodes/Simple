@@ -24,7 +24,10 @@ public class PhiNode extends Node {
 
     @Override
     public Type compute() {
-        return Type.BOTTOM;
+        Type t = in(1)._type;
+        for( int i=2; i<nIns(); i++ )
+            t = t.meet(in(i)._type);
+        return t;
     }
 
     @Override

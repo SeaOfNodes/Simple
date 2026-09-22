@@ -20,7 +20,7 @@ public class NotNode extends Node {
     public Type compute() {
         if( in(1)._type instanceof TypeInteger i0 )
             return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : i0;
-        return TypeInteger.TOP.meet(in(1)._type);
+        return in(1)._type==Type.TOP ? TypeInteger.TOP : TypeInteger.BOT;
     }
 
     @Override

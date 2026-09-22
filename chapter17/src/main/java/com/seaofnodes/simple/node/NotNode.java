@@ -21,7 +21,8 @@ public class NotNode extends Node {
         if( t0.isHigh() ) return TypeInteger.BOOL.dual();
         switch( t0 ) {
         case TypeInteger i0:  return i0._max < 0 || i0._min > 0 ? TypeInteger.FALSE : (i0==TypeInteger.ZERO ? TypeInteger.TRUE : TypeInteger.BOOL);
-        case TypeFloat   i0:  return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : i0;
+        case TypeFloat   i0:
+            return i0.isConstant() ? TypeInteger.constant(i0.value()==0 ? 1 : 0) : TypeInteger.BOOL;
         case TypeMemPtr p0:
             // top->top, bot->bot, null->1, *void->0, not-null ptr->0, ptr/nil->bot
             // If input in null then true

@@ -33,7 +33,7 @@ public class NotNode extends Node {
             if( t0.getClass() != Type.class )
                 // Only doing NOT on ints and ptrs
                 throw Utils.TODO();
-            return t0==Type.TOP ? Type.TOP : Type.BOTTOM;
+            return t0==Type.TOP ? TypeInteger.TOP : TypeInteger.BOT;
         }
     }
 

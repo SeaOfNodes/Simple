@@ -24,7 +24,7 @@ public class MinusNode extends Node {
             if( i0 == TypeInteger.BOT || i0._min == Long.MIN_VALUE ) return TypeInteger.BOT;
             return TypeInteger.make(-i0._max,-i0._min);
         }
-        return TypeInteger.TOP.meet(in(1)._type);
+        return in(1)._type.isHigh() ? TypeInteger.TOP : TypeInteger.BOT;
     }
 
     @Override

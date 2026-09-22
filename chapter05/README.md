@@ -83,6 +83,10 @@ one for each of the control inputs to that `Region`.  The result computed by a
 control input to the `Region` can be active at a time, and the `Phi` passes
 through the data value from the matching input.[^1]
 
+Its type is the meet of its data-input types. Two different integer constants
+merge to `TypeInteger.BOT`: the value is unknown, but it is still an integer.
+Integer arithmetic likewise retains an integer result type when it cannot fold.
+
 #### `RegionNode`
 
 In this Sea of Nodes, there is an embedded Control Flow Graph - and like a

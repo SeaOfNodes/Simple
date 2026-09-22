@@ -31,7 +31,7 @@ abstract public class BoolNode extends Node {
                 return TypeInteger.constant(doOp(i0.value(), i1.value()) ? 1 : 0);
             return i0.meet(i1);
         }
-        return Type.BOTTOM;
+        return TypeInteger.BOT;
     }
 
     abstract boolean doOp(long lhs, long rhs);

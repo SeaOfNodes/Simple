@@ -178,6 +178,15 @@ ordering are follow-up work, along with preserving positions across rewrites.
 Each visited frame currently retains a full snapshot and layout; bounded
 history, checkpoints and deltas are also follow-up work.
 
+Pending graph work:
+
+- Improve CFG placement with compiler-provided RPO and nested regions for
+  compilation units, functions and loops.
+- Preserve positions across peepholes, then animate edits and zoom into the
+  peep neighborhood before returning to the whole graph.
+- For large compilations, add checkpoints and forward deltas with a bounded
+  cache of recent backward steps.
+
 ELK runs locally from the pinned elkjs 0.12.0 worker; see
 [`web/vendor/elk-README.md`](web/vendor/elk-README.md) for provenance and licensing.
 No npm or Maven step is needed to use it.
