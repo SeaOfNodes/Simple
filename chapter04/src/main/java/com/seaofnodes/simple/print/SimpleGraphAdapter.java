@@ -9,6 +9,7 @@ import java.util.ArrayList;
 
 /** Chapter 4's view of the IR; no knowledge of browser, transport or layout. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
+    @Override protected boolean dead(Node n) { return n.isDead(); }
     @Override protected int id(Node n) { return n._nid; }
     @Override protected int nIns(Node n) { return n.nIns(); }
     @Override protected Node in(Node n, int idx) { return n.in(idx); }

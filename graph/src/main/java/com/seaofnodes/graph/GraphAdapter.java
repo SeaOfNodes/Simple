@@ -17,6 +17,9 @@ public abstract class GraphAdapter<N> {
     protected abstract int nOuts(N node);
     protected abstract N out(N node, int idx);
     protected abstract GraphSnapshot.Node desc(N node);
+    protected abstract boolean dead(N node);
+    protected int nDeps(N node) { return 0; }
+    protected N dep(N node, int idx) { throw new IndexOutOfBoundsException(idx); }
 
     protected final int ref(N node) { return node == null ? 0 : id(node); }
 
@@ -28,10 +31,16 @@ public abstract class GraphAdapter<N> {
      */
     @SafeVarargs
     public final GraphSnapshot snap(String comp, long step, N... roots) {
+        var list = new ArrayList<N>();
+        java.util.Collections.addAll(list, roots);
+        return snap(comp, step, list);
+    }
+
+    public final GraphSnapshot snap(String comp, long step, ArrayList<N> roots) {
         // Node IDs are dense; index directly without boxed keys or map entries.
         var seen = new ArrayList<N>();
         var todo = new ArrayDeque<N>();
-        var rids = new int[roots.length];
+        var rids = new int[roots.size()];
         int len = 0;
         for( N root : roots )
             if( enq(root, seen, todo) ) rids[len++] = id(root);

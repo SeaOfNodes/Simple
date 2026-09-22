@@ -1,5 +1,6 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.graph.GraphObserver;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
@@ -23,6 +24,11 @@ public class Parser {
      * To make the compiler multithreaded, this field will have to move into a TLS.
      */
     public static StartNode START;
+    // Current compilation context, like START; the observer belongs to the parser.
+    public static Parser PARSER;
+    public GraphObserver<Node> _obs;
+    public ReturnNode _ret;
+    public int pos() { return _lexer._position; }
 
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
@@ -43,6 +49,7 @@ public class Parser {
 
 
     public Parser(String source, TypeInteger arg) {
+        PARSER = this;
         Node.reset();
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -76,6 +83,8 @@ public class Parser {
         _scope.pop();
         if (!_lexer.isEOF()) throw error("Syntax error, unexpected " + _lexer.getAnyNextToken());
         if( show ) showGraph();
+        _ret = ret;
+        if( _obs != null ) _obs.phase("Parse");
         return ret;
     }
 

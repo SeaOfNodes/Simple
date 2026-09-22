@@ -10,14 +10,45 @@ import subprocess
 import sys
 import time
 import urllib.request
+import json
+import struct
+
+
+def packet(data, op=1, fin=True):
+    n = len(data)
+    head = bytes([op | (128 if fin else 0)])
+    head += bytes([128 | n]) if n < 126 else (b'\xfe' + struct.pack('>H', n) if n <= 65535
+                                           else b'\xff' + struct.pack('>Q', n))
+    mask = b'abcd'
+    return head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data))
+
+
+def frame(stream):
+    head = stream.read(2)
+    assert len(head) == 2, 'Incomplete server frame'
+    n = head[1]
+    if n == 126: n = struct.unpack('>H', stream.read(2))[0]
+    elif n == 127: n = struct.unpack('>Q', stream.read(8))[0]
+    data = stream.read(n)
+    assert len(data) == n
+    return head[0] & 15, data
+
+
+def compile_frames(stream):
+    frames = []
+    while True:
+        op, data = frame(stream)
+        assert op == 1
+        if data == b'#': return frames
+        frames.append(json.loads(data))
 
 
 def check(chapter):
     root = Path(__file__).resolve().parent.parent
     number = int(chapter.removeprefix("chapter"))
-    assert 18 <= number <= 25
+    assert number == 4 or 18 <= number <= 25
     chapter_dir = root / chapter
-    package = "com.seaofnodes.simple." + ("print." if number >= 20 else "")
+    package = "com.seaofnodes.simple." + ("print." if number == 4 or number >= 20 else "")
     log = root / "build" / "graph-transport" / (chapter + ".log")
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("w") as output:
@@ -62,7 +93,9 @@ def check(chapter):
                 else:
                     raise AssertionError("Responded before headers ended: " + repr(early))
                 client.settimeout(3)
-                client.sendall(b"\r\n")
+                shared = number in (4, 25)
+                # A frame in the same write as the upgrade must not get lost in a reader buffer.
+                client.sendall(b"\r\n" + (packet(b'hello', op=9) if shared else b''))
                 with client.makefile("rb") as stream:
                     assert stream.readline() == b"HTTP/1.1 101 Switching Protocols\r\n"
                     headers = []
@@ -74,6 +107,25 @@ def check(chapter):
                         headers.append(line)
                     assert b"Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n" in headers
                     assert stream.read(3) == b"\x81\x01!", "Missing source request"
+                    if shared:
+                        assert frame(stream) == (10, b'hello')
+                        # Larger than both the old 1 KB buffer and the 16-bit length field.
+                        data = packet(b' ' * 70000 + b'return 3;')
+                        client.sendall(data[:3])
+                        time.sleep(.05)
+                        for start in range(3, len(data), 509):
+                            client.sendall(data[start:start + 509])
+                        frames = compile_frames(stream)
+                        assert frames and all('snap' in f for f in frames)
+                        # Split a UTF-8 code point across fragments, with an interleaved PING.
+                        client.sendall(packet(b'\xc3', fin=False) + packet(b'ping', op=9) + packet(b'\xa9', op=0))
+                        assert frame(stream) == (10, b'ping')
+                        errors = compile_frames(stream)
+                        assert any('error' in f for f in errors)
+                        assert '\u00e9' in log.read_text()
+                        client.sendall(packet(b'return 4;'))
+                        frames = compile_frames(stream)
+                        assert frames and all('snap' in f for f in frames)
                     # Masked 'null' asks the compiler to exit normally.
                     mask = b"abcd"
                     payload = bytes(byte ^ mask[i % 4] for i, byte in enumerate(b"null"))
@@ -91,7 +143,8 @@ def check(chapter):
             if process.poll() is None:
                 process.terminate()
                 process.wait(timeout=5)
-    print(chapter + ": HTTP assets, fragmented upgrade, greeting, and shutdown passed")
+    print(chapter + ": HTTP assets, fragmented upgrade, greeting, and shutdown passed" +
+          ("; large frames, UTF-8 fragments, ping, and compile-error recovery passed" if number in (4, 25) else ""))
 
 
 if __name__ == "__main__":

@@ -2,6 +2,12 @@ package com.seaofnodes.graph;
 
 /** JSON for the shared graph model; no chapter or layout dependencies. */
 public class GraphJson {
+    public static String error(String msg) {
+        var sb = new StringBuilder("{\"error\":");
+        str(sb, msg);
+        return sb.append('}').toString();
+    }
+
     public static String write(GraphSnapshot snap) {
         var sb = new StringBuilder();
         snap(sb, snap);

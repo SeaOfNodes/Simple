@@ -81,6 +81,10 @@ fuzzer: $(default_targets)
 	@echo "fuzzing " $(test_cp)
 	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
+.PHONY: view
+view: build
+	java -ea -cp "$(CLZDIR)/main" com.seaofnodes.simple.print.JSViewer
+
 
 .PHONY: clean
 clean:

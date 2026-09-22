@@ -10,6 +10,9 @@ import java.util.ArrayList;
 
 /** Chapter 25's view of the IR, including partially constructed parse-time graphs. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
+    @Override protected boolean dead(Node n) { return n.isDead(); }
+    @Override protected int nDeps(Node n) { return n.nDeps(); }
+    @Override protected Node dep(Node n, int idx) { return n.dep(idx); }
     @Override protected int id(Node n) { return n._nid; }
     @Override protected int nIns(Node n) { return n.nIns(); }
     @Override protected Node in(Node n, int idx) { return n.in(idx); }

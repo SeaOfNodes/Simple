@@ -148,6 +148,11 @@ try {
       try {
         if (message.startsWith("{")) {
           frame = JSON.parse(message);
+          if (frame.error) {
+            failure = "Compile error: " + frame.error;
+            updateUI();
+            return;
+          }
           if (frame.snap.ver !== 1) throw new Error("Unsupported graph version: " + frame.snap.ver);
         } else {
           // Earlier chapters still send bare DOT.

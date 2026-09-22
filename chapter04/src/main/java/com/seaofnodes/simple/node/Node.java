@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -202,7 +203,7 @@ public abstract class Node {
     }
 
     // Mostly used for asserts and printing.
-    boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
+    public boolean isDead() { return isUnused() && nIns()==0 && _type==null; }
 
     // Shortcuts to stop DCE mid-parse
     // Add bogus null use to keep node alive
@@ -234,11 +235,21 @@ public abstract class Node {
      * </ul>
      */
     public final Node peephole( ) {
+        var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
+        Type old = _type;
+        if( obs != null ) obs.before(this);
+        Node n = peepholeOpt();
+        Node rez = n == null ? this : n;
+        if( obs != null ) obs.after(this, n != null || old != _type ? rez : null, false);
+        return rez;
+    }
+
+    private Node peepholeOpt() {
         // Compute initial or improved Type
         Type type = _type = compute();
 
         if (_disablePeephole)
-            return this;        // Peephole optimizations turned off
+            return null;        // Peephole optimizations turned off
 
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
@@ -252,7 +263,7 @@ public abstract class Node {
             // Recursively optimize
             return deadCodeElim(n.peephole());
 
-        return this;            // No progress
+        return null;            // No progress
     }
 
     // m is the new Node, self is the old.

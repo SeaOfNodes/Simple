@@ -1,21 +1,22 @@
 # Shared graph viewer
 
-The browser application lives in `web/` and is shared by chapters 18–25.
+The browser application lives in `web/` and is shared by chapters 4 and 18–25.
 `web/index.html` contains the page and `web/viewer.js` manages playback.
 `web/layout.js` runs ELK layout in a browser worker; `web/render.js` draws SVG
 and handles selection, pan and zoom. `web/legacy.js` loads Graphviz on demand
 for earlier chapters. Libraries live in `web/vendor/`, with one checked-in
 copy of each; chapters do not copy them during builds.
 
-From a chapter directory, run `make view`. The chapter's `JSViewer` finds
+From a chapter directory, run `make view`. For chapters 4 and 25, the shared
+`GraphViewer` finds
 `graph/web/index.html` by walking up from the working directory, serves its
 directory through the JDK's HTTP server on a local ephemeral port, and opens
 that web address in the browser. This works from a chapter directory, the
 repository root, or the root of a linearized checkout. Java launches from elsewhere can specify
 `-Dsimple.graph.url=<viewer URL>` before the main class.
 
-The viewer uses the existing WebSocket connection. Chapter 25 sends structured
-JSON snapshots in each frame; earlier chapters send bare DOT.
+The viewer uses a WebSocket connection. Chapters 4 and 25 send structured
+JSON snapshots in each frame; chapters 18–24 still send bare DOT.
 No JavaScript package installation, frontend build, or separate server process
 is required.
 For development over HTTP, run this from the repository root:
@@ -31,7 +32,7 @@ The initial program compiles on connection. For another program, click **Compile
 or press **Ctrl+Enter** (**Cmd+Enter** on macOS), then use the arrows to step
 through the captured frames. Keep `make view` running while using the tab.
 
-In chapter 25, scroll to zoom, drag to pan, and use **Fit** to show the whole
+In chapters 4 and 25, scroll to zoom, drag to pan, and use **Fit** to show the whole
 graph again. Clicking a node shows its full label, type and input slots, and
 highlights its edges. Selection follows that node's ID across frames; Escape
 clears it. **Associations** shows scope bindings and lifetime edges, which are
@@ -69,10 +70,24 @@ for Firefox testing. Test logs/screenshots are written under `build/graph-browse
 
 ## Boundary between chapters and the viewer
 
-Each chapter currently retains its Java graph exporter, compiler hooks, and
-WebSocket transport. The browser code has no dependency on a chapter's Java
-classes. The adapters below share snapshot capture; moving the transport into
-the shared Java code is a separate step.
+Chapters 4 and 25 share the Java viewer plumbing as well as the browser:
+
+- `GraphViewer` owns asset discovery, the source/compile loop, frame serialization,
+  and session shutdown. A chapter's `JSViewer` subclass only invokes its compiler
+  and attaches/detaches its observer.
+- `GraphSocket` serves local assets, opens the browser, and handles WebSocket
+  messages. One buffered stream handles both the upgrade and frames. Payloads
+  use exact reads and their advertised length, including 64-bit lengths;
+  continuation frames assemble UTF-8 before decoding, and PING data is echoed.
+- `GraphCapture<N>` owns nested attempts, buffered snapshots, event numbering,
+  neighborhood accumulation and disconnect handling. It extends `GraphObserver<N>`.
+  Chapter subclasses supply roots, phase, parser position and observer detachment.
+- `GraphAdapter<N>` supplies node facts and indexed graph/dependency access.
+  Dependency access defaults to an empty set in chapters without those lists.
+
+Chapter 25's private WebSocket implementation is removed. Chapters 18–24 retain
+their old transport until migrated. Shared Java has no dependency on chapter classes.
+The WebSocket listener and built-in asset server bind to 127.0.0.1.
 
 The connection messages are:
 
@@ -81,12 +96,13 @@ The connection messages are:
 | Compiler to browser | `!` | Request the source program |
 | Browser to compiler | Source text | Compile and capture a new sequence |
 | Compiler to browser | `digraph ...` | One complete DOT snapshot |
-| Compiler to browser | JSON `{snap, pos, evt}` | Chapter 25's complete graph, parser position and event |
+| Compiler to browser | JSON `{snap, pos, evt}` | Chapters 4/25's complete graph, parser position and event |
+| Compiler to browser | JSON `{error}` | Compilation failed; the session accepts another program |
 | Browser to compiler | `+` | Acknowledge/request another frame |
 | Compiler to browser | `#` | End of sequence |
 | Browser to compiler | `null` | End the session |
 
-Chapter 25's JSON frame has this shape:
+The JSON frame has this shape:
 
 ```json
 {
@@ -115,10 +131,10 @@ The browser caches the parsed objects in `frames`. It computes geometry on the
 first visit to a frame and keeps it in `frames[i].layout`; revisiting a frame
 uses exactly that geometry. Viewport changes do not rerun layout. Nodes and
 edges have stable SVG IDs within a compilation. There is no animation yet.
-One `+` acknowledges the whole frame. The chapter 25 writer sends UTF-8 bytes
+One `+` acknowledges the whole frame. The shared writer sends UTF-8 bytes
 and supports WebSocket's 64-bit length header for frames larger than 65535 bytes.
 
-Earlier chapters' DOT frames may contain a `// POS:` comment identifying the
+Legacy chapters' DOT frames may contain a `// POS:` comment identifying the
 parser position. The browser owns frame history and backward/forward playback.
 
 Chapter 25 no longer generates DOT for the interactive viewer. The browser
@@ -207,8 +223,8 @@ Functions and compilation-unit boundaries. These are existing IR facts, not
 computed region membership or a SESE hierarchy. Scope bindings and constant
 lifetime edges are associations, so they need not constrain CFG layout.
 Types may be absent on newly constructed nodes. Source locations, grouping,
-and delta encoding remain follow-up work. Chapter 25 adds observer events as
-described below; the chapter 4 adapter is still independent of an observer.
+and delta encoding remain follow-up work. Both chapters use the observer events
+described below.
 
 Make compiles these shared sources directly into each participating chapter's
 classes using `javac`. From the repository root:
@@ -223,22 +239,26 @@ browser. Shared source changes trigger recompilation. No Maven executable,
 Maven-built artifacts, generated source copies or separately installed graph
 JARs are needed. Existing `make tests`, `make release` and chapter 25's
 `make view` also include the shared sources through their normal prerequisites.
+Chapter 4's `make view` depends on `build` and runs the same shared viewer.
 
 For the existing Maven/CI build path, `build-helper:add-source` describes the
 same source directory. The two chapter POMs select `../graph`, while the root
 POM defaults to `graph` for linearized checkouts. These entries are independent
 of the Make build.
 
-## Peephole observer (chapter 25)
+## Peephole observers
 
 `GraphObserver<N>` is a shared abstract base for `before`, `after`, `phase`, and
-`dep` callbacks. `CodeGen._obs` owns the optional observer. Normal compilation
+`dep` callbacks. Chapter 25's `CodeGen._obs` and chapter 4's `Parser._obs` own the
+optional observer. Chapter 4 uses `Parser.PARSER` as its current compilation
+context, alongside its existing global `START`. Normal compilation
 leaves it null, so it does no snapshot capture or serialization. Assertions
 that probe peepholes with `_midAssert` set do not generate observer calls.
 Neither `Node` nor `IterPeeps` refers to `JSViewer`.
 
-`SimpleGraphObserver` supplies chapter 25's capture and neighborhood logic.
-`JSViewer` installs one for each compilation and supplies only the frame sink.
+`GraphCapture` supplies capture and neighborhood logic. Each chapter's small
+`SimpleGraphObserver` supplies its compilation context. `JSViewer` installs one
+for each compilation and forwards frames to `GraphViewer`.
 An I/O failure disables the observer and allows optimization to continue.
 The observer is detached in a `finally` block when compilation finishes or fails.
 
@@ -249,7 +269,7 @@ The event kinds distinguish the actual capture boundaries:
 | `BEFORE` | Graph before an attempt that made progress, or contained a nested rewrite |
 | `RETURN` | Recursive `Node.peephole()` finished, including its local DCE; the caller has not yet attached the returned node |
 | `APPLY` | A worklist attempt finished after substitution, dependency draining, and unused-node cleanup |
-| `PHASE` | Parse, Iter, or Opto completed, including work outside individual peepholes |
+| `PHASE` | Parse completed in chapter 4; Parse, Iter, or Opto completed in chapter 25, including work outside individual peepholes |
 
 `peep` identifies an attempt; `up` identifies its enclosing attempt, or zero.
 `node` and `repl` identify the original and result nodes. A zero `repl` on
@@ -288,8 +308,9 @@ Actual graph diffs and explicit rule annotations can refine this later.
 
 The browser keeps the event alongside its snapshot and layout. It labels and
 highlights the current step, but does not yet collapse nested rewrites or move
-the camera to their neighborhoods. The chapter 4 observer hookup is follow-up
-work; its adapter already targets the same graph model.
+the camera to their neighborhoods. Chapter 4 uses the same event model, with
+defs/uses for its neighborhoods and no worklist or dependency lists. Its parser
+retains the final Return as a root after scope cleanup.
 
 Chapter 25's parser no longer accepts `#showGraph;`; use the browser to inspect
 the graph and **Save SVG** for a static figure. Earlier chapters retain their

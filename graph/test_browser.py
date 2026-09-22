@@ -23,7 +23,7 @@ from playwright.sync_api import sync_playwright
 
 def check(chapter, browser_name):
     number = int(chapter.removeprefix("chapter"))
-    package = "com.seaofnodes.simple." + ("print." if number >= 20 else "")
+    package = "com.seaofnodes.simple." + ("print." if number == 4 or number >= 20 else "")
     artifacts = ROOT / "build/graph-browser" / (chapter + "-" + browser_name)
     artifacts.mkdir(parents=True, exist_ok=True)
     log = artifacts / "compiler.log"
@@ -53,8 +53,9 @@ def check(chapter, browser_name):
                 page.wait_for_function("current === 1 && !rendering")
                 page.locator("#doPrev").click()
                 page.wait_for_function("current === 0 && !rendering")
-                for source in ("return 1 + 2;",
-                               "int x=0; while(x<arg) { x=x+1; } return x;"):
+                sources = ("return 1 + 2;", "int x=arg+1; return x+x+2;" if number == 4 else
+                           "int x=0; while(x<arg) { x=x+1; } return x;")
+                for source in sources:
                     previous = page.evaluate("generation")
                     page.locator("#program").fill(source)
                     page.locator("#compile").click()
@@ -68,7 +69,7 @@ def check(chapter, browser_name):
                         page.wait_for_function("index => current === index && !rendering", arg=index)
                     assert page.locator("#doNext").is_disabled()
                     assert "error" not in page.locator("#status").inner_text().lower()
-                    if number == 25:
+                    if number in (4, 25):
                         assert page.locator("#elk g.node").count() == page.evaluate("frames[current].snap.nodes.length")
                         # Revisit cached geometry and keep the selected node across steps.
                         page.evaluate("""() => {

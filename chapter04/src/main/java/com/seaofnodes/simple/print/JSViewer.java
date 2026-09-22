@@ -1,7 +1,7 @@
 package com.seaofnodes.simple.print;
 
 import com.seaofnodes.graph.*;
-import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.Parser;
 import java.io.IOException;
 
 public class JSViewer extends GraphViewer {
@@ -11,16 +11,16 @@ public class JSViewer extends GraphViewer {
     JSViewer() throws IOException {}
 
     @Override protected void compile(String src) {
-        CodeGen code = new CodeGen(src);
-        code._obs = new SimpleGraphObserver(code) {
+        Parser parser = new Parser(src);
+        parser._obs = new SimpleGraphObserver(parser) {
             @Override protected void frame(GraphSnapshot snap, int pos, GraphEvent evt) throws IOException {
                 JSViewer.this.frame(snap, pos, evt);
             }
         };
         try {
-            code.parse().opto();
+            parser.parse();
         } finally {
-            code._obs = null;
+            parser._obs = null;
         }
     }
 }
