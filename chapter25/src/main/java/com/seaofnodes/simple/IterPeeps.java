@@ -6,7 +6,6 @@ import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.print.JSViewer;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.IdentityHashMap;
@@ -105,6 +104,8 @@ public class IterPeeps {
         while( (n=_work.pop()) != null ) {
             if( n.isDead() )  continue;
             _cnt++;              // Useful for debugging, searching which peephole broke things
+            var obs = code._obs;
+            if( obs != null ) obs.before(n);
             Node x = n.peepholeOpt();
             if( n instanceof CallEndNode cend )
                 _workInline.push(cend);
@@ -133,14 +134,15 @@ public class IterPeeps {
                 }
                 // If there are distant neighbors, move to worklist
                 n.moveDepsToWorklist();
-                JSViewer.show(); // Show again
                 // Very expensive assert.
                 assert !CodeGen.expensiveAssert(_cnt) || (progressOnList(code, _work) && schedulableUses(code));
             }
-            if( n.isUnused() ) {
+            boolean unused = n.isUnused();
+            if( unused ) {
                 assert !(n instanceof StopNode); // StopNodes can die if all code in the compunit dies
                 n.kill();       // Just plain dead
             }
+            if( obs != null ) obs.after(n, x!=null ? x : unused ? n : null, true);
         }
         assert !CodeGen.expensiveAssert(0) || schedulableUses(code);
 

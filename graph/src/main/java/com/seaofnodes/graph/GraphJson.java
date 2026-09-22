@@ -8,10 +8,22 @@ public class GraphJson {
         return sb.toString();
     }
 
-    public static String frame(GraphSnapshot snap, int pos) {
+    public static String frame(GraphSnapshot snap, int pos, GraphEvent evt) {
         var sb = new StringBuilder("{\"snap\":");
         snap(sb, snap);
-        sb.append(",\"pos\":").append(pos);
+        sb.append(",\"pos\":").append(pos).append(",\"evt\":{\"kind\":");
+        str(sb, evt.kind().name());
+        sb.append(",\"peep\":").append(evt.peep()).append(",\"up\":").append(evt.up())
+          .append(",\"phase\":");
+        str(sb, evt.phase());
+        sb.append(",\"node\":").append(evt.node()).append(",\"repl\":").append(evt.repl())
+          .append(",\"near\":[");
+        int[] near = evt.near();
+        for( int i = 0; i < near.length; i++ ) {
+            if( i > 0 ) sb.append(',');
+            sb.append(near[i]);
+        }
+        sb.append("]}");
         return sb.append('}').toString();
     }
 

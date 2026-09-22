@@ -13,7 +13,7 @@
     #graph { min-height:0; overflow:hidden; position:relative; background:#fafbfc; }
     #elk, #dot { width:100%; height:100%; }
     #graph svg { display:block; }
-    .tools { display:flex; align-items:center; gap:14px; margin-top:8px; font-size:12px; }
+    .tools { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:8px; font-size:12px; }
     .hint { color:#616c78; }
     .ctrl { color:#b63838; } .mem { color:#2867b2; } .data { color:#536477; }
     .edge { fill:none; stroke-width:1.5; }
@@ -22,6 +22,8 @@
     .edge.selected { stroke-width:3.5; }
     .node { cursor:pointer; }
     .box { stroke:#758191; stroke-width:1; }
+    .node.near .box { stroke:#c18221; stroke-width:2; }
+    .node.focus .box { stroke:#9c4900; stroke-width:3; }
     .node.selected .box { stroke:#1569b9; stroke-width:3; }
     .head { font-size:10px; fill:#596674; }
     .label { font-size:12px; fill:#152330; font-weight:600; }
@@ -51,10 +53,13 @@
       <div id="status" role="status">Connecting to compiler...</div>
       <div class="tools">
         <button id="fit" type="button" disabled>Fit</button>
+        <button id="save" type="button" disabled>Save SVG</button>
         <label><input id="assocs" type="checkbox"> Associations</label>
+        <label><input id="near" type="checkbox" checked> Peep neighborhood</label>
         <span class="ctrl">Control</span><span class="data">Data</span><span class="mem">Memory</span>
         <span class="hint">Scroll to zoom · drag to pan · click a node for details</span>
       </div>
+      <div id="event" class="hint" role="status"></div>
     </div>
     <div id="graph"><div id="elk"></div><div id="dot" hidden></div><pre id="detail" hidden></pre></div>
     <div class="controls">

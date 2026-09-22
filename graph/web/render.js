@@ -30,7 +30,7 @@ class GraphView {
     this.resize.observe(host);
   }
 
-  show(snap, scene) {
+  show(snap, scene, evt) {
     if (this.comp !== snap.comp) {
       this.comp = snap.comp;
       this.pick = 0;
@@ -39,6 +39,7 @@ class GraphView {
       this.links.selectAll("*").remove();
     }
     this.scene = scene;
+    this.evt = evt;
     this.links.selectAll("path.edge").data(scene.edges, e => e.id).join("path")
       .attr("class", e => "edge " + e.role).attr("id", e => e.id)
       .attr("d", e => e.path).attr("stroke", e => this.colors[e.role])
@@ -78,6 +79,7 @@ class GraphView {
         .attr("text-anchor", "middle").text((p, j) => n.n.edges[j].idx);
     });
     this.assocs(document.getElementById("assocs").checked);
+    this.mark();
     this.select(this.pick);
     if (this.auto) this.fit();
   }
@@ -99,6 +101,41 @@ class GraphView {
   }
 
   assocs(show) { this.links.selectAll(".ASSOC").style("display", show ? null : "none"); }
+
+  mark() {
+    const evt = this.evt;
+    const show = document.getElementById("near").checked;
+    const near = new Set(show ? evt?.near : []);
+    this.nodes.selectAll("g.node").classed("near", n => near.has(n.n.id))
+      .classed("focus", n => show && (n.n.id === evt?.node || n.n.id === evt?.repl));
+  }
+
+  // Save the whole graph at its layout size, independent of pan/zoom.
+  save(step) {
+    const svg = this.svg.node().cloneNode(true);
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    svg.setAttribute("width", this.scene.width);
+    svg.setAttribute("height", this.scene.height);
+    svg.setAttribute("viewBox", `0 0 ${this.scene.width} ${this.scene.height}`);
+    svg.style.fontFamily = getComputedStyle(this.host).fontFamily;
+    svg.querySelector("g").removeAttribute("transform");
+    // Keep styles, markers and labels in the file; no viewer assets are needed.
+    const style = document.createElementNS(svg.namespaceURI, "style");
+    style.textContent = document.querySelector("style").textContent;
+    svg.prepend(style);
+    const bg = document.createElementNS(svg.namespaceURI, "rect");
+    bg.setAttribute("width", "100%"); bg.setAttribute("height", "100%");
+    bg.setAttribute("fill", getComputedStyle(this.host.parentElement).backgroundColor);
+    svg.insertBefore(bg, svg.querySelector("g"));
+    const blob = new Blob([new XMLSerializer().serializeToString(svg)], {type: "image/svg+xml"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = `simple-${step}.svg`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   fit() {
     if (!this.scene || !this.host.clientWidth || !this.host.clientHeight) return;

@@ -1,16 +1,14 @@
 package com.seaofnodes.simple.print;
 
 import com.seaofnodes.graph.GraphJson;
+import com.seaofnodes.graph.GraphEvent;
+import com.seaofnodes.graph.GraphSnapshot;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.node.*;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.UUID;
-import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class JSViewer implements AutoCloseable {
     // Display programs in an endless loop
@@ -20,18 +18,12 @@ public class JSViewer implements AutoCloseable {
         }
     }
 
-    static boolean SHOW;
-
     // WebSocket to the browser for display
-    static SimpleWebSocket SERVER;
-
-    static long N;              // Snapshot step within this compilation
-    static String COMP;
-    static final SimpleGraphAdapter GRAPH = new SimpleGraphAdapter();
+    private final SimpleWebSocket _server;
 
     JSViewer() throws Exception {
         // Launch server; handshake
-        SERVER = new SimpleWebSocket(viewerURI(),12345);
+        _server = new SimpleWebSocket(viewerURI(),12345);
     }
 
     // The browser application is shared by all chapters. Search upwards so
@@ -48,9 +40,9 @@ public class JSViewer implements AutoCloseable {
     }
 
     void run( ) throws Exception {
-        SERVER.put("!");
+        _server.put("!");
         while( true ) {
-            String src = SERVER.get();
+            String src = _server.get();
             switch( src ) {
             case null: return;
             case "null": return;
@@ -58,55 +50,31 @@ public class JSViewer implements AutoCloseable {
             default:
                 System.out.println(src);
                 try {
-                    N=0;
-                    COMP = UUID.randomUUID().toString();
-                    // Use parser scope, xscope when building views
-                    CodeGen code = new CodeGen(src);
-                    SHOW = true;
-                    show();
-                    // Parse program, generating views at every parse point
-                    code.parse();
-                    // No longer user parse internal state when building views
-                    code.opto();
-
+                    compile(src);
                     // Catch and ignore Parser errors
                 } catch(RuntimeException re) {
                     System.err.println(re);
                 } finally {
-                    SHOW = false;
-                    SERVER.put("#"); // Final frame
+                    _server.put("#"); // Final frame
                 }
                 break;
             }
         }
     }
 
-    @Override public void close() throws IOException {
-        SERVER.close();
-        SERVER=null;
-    }
-
-    public static void show() { if( SERVER!=null && SHOW ) _show(); }
-    private static void _show() {
-        // Skip util we at least get the Parse object made
-        if( CODE._phase==null || CODE._phase.ordinal() < CodeGen.Phase.Parse.ordinal() )
-            return;
-        boolean midParse = CODE._phase == CodeGen.Phase.Parse;
-        var xScopes = midParse ? CODE.P._xScopes : null;
-        var roots = new ArrayList<Node>();
-        roots.add(CODE._stop);
-        if( midParse ) {
-            roots.add(CODE.P._scope);
-            roots.addAll(xScopes);
-        }
-        long step = N++;
-        var snap = GRAPH.snap(COMP, step, roots.toArray(Node[]::new));
-        int pos = midParse ? CODE.P.pos() : -1;
-
+    private void compile(String src) {
+        CodeGen code = new CodeGen(src);
+        code._obs = new SimpleGraphObserver(code) {
+            @Override protected void frame(GraphSnapshot snap, int pos, GraphEvent evt) throws IOException {
+                _server.put(GraphJson.frame(snap, pos, evt));
+            }
+        };
         try {
-            SERVER.put(GraphJson.frame(snap, pos));
-        } catch( IOException ioe ) {
-            try { SERVER.close(); } catch( IOException ignored ) {}
+            code.parse().opto();
+        } finally {
+            code._obs = null;
         }
     }
+
+    @Override public void close() throws IOException { _server.close(); }
 }

@@ -36,6 +36,19 @@ graph again. Clicking a node shows its full label, type and input slots, and
 highlights its edges. Selection follows that node's ID across frames; Escape
 clears it. **Associations** shows scope bindings and lifetime edges, which are
 hidden by default. Input slots retain their indices, including null slots.
+**Peep neighborhood** outlines nearby nodes in amber, with a darker outline
+on the current node/replacement. The event label identifies the phase, rewrite,
+and enclosing rewrite when calls nest. This marks context; it does not zoom or
+animate the rewrite yet.
+
+For documentation figures, step to the desired frame and click **Save SVG**.
+It saves the whole graph, regardless of pan/zoom, with its current association
+visibility, neighborhood highlighting and selection. Clear selection with
+Escape and uncheck **Peep neighborhood** for an unmarked diagram. The SVG
+includes its styles and arrow markers and needs no JavaScript or viewer assets;
+check it into the chapter's docs and embed it like the existing static figures.
+Existing `.gv` sources and their generated SVGs remain another way to maintain
+documentation figures.
 
 The launcher prints the viewer URL before opening the browser. If the desktop
 only raises an existing browser window, paste that URL into a new tab. Use
@@ -68,7 +81,7 @@ The connection messages are:
 | Compiler to browser | `!` | Request the source program |
 | Browser to compiler | Source text | Compile and capture a new sequence |
 | Compiler to browser | `digraph ...` | One complete DOT snapshot |
-| Compiler to browser | JSON `{snap, pos}` | Chapter 25's complete graph and parser position |
+| Compiler to browser | JSON `{snap, pos, evt}` | Chapter 25's complete graph, parser position and event |
 | Browser to compiler | `+` | Acknowledge/request another frame |
 | Compiler to browser | `#` | End of sequence |
 | Browser to compiler | `null` | End the session |
@@ -83,11 +96,15 @@ Chapter 25's JSON frame has this shape:
       {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null}
     ]
   },
-  "pos": -1
+  "pos": -1,
+  "evt": {
+    "kind": "PHASE", "peep": 0, "up": 0, "phase": "Opto",
+    "node": 0, "repl": 0, "near": []
+  }
 }
 ```
 
-`GraphJson.write(snap)` serializes the graph alone. `GraphJson.frame(snap, pos)`
+`GraphJson.write(snap)` serializes the graph alone. `GraphJson.frame(snap, pos, evt)`
 adds the playback envelope. `comp` changes for each submitted
 program, and `step` starts at zero. `nodes` carries the complete graph, including
 each node's `id`, `label`, `type`, `kind`, `edges`, and `proj`. Enum values use
@@ -190,7 +207,8 @@ Functions and compilation-unit boundaries. These are existing IR facts, not
 computed region membership or a SESE hierarchy. Scope bindings and constant
 lifetime edges are associations, so they need not constrain CFG layout.
 Types may be absent on newly constructed nodes. Source locations, grouping,
-observer events and delta encoding remain follow-up work.
+and delta encoding remain follow-up work. Chapter 25 adds observer events as
+described below; the chapter 4 adapter is still independent of an observer.
 
 Make compiles these shared sources directly into each participating chapter's
 classes using `javac`. From the repository root:
@@ -211,40 +229,72 @@ same source directory. The two chapter POMs select `../graph`, while the root
 POM defaults to `graph` for linearized checkouts. These entries are independent
 of the Make build.
 
-## Peephole hook investigation
+## Peephole observer (chapter 25)
 
-The current chapter25 capture sites are:
+`GraphObserver<N>` is a shared abstract base for `before`, `after`, `phase`, and
+`dep` callbacks. `CodeGen._obs` owns the optional observer. Normal compilation
+leaves it null, so it does no snapshot capture or serialization. Assertions
+that probe peepholes with `_midAssert` set do not generate observer calls.
+Neither `Node` nor `IterPeeps` refers to `JSViewer`.
 
-- `Node.peephole()`: before a new node's first optimization, and after
-  `peepholeOpt()` reports progress. The latter happens before recursive
-  optimization and `deadCodeElim`, and before the caller attaches the result.
-- `IterPeeps.iteratePeeps()`: after a successful worklist optimization and
-  substitution, but before the subsequent unused-node cleanup.
-- `CodeGen.parse()`: after parsing, at the phase boundary.
+`SimpleGraphObserver` supplies chapter 25's capture and neighborhood logic.
+`JSViewer` installs one for each compilation and supplies only the frame sink.
+An I/O failure disables the observer and allows optimization to continue.
+The observer is detached in a `finally` block when compilation finishes or fails.
 
-These sites capture different meanings of “after.” Recursive peepholes can
-also produce intermediate frames. Replacing `JSViewer.show()` with a generic
-callback alone would preserve that ambiguity.
+The event kinds distinguish the actual capture boundaries:
 
-Chapter 25's interactive viewer now uses the adapter's numeric IDs and plain-text
-labels; browser rendering does not interpret labels as HTML. Capture traverses
-`_outputs` without changing their order. The older DOT exporters still need
-review before extending their adapters.
+| Kind | Meaning |
+| --- | --- |
+| `BEFORE` | Graph before an attempt that made progress, or contained a nested rewrite |
+| `RETURN` | Recursive `Node.peephole()` finished, including its local DCE; the caller has not yet attached the returned node |
+| `APPLY` | A worklist attempt finished after substitution, dependency draining, and unused-node cleanup |
+| `PHASE` | Parse, Iter, or Opto completed, including work outside individual peepholes |
 
-A follow-up should introduce an optional compilation observer, owned by the
-compilation/session, with explicit events for an attempted rewrite, an applied
-replacement, and a phase boundary. Events should identify the node/replacement
-and let the chapter adapter capture a snapshot without modifying the IR. The
-viewer can group nested rewrites into one visible step. Capture completed
-rewrites after the caller has installed the replacement and performed cleanup;
-keep intermediate snapshots available when teaching the rewrite itself.
-For parse-time nodes not yet reachable from the normal roots, the adapter must
-also include the event's current node/replacement as snapshot roots.
+`peep` identifies an attempt; `up` identifies its enclosing attempt, or zero.
+`node` and `repl` identify the original and result nodes. A zero `repl` on
+`APPLY` means removal without a surviving result. Phase events use zero IDs.
+An in-place rewrite has equal `node` and `repl` IDs. Type changes also count as
+progress; these events are not restricted to structural rewrites.
 
-Serialization and transport should be inactive when no observer is installed.
-Graph drawing should not appear in `Node`'s API, and browser connection failures
-should not change compilation behavior. These are design notes, not changes to
-the current compiler callbacks.
+Before snapshots are buffered until the outcome is known. Attempts without
+progress are discarded unless they contain a visible child rewrite. Ancestor
+before frames are emitted before their children; after frames close the nested
+attempts. Frame steps are assigned consecutively on emission, while attempt IDs
+may have gaps. A failed compilation can leave an unfinished attempt; the next
+compilation gets a fresh observer and compilation key.
+
+Capture includes the active attempts and returned node as extra roots, so nodes
+not yet attached by the parser remain visible. Dead originals are not added as
+after-frame roots. The observer never adds keep edges, changes use lists, or
+modifies the compiler's dependency tracking.
+
+`near` is a primitive array of node IDs, assembled with a `BitSet`. It combines:
+
+- The current node and replacement, with their immediate defs and uses before
+  and after the rewrite.
+- Existing wake-up dependents, read before those lists are drained.
+- Nodes named by `addDep`/`addDepForwards` during the attempt, including calls
+  whose dependency already exists or is an immediate neighbor.
+- Neighborhoods of nested attempts.
+
+This is initial display context, not an exact record of every node read or
+changed by a rule. Dependency lists contain wake-up dependents; they do not
+describe an entire successful pattern match. Some rules inspect distant nodes
+without registering a dependency. Before events include context known when
+emitted; their matching after events can add more. IDs of deleted nodes remain
+in `near`, and the browser highlights only those present in the current frame.
+Actual graph diffs and explicit rule annotations can refine this later.
+
+The browser keeps the event alongside its snapshot and layout. It labels and
+highlights the current step, but does not yet collapse nested rewrites or move
+the camera to their neighborhoods. The chapter 4 observer hookup is follow-up
+work; its adapter already targets the same graph model.
+
+Chapter 25's parser no longer accepts `#showGraph;`; use the browser to inspect
+the graph and **Save SVG** for a static figure. Earlier chapters retain their
+directive until migrated. Chapter 25 still supports the independent `--dot`
+dump option; it and `GraphVisualizer` can be retired separately.
 
 Constant-folding peepholes already exist in chapter02. Chapters 03 and 04 add
 variables and algebraic rewrites, respectively, and are useful next adapters.

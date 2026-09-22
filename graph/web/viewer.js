@@ -28,7 +28,20 @@ function updateUI() {
   document.getElementById("compile").disabled =
     !socket || socket.readyState !== WebSocket.OPEN || compiling || rendering;
   document.getElementById("fit").disabled = rendering || current < 0;
+  document.getElementById("save").disabled = rendering || !frames[current]?.snap;
   document.getElementById("assocs").disabled = !frames[current]?.snap;
+  document.getElementById("near").disabled = !frames[current]?.evt;
+  const evt = frames[current]?.evt;
+  let label = "";
+  if (evt) {
+    const text = evt.kind === "PHASE" ? "Phase complete" :
+      evt.kind === "BEFORE" ? `Before peephole #${evt.peep} at node #${evt.node}` :
+      evt.kind === "RETURN" ? `Return #${evt.repl} for #${evt.node}` :
+      !evt.repl ? `Removed #${evt.node}` : evt.repl === evt.node ? `Updated #${evt.node}` :
+      `Replaced #${evt.node} with #${evt.repl}`;
+    label = `${evt.phase} · ${text}${evt.up ? " (inside peephole #" + evt.up + ")" : ""}`;
+  }
+  document.getElementById("event").textContent = label;
 }
 
 function reportError(error) {
@@ -75,7 +88,7 @@ async function render(index) {
     if (frame.snap) {
       if (!layout) layout = new GraphLayout();
       if (!frame.layout) frame.layout = await layout.run(frame.snap);
-      if (generation === frameGeneration) renderer.show(frame.snap, frame.layout);
+      if (generation === frameGeneration) renderer.show(frame.snap, frame.layout, frame.evt);
     } else {
       document.getElementById("detail").hidden = true;
       await drawDot(frame.dot);
@@ -108,6 +121,8 @@ document.getElementById("fit").addEventListener("click", () => {
   else render(current);
 });
 document.getElementById("assocs").addEventListener("change", event => renderer.assocs(event.target.checked));
+document.getElementById("near").addEventListener("change", () => renderer.mark());
+document.getElementById("save").addEventListener("click", () => renderer.save(frames[current].snap.step));
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") renderer.select(0);
 });

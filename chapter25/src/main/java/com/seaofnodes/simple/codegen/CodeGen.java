@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.graph.GraphObserver;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
@@ -41,6 +42,8 @@ public class CodeGen {
         LastPhase               // After last phase
     }
     public Phase _phase;
+    // Null for normal compilation; owned by this compilation, not a global viewer.
+    public GraphObserver<Node> _obs;
 
     /** True when tests deliberately randomize Iter worklist order. */
     public static boolean iterSeedOverridden() { return System.getProperty("simple.iter.seed") != null; }
@@ -426,7 +429,7 @@ public class CodeGen {
         }
 
         _times[Phase.Parse.ordinal()] = System.currentTimeMillis() - t0;
-        JSViewer.show();
+        if( _obs != null ) _obs.phase(_phase.name());
         return this;
     }
 
@@ -466,6 +469,7 @@ public class CodeGen {
         assert !expensiveAssert() || Opto.fixedPointCheck(this);
 
         _times[Phase.Iter.ordinal()] = System.currentTimeMillis() - t0;
+        if( _obs != null ) _obs.phase(_phase.name());
         return this;
     }
 
@@ -515,6 +519,7 @@ public class CodeGen {
         Opto.opto(this);
 
         _times[Phase.Opto.ordinal()] = System.currentTimeMillis() - t0;
+        if( _obs != null ) _obs.phase(_phase.name());
         return this;
     }
     public <N extends Node> N add( N n ) { return _iter.add(n); }

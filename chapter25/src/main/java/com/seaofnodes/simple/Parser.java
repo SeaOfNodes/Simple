@@ -2,7 +2,6 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
-import com.seaofnodes.simple.print.GraphVisualizer;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
@@ -521,7 +520,6 @@ public class Parser {
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
         else if (inStructDeclaration() && matchx("new")) return parseConstructorDeclaration();
-        else if (matchx("#showGraph")) return require(showGraph(),";");
         else if (matchx(";")       ) return _code.ZERO; // Empty statement
         // Break ambiguity around leading function types and starting a block
         else if (peek('{') && !isTypeFun() ) {
@@ -911,15 +909,6 @@ public class Parser {
         }
         ctrl(_code.XCTRL);      // Kill control
         return expr.unkeep();
-    }
-
-    /**
-     * Dumps out the node graph
-     * @return {@code null}
-     */
-    Node showGraph() {
-        System.out.println(new GraphVisualizer().generateDotOutput(_ref,_scope,_xScopes));
-        return null;
     }
 
     /** Parse: [name '='] expr

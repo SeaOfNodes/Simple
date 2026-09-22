@@ -5,7 +5,6 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.print.IRPrinter;
-import com.seaofnodes.simple.print.JSViewer;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 import java.util.*;
@@ -460,12 +459,12 @@ public abstract class Node implements Cloneable {
      * Always returns some not-null Node (often this).
      */
     public final Node peephole( ) {
-        if( _type==null )       // Brand-new node, never peeped before
-            JSViewer.show();
+        var obs = CODE._midAssert ? null : CODE._obs;
+        if( obs != null ) obs.before(this);
         Node n = peepholeOpt();
-        if( n!=null )           // Made progress?
-            JSViewer.show();    // Show again
-        return n==null ? this : deadCodeElim(n._nid >= _nid ? n.peephole() : n); // Cannot return null for no-progress
+        Node rez = n==null ? this : deadCodeElim(n._nid >= _nid ? n.peephole() : n);
+        if( obs != null ) obs.after(this, n==null ? null : rez, false);
+        return rez;             // Cannot return null for no-progress
     }
 
     /**
@@ -637,11 +636,14 @@ public abstract class Node implements Cloneable {
     // retry the peephole.  Track a set of Nodes dependent on `this`, and
     // revisit them if `this` changes.
     Ary<Node> _deps;
+    public int nDeps() { return _deps == null ? 0 : _deps.size(); }
+    public Node dep(int idx) { return _deps.at(idx); }
 
     private boolean addDepImpl( Node dep ) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( CODE._midAssert ) return false;
+        if( CODE._obs != null ) CODE._obs.dep(this, dep);
         if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
         if( dep._deps   .find(this) != -1 ) return false; // Already on list
         if( dep._outputs.find(this) != -1 ) return false;
