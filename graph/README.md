@@ -12,8 +12,10 @@ that web address in the browser. This works from a chapter directory, the
 repository root, or the root of a linearized checkout. Java launches from elsewhere can specify
 `-Dsimple.graph.url=<viewer URL>` before the main class.
 
-The viewer retains the existing DOT/WebSocket protocol. No JavaScript package
-installation, frontend build, or separate server process is required.
+The viewer uses the existing WebSocket connection. Chapter 25 sends structured
+JSON snapshots alongside DOT in each frame; earlier chapters send bare DOT.
+No JavaScript package installation, frontend build, or separate server process
+is required.
 For development over HTTP, run this from the repository root:
 
 ```sh
@@ -51,22 +53,51 @@ WebSocket transport. The browser code has no dependency on a chapter's Java
 classes. The adapters below share snapshot capture; moving the transport into
 the shared Java code is a separate step.
 
-The legacy protocol is:
+The connection messages are:
 
 | Direction | Message | Meaning |
 | --- | --- | --- |
 | Compiler to browser | `!` | Request the source program |
 | Browser to compiler | Source text | Compile and capture a new sequence |
 | Compiler to browser | `digraph ...` | One complete DOT snapshot |
+| Compiler to browser | JSON `{snap, pos, dot}` | Chapter 25's complete snapshot and current drawing |
 | Browser to compiler | `+` | Acknowledge/request another frame |
 | Compiler to browser | `#` | End of sequence |
 | Browser to compiler | `null` | End the session |
 
-DOT frames may contain a `// POS:` comment identifying the parser position.
-The browser owns frame history and backward/forward playback.
+Chapter 25's JSON frame has this shape:
 
-The next layout implementation belongs here. The compiler-side adapter below
-is its first building block; the running viewer still consumes DOT.
+```json
+{
+  "snap": {
+    "ver": 1, "comp": "compilation UUID", "step": 0, "roots": [1],
+    "nodes": [
+      {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null}
+    ]
+  },
+  "pos": -1,
+  "dot": "digraph view_0 { ... }"
+}
+```
+
+`GraphJson.write(snap)` serializes the graph alone. `GraphJson.frame(snap, pos,
+dot)` adds the temporary playback envelope. `comp` changes for each submitted
+program, and `step` starts at zero. `nodes` carries the complete graph, including
+each node's `id`, `label`, `type`, `kind`, `edges`, and `proj`. Enum values use
+their names; absent types, labels and projections use JSON null. Missing node
+references use ID zero. `pos` is the parser position, or -1 outside parsing.
+
+The browser caches the parsed objects in `frames`; `frames[i].snap` is available
+for inspecting the new model. It still renders `frames[i].dot`. This temporarily
+sends both representations; the ELK step will remove the DOT portion. One `+`
+acknowledges the whole frame. The chapter 25 writer sends UTF-8 bytes and supports
+WebSocket's 64-bit length header for frames larger than 65535 bytes.
+
+Earlier chapters' DOT frames may contain a `// POS:` comment identifying the
+parser position. The browser owns frame history and backward/forward playback.
+
+The next layout implementation belongs here. The compiler-side adapter and
+JSON boundary are in place; the running renderer still consumes DOT.
 
 The linearization workflow includes this directory as a shared root resource.
 Chapters 4 and 25 compile the shared Java sources from this directory; the
@@ -135,7 +166,7 @@ Functions and compilation-unit boundaries. These are existing IR facts, not
 computed region membership or a SESE hierarchy. Scope bindings and constant
 lifetime edges are associations, so they need not constrain CFG layout.
 Types may be absent on newly constructed nodes. Source locations, grouping,
-observer events, serialization and delta encoding remain follow-up work.
+observer events and delta encoding remain follow-up work.
 
 Make compiles these shared sources directly into each participating chapter's
 classes using `javac`. From the repository root:

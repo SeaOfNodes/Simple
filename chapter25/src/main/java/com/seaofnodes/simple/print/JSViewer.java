@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.print;
 
+import com.seaofnodes.graph.GraphJson;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
@@ -11,8 +12,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.net.URI;
 import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Stack;
+import java.util.UUID;
 import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 
 public class JSViewer implements AutoCloseable {
@@ -28,7 +31,9 @@ public class JSViewer implements AutoCloseable {
     // WebSocket to the browser for display
     static SimpleWebSocket SERVER;
 
-    static int N;               // Dot frames
+    static long N;              // Snapshot step within this compilation
+    static String COMP;
+    static final SimpleGraphAdapter GRAPH = new SimpleGraphAdapter();
 
     JSViewer() throws Exception {
         // Launch server; handshake
@@ -60,6 +65,7 @@ public class JSViewer implements AutoCloseable {
                 System.out.println(src);
                 try {
                     N=0;
+                    COMP = UUID.randomUUID().toString();
                     // Use parser scope, xscope when building views
                     CodeGen code = new CodeGen(src);
                     SHOW = true;
@@ -93,10 +99,19 @@ public class JSViewer implements AutoCloseable {
             return;
         boolean midParse = CODE._phase == CodeGen.Phase.Parse;
         Stack<ScopeNode> xScopes = midParse ? CODE.P._xScopes : null;
+        var roots = new ArrayList<Node>();
+        roots.add(CODE._stop);
+        if( midParse ) {
+            roots.add(CODE.P._scope);
+            roots.addAll(xScopes);
+        }
+        long step = N++;
+        var snap = GRAPH.snap(COMP, step, roots.toArray(Node[]::new));
+        int pos = midParse ? CODE.P.pos() : -1;
 
         Collection<Node> all = GraphVisualizer.findAll(xScopes, CODE._stop, midParse ? CODE.P._scope: null);
         SB sb = new SB();
-        sb.p("digraph view_").p(N++).p(" {\n").ii();
+        sb.p("digraph view_").p(step).p(" {\n").ii();
         if( midParse )
             sb.i().p("// POS: ").p(CODE.P.pos()).nl();
 
@@ -139,11 +154,10 @@ public class JSViewer implements AutoCloseable {
 
 
         sb.p("}\n").di();
-        // Tell client another DOT frame
+        // Send the model and its current DOT rendering as one playback frame.
         String dot = sb.toString();
-        System.out.println(dot);
         try {
-            SERVER.put(dot);
+            SERVER.put(GraphJson.frame(snap, pos, dot));
         } catch( IOException ioe ) {
             try { SERVER.close();} catch( IOException ignored ){}
         }

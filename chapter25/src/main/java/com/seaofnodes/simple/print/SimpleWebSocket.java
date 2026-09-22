@@ -139,7 +139,7 @@ class SimpleWebSocket extends ServerSocket {
             for( int i=0; i<len; i++ )
                 _str[i] = (byte)(rawget() ^ _key[i & 3]);
 
-            return new String(_str,0,len);
+            return new String(_str,0,len,StandardCharsets.UTF_8);
         }
             // Client closes
         case 8: return null;
@@ -155,24 +155,24 @@ class SimpleWebSocket extends ServerSocket {
         }
     }
 
-    // Classic put to browser client.  No encoding.
+    // Server text frames are UTF-8 and unmasked.
     public void put(String msg) throws IOException {
-        int len = msg.length();
+        byte[] bytes = msg.getBytes(StandardCharsets.UTF_8);
+        int len = bytes.length;
+        _out.write(129); // FIN, opcode 1 - whole text message
         if( len <= 125 ) {
-            _out.write(129); // FIN, opcode 1 - whole text message
             _out.write(len);
-            for( int i=0; i<msg.length(); i++ )
-                _out.write(msg.charAt(i));
-            return;
+        } else if( len <= 65535 ) {
+            _out.write(126);
+            _out.write(len>>>8);
+            _out.write(len&255);
+        } else {
+            _out.write(127);
+            for( int shift = 56; shift >= 0; shift -= 8 )
+                _out.write((int)((long)len >>> shift) & 255);
         }
-        if( len > 65535 )
-            throw Utils.TODO("MOAR LENGTH");
-        _out.write(129);        // FIN, opcode 1 - whole text message
-        _out.write(126);        // Length is 16b
-        _out.write(len>>>8);
-        _out.write(len&255);
-        for( int i=0; i<msg.length(); i++ )
-            _out.write(msg.charAt(i));
+        _out.write(bytes);
+        _out.flush();
     }
 
     @Override public void close() throws IOException {

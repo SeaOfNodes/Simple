@@ -60,10 +60,10 @@ function render(index) {
   const frameGeneration = generation;
   rendering = true;
   updateUI();
-  const position = frames[index].match(/\/\/ POS:\s*(\d+)/);
-  if (position) program.setSelectionRange(Number(position[1]), Number(position[1]) + 1);
+  const frame = frames[index];
+  if (frame.pos >= 0) program.setSelectionRange(frame.pos, frame.pos + 1);
   try {
-    renderer.renderDot(frames[index], () => {
+    renderer.renderDot(frame.dot, () => {
       rendering = false;
       if (generation === frameGeneration) current = index;
       updateUI();
@@ -102,8 +102,22 @@ try {
       done = true;
       compiling = false;
       updateUI();
-    } else if (message.startsWith("digraph")) {
-      frames.push(message);
+    } else if (message.startsWith("{") || message.startsWith("digraph")) {
+      let frame;
+      try {
+        if (message.startsWith("{")) {
+          frame = JSON.parse(message);
+          if (frame.snap.ver !== 1) throw new Error("Unsupported graph version: " + frame.snap.ver);
+        } else {
+          // Earlier chapters still send bare DOT.
+          const pos = message.match(/\/\/ POS:\s*(\d+)/);
+          frame = {dot: message, pos: pos ? Number(pos[1]) : -1};
+        }
+      } catch (error) {
+        reportError(error);
+        return;
+      }
+      frames.push(frame);
       socket.send("+");
       updateUI();
       if (frames.length === 1) render(0);
