@@ -77,7 +77,7 @@ class GraphView {
       .on("click", (event, n) => { event.stopPropagation(); this.select(n.n.id); });
     boxes.select("path.box").attr("d", n => this.shape(n))
       .attr("fill", n => ({CTRL: "#fff1c4", REGION: "#fff1c4", LOOP: "#ffe0ab", FUN: "#ffe0ab",
-        UNIT: "#ffe0ab", MEM: "#dcecff", PHI: "#f5e4fa", SCOPE: "#e5e0ff", DATA: "#edf3f7"})[n.n.kind]);
+        UNIT: "#ffe0ab", STOP: "#fff1c4", MEM: "#dcecff", PHI: "#f5e4fa", SCOPE: "#e5e0ff", DATA: "#edf3f7"})[n.n.kind]);
     boxes.select("text.head").attr("y", n => n.scope ? 47 : 15)
       .text(n => `#${n.n.id}${n.n.proj ? " · p" + n.n.proj.idx : ""}`);
     boxes.select("text.label").attr("x", n => n.width / 2).attr("y", n => n.scope ? 51 : 33)
@@ -97,8 +97,15 @@ class GraphView {
       group.selectAll("circle.port").data(ports, p => p.id).join("circle")
         .attr("class", "port").attr("cx", p => p.x + 3).attr("cy", p => p.y + 3)
         .attr("r", 3).attr("fill", p => p.edge.def ? "#536477" : "white");
+      group.selectAll("path.reg").data(ports.filter(p => p.reg && p.edge.def), p => p.id).join("path")
+        .attr("class", "reg").attr("fill", "none").attr("stroke", this.colors.CTRL)
+        .attr("d", p => `M-3,${p.y + 3}H-18m4,-3l-4,3l4,3`)
+        .each(function(p) {
+          d3.select(this).selectAll("title").data([p]).join("title")
+            .text(`[0] → #${p.edge.def}`);
+        });
       group.selectAll("text.slot").data(ports, p => p.id).join("text")
-        .attr("class", "slot").attr("x", p => p.x + 3).attr("y", p => p.y - 4)
+        .attr("class", "slot").attr("x", p => p.reg ? -10 : p.x + 3).attr("y", p => p.y - 4)
         .attr("text-anchor", "middle").text(p => p.edge.idx);
     });
     this.assocs(document.getElementById("assocs").checked);
@@ -110,7 +117,7 @@ class GraphView {
   shape(n) {
     const w = n.width, h = n.height;
     // A MultiNode and its projection cells tile one rectangular box.
-    if (n.cell || n.n.kind === "CTRL" || n.n.kind === "UNIT") return `M0,0H${w}V${h}H0Z`;
+    if (n.cell || ["CTRL", "UNIT", "STOP"].includes(n.n.kind)) return `M0,0H${w}V${h}H0Z`;
     if (n.n.kind === "REGION") return `M12,0H${w - 12}L${w},${h}H0Z`;
     if (n.n.kind === "PHI") return `M12,0H${w - 12}L${w},${h / 2}L${w - 12},${h}H12L0,${h / 2}Z`;
     if (n.n.kind === "MEM" || n.n.kind === "FUN")

@@ -38,6 +38,7 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     }
 
     private Kind kind(Node n) {
+        if( n instanceof StopNode ) return Kind.STOP;
         if( n instanceof ScopeNode ) return Kind.SCOPE;
         if( n instanceof StartNode ) return Kind.CTRL;
         if( n instanceof LoopNode ) return Kind.LOOP;

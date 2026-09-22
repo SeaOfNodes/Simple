@@ -147,6 +147,15 @@ the internal parent/projection edge is represented by the shared box. A
 projection whose parent is absent is drawn on its own. Node kinds use color
 and shape rather than a KIND label.
 
+Phi slot 0 uses a short left-facing arrow at the middle of the box's left side,
+instead of a full edge to its Region. The tooltip and node details retain the
+definition ID. Value inputs stay along the top.
+Each Region (including a loop header) and its Phis form one layout row, with
+the Region on the left. Their boxes, ports, selections and node IDs stay separate.
+This also keeps a newly created Phi on its Region's row while the parser holds it.
+Stops occupy the bottom row, beside the Parser box when it is present, even
+before return edges attach. Chapter adapters identify Stops with `Kind.STOP`.
+
 Scopes have named slots across the top, including control, memory and variable
 bindings. Edges leave these slots upward toward their definitions. They stay visible
 even when **Associations** is unchecked, and do not constrain CFG layout.

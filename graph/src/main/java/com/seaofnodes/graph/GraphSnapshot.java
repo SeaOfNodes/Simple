@@ -14,7 +14,7 @@ public record GraphSnapshot(int ver, String comp, long step,
 
     @Override public int[] roots() { return roots.clone(); }
 
-    public enum Kind { DATA, CTRL, MEM, SCOPE, PHI, REGION, LOOP, FUN, UNIT }
+    public enum Kind { DATA, CTRL, MEM, SCOPE, PHI, REGION, LOOP, FUN, UNIT, STOP }
     public enum Role { DATA, CTRL, MEM, ASSOC }
 
     /** IDs are stable within one compilation. Labels and types are plain text. */

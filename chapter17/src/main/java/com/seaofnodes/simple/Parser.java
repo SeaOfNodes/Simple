@@ -446,6 +446,7 @@ public class Parser {
         // But first clone the scope and set it as current
         int ndefs = _scope.nIns();
         ScopeNode fScope = _scope.dup(); // Duplicate current scope
+        fScope.ctrl(ifF);       // The pending arm already starts at False
         _xScopes.push(fScope); // For graph visualization we need all scopes
 
         // Parse the true side
@@ -458,7 +459,7 @@ public class Parser {
 
         // Parse the false side
         _scope = fScope;        // Restore scope, then parse else block if any
-        ctrl(ifF.unkeep());     // Ctrl token is now set to ifFalse projection
+        ifF.unkeep();           // fScope already owns the false control
         // Up-cast predicate, even if not else clause, because predicate can
         // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
         _scope.addGuards(ifF,pred,true);

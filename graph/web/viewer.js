@@ -87,9 +87,13 @@ async function render(index) {
     if (generation === frameGeneration) {
       renderer.show(frame.snap, frame.layout, frame.evt);
       if (frame.pos >= 0) {
-        // Stepping focuses a button; focus the source so its selection is visible.
+        // A newline or EOF has no visible character to highlight. Show the last
+        // parsed character there, rather than losing the position indicator.
+        let pos = Math.min(frame.pos, program.value.length);
+        while (pos > 0 && (!program.value[pos] || /\s/.test(program.value[pos]))) pos--;
+        program.setSelectionRange(pos, pos + 1);
+        // Focus after selecting, so the browser brings the new position into view.
         program.focus({preventScroll: true});
-        program.setSelectionRange(frame.pos, frame.pos + 1);
       }
     }
     rendering = false;

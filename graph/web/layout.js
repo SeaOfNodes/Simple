@@ -22,7 +22,7 @@ class GraphLayout {
       if (scope) w = Math.ceil(Math.max(120, this.ctx.measureText(label).width + 24,
         cols.reduce((sum, w) => sum + w, 0)));
       return {id: "n" + n.id, width: w, height: 62,
-        ports: [], n, label, type, scope, cols, ox: 0, oy: 0};
+        ports: [], n, label, type, scope, cols, stop: n.kind === "STOP", ox: 0, oy: 0};
     });
     const byId = new Map(nodes.map(n => [n.n.id, n]));
     const parsing = evt?.phase === "Parse" && evt.kind !== "PHASE";
@@ -46,7 +46,16 @@ class GraphLayout {
       projs.get(par).push(n);
       n.par = par;
     }
-    const groups = nodes.filter(n => !n.par).map(n => {
+    const phis = new Map();
+    for (const n of nodes) {
+      if (n.n.kind !== "PHI") continue;
+      const reg = byId.get(n.n.edges.find(e => e.idx === 0)?.def);
+      if (!reg || !["REGION", "LOOP", "FUN"].includes(reg.n.kind)) continue;
+      if (!phis.has(reg)) phis.set(reg, []);
+      phis.get(reg).push(n);
+      n.reg = reg;
+    }
+    const groups = nodes.filter(n => !n.par && !n.reg).map(n => {
       const slots = (projs.get(n) || []).sort((a, b) => a.n.proj.idx - b.n.proj.idx || a.n.id - b.n.id);
       const parts = [n, ...slots];
       if (slots.length) {
@@ -61,15 +70,24 @@ class GraphLayout {
           x += p.width;
         }
       }
+      // ELK sees one row; the renderer keeps each Region/Phi as a separate box.
+      let width = n.width;
+      for (const p of phis.get(n) || []) {
+        p.ox = width + 32;
+        width = p.ox + p.width;
+        parts.push(p);
+      }
       const ports = [];
       for (const p of parts) {
-        p.cell = slots.length > 0;
+        p.cell = slots.length > 0 && !p.reg;
         const extra = p.scope && p.cols.length ?
           (p.width - p.cols.reduce((sum, w) => sum + w, 0)) / p.cols.length : 0;
         let x = 0;
         for (const [idx, e] of p.n.edges.entries()) {
           // The parent/projection link is represented by the shared box.
           if (p.par && e.idx === 0 && e.def === p.par.n.id) continue;
+          // Phi's Region input is a local left-facing marker, not a routed edge.
+          if (p.n.kind === "PHI" && e.idx === 0) continue;
           if (p.scope) {
             const span = p.cols[idx] + extra;
             ports.push({id: p.id + "i" + e.idx, x: x + span / 2 - 3, y: -3, span,
@@ -77,7 +95,8 @@ class GraphLayout {
             x += span;
             continue;
           }
-          ports.push({id: p.id + "i" + e.idx, x: p.ox + p.width * (e.idx + 1) / (p.n.edges.length + 1) - 3,
+          const off = p.n.kind === "PHI" ? 0 : 1;
+          ports.push({id: p.id + "i" + e.idx, x: p.ox + p.width * (e.idx + off) / (p.n.edges.length + off) - 3,
             y: p.oy - 3, width: 6, height: 6, layoutOptions: {"elk.port.side": "NORTH"}});
         }
         // Direct uses of the MultiNode attach to its header, projections below.
@@ -86,12 +105,13 @@ class GraphLayout {
           y: p.oy + (side === "EAST" ? p.height / 2 : p.height) - 3,
           width: 6, height: 6, layoutOptions: {"elk.port.side": side}});
       }
-      return {id: n.id, width: n.width, height: n.height * (slots.length ? 2 : 1), ports, parts};
+      return {id: n.id, width, height: n.height * (slots.length ? 2 : 1), ports, parts};
     });
     const edges = [];
     for (const use of snap.nodes) {
       for (const e of use.edges) {
         if (!e.def) continue;
+        if (use.kind === "PHI" && e.idx === 0) continue;
         if (byId.get(use.id).par && e.idx === 0 && e.def === use.proj.par) continue;
         const id = "e" + use.id + "i" + e.idx;
         const reg = byId.get(use.edges[0]?.def)?.n;
@@ -106,13 +126,14 @@ class GraphLayout {
       }
     }
     const graph = await this.elk.layout({
-      id: "root", children: groups.filter(g => !g.parts[0].scope).map(({parts, ...box}) => ({...box,
+      id: "root", children: groups.filter(g => !g.parts[0].scope && !g.parts[0].stop).map(({parts, ...box}) => ({...box,
         layoutOptions: {"elk.portConstraints": "FIXED_POS",
           // Keep a projection with its parent even when that parent has real uses.
           "elk.layered.layering.layerConstraint": parts.length === 1 && parts[0].held ? "LAST_SEPARATE" : "NONE"}
       })),
       // Scope bindings and lifetime associations must not impose CFG ranks.
-      edges: edges.filter(e => e.role !== "ASSOC" && !e.bind && !byId.get(e.def).scope).map(e => ({
+      edges: edges.filter(e => e.role !== "ASSOC" && !e.bind && !byId.get(e.def).scope &&
+        !byId.get(e.use).stop && !byId.get(e.def).stop).map(e => ({
         id: e.id, sources: e.sources, targets: e.targets, layoutOptions: e.layoutOptions
       })),
       layoutOptions: {
@@ -124,8 +145,9 @@ class GraphLayout {
         "elk.randomSeed": 1
       }
     });
-    // Scope ports use the same local geometry; place their boxes after CFG nodes.
-    for (const g of groups.filter(g => g.parts[0].scope)) graph.children.push({...g, x: 0, y: 0});
+    // Place scopes and Stops after the flow graph; their ports stay local.
+    for (const g of groups.filter(g => g.parts[0].scope || g.parts[0].stop))
+      graph.children.push({...g, x: 0, y: 0});
     const boxes = new Map(graph.children.map(n => [n.id, n]));
     const routes = new Map((graph.edges || []).map(e => [e.id, e]));
     for (const group of groups) {
@@ -135,6 +157,8 @@ class GraphLayout {
         n.x = box.x + n.ox; n.y = box.y + n.oy;
         // Keep semantic nodes/slots intact for selection and neighborhood marks.
         n.ports = n.n.edges.map(e => {
+          if (n.n.kind === "PHI" && e.idx === 0)
+            return {id: n.id + "i0", x: -6, y: n.height / 2 - 3, width: 6, height: 6, reg: true, edge: e};
           const p = ports.get(n.id + "i" + e.idx);
           return p && {...p, x: p.x - n.ox, y: p.y - n.oy, edge: e};
         }).filter(Boolean);
@@ -169,11 +193,21 @@ class GraphLayout {
     }
     // Parser ownership is an overlay, never an IR node or an ELK flow edge.
     const parser = owned.length ? {width: Math.max(180, (owned.length + 1) * 18), height: 36} : null;
+    // Stop belongs at the bottom even before any Return has attached to it.
+    const foot = [...nodes.filter(n => n.stop), ...(parser ? [parser] : [])];
+    if (foot.length) {
+      const width = foot.reduce((sum, n) => sum + n.width, 0) + (foot.length - 1) * 32;
+      const height = Math.max(...foot.map(n => n.height));
+      graph.width = Math.max(graph.width, width + 48);
+      let x = (graph.width - width) / 2;
+      for (const n of foot) {
+        n.x = x;
+        n.y = graph.height + 24 + height - n.height;
+        x += n.width + 32;
+      }
+      graph.height += height + 48;
+    }
     if (parser) {
-      graph.width = Math.max(graph.width, parser.width + 48);
-      parser.x = (graph.width - parser.width) / 2;
-      parser.y = graph.height + 24;
-      graph.height = parser.y + parser.height + 24;
       owned.sort((a, b) => a.x - b.x || a.n.id - b.n.id);
       parser.ports = owned.map((n, i) => ({id: "parser-i" + n.n.id,
         x: parser.width * (i + 1) / (owned.length + 1) - 3, y: -3}));
@@ -181,7 +215,8 @@ class GraphLayout {
         use: 0, def: n.n.id, role: "PARSER", sources: [n.id + "o"], targets: ["parser-i" + n.n.id]});
     }
     for (const e of edges) {
-      if (e.role === "ASSOC" || e.role === "PARSER" || e.bind || byId.get(e.def).scope) {
+      if (e.role === "ASSOC" || e.role === "PARSER" || e.bind || byId.get(e.def).scope ||
+          byId.get(e.use)?.stop || byId.get(e.def).stop) {
         const def = byId.get(e.def), use = e.role === "PARSER" ? parser : byId.get(e.use);
         const a = def.ports.find(p => p.id === e.sources[0]);
         const b = use.ports.find(p => p.id === e.targets[0]);
