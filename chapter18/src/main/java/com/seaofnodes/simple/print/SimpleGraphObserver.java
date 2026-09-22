@@ -25,11 +25,11 @@ public class SimpleGraphObserver extends GraphCapture<Node> {
         if( _code != null ) _code._obs = null;
         _code = null;
     }
+    @Override protected Node scope() { return _code.P == null ? null : _code.P._scope; }
     @Override protected void roots(ArrayList<Node> roots) {
         roots.add(_code._stop);
         if( _code.P != null ) {
             roots.add(com.seaofnodes.simple.Parser.START);
-            roots.add(_code.P._scope);
             roots.addAll(_code.P._xScopes);
         }
     }

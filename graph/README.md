@@ -105,7 +105,7 @@ The JSON frame has this shape:
 ```json
 {
   "snap": {
-    "ver": 1, "comp": "compilation UUID", "step": 0, "roots": [1],
+    "ver": 1, "comp": "compilation UUID", "step": 0, "roots": [1], "scope": 0,
     "nodes": [
       {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null}
     ]
@@ -124,6 +124,9 @@ program, and `step` starts at zero. `nodes` carries the complete graph, includin
 each node's `id`, `label`, `type`, `kind`, `edges`, and `proj`. Enum values use
 their names; absent types, labels and projections use JSON null. Missing node
 references use ID zero. `pos` is the parser position, or -1 outside parsing.
+`scope` identifies the parser's active scope (zero outside parsing); scope nodes
+in `roots` include the parser's saved scopes. These are context references,
+not IR edges.
 
 The browser caches the parsed objects in `frames`. It computes geometry on the
 first visit to a frame and keeps it in `frames[i].layout`; revisiting a frame
@@ -137,8 +140,27 @@ uses ELK's layered layout with fixed input ports and orthogonal routing.
 Layout follows def-to-use flow downward, while the displayed arrows point
 from use to def, matching Simple's edges. Control edges get a higher layout
 priority; known Loop/Phi backedges get a lower priority. Associations are drawn
-as a separate overlay and do not constrain layout. Projections remain real
-nodes for now.
+as a separate overlay and do not constrain layout. Each MultiNode and its
+projections occupy one box: the parent above, projection cells below in index
+order. Each cell keeps its node ID, selection, highlights and edge connections;
+the internal parent/projection edge is represented by the shared box. A
+projection whose parent is absent is drawn on its own. Node kinds use color
+and shape rather than a KIND label.
+
+Scopes have named slots across the top, including control, memory and variable
+bindings. Edges leave these slots upward toward their definitions. They stay visible
+even when **Associations** is unchecked, and do not constrain CFG layout.
+While parsing, saved scopes line up beside the graph, slightly below their
+`$ctrl` definitions, with space to avoid overlapping other scopes. The active
+scope stays at the bottom. The **Parser** box points to both active and saved
+scopes using display-only arrows.
+
+During parsing, values with no graph users yet appear in a separate bottom
+row, with dashed display-only arrows from a **Parser**
+box. Scope bindings count as users. Pending projections keep their parent box
+and get an arrow to their own cell. These marks disappear when real uses attach
+or parsing finishes; they do not add nodes or edges to the compiler graph.
+This identifies unconsumed values from the snapshot, not Java stack references.
 
 This first layout is flat. It does not discover compiler loops, compute RPO,
 or build a SESE hierarchy. ELK breaks cycles for drawing, which can still put
@@ -162,7 +184,7 @@ The shared Java code is in `src/main/java/com/seaofnodes/graph/`:
 - `GraphAdapter<N>` is an abstract base with hooks for `id`, `desc`, and indexed
   edge access (`nIns`/`in`, `nOuts`/`out`). Its final `snap` method walks definitions and
   uses iteratively, handles cycles, and sorts the copied records by ID.
-- `GraphSnapshot` is detached data: compilation key, step, roots, and nodes.
+- `GraphSnapshot` is detached data: compilation key, step, roots, active scope, and nodes.
   Each node has an ID, plain-text label/type, kind, edges to its defs, and optional
   projection metadata. It contains no chapter classes or layout coordinates.
   Node and edge lists are concrete `ArrayList`s, treated as read-only after capture.

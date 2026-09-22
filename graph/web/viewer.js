@@ -81,11 +81,17 @@ async function render(index) {
   const frame = frames[index];
   busy = !frame.layout ? "Laying out frame " + (index + 1) + "..." : "Drawing...";
   updateUI();
-  if (frame.pos >= 0) program.setSelectionRange(frame.pos, frame.pos + 1);
   try {
     if (!layout) layout = new GraphLayout();
-    if (!frame.layout) frame.layout = await layout.run(frame.snap);
-    if (generation === frameGeneration) renderer.show(frame.snap, frame.layout, frame.evt);
+    if (!frame.layout) frame.layout = await layout.run(frame.snap, frame.evt);
+    if (generation === frameGeneration) {
+      renderer.show(frame.snap, frame.layout, frame.evt);
+      if (frame.pos >= 0) {
+        // Stepping focuses a button; focus the source so its selection is visible.
+        program.focus({preventScroll: true});
+        program.setSelectionRange(frame.pos, frame.pos + 1);
+      }
+    }
     rendering = false;
     busy = "";
     if (generation === frameGeneration) current = index;

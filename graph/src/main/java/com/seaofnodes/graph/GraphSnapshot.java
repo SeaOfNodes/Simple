@@ -2,9 +2,9 @@ package com.seaofnodes.graph;
 
 import java.util.ArrayList;
 
-/** A detached graph. Treat its lists as read-only after capture. */
+/** A detached graph. Lists are read-only; scope is the active parser scope ID, or zero. */
 public record GraphSnapshot(int ver, String comp, long step,
-                            int[] roots, ArrayList<Node> nodes) {
+                            int[] roots, int scope, ArrayList<Node> nodes) {
     public static final int VER = 1;
 
     public GraphSnapshot {

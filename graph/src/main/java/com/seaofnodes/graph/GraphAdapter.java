@@ -37,6 +37,11 @@ public abstract class GraphAdapter<N> {
     }
 
     public final GraphSnapshot snap(String comp, long step, ArrayList<N> roots) {
+        return snap(comp, step, roots, 0);
+    }
+
+    /** scope names the active parser scope, which the caller includes in roots. */
+    public final GraphSnapshot snap(String comp, long step, ArrayList<N> roots, int scope) {
         // Node IDs are dense; index directly without boxed keys or map entries.
         var seen = new ArrayList<N>();
         var todo = new ArrayDeque<N>();
@@ -55,7 +60,7 @@ public abstract class GraphAdapter<N> {
         // Determinism without reordering the compiler's use lists.
         nodes.sort(Comparator.comparingInt(GraphSnapshot.Node::id));
         return new GraphSnapshot(GraphSnapshot.VER, comp, step,
-                                 Arrays.copyOf(rids, len), nodes);
+                                 Arrays.copyOf(rids, len), scope, nodes);
     }
 
     private boolean enq(N node, ArrayList<N> seen, ArrayDeque<N> todo) {

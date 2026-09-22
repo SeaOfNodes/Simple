@@ -23,6 +23,8 @@ public abstract class GraphCapture<N> extends GraphObserver<N> {
     protected abstract String phase();
     protected abstract int pos();
     protected abstract void roots(ArrayList<N> roots);
+    // Called only during parsing; the shared capture adds this root too.
+    protected N scope() { return null; }
     protected abstract void detach();
 
     final void run(String src, GraphSocket server) {
@@ -65,7 +67,7 @@ public abstract class GraphCapture<N> extends GraphObserver<N> {
         near(p, n);
         // Buffer until we know that this attempt (or a nested one) made progress.
         // Include n explicitly: parse-time nodes need not have any uses yet.
-        p.pre = snap(n);
+        p.pre = snap(n, true);
     }
 
     @Override public void after(N n, N repl, boolean applied) {
@@ -85,7 +87,7 @@ public abstract class GraphCapture<N> extends GraphObserver<N> {
                 up.sent = true;
             }
             N rez = repl == null ? n : repl;
-            emit(snap(_graph.dead(rez) ? null : rez), pos(),
+            emit(snap(_graph.dead(rez) ? null : rez, true), pos(),
                  evt(p, applied ? GraphEvent.Kind.APPLY : GraphEvent.Kind.RETURN,
                      _graph.dead(rez) ? 0 : _graph.id(rez)));
         }
@@ -101,7 +103,7 @@ public abstract class GraphCapture<N> extends GraphObserver<N> {
 
     @Override public void phase(String phase) {
         if( _off ) return;
-        emit(snap(null), pos(), new GraphEvent(GraphEvent.Kind.PHASE, 0, 0, phase, 0, 0, new int[0]));
+        emit(snap(null, false), pos(), new GraphEvent(GraphEvent.Kind.PHASE, 0, 0, phase, 0, 0, new int[0]));
     }
 
     private GraphEvent evt(Peep p, GraphEvent.Kind kind, int repl) {
@@ -121,18 +123,22 @@ public abstract class GraphCapture<N> extends GraphObserver<N> {
     }
 
 
-    private GraphSnapshot snap(N extra) {
+    private GraphSnapshot snap(N extra, boolean parsing) {
         var roots = new ArrayList<N>();
         roots(roots);
+        // Early parsers retain their emptied scope after returning. A completed
+        // phase no longer owns that scope, even while phase() still says Parse.
+        N scope = parsing && "Parse".equals(phase()) ? scope() : null;
+        roots.add(scope);
         for( Peep p : _peeps ) if( !_graph.dead(p.node) ) roots.add(p.node);
         roots.add(extra);
-        return _graph.snap(_comp, 0, roots);
+        return _graph.snap(_comp, 0, roots, _graph.ref(scope));
     }
 
     private void emit(GraphSnapshot snap, int pos, GraphEvent evt) {
         if( _off ) return;
         // Assign steps on emission; attempts without progress do not consume frames.
-        snap = new GraphSnapshot(snap.ver(), _comp, _step++, snap.roots(), snap.nodes());
+        snap = new GraphSnapshot(snap.ver(), _comp, _step++, snap.roots(), snap.scope(), snap.nodes());
         try {
             _server.put(GraphJson.frame(snap, pos, evt));
         } catch( IOException e ) {

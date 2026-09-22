@@ -42,7 +42,7 @@ public class GraphJson {
             if( i > 0 ) sb.append(',');
             sb.append(roots[i]);
         }
-        sb.append("],\"nodes\":[");
+        sb.append("],\"scope\":").append(snap.scope()).append(",\"nodes\":[");
         var nodes = snap.nodes();
         for( int i = 0; i < nodes.size(); i++ ) {
             if( i > 0 ) sb.append(',');

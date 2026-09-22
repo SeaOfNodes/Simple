@@ -30,9 +30,9 @@ public class SimpleGraphObserver extends GraphCapture<Node> {
         _parser = null;
         _ret = null;
     }
+    @Override protected Node scope() { return _parser._scope; }
     @Override protected void roots(ArrayList<Node> roots) {
         roots.add(Parser.START);
-        roots.add(_parser._scope);
         roots.add(_ret);
     }
 }

@@ -19,9 +19,12 @@
     .edge { fill:none; stroke-width:1.5; }
     .edge.CTRL { stroke-width:2; }
     .edge.ASSOC { stroke-dasharray:4 4; }
+    .edge.PARSER { stroke-dasharray:5 4; }
+    .parser rect { fill:#f6f0ff; stroke:#7956a5; stroke-width:1.5; stroke-dasharray:5 4; }
     .edge.selected { stroke-width:3.5; }
     .node { cursor:pointer; }
     .box { stroke:#758191; stroke-width:1; }
+    .node.held .box { stroke-dasharray:5 3; }
     .node.near .box { stroke:#c18221; stroke-width:2; }
     .node.focus .box { stroke:#9c4900; stroke-width:3; }
     .node.selected .box { stroke:#1569b9; stroke-width:3; }
@@ -29,6 +32,8 @@
     .label { font-size:12px; fill:#152330; font-weight:600; }
     .type { font-size:11px; fill:#455768; }
     .port { stroke:#536477; stroke-width:1; }
+    .row { stroke:#b6afcf; stroke-width:1; }
+    .bind { font-size:12px; fill:#152330; }
     .slot { font-size:10px; fill:#364352; paint-order:stroke; stroke:#fafbfc; stroke-width:3; }
     #detail { position:absolute; top:8px; right:8px; margin:0; padding:12px; max-width:320px;
       max-height:45%; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;

@@ -6,7 +6,7 @@ class GraphView {
     this.pick = 0;
     this.auto = true;
     this.scene = null;
-    this.colors = {CTRL: "#b63838", DATA: "#536477", MEM: "#2867b2", ASSOC: "#9396a3"};
+    this.colors = {CTRL: "#b63838", DATA: "#536477", MEM: "#2867b2", ASSOC: "#9396a3", PARSER: "#7956a5"};
     this.svg = d3.select(host).append("svg").attr("aria-label", "Compiler graph");
     const defs = this.svg.append("defs");
     for (const [role, color] of Object.entries(this.colors)) {
@@ -17,6 +17,7 @@ class GraphView {
     }
     this.world = this.svg.append("g");
     this.links = this.world.append("g").attr("class", "edges");
+    this.parser = this.world.append("g").attr("class", "parser");
     this.nodes = this.world.append("g").attr("class", "nodes");
     this.zoom = d3.zoom().scaleExtent([.02, 4]).on("zoom", event => {
       if (event.sourceEvent) this.auto = false;
@@ -46,11 +47,24 @@ class GraphView {
       .attr("marker-start", e => "url(#arrow-" + e.role + ")")
       .each(function(e) {
         d3.select(this).selectAll("title").data([e]).join("title")
-          .text(`#${e.use}[${e.idx}] → #${e.def} · ${e.role}${e.label ? " · " + e.label : ""}`);
+          .text(e.role === "PARSER" ? (e.scope ? `Parser holds ${e.active ? "active" : "saved"} scope #${e.def}` :
+            `Parser holds #${e.def}; no graph users yet`) :
+            `#${e.use}[${e.idx}] → #${e.def} · ${e.role}${e.label ? " · " + e.label : ""}`);
+      });
+    this.parser.selectAll("g").data(scene.parser ? [scene.parser] : []).join(enter => {
+      const g = enter.append("g");
+      g.append("rect").attr("rx", 6);
+      g.append("text").attr("class", "label").attr("text-anchor", "middle").attr("y", 22).text("Parser");
+      g.append("title").text("Display-only references to parser scopes and unfinished values; these are not compiler edges.");
+      return g;
+    }).attr("transform", p => `translate(${p.x},${p.y})`)
+      .each(function(p) {
+        d3.select(this).select("rect").attr("width", p.width).attr("height", p.height);
+        d3.select(this).selectAll("text").attr("x", p.width / 2);
       });
     const boxes = this.nodes.selectAll("g.node").data(scene.nodes, n => n.id).join(enter => {
       const g = enter.append("g").attr("class", "node");
-      g.append("rect").attr("class", "box");
+      g.append("path").attr("class", "box");
       g.append("text").attr("class", "head").attr("x", 8).attr("y", 15);
       g.append("text").attr("class", "label").attr("text-anchor", "middle").attr("y", 33);
       g.append("text").attr("class", "type").attr("text-anchor", "middle").attr("y", 51);
@@ -58,25 +72,34 @@ class GraphView {
       return g;
     });
     boxes.attr("id", n => n.id).attr("data-id", n => n.n.id)
+      .classed("held", n => !!n.held)
       .attr("transform", n => `translate(${n.x},${n.y})`)
       .on("click", (event, n) => { event.stopPropagation(); this.select(n.n.id); });
-    boxes.select("rect.box").attr("width", n => n.width).attr("height", n => n.height)
-      .attr("rx", n => ["CTRL", "REGION", "LOOP", "FUN", "UNIT"].includes(n.n.kind) ? 3 : 14)
+    boxes.select("path.box").attr("d", n => this.shape(n))
       .attr("fill", n => ({CTRL: "#fff1c4", REGION: "#fff1c4", LOOP: "#ffe0ab", FUN: "#ffe0ab",
         UNIT: "#ffe0ab", MEM: "#dcecff", PHI: "#f5e4fa", SCOPE: "#e5e0ff", DATA: "#edf3f7"})[n.n.kind]);
-    boxes.select("text.head").text(n => `#${n.n.id} · ${n.n.kind}${n.n.proj ? " · p" + n.n.proj.idx : ""}`);
-    boxes.select("text.label").attr("x", n => n.width / 2).text(n => n.label);
-    boxes.select("text.type").attr("x", n => n.width / 2).text(n => n.type);
+    boxes.select("text.head").attr("y", n => n.scope ? 47 : 15)
+      .text(n => `#${n.n.id}${n.n.proj ? " · p" + n.n.proj.idx : ""}`);
+    boxes.select("text.label").attr("x", n => n.width / 2).attr("y", n => n.scope ? 51 : 33)
+      .text(n => n.label);
+    boxes.select("text.type").attr("x", n => n.width / 2).text(n => n.scope ? "" : n.type);
     boxes.select("title").text(n => this.info(n.n));
     boxes.each((n, i, groups) => {
       const ports = n.ports.filter(p => p.id !== n.id + "o");
       const group = d3.select(groups[i]);
+      group.selectAll("line.row").data(n.scope ? ports : [], p => p.id).join("line")
+        .attr("class", "row").attr("x1", (p, i) => i ? p.x + 3 - p.span / 2 : 0)
+        .attr("x2", (p, i) => i ? p.x + 3 - p.span / 2 : n.width)
+        .attr("y1", (p, i) => i ? 0 : 30).attr("y2", 30);
+      group.selectAll("text.bind").data(n.scope ? ports : [], p => p.id).join("text")
+        .attr("class", "bind").attr("x", p => p.x + 3).attr("y", 20).attr("text-anchor", "middle")
+        .text(p => p.edge.label || "[" + p.edge.idx + "]");
       group.selectAll("circle.port").data(ports, p => p.id).join("circle")
         .attr("class", "port").attr("cx", p => p.x + 3).attr("cy", p => p.y + 3)
-        .attr("r", 3).attr("fill", (p, j) => n.n.edges[j].def ? "#536477" : "white");
+        .attr("r", 3).attr("fill", p => p.edge.def ? "#536477" : "white");
       group.selectAll("text.slot").data(ports, p => p.id).join("text")
         .attr("class", "slot").attr("x", p => p.x + 3).attr("y", p => p.y - 4)
-        .attr("text-anchor", "middle").text((p, j) => n.n.edges[j].idx);
+        .attr("text-anchor", "middle").text(p => p.edge.idx);
     });
     this.assocs(document.getElementById("assocs").checked);
     this.mark();
@@ -84,8 +107,23 @@ class GraphView {
     if (this.auto) this.fit();
   }
 
+  shape(n) {
+    const w = n.width, h = n.height;
+    // A MultiNode and its projection cells tile one rectangular box.
+    if (n.cell || n.n.kind === "CTRL" || n.n.kind === "UNIT") return `M0,0H${w}V${h}H0Z`;
+    if (n.n.kind === "REGION") return `M12,0H${w - 12}L${w},${h}H0Z`;
+    if (n.n.kind === "PHI") return `M12,0H${w - 12}L${w},${h / 2}L${w - 12},${h}H12L0,${h / 2}Z`;
+    if (n.n.kind === "MEM" || n.n.kind === "FUN")
+      return `M10,0H${w - 10}L${w},10V${h - 10}L${w - 10},${h}H10L0,${h - 10}V10Z`;
+    const r = n.n.kind === "LOOP" ? 24 : n.n.kind === "SCOPE" ? 4 : 14;
+    return `M${r},0H${w - r}Q${w},0 ${w},${r}V${h - r}Q${w},${h} ${w - r},${h}` +
+      `H${r}Q0,${h} 0,${h - r}V${r}Q0,0 ${r},0Z`;
+  }
+
   info(n) {
-    return `#${n.id} ${n.label}\n${n.kind}${n.proj ? " · projection " + n.proj.idx + " of #" + n.proj.par : ""}` +
+    return `#${n.id} ${n.label}${n.proj ? "\nProjection " + n.proj.idx + " of #" + n.proj.par : ""}` +
+      (this.scene.held.has(n.id) ? "\nHeld by parser; no graph users yet" : "") +
+      (this.scene.scopes.has(n.id) ? (this.scene.scope === n.id ? "\nActive parser scope" : "\nSaved parser scope") : "") +
       `\n${n.type || "Type not computed"}\n\n` + n.edges.map(e =>
         `[${e.idx}] → ${e.def ? "#" + e.def : "—"}  ${e.role}${e.label ? "  " + e.label : ""}`).join("\n");
   }
@@ -94,13 +132,13 @@ class GraphView {
     this.pick = id;
     const node = this.scene?.nodes.find(n => n.n.id === id);
     this.nodes.selectAll("g.node").classed("selected", n => n.n.id === id);
-    this.links.selectAll("path.edge").classed("selected", e => e.use === id || e.def === id);
+    this.links.selectAll("path.edge").classed("selected", e => id !== 0 && (e.use === id || e.def === id));
     const detail = document.getElementById("detail");
     detail.hidden = !id;
     detail.textContent = node ? this.info(node.n) : `#${id} is absent in this frame.`;
   }
 
-  assocs(show) { this.links.selectAll(".ASSOC").style("display", show ? null : "none"); }
+  assocs(show) { this.links.selectAll(".ASSOC").style("display", e => show || e.bind ? null : "none"); }
 
   mark() {
     const evt = this.evt;
