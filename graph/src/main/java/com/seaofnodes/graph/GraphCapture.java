@@ -138,7 +138,7 @@ public abstract class GraphCapture<N> extends GraphObserver<N> {
     private void emit(GraphSnapshot snap, int pos, GraphEvent evt) {
         if( _off ) return;
         // Assign steps on emission; attempts without progress do not consume frames.
-        snap = new GraphSnapshot(snap.ver(), _comp, _step++, snap.roots(), snap.scope(), snap.nodes());
+        snap = new GraphSnapshot(snap.ver(), _comp, _step++, snap.roots(), snap.scope(), snap.nodes(), snap.groups());
         try {
             _server.put(GraphJson.frame(snap, pos, evt));
         } catch( IOException e ) {

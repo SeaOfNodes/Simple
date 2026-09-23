@@ -236,9 +236,15 @@ public class TypeFunPtr extends TypeNil {
         return true;
     }
 
-    @Override public String str() { return "{"+printFIDX()+"}"; }
+    @Override public String str() {
+        if( this==BOT ) return "FunBot";
+        if( this==BOT.dual() ) return "FunTop";
+        return "{"+printFIDX()+"}";
+    }
 
     SB _print(SB sb, BitSet visit, boolean html ) {
+        if( this==BOT ) return sb.p("FunBot");
+        if( this==BOT.dual() ) return sb.p("FunTop");
         sb.p(x()).p("{ ");
         if( _sig!=null )
             for( Type t : _sig )

@@ -182,6 +182,8 @@ public class TypeStruct extends Type {
 
     @Override
     public SB print(SB sb) {
+        if( this==BOT ) return sb.p("StructBot");
+        if( this==TOP ) return sb.p("StructTop");
         sb.p(_name);
         if( _fields == null ) return sb; // Forward reference struct, just print the name
         if( isAry() ) return sb; // Skip printing generic array fields
@@ -190,9 +192,17 @@ public class TypeStruct extends Type {
             f._type.print(sb).p(f._final ? " " : " !").p(f._fname).p("; ");
         return sb.p("}");
     }
-    @Override public SB gprint( SB sb ) { return sb.p(_name); }
+    @Override public SB gprint( SB sb ) {
+        if( this==BOT ) return sb.p("StructBot");
+        if( this==TOP ) return sb.p("StructTop");
+        return sb.p(_name);
+    }
 
-    @Override public String str() { return _name; }
+    @Override public String str() {
+        if( this==BOT ) return "StructBot";
+        if( this==TOP ) return "StructTop";
+        return _name;
+    }
 
 
     public boolean isAry() { return _fields.length==2 && _fields[1]._fname.equals("[]"); }

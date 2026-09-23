@@ -2,7 +2,8 @@
 
 The browser application lives in `web/` and is shared by chapters 1–25.
 `web/index.html` contains the page and `web/viewer.js` manages playback.
-`web/layout.js` runs ELK layout in a browser worker; `web/render.js` draws SVG
+`web/groups.js` projects folded regions into display nodes; `web/layout.js`
+runs ELK layout in a browser worker; `web/render.js` draws SVG
 and handles selection, pan and zoom. Libraries live in `web/vendor/`, with one checked-in
 copy of each; chapters do not copy them during builds.
 
@@ -27,8 +28,21 @@ Then launch Java with `-Dsimple.graph.url=http://127.0.0.1:8000/index.html`.
 The compiler WebSocket still uses port 12345; run one viewer session at a time.
 
 The initial program compiles on connection. For another program, click **Compile**
-or press **Ctrl+Enter** (**Cmd+Enter** on macOS), then use the arrows to step
-through the captured frames. Keep `make view` running while using the tab.
+or press **Ctrl+Enter** (**Cmd+Enter** on macOS). Use the arrows to step through
+frames, the first/last buttons to jump to either end, or enter a frame number
+and press **Enter**. The slider scrubs through available frames; its arrow keys
+step and **Home/End** jump to either end. Keep `make view` running while using the tab.
+Frame numbers start at 1. Jumps lay out only their destination. When the slider
+moves during layout, the viewer finishes that calculation and then handles the
+latest request, skipping intermediate requests. Already visited layouts stay cached.
+
+Functions and loops have enclosing boxes. Click **−** in a box's upper-left
+corner to fold it into a thick-bordered node; click **+** to reopen it.
+**Unfold all** restores the complete graph. Folds persist while stepping forward
+or backward, including child folds inside a folded parent. Compiling a new
+program resets them. Crossing edges attach to the folded node; hover an edge
+for its original node IDs and input slot. Selection and peephole highlights
+follow hidden nodes onto their enclosing folded box.
 
 Scroll to zoom, drag to pan, and use **Fit** to show the whole
 graph again. Clicking a node shows its full label, type and input slots, and
@@ -108,7 +122,8 @@ The JSON frame has this shape:
     "ver": 1, "comp": "compilation UUID", "step": 0, "roots": [1], "scope": 0,
     "nodes": [
       {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null}
-    ]
+    ],
+    "groups": []
   },
   "pos": -1,
   "evt": {
@@ -132,6 +147,8 @@ The browser caches the parsed objects in `frames`. It computes geometry on the
 first visit to a frame and keeps it in `frames[i].layout`; revisiting a frame
 uses exactly that geometry. Viewport changes do not rerun layout. Nodes and
 edges have stable SVG IDs within a compilation. There is no animation yet.
+Each frame also caches its most recent folded layout, keyed by the folded
+header IDs; changing folds recomputes that view without changing the snapshot.
 One `+` acknowledges the whole frame. The shared writer sends UTF-8 bytes
 and supports WebSocket's 64-bit length header for frames larger than 65535 bytes.
 
@@ -153,8 +170,19 @@ definition ID. Value inputs stay along the top.
 Each Region (including a loop header) and its Phis form one layout row, with
 the Region on the left. Their boxes, ports, selections and node IDs stay separate.
 This also keeps a newly created Phi on its Region's row while the parser holds it.
-Stops occupy the bottom row, beside the Parser box when it is present, even
-before return edges attach. Chapter adapters identify Stops with `Kind.STOP`.
+Stops occupy the bottom of the graph, beside the Parser box when it is present,
+even before return edges attach. StopCUs share a row above their outer Stop;
+StartCUs sit below Start, connected by their real control inputs. Chapter adapters
+identify Stops with `Kind.STOP`.
+Stops and chapter 25's Start/StartCU nodes use compact single-line boxes; their
+full types remain in the tooltip and selection details. Start-to-Stop SCCP
+feedback edges remain in the snapshot/details but have no drawn edge or port.
+Chapter 25 omits its cached zero and XCtrl nodes when only keep references hold
+them alive. Actual graph uses, including Scope bindings, make them visible.
+Type printers use short names for common extrema, including `MemBot`/`MemTop`,
+`StructBot`/`StructTop`, `PtrBot`/`PtrTop` and `FunBot`/`FunTop`. These aliases
+apply only to the exact types; more precise aliases, fields and escape sets
+still print normally. Integer and float types retain their existing short names.
 
 Scopes have named slots across the top, including control, memory and variable
 bindings. Edges leave these slots upward toward their definitions. They stay visible
@@ -171,21 +199,55 @@ and get an arrow to their own cell. These marks disappear when real uses attach
 or parsing finishes; they do not add nodes or edges to the compiler graph.
 This identifies unconsumed values from the snapshot, not Java stack references.
 
-This first layout is flat. It does not discover compiler loops, compute RPO,
-or build a SESE hierarchy. ELK breaks cycles for drawing, which can still put
-whole-program cycles in an awkward order. Compiler-provided grouping and CFG
-ordering are follow-up work, along with preserving positions across rewrites.
+Function and loop membership comes from the compiler process; ELK lays out
+the supplied hierarchy. This does not yet compute RPO or a full SESE hierarchy,
+and placement can still shift substantially between rewrites.
 Each visited frame currently retains a full snapshot and layout; bounded
 history, checkpoints and deltas are also follow-up work.
 
 Pending graph work:
 
-- Improve CFG placement with compiler-provided RPO and nested regions for
-  compilation units, functions and loops.
+- Refine CFG placement with compiler-provided RPO, compilation-unit containers,
+  and fuller membership for unfinished loops and paths leaving loops.
 - Preserve positions across peepholes, then animate edits and zoom into the
   peep neighborhood before returning to the whole graph.
 - For large compilations, add checkpoints and forward deltas with a bounded
   cache of recent backward steps.
+
+### Function and loop grouping
+
+Shared Java `GraphGroups` computes display ownership from detached snapshots.
+The snapshot's `groups` array contains `{id, par, nodes}`: the header ID, parent
+group ID (zero outside), and directly owned node IDs. A node has one display
+home. Functions contain their CFG; natural loops nest inside functions and
+other loops. Pinned values follow their control, floating values follow the
+common enclosing group of their uses, and constants can remain outside.
+Phi inputs belong to their incoming CFG paths when assigning floating values.
+Scopes and Stops remain outside containers for their existing placement rules.
+
+Loop membership walks backward from the backedge to the header. Before that
+backedge is attached, only the header and values anchored there belong to the
+loop. Paths that leave via break/return can remain in the enclosing group.
+This is conservative display grouping, not a SESE analysis or the compiler's
+loop tree. Capture never invokes the compiler loop-tree pass, which can mutate
+the graph by adding exits for infinite loops. No chapter-specific grouping
+hooks or compiler edits are needed.
+
+Expanded groups are ELK compound layout containers with a visible border and
+a fold button. Sibling functions/loops occupy disjoint boxes; nested loops
+remain inside their parent. The hierarchy constrains layout and edge routing.
+
+Browser-side folding replaces the group's visible contents with one thick-bordered box,
+its label, a hidden-node count and an unfold button. It hides internal edges and
+redirects each crossing edge to the folded box, retaining its original node IDs
+and use-slot index for details and selection. Crossing edges retain distinct
+input ports; uses of the same hidden definition share its output port. This is a browser view of the
+snapshot, not a compiler graph rewrite.
+
+Fold state persists by header ID across frames and backward playback,
+including remembered child folds when a parent is unfolded. A folded group
+containing a selected node or an active peephole carries that highlight.
+Recompiling resets fold state along with frame history.
 
 ELK runs locally from the pinned elkjs 0.12.0 worker; see
 [`web/vendor/elk-README.md`](web/vendor/elk-README.md) for provenance and licensing.
@@ -202,7 +264,7 @@ The shared Java code is in `src/main/java/com/seaofnodes/graph/`:
 - `GraphAdapter<N>` is an abstract base with hooks for `id`, `desc`, and indexed
   edge access (`nIns`/`in`, `nOuts`/`out`). Its final `snap` method walks definitions and
   uses iteratively, handles cycles, and sorts the copied records by ID.
-- `GraphSnapshot` is detached data: compilation key, step, roots, active scope, and nodes.
+- `GraphSnapshot` is detached data: compilation key, step, roots, active scope, nodes and groups.
   Each node has an ID, plain-text label/type, kind, edges to its defs, and optional
   projection metadata. It contains no chapter classes or layout coordinates.
   Node and edge lists are concrete `ArrayList`s, treated as read-only after capture.
@@ -253,10 +315,10 @@ has `par == 0`; real node IDs are never zero.
 
 Chapter 4 adds control/data roles and scope binding names. Chapter 25 adds
 memory roles and node kinds for Phis, Regions, Loops,
-Functions and compilation-unit boundaries. These are existing IR facts, not
-computed region membership or a SESE hierarchy. Scope bindings and constant
+Functions and compilation-unit boundaries. Shared grouping uses these existing
+IR facts to compute display membership. Scope bindings and constant
 lifetime edges are associations, so they need not constrain CFG layout.
-Types may be absent on newly constructed nodes. Source locations, grouping,
+Types may be absent on newly constructed nodes. Node source locations
 and delta encoding remain follow-up work. All chapters use the observer events
 described below.
 

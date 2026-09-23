@@ -72,6 +72,17 @@ public class GraphJson {
                    .append(",\"idx\":").append(proj.idx()).append('}');
             sb.append('}');
         }
+        sb.append("],\"groups\":[");
+        for( int i=0; i<snap.groups().size(); i++ ) {
+            if( i>0 ) sb.append(',');
+            var g = snap.groups().get(i);
+            sb.append("{\"id\":").append(g.id()).append(",\"par\":").append(g.par()).append(",\"nodes\":[");
+            for( int j=0; j<g.nodes().length; j++ ) {
+                if( j>0 ) sb.append(',');
+                sb.append(g.nodes()[j]);
+            }
+            sb.append("]}");
+        }
         sb.append("]}");
     }
 

@@ -87,19 +87,22 @@ public class TypeMemPtr extends TypeNil {
     }
 
     @Override public String str() {
+        if( this==BOT ) return "PtrBot";
+        if( this==TOP ) return "PtrTop";
         if( this== NOTBOT) return "*void";
-        if( this==    BOT) return "*void?";
         return x()+"*"+_obj.str()+q();
     }
 
     @Override public SB print(SB sb) {
+        if( this==BOT ) return sb.p("PtrBot");
+        if( this==TOP ) return sb.p("PtrTop");
         if( this== NOTBOT) return sb.p("*void");
-        if( this==    BOT) return sb.p("*void?");
         return _obj.print(sb.p(x()).p("*")).p(q());
     }
     @Override public SB gprint(SB sb) {
+        if( this==BOT ) return sb.p("PtrBot");
+        if( this==TOP ) return sb.p("PtrTop");
         if( this== NOTBOT) return sb.p("*void");
-        if( this==    BOT) return sb.p("*void?");
         return _obj.gprint(sb.p(x()).p("*")).p(q());
     }
 }

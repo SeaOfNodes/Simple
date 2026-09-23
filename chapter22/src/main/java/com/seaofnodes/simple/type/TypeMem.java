@@ -61,11 +61,15 @@ public class TypeMem extends Type {
     }
 
     @Override public SB print(SB sb) {
+        if( this==BOT ) return sb.p("MemBot");
+        if( this==TOP ) return sb.p("MemTop");
         sb.p("#");
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
         return _t.print(sb.p(_alias).p(":"));
     }
     @Override public SB gprint(SB sb) {
+        if( this==BOT ) return sb.p("MemBot");
+        if( this==TOP ) return sb.p("MemTop");
         sb.p("#");
         if( _alias==0 ) return sb.p(_t._type==TTOP ? "TOP" : "BOT");
         return _t.gprint(sb.p(_alias).p(":"));

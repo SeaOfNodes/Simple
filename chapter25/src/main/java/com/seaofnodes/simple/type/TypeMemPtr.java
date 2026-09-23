@@ -150,14 +150,16 @@ public class TypeMemPtr extends TypeNil {
     }
 
     @Override public String str() {
+        if( this==BOT ) return "PtrBot";
+        if( this==TOP ) return "PtrTop";
         if( this== NOTBOT) return "*void";
-        if( this==    BOT) return "*void?";
         return x()+"*"+(_obj==null?"---":_obj.str())+q();
     }
 
     @Override SB _print(SB sb, BitSet visit, boolean html ) {
+        if( this==BOT ) return sb.p("PtrBot");
+        if( this==TOP ) return sb.p("PtrTop");
         if( this== NOTBOT) return sb.p("*void");
-        if( this==    BOT) return sb.p("*void?");
         return _obj.print(sb.p(x()).p("*"),visit,html).p(q());
     }
 }

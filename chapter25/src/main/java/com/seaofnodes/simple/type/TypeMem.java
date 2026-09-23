@@ -200,6 +200,8 @@ public class TypeMem extends Type {
     }
 
     @Override public SB _print(SB sb, BitSet visit, boolean html) {
+        if( this==BOT ) return sb.p("MemBot");
+        if( this==TOP ) return sb.p("MemTop");
         sb.p('#');
         if( !_final ) sb.p('!'); // Mutable memory
         if( _one ) sb.p(_clz ? 'z' : '-');
@@ -211,6 +213,8 @@ public class TypeMem extends Type {
     }
 
     @Override public String str() {
+        if( this==BOT ) return "MemBot";
+        if( this==TOP ) return "MemTop";
         SB sb = new SB().p('#');
         if( !_final ) sb.p('!'); // Mutable memory
         if( _one ) sb.p(_clz ? 'z' : '-');

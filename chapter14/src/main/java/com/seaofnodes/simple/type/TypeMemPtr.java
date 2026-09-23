@@ -69,12 +69,16 @@ public class TypeMemPtr extends Type {
     // [void,name,MANY]*[,?]
     @Override
     public StringBuilder print(StringBuilder sb) {
+        if( this==BOT ) return sb.append("PtrBot");
+        if( this==TOP ) return sb.append("PtrTop");
         if( this== NULLPTR) return sb.append("null");
         if( this== VOIDPTR) return sb.append("*void");
         return _obj.print(sb.append("*")).append(_nil ? "?" : "");
     }
 
     @Override public String str() {
+        if( this==BOT ) return "PtrBot";
+        if( this==TOP ) return "PtrTop";
         if( this== NULLPTR) return "null";
         if( this== VOIDPTR) return "*void";
         return "*"+_obj.str()+(_nil ? "?" : "");

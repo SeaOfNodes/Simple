@@ -3,6 +3,7 @@ package com.seaofnodes.simple.print;
 import com.seaofnodes.graph.GraphAdapter;
 import com.seaofnodes.graph.GraphSnapshot;
 import com.seaofnodes.graph.GraphSnapshot.*;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
@@ -18,6 +19,13 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     @Override protected Node in(Node n, int idx) { return n.in(idx); }
     @Override protected int nOuts(Node n) { return n.nOuts(); }
     @Override protected Node out(Node n, int idx) { return n.out(idx); }
+
+    @Override protected boolean show(Node n) {
+        if( n != CodeGen.CODE.ZERO && n != CodeGen.CODE.XCTRL ) return true;
+        for( int i=0; i<n.nOuts(); i++ )
+            if( n.out(i) != null ) return true;
+        return false; // The parser's keep is not a graph use.
+    }
 
     private ArrayList<Edge> edges(Node n) {
         var edges = new ArrayList<Edge>();
@@ -43,7 +51,7 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
         if( n instanceof StartCUNode ) return Kind.UNIT;
         if( n instanceof FunNode ) return Kind.FUN;
         // Start inherits Loop for whole-program analysis, but is not a source loop.
-        if( n instanceof StartNode ) return Kind.CTRL;
+        if( n instanceof StartNode ) return Kind.START;
         if( n instanceof LoopNode ) return Kind.LOOP;
         if( n instanceof RegionNode ) return Kind.REGION;
         if( n instanceof PhiNode ) return Kind.PHI;
@@ -59,6 +67,8 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
             return i == 0 ? Role.ASSOC : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof Proj )
             return n instanceof CFGNode ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
+        // StartCU inherits Region, but slot 0 really connects it to Start.
+        if( n instanceof StartCUNode && i == 0 ) return Role.CTRL;
         if( n instanceof RegionNode && i == 0 ) return Role.ASSOC;
         // Preserve known slot roles even when an input is not attached/typed yet.
         if( i == 0 || n instanceof RegionNode || n instanceof StopNode ) return Role.CTRL;

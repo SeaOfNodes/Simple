@@ -108,6 +108,8 @@ public class TypeStruct extends Type {
 
     @Override
     public StringBuilder print(StringBuilder sb) {
+        if( this==BOT ) return sb.append("StructBot");
+        if( this==TOP ) return sb.append("StructTop");
         sb.append(_name).append(" {\n");
         for( Field f : _fields ) {
             sb.append("  ").append(f._fname).append(":");
@@ -117,5 +119,9 @@ public class TypeStruct extends Type {
         return sb.append("}");
     }
 
-    @Override public String str() { return _name; }
+    @Override public String str() {
+        if( this==BOT ) return "StructBot";
+        if( this==TOP ) return "StructTop";
+        return _name;
+    }
 }

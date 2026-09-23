@@ -59,6 +59,8 @@ public class TypeMem extends Type {
 
     @Override
     public StringBuilder print(StringBuilder sb) {
+        if( this==BOT ) return sb.append("MemBot");
+        if( this==TOP ) return sb.append("MemTop");
         sb.append("MEM#");
         if( _alias== 0 ) return sb.append("TOP");
         if( _alias==-1 ) return sb.append("BOT");

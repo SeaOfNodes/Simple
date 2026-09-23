@@ -18,6 +18,8 @@ public abstract class GraphAdapter<N> {
     protected abstract N out(N node, int idx);
     protected abstract GraphSnapshot.Node desc(N node);
     protected abstract boolean dead(N node);
+    // Omit cached helpers with no graph uses; still walk through them.
+    protected boolean show(N node) { return true; }
     protected int nDeps(N node) { return 0; }
     protected N dep(N node, int idx) { throw new IndexOutOfBoundsException(idx); }
 
@@ -48,11 +50,11 @@ public abstract class GraphAdapter<N> {
         var rids = new int[roots.size()];
         int len = 0;
         for( N root : roots )
-            if( enq(root, seen, todo) ) rids[len++] = id(root);
+            if( enq(root, seen, todo) && show(root) ) rids[len++] = id(root);
         var nodes = new ArrayList<GraphSnapshot.Node>();
         while( !todo.isEmpty() ) {
             N node = todo.removeFirst();
-            nodes.add(desc(node));
+            if( show(node) ) nodes.add(desc(node));
             for( int i = 0; i < nIns(node); i++ ) enq(in(node, i), seen, todo);
             // Uses are a traversal shortcut, never the source of edge semantics.
             for( int i = 0; i < nOuts(node); i++ ) enq(out(node, i), seen, todo);
@@ -60,7 +62,7 @@ public abstract class GraphAdapter<N> {
         // Determinism without reordering the compiler's use lists.
         nodes.sort(Comparator.comparingInt(GraphSnapshot.Node::id));
         return new GraphSnapshot(GraphSnapshot.VER, comp, step,
-                                 Arrays.copyOf(rids, len), scope, nodes);
+                                 Arrays.copyOf(rids, len), scope, nodes, GraphGroups.build(nodes));
     }
 
     private boolean enq(N node, ArrayList<N> seen, ArrayDeque<N> todo) {

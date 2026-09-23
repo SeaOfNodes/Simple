@@ -1,6 +1,8 @@
 // Connection and playback state are independent of renderer initialization.
 const program = document.getElementById("program");
 const status = document.getElementById("status");
+const frameNo = document.getElementById("N");
+const scrub = document.getElementById("scrub");
 let socket;
 let renderer;
 let layout;
@@ -8,6 +10,9 @@ let rendererReady = false;
 let rendering = false;
 let frames = [];
 let current = -1;
+let wanted = -1;
+const folded = new Set();
+const foldKey = () => [...folded].sort((a,b) => a-b).join(",");
 let generation = 0;
 let done = false;
 let compiling = false;
@@ -20,15 +25,22 @@ function updateUI() {
     !rendererReady ? "Connected; initializing graph renderer..." :
     busy ? busy : compiling ? "Compiling... " + frames.length + " frames received" :
     done ? frames.length + " frames ready" : "Connected");
-  document.getElementById("N").textContent = current < 0 ? "0" : String(current + 1);
+  const at = wanted >= 0 ? wanted : current;
+  if (document.activeElement !== frameNo) frameNo.value = String(at + 1);
+  frameNo.max = scrub.max = String(Math.max(1, frames.length));
+  frameNo.disabled = scrub.disabled = !rendererReady || !frames.length;
+  scrub.value = String(Math.max(1, at + 1));
+  scrub.setAttribute("aria-valuetext", `Frame ${at + 1} of ${frames.length}`);
   document.getElementById("len").textContent = String(frames.length);
-  document.getElementById("doPrev").disabled = rendering || current <= 0;
-  document.getElementById("doNext").disabled =
-    !rendererReady || rendering || current + 1 >= frames.length;
+  document.getElementById("doFirst").disabled = document.getElementById("doPrev").disabled =
+    !rendererReady || at <= 0;
+  document.getElementById("doLast").disabled = document.getElementById("doNext").disabled =
+    !rendererReady || !frames.length || at + 1 >= frames.length;
   document.getElementById("compile").disabled =
     !socket || socket.readyState !== WebSocket.OPEN || compiling || rendering;
   document.getElementById("fit").disabled = rendering || current < 0;
   document.getElementById("save").disabled = rendering || !frames[current]?.snap;
+  document.getElementById("unfold").disabled = !folded.size;
   document.getElementById("assocs").disabled = !frames[current]?.snap;
   document.getElementById("near").disabled = !frames[current]?.evt;
   const evt = frames[current]?.evt;
@@ -47,6 +59,7 @@ function updateUI() {
 function reportError(error) {
   failure = "Viewer error: " + (error && error.message || error || "Graph rendering failed");
   rendering = false;
+  wanted = -1;
   busy = "";
   updateUI();
   console.error(error);
@@ -66,7 +79,9 @@ function get_program() {
   generation++;
   frames = [];
   current = -1;
+  wanted = -1;
   done = false;
+  folded.clear();
   compiling = true;
   failure = "";
   document.getElementById("detail").hidden = true;
@@ -75,17 +90,31 @@ function get_program() {
 }
 
 async function render(index) {
-  if (!rendererReady || rendering || index < 0 || index >= frames.length) return;
+  if (!rendererReady || index < 0 || index >= frames.length) return;
+  wanted = index;
+  if (rendering) { updateUI(); return; }
   const frameGeneration = generation;
   rendering = true;
-  const frame = frames[index];
-  busy = !frame.layout ? "Laying out frame " + (index + 1) + "..." : "Drawing...";
-  updateUI();
   try {
     if (!layout) layout = new GraphLayout();
-    if (!frame.layout) frame.layout = await layout.run(frame.snap, frame.evt);
-    if (generation === frameGeneration) {
-      renderer.show(frame.snap, frame.layout, frame.evt);
+    while (wanted >= 0 && generation === frameGeneration) {
+      index = wanted;
+      const frame = frames[index];
+      const key = foldKey();
+      let scene = key ? (frame.foldKey === key ? frame.foldLayout : null) : frame.layout;
+      busy = !scene ? "Laying out frame " + (index + 1) + "..." : "Drawing...";
+      updateUI();
+      if (!scene) {
+        scene = await layout.run(frame.snap, frame.evt, new Set(folded));
+        // Keep the ordinary layout plus only the most recent folded variant.
+        if (key) { frame.foldKey = key; frame.foldLayout = scene; }
+        else frame.layout = scene;
+      }
+      if (generation !== frameGeneration) break;
+      // Scrubbing can change the destination while ELK works. Draw only the
+      // latest request, without computing all the intervening frames.
+      if (wanted !== index || foldKey() !== key) continue;
+      renderer.show(frame.snap, scene, frame.evt);
       if (frame.pos >= 0) {
         // A newline or EOF has no visible character to highlight. Show the last
         // parsed character there, rather than losing the position indicator.
@@ -93,20 +122,34 @@ async function render(index) {
         while (pos > 0 && (!program.value[pos] || /\s/.test(program.value[pos]))) pos--;
         program.setSelectionRange(pos, pos + 1);
         // Focus after selecting, so the browser brings the new position into view.
-        program.focus({preventScroll: true});
+        if (document.activeElement !== frameNo && document.activeElement !== scrub)
+          program.focus({preventScroll: true});
       }
+      current = index;
+      wanted = -1;
     }
     rendering = false;
     busy = "";
-    if (generation === frameGeneration) current = index;
     updateUI();
   } catch (error) {
     reportError(error);
   }
 }
 
-function doNext() { render(current + 1); }
-function doPrev() { render(current - 1); }
+function doFirst() { render(0); }
+function toggleFold(id) {
+  if (folded.has(id)) folded.delete(id); else folded.add(id);
+  render(wanted >= 0 ? wanted : current);
+}
+function doLast() { render(frames.length - 1); }
+function doNext() { render((wanted >= 0 ? wanted : current) + 1); }
+function doPrev() { render((wanted >= 0 ? wanted : current) - 1); }
+function jump() {
+  const n = frameNo.valueAsNumber;
+  const index = Number.isFinite(n) ? Math.max(0, Math.min(frames.length - 1, Math.trunc(n) - 1)) : current;
+  frameNo.value = String(index + 1);
+  render(index);
+}
 function doExit() {
   if (socket && socket.readyState === WebSocket.OPEN) socket.send("null");
 }
@@ -119,6 +162,14 @@ program.addEventListener("keydown", event => {
   }
 });
 document.getElementById("compile").addEventListener("click", get_program);
+document.getElementById("unfold").addEventListener("click", () => {
+  folded.clear(); render(wanted >= 0 ? wanted : current);
+});
+frameNo.addEventListener("change", jump);
+frameNo.addEventListener("keydown", event => {
+  if (event.key === "Enter") { event.preventDefault(); jump(); }
+});
+scrub.addEventListener("input", () => render(scrub.valueAsNumber - 1));
 document.getElementById("fit").addEventListener("click", () => {
   renderer.auto = true;
   renderer.fit();
@@ -132,6 +183,7 @@ document.addEventListener("keydown", event => {
 
 try {
   renderer = new GraphView(document.getElementById("elk"));
+  renderer.onFold = toggleFold;
   rendererReady = true;
   socket = new WebSocket("ws://" + (location.hostname || "127.0.0.1") + ":12345");
   socket.onopen = () => {

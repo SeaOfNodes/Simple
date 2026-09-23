@@ -4,18 +4,22 @@ import java.util.ArrayList;
 
 /** A detached graph. Lists are read-only; scope is the active parser scope ID, or zero. */
 public record GraphSnapshot(int ver, String comp, long step,
-                            int[] roots, int scope, ArrayList<Node> nodes) {
+                            int[] roots, int scope, ArrayList<Node> nodes, ArrayList<Group> groups) {
     public static final int VER = 1;
 
     public GraphSnapshot {
         roots = roots.clone();
         nodes = new ArrayList<>(nodes);
+        groups = new ArrayList<>(groups);
     }
 
     @Override public int[] roots() { return roots.clone(); }
 
-    public enum Kind { DATA, CTRL, MEM, SCOPE, PHI, REGION, LOOP, FUN, UNIT, STOP }
+    public enum Kind { DATA, CTRL, MEM, SCOPE, PHI, REGION, LOOP, FUN, UNIT, START, STOP }
     public enum Role { DATA, CTRL, MEM, ASSOC }
+
+    /** Header ID, enclosing group (zero outside), and directly owned node IDs. */
+    public record Group(int id, int par, int[] nodes) { }
 
     /** IDs are stable within one compilation. Labels and types are plain text. */
     public record Node(int id, String label, String type, Kind kind,

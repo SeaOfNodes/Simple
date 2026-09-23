@@ -78,12 +78,15 @@ public class TypeFunPtr extends TypeNil {
         return _sig == ptr._sig  && _ret == ptr._ret && _fidxs == ptr._fidxs && super.eq(ptr);
     }
 
-    @Override public String str() { return print(new SB()).toString(); }
+    @Override public String str() { return print(new SB()).toString();
+    }
     @Override public SB  print(SB sb) { return _print(sb,false,true); }
     public SB print(SB sb, boolean n) { return _print(sb,false,n); }
     @Override public SB gprint(SB sb) { return _print(sb,true ,true); }
     private static SB _print(SB sb, boolean g, Type t) { return g ? t.gprint(sb) : t.print(sb); }
     private SB _print(SB sb, boolean g, boolean n) {
+        if( this==BOT ) return sb.p("FunBot");
+        if( _nil==0 && _sig==TypeTuple.TOP && _ret==Type.TOP && _fidxs==0 ) return sb.p("FunTop");
         sb.p(x()).p("{ ");
         if( _sig._types!=null )
             for( Type t : _sig._types )

@@ -218,6 +218,7 @@ Unresolved reproductions have been promoted to the pending queue above.
 
 | Completed work | Scope and evidence retained |
 |---|---|
+| Short type extrema | Memory, struct and memory-pointer BOT/TOP names from 10; function-pointer names from 18. Exact types use shortcuts in ordinary, nested and HTML prints; precise types retain their details. Full Make suites in 10-20 and type/frontend suites in 21-25 passed; canonical/nested print checks passed in 10-25. |
 | Integer result types | Integer-op fallbacks in 4-13 and remaining unary cases through 17 retain integer types; 5's Phis meet their data-input types. Full Make suites in 4-17 passed, plus a chapter 5 snapshot check of Phi/Add types. Integer BOT starts in 4; later arithmetic already has typed fallbacks, with unresolved bimorphic modes preserved in 25. |
 | B14 cyclic leaf-kind equality | 23-24 backport; 25 already correct. Cyclic equality starts in 23. `TypeTest.testCyclicLeafKinds` fails before the fix; earlier interned-child equality already checks kinds. Full affected suites passed. |
 | B13 / #246 null guards | Nested Not/null guard discovery from 10; short-circuit Phi availability in 23-24. Regression and full suites in 10-25 passed. Separate null-dereference diagnostic remains queued. |

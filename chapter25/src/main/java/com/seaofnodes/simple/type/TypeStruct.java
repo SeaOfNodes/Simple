@@ -546,6 +546,8 @@ public class TypeStruct extends Type {
 
     @Override
     SB _print(SB sb, BitSet visit, boolean html ) {
+        if( this==BOT ) return sb.p("StructBot");
+        if( this==TOP ) return sb.p("StructTop");
         if( isFree() ) return sb.p("FREE:").p(_name);
         if( isAry() && field("[]")._t instanceof TypeConAry con )
             return sb.p(con.str());
@@ -564,7 +566,11 @@ public class TypeStruct extends Type {
         return sb.p("}");
     }
 
-    @Override public String str() { return (isFree() ? "FREE:":"")+_name; }
+    @Override public String str() {
+        if( this==BOT ) return "StructBot";
+        if( this==TOP ) return "StructTop";
+        return (isFree() ? "FREE:":"")+_name;
+    }
 
 
     public boolean isAry() { return find("[]")!=-1; }
