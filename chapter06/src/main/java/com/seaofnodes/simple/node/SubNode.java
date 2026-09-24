@@ -32,6 +32,25 @@ public class SubNode extends Node {
 
     @Override
     public Node idealize() {
+        Node lhs = in(1);
+        Node rhs = in(2);
+        Type t1 = lhs._type;
+        Type t2 = rhs._type;
+
+        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 )
+            return lhs;
+
+        if( t1.isConstant() && t1 instanceof TypeInteger i && i.value()==0 )
+            return new MinusNode(rhs);
+
+        // x - (-y) is x+y
+        if( rhs instanceof MinusNode minus )
+            return new AddNode(lhs,minus.in(1));
+
+        // (-x) - y is -(x+y)
+        if( lhs instanceof MinusNode minus )
+            return new MinusNode(new AddNode(minus.in(1),rhs).peephole());
+
         return null;
     }
 
