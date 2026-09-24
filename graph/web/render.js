@@ -18,16 +18,28 @@ class GraphView {
     this.world = this.svg.append("g");
     this.regions = this.world.append("g").attr("class", "regions");
     this.links = this.world.append("g").attr("class", "edges");
+    this.hits = this.world.append("g").attr("class", "edge-hits");
     this.parser = this.world.append("g").attr("class", "parser");
     this.nodes = this.world.append("g").attr("class", "nodes");
     // Titles/buttons stay above crossing edges, even with narrow group margins.
     this.heads = this.world.append("g").attr("class", "region-heads");
     this.shortcuts = this.world.append("g").attr("class", "shortcuts");
+    // Keep the same edge clickable under a stationary mouse during the pan,
+    // even while other nodes/edges pass underneath it.
+    this.hop = null;
+    this.spot = this.svg.append("circle").attr("class", "edge-jump").attr("r", 7).style("display", "none")
+      .on("click", event => { if (this.hop) this.edgeJump(event, this.hop.e, this.hop.path); });
     this.zoom = d3.zoom().scaleExtent([.02, 4]).on("zoom", event => {
-      if (event.sourceEvent) this.auto = false;
+      if (event.sourceEvent) { this.auto = false; this.clearJump(); }
       this.world.attr("transform", event.transform);
     });
-    this.svg.call(this.zoom).on("dblclick.zoom", null).on("click", () => this.select(0));
+    this.svg.call(this.zoom).on("dblclick.zoom", null)
+      .on("click", () => { this.clearJump(); this.select(0); })
+      .on("mousemove", event => {
+        if (!this.hop) return;
+        const [x,y] = d3.pointer(event, this.svg.node());
+        if (Math.hypot(x-this.hop.x, y-this.hop.y) > 10) this.clearJump();
+      }).on("mouseleave", () => this.clearJump());
     this.resize = new ResizeObserver(() => {
       this.svg.attr("width", host.clientWidth).attr("height", host.clientHeight);
       if (this.auto) this.fit();
@@ -36,6 +48,7 @@ class GraphView {
   }
 
   show(snap, scene, evt) {
+    this.clearJump();
     if (this.comp !== snap.comp) {
       this.comp = snap.comp;
       this.pick = 0;
@@ -59,7 +72,7 @@ class GraphView {
       return g;
     }).attr("transform", g => `translate(${g.x},${g.y})`);
     heads.select("text.label").each((g, i, items) => this.label(d3.select(items[i]),
-      (`#${g.gid} ${g.n.label}`).slice(0, Math.max(12, Math.floor((g.width-48)/7)))));
+      g.n.label.slice(0, Math.max(12, Math.floor((g.width-80)/7))) + ` #${g.gid}`));
     heads.select("title").text(g => `${g.n.label} · ${g.members.size} nodes`);
     heads.each((g, i, items) => this.foldButton(d3.select(items[i]), g.gid, false, 4, 4));
     this.links.selectAll("path.edge").data(scene.edges, e => e.id).join("path")
@@ -73,6 +86,13 @@ class GraphView {
             `Parser holds #${e.def}; no graph users yet`) :
             (e.bundle ? `${e.refs.length} edges bundled\n` : "") + e.refs.map(r =>
               `#${r.use}[${r.idx}] → #${r.def} · ${r.role}${r.label ? " · " + r.label : ""}`).join("\n"));
+      });
+    this.hits.selectAll("path").data(scene.edges, e => e.id).join("path")
+      .attr("class", e => "edge-hit " + e.role).attr("d", e => e.path)
+      .on("click", (event, e) => this.edgeJump(event, e, event.currentTarget))
+      .each((e, i, items) => {
+        d3.select(items[i]).selectAll("title").data([e]).join("title").text(
+          "Click to jump between use and def\n" + document.getElementById(e.id).querySelector("title").textContent);
       });
     this.parser.selectAll("g").data(scene.parser ? [scene.parser] : []).join(enter => {
       const g = enter.append("g");
@@ -97,7 +117,7 @@ class GraphView {
       .classed("held", n => !!n.held)
       .classed("folded", n => !!n.n.fold)
       .attr("transform", n => `translate(${n.x},${n.y})`)
-      .on("click", (event, n) => { event.stopPropagation(); this.select(n.n.id); });
+      .on("click", (event, n) => { event.stopPropagation(); this.clearJump(); this.select(n.n.id); });
     boxes.select("path.box").attr("d", n => this.shape(n))
       .attr("fill", n => ({CTRL: "#fff1c4", REGION: "#fff1c4", LOOP: "#ffe0ab", FUN: "#ffe0ab",
         UNIT: "#ffe0ab", START: "#fff1c4", STOP: "#fff1c4", MEM: "#dcecff", PHI: "#f5e4fa", SCOPE: "#e5e0ff", DATA: "#edf3f7"})[n.n.kind]);
@@ -149,7 +169,8 @@ class GraphView {
       .attr("marker-start", j => `url(#arrow-${j.role})`);
     jumps.select("rect").attr("x", j => j.x).attr("y", j => j.y)
       .attr("width", j => j.width).attr("height", j => j.height);
-    jumps.select("text").attr("x", j => j.x + 10).attr("y", j => j.y + 15).text(j => j.label);
+    jumps.select("text").attr("x", j => j.x + 10).attr("y", j => j.y + 15)
+      .each((j, i, items) => this.label(d3.select(items[i]), j.label));
     jumps.select("title").text(j => `Center function #${j.target}\n` +
       j.refs.map(r => `#${r.use}[${r.idx}] → #${r.def} · ${r.role}`).join("\n"));
     this.assocs(document.getElementById("assocs").checked);
@@ -159,9 +180,9 @@ class GraphView {
   }
 
   label(host, text) {
-    const split = text.indexOf(" ");
-    host.selectAll("tspan").data([text.slice(0, split), text.slice(split)]).join("tspan")
-      .attr("class", (_, i) => i ? null : "node-id").text(s => s);
+    const split = text.lastIndexOf(" #");
+    host.selectAll("tspan").data([text.slice(0, split), "\u00a0\u00a0" + text.slice(split + 1)]).join("tspan")
+      .attr("class", (_, i) => i ? "node-id" : null).text(s => s);
   }
 
   foldButton(host, id, folded, x, y) {
@@ -173,10 +194,10 @@ class GraphView {
       return g;
     }).attr("transform", `translate(${x},${y})`)
       .attr("aria-label", `${folded ? "Unfold" : "Fold"} region #${id}`)
-      .on("click", (event, id) => { event.stopPropagation(); this.onFold?.(id); })
+      .on("click", (event, id) => { event.stopPropagation(); this.clearJump(); this.onFold?.(id); })
       .on("keydown", (event, id) => {
         if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault(); event.stopPropagation(); this.onFold?.(id);
+          event.preventDefault(); event.stopPropagation(); this.clearJump(); this.onFold?.(id);
         }
       });
     btn.select("text").text(folded ? "+" : "−");
@@ -221,9 +242,47 @@ class GraphView {
     detail.textContent = node ? this.info(node) + (box && box !== id ? `\nInside folded region #${box}` : "") : `#${id} is absent in this frame.`;
   }
 
-  assocs(show) { this.links.selectAll(".ASSOC").style("display", e => show || e.bind ? null : "none"); }
+  assocs(show) {
+    this.clearJump();
+    for (const layer of [this.links, this.hits])
+      layer.selectAll(".ASSOC").style("display", e => show || e.bind ? null : "none");
+  }
+
+  clearJump() {
+    this.svg.interrupt("edge-pan");
+    this.hop = null;
+    this.spot.style("display", "none");
+  }
+
+  edgeJump(event, e, path) {
+    event.preventDefault(); event.stopPropagation();
+    this.svg.interrupt("edge-pan");
+    const [x,y] = d3.pointer(event, this.svg.node());
+    const now = d3.zoomTransform(this.svg.node()), len = path.getTotalLength();
+    if (!len) return;
+    const def = path.getPointAtLength(0), use = path.getPointAtLength(len);
+    const dist = p => Math.hypot(now.applyX(p.x)-x, now.applyY(p.y)-y);
+    const again = this.hop?.e.id === e.id && Math.hypot(x-this.hop.x, y-this.hop.y) <= 10;
+    const at = again ? (this.hop.at === "use" ? "def" : "use") :
+      dist(use) < 32 && dist(use) < dist(def) ? "def" : "use";
+    // Land on the edge just outside the node, keeping the mouse off its box.
+    const inset = Math.min(20 / now.k, len / 3);
+    const p = path.getPointAtLength(at === "def" ? inset : len-inset);
+    const next = d3.zoomIdentity.translate(x-p.x*now.k, y-p.y*now.k).scale(now.k);
+    this.auto = false;
+    this.hop = {e, path, at, x, y};
+    this.select(at === "use" ? e.use : e.def);
+    this.spot.attr("cx", x).attr("cy", y).style("display", null);
+    const ms = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 :
+      Math.min(450, 160 + 6*Math.sqrt(Math.hypot(next.x-now.x, next.y-now.y)));
+    const ix = d3.interpolateNumber(now.x,next.x), iy = d3.interpolateNumber(now.y,next.y);
+    this.svg.transition("edge-pan").duration(ms).ease(d3.easeCubicInOut)
+      .tween("pan", () => t => this.svg.call(this.zoom.transform,
+        d3.zoomIdentity.translate(ix(t),iy(t)).scale(now.k)));
+  }
 
   center(id) {
+    this.clearJump();
     const dst = this.scene.cover?.get(id) || id;
     const n = this.scene.nodes.find(n => n.n.id === dst);
     if (!n) return;
@@ -245,6 +304,7 @@ class GraphView {
   // Save the whole graph at its layout size, independent of pan/zoom.
   save(step) {
     const svg = this.svg.node().cloneNode(true);
+    svg.querySelectorAll(".edge-hit,.edge-jump").forEach(n => n.remove());
     svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     svg.setAttribute("width", this.scene.width);
     svg.setAttribute("height", this.scene.height);
@@ -270,6 +330,7 @@ class GraphView {
   }
 
   fit() {
+    this.clearJump();
     if (!this.scene || !this.host.clientWidth || !this.host.clientHeight) return;
     const w = this.host.clientWidth, h = this.host.clientHeight;
     const scale = Math.max(.02, Math.min(1.5, (w - 32) / this.scene.width, (h - 32) / this.scene.height));

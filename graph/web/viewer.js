@@ -178,7 +178,7 @@ document.getElementById("assocs").addEventListener("change", event => renderer.a
 document.getElementById("near").addEventListener("change", () => renderer.mark());
 document.getElementById("save").addEventListener("click", () => renderer.save(frames[current].snap.step));
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape") renderer.select(0);
+  if (event.key === "Escape") { renderer.clearJump(); renderer.select(0); }
 });
 
 try {

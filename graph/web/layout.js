@@ -23,7 +23,7 @@ class GraphLayout {
     // The whole-program SCCP cycle is not source control flow.
     const hidden = (n, e) => ["START", "UNIT"].includes(n.kind) && raw.get(e.def)?.kind === "STOP";
     const nodes = snap.nodes.map(n => {
-      const label = `#${n.id}${n.proj ? "/" + n.proj.idx : ""} ${this.clip(n.label)}`, type = this.clip(n.type);
+      const label = `${this.clip(n.label)} #${n.id}${n.proj ? "/" + n.proj.idx : ""}`, type = this.clip(n.type);
       const compact = ["START", "UNIT", "STOP"].includes(n.kind);
       let w = Math.ceil(Math.max(120, this.ctx.measureText(label).width + 24,
         this.ctx.measureText(type).width + 24, (n.edges.length + 1) * 18));
@@ -98,7 +98,7 @@ class GraphLayout {
       // ELK to the remote function or Return and thus cannot order functions.
       const links = [];
       for (const p of parts) for (const e of p.n.edges) if (e.jump) {
-        const label = `↗ #${e.jump} ${this.clip(view.raw.get(e.jump).label)}`;
+        const label = `↗ ${this.clip(view.raw.get(e.jump).label)} #${e.jump}`;
         links.push({id: `j${p.n.id}f${e.jump}`, box: n.id, use: p.n.id, target: e.jump,
           slot: e.idx, refs: e.refs, role: e.role, label,
           x: width + 24, y: links.length * 28, height: 22,
@@ -143,7 +143,7 @@ class GraphLayout {
       return {id: n.id, width: links.length ? width + 24 + Math.max(...links.map(j => j.width)) : width,
         height: Math.max(height, links.length * 28), ports, parts};
     });
-    const edges = [];
+    const edges = [], backs = new Map();
     for (const use of snap.nodes) {
       for (const e of use.edges) {
         if (!e.def || e.jump || hidden(use, e)) continue;
@@ -154,8 +154,11 @@ class GraphLayout {
         const reg = byId.get(use.edges[0]?.def)?.n;
         const back = !use.fold && e.idx === 2 && (use.kind === "LOOP" ||
           (use.kind === "PHI" && reg?.kind === "LOOP"));
+        const loop = back ? (use.kind === "LOOP" ? use.id : reg.id) : 0;
+        const wrap = loop && view.groups.has(loop) && !raw.get(loop).fold ? loop : 0;
+        if (wrap) backs.set(wrap, (backs.get(wrap) || 0) + 1);
         edges.push({id, use: use.id, def: e.def, idx: e.orig.idx, orig: e.orig, refs: e.refs, bundle, role: e.role, label: e.label,
-          bind: use.kind === "SCOPE",
+          bind: use.kind === "SCOPE", wrap,
           // Layout follows value/control flow downward. SVG arrows point back
           // from use to def, matching Simple's actual edge direction.
           sources: ["n" + e.def + "o" + (byId.get(e.def).n.fold ? use.id : "")], targets: ["n" + use.id + "i" + e.idx],
@@ -175,7 +178,7 @@ class GraphLayout {
       "elk.randomSeed": 1
     };
     const containers = new Map(view.open.map(g => [g.id, {id: "g" + g.id, children: [],
-      layoutOptions: {...opts, "elk.padding": "[top=34,left=12,bottom=12,right=12]"}}]));
+      layoutOptions: {...opts, "elk.padding": `[top=${34 + (backs.get(g.id) || 0) * 8},left=12,bottom=12,right=${backs.has(g.id) ? 24 + backs.get(g.id) * 10 : 12}]`}}]));
     const children = [];
     const add = (par, box) => (containers.get(par)?.children || children).push(box);
     for (const g of view.open) add(g.par, containers.get(g.id));
@@ -316,6 +319,10 @@ class GraphLayout {
       for (const n of owned) edges.push({id: "parser-hold-" + n.n.id, scope: n.scope, active: n === active,
         use: 0, def: n.n.id, role: "PARSER", sources: [n.id + "o"], targets: ["parser-i" + n.n.id]});
     }
+    // Each expanded loop reserves a clear gutter on its right. Route the
+    // endpoint leads around node boxes, then join them along that gutter.
+    const obstacles = groups.filter(g => !g.parts[0].scope && !g.parts[0].stop).map(g => boxes.get(g.id));
+    const lanes = new Map();
     for (const e of edges) {
       if (e.role === "ASSOC" || e.role === "PARSER" || e.bind || byId.get(e.def).scope ||
           byId.get(e.use)?.stop || byId.get(e.def).stop) {
@@ -331,6 +338,22 @@ class GraphLayout {
           [s.startPoint, ...(s.bendPoints || []), s.endPoint]
             .map((p, i) => `${i ? "L" : "M"}${p.x + origin.x},${p.y + origin.y}`).join(" ")).join(" ");
       }
+      if (e.wrap) {
+        const box = boxes.get("g" + e.wrap), i = lanes.get(e.wrap) || 0;
+        lanes.set(e.wrap, i + 1);
+        const def = byId.get(e.def), use = byId.get(e.use);
+        const a = def.ports.find(p => p.id === e.sources[0]), b = use.ports.find(p => p.id === e.targets[0]);
+        const start = {x: def.x + a.x + 3, y: def.y + a.y + 3};
+        const end = {x: use.x + b.x + 3, y: use.y + b.y + 3};
+        const east = a.layoutOptions["elk.port.side"] === "EAST";
+        const from = {x: start.x + (east ? 10 : 0), y: start.y + (east ? 0 : 10)};
+        const to = {x: end.x, y: end.y - 12 - (backs.get(e.wrap) - i - 1) * 8};
+        const right = box.x + box.width - 12 - i * 10;
+        const head = this.toRight(from, right, obstacles), tail = this.toRight(to, right, obstacles);
+        const pts = [start, ...head, ...tail.reverse(), end];
+        e.path = pts.map((p, i) => `${i ? "L" : "M"}${p.x},${p.y}`).join(" ");
+        e.lane = right;
+      }
     }
     for (const j of jumps) {
       const box = boxes.get(j.box), use = byId.get(j.use);
@@ -343,5 +366,45 @@ class GraphLayout {
       groups: view.open.map(g => ({...g, ...boxes.get("g" + g.id), gid: g.id, n: view.raw.get(g.id)})),
       parser, scope: active?.n.id || 0, scopes: new Set(owned.filter(n => n.scope).map(n => n.n.id)),
       held: new Set(held.map(n => n.n.id))};
+  }
+
+  // An orthogonal lead to a right-side gutter. Search only the channels
+  // between boxes; this is routing geometry, not a second node layout.
+  toRight(start, right, boxes) {
+    const pad = 8;
+    const left = Math.min(start.x, right), end = Math.max(start.x, right);
+    const rects = boxes.map(b => ({l: b.x - pad, r: b.x + b.width + pad,
+      t: b.y - pad, b: b.y + b.height + pad})).filter(b => b.r > left && b.l < end);
+    const xs = [...new Set([start.x, right, ...rects.flatMap(b => [b.l, b.r])])]
+      .filter(x => x >= left && x <= end).sort((a,b) => a-b);
+    const ys = [...new Set([start.y, ...rects.flatMap(b => [b.t, b.b])])].sort((a,b) => a-b);
+    const w = xs.length, size = w * ys.length, first = ys.indexOf(start.y) * w + xs.indexOf(start.x);
+    const goal = xs.indexOf(right), dir = right >= start.x ? 1 : -1;
+    const prev = new Int32Array(size).fill(-1), todo = new Int32Array(size);
+    let read = 0, len = 1, last = -1;
+    todo[0] = first; prev[first] = first;
+    const clear = (x, y, u, v) => !rects.some(b => x === u ?
+      x > b.l && x < b.r && Math.max(y,v) > b.t && Math.min(y,v) < b.b :
+      y > b.t && y < b.b && Math.max(x,u) > b.l && Math.min(x,u) < b.r);
+    while (read < len) {
+      const at = todo[read++], x = at % w, y = Math.floor(at / w);
+      if (x === goal) { last = at; break; }
+      for (const [u,v] of [[x+dir,y], [x,y-1], [x,y+1]]) {
+        if (u < 0 || u >= w || v < 0 || v >= ys.length) continue;
+        const next = v*w+u;
+        if (prev[next] !== -1 || !clear(xs[x],ys[y],xs[u],ys[v])) continue;
+        prev[next] = at; todo[len++] = next;
+      }
+    }
+    // A transient overlapping box during parsing can close all channels.
+    if (last === -1) return [start, {x: right, y: start.y}];
+    const pts = [];
+    for (let at = last;; at = prev[at]) {
+      pts.push({x: xs[at % w], y: ys[Math.floor(at / w)]});
+      if (at === first) break;
+    }
+    pts.reverse();
+    return pts.filter((p,i) => !i || i === pts.length-1 ||
+      !((pts[i-1].x === p.x && p.x === pts[i+1].x) || (pts[i-1].y === p.y && p.y === pts[i+1].y)));
   }
 }

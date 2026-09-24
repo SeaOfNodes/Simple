@@ -52,6 +52,12 @@ graph again. Clicking a node shows its full label, type and input slots, and
 highlights its edges. Selection follows that node's ID across frames; Escape
 clears it. **Associations** shows scope bindings and lifetime edges, which are
 hidden by default. Input slots retain their indices, including null slots.
+Click the middle of an edge to pan to its use; click near the use to jump to
+the def. Repeated clicks without moving the mouse alternate between the two.
+The edge lands under the pointer just outside the node, preserving zoom, with
+a short eased pan. Folded edges jump to the visible folded boxes. Moving the
+mouse away, panning, zooming, Escape, Fit, or changing frames cancels the jump.
+The pan is immediate when the browser requests reduced motion.
 **Peep neighborhood** outlines nearby nodes in amber, with a darker outline
 on the current node/replacement. The event label identifies the phase, rewrite,
 and enclosing rewrite when calls nest. This marks context; it does not zoom or
@@ -159,7 +165,10 @@ The browser owns frame history and backward/forward playback. It
 uses ELK's layered layout with fixed input ports and orthogonal routing.
 Layout follows def-to-use flow downward, while the displayed arrows point
 from use to def, matching Simple's edges. Control edges get a higher layout
-priority; known Loop/Phi backedges get a lower priority. Network-simplex node
+priority; known Loop/Phi backedges get a lower priority. Expanded loops reserve
+a right-side gutter for their control and Phi backedges, with separate tracks
+and leads routed around node boxes. Nested loops use their own gutters; folding
+a loop hides its internal backedges. Network-simplex node
 placement gives forward control edges a straightness priority of 100; other
 edges have zero straightness priority. Associations are drawn
 as a separate overlay and do not constrain layout. Each MultiNode and its
@@ -167,7 +176,7 @@ projections occupy one box: the parent above, projection cells below in index
 order. Each cell keeps its node ID, selection, highlights and edge connections;
 the internal parent/projection edge is represented by the shared box. A
 projection whose parent is absent is drawn on its own. Node kinds use color
-and shape rather than a KIND label. IDs share the name line; projections use
+and shape rather than a KIND label. Small IDs follow the name on the same line; projections use
 `#id/idx`. Ordinary nodes have two lines (name and type) in a 44-pixel box.
 
 Phi slot 0 uses a short left-facing arrow at the middle of the box's left side,

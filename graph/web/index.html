@@ -24,6 +24,8 @@
     .edge.selected { stroke-width:3.5; }
     .edge.bundle { stroke-width:4; }
     .edge.bundle.selected { stroke-width:6; }
+    .edge-hit { fill:none; stroke:transparent; stroke-width:12; vector-effect:non-scaling-stroke; pointer-events:stroke; cursor:pointer; }
+    .edge-jump { fill:transparent; pointer-events:all; cursor:pointer; }
     .node { cursor:pointer; }
     .box { stroke:#758191; stroke-width:1; }
     .node.held .box { stroke-dasharray:5 3; }
@@ -78,7 +80,7 @@
         <label><input id="assocs" type="checkbox"> Associations</label>
         <label><input id="near" type="checkbox" checked> Peep neighborhood</label>
         <span class="ctrl">Control</span><span class="data">Data</span><span class="mem">Memory</span>
-        <span class="hint">Scroll to zoom · drag to pan · click a node for details</span>
+        <span class="hint">Scroll to zoom · drag to pan · click a node for details · click an edge to jump between ends</span>
       </div>
       <div id="event" class="hint" role="status"></div>
     </div>
