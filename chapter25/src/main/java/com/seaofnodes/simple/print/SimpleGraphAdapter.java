@@ -32,7 +32,9 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
         for( int i = 0; i < n.nIns(); i++ ) {
             String name = n instanceof ScopeNode scope && i < scope._vars.size()
                 ? scope.var(i)._name : null;
-            edges.add(new Edge(i, ref(n.in(i)), role(n, i), name));
+            int jump = n instanceof CallEndNode && i>0 && n.in(i) instanceof ReturnNode ret
+                ? ref(ret.fun()) : 0;
+            edges.add(new Edge(i, ref(n.in(i)), role(n, i), name, jump));
         }
         return edges;
     }

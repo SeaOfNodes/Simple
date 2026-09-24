@@ -16,14 +16,14 @@ class GraphLayout {
     snap = view.snap;
     const raw = new Map(snap.nodes.map(n => [n.id, n]));
     const outs = new Map();
-    for (const n of snap.nodes) for (const e of n.edges) if (raw.get(e.def)?.fold) {
+    for (const n of snap.nodes) for (const e of n.edges) if (!e.jump && raw.get(e.def)?.fold) {
       if (!outs.has(e.def)) outs.set(e.def, new Set());
-      outs.get(e.def).add(e.orig.def);
+      outs.get(e.def).add(n.id);
     }
     // The whole-program SCCP cycle is not source control flow.
     const hidden = (n, e) => ["START", "UNIT"].includes(n.kind) && raw.get(e.def)?.kind === "STOP";
     const nodes = snap.nodes.map(n => {
-      const label = this.clip(n.label), type = this.clip(n.type);
+      const label = `#${n.id}${n.proj ? "/" + n.proj.idx : ""} ${this.clip(n.label)}`, type = this.clip(n.type);
       const compact = ["START", "UNIT", "STOP"].includes(n.kind);
       let w = Math.ceil(Math.max(120, this.ctx.measureText(label).width + 24,
         this.ctx.measureText(type).width + 24, (n.edges.length + 1) * 18));
@@ -32,13 +32,12 @@ class GraphLayout {
         this.ctx.measureText(e.label || "[" + e.idx + "]").width + 24))) : [];
       if (scope) w = Math.ceil(Math.max(120, this.ctx.measureText(label).width + 24,
         cols.reduce((sum, w) => sum + w, 0)));
-      if (compact) w = Math.ceil(Math.max(72, this.ctx.measureText(`#${n.id} ${label}`).width + 24,
+      if (compact) w = Math.ceil(Math.max(72, this.ctx.measureText(label).width + 24,
         (n.edges.filter(e => !hidden(n, e)).length + 1) * 18));
       if (n.fold) {
-        const slot = Math.max(18, ...n.edges.map(e => this.ctx.measureText(`${e.orig.use}:${e.orig.idx}`).width + 12));
-        w = Math.ceil(Math.max(200, w + 32, (n.edges.length + 1) * slot, ((outs.get(n.id)?.size || 0) + 1) * 18));
+        w = Math.ceil(Math.max(160, w + 32, ((outs.get(n.id)?.size || 0) + 1) * 18));
       }
-      return {id: "n" + n.id, width: w, height: compact ? 26 : 62,
+      return {id: "n" + n.id, width: w, height: compact ? 26 : scope ? 56 : 44,
         ports: [], n, label, type, scope, cols, compact, stop: n.kind === "STOP", ox: 0, oy: 0};
     });
     const byId = new Map(nodes.map(n => [n.n.id, n]));
@@ -72,6 +71,7 @@ class GraphLayout {
       phis.get(reg).push(n);
       n.reg = reg;
     }
+    const jumps = [];
     const groups = nodes.filter(n => !n.par && !n.reg).map(n => {
       const slots = (projs.get(n) || []).sort((a, b) => a.n.proj.idx - b.n.proj.idx || a.n.id - b.n.id);
       const parts = [n, ...slots];
@@ -94,6 +94,17 @@ class GraphLayout {
         width = p.ox + p.width;
         parts.push(p);
       }
+      // Shortcuts occupy a small local strip of this box. They never connect
+      // ELK to the remote function or Return and thus cannot order functions.
+      const links = [];
+      for (const p of parts) for (const e of p.n.edges) if (e.jump) {
+        const label = `↗ #${e.jump} ${this.clip(view.raw.get(e.jump).label)}`;
+        links.push({id: `j${p.n.id}f${e.jump}`, box: n.id, use: p.n.id, target: e.jump,
+          slot: e.idx, refs: e.refs, role: e.role, label,
+          x: width + 24, y: links.length * 28, height: 22,
+          width: Math.ceil(this.ctx.measureText(label).width + 20)});
+      }
+      jumps.push(...links);
       const ports = [];
       for (const p of parts) {
         p.cell = slots.length > 0 && !p.reg;
@@ -114,7 +125,8 @@ class GraphLayout {
             continue;
           }
           const off = p.n.kind === "PHI" ? 0 : 1;
-          ports.push({id: p.id + "i" + e.idx, x: p.ox + p.width * (e.idx + off) / (p.n.edges.length + off) - 3,
+          const slot = p.n.fold ? e.idx : e.refs.reduce((sum, r) => sum + r.idx, 0) / e.refs.length;
+          ports.push({id: p.id + "i" + e.idx, x: p.ox + p.width * (slot + off) / ((p.n.fold ? p.n.edges.length : p.n.slots) + off) - 3,
             y: p.oy - 3, width: 6, height: 6, layoutOptions: {"elk.port.side": "NORTH"}});
         }
         // Direct uses of the MultiNode attach to its header, projections below.
@@ -127,29 +139,34 @@ class GraphLayout {
           x: p.width * (i + 1) / (defs.length + 1) - 3, y: p.height - 3,
           width: 6, height: 6, layoutOptions: {"elk.port.side": "SOUTH"}});
       }
-      return {id: n.id, width, height: n.height + (slots.length ? Math.max(...slots.map(p => p.height)) : 0), ports, parts};
+      const height = n.height + (slots.length ? Math.max(...slots.map(p => p.height)) : 0);
+      return {id: n.id, width: links.length ? width + 24 + Math.max(...links.map(j => j.width)) : width,
+        height: Math.max(height, links.length * 28), ports, parts};
     });
     const edges = [];
     for (const use of snap.nodes) {
       for (const e of use.edges) {
-        if (!e.def || hidden(use, e)) continue;
+        if (!e.def || e.jump || hidden(use, e)) continue;
         if (byId.get(use.id).reg && e.idx === 0) continue;
         if (byId.get(use.id).par && e.idx === 0 && e.def === use.proj.par) continue;
-        const id = "e" + e.orig.use + "i" + e.orig.idx;
+        const bundle = e.refs.length > 1;
+        const id = bundle ? `b${use.id}d${e.def}` : "e" + e.orig.use + "i" + e.orig.idx;
         const reg = byId.get(use.edges[0]?.def)?.n;
         const back = !use.fold && e.idx === 2 && (use.kind === "LOOP" ||
           (use.kind === "PHI" && reg?.kind === "LOOP"));
-        edges.push({id, use: use.id, def: e.def, idx: e.orig.idx, orig: e.orig, role: e.role, label: e.label,
+        edges.push({id, use: use.id, def: e.def, idx: e.orig.idx, orig: e.orig, refs: e.refs, bundle, role: e.role, label: e.label,
           bind: use.kind === "SCOPE",
           // Layout follows value/control flow downward. SVG arrows point back
           // from use to def, matching Simple's actual edge direction.
-          sources: ["n" + e.def + "o" + (byId.get(e.def).n.fold ? e.orig.def : "")], targets: ["n" + use.id + "i" + e.idx],
-          layoutOptions: {"elk.layered.priority.direction": back ? 0 : e.role === "CTRL" ? 10 : 1}});
+          sources: ["n" + e.def + "o" + (byId.get(e.def).n.fold ? use.id : "")], targets: ["n" + use.id + "i" + e.idx],
+          layoutOptions: {"elk.layered.priority.direction": back ? 0 : e.role === "CTRL" ? 10 : 1,
+            "elk.layered.priority.straightness": !back && e.role === "CTRL" ? 100 : 0}});
       }
     }
     const opts = {
       "elk.algorithm": "layered", "elk.direction": "DOWN", "elk.edgeRouting": "ORTHOGONAL",
       "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+      "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
       "elk.spacing.nodeNode": 32, "elk.layered.spacing.nodeNodeBetweenLayers": 48,
       "elk.padding": "[top=24,left=24,bottom=24,right=24]",
       "elk.separateConnectedComponents": held.length === 0,
@@ -158,7 +175,7 @@ class GraphLayout {
       "elk.randomSeed": 1
     };
     const containers = new Map(view.open.map(g => [g.id, {id: "g" + g.id, children: [],
-      layoutOptions: {...opts, "elk.padding": "[top=58,left=28,bottom=28,right=28]"}}]));
+      layoutOptions: {...opts, "elk.padding": "[top=34,left=12,bottom=12,right=12]"}}]));
     const children = [];
     const add = (par, box) => (containers.get(par)?.children || children).push(box);
     for (const g of view.open) add(g.par, containers.get(g.id));
@@ -315,7 +332,14 @@ class GraphLayout {
             .map((p, i) => `${i ? "L" : "M"}${p.x + origin.x},${p.y + origin.y}`).join(" ")).join(" ");
       }
     }
-    return {width: graph.width, height: graph.height, nodes, edges, raw: view.raw, cover: view.cover,
+    for (const j of jumps) {
+      const box = boxes.get(j.box), use = byId.get(j.use);
+      j.x += box.x; j.y += box.y;
+      const p = use.ports.find(p => p.id === use.id + "i" + j.slot);
+      const x = use.x + p.x + 3, y = use.y + p.y + 3;
+      j.path = `M${j.x},${j.y + j.height / 2}H${j.x - 12}V${box.y - 18}H${x}V${y}`;
+    }
+    return {width: graph.width, height: graph.height, nodes, edges, jumps, raw: view.raw, cover: view.cover,
       groups: view.open.map(g => ({...g, ...boxes.get("g" + g.id), gid: g.id, n: view.raw.get(g.id)})),
       parser, scope: active?.n.id || 0, scopes: new Set(owned.filter(n => n.scope).map(n => n.n.id)),
       held: new Set(held.map(n => n.n.id))};

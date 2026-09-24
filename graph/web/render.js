@@ -20,6 +20,9 @@ class GraphView {
     this.links = this.world.append("g").attr("class", "edges");
     this.parser = this.world.append("g").attr("class", "parser");
     this.nodes = this.world.append("g").attr("class", "nodes");
+    // Titles/buttons stay above crossing edges, even with narrow group margins.
+    this.heads = this.world.append("g").attr("class", "region-heads");
+    this.shortcuts = this.world.append("g").attr("class", "shortcuts");
     this.zoom = d3.zoom().scaleExtent([.02, 4]).on("zoom", event => {
       if (event.sourceEvent) this.auto = false;
       this.world.attr("transform", event.transform);
@@ -45,24 +48,31 @@ class GraphView {
     const regions = this.regions.selectAll("g.region").data(scene.groups || [], g => g.gid).join(enter => {
       const g = enter.append("g").attr("class", "region");
       g.append("rect").attr("class", "region-box").attr("rx", 8);
-      g.append("text").attr("class", "label").attr("x", 34).attr("y", 22);
-      g.append("title");
       return g;
     }).attr("transform", g => `translate(${g.x},${g.y})`);
     regions.select("rect.region-box").attr("width", g => g.width).attr("height", g => g.height)
-      .attr("fill", g => g.n.kind === "LOOP" ? "#f1f6fc" : "#fff8ec");
-    regions.select("text.label").text(g => (`#${g.gid} ${g.n.label}`).slice(0, Math.max(12, Math.floor((g.width-48)/7))));
-    regions.select("title").text(g => `${g.n.label} · ${g.members.size} nodes`);
-    regions.each((g, i, items) => this.foldButton(d3.select(items[i]), g.gid, false, 8, 8));
+      .attr("fill", g => g.n.kind === "LOOP" ? "#f1f6fc" : g.n.kind === "FUN" ? "#fff8ec" : "#f2f7ef");
+    const heads = this.heads.selectAll("g.region-head").data(scene.groups || [], g => g.gid).join(enter => {
+      const g = enter.append("g").attr("class", "region-head");
+      g.append("text").attr("class", "label").attr("x", 26).attr("y", 17);
+      g.append("title");
+      return g;
+    }).attr("transform", g => `translate(${g.x},${g.y})`);
+    heads.select("text.label").each((g, i, items) => this.label(d3.select(items[i]),
+      (`#${g.gid} ${g.n.label}`).slice(0, Math.max(12, Math.floor((g.width-48)/7)))));
+    heads.select("title").text(g => `${g.n.label} · ${g.members.size} nodes`);
+    heads.each((g, i, items) => this.foldButton(d3.select(items[i]), g.gid, false, 4, 4));
     this.links.selectAll("path.edge").data(scene.edges, e => e.id).join("path")
       .attr("class", e => "edge " + e.role).attr("id", e => e.id)
-      .attr("d", e => e.path).attr("stroke", e => this.colors[e.role])
-      .attr("marker-start", e => "url(#arrow-" + e.role + ")")
+      .classed("bundle", e => e.bundle)
+      .attr("d", e => e.path).attr("stroke", e => this.colors[e.bundle && e.role === "ASSOC" ? "DATA" : e.role])
+      .attr("marker-start", e => "url(#arrow-" + (e.bundle && e.role === "ASSOC" ? "DATA" : e.role) + ")")
       .each(function(e) {
         d3.select(this).selectAll("title").data([e]).join("title")
           .text(e.role === "PARSER" ? (e.scope ? `Parser holds ${e.active ? "active" : "saved"} scope #${e.def}` :
             `Parser holds #${e.def}; no graph users yet`) :
-            `#${e.orig?.use ?? e.use}[${e.idx}] → #${e.orig?.def ?? e.def} · ${e.role}${e.label ? " · " + e.label : ""}`);
+            (e.bundle ? `${e.refs.length} edges bundled\n` : "") + e.refs.map(r =>
+              `#${r.use}[${r.idx}] → #${r.def} · ${r.role}${r.label ? " · " + r.label : ""}`).join("\n"));
       });
     this.parser.selectAll("g").data(scene.parser ? [scene.parser] : []).join(enter => {
       const g = enter.append("g");
@@ -78,9 +88,8 @@ class GraphView {
     const boxes = this.nodes.selectAll("g.node").data(scene.nodes, n => n.id).join(enter => {
       const g = enter.append("g").attr("class", "node");
       g.append("path").attr("class", "box");
-      g.append("text").attr("class", "head").attr("x", 8).attr("y", 15);
-      g.append("text").attr("class", "label").attr("text-anchor", "middle").attr("y", 33);
-      g.append("text").attr("class", "type").attr("text-anchor", "middle").attr("y", 51);
+      g.append("text").attr("class", "label").attr("text-anchor", "middle");
+      g.append("text").attr("class", "type").attr("text-anchor", "middle").attr("y", 35);
       g.append("title");
       return g;
     });
@@ -92,10 +101,9 @@ class GraphView {
     boxes.select("path.box").attr("d", n => this.shape(n))
       .attr("fill", n => ({CTRL: "#fff1c4", REGION: "#fff1c4", LOOP: "#ffe0ab", FUN: "#ffe0ab",
         UNIT: "#ffe0ab", START: "#fff1c4", STOP: "#fff1c4", MEM: "#dcecff", PHI: "#f5e4fa", SCOPE: "#e5e0ff", DATA: "#edf3f7"})[n.n.kind]);
-    boxes.select("text.head").attr("y", n => n.scope ? 47 : 15)
-      .text(n => n.compact ? "" : `#${n.n.id}${n.n.proj ? " · p" + n.n.proj.idx : ""}`);
-    boxes.select("text.label").attr("x", n => n.width / 2).attr("y", n => n.compact ? 17 : n.scope ? 51 : 33)
-      .text(n => n.compact ? `#${n.n.id} ${n.label}` : n.label);
+    boxes.select("text.label").attr("x", n => (n.width - (n.n.fold ? 24 : 0)) / 2)
+      .attr("y", n => n.compact ? 17 : n.scope ? 48 : 18)
+      .each((n, i, items) => this.label(d3.select(items[i]), n.label));
     boxes.select("text.type").attr("x", n => n.width / 2).text(n => n.scope || n.compact ? "" : n.type);
     boxes.select("title").text(n => this.info(n.n));
     boxes.each((n, i, groups) => {
@@ -121,12 +129,39 @@ class GraphView {
         });
       group.selectAll("text.slot").data(ports, p => p.id).join("text")
         .attr("class", "slot").attr("x", p => p.reg ? -10 : p.x + 3).attr("y", p => p.y - 4)
-        .attr("text-anchor", "middle").text(p => n.n.fold ? `${p.edge.orig.use}:${p.edge.orig.idx}` : p.edge.idx);
+        .attr("text-anchor", "middle").text(p => n.n.fold ? "" : p.edge.refs.map(r => r.idx).join(","));
     });
+    const jumps = this.shortcuts.selectAll("g.shortcut").data(scene.jumps || [], j => j.id).join(enter => {
+      const g = enter.append("g").attr("class", "shortcut").attr("role", "button").attr("tabindex", 0);
+      g.append("path");
+      g.append("rect").attr("rx", 4);
+      g.append("text");
+      g.append("title");
+      return g;
+    }).attr("aria-label", j => "Go to function " + j.label)
+      .on("click", (event, j) => { event.stopPropagation(); this.center(j.target); })
+      .on("keydown", (event, j) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault(); event.stopPropagation(); this.center(j.target);
+        }
+      });
+    jumps.select("path").attr("d", j => j.path).attr("stroke", j => this.colors[j.role])
+      .attr("marker-start", j => `url(#arrow-${j.role})`);
+    jumps.select("rect").attr("x", j => j.x).attr("y", j => j.y)
+      .attr("width", j => j.width).attr("height", j => j.height);
+    jumps.select("text").attr("x", j => j.x + 10).attr("y", j => j.y + 15).text(j => j.label);
+    jumps.select("title").text(j => `Center function #${j.target}\n` +
+      j.refs.map(r => `#${r.use}[${r.idx}] → #${r.def} · ${r.role}`).join("\n"));
     this.assocs(document.getElementById("assocs").checked);
     this.mark();
     this.select(this.pick);
     if (this.auto) this.fit();
+  }
+
+  label(host, text) {
+    const split = text.indexOf(" ");
+    host.selectAll("tspan").data([text.slice(0, split), text.slice(split)]).join("tspan")
+      .attr("class", (_, i) => i ? null : "node-id").text(s => s);
   }
 
   foldButton(host, id, folded, x, y) {
@@ -156,7 +191,7 @@ class GraphView {
     if (n.n.kind === "PHI") return `M12,0H${w - 12}L${w},${h / 2}L${w - 12},${h}H12L0,${h / 2}Z`;
     if (n.n.kind === "MEM" || n.n.kind === "FUN")
       return `M10,0H${w - 10}L${w},10V${h - 10}L${w - 10},${h}H10L0,${h - 10}V10Z`;
-    const r = n.n.kind === "LOOP" ? 24 : n.n.kind === "SCOPE" ? 4 : 14;
+    const r = n.n.kind === "LOOP" ? 20 : n.n.kind === "SCOPE" ? 4 : 14;
     return `M${r},0H${w - r}Q${w},0 ${w},${r}V${h - r}Q${w},${h} ${w - r},${h}` +
       `H${r}Q0,${h} 0,${h - r}V${r}Q0,0 ${r},0Z`;
   }
@@ -177,7 +212,9 @@ class GraphView {
     const node = this.scene?.raw?.get(id) || this.scene?.nodes.find(n => n.n.id === id)?.n;
     this.nodes.selectAll("g.node").classed("selected", n => n.n.id === (this.scene.cover?.get(id) || id));
     this.links.selectAll("path.edge").classed("selected", e => id !== 0 &&
-      ((e.orig?.use ?? e.use) === id || (e.orig?.def ?? e.def) === id || e.use === id || e.def === id));
+      (e.refs?.some(r => r.use === id || r.def === id) || e.use === id || e.def === id));
+    this.shortcuts.selectAll("g.shortcut").classed("selected", j => id !== 0 &&
+      (j.target === id || j.use === id || j.refs.some(r => r.use === id || r.def === id)));
     const detail = document.getElementById("detail");
     detail.hidden = !id;
     const box = this.scene?.cover?.get(id);
@@ -185,6 +222,15 @@ class GraphView {
   }
 
   assocs(show) { this.links.selectAll(".ASSOC").style("display", e => show || e.bind ? null : "none"); }
+
+  center(id) {
+    const dst = this.scene.cover?.get(id) || id;
+    const n = this.scene.nodes.find(n => n.n.id === dst);
+    if (!n) return;
+    this.auto = false;
+    this.select(id);
+    this.svg.call(this.zoom.translateTo, n.x + n.width / 2, n.y + n.height / 2);
+  }
 
   mark() {
     const evt = this.evt;

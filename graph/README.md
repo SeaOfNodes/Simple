@@ -36,12 +36,15 @@ Frame numbers start at 1. Jumps lay out only their destination. When the slider
 moves during layout, the viewer finishes that calculation and then handles the
 latest request, skipping intermediate requests. Already visited layouts stay cached.
 
-Functions and loops have enclosing boxes. Click **−** in a box's upper-left
+Functions, loops and closed If/Region diamonds have enclosing boxes. Click **−** in a box's upper-left
 corner to fold it into a thick-bordered node; click **+** to reopen it.
 **Unfold all** restores the complete graph. Folds persist while stepping forward
 or backward, including child folds inside a folded parent. Compiling a new
-program resets them. Crossing edges attach to the folded node; hover an edge
-for its original node IDs and input slot. Selection and peephole highlights
+program resets them. Edges between the same visible use/def pair bundle when
+either endpoint is folded. Bundles use thick lines: red if any member is control,
+otherwise blue if any is memory, otherwise the data color. Pure associations
+retain their dash pattern and visibility toggle. Hover for the original node IDs and input slots.
+Selection and peephole highlights
 follow hidden nodes onto their enclosing folded box.
 
 Scroll to zoom, drag to pan, and use **Fit** to show the whole
@@ -156,13 +159,16 @@ The browser owns frame history and backward/forward playback. It
 uses ELK's layered layout with fixed input ports and orthogonal routing.
 Layout follows def-to-use flow downward, while the displayed arrows point
 from use to def, matching Simple's edges. Control edges get a higher layout
-priority; known Loop/Phi backedges get a lower priority. Associations are drawn
+priority; known Loop/Phi backedges get a lower priority. Network-simplex node
+placement gives forward control edges a straightness priority of 100; other
+edges have zero straightness priority. Associations are drawn
 as a separate overlay and do not constrain layout. Each MultiNode and its
 projections occupy one box: the parent above, projection cells below in index
 order. Each cell keeps its node ID, selection, highlights and edge connections;
 the internal parent/projection edge is represented by the shared box. A
 projection whose parent is absent is drawn on its own. Node kinds use color
-and shape rather than a KIND label.
+and shape rather than a KIND label. IDs share the name line; projections use
+`#id/idx`. Ordinary nodes have two lines (name and type) in a 44-pixel box.
 
 Phi slot 0 uses a short left-facing arrow at the middle of the box's left side,
 instead of a full edge to its Region. The tooltip and node details retain the
@@ -199,50 +205,63 @@ and get an arrow to their own cell. These marks disappear when real uses attach
 or parsing finishes; they do not add nodes or edges to the compiler graph.
 This identifies unconsumed values from the snapshot, not Java stack references.
 
-Function and loop membership comes from the compiler process; ELK lays out
-the supplied hierarchy. This does not yet compute RPO or a full SESE hierarchy,
-and placement can still shift substantially between rewrites.
+Function, loop and diamond membership comes from the compiler process; ELK
+lays out the supplied hierarchy. RPO is not a pending layout requirement.
+Placement can still shift substantially between rewrites.
 Each visited frame currently retains a full snapshot and layout; bounded
 history, checkpoints and deltas are also follow-up work.
 
 Pending graph work:
 
-- Refine CFG placement with compiler-provided RPO, compilation-unit containers,
-  and fuller membership for unfinished loops and paths leaving loops.
+- Refine CFG placement with compilation-unit containers and fuller membership
+  for unfinished loops and paths leaving loops.
 - Preserve positions across peepholes, then animate edits and zoom into the
   peep neighborhood before returning to the whole graph.
 - For large compilations, add checkpoints and forward deltas with a bounded
   cache of recent backward steps.
 
-### Function and loop grouping
+### Function, loop and diamond grouping
 
 Shared Java `GraphGroups` computes display ownership from detached snapshots.
 The snapshot's `groups` array contains `{id, par, nodes}`: the header ID, parent
 group ID (zero outside), and directly owned node IDs. A node has one display
 home. Functions contain their CFG; natural loops nest inside functions and
-other loops. Pinned values follow their control, floating values follow the
-common enclosing group of their uses, and constants can remain outside.
-Phi inputs belong to their incoming CFG paths when assigning floating values.
+other loops. Closed If/Region diamonds form nested SESE groups. Pinned values
+follow their control; Phis stay with their Region. A floating node can join a
+group if all semantic inputs come from that group, or all semantic outputs go
+to it. Matching nominations keep it inside; sibling nominations leave it
+outside both, in a common enclosing group. Nested nominations keep it in the
+enclosing group: a function and its loop both nominate the function. Null slots and parser/lifetime
+associations do not nominate a group, and constants can remain outside.
+Ownership propagates through floating chains and is checked against the final
+neighbors. Phi uses refer to the Phi itself, not its incoming CFG path: a loop
+backedge value does not thereby belong to the diamond producing the backedge.
 Scopes and Stops remain outside containers for their existing placement rules.
 
 Loop membership walks backward from the backedge to the header. Before that
 backedge is attached, only the header and values anchored there belong to the
 loop. Paths that leave via break/return can remain in the enclosing group.
-This is conservative display grouping, not a SESE analysis or the compiler's
-loop tree. Capture never invokes the compiler loop-tree pass, which can mutate
+Diamond discovery checks both arms for a common Region, rejects extra CFG
+entries/exits and paths that cannot reach the join, and accepts only nested or
+disjoint groups. Unfinished diamonds have no box until their join closes.
+This is conservative display grouping, not the compiler's loop tree.
+Capture never invokes the compiler loop-tree pass, which can mutate
 the graph by adding exits for infinite loops. No chapter-specific grouping
 hooks or compiler edits are needed.
 
 Expanded groups are ELK compound layout containers with a visible border and
-a fold button. Sibling functions/loops occupy disjoint boxes; nested loops
-remain inside their parent. The hierarchy constrains layout and edge routing.
+a fold button. Sibling groups occupy disjoint boxes; nested groups remain inside
+their parent. Group padding is 12 pixels at the sides/bottom and 34 at the top
+for the heading and fold button. The hierarchy constrains layout and routing.
 
 Browser-side folding replaces the group's visible contents with one thick-bordered box,
 its label, a hidden-node count and an unfold button. It hides internal edges and
 redirects each crossing edge to the folded box, retaining its original node IDs
-and use-slot index for details and selection. Crossing edges retain distinct
-input ports; uses of the same hidden definition share its output port. This is a browser view of the
-snapshot, not a compiler graph rewrite.
+and use-slot index for details and selection. Bundles share a port and route;
+the tooltip retains every member, and selecting any member highlights the bundle.
+Expanded node slot labels list the merged input indices. Folded boxes omit slot
+labels. Unfolding restores separate edges and ports from the original snapshot.
+This is a browser view of the snapshot, not a compiler graph rewrite.
 
 Fold state persists by header ID across frames and backward playback,
 including remembered child folds when a parent is unfolded. A folded group
@@ -309,6 +328,14 @@ derives these edges from the compiler's `_inputs`; `_outputs` only speeds up
 traversal. Repeated definitions produce distinct edges with different slot
 indices. Each input slot has an `Edge` record, including holes with `def == 0`.
 Edges remain in input-slot order under their use node.
+CallEnd links to known callees additionally carry `jump`, the function entry ID.
+The real `def` remains the callee's Return. Chapters 18–25 supply this optional
+field; zero is omitted from JSON. The browser draws a small local shortcut
+beside CallEnd instead of routing that link across functions or giving it to
+ELK. Clicking the shortcut (or pressing Enter/Space with it focused) centers
+and selects the function at the current zoom, including a folded function.
+Folding the caller retains shortcuts for external callees. Node details still
+show the original input slots and Return IDs.
 Projection nodes retain their own IDs and identify their parent and tuple
 index, allowing the renderer to fold them into ports later. A missing parent
 has `par == 0`; real node IDs are never zero.

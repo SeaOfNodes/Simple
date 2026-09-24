@@ -63,6 +63,7 @@ public class GraphJson {
                 str(sb, edge.role().name());
                 sb.append(",\"label\":");
                 str(sb, edge.label());
+                if( edge.jump()!=0 ) sb.append(",\"jump\":").append(edge.jump());
                 sb.append('}');
             }
             sb.append("],\"proj\":");

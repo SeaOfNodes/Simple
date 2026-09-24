@@ -34,8 +34,12 @@ public record GraphSnapshot(int ver, String comp, long step,
      * idx is the input slot on that use: use.in(idx) == def.
      * Each slot has a record, including holes (def == 0).
      * label is an optional binding name, not markup.
+     * jump is a known function entry for a CallEnd link, or zero; def stays the
+     * actual Return. The browser can replace the drawn link with a shortcut.
      */
-    public record Edge(int idx, int def, Role role, String label) { }
+    public record Edge(int idx, int def, Role role, String label, int jump) {
+        public Edge(int idx, int def, Role role, String label) { this(idx,def,role,label,0); }
+    }
 
     /** Projections remain real nodes; par == 0 means no parent is attached. */
     public record Projection(int par, int idx) { }

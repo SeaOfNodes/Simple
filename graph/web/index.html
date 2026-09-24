@@ -22,6 +22,8 @@
     .edge.PARSER { stroke-dasharray:5 4; }
     .parser rect { fill:#f6f0ff; stroke:#7956a5; stroke-width:1.5; stroke-dasharray:5 4; }
     .edge.selected { stroke-width:3.5; }
+    .edge.bundle { stroke-width:4; }
+    .edge.bundle.selected { stroke-width:6; }
     .node { cursor:pointer; }
     .box { stroke:#758191; stroke-width:1; }
     .node.held .box { stroke-dasharray:5 3; }
@@ -34,8 +36,13 @@
     .fold-btn rect { fill:white; stroke:#596674; }
     .fold-btn text { font-size:14px; fill:#152330; }
     .fold-btn:focus rect { stroke:#1569b9; stroke-width:2; }
-    .head { font-size:10px; fill:#596674; }
+    .shortcut { cursor:pointer; }
+    .shortcut path { fill:none; stroke-width:1.5; }
+    .shortcut rect { fill:#fff8ec; stroke:#b63838; stroke-dasharray:3 2; }
+    .shortcut text { font-size:11px; fill:#783030; }
+    .shortcut.selected rect, .shortcut:focus rect { stroke-width:2.5; }
     .label { font-size:12px; fill:#152330; font-weight:600; }
+    .node-id { font-size:10px; fill:#596674; font-weight:400; }
     .type { font-size:11px; fill:#455768; }
     .port { stroke:#536477; stroke-width:1; }
     .row { stroke:#b6afcf; stroke-width:1; }
