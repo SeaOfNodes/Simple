@@ -11,6 +11,15 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter22Test {
+    @Test public void testSubZeroTypeError() {
+        try {
+            new CodeGen("return null-0;").parse().opto().typeCheck();
+            fail("Subtraction must reject null even when the other operand is zero");
+        } catch( Parser.ParseException e ) {
+            assertEquals("Cannot null - 0",e.getMessage());
+        }
+    }
+
 
     @Test
     public void testJig() throws IOException {

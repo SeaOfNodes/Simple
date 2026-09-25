@@ -52,6 +52,34 @@ public class Chapter04Test {
     }
 
     @Test
+    public void testSub0() {
+        CodeGen code = new CodeGen("return arg-0;");
+        code.parse();
+        assertEquals("return arg;", code.print());
+    }
+
+    @Test
+    public void test0Sub() {
+        CodeGen code = new CodeGen("return 0-arg;");
+        code.parse();
+        assertEquals("return (-arg);", code.print());
+    }
+
+    @Test
+    public void testSubNeg() {
+        CodeGen code = new CodeGen("return 3--arg;");
+        code.parse();
+        assertEquals("return (arg+3);", code.print());
+    }
+
+    @Test
+    public void testNegSub() {
+        CodeGen code = new CodeGen("return -arg-3;");
+        code.parse();
+        assertEquals("return (-(arg+3));", code.print());
+    }
+
+    @Test
     public void testVarArg() {
         CodeGen code = new CodeGen("return arg; ");
         code.parse();

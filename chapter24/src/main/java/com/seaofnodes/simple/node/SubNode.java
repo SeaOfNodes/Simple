@@ -27,13 +27,24 @@ public class SubNode extends ArithNode {
 
     @Override
     public Node idealize() {
+        Node lhs = in(1);
+        Node rhs = in(2);
+        Type t1 = lhs._type;
+        Type t2 = rhs._type;
+
+        // Keep invalid operands for type checking.
+        if( t1 instanceof TypeInteger x && t2 instanceof TypeInteger y ) {
+            if( y.isConstant() && y.value()==0 ) return lhs;
+            if( x.isConstant() && x.value()==0 ) return new MinusNode(rhs);
+        }
+
         // x - (-y) is x+y
-        if( in(2) instanceof MinusNode minus )
-            return new AddNode(in(1),minus.in(1));
+        if( rhs instanceof MinusNode minus )
+            return new AddNode(lhs,minus.in(1));
 
         // (-x) - y is -(x+y)
-        if( in(1) instanceof MinusNode minus )
-            return new MinusNode(new AddNode(minus.in(1),in(2)).peephole());
+        if( lhs instanceof MinusNode minus )
+            return new MinusNode(new AddNode(minus.in(1),rhs).peephole());
 
         return super.idealize();
     }

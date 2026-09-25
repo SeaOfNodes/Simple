@@ -305,6 +305,7 @@ Here is a list of peepholes introduced in this Chapter, more will be introduced 
 | Before                | After                 | Description                                    |
 |-----------------------|-----------------------|------------------------------------------------|
 | (arg + 0 )            |  arg                  | Add of zero identity                           |
+| (arg - 0 )            |  arg                  | Sub of zero identity                           |
 | (arg * 1 )            |  arg                  | Multiple of one identity                       |
 | (con + arg)           | (arg + con)           | Move constants to right, to encourage folding  |
 | (con * arg)           | (arg * con)           | Move constants to right, to encourage folding  |
@@ -312,6 +313,9 @@ Here is a list of peepholes introduced in this Chapter, more will be introduced 
 | ((arg1 + con) + arg2) | ((arg1 + arg2) + con) | Move constants to right, to encourage folding  |
 | (arg + arg)           | (arg * 2)             | Sum-of-products form                           |
 | (arg - arg)           | 0                     | Sub of same is 0
+| (0 - arg)             | (-arg)                | Sub from 0 is negation
+| (arg1 - (-arg2))      | (arg1 + arg2)         | Sub of negation is add
+| ((-arg1) - arg2)      | -(arg1 + arg2)        | Sub from negation is negation of sum
 | (con / 1)             | con                   | Division by one
 | (arg == arg)          | 1                     | Compare of same
 | (arg != arg)          | 0                     | Compare of same

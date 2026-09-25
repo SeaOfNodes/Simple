@@ -8,6 +8,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Chapter12Test {
+    @Test public void testSubZeroFloat() {
+        var code = new CodeGen("flt x = arg; return 0-x;").parse().opto().typeCheck();
+        // Compare strings so +0.0 and -0.0 remain distinct.
+        assertEquals("0.0", Eval2.eval(code,0));
+        assertEquals("-1.0", Eval2.eval(code,1));
+    }
+
     @Test public void testDeadNumericReturns() {
         for( String[] test : new String[][] {
             {"if(1) return 7; else return 2.5;", "7"},
