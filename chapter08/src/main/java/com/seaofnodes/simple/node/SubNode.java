@@ -39,11 +39,11 @@ public class SubNode extends Node {
         Type t1 = lhs._type;
         Type t2 = rhs._type;
 
-        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 )
-            return lhs;
-
-        if( t1.isConstant() && t1 instanceof TypeInteger i && i.value()==0 )
-            return new MinusNode(rhs);
+        // Keep invalid operands for type checking.
+        if( t1 instanceof TypeInteger x && t2 instanceof TypeInteger y ) {
+            if( y.isConstant() && y.value()==0 ) return lhs;
+            if( x.isConstant() && x.value()==0 ) return new MinusNode(rhs);
+        }
 
         // x - (-y) is x+y
         if( rhs instanceof MinusNode minus )
