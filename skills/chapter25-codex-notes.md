@@ -8,9 +8,17 @@ after the Chapter 25 squash.
 For cross-chapter work, read [the backport queue and validation record](../docs/chapter-backports.md).
 It owns pending reproductions and a condensed completion record; these notes
 capture reusable lessons. Detailed superseded validation history remains in Git.
+For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
 ## Collaboration preferences
 
+- Build with Make alone; Maven must never be required. Cliff prefers few tests:
+  avoid tests for every small viewer edit or rapidly changing display experiment.
+  Use focused existing tests and disposable probes when they answer a real risk.
+- Prefer concrete ArrayList to List, common base classes to unnecessary
+  interfaces, and short names (`pred`, `proj`, `def`, `use`). Avoid redundant
+  Objects.requireNonNull. Prefer int[]/AryInt to List<Integer>; avoid large boxed
+  ID collections (use arrays/BitSet or NBHML as appropriate). Node ID 0 means null.
 - Cliff often debugs the same failure in parallel. If asked to work in a side
   repository, update `tmp/` and do not edit the live files he is debugging.
 - Stop and discuss before changing a central lattice, constructor, memory, or
