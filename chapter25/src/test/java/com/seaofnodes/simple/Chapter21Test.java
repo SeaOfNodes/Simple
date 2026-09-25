@@ -591,7 +591,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
 """;
         String arg_count = "191.000000\n";
 
-        TestC.runC(src, "arg_count", arg_count, TestC.CALL_CONVENTION.equals("win64") ? 35 : 15);
+        TestC.runC(src, "arg_count", arg_count, TestC.CALL_CONVENTION.equals("win64") ? 35 : 9);
 
         EvalRisc5 R5 = TestRisc5.build( src, "addAll", 0, 4, false);
 
