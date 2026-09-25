@@ -8,9 +8,9 @@
         <artifactId>simple</artifactId>
         <version>1.0</version>
     </parent>
-    <artifactId>chapter23</artifactId>
+    <artifactId>chapter25</artifactId>
     <packaging>jar</packaging>
-    <name>Chapter 23</name>
+    <name>Chapter 25</name>
     <properties>
         <simple.graph.directory>${project.basedir}/../graph</simple.graph.directory>
     </properties>
