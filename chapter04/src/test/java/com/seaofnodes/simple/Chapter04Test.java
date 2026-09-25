@@ -51,6 +51,34 @@ public class Chapter04Test {
     }
 
     @Test
+    public void testSub0() {
+        Parser parser = new Parser("return arg-0;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return arg;", ret.print());
+    }
+
+    @Test
+    public void test0Sub() {
+        Parser parser = new Parser("return 0-arg;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return (-arg);", ret.print());
+    }
+
+    @Test
+    public void testSubNeg() {
+        Parser parser = new Parser("return 3--arg;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return (arg+3);", ret.print());
+    }
+
+    @Test
+    public void testNegSub() {
+        Parser parser = new Parser("return -arg-3;");
+        ReturnNode ret = parser.parse();
+        assertEquals("return (-(arg+3));", ret.print());
+    }
+
+    @Test
     public void testVarArg() {
         Parser parser = new Parser("return arg; ", TypeInteger.BOT);
         ReturnNode ret = parser.parse();
