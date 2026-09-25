@@ -21,9 +21,12 @@ public record GraphSnapshot(int ver, String comp, long step,
     /** Header ID, enclosing group (zero outside), and directly owned node IDs. */
     public record Group(int id, int par, int[] nodes) { }
 
-    /** IDs are stable within one compilation. Labels and types are plain text. */
+    /** IDs are stable; labels/types are plain text. folding means pending inline cleanup. */
     public record Node(int id, String label, String type, Kind kind,
-                       ArrayList<Edge> edges, Projection proj) {
+                       ArrayList<Edge> edges, Projection proj, boolean folding) {
+        public Node(int id, String label, String type, Kind kind, ArrayList<Edge> edges, Projection proj) {
+            this(id,label,type,kind,edges,proj,false);
+        }
         public Node {
             edges = new ArrayList<>(edges);
         }

@@ -36,7 +36,17 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
             : n instanceof CProjNode p ? new Projection(ref(n.in(0)), p._idx) : null;
         String label = n.label();
         return new GraphSnapshot.Node(n._nid, label == null ? n.getClass().getSimpleName() : label,
-                                      n._type == null ? null : n._type.toString(), kind(n), edges(n), proj);
+                                      n._type == null ? null : n._type.toString(), kind(n), edges(n), proj, folding(n));
+    }
+
+    private boolean folding(Node n) {
+        if( n instanceof FunNode fun ) return fun.folding();
+        if( n instanceof ReturnNode ret ) return ret.fun().folding();
+        if( n instanceof CallEndNode cend ) return cend.folding();
+        if( n instanceof CallNode )
+            for( int i=0; i<n.nOuts(); i++ )
+                if( n.out(i) instanceof CallEndNode cend && cend.folding() ) return true;
+        return false;
     }
 
     private Kind kind(Node n) {

@@ -68,9 +68,15 @@ public class StopNode extends CFGNode {
     }
 
     public StopNode iterate() { return IterPeeps.iterate(this).typeCheck().GCM(); }
-    StopNode typeCheck() {
-        String err = walk( Node::err );
+    public StopNode typeCheck() {
+        var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
+        String err = walk(n -> {
+            String msg = n.err();
+            if( msg != null && obs != null ) obs.error(n, msg);
+            return msg;
+        });
         if( err != null ) throw new RuntimeException(err);
+        if( obs != null ) obs.phase("TypeCheck");
         return this;
     }
     StopNode GCM() {

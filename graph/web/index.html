@@ -33,6 +33,13 @@
     .node.focus .box { stroke:#9c4900; stroke-width:3; }
     .node.selected .box { stroke:#1569b9; stroke-width:3; }
     .node.folded .box { stroke-width:4; }
+    .node.folding .box { fill:#f4ccd7; }
+    .fold-tag { font-size:9px; font-weight:700; fill:#963751; }
+    .peep-area { fill:#fff3d9; fill-opacity:.8; stroke:#c18221; stroke-width:2; pointer-events:none; }
+    .node.peep-edit .box { stroke:#9c4900; stroke-width:3; }
+    .node.error .box { stroke:#b42318; stroke-width:4; }
+    #event.error { color:#b42318; font-weight:600; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .peep-ghosts { pointer-events:none; }
     .region-box { stroke:#9da9b8; stroke-width:1.5; }
     .fold-btn { cursor:pointer; }
     .fold-btn rect { fill:white; stroke:#596674; }
@@ -64,6 +71,7 @@
   <script src="vendor/elk-api.js"></script>
   <script src="groups.js"></script>
   <script src="layout.js"></script>
+  <script src="peep.js"></script>
   <script src="render.js"></script>
 </head>
 <body>
@@ -87,12 +95,12 @@
     <div id="graph"><div id="elk"></div><pre id="detail" hidden></pre></div>
     <div class="controls">
       <button id="doFirst" type="button" onclick="doFirst()" class="button" aria-label="First frame" title="First frame">|&#11164;</button>
-      <button id="doPrev" type="button" onclick="doPrev()" class="button" aria-label="Previous frame">&#11164;</button>
+      <button id="doPrev" type="button" onclick="doPrev()" class="button" aria-label="Previous frame" aria-keyshortcuts="ArrowLeft" title="Previous step (Left arrow)">&#11164;</button>
       <label for="N">Frame</label>
       <input id="N" class="count" type="number" min="1" max="1" step="1" value="0" disabled title="Enter a frame number">
       <span>/</span>
       <span id="len" class="count">0</span>
-      <button id="doNext" type="button" onclick="doNext()" class="button" aria-label="Next frame">&#11166;</button>
+      <button id="doNext" type="button" onclick="doNext()" class="button" aria-label="Next frame" aria-keyshortcuts="ArrowRight" title="Next step (Right arrow)">&#11166;</button>
       <button id="doLast" type="button" onclick="doLast()" class="button" aria-label="Last frame" title="Last available frame">&#11166;|</button>
       <input id="scrub" type="range" min="1" max="1" step="1" value="1" disabled aria-label="Frame slider">
       <button id="doExit" type="button" onclick="doExit()" class="button">Exit</button>

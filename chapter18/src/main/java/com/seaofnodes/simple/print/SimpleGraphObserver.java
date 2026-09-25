@@ -17,7 +17,7 @@ public class SimpleGraphObserver extends GraphCapture<Node> {
     @Override protected void compile(String src) {
         _code = new CodeGen(src);
         _code._obs = this;
-        _code.parse().opto();
+        _code.parse().opto().typeCheck();
     }
     @Override protected String phase() { return _code._phase.name(); }
     @Override protected int pos() { return _code.P != null ? _code.P.pos() : -1; }

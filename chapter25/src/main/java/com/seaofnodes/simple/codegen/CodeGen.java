@@ -558,10 +558,15 @@ public class CodeGen {
                       min instanceof CFGNode mincfg &&
                       ncfg.idepth() < mincfg.idepth())) )
                     min = n;
+            if( _obs != null ) _obs.error(min, min.err().getMessage());
             throw min.err();
         }
-        if( unresolved != null )
-            throw Parser.error("Unknown struct type '"+unresolved+"'",null);
+        if( unresolved != null ) {
+            var err = Parser.error("Unknown struct type '"+unresolved+"'",null);
+            if( _obs != null ) _obs.error(null, err.getMessage());
+            throw err;
+        }
+        if( _obs != null ) _obs.phase("TypeCheck");
         return this;
     }
 

@@ -3,7 +3,8 @@
 The browser application lives in `web/` and is shared by chapters 1–25.
 `web/index.html` contains the page and `web/viewer.js` manages playback.
 `web/groups.js` projects folded regions into display nodes; `web/layout.js`
-runs ELK layout in a browser worker; `web/render.js` draws SVG
+runs ELK layout in a browser worker; `web/peep.js` builds temporary neighborhoods;
+`web/render.js` draws SVG
 and handles selection, pan and zoom. Libraries live in `web/vendor/`, with one checked-in
 copy of each; chapters do not copy them during builds.
 
@@ -29,12 +30,62 @@ The compiler WebSocket still uses port 12345; run one viewer session at a time.
 
 The initial program compiles on connection. For another program, click **Compile**
 or press **Ctrl+Enter** (**Cmd+Enter** on macOS). Use the arrows to step through
-frames, the first/last buttons to jump to either end, or enter a frame number
+frames (Left/Right arrow keys perform the same steps, including animation stages),
+the first/last buttons to jump to either end, or enter a frame number
 and press **Enter**. The slider scrubs through available frames; its arrow keys
-step and **Home/End** jump to either end. Keep `make view` running while using the tab.
+step and **Home/End** jump to either end. Inputs keep their own arrow-key behavior;
+the playback shortcuts apply outside inputs, without modifier keys.
+Keep `make view` running while using the tab.
 Frame numbers start at 1. Jumps lay out only their destination. When the slider
 moves during layout, the viewer finishes that calculation and then handles the
 latest request, skipping intermediate requests. Already visited layouts stay cached.
+
+Chapters 10–25 run their existing TypeCheck pass after optimization. A successful
+check adds a TypeCheck phase-complete frame. An error adds a final graph frame
+with the compiler's diagnostic; stepping or jumping to it centers the error node
+at a readable scale, outlines it in red, and shows the message on the phase line
+and in node details. Folded regions containing that node are revealed for this
+frame without changing earlier frames' fold choices. The graph and history stay
+available. Errors without an associated node still show their message.
+
+Structural peepholes take three forward clicks: **gather**, **rewrite**, then
+**release**. Gathering slides the edit and its context into a highlighted enclosure.
+The rewrite adds/removes nodes and reconnects edges there; surviving nodes keep
+their positions. Release restores the ordinary post-peep graph and the previous
+view as closely as possible. Backward clicks reverse these stages. Type-only
+updates and unchanged results remain one-click steps without gathering or zooming.
+
+Call, CallEnd, Fun and Return nodes being folded away by inlining have a small
+**FOLDING** tag and a pink fill. This reflects the compiler's folding flag,
+including between peeps, and is separate from the viewer's region fold buttons.
+
+The enclosure includes nodes changed between the snapshots, the peep root and
+replacement, and their direct defs in either snapshot, excluding constants' Start
+anchors. An existing GVN replacement is gathered alongside the original even when
+the replacement itself is unchanged. Defs do not recursively bring their own
+inputs; recorded scheduling dependencies do
+not expand the enclosure. It reserves space for both versions, keeps Multi/projection boxes
+intact, and places gathered Phis beside their Region without pulling in sibling
+Phis. Unrelated graph content is subdued. Affected folded
+regions are temporarily revealed; release restores the user's folds. Nodes one
+edge outside it remain more visible than the distant graph. Playback pairs an
+enclosing peep's BEFORE with its matching RETURN/APPLY, treating recursive peeps
+as part of that edit. A replacement built and typed by a nested peep therefore
+appears on the rewrite click, never before gathering its parent's neighborhood.
+When a RETURN precedes the caller attaching its replacement, playback can use
+the next capture as the result: every intervening node change must be a use
+switching from the old root to the replacement, or deletion of the root and its
+unused inputs. This shows the actual rewiring/removal in the enclosure. Unrelated
+parser edits are not combined. The following BEFORE can serve both as this
+edit's result and as the next edit's starting point.
+
+Gathered/rewritten views are intermediate states, identified in the event line.
+Frame numbers, the slider, and first/last buttons always jump directly to stable
+snapshots. Capture numbers are retained, so stepping can skip numbers belonging
+to nested attempts or a RETURN waiting for its caller's attachment. Entering or
+scrubbing to one of those numbers lands on the enclosing BEFORE frame.
+A jump or Escape cancels an intermediate view. Reduced-motion mode
+keeps the same inspectable stages but changes views immediately.
 
 Functions, loops and closed If/Region diamonds have enclosing boxes. Click **−** in a box's upper-left
 corner to fold it into a thick-bordered node; click **+** to reopen it.
@@ -60,8 +111,8 @@ mouse away, panning, zooming, Escape, Fit, or changing frames cancels the jump.
 The pan is immediate when the browser requests reduced motion.
 **Peep neighborhood** outlines nearby nodes in amber, with a darker outline
 on the current node/replacement. The event label identifies the phase, rewrite,
-and enclosing rewrite when calls nest. This marks context; it does not zoom or
-animate the rewrite yet.
+and enclosing rewrite when calls nest. This checkbox controls the node outlines;
+the enclosure remains visible throughout the intermediate animation stages.
 
 For documentation figures, step to the desired frame and click **Save SVG**.
 It saves the whole graph, regardless of pan/zoom, with its current association
@@ -137,7 +188,7 @@ The JSON frame has this shape:
   "pos": -1,
   "evt": {
     "kind": "PHASE", "peep": 0, "up": 0, "phase": "Opto",
-    "node": 0, "repl": 0, "near": []
+    "node": 0, "repl": 0, "near": [], "temps": []
   }
 }
 ```
@@ -146,7 +197,8 @@ The JSON frame has this shape:
 adds the playback envelope. `comp` changes for each submitted
 program, and `step` starts at zero. `nodes` carries the complete graph, including
 each node's `id`, `label`, `type`, `kind`, `edges`, and `proj`. Enum values use
-their names; absent types, labels and projections use JSON null. Missing node
+their names; absent types, labels and projections use JSON null. Optional
+`folding: true` marks nodes awaiting inline cleanup; omission means false. Missing node
 references use ID zero. `pos` is the parser position, or -1 outside parsing.
 `scope` identifies the parser's active scope (zero outside parsing); scope nodes
 in `roots` include the parser's saved scopes. These are context references,
@@ -155,7 +207,8 @@ not IR edges.
 The browser caches the parsed objects in `frames`. It computes geometry on the
 first visit to a frame and keeps it in `frames[i].layout`; revisiting a frame
 uses exactly that geometry. Viewport changes do not rerun layout. Nodes and
-edges have stable SVG IDs within a compilation. There is no animation yet.
+edges have stable SVG IDs within a compilation. Temporary peep geometry is
+separate from these cached stable layouts.
 Each frame also caches its most recent folded layout, keyed by the folded
 header IDs; changing folds recomputes that view without changing the snapshot.
 One `+` acknowledges the whole frame. The shared writer sends UTF-8 bytes
@@ -213,6 +266,9 @@ box. Scope bindings count as users. Pending projections keep their parent box
 and get an arrow to their own cell. These marks disappear when real uses attach
 or parsing finishes; they do not add nodes or edges to the compiler graph.
 This identifies unconsumed values from the snapshot, not Java stack references.
+Nodes created inside an enclosing peephole are excluded from these Parser arrows
+until that outer attempt returns; a nested constant fold can create its result
+before the parent replaces the arithmetic node.
 
 Function, loop and diamond membership comes from the compiler process; ELK
 lays out the supplied hierarchy. RPO is not a pending layout requirement.
@@ -224,8 +280,8 @@ Pending graph work:
 
 - Refine CFG placement with compilation-unit containers and fuller membership
   for unfinished loops and paths leaving loops.
-- Preserve positions across peepholes, then animate edits and zoom into the
-  peep neighborhood before returning to the whole graph.
+- Improve stable whole-graph placement across peepholes. Temporary neighborhoods
+  already preserve positions across each edit, animate it and return to the graph.
 - For large compilations, add checkpoints and forward deltas with a bounded
   cache of recent backward steps.
 
@@ -401,7 +457,8 @@ The event kinds distinguish the actual capture boundaries:
 | `BEFORE` | Graph before an attempt that made progress, or contained a nested rewrite |
 | `RETURN` | Recursive `Node.peephole()` finished, including its local DCE; the caller has not yet attached the returned node |
 | `APPLY` | A worklist attempt finished after substitution, dependency draining, and unused-node cleanup |
-| `PHASE` | Parse, Iter, or Opto completed, including work outside individual peepholes |
+| `PHASE` | Parse, Iter, Opto, or TypeCheck completed, including work outside individual peepholes |
+| `ERROR` | TypeCheck failed; `node` identifies the offending node (zero if unavailable), and `msg` contains the diagnostic |
 
 `peep` identifies an attempt; `up` identifies its enclosing attempt, or zero.
 `node` and `repl` identify the original and result nodes. A zero `repl` on
@@ -421,6 +478,12 @@ not yet attached by the parser remain visible. Dead originals are not added as
 after-frame roots. The observer never adds keep edges, changes use lists, or
 modifies the compiler's dependency tracking.
 
+`temps` lists nodes created since the outermost active peep's before snapshot,
+while a nested peep is being shown. They have not returned to the parser yet.
+The list is empty on outermost results and phase events. This distinguishes
+userless peep temporaries from parser-held expression values without adding
+compiler edges or inferring ownership from the current result node alone.
+
 `near` is a primitive array of node IDs, assembled with a `BitSet`. It combines:
 
 - The current node and replacement, with their immediate defs and uses before
@@ -436,11 +499,12 @@ describe an entire successful pattern match. Some rules inspect distant nodes
 without registering a dependency. Before events include context known when
 emitted; their matching after events can add more. IDs of deleted nodes remain
 in `near`, and the browser highlights only those present in the current frame.
-Actual graph diffs and explicit rule annotations can refine this later.
+The animation uses graph diffs to include every changed node in the enclosure.
 
 The browser keeps the event alongside its snapshot and layout. It labels and
-highlights the current step, but does not yet collapse nested rewrites or move
-the camera to their neighborhoods. Chapter 4 uses the same event model, with
+highlights the current step and gathers each enclosing rewrite's neighborhood.
+Nested captures remain available in the stream, but playback presents their net
+effect as part of the enclosing edit. Chapter 4 uses the same event model, with
 defs/uses for its neighborhoods and no worklist or dependency lists. It retains the final Return as a root after scope cleanup.
 
 The compiler DOT dump flag, parser graph directive, Java DOT generators and old

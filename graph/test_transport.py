@@ -69,7 +69,7 @@ def check(chapter):
                 time.sleep(.05)
             assert url and url.startswith("http://127.0.0.1:"), log.read_text()
             # The browser must be able to load all assets before connecting.
-            for asset in ("index.html", "viewer.js", "layout.js", "render.js",
+            for asset in ("index.html", "viewer.js", "layout.js", "peep.js", "render.js",
                           "vendor/elk-api.js", "vendor/elk-worker.min.js", "vendor/d3.v7.min.js"):
                 with urllib.request.urlopen(url.rsplit("/", 1)[0] + "/" + asset,
                                             timeout=3) as response:

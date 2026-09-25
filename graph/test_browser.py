@@ -45,14 +45,23 @@ def check(chapter, browser_name):
                 page = browser.new_page(viewport={"width": 1400, "height": 1000})
                 errors = []
                 page.on("pageerror", lambda error: errors.append(str(error)))
+                def step(button):
+                    # Structural edits have gather/rewrite/release stages;
+                    # this smoke check visits the next stable snapshot.
+                    for _ in range(3):
+                        page.locator(button).click()
+                        page.wait_for_function("!rendering && !stepping")
+                        if page.evaluate("!peep"):
+                            return
+                    raise AssertionError("Peephole did not reach a stable frame")
                 page.goto(url)
                 page.wait_for_function("done && current === 0 && !rendering", timeout=15000)
                 assert page.locator("#graph svg g.node").count() > 0
                 assert page.locator("#doPrev").is_disabled()
                 if number > 1:
-                    page.locator("#doNext").click()
+                    step("#doNext")
                     page.wait_for_function("current === 1 && !rendering")
-                    page.locator("#doPrev").click()
+                    step("#doPrev")
                     page.wait_for_function("current === 0 && !rendering")
                 sources = (("return 1;", "return 2;") if number == 1 else
                            ("return 1 + 2;", "return 3 * 4;") if number == 2 else
@@ -70,11 +79,12 @@ def check(chapter, browser_name):
                     # Later chapters also parse library code. Sample long histories.
                     steps = (range(1, total) if total <= 100 else
                              sorted({1, total // 4, total // 2, 3 * total // 4, total - 2, total - 1}))
+                    steps = sorted(set(page.evaluate("xs => xs.map(stable)", list(steps))) - {0})
                     print(chapter, total, "frames captured; rendering", len(steps) + 1, flush=True)
                     prev = 0
                     for index in steps:
-                        if index == prev + 1:
-                            page.locator("#doNext").click()
+                        if index == page.evaluate("i => nextFrame(i,1)", prev):
+                            step("#doNext")
                         else:
                             page.evaluate("index => render(index)", index)
                         page.wait_for_function("index => current === index && !rendering", arg=index)
@@ -90,9 +100,9 @@ def check(chapter, browser_name):
                             renderer.select(pickId);
                             layout.run = () => { throw new Error('Cached frame was laid out again'); };
                         }""")
-                        page.locator("#doPrev").click()
+                        step("#doPrev")
                         page.wait_for_function("index => current === index && !rendering", arg=total - 2)
-                        page.locator("#doNext").click()
+                        step("#doNext")
                         page.wait_for_function("index => current === index && !rendering", arg=total - 1)
                         assert page.evaluate("frames[current].layout === lastLayout && renderer.pick === pickId")
                         page.evaluate("delete layout.run")

@@ -29,7 +29,18 @@ public class GraphJson {
             if( i > 0 ) sb.append(',');
             sb.append(near[i]);
         }
-        sb.append("]}");
+        sb.append("],\"temps\":[");
+        int[] temps = evt.temps();
+        for( int i = 0; i < temps.length; i++ ) {
+            if( i > 0 ) sb.append(',');
+            sb.append(temps[i]);
+        }
+        sb.append(']');
+        if( evt.msg() != null ) {
+            sb.append(",\"msg\":");
+            str(sb, evt.msg());
+        }
+        sb.append('}');
         return sb.append('}').toString();
     }
 
@@ -53,6 +64,7 @@ public class GraphJson {
             str(sb, node.type());
             sb.append(",\"kind\":");
             str(sb, node.kind().name());
+            if( node.folding() ) sb.append(",\"folding\":true");
             sb.append(",\"edges\":[");
             var edges = node.edges();
             for( int j = 0; j < edges.size(); j++ ) {

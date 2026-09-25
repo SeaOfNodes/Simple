@@ -14,6 +14,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     private boolean _folding;
+    public boolean folding() { return _folding; }
 
     public CallEndNode(CallNode call) { super(call); }
 

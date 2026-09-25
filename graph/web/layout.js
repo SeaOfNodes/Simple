@@ -25,7 +25,7 @@ class GraphLayout {
     const nodes = snap.nodes.map(n => {
       const label = `${this.clip(n.label)} #${n.id}${n.proj ? "/" + n.proj.idx : ""}`, type = this.clip(n.type);
       const compact = ["START", "UNIT", "STOP"].includes(n.kind);
-      let w = Math.ceil(Math.max(120, this.ctx.measureText(label).width + 24,
+      let w = Math.ceil(Math.max(120, this.ctx.measureText(label).width + 24 + (n.folding ? 60 : 0),
         this.ctx.measureText(type).width + 24, (n.edges.length + 1) * 18));
       const scope = n.kind === "SCOPE";
       const cols = scope ? n.edges.map(e => Math.ceil(Math.max(48,
@@ -49,8 +49,9 @@ class GraphLayout {
     // roots; unfinished expression values are inferred from absent uses.
     const used = new Set();
     for (const n of snap.nodes) for (const e of n.edges) if (e.def) used.add(e.def);
+    const temps = new Set(evt?.temps);
     const held = parsing ? nodes.filter(n =>
-      (n.n.proj || ["DATA", "MEM", "PHI"].includes(n.n.kind)) && !used.has(n.n.id)) : [];
+      (n.n.proj || ["DATA", "MEM", "PHI"].includes(n.n.kind)) && !used.has(n.n.id) && !temps.has(n.n.id)) : [];
     for (const n of held) n.held = true;
     const owned = [...held, ...scopes.filter(n => parsing && roots.has(n.n.id))];
     const projs = new Map();

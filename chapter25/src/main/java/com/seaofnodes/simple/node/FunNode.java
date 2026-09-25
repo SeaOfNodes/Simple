@@ -15,6 +15,7 @@ public class FunNode extends RegionNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     public boolean _folding;
+    public boolean folding() { return _folding; }
 
     private TypeFunPtr _sig;    // Initial signature
     private ReturnNode _ret;    // Return pointer

@@ -25,6 +25,8 @@ public class SimpleGraphObserver extends GraphCapture<Node> {
         _phase = "Iter";
         com.seaofnodes.simple.IterPeeps.iterate(_parser.STOP);
         phase(_phase);
+        _phase = "TypeCheck";
+        _parser.STOP.typeCheck();
     }
     @Override protected String phase() { return _phase; }
     @Override protected int pos() { return "Parse".equals(_phase) ? _parser.pos() : -1; }

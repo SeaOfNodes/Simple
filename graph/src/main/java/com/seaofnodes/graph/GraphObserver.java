@@ -14,6 +14,9 @@ public abstract class GraphObserver<N> {
     /** A completed compiler phase. */
     public abstract void phase(String phase);
 
+    /** A compiler diagnostic and its node, or null for an error without a node. */
+    public void error(N node, String msg) {}
+
     /** A rule consulted a dependency, even if already registered or adjacent. */
     public void dep(N node, N def) {}
 }

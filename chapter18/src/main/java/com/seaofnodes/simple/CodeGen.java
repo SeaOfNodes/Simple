@@ -81,9 +81,14 @@ public class CodeGen {
         _phase = Phase.TypeCheck;
 
         // Type check
-        Parser.ParseException err = _stop.walk( Node::err );
+        Parser.ParseException err = _stop.walk(n -> {
+            Parser.ParseException msg = n.err();
+            if( msg != null && _obs != null ) _obs.error(n, msg.getMessage());
+            return msg;
+        });
         if( err != null )
             throw err;
+        if( _obs != null ) _obs.phase("TypeCheck");
         return this;
     }
 
