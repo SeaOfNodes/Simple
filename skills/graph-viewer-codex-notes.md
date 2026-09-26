@@ -1,15 +1,17 @@
 # Shared graph viewer: restart notes
 
-Updated 2026-09-25. Read graph/README.md for the current design and protocol.
+Updated 2026-09-26. Read graph/README.md for the current design and protocol.
 These are AI-facing continuity notes, not a new task list or authority to change
-compiler semantics. Cliff reports the peephole animations, inlining display, and
-TypeCheck diagnostics committed and working well as of 2026-09-25.
+compiler semantics. Cliff declared the viewer task complete on 2026-09-26.
+Peephole animations, inlining display, TypeCheck diagnostics, and arrow-key
+playback are committed. Resume the independent bug-fix backport review from
+docs/chapter-backports.md when requested.
 
 ## Working tree and latest change
 
-Preserve existing dirty files. This checkout still reports earlier viewer changes
-and untracked peep.js despite Cliff's report of commits; do not reconcile or
-commit those files merely on the basis of these notes.
+The working tree was clean when checked on 2026-09-26; the viewer changes,
+including peep.js and arrow-key playback, are in a32e83c9. Preserve any later
+unrelated dirty files.
 
 Latest request: Left/Right arrow keys perform the same actions as the Previous/Next
 buttons, including animation stages. Added outside inputs/editable content with
@@ -143,10 +145,11 @@ capture server on an ephemeral port. Scratch helpers may disappear after cleanup
 
 ## Deferred work, not authorization to start
 
-Cliff considers incomplete/exit-loop grouping adequate as is. Bounded history can
-wait longer: mid-sized compiles slow the viewer, but it remains fine for demos.
-Full graph snapshots currently remain cached. Stable whole-graph placement has no
-agreed approach; compilation-unit containers remain deferred.
+Cliff considers incomplete/exit-loop grouping adequate as is. Bounded history
+storage waits until an actual usage issue warrants it; full graph snapshots
+currently remain cached. Stable whole-graph placement awaits viewing a larger
+program to establish what is needed. Compilation-unit containers remain deferred.
+These are future considerations, not unfinished requirements of the completed task.
 Dead-field cleanup/interprocedural reverse
 liveness is explicitly deferred; do not revive the rejected whole-graph store
 sweep. Private-field syntax decisions belong in the parser, not optimization.

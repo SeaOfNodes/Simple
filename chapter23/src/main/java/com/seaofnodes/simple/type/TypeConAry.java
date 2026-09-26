@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -13,18 +12,19 @@ public class TypeConAry<A> extends Type {
     // One of byte,short,int,long,float,double array
     public final A _ary;
 
-    TypeConAry( boolean any, byte type, A ary ) { super(type); _any = any; _ary = ary; }
-    public static final TypeConAry BOT = new TypeConAry(false, TINT, null).intern();
+    TypeConAry( boolean any, A ary ) { super(TINT); _any = any; _ary = ary; }
+    public static final TypeConAry BOT = new TypeConAry(false,null).intern();
     public static void gather(ArrayList<Type> ts) {
         ts.add(BOT);
-        TypeConAryB.gather(ts);
-        TypeConAryI.gather(ts);
+        ts.add(TypeConAryB.ABC);
+        ts.add(TypeConAryB.ABCD);
+        ts.add(TypeConAryI.I123);
     }
 
     @Override public String str() { return (_any?"~":"") + "[]"; }
     @Override TypeConAry xdual() {
         if( _ary==null )
-            return new TypeConAry(!_any,_type,null);
+            return new TypeConAry(!_any,null);
         return this;
     }
 

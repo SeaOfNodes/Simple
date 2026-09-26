@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.util.ArrayList;
@@ -11,39 +10,48 @@ import java.util.HashMap;
  */
 public abstract class TypeConAry<A> extends TypeScalar {
     boolean _any;
-    // One of byte,short,int,long,float,double array
+    byte _widen;
+    // One of byte or int array
     public final A _ary;
 
-    TypeConAry( boolean any, A ary ) { super(TCONARY); _any = any; _ary = ary; }
+    TypeConAry( boolean any, byte widen, A ary ) { super(TCONARY); _any = any; _widen = widen; _ary = ary; }
     public static void gather(ArrayList<Type> ts) {
-        TypeConAryB.gather(ts);
-        TypeConAryI.gather(ts);
+        ts.add(TypeConAryB.ABC);
+        ts.add(TypeConAryB.ABCD);
+        ts.add(TypeConAryI.I123);
     }
+    // Fresh, uninterned type sharing this array; xdual must not intern.
+    abstract TypeConAry<A> _make(boolean any, byte widen);
 
-    @Override public String str() { return (_any?"~":"") + "[]"; }
-    @Override TypeConAry xdual() { return this; }
+    @Override TypeConAry<A> xdual() { return _make( !_any, (byte)(3-_widen) ); }
 
     @Override Type xmeet(Type t) {
         TypeConAry ary = (TypeConAry)t; // Invariant
-        assert _ary!=ary._ary;  // Already interned and this!=t
-        // Unrelated constant arrays
+        // Same base array but different?
+        if( _equals(ary) )
+            // Return array with larger widen
+            return _widen >= ary._widen ? this : ary;
+        // Unrelated constant arrays, falls to some int range
         return elem().meet(ary.elem());
     }
 
-    Type ymeet( Type t ) {
-        if( t instanceof TypeInteger ti ) {
-            // if i can isa *each* element, then maybe can keep.
-            // no good to i.isa(elem()) because fails the dual
-            boolean fail = false;
-            for( int j=0; j<len(); j++ )
-                if( !ti.isa(TypeInteger.constant(at8(j))) )
-                    { fail=true; break; }
-            Type e = elem();
-            if( fail )
-                return ti.meet(e);
-            return this;
-        }
-        throw Utils.TODO("Should not reach here: constant array meet with non-element type");
+    Type ymeet( TypeInteger ti ) {
+        // if i can isa *each* element, then maybe can keep.
+        // no good to i.isa(elem()) because fails the dual
+        for( int j=0; j<len(); j++ )
+            if( !ti.isa(TypeInteger.make(at8(j),at8(j),ti._widen)) )
+                return ti.meet(elem());
+        byte widen = (byte)Math.max(_widen,ti._widen);
+        return widen==_widen ? this : _make(_any,widen).intern();
+    }
+
+    private boolean _equals(TypeConAry ary) {
+        int len = len();
+        if( len != ary.len() ) return false;
+        for( int i=0; i<len; i++ )
+            if( at8(i) != ary.at8(i) )
+                return false;
+        return true;
     }
 
     @Override public boolean isHigh() { return this==TOP; }
@@ -61,13 +69,11 @@ public abstract class TypeConAry<A> extends TypeScalar {
             min = Math.min(min,at8(i));
             max = Math.max(max,at8(i));
         }
-        return TypeInteger.make(min,max);
+        return TypeInteger.make(min,max,_widen);
     }
-    // Generic element _type
-    public int elemT() { return TBOT; }
-    public long at8(int idx) { throw Utils.TODO("Should not reach here: abstract constant array has no elements"); }
-    public int len() { throw Utils.TODO("Should not reach here: abstract constant array has no length"); }
-    @Override public int log_size() { throw Utils.TODO("Should not reach here: abstract constant array has no element size"); }
+    public abstract long at8(int idx);
+    public abstract int len();
+    @Override public abstract int log_size();
     public void write( BAOS baos ) { throw Utils.TODO("Should not reach here: abstract constant array cannot be written"); }
 
     // Reserve tags for u8 array
@@ -81,14 +87,4 @@ public abstract class TypeConAry<A> extends TypeScalar {
     static TypeConAry packed( int tag, BAOS bais ) {
         return TypeConAryB.make(bais.read(new byte[bais.packed4()]));
     }
-
-    @Override boolean eq(Type t) {
-        return t instanceof TypeConAry ary && _any==ary._any && ary._ary==null;
-    }
-
-    @Override int hash() {
-        assert _ary==null;
-        return _any ? 1024 : 0;
-    }
-
 }

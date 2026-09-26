@@ -23,17 +23,13 @@ public class TypeInteger extends Type {
     private static final Ary<TypeInteger> FREE = new Ary<>(TypeInteger.class);
     private TypeInteger(long min, long max, byte widen) { super(TINT); init(min,max,widen); }
     private TypeInteger init(long min, long max, byte widen) {
-        // Constants must always have a widen value of zero.  Widening is only
-        // meaningful for ranges of values - which otherwide can increase in
-        // range size indefinitely.
-        assert min!=max || widen==0; // Constants always zero widen
         _min = min; _max = max; _widen=widen;
         return this;
     }
     public static TypeInteger malloc(long lo, long hi, byte widen) { return FREE.isEmpty() ? new TypeInteger(lo,hi,widen) : FREE.pop().init(lo,hi,widen); }
     public static TypeInteger make(long lo, long hi) { return make(lo,hi,(byte)0); }
     public static TypeInteger make(long lo, long hi, byte widen) {
-        TypeInteger i = malloc(lo,hi,lo==hi ? 0 : widen);
+        TypeInteger i = malloc(lo,hi,widen);
         TypeInteger t2 = i.intern();
         return t2==i ? i : t2.free(i);
     }
@@ -83,7 +79,16 @@ public class TypeInteger extends Type {
 
     public final static TypeInteger FATBOOL = make(0,1,(byte)2);
 
-    public static void gather(ArrayList<Type> ts) { ts.add(I32); ts.add(BOT); ts.add(U1); ts.add(I1); ts.add(U8); ts.add(ZERO); ts.add(FATBOOL); }
+    public static void gather(ArrayList<Type> ts) {
+        ts.add(I32); ts.add(BOT); ts.add(U1); ts.add(I1); ts.add(U8); ts.add(ZERO); ts.add(FATBOOL);
+        // Ranges before and after excluding zero, at each widening level.
+        for( byte widen=0; widen<=3; widen++ ) {
+            ts.add(make(0,255,widen));
+            ts.add(make(1,255,widen));
+            ts.add(make(-255,0,widen));
+            ts.add(make(-255,-1,widen));
+        }
+    }
 
     @Override public String str() {
         if( _isConstant() ) return ""+_min;
@@ -147,21 +152,18 @@ public class TypeInteger extends Type {
 
     @Override
     public Type xmeet(Type other) {
-        if( other instanceof TypeConAry ary ) return ary.imeet(this);
         // Invariant from caller: 'this' != 'other' and same class (TypeInteger)
         TypeInteger i = (TypeInteger)other; // Contract
         return make(Math.min(_min,i._min), Math.max(_max,i._max), (byte)Math.max(_widen,i._widen));
     }
 
-    @Override TypeInteger xdual() {
-        return _min==_max ? this : malloc(_max,_min,(byte)(-_widen));
-    }
+    @Override TypeInteger xdual() { return malloc(_max,_min,(byte)(3-_widen)); }
 
     @Override public TypeInteger nonZero() {
         if( isHigh() ) return this;
         if( this==ZERO ) return null;                  // No sane answer
-        if( _min==0 ) return make(1,Math.max(_max,1)); // specifically good on BOOL
-        if( _max==0 ) return make(_min,-1);
+        if( _min==0 ) return make(1,Math.max(_max,1),_widen); // specifically good on BOOL
+        if( _max==0 ) return make(_min,-1,_widen);
         return this;
     }
     @Override public Type makeZero() { return ZERO; }

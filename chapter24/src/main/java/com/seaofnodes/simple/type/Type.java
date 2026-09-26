@@ -264,6 +264,9 @@ public class Type /*implements Cloneable*/ {
         // Reverse; xmeet 2nd arg is never "is_simple" and never equal to "this".
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
+        // Constant arrays meet their integer element types.
+        if( this instanceof TypeConAry tcon && t    instanceof TypeInteger ti ) return tcon.ymeet(ti);
+        if( t    instanceof TypeConAry tcon && this instanceof TypeInteger ti ) return tcon.ymeet(ti);
         return Type.BOTTOM;     // Mixing 2 unrelated types
     }
 

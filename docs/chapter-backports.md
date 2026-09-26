@@ -13,11 +13,6 @@ renumbering chapters is deferred.
 
 ## Pending corrections
 
-- **B10: preserve integer widening in `nonZero`, Chapter 24.** Still missing:
-  `[0,255]` and `[-255,0]` with widening levels 1-3 become level zero. Chapter 25
-  passes `_widen` to `make`; 24 does not. Widening first appears in 24, so 15-23's
-  older `nonZero` needs no patch. The previous audit established the type-level
-  discrepancy, not a loop-failure reproducer. Source: `51f1f8f4`.
 - **FunPtrNode lifetime backport, now next after the allocator review.**
   `return {->42;};` and `return sys.io.p;` fail during relocation in Chapter 22
   on all three targets at seed 123. Opto's name-based pruning equates no linked
@@ -218,6 +213,8 @@ Unresolved reproductions have been promoted to the pending queue above.
 
 | Completed work | Scope and evidence retained |
 |---|---|
+| B10 and integer/constant-array widening | Widening starts in 24. Both 24-25 now use levels 0-3, dual widening `3-widen`, retained singleton widening, and widening on TypeConAry. `nonZero` preserves the coordinate. The same TypeTest regression and integer gather ranges run in both snapshots; before the backport, Chapter 24 fails the widening regression and lattice associativity. Loop Phis widen only below-center nonconstant ranges: widening an above-center range to level 1 then falling to zero at level 0 violated SCCP monotonicity in 24's existing `testCloneAnd` and `testInfinite`; both now pass, with the guard also in 25. |
+| TypeConAry API backport and validation | 24-25 share the reduced raw `_make(any,widen)` API, integer meet dispatch through the distinct `TCONARY` tag, and gathered samples. Preserve 24's GLB hooks and ordinary byte stream; scalar envelopes and serialization stay in 25. Chapters 22-23 consolidate gather and remove redundant wrappers/arguments, retaining their pre-widening representations and needed sentinels. Full Make suites passed on 2026-09-26: 22 (428), 23 (450), 24 (480), 25 (474), each plus its fuzzer wrapper; all include TypeTest, and 25 rebuilt `sys.o`. Logs: `build/conary-backport-*` and `chapter25/build/conary-backport-25.log`. |
 | #254 subtraction zero identities | Require integer operands in 4-25 and resolved integer mode in 25. Preserve floating-point signed zero and subtraction diagnostics. `Chapter12Test.testSubZeroFloat` runs in 12-25; `Chapter22Test.testSubZeroTypeError` runs in 22-25. Against the original PR, the signed-zero test fails in 25 and the diagnostic test fails in 22-25. Full Make suites passed in every chapter 4-25 on 2026-09-25, including fresh `sys.o` compilation in 25. |
 | Short type extrema | Memory, struct and memory-pointer BOT/TOP names from 10; function-pointer names from 18. Exact types use shortcuts in ordinary, nested and HTML prints; precise types retain their details. Full Make suites in 10-20 and type/frontend suites in 21-25 passed; canonical/nested print checks passed in 10-25. |
 | Integer result types | Integer-op fallbacks in 4-13 and remaining unary cases through 17 retain integer types; 5's Phis meet their data-input types. Full Make suites in 4-17 passed, plus a chapter 5 snapshot check of Phi/Add types. Integer BOT starts in 4; later arithmetic already has typed fallbacks, with unresolved bimorphic modes preserved in 25. |

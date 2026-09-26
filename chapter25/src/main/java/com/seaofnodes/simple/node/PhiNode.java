@@ -85,10 +85,11 @@ public class PhiNode extends Node {
             }
         }
 
-        // phi loop widening part
+        // Above-center ranges may still fall to unwidened constants.
+        // Widen only below-center ranges to preserve monotonicity.
         if( r instanceof LoopNode && // Only around loops
             t instanceof TypeInteger ti && // Only widen integers
-            !ti.isConstant() ) {  // No need to widen constants
+            !ti.isHigh() && !ti.isConstant() ) {  // Only widen live ranges
             // Widen, to prevent infinite falling of TypeIntegers
             return ti.same_but_slightly_wider_than();
         }

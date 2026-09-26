@@ -273,17 +273,16 @@ before the parent replaces the arithmetic node.
 Function, loop and diamond membership comes from the compiler process; ELK
 lays out the supplied hierarchy. RPO is not a pending layout requirement.
 Placement can still shift substantially between rewrites.
-Each visited frame currently retains a full snapshot and layout; bounded
-history, checkpoints and deltas are also follow-up work.
+Each visited frame currently retains a full snapshot and layout.
 
-Pending graph work:
+The viewer update task is complete as of 2026-09-26. Future considerations:
 
-- Refine CFG placement with compilation-unit containers and fuller membership
-  for unfinished loops and paths leaving loops.
-- Improve stable whole-graph placement across peepholes. Temporary neighborhoods
-  already preserve positions across each edit, animate it and return to the graph.
-- For large compilations, add checkpoints and forward deltas with a bounded
-  cache of recent backward steps.
+- Bounded history storage, checkpoints and deltas wait until an actual usage
+  issue warrants them.
+- Stable whole-graph placement awaits viewing a larger program to establish what
+  is needed. Temporary neighborhoods already preserve positions across each edit.
+- Compilation-unit containers remain deferred; unfinished-loop and exit-path
+  grouping is adequate for current use.
 
 ### Function, loop and diamond grouping
 
@@ -411,7 +410,7 @@ Functions and compilation-unit boundaries. Shared grouping uses these existing
 IR facts to compute display membership. Scope bindings and constant
 lifetime edges are associations, so they need not constrain CFG layout.
 Types may be absent on newly constructed nodes. Node source locations
-and delta encoding remain follow-up work. All chapters use the observer events
+and delta encoding remain deferred possibilities. All chapters use the observer events
 described below.
 
 Make compiles these shared sources directly into each participating chapter's

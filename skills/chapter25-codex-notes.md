@@ -367,6 +367,18 @@ Consequences:
 
 ## Types and monotonicity
 
+- Integer widening starts in Chapter 24. `nonZero()` preserves `_widen` when
+  narrowing a range. B10's correction is in 24, with `TypeTest.testNonZeroWidening`
+  in 24-25. Both now use widening 0-3 and dual widening `3-widen`, preserve
+  singleton widening, and give TypeConAry the same widening coordinate. Loop Phis
+  widen only below-center nonconstant ranges: above-center widening can fall to
+  an unwidened constant, violating SCCP monotonicity. Existing Chapter14/21 tests
+  exposed this during the backport.
+- TypeConAry's `_make(any,widen)` shares the backing array and returns an
+  uninterned type. `xdual()` must leave interning to Type.intern's dual-pair setup;
+  ordinary factories and ymeet's widening replacement intern their results.
+  Chapters 24-25 use this API and a distinct array tag. Chapters 22-23 only receive
+  compatible cleanup; their sentinel-based representations predate widening.
 - Cyclic structural equality starts in Chapter 23. Chapters 9-22 compare
   interned children by identity and check type kinds in `Type.equals`.
   In recursive equality, leaf dispatch must also check `_type` before calling

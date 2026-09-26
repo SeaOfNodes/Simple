@@ -81,12 +81,13 @@ public class PhiNode extends Node {
         }
         Type newt = t.join( _minType );
 
-        // phi loop widening part
+        // Above-center ranges may still fall to unwidened constants.
+        // Widen only below-center ranges to preserve monotonicity.
         if( region() instanceof LoopNode && // Only around loops
             newt  instanceof TypeInteger newi &&
             // Types changed and are falling (the optimistic case, expected to fall forever)
             newi != _type ) {
-            if( !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
+            if( !newi.isHigh() && !newi.isConstant() && (!(_type instanceof TypeInteger oldi) || newi._widen <= oldi._widen) )
                 return newi.same_but_slightly_wider_than(_minType);
         }
 

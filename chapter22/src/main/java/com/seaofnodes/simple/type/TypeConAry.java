@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.type;
 
-import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import java.util.ArrayList;
 import java.io.ByteArrayOutputStream;
@@ -18,8 +17,9 @@ public class TypeConAry<A> extends Type {
     public  static final TypeConAry BOT = new TypeConAry(false,null).intern();
     public static void gather(ArrayList<Type> ts) {
         ts.add(BOT);
-        TypeConAryB.gather(ts);
-        TypeConAryI.gather(ts);
+        ts.add(TypeConAryB.ABC);
+        ts.add(TypeConAryB.ABCD);
+        ts.add(TypeConAryI.I123);
     }
 
     @Override public String str() { return (_any?"~":"") + "[]"; }

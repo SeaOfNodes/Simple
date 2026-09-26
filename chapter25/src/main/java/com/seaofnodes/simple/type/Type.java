@@ -272,8 +272,8 @@ public class Type /*implements Cloneable*/ {
         if(   is_simple() ) return this.xmeet(t   );
         if( t.is_simple() ) return t   .xmeet(this);
         // TypeConAry meet its element type is OK
-        if( this instanceof TypeConAry tcon && tcon.elemT() == t._type ) return tcon.ymeet(t);
-        if( t    instanceof TypeConAry tcon && tcon.elemT() ==   _type ) return tcon.ymeet(this);
+        if( this instanceof TypeConAry tcon && t    instanceof TypeInteger ti ) return tcon.ymeet(ti);
+        if( t    instanceof TypeConAry tcon && this instanceof TypeInteger ti ) return tcon.ymeet(ti);
         // Two distinct scalar families meet at the scalar envelope.
         if( this instanceof TypeScalar scalar0 && t instanceof TypeScalar scalar1 )
             return scalar0.smeet(scalar1);
