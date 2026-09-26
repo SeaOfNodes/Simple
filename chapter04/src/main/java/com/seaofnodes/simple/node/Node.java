@@ -230,13 +230,13 @@ public abstract class Node {
      * code. </li>
      * </ul>
      */
-    public final Node peephole( ) {
+    public final Node peephole() {
         var obs = Parser.PARSER == null ? null : Parser.PARSER._obs;
-        Type old = _type;
         if( obs != null ) obs.before(this);
+        Type old = _type;
         Node n = peepholeOpt();
         Node rez = n == null ? this : n;
-        if( obs != null ) obs.after(this, n != null || old != _type ? rez : null, false);
+        if( obs != null ) obs.after(this, n == null && old == _type ? null : rez, false);
         return rez;
     }
 
