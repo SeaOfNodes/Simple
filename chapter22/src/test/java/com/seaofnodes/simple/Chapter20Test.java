@@ -205,6 +205,11 @@ s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);
 """;
+        // Without an explicit return, default main must be removed completely.
+        // Seed 0 previously left a loop with a missing branch successor.
+        for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
+            new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,0)
+                .driver(CodeGen.Phase.Encoding,cpu,"SystemV");
         testTarget(src,"x86_64_v2", "SystemV",0,null);
         testTarget(src,"riscv"    , "SystemV",0,null);
         testTarget(src,"arm"      , "SystemV",0,null);

@@ -128,7 +128,7 @@ while(v1+arg) {
 }
                 """);
         code.parse().opto();
-        assertEquals("return Top;", code.print());
+        assertEquals("Stop[ ]", code.print()); // No explicit return: omit default main.
     }
 
     @Test
@@ -210,7 +210,7 @@ return -0+0+0;
     public void testFuzz3() {
         CodeGen code = new CodeGen("int v0=0; while(0==69) while(v0) return 0;");
         code.parse().opto();
-        assertEquals("return 0;", code.print());
+        assertEquals("Stop[ ]", code.print()); // The only return is unreachable.
     }
 
     @Test

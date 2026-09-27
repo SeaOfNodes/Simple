@@ -28,12 +28,6 @@ renumbering chapters is deferred.
   addresses. Do not enlarge relocation arrays or add an interim address scan.
   Validate returned pointers by calling them, including library pointers, while
   still deleting genuinely unused helpers. Keep module/escape machinery in 25.
-- **Chapter 22 String without an explicit return.** The unchanged source in
-  `Chapter20Test.testString` fails before allocation in loop-tree construction
-  or GCM at the historically tested seeds 0-29, on all targets. The original
-  snapshot has the same failures; seed 123 folds the work away. Reduce default
-  return/dead-call handling. A new return or a different seed is not a fix;
-  this historical sweep is not a reason to sweep routine backend tests.
 - **Chapter 25 null-dereference diagnostic.** This setup was accepted despite
   dereferencing null on the taken arm; investigate separately from B13:
 
@@ -198,6 +192,7 @@ Unresolved reproductions have been promoted to the pending queue above.
 
 | Completed work | Scope and evidence retained |
 |---|---|
+| Chapter 22 String without an explicit return | Backported 23's default-main teardown: when top-level control falls through, replace main's Start input with XCTRL and queue its users. Previously 22 omitted the return while retaining live control, leaving loop fragments with missing exits. Current seed 0 reproduced a missing-successor failure in Encoding; the earlier GCM changes had moved it past the originally recorded failure. The unchanged `Chapter20Test.testString` now also checks seed 0 through Encoding on x86/RISC-V/ARM, preserving its existing seed-123 allocator checks. Two Chapter09Test graph expectations now reflect removal of a default main with no live return; their sources are unchanged. Baseline and final full Chapter 22 suites passed (425 tests plus fuzzer), logged in `build/string-baseline.log` and `build/string-final.log`. Chapters 23-24 already contain this teardown; no later compiler changes were needed. |
 | Infinite-loop evaluation | Eval2 now runs the missing loop-tree phase in 21 and explicitly follows NeverNode projection 0 in 21-25. Existing `testFcn9` expects timeout in 21-24. Full 18-25 Make suites passed on 2026-09-26 (`build/never-exit-tests.log` and `build/never-exit-final.log`). On 2026-09-27, Cliff requested removal of the frozen-source fixture, replay tests, related reductions, and seed-list entry as unnecessary test overhead; the evaluator fixes remain. |
 | Always-on peepholes | Removed the global disable flag and branches in 2-18, the Chapter 18 parse overload, test toggles, and transpiler metadata/Rust output. Updated early graph expectations and READMEs; removed duplicate no-peephole scope tests. Chapter 8 fuzzing checks compilation/evaluation for failures; 9-18 compare worklist seeds 123/456 like later chapters. The Chapter 18 Load type workaround was unnecessary with normal forwarding and was removed. All 1-25 default Make suites passed across `build/always-peeps-tests.log` and `build/always-peeps-final.log`; later evaluator corrections are recorded above. The baseline was green in `build/always-peeps-baseline.log`. Direct checks exercised both worklist seeds in 9-18. The transpiler compiles and its focused grammar/Rust-output check passes; its existing repository-wide test stops at source-free chapter00 with `no source files`. |
 | B10 and integer/constant-array widening | Widening starts in 24. Both 24-25 now use levels 0-3, dual widening `3-widen`, retained singleton widening, and widening on TypeConAry. `nonZero` preserves the coordinate. The same TypeTest regression and integer gather ranges run in both snapshots; before the backport, Chapter 24 fails the widening regression and lattice associativity. Loop Phis widen only below-center nonconstant ranges: widening an above-center range to level 1 then falling to zero at level 0 violated SCCP monotonicity in 24's existing `testCloneAnd` and `testInfinite`; both now pass, with the guard also in 25. |
