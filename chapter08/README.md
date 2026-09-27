@@ -299,7 +299,7 @@ return t;
 
 In this code, the two statements within the loop may be evaluated in either order by the graph, so we must ensure that the new value `arg` is not cached before the value of `t` can be set to the previous value of `arg`.
 
-This approach to evaluation is useful for testing because it allows a program to be executed without worrying about instruction selection, register allocation or code generation. It can execute on any valid Sea of Nodes graph, as well, so execution results of unoptimized code can be checked against the results of optimized code! This fact lends itself to some interesting automated / regression testing ideas. For instance, the result of execution could be checked after every optimization step, possibly helping isolate some types of errors.
+This approach to evaluation is useful for testing because it allows a program to be executed without worrying about instruction selection, register allocation or code generation. It executes the graph produced with normal peephole optimization. In later chapters, the evaluator can compare graphs optimized with different worklist orders to detect inconsistent results. This chapter's fuzzer checks generated programs for compiler and evaluator failures.
 
 ``` java
 arg=arg+arg;

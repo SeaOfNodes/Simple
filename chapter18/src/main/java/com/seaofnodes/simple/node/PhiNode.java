@@ -70,9 +70,6 @@ public class PhiNode extends Node {
         Node live = singleUniqueInput();
         if (live != null)
             return live;
-        // No more fancy peeps
-        if( _disablePeephole )
-            return null;
 
         // No bother if region is going to fold dead paths soon
         for( int i=1; i<nIns(); i++ )

@@ -47,11 +47,10 @@ class FuzzerUtils {
     }
 
     /**
-     * Parse script with peepholes enabled or disabled
+     * Parse script with normal peephole optimization
      */
-    public static StopNode parse(String script, boolean runPeeps) {
+    public static StopNode parse(String script) {
         var parser = new Parser(script);
-        Node._disablePeephole = !runPeeps;
         return parser.parse();
     }
 

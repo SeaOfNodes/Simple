@@ -16,7 +16,7 @@ import java.util.function.Consumer;
  * randomly choose a variation the parser would parse and generate it.
  * These scripts are the parsed by the parser and all exceptions are caught and filtered
  * to only show one occurrence of one problem. This includes script which generate different
- * results when the compiled graph with and without peeps is executed.
+ * results when graphs optimized with different worklist seeds are executed.
  * To aid debugging scripts that cause errors are then reduced by applying rules and checking
  * that the same issue persists.
  */
@@ -68,7 +68,7 @@ public class Fuzzer {
     }
 
     /**
-     * Run checks for script. Compile the script with peeps enabled and disabled.
+     * Run checks for script. Compile the script with two different optimizer worklist seeds.
      * Check that exceptions raised in the parser by both methods are the same and only happens if the script may be invalid.
      * If the script was successfully parsed check that both version behave the same.
      * @param script The script to test
@@ -77,10 +77,10 @@ public class Fuzzer {
     private static void runCheck(String script, boolean valid) {
         StopNode stop1;
         try {
-            stop1 = FuzzerUtils.parse(script, false);
+            stop1 = FuzzerUtils.parse(script, 123);
         } catch (RuntimeException e1) {
             try {
-                FuzzerUtils.parse(script, true);
+                FuzzerUtils.parse(script, 456);
             } catch (RuntimeException e2) {
                 if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
                     if (!valid || e1.getClass() == RuntimeException.class) return;
@@ -90,7 +90,7 @@ public class Fuzzer {
             }
             throw e1;
         }
-        var stop2 = FuzzerUtils.parse(script, true);
+        var stop2 = FuzzerUtils.parse(script, 456);
         checkGraphs(stop1, stop2, 0);
         checkGraphs(stop1, stop2, 1);
         checkGraphs(stop1, stop2, 10);

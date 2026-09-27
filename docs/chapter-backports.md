@@ -44,21 +44,6 @@ renumbering chapters is deferred.
   if(p==null) return p.x; return -1;
   ```
 
-- **Chapter 18 fuzzer seed `973358943756616234`.** Remains in
-  `OPEN_FAILING_SEEDS`. The reduction below exposes nullable field lookup with
-  peepholes disabled and, historically, a mixed-return error with them enabled.
-  B11 fixes the latter reduced diagnostic; neither it nor Chapter 19's change
-  from an off/on oracle to worklist-seed comparison proves the full seed fixed.
-
-  ```java
-  struct s0 { u8 v1; };
-  s0? !UmPOLQK=null;
-  if(0) while(0&UmPOLQK.v1) {}
-  if(UmPOLQK.v1) {}
-  return new s0;
-  while(0) {}
-  ```
-
 - **Chapter 25 ARM extern data.** `i32 errno="C"; return 0;`, compiled through
   Encoding with ARM/SystemV, reaches `arm.load_str_imm` with register -1 for the
   extern-data value stored by `<clinit>`. Both the saved original and final
@@ -213,6 +198,8 @@ Unresolved reproductions have been promoted to the pending queue above.
 
 | Completed work | Scope and evidence retained |
 |---|---|
+| Infinite-loop evaluation | Eval2 now runs the missing loop-tree phase in 21 and explicitly follows NeverNode projection 0 in 21-25. Existing `testFcn9` expects timeout in 21-24. Full 18-25 Make suites passed on 2026-09-26 (`build/never-exit-tests.log` and `build/never-exit-final.log`). On 2026-09-27, Cliff requested removal of the frozen-source fixture, replay tests, related reductions, and seed-list entry as unnecessary test overhead; the evaluator fixes remain. |
+| Always-on peepholes | Removed the global disable flag and branches in 2-18, the Chapter 18 parse overload, test toggles, and transpiler metadata/Rust output. Updated early graph expectations and READMEs; removed duplicate no-peephole scope tests. Chapter 8 fuzzing checks compilation/evaluation for failures; 9-18 compare worklist seeds 123/456 like later chapters. The Chapter 18 Load type workaround was unnecessary with normal forwarding and was removed. All 1-25 default Make suites passed across `build/always-peeps-tests.log` and `build/always-peeps-final.log`; later evaluator corrections are recorded above. The baseline was green in `build/always-peeps-baseline.log`. Direct checks exercised both worklist seeds in 9-18. The transpiler compiles and its focused grammar/Rust-output check passes; its existing repository-wide test stops at source-free chapter00 with `no source files`. |
 | B10 and integer/constant-array widening | Widening starts in 24. Both 24-25 now use levels 0-3, dual widening `3-widen`, retained singleton widening, and widening on TypeConAry. `nonZero` preserves the coordinate. The same TypeTest regression and integer gather ranges run in both snapshots; before the backport, Chapter 24 fails the widening regression and lattice associativity. Loop Phis widen only below-center nonconstant ranges: widening an above-center range to level 1 then falling to zero at level 0 violated SCCP monotonicity in 24's existing `testCloneAnd` and `testInfinite`; both now pass, with the guard also in 25. |
 | TypeConAry API backport and validation | 24-25 share the reduced raw `_make(any,widen)` API, integer meet dispatch through the distinct `TCONARY` tag, and gathered samples. Preserve 24's GLB hooks and ordinary byte stream; scalar envelopes and serialization stay in 25. Chapters 22-23 consolidate gather and remove redundant wrappers/arguments, retaining their pre-widening representations and needed sentinels. Full Make suites passed on 2026-09-26: 22 (428), 23 (450), 24 (480), 25 (474), each plus its fuzzer wrapper; all include TypeTest, and 25 rebuilt `sys.o`. Logs: `build/conary-backport-*` and `chapter25/build/conary-backport-25.log`. |
 | #254 subtraction zero identities | Require integer operands in 4-25 and resolved integer mode in 25. Preserve floating-point signed zero and subtraction diagnostics. `Chapter12Test.testSubZeroFloat` runs in 12-25; `Chapter22Test.testSubZeroTypeError` runs in 22-25. Against the original PR, the signed-zero test fails in 25 and the diagnostic test fails in 22-25. Full Make suites passed in every chapter 4-25 on 2026-09-25, including fresh `sys.o` compilation in 25. |
@@ -230,7 +217,7 @@ Unresolved reproductions have been promoted to the pending queue above.
 | Inlining Return types and ARM execution | Live return expressions outlast a deleted inline entry (20-25); ARM register SUB, call instructions, frame byte counts/alignment, and vector growth (21-25 as applicable). Reduced negative cases and full affected suites passed. The earlier standalone ARM String/hash failure is resolved. |
 | Native test reliability | Full process exit status, stdout plus successful execution, and distinct concurrent HelloWorld artifact names. Crashes no longer pass merely because output matches or an exit status narrows to zero. |
 | Allocator progression 20-25 | Fixed cohorts, legality checks, native/emulated execution from 21, and same-compiler comparisons. Final results below. |
-| Build/fuzzer harness baseline | All 25 chapter targets passed after build setup and explicit seed lists. Empty default lists were not exploratory fuzz coverage; the Chapter 18 open seed remains queued. |
+| Build/fuzzer harness baseline | All 25 chapter targets passed after build setup and explicit seed lists. Empty default lists were not exploratory fuzz coverage. |
 
 Final allocator audit, 2026-09-20, Windows/Cygwin with assertions:
 

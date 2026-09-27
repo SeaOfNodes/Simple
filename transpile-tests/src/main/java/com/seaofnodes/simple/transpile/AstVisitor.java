@@ -142,16 +142,6 @@ class AstVisitor extends TreeScanner<Void, Void> {
         return null;
     }
 
-    @Override
-    public Void visitAssignment(AssignmentTree node, Void unused) {
-        if (current != null && node.getVariable().toString().equals("Node._disablePeephole")) {
-            if ((Boolean) literal(node.getExpression())) {
-                current.disablePeephole = true;
-            }
-        }
-        return super.visitAssignment(node, unused);
-    }
-
     private Object literal(ExpressionTree t) {
         return ((LiteralTree) t).getValue();
     }

@@ -285,12 +285,6 @@ public abstract class Node implements Cloneable {
     // Graph-based optimizations
 
     /**
-     * We allow disabling peephole opt so that we can observe the
-     * full graph, vs the optimized graph.
-     */
-    public static boolean _disablePeephole = false;
-
-    /**
      * Try to peephole at this node and return a better replacement Node.
      * Always returns some not-null Node (often this).
      */
@@ -326,17 +320,8 @@ public abstract class Node implements Cloneable {
         // Compute initial or improved Type
         Type old = setType(compute());
 
-        // Peepholes can be turned off - except for cleaning up dead CFG paths.
-        // These need to clean up so the following code motion algorithms don't
-        // get confused by dead or infinite paths.
-        if( _disablePeephole && !(this instanceof RegionNode) && !(this instanceof PhiNode) )
-            return old==_type ? null : this;   // Peephole optimizations turned off
-
-        // Replace constant computations from non-constants with a constant
-        // node.  If peeps are disabled, still allow high Phis to collapse;
-        // they typically come from dead Regions, and we want the Region to
-        // collapse, which requires the Phis to die first.
-        if( _type.isHighOrConst() && !isConst() && (!_disablePeephole || _type.isHigh()) )
+        // Replace constant computations from non-constants with a constant node.
+        if( _type.isHighOrConst() && !isConst() )
             return ConstantNode.make(_type).peepholeOpt();
 
         // Global Value Numbering
@@ -633,7 +618,6 @@ public abstract class Node implements Cloneable {
      */
     public static void reset() {
         UNIQUE_ID = 1;
-        _disablePeephole=false;
         GVN.clear();
         ITER_CNT = ITER_NOP_CNT = 0;
     }

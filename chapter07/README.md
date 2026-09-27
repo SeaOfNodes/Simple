@@ -77,15 +77,15 @@ In [Chapter 8](../chapter08) we will implement a "lazy phi" approach that create
 ## New Node Types
 
 Our list of nodes remains the same as in [Chapter 5](../chapter05/README.md), however, we create a subtype of `Region` named `Loop` to better
-encapsulate some of the additional logic required. A key aspect of this is to temporarily disable peepholes of the `Region` and any phis
-created until we complete parsing the loop body. This is because our phis are not fully constructed until the loop end.
+encapsulate some of the additional logic required. Loop and Phi peepholes defer rewrites that need the back edge
+until we complete parsing the loop body. Other nodes continue to optimize normally.
 
 ## Detailed Steps
 
 1. We start by creating a new subclass of `Region`, the `Loop`. The `Loop` gets two control inputs,
    the first is the entry point, i.e. the current binding to `$ctrl`, and second (`null`) is a placeholder for the back edge that is
-   set after loop is parsed. The absence of a back edge is used as an indicator to switch off peepholes of the region and
-   associated phis.
+   set after the loop is parsed. A missing back edge marks the Loop and associated Phis as incomplete,
+   so their peepholes wait for the inputs needed by each rewrite.
 
     ```java
     ctrl(new LoopNode(ctrl(),null).peephole());

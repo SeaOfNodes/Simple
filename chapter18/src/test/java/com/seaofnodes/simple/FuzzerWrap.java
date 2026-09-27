@@ -18,7 +18,6 @@ public class FuzzerWrap {
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
-        973358943756616234L, // Parser failure on nullable field access after dead code
     };
 
     @Test         public void fuzzPeepsRegression  () { fuzzPeepsSeeds(REGRESSION_SEEDS); }

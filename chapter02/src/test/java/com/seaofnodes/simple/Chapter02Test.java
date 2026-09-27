@@ -10,11 +10,9 @@ public class Chapter02Test {
 
     @Test
     public void testParseGrammar() {
-        Node._disablePeephole = true; // disable peephole so we can observe full graph
         Parser parser = new Parser("return 1+2*3+-5;");
         ReturnNode ret = parser.parse();
-        assertEquals("return (1+((2*3)+(-5)));", ret.print());
-        Node._disablePeephole = false;
+        assertEquals("return 2;", ret.print());
     }
 
     @Test

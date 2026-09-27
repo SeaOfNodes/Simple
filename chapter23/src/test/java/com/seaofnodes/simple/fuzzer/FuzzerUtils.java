@@ -92,7 +92,7 @@ class FuzzerUtils {
     }
 
     /**
-     * Parse script with peepholes enabled or disabled
+     * Parse and optimize using the given worklist seed
      */
     public static CodeGen parse(String script, long workListSeed, boolean reset) {
         var err = System.err;
