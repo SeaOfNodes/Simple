@@ -52,6 +52,7 @@ class FuzzerUtils {
      * Used to clear as exceptions might happen in the walk and left this bitset not cleared
      */
     private static final BitSet NodeWalkVisit;
+    private static final java.util.Random WorkRandom;
 
     /**
      * Write access to Iterate.MID_ASSERT
@@ -67,6 +68,7 @@ class FuzzerUtils {
     static {
         try {
             NodeWalkVisit = getFieldValue(Node.class, "WVISIT");
+            WorkRandom = getFieldValue(getFieldValue(IterPeeps.class, "WORK"), "_R");
             set_MID_ASSERT = MethodHandles.lookup().unreflectSetter(getField( IterPeeps.class, "MID_ASSERT"));
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
@@ -113,9 +115,9 @@ class FuzzerUtils {
     }
 
     /**
-     * Parse script with peepholes enabled or disabled
+     * Parse and optimize using the given worklist seed
      */
-    public static StopNode parse(String script, boolean runPeeps) {
+    public static StopNode parse(String script, long workListSeed) {
         var err = System.err;
         var out = System.out;
         try {
@@ -127,9 +129,9 @@ class FuzzerUtils {
                 throw rethrow(e);
             }
             var parser = new Parser(script);
-            Node._disablePeephole = !runPeeps;
+            WorkRandom.setSeed(workListSeed);
             var stop = parser.parse();
-            return runPeeps ? stop.iterate() : stop;
+            return stop.iterate();
         } finally {
             NodeWalkVisit.clear();
             System.setErr(err);

@@ -543,8 +543,16 @@ is opt-in. A passing wrapper with an empty list is not exploratory coverage, and
 For dated suite counts and known failures, consult the backport validation record
 rather than treating an old count as the current baseline.
 
-When comparing historical fuzzer results, check what the harness compares:
-Chapter 18 compares peepholes off/on; Chapter 19 switches to optimizer worklist
-seeds. A change of oracle does not establish that an older discrepancy is
-fixed. Validate the full failing seed before promoting it, even when a
-reduced source exposes a separately fixed diagnostic.
+Peepholes are always enabled in every chapter, by Cliff's request on 2026-09-26.
+Do not reintroduce an unoptimized compiler mode. Incomplete Loop/Phi nodes still
+defer rewrites that require their missing inputs; this is part of normal graph
+construction. Early README diagrams showing unfurled arithmetic are schematics.
+
+Chapter 8 fuzzing checks compilation/evaluation for failures; 9 onward compare
+optimizer worklist seeds. Historically 8-18 compared peepholes off/on. A change
+of oracle does not prove an old discrepancy fixed. Preserve actual generated
+source when comparing chapters, because the generators and dialects change.
+Cliff removed the frozen Chapter 18 fixture, replay tests, related reductions,
+and seed-list entry on 2026-09-27 as unnecessary test overhead. Retain the
+evaluator fixes; do not recreate that test suite. Do not describe timeout-skipped
+comparisons as equal runtime results.

@@ -124,8 +124,9 @@ The variables `a`, `b`, and `c` are registered in this table.
 * On line 5, a variable `b` is declared. `b` is registered in the symbol table at level 1. This then
 hides the variable with the same name on line 2.
 * On line 7, we update the variable `c`. Variable lookup will find it in the symbol table at level 0.
-The node graph is shown below (note that peephole opts are switched off here so that we can
-see the graph as its initially constructed).
+The schematic below shows the variable bindings and arithmetic before constant
+folding. The compiler applies peepholes as it builds the graph, so the actual
+result of this example is `return 4;`.
 
 ![Graph1](./docs/03-graph1.svg)
 

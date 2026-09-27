@@ -16,7 +16,7 @@ import java.util.function.Consumer;
  * randomly choose a variation the parser would parse and generate it.
  * These scripts are the parsed by the parser and all exceptions are caught and filtered
  * to only show one occurrence of one problem. This includes script which generate different
- * results when the compiled graph with and without peeps is executed.
+ * results when graphs optimized with different worklist seeds are executed.
  * To aid debugging scripts that cause errors are then reduced by applying rules and checking
  * that the same issue persists.
  */
@@ -73,7 +73,7 @@ public class Fuzzer {
     }
 
     /**
-     * Run checks for script. Compile the script with peeps enabled and disabled.
+     * Run checks for script. Compile the script with two different optimizer worklist seeds.
      * Check that exceptions raised in the parser by both methods are the same and only happens if the script may be invalid.
      * If the script was successfully parsed check that both version behave the same.
      * @param script The script to test

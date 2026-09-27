@@ -210,12 +210,6 @@ public abstract class Node {
     // Graph-based optimizations
 
     /**
-     * We allow disabling peephole opt so that we can observe the
-     * full graph, vs the optimized graph.
-     */
-    public static boolean _disablePeephole = false;
-
-    /**
      * Try to peephole at this node and return a better replacement Node if
      * possible.  We compute a {@link Type} and then check and replace:
      * <ul>
@@ -243,9 +237,6 @@ public abstract class Node {
     private Node peepholeOpt() {
         // Compute initial or improved Type
         Type type = _type = compute();
-
-        if (_disablePeephole)
-            return null;        // Peephole optimizations turned off
 
         // Replace constant computations from non-constants with a constant node
         if (!(this instanceof ConstantNode) && type.isConstant())
@@ -360,7 +351,7 @@ public abstract class Node {
      * Used to allow repeating tests in the same JVM.  This just resets the
      * Node unique id generator, and is done as part of making a new Parser.
      */
-    public static void reset() { UNIQUE_ID = 1; _disablePeephole=false; }
+    public static void reset() { UNIQUE_ID = 1; }
 
     /**
      * Debugging utility to find a Node by index

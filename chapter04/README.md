@@ -136,9 +136,6 @@ public final Node peephole( ) {
     Type type = _type = compute(); 
     /*   type = {TypeInteger@1527} "2"  */
 
-    if (_disablePeephole)
-        return this;
-    
     // ProjNode is not a constant unlike its type.
     if (!(this instanceof ConstantNode) && type.isConstant())
         /* Create Constant(2) */

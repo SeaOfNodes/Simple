@@ -16,11 +16,9 @@ public class Chapter07Test {
                 }
                 return arg;
                 """);
-        Node._disablePeephole = true;
         StopNode stop = parser.parse();
         assertEquals("return Phi(Loop8,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
-        Node._disablePeephole = false;
     }
 
     @Test
@@ -71,11 +69,9 @@ while(a < 10) {
 }
 return b;
 """);
-        Node._disablePeephole = true;
         StopNode stop = parser.parse();
         assertEquals("return Phi(Loop10,2,Phi(Region29,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
-        Node._disablePeephole = false;
     }
 
     @Test
@@ -109,11 +105,9 @@ while(a < 10) {
 }
 return a;
 """);
-        Node._disablePeephole = true;
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop9,1,((Phi_a+1)+2));", stop.toString());
+        assertEquals("return Phi(Loop9,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
-        Node._disablePeephole = false;
     }
 
     @Test
@@ -140,11 +134,9 @@ int a = 1;
 while(arg) a = 2;
 return a;
 """);
-        Node._disablePeephole = true;
         StopNode stop = parser.parse();
         assertEquals("return Phi(Loop9,1,2);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
-        Node._disablePeephole = false;
     }
 
     @Test
@@ -171,11 +163,9 @@ while(a < 10) {
 }
 return a;
 """);
-        Node._disablePeephole = true;
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop9,1,((Phi_a+1)+2));", stop.toString());
+        assertEquals("return Phi(Loop9,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
-        Node._disablePeephole = false;
     }
 
     @Test
@@ -206,11 +196,9 @@ while(a < 10) {
 }
 return a;
 """);
-        Node._disablePeephole = true;
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop10,1,((Phi_a+1)+2));", stop.toString());
+        assertEquals("return Phi(Loop10,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
-        Node._disablePeephole = false;
     }
 
     @Test

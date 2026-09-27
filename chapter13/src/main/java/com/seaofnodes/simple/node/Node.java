@@ -275,17 +275,10 @@ public abstract class Node implements OutNode {
     // Graph-based optimizations
 
     /**
-     * We allow disabling peephole opt so that we can observe the
-     * full graph, vs the optimized graph.
-     */
-    public static boolean _disablePeephole = false;
-
-    /**
      * Try to peephole at this node and return a better replacement Node.
      * Always returns some not-null Node (often this).
      */
     public final Node peephole() {
-        if( _disablePeephole ) { _type = compute(); return this; }
         var obs = IterPeeps.midAssert() ? null : Parser.PARSER == null ? null : Parser.PARSER._obs;
         if( obs != null ) obs.before(this);
         Node n = peepholeOpt();
@@ -607,7 +600,6 @@ public abstract class Node implements OutNode {
      */
     public static void reset() {
         UNIQUE_ID = 1;
-        _disablePeephole=false;
         GVN.clear();
         ITER_CNT = ITER_NOP_CNT = 0;
     }

@@ -8,7 +8,6 @@ public class TestMethod {
     public Arg parserArg;
     // if this is set you can ignore the rest
     public String parseErrorMessage;
-    public boolean disablePeephole;
     public boolean iterate;
     public boolean irPrinter;
     public boolean irPrinterLLVM;

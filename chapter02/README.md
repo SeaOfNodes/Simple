@@ -156,7 +156,8 @@ There are other important properties of the Lattice that we discuss in [Chapter
 
 ## Nodes Pre Peephole Optimization
 
-The following visual shows how the graph looks like pre-peephole optimization:
+The following schematic shows the operations before peephole folding. The parser
+optimizes each node as it is built; it does not retain this entire intermediate graph:
 
 ![Example Visual](./docs/02-pre-peephole-ex1.svg)
 

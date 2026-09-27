@@ -27,13 +27,6 @@ public class Chapter03Test {
     }
 
     @Test
-    public void testVarScopeNoPeephole() {
-        CodeGen code = new CodeGen("int a=1; int b=2; int !c=0; { int b=3; c=a+b;  } return c; ");
-        code.parse();           // Peepholes always run now
-        assertEquals("return 4;", code.print());
-    }
-
-    @Test
     public void testVarDist() {
         CodeGen code = new CodeGen("int x0=1; int y0=2; int x1=3; int y1=4; return (x0-x1)*(x0-x1) + (y0-y1)*(y0-y1); ");
         code.parse();

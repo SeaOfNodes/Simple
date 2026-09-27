@@ -85,24 +85,6 @@ public class Chapter18Test {
         org.junit.Assert.assertSame(declared,field.get(v));
     }
 
-    @Test public void testPrintingLazyMemory() throws Exception {
-        var code = new CodeGen("return 0;").parse();
-        var base = new ConstantNode(com.seaofnodes.simple.type.TypeMem.BOT);
-        var outer = new ScopeNode();
-        var inner = new ScopeNode();
-        var loop = new LoopNode(null,code._start);
-        loop._type = com.seaofnodes.simple.type.Type.CONTROL;
-        var outerMem = new MemMergeNode(true);
-        outerMem.addDef(null); outerMem.addDef(base); outerMem.addDef(base);
-        outer.addDef(loop); outer.addDef(outerMem);
-        var innerMem = new MemMergeNode(true);
-        innerMem.addDef(null); innerMem.addDef(outer); innerMem.addDef(outer);
-        inner.addDef(loop); inner.addDef(innerMem);
-        var mem = new MemMergeNode(true);
-        mem.addDef(null); mem.addDef(base); mem.addDef(inner);
-        PrintTestSupport.unchanged(mem, () -> org.junit.Assert.assertTrue(mem.toString().contains("Lazy_")));
-    }
-
 
     @Test
     public void testJig() {

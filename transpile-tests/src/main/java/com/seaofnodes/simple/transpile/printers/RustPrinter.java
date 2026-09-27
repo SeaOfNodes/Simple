@@ -105,9 +105,6 @@ public class RustPrinter {
                     case TestMethod.Arg.IntConstant c -> "types.get_int(" + c.value() + ")";
                 });
             }
-            if (test.disablePeephole) {
-                out.println("parser.nodes.disable_peephole = true;");
-            }
             out.println("let stop = parser.parse().unwrap();");
             if (test.iterate) {
                 out.println("parser.iterate(stop);");

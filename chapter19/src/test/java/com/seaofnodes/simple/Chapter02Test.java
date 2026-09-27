@@ -11,7 +11,7 @@ public class Chapter02Test {
     @Test
     public void testParseGrammar() {
         CodeGen code = new CodeGen("return 1+2*3+-5;");
-        code.parse(); // No more disable peepholes
+        code.parse();
         assertEquals("return 2;", code.print());
     }
 

@@ -45,14 +45,12 @@ public class CodeGen {
     CodeGen( String src, TypeInteger arg ) { _phase = null; _src = src; _arg=arg; CODE=this; }
     public CodeGen( String src ) { this(src,TypeInteger.BOT); }
 
-    public CodeGen parse() { return parse(false); }
-    public CodeGen parse(boolean disable) {
+    public CodeGen parse() {
         assert _phase == null;
         _phase = Phase.Parse;
         _linker.clear();
 
         P = new Parser(_src,_arg);
-        Node._disablePeephole = disable;
         _stop = P.parse();
         _start = Parser.START;   // Capture global start
         if( _obs != null ) _obs.phase("Parse");
@@ -75,8 +73,7 @@ public class CodeGen {
 
     public CodeGen typeCheck() {
         // Demand phase Opto for cleaning up dead control flow at least,
-        // required for the following GCM.  Note that peeps can be disabled,
-        // but still the dead CFG will get cleaned.
+        // required for the following GCM.
         assert _phase == Phase.Opto;
         _phase = Phase.TypeCheck;
 

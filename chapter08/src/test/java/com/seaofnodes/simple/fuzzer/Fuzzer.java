@@ -13,8 +13,8 @@ import java.util.function.Consumer;
  * This will generate a script similar to how the parser parses it but instead of parsing it will
  * randomly choose a variation the parser would parse and generate it.
  * These scripts are the parsed by the parser and all exceptions are caught and filtered
- * to only show one occurrence of one problem. This includes script which generate different
- * results when the compiled graph with and without peeps is executed.
+ * to only show one occurrence of one problem. Generated graphs are evaluated
+ * to detect compiler/evaluator failures; this chapter has no differential oracle.
  * To aid debugging scripts that cause errors are then reduced by applying rules and checking
  * that the same issue persists.
  */
@@ -49,49 +49,17 @@ public class Fuzzer {
         System.out.flush();
     }
 
-    /**
-     * Check that two graphs result in the same output when supplied with a value
-     * @param stop1 Stop node of the first graph
-     * @param stop2 Stop node of the second graph
-     * @param in The input value to both graphs to test for an equal output
-     */
-    private static void checkGraphs(StopNode stop1, StopNode stop2, long in) {
-        var e1 = GraphEvaluator.evaluateWithResult(stop1, in, EVAL_TIMEOUT);
-        var e2 = GraphEvaluator.evaluateWithResult(stop2, in, EVAL_TIMEOUT);
-        if (e1.type() == GraphEvaluator.ResultType.TIMEOUT || e2.type() == GraphEvaluator.ResultType.TIMEOUT) return;
-        if (e1.type() != e2.type())
-            throw new RuntimeException("Different calculations types " + e1.type() + " vs " + e2.type());
-        if (e1.value() != e2.value())
-            throw new RuntimeException("Different calculations values " + e1.value() + " vs " + e2.value());
-    }
-
-    /**
-     * Run checks for script. Compile the script with peeps enabled and disabled.
-     * Check that exceptions raised in the parser by both methods are the same and only happens if the script may be invalid.
-     * If the script was successfully parsed check that both version behave the same.
-     * @param script The script to test
-     * @param valid If the script is definitely valid. If not some exceptions may be suppressed.
-     */
+    /** Compile and evaluate generated programs with normal peepholes. */
     private static void runCheck(String script, boolean valid) {
-        StopNode stop1;
+        StopNode stop;
         try {
-            stop1 = FuzzerUtils.parse(script, false);
-        } catch (RuntimeException e1) {
-            try {
-                FuzzerUtils.parse(script, true);
-            } catch (RuntimeException e2) {
-                if (FuzzerUtils.isExceptionFromSameCause(e1, e2)) {
-                    if (!valid || e1.getClass() == RuntimeException.class) return;
-                } else {
-                    e1.addSuppressed(e2);
-                }
-            }
-            throw e1;
+            stop = FuzzerUtils.parse(script);
+        } catch (RuntimeException e) {
+            if (!valid || e.getClass() == RuntimeException.class) return;
+            throw e;
         }
-        var stop2 = FuzzerUtils.parse(script, true);
-        checkGraphs(stop1, stop2, 0);
-        checkGraphs(stop1, stop2, 1);
-        checkGraphs(stop1, stop2, 10);
+        for (int input : new int[] {0, 1, 10})
+            GraphEvaluator.evaluateWithResult(stop, input, EVAL_TIMEOUT);
     }
 
     /**

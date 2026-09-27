@@ -160,6 +160,7 @@ public abstract class Eval2 {
             switch( prior ) {
             case StartNode start:  F = new Frame(F); break; // Frame for the call to main, as-if Called
             case CallNode  call :  BB = call(call); break;
+            case NeverNode never:  BB = never.cproj(0); break; // Synthetic exit is never taken.
             case IfNode    iff  :  Object p = val(iff.pred()); BB = iff.cproj( p==null || (p instanceof Long x && x==0L)  ? 1 : 0);  break;
             case ReturnNode ret :  if( clj(ret.rpc()).isStop() ) return exit(ret); else BB = ret(ret); break;
             case FunNode   fun  :  if( loopCnt++ > timeout ) return null;  break; // Timeout
