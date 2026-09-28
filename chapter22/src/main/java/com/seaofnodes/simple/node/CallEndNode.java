@@ -75,10 +75,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     assert fun.in(1) instanceof StartNode && fun.in(2)==call;
                     // Disallow self-recursive inlining (loop unrolling by another name)
                     CFGNode idom = call;
-                    while( !(idom instanceof FunNode) )
+                    while( idom!=null && !(idom instanceof FunNode) )
                         idom = idom.idom();
                     // Inline?
-                    if( idom != fun ) {
+                    if( idom != null && idom != fun ) {
                         // Trivial inline: rewrite
                         _folding = true;
                         // Rewrite Fun so the normal RegionNode ideal collapses

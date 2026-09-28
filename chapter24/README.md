@@ -298,16 +298,17 @@ both the cheaper first attempt and the mandatory fallback.
 
 Run `make spill-stats`. All rows use **Chapter 24's compiler**, optimizer seed
 123, and the same source/target combinations as the earlier cohort tables.
-These Windows results combine x86 SystemV/Win64 and RISC-V/ARM SystemV.
+These Windows results combine x86 SystemV/Win64 and RISC-V/ARM SystemV,
+remeasured on 2026-09-28 after the function-pointer lifetime backport.
 
 | Program cohort | Compilations | Split/move count | Loop-weighted count |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 331 | 457 |
+| Chapter 20 | 39 | 323 | 442 |
 | Chapter 21 | 52 | 436 | 975 |
 | Chapter 22 | 24 | 67 | 67 |
-| Chapter 23 | 30 | 66 | 115 |
-| Chapter 24 | 67 | 432 | 1,342 |
-| **Total** | **212** | **1,332** | **2,956** |
+| Chapter 23 | 30 | 84 | 231 |
+| Chapter 24 | 67 | 441 | 1,400 |
+| **Total** | **212** | **1,351** | **3,115** |
 
 `_spills` counts retained SplitNodes, including register moves. `_spillScaled`
 weights those moves by `8^loopDepth`; it is a cost estimate, not measured memory
@@ -315,13 +316,15 @@ traffic. Diagnostic machine graphs contribute no allocations to this table.
 The reporter checks allocation legality and native/emulated results even when
 spill expectations differ, and exits unsuccessfully for either kind of failure.
 
-With only the cold-first rule disabled, the same compiler and programs produce
+In the original 2026-09-20 allocator audit, before subsequent compiler fixes,
+the table totaled 1,332 / 2,956. With only the cold-first rule disabled, that
+compiler and the same programs produced
 **1,338 moves / 2,962 weighted moves**. The rule saves six of each. A RISC-V
 MergeSort case adds one move, offset by improvements in other MergeSort cases,
 Sieve, and an ARM loop case. Aggregate measurements justify accepting that
 local regression; the improvement here is modest, not universal.
 
-On cohorts 20-23 alone, Chapter 23 produced 933 / 1,745; Chapter 24 produces
+On cohorts 20-23 alone in that audit, Chapter 23 produced 933 / 1,745; Chapter 24 produced
 900 / 1,614. Only six of each reduction comes from this allocator change. The
 rest comes from other compiler changes, including SCCP; comparing chapters
 alone would overstate the heuristic's benefit.
@@ -332,3 +335,10 @@ to cohort 24 alongside this chapter's existing tests. The frozen String workload
 also exposed a missing null check in the inlining dominator walk; that correctness
 fix is included on both sides of the heuristic comparison. Area/cost spill
 ranking remains for Chapter 25.
+
+The current function-pointer rule keeps unknown callers whenever an address is
+used as a value rather than only as a direct call target. This preserves callable
+bodies without escape analysis, but Phi-selected functions retain general
+parameter types. The no-return String case now drops its unused hash bodies and
+needs no splits. Source/target membership remains unchanged; these graph changes
+are separate from the cold-first allocator comparison above.

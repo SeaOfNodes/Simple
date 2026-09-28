@@ -27,6 +27,10 @@ public class ConstantNode extends Node {
     public static Node make( Type type ) {
         if( type==Type. CONTROL ) return new CtrlNode();
         if( type==Type.XCONTROL ) return new XCtrlNode();
+        if( type instanceof TypeFunPtr tfp && tfp.isConstant() && tfp.notNull() ) {
+            FunNode fun = CodeGen.CODE.link(tfp);
+            if( fun!=null && !fun.isDead() ) return new FunPtrNode(tfp,fun.ret());
+        }
         return new ConstantNode(type);
     }
 

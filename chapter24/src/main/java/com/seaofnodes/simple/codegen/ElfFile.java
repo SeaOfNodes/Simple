@@ -222,6 +222,7 @@ public class ElfFile {
                 i++;
             int end = _code._encoding._opStart[ret._nid] + _code._encoding._opLen[ret._nid];
 
+            if( fun._name==null ) continue; // Anonymous addresses are relocated within .text.
             Symbol func = new Symbol(fun._name, text._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC);
             func._value = _code._encoding._opStart[fun._nid];
             func._size = end - func._value;

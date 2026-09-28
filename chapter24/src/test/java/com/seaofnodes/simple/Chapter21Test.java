@@ -13,6 +13,27 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+    @Test public void testReturnedFunctionEncoding() throws IOException {
+        String src = "if(arg) return {->42;}; return {->43;};";
+        CodeGen code = new CodeGen(src).driver("riscv","SystemV",null);
+        for( int arg : new int[]{0,1} ) {
+            byte[] image = new byte[1<<16];
+            byte[] bits = code._encoding.bits();
+            System.arraycopy(bits,0,image,0,bits.length);
+            EvalRisc5 cpu = new EvalRisc5(image,1<<15);
+            cpu._pc = code._encoding._opStart[code.link(code._main)._nid];
+            cpu.regs[riscv.A0] = arg;
+            assertEquals(0,cpu.step(100));
+            assertEquals(0,cpu._pc);
+            cpu._pc = (int)cpu.regs[riscv.A0];
+            assertEquals(0,cpu.step(100));
+            assertEquals(0,cpu._pc);
+            assertEquals(arg==0 ? 43 : 42,cpu.regs[riscv.A0]);
+        }
+        // Anonymous bodies need code, but no exported ELF name.
+        new CodeGen(src).driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,"build/objs/anonymous.o");
+    }
+
     @Test public void testArmFloatMemory() throws IOException {
         for( String type : new String[]{"f32","f64"} ) {
             String src = type+"[] !a=new "+type+"[3]; a[arg]=1.25; return a[1];";

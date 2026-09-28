@@ -9,7 +9,8 @@ Introduce independent fixes in the earliest applicable chapter and propagate
 them through every affected snapshot. Testing Chapter 25's inherited tests does
 not validate the compilers in the earlier chapter directories. Keep building
 SSA with incomplete types in Chapter 25 for now; moving that architecture or
-renumbering chapters is deferred.
+renumbering chapters is deferred. Cliff wants to revisit splitting Chapter 25
+into smaller chapters; escape analysis remains in 25 until that larger review.
 
 ## Pending corrections
 
@@ -62,21 +63,6 @@ renumbering chapters is deferred.
   known-null regression is already rejected
   during parsing in 10-24. Keep this separate from the constructor/memory fixes.
 
-- **FunPtrNode lifetime backport, now next after the allocator review.**
-  `return {->42;};` and `return sys.io.p;` fail during relocation in Chapter 22
-  on all three targets at seed 123. Opto's name-based pruning equates no linked
-  calls with no callers and deletes anonymous/library function bodies. A plain
-  function-address ConstantNode keeps the pointer, but has no edge to keep the
-  Return alive. Instruction selection resets NIDs; the linker retains an ideal
-  target and `patchLocalRelocations` indexes outside the machine graph.
-
-  Backport Chapter 25's FunPtrNode/Return retention rules together with pointer
-  creation, unknown-caller pruning, instruction selection, constant cloning, and
-  relocation. Determine the earliest applicable home; 21 lacks this pruning
-  pass. `val f={->42;}; return f;` surviving is not a fix for anonymous/library
-  addresses. Do not enlarge relocation arrays or add an interim address scan.
-  Validate returned pointers by calling them, including library pointers, while
-  still deleting genuinely unused helpers. Keep module/escape machinery in 25.
 - **Chapter 25 narrow C return values need ABI extension.** During the direct
   data-binding checks, `sys.libc.close(-1)==-1` evaluated false on x86/Cygwin.
   Disassembly compares the full RAX to -1 immediately after `close`, without
@@ -238,6 +224,8 @@ and its separate validation are recorded independently.
 
 | Completed work | Scope and evidence retained |
 |---|---|
+| FunPtr lifetime and callable entries | On 2026-09-28, introduced Return-linked FunPtrNode in 22-24, including semantic constant folding. Direct call targets retain existing call-graph treatment; all other address uses conservatively retain unknown callers, without escape analysis. Stop retains each callable Return through instruction selection; machine operands omit the lifetime edge. Anonymous/library returns failed relocation on all three targets before the change; 24 also failed named returns. New tests call returned anonymous/named/library pointers on ARM/RISC-V and from native C, and check discarded anonymous bodies disappear. Full Make suites passed: 21 (411), 22 (430), 23 (452), 24 (482), each plus its fuzzer wrapper. Baselines passed at 410/427/449/479. Chapter 24's Phi-selected functions retain general parameter types; graph expectations reflect that conservative rule. |
+| Function-address backend and worklist corrections | RISC-V TFPRISC now patches ADDI at opStart+4, rounds AUIPC for signed low bits, and reports its actual eight-byte size (21-24). ELF export emits anonymous bodies without exported names (21-24). Actual invocation exposed both bugs after retention was repaired; Chapter 21's reduced conditional-return probe trapped before the encoding fix. Chapter 22 gains the later inlining dominator null guard. In 24, killing Call#618 reduced FunPtr#540 to one use without waking dependent CallEnd#560; Node.kill now wakes the remaining definition's dependencies after removing a use (24-25). The no-return String workload loses unused hash bodies; its spill expectations become zero on all targets. Chapter 24 spill-stats passes all 212 original compilation entries at 1,351 moves / 3,115 weighted moves; its README separates this measurement from the original allocator ablation. Full Chapter 25 Make validation also passed: 476 ordinary tests plus its 17-seed fuzzer wrapper, with sys.o rebuilt. |
 | Chapter 25 direct C data bindings | On 2026-09-28, full `make tests` passed after the Field/ExternOffset refactor: 476 ordinary tests plus the fuzzer wrapper (17 seeds). Coverage checks zero layout space for external fields, native shared integer/float storage across C calls, compound updates, source/precompiled imports sharing aliases and preserving storage metadata, ARM/RISC-V emulated address relocation and signed loads, and the errno accessor after a failed native call. Direct bindings remain in 25: 22-24 have different singleton-pointer constant and instruction-selection contracts. Serialization retains magic C0DE; the changed layout requires rebuilding all objects. Only the independent RISC-V fixes below were selected for backport. |
 | RISC-V right shifts and pointer relocation | Backported from 25 to 22-24 on 2026-09-28. EvalRisc5 selects arithmetic/logical right shifts correctly; TMPRISC rounds the AUIPC high part to account for signed ADDI low bits. New regressions cover immediate/register shifts and forward/backward relocation boundaries. Both fail before the Chapter 22 fixes (arithmetic shift becomes logical; delta 0x800 lands 4 KB low). Full Make suites passed: 22 (427), 23 (449), 24 (479), each plus its fuzzer wrapper. Baseline suites also passed (425/447/477). |
 | Chapter 25 Load fuzzer recheck | At `8212a66f`, seed `-4628356252269023530` passes its direct fuzzPeepsRegression replay (`build/load-seed-recheck.log`). The complete `make fuzzer` wrapper also passes all 17 seeds on 2026-09-28 (one JUnit wrapper test). The seed remains a regression; OPEN_FAILING_SEEDS is empty. No new compiler fix was needed. The older Load TODO report is superseded. |

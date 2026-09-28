@@ -14,6 +14,54 @@ import static org.junit.Assert.*;
 
 public class Chapter22Test {
 
+    @Test public void testReturnedFunctions() throws IOException {
+        for( String src : new String[]{"return {->42;};", "val f={->42;}; return f;", "return sys.io.p;"} )
+            for( String target : new String[]{"riscv","arm"} ) {
+                CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,target,"SystemV").exportELF(null);
+                byte[] image = new byte[1<<16];
+                byte[] bits = code._encoding.bits();
+                System.arraycopy(bits,0,image,0,bits.length);
+                boolean library = src.contains("sys.io.p");
+                // u8[]: four-byte length followed by its bytes.
+                image[0x2000]=2; image[0x2004]='o'; image[0x2005]='k';
+                int entry = code._encoding._opStart[code.link(code._main)._nid];
+                if( target.equals("riscv") ) {
+                    EvalRisc5 cpu = new EvalRisc5(image,1<<15);
+                    cpu._pc = entry;
+                    assertEquals(0,cpu.step(1000));
+                    assertEquals(0,cpu._pc);
+                    cpu._pc = (int)cpu.regs[riscv.A0]; // Call the returned address.
+                    cpu.regs[library ? riscv.A1 : riscv.A0] = 0x2000; // Methods also receive self.
+                    assertEquals(0,cpu.step(1000));
+                    assertEquals(0,cpu._pc);
+                    if( library ) assertEquals("ok",cpu._stdout.toString());
+                    else assertEquals(42,cpu.regs[riscv.A0]);
+                } else {
+                    EvalArm64 cpu = new EvalArm64(image,1<<15);
+                    cpu._pc = entry;
+                    assertEquals(0,cpu.step(1000));
+                    assertEquals(0,cpu._pc);
+                    cpu._pc = (int)cpu.regs[0];
+                    cpu.regs[library ? 1 : 0] = 0x2000;
+                    assertEquals(0,cpu.step(1000));
+                    assertEquals(0,cpu._pc);
+                    if( library ) assertEquals("ok",cpu._stdout.toString());
+                    else assertEquals(42,cpu.regs[0]);
+                }
+            }
+        CodeGen unused = new CodeGen("({->42;}); return 0;").parse().opto();
+        assertEquals(1,unused._stop.nIns());
+    }
+
+    @Test public void testReturnedFunctionsNative() throws IOException {
+        String src = "val factory={int x -> if(x) return {->42;}; return {->43;};}; val printer={->return sys.io.p;};";
+        String obj = "build/objs/funptr.o";
+        new CheckedCodeGen(src).driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,obj);
+        assertEquals("ok",TestC.gcc(obj,"","src/test/java/com/seaofnodes/simple/progs/funptr.c",false,
+                                   "build/objs/funptr"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
+    }
+
+
     @Test public void testRiscvRightShifts() {
         // SRAI, SRLI, SRA, SRL: a0 = -32 shifted by 4.
         int[] ops = {0x40455513,0x00455513,0x40b55533,0x00b55533};

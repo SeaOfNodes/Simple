@@ -117,11 +117,14 @@ abstract public class Opto {
 
     // Function is public (callable from Start directly).
     // - Always true for main
-    // - Never true for stdlib, or anonymous functions
+    // - True for function addresses used as values
+    // - Otherwise false for stdlib or anonymous functions
     // - Named functions use `!wholeWorld`
     private static boolean funIsPublic( CodeGen code, boolean wholeWorld, FunNode fun ) {
         // Always true for main
         if( fun.sig().fidx() == code._main.fidx() ) return true;
+        // No escape analysis yet: a surviving address may be called from outside.
+        if( fun.hasPtr() ) return true;
         // Never true for stdlib or anonymous functions
         if( fun._name == null || fun._name.startsWith("sys.") )
             return false;

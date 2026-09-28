@@ -26,22 +26,15 @@ public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
         enc.add4(addi);
     }
 
-    @Override public byte encSize(int delta) {
-        if( -(1L<<11) <= delta && delta < (1L<<11) ) return 4;
-        throw Utils.TODO();
-    }
+    @Override public byte encSize(int delta) { return 8; }
 
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short rpc = enc.reg(this);
         if( opLen==8 ) {
-            // AUIPC (upper 20 bits)
-            // opstart of add
-            int next = opStart + opLen;
-            enc.patch4(opStart,riscv.u_type(riscv.OP_AUIPC, rpc, delta));
-            // addi(low 12 bits)
-            enc.patch4(next,riscv.i_type(riscv.OP_IMM, rpc, 0, rpc, delta & 0xFFF));
-            // addi
+            // ADDI sign-extends its low 12 bits, so round the AUIPC high part.
+            enc.patch4(opStart  ,riscv.u_type(riscv.OP_AUIPC, rpc, (delta+0x800)>>12));
+            enc.patch4(opStart+4,riscv.i_type(riscv.OP_IMM, rpc, 0, rpc, delta & 0xFFF));
         } else {
              // should not happen as one instruction is 4 byte, and TFP arm encodes 2.
             throw Utils.TODO();

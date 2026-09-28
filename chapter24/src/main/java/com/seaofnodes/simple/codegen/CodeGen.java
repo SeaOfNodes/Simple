@@ -321,6 +321,8 @@ public class CodeGen {
 
         // Produce a machine node from n; map it to flag as done so stops cycles.
         map.put(n, x=_mach.instSelect(n) );
+        // Stop retains the callable body. Its lifetime edge is not a machine operand.
+        if( n instanceof FunPtrNode ) x._inputs.pop();
         // Walk machine op and replace inputs with mapped inputs
         for( int i=0; i < x.nIns(); i++ )
             x._inputs.set(i, _instSelect(x.in(i),map) );

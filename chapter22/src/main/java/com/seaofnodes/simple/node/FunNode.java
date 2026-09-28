@@ -60,6 +60,16 @@ public class FunNode extends RegionNode {
     public void setRet(ReturnNode ret) { _ret=ret; }
     public ReturnNode ret() { assert _ret!=null; return _ret; }
 
+    // Direct calls are known; any other use of an address may have unknown callers.
+    public boolean hasPtr() {
+        for( Node use : ret()._outputs )
+            if( use instanceof FunPtrNode )
+                for( Node user : use._outputs )
+                    if( !(user instanceof CallNode call) || call.fptr()!=use ||
+                        call._inputs.find(use)!=call.nIns()-1 ) return true;
+        return false;
+    }
+
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
     public void setSig( TypeFunPtr sig ) {

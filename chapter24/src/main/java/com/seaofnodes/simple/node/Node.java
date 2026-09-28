@@ -261,8 +261,11 @@ public abstract class Node implements Cloneable {
         while( nIns()>0 ) { // Set all inputs to null, recursively killing unused Nodes
             Node old_def = _inputs.removeLast();
             // Revisit neighbor because removed use
-            if( old_def != null && CODE.add(old_def).delUse(this) )
-                old_def.kill(); // If we removed the last use, the old def is now dead
+            if( old_def != null ) {
+                if( CODE.add(old_def).delUse(this) )
+                    old_def.kill(); // If we removed the last use, the old def is now dead
+                old_def.moveDepsToWorklist(); // Use-count changes can enable distant rewrites.
+            }
         }
         assert isDead();        // Really dead now
     }

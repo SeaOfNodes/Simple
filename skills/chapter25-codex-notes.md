@@ -429,16 +429,24 @@ Consequences:
   whether an error exists. Earlier snapshots keep separate Return nodes; they
   already accept dead mixed-type exits and do not enforce one common return type.
 
-- Chapters 22-23's post-Opto name-based function pruning is not escape analysis:
-  no linked calls does not mean no callers when a function address survives.
-  In 22, `return {->42;};` and `return sys.io.p;` lose their bodies but retain
-  pointer constants and stale ideal linker targets, then fail in relocation after
-  machine NIDs reset. Diagnose retention before resizing relocation tables. A
-  named-function workaround or keeping only anonymous functions is insufficient
-  for the library-pointer case. Cliff wants Chapter 25's FunPtrNode investigated
-  as the backport, including the Return edge and callable-function retention
-  rules, after register allocation work is complete. Keep the Chapter 22 examples
-  as documented known failures until then; do not add an interim address scan.
+- Chapters 22-24 use Return-linked FunPtrNode constants. No linked calls does
+  not mean no callers when a function address survives. Direct call targets use
+  the existing call graph; any other address use conservatively preserves the
+  unknown-caller Start input. Phi-selected functions therefore keep general
+  parameter types. Escape propagation stays in 25; Cliff may split 25 into
+  smaller chapters later. Stop retains callable Returns through instruction
+  selection, which removes the lifetime edge from machine operands before
+  scheduling and cloning. Never substitute relocation-array growth or a linker
+  address scan for correct retention.
+- Validate returned addresses by calling them. Include anonymous and library
+  functions, plus unused-body removal. Methods gain a receiver argument in 23;
+  native/emulator probes must honor it even when the body does not use self.
+- Function-address encoding begins in 21. RISC-V AUIPC/ADDI occupies eight bytes;
+  patch the second instruction at opStart+4 and round the high part for signed
+  low bits. Anonymous bodies need emitted code, but no exported ELF symbol.
+- Removing a use can enable a distant rewrite without changing the definition's
+  type. Node.kill in 24-25 wakes that definition's dependencies immediately; only
+  queueing the definition missed single-call inlining after another call died.
 - A constant Simple function address must be a `FunPtrNode`, not an ordinary
   `ConstantNode`, so the pointer retains an edge to the function Return.
 - Before Opto, a live FunPtr keeps its function callable even if no Call is
