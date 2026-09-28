@@ -1,6 +1,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+
+// errno may be thread-local or a macro calling a platform accessor.
+int32_t simple_errno(void) { return errno; }
 
 // Native process arguments converted to ordinary Simple array layouts.
 // The outer array is mutable; every contained byte array is published as

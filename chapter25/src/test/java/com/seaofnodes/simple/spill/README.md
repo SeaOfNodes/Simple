@@ -27,11 +27,11 @@ Chapter 25 cannot parse all earlier sources unchanged. Adaptations are explicit:
 
 All entries replay **through RegAlloc**, checking scheduled register constraints.
 The historical phase column is provenance, not a promise to run those old native
-harnesses in Chapter 25. In particular, the adapted Bubble Sort still exposes a
-pre-existing ARM extern-data encoding limitation (`i32 errno="C"; return 0;` is
-sufficient to reproduce it). Allocation succeeds; ARM encoding does not. That
-separate failure remains in the backport queue. Do not count this corpus as
-historical runtime coverage.
+harnesses in Chapter 25. The adapted Bubble Sort retains its historical
+`i32 errno="C"` declaration for allocation comparability. Direct data bindings
+now encode on all three targets, but this declaration cannot link to a libc
+whose errno is thread-local or accessor-based. Current system-library code uses
+`libc.errno()` instead. Do not count this corpus as historical runtime coverage.
 
 `SpillStats` then compiles the current system library through encoding at seed
 456, and runs Chapter25Test with its existing seeds and native checks. Together

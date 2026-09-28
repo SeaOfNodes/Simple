@@ -154,6 +154,7 @@ public class TypeStruct extends Type {
     public TypeStruct makeInit() {
         Field[] fs = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ ) {
+            if( _fields[i]._extern ) { fs[i] = _fields[i]; continue; }
             Type zero = _fields[i]._t.makeZero();
             fs[i] = _fields[i].makeFrom(_fields[i]._t != Type.BOTTOM && zero.isa(_fields[i]._t) ? zero : Type.TOP);
         }
@@ -336,7 +337,7 @@ public class TypeStruct extends Type {
         int len = Math.min(_fields.length,that._fields.length);
         for( int i=0; i<len; i++ ) {
             Field f0 = _fields[i], f1 = that._fields[i];
-            if( !f0._fname.equals(f1._fname) || f0._alias != f1._alias )
+            if( !f0._fname.equals(f1._fname) || f0._alias != f1._alias || f0._extern != f1._extern )
                 return BOT;
         }
 
@@ -465,7 +466,7 @@ public class TypeStruct extends Type {
     @Override public int alignment() {
         int align = 0;
         for( Field f : _fields )
-            align = Math.max(align, f._t.alignment());
+            if( !f._extern ) align = Math.max(align, f._t.alignment());
         return align;
     }
 
@@ -614,7 +615,8 @@ public class TypeStruct extends Type {
             int[] cnts = new int[5]; // Count of fields at log field size
             int flen = _fields.length;
             for( int i=0; i<flen; i++ )
-                cnts[_fields[i]._t.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
+                if( !_fields[i]._extern )
+                    cnts[_fields[i]._t.log_size()]++; // Log size is 0(byte), 1(i16/u16), 2(i32/f32), 3(i64/dbl)
             int off = 0, idx = 0; // Base common struct fields go here, e.g. Mark/Klass
             // Compute offsets to the start of each power-of-2 aligned fields.
             int[] offs = new int[4];
@@ -625,6 +627,7 @@ public class TypeStruct extends Type {
             // Assign offsets to all fields.
             // Really a hidden radix sort.
             for( int i=0; i<flen; i++ ) {
+                if( _fields[i]._extern ) { _offs[idx++] = -1; continue; }
                 int log = _fields[i]._t.log_size();
                 _offs[idx++] = offs[log]; // Field offset
                 offs[log] += 1<<log;      // Next field offset at same alignment

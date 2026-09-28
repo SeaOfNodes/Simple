@@ -28,9 +28,9 @@ public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short dst = enc.reg(this);
-        // AUIPC dst,#hi20_constant_pool
-        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, dst, delta>>12));
-        // Load dst,[dst+#low12_constant_pool]
+        // Round the high part because ADDI's low 12 bits are signed.
+        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, dst, (delta+0x800)>>12));
+        // ADDI dst,dst,#low12_constant_pool
         enc.patch4(opStart+4, riscv.i_type(riscv.OP_IMM, dst, 0, dst, delta & 0xFFF));
     }
 

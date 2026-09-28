@@ -19,6 +19,7 @@ public class Var {
     // Parser-only definite-initialization marker.  The current binding's
     // nullable type carries the path-sensitive state through SSA merges.
     public boolean _uninit;
+    public int _extern;         // C storage alias; zero for ordinary variables
     public Parser.Lexer _loc;    // Source location
 
     public Var(int idx, String name, Type type, boolean xfinal, Parser.Lexer loc ) {

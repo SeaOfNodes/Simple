@@ -29,6 +29,26 @@ external Simple object search paths, including an object file or a directory.
 The compiler also resolves external C symbols for native linking. Names beginning
 with `_` control privacy; public reachability depends on enclosing names too.
 
+Explicit numeric C declarations bind directly to mutable native storage:
+
+```java
+i32 counter = "C";
+counter += 1;
+return counter;
+```
+
+The native linker resolves `counter`. Reads and writes access that C variable;
+the declaration neither copies nor initializes it. Repeated declarations and
+module imports share the same storage alias. Integer and floating-point data
+bindings are supported; pointer and aggregate data bindings are not yet supported.
+External fields carry a storage flag and occupy no bytes in their declaring
+class. Layout resolves their field offsets to `ExternOffset` symbols; instruction
+selection replaces class-base-plus-offset with the native symbol address.
+Native object output uses the existing AMD64 ELF writer; ARM and RISC-V support
+these addresses through the in-memory linker. Thread-local variables and C macros
+need accessor functions: the system library exposes `libc.errno()` through a small
+native runtime accessor.
+
 ## Object files contain ideal IR
 
 The ELF writer stores native code and a `.simple` section containing canonical
@@ -46,6 +66,10 @@ Every semantic node/type field needs matching read/write support. The source's
 expensive serialization bijection check is currently disabled, and the larger
 incremental-rebuild test `testModule0` is ignored. Neither is an active
 validation guarantee.
+
+The external-field flag and symbolic offsets change the serialized layout.
+The magic remains `C0DE`; there is no separate format version yet. Rebuild all
+Simple object files before importing them with this compiler.
 
 ## Constructing SSA before types are complete
 

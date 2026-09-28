@@ -13,6 +13,38 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter22Test {
+
+    @Test public void testRiscvRightShifts() {
+        // SRAI, SRLI, SRA, SRL: a0 = -32 shifted by 4.
+        int[] ops = {0x40455513,0x00455513,0x40b55533,0x00b55533};
+        for( int i=0; i<ops.length; i++ ) {
+            EvalRisc5 r5 = new EvalRisc5(new byte[1<<16],1<<15);
+            r5.st4(0,ops[i]);
+            r5.regs[riscv.A0] = -32;
+            r5.regs[riscv.A0+1] = 4;
+            assertEquals(0,r5.step(1));
+            assertEquals((i&1)==0 ? -2L : 0x0fff_ffff_ffff_fffeL,r5.regs[riscv.A0]);
+        }
+    }
+
+    @Test public void testRiscvPointerRelocation() {
+        CodeGen code = new CheckedCodeGen("return \"x\";").driver(CodeGen.Phase.Encoding,"riscv","SystemV");
+        var enc = code._encoding;
+        assertEquals(1,enc._bigCons.size());
+        var ptr = (com.seaofnodes.simple.node.cpus.riscv.TMPRISC)enc._bigCons.keySet().iterator().next();
+        int start = enc._opStart[ptr._nid];
+        for( int delta : new int[]{0x7ff,0x800,0xfff,0x1000,0x1800,-1,-0x800,-0x801} ) {
+            ptr.patch(enc,start,enc._opLen[ptr._nid],delta);
+            // Place the program above zero so backward targets are valid addresses.
+            byte[] image = new byte[1<<16];
+            System.arraycopy(enc.bits(),0,image,0x4000,enc._bits.size());
+            EvalRisc5 r5 = new EvalRisc5(image,1<<15);
+            r5._pc = 0x4000;
+            assertEquals(0,r5.step(100));
+            assertEquals(0x4000+start+delta,r5.regs[riscv.A0]);
+        }
+    }
+
     @Test public void testSubZeroTypeError() {
         try {
             new CodeGen("return null-0;").parse().opto().typeCheck();

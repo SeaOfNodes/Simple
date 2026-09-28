@@ -92,8 +92,7 @@ public class LoadNode extends MemOpNode {
         // Loads into structs do not need a ctrl edge, as null-ptr checking is
         // baked into the type system.  Loads into arrays DO need the ctrl
         // edge, at least until proper range-checking is in place.
-        if( in(0)!=null && ptr._type instanceof TypeMemPtr tmp &&
-            !tmp._obj.isAry() ) {
+        if( in(0)!=null && ptr._type instanceof TypeMemPtr tmp && !tmp._obj.isAry() ) {
             setDef(0,null);
             return this;
         }
@@ -112,6 +111,10 @@ public class LoadNode extends MemOpNode {
         // Must sharpen alias first
         if( _alias == 1 )
             return null;
+
+        // External storage is shared even through different class namespaces.
+        boolean external = ptr._type instanceof TypeMemPtr tmp &&
+            (fld=tmp._obj.field(_name)) != null && fld._extern;
 
         // Simple Load-after-Store on same address.
         if( mem instanceof StoreNode st &&
@@ -154,7 +157,7 @@ public class LoadNode extends MemOpNode {
                     return extend(castRO(st.val())); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
-                    !neverAlias(ptr,st.ptr()) ) {                 // And might alias
+                    (external || !neverAlias(ptr,st.ptr())) ) {   // And might alias
                     addDep(   off());                             // Offsets can fold, proving unequal
                     addDep(st.off());                             // Offsets can fold, proving unequal
                     break outer;                                  // Cannot tell, stop trying
@@ -175,6 +178,7 @@ public class LoadNode extends MemOpNode {
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
+                    if( external ) break outer; // Class allocation does not initialize C storage
                     // Direct load from fresh zero/default-filled allocation.
                     Type decl = declaredType();
                     assert decl!=Type.BOTTOM;

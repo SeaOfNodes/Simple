@@ -47,4 +47,4 @@ val _error2 = { i32 errno ->
     sys.libc._exit(errno);
 };
 
-val _error = { -> _error2(sys.libc.errno); };
+val _error = { -> _error2(sys.libc.errno()); };

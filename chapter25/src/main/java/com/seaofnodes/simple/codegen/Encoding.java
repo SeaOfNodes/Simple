@@ -187,6 +187,9 @@ public class Encoding {
         return this;
     }
 
+    public final HashMap<Node,String> _externData = new HashMap<>();
+    public void externalData(Node n, String name) { _externData.put(n,name); }
+
     // Store t as a 32/64 bit constant in the code space; generate RIP-relative
     // addressing to load it.  Type is stored in either the .rodata or .data.
     public void largeConstant( Node relo, Type t, int off, int elf ) {
@@ -581,6 +584,7 @@ public class Encoding {
         int off=0; // offset in the struct
         for( int fn=0; fn<ts._fields.length; fn++ ) {
             Field f  = ts._fields[layout[fn]];
+            if( f._extern ) continue;
             int foff = ts. offset(layout[fn]);
             // Pad up to field
             while( off < foff ) { bits.write(0); off++; };
@@ -604,6 +608,13 @@ public class Encoding {
     public static int SENTINEL_WRITE  = -8;
 
     void patchGlobalRelocations() {
+        for( Node src : _externData.keySet() ) {
+            String name = _externData.get(src);
+            Integer target = _code._externDataAddresses.get(name);
+            if( target==null ) throw new IllegalArgumentException("Unresolved C data symbol '"+name+"'");
+            int start = opStart(src);
+            ((RIPRelSize)src).patch(this,start,opLen(src),target-start);
+        }
         for( Node src : _externals.keySet() ) {
             int start  = opStart(src);
             String dst =  _externals.get(src);

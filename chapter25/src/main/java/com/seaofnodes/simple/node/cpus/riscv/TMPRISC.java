@@ -6,7 +6,6 @@ import com.seaofnodes.simple.node.MachNode;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMemPtr;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 
 public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
     final String _ext;
@@ -17,8 +16,8 @@ public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public boolean isClone() { return true; }
     @Override public TMPRISC copy() { return new TMPRISC(this,_ext); }
     @Override public void encoding( Encoding enc ) {
-        if( _ext!=null ) throw Utils.TODO();
-        enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
+        if( _ext!=null ) enc.externalData(this,_ext);
+        else enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
         short dst = enc.reg(this);
         // AUIPC dst,#hi20_constant_pool
         enc.add4(riscv.u_type(riscv.OP_AUIPC, dst, 0));
@@ -32,8 +31,8 @@ public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short dst = enc.reg(this);
         // AUIPC dst,#hi20_constant_pool
-        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, dst, delta>>12));
-        // Load dst,[dst+#low12_constant_pool]
+        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, dst, (delta+0x800)>>12));
+        // ADDI's low 12 bits are signed; round the AUIPC page accordingly.
         enc.patch4(opStart+4, riscv.i_type(riscv.OP_IMM, dst, 0, dst, delta & 0xFFF));
     }
 

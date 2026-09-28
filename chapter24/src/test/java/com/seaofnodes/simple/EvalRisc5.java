@@ -252,7 +252,7 @@ public class EvalRisc5 {
                     case 2 -> (rs1 < rs2) ? 1 : 0;
                     case 3 -> (rs1 < rs2) ? 1 : 0;
                     case 4 -> rs1 ^ rs2;
-                    case 5 -> (ir & 0x40000000) != 0 ? (rs1 >>> (rs2 & 0x3F)) : (rs1 >> (rs2 & 0x3F));
+                    case 5 -> (ir & 0x40000000) != 0 ? (rs1 >> (rs2 & 0x3F)) : (rs1 >>> (rs2 & 0x3F));
                     case 6 -> rs1 | rs2;
                     case 7 -> rs1 & rs2;
                     default -> rval;

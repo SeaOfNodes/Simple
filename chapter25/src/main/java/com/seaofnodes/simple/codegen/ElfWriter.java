@@ -316,6 +316,14 @@ public class ElfWriter {
             relocations.writeReloOffPlus(offset, symidx, (byte)4/*PLT32*/);
         }
 
+        // Native ELF output is AMD64. Data addresses use PC32, not PLT calls.
+        for( Node n : enc._externData.keySet() ) {
+            String extern = enc._externData.get(n);
+            int symidx = symbols.symbol(extern, 0, SYM_BIND_GLOBAL, SYM_TYPE_OBJECT);
+            int offset = enc.opStart(n) + enc.opLen(n) - 4;
+            relocations.writeReloOffPlus(offset, symidx, (byte)2/*PC32*/);
+        }
+
         // Write relocations for the constant pool
         String cpoolPrefix = _code.entryClinitName().replaceAll("[^A-Za-z0-9_$]", "_") + "$CPOOL$";
         for( Encoding.Relo relo : enc._bigCons.values() ) {

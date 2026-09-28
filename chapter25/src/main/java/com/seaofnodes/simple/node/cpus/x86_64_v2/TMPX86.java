@@ -4,7 +4,6 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeMemPtr;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 
 public class TMPX86 extends ConstantNode implements MachNode, RIPRelSize{
     private byte _opLen;
@@ -17,12 +16,12 @@ public class TMPX86 extends ConstantNode implements MachNode, RIPRelSize{
     @Override public Node copy() { return new TMPX86(this,_ext); }
 
     @Override public void encoding( Encoding enc ) {
-        if( _ext!=null ) throw Utils.TODO();
         short dst = enc.reg(this);
         // 0 or 1 for REX depending on the dst.
         _opLen = (byte)(6+ x86_64_v2.rexF(dst, 0, 0, true, enc));
         enc.add1(0x8D).add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0b101)).add4(0);
-        enc.largeConstant(this,((TypeMemPtr)_con)._obj, _opLen-4, 2/*ELF encoding PC32*/);
+        if( _ext!=null ) enc.externalData(this,_ext);
+        else enc.largeConstant(this,((TypeMemPtr)_con)._obj, _opLen-4, 2/*ELF encoding PC32*/);
     }
 
     // Delta is from opcode start

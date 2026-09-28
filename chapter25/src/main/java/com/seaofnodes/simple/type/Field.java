@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.type;
 
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import java.util.*;
@@ -22,23 +21,26 @@ public class Field extends Type {
     public int _alias;
     // Field is only written in the constructor
     public boolean _final;
+    // Native C storage, outside the containing object's layout.
+    public boolean _extern;
 
     private static final Ary<Field> FREE = new Ary<>(Field.class);
-    private Field(String fname, Type type, int alias, boolean xfinal ) { super(TFLD); init(fname,type,alias,xfinal); }
-    private Field init(String fname, Type type, int alias, boolean xfinal ) {
+    private Field(String fname, Type type, int alias, boolean xfinal, boolean external ) { super(TFLD); init(fname,type,alias,xfinal,external); }
+    private Field init(String fname, Type type, int alias, boolean xfinal, boolean external ) {
         _fname = fname;
         _t     = type;
         _alias = alias;
         _final = xfinal;
+        _extern = external;
         return this;
     }
 
     // Return a filled-in Field; either from free list or alloc new.
-    private static Field malloc(String fname, Type type, int alias, boolean xfinal ) {
-        return FREE.isEmpty() ? new Field(fname,type,alias,xfinal) : FREE.pop().init(fname,type,alias,xfinal);
+    private static Field malloc(String fname, Type type, int alias, boolean xfinal, boolean external ) {
+        return FREE.isEmpty() ? new Field(fname,type,alias,xfinal,external) : FREE.pop().init(fname,type,alias,xfinal,external);
     }
     // Malloc-from
-    public Field malloc( ) { return malloc(_fname,null,_alias,_final); }
+    public Field malloc( ) { return malloc(_fname,null,_alias,_final,_extern); }
     @Override Field free(Type t) {
         Field f = (Field)t;
         assert !f.isFree() && !f._terned;
@@ -52,16 +54,19 @@ public class Field extends Type {
 
     // Make and intern with listed fields
     public static Field make( String fname, Type type, int alias, boolean xfinal ) {
-        Field f = malloc(fname,type,alias,xfinal);
+        return make(fname,type,alias,xfinal,false);
+    }
+    public static Field make( String fname, Type type, int alias, boolean xfinal, boolean external ) {
+        Field f = malloc(fname,type,alias,xfinal,external);
         Field f2 = f.intern();
         if( f2==f ) return f;
         return VISIT.isEmpty() ? f2.free(f) : f2.delayFree(f);
     }
     public Field makeFrom( Type type ) {
-        return type == _t ? this : make(_fname,type,_alias,_final);
+        return type == _t ? this : make(_fname,type,_alias,_final,_extern);
     }
     public Field makeFrom( boolean xfinal ) {
-        return xfinal == _final ? this : make(_fname,_t,_alias,xfinal);
+        return xfinal == _final ? this : make(_fname,_t,_alias,xfinal,_extern);
     }
 
     // Cycle-making-breaking
@@ -71,7 +76,8 @@ public class Field extends Type {
     public static final Field TEST  = make("test",Type.NIL,-2,false);
     public static final Field TEST2 = make("test",Type.NIL,-2,true);
     public static final Field FLT   = make("flt ",TypeFloat.F32,-2,false);
-    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST2); ts.add(FLT); }
+    public static final Field EXT   = make("test",TypeInteger.I32,-2,false,true);
+    public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(TEST2); ts.add(FLT); ts.add(EXT); }
 
     @Override Field xmeet( Type that ) {
         Field fld = (Field)that; // Invariant
@@ -80,16 +86,17 @@ public class Field extends Type {
         if( fld ==BOT.dual() ) return this;
         if( _fname!=fld._fname ) { assert !_fname.equals(fld._fname); return BOT; }
         assert _alias==fld._alias;
-        return make(_fname, _t.meet(fld._t ), _alias, _final | fld._final);
+        if( _extern!=fld._extern ) return BOT;
+        return make(_fname, _t.meet(fld._t ), _alias, _final | fld._final,_extern);
     }
 
     @Override
-    Field xdual() { return malloc(_fname, _t.dual(),_alias,!_final); }
+    Field xdual() { return malloc(_fname, _t.dual(),_alias,!_final,_extern); }
 
     @Override Field rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        Field d = malloc(_fname,null,_alias,!_final);
+        Field d = malloc(_fname,null,_alias,!_final,_extern);
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
         return d;
@@ -97,7 +104,7 @@ public class Field extends Type {
 
     @Override boolean _isConstant() { return _t._isConstant(); }
     @Override boolean _isFinal() { return _final && _t._isFinal(); }
-    @Override Field _makeRO() { return _final ? this : make(_fname, _t._makeRO(),_alias,true);  }
+    @Override Field _makeRO() { return _final ? this : make(_fname, _t._makeRO(),_alias,true,_extern);  }
     @Override Field _close( String name, HashMap<String, Type> TYPES ) { return makeFrom( _t._close(name, TYPES )); }
 
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
@@ -105,10 +112,10 @@ public class Field extends Type {
     }
 
     // Override in subclasses
-    int hash() { return _fname.hashCode() ^ _t.hashCode() ^ _alias ^ (_final ? 1024 : 0); }
+    int hash() { return _fname.hashCode() ^ _t.hashCode() ^ _alias ^ (_final ? 1024 : 0) ^ (_extern ? 2048 : 0); }
 
     private boolean static_eq( Field f ) {
-        return _fname.equals(f._fname) && _alias==f._alias && _final==f._final && _t !=null && f._t !=null;
+        return _fname.equals(f._fname) && _alias==f._alias && _final==f._final && _extern==f._extern && _t !=null && f._t !=null;
     }
     @Override boolean eq( Type t ) {
         Field f = (Field)t;
@@ -123,22 +130,23 @@ public class Field extends Type {
     @Override public int nkids() { return 1; }
     @Override public Type at( int idx ) { return _t; }
     @Override public void set( int idx, Type t ) { _t = t; }
-    // Tags: final/!final; +alias+name
+    // Tags: final/!final; +alias+name+external-storage flag
     @Override int TAGOFF() { return 2; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         baos.write(TAGOFFS[_type] + (_final ? 1 : 0));
         baos.packed2(_alias);
         baos.packed2(strs.get(_fname));
+        baos.write(_extern ? 1 : 0);
     }
     static Field packed( int tag, BAOS bais, String[] strs ) {
         int alias = bais.packed2();
         String fname = strs[bais.packed2()];
-        return malloc(fname,null,alias,(tag&1)==1);
+        return malloc(fname,null,alias,(tag&1)==1,bais.read()!=0);
     }
 
     @Override
     public SB _print( SB sb, BitSet visit, boolean html ) {
-        sb.p(_final?"":"!").p(_fname).p(":").p(_alias).p(" : ");
+        sb.p(_extern ? "extern C " : "").p(_final?"":"!").p(_fname).p(":").p(_alias).p(" : ");
         return _t ==null ? sb.p("---") : _t.print(sb,visit,html);
     }
 

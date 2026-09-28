@@ -13,6 +13,40 @@ renumbering chapters is deferred.
 
 ## Pending corrections
 
+- **Chapter 24 Load BOTTOM-on-error backport, unwound/deferred (2026-09-28).**
+  Cliff requested starting with 24 and analyzing failures before proceeding.
+  Literal global BOTTOM memory/pointer inputs already propagate BOTTOM. The
+  missing behavior is `LoadNode.compute()` returning BOTTOM instead of the
+  declared field type when `err()!=null`; Cliff unwound that one-line experiment.
+  Chapter 25's Convert nodes supply the surrounding expression/loop's typed
+  result while retaining the erroneous BOTTOM-producing Load for TypeCheck.
+  Chapter 24 relies on the Load itself supplying that typed result. Defer this
+  backport with the conversion split rather than importing it alone.
+  The experimental full Make suite had four failures out of 477
+  tests (`build/load-bottom-24.log`); the fuzzer recipe was not reached.
+  - `BrainFuckTest.testBrainFuck`: during parsing, the unfinished loop Phi for
+    mutable `program` has its declared nullable type. The element load becomes
+    BOTTOM, and reading the initialized `command` local triggers Parser's
+    BOTTOM-means-uninitialized check before the loop can finish. Reduced valid
+    source: `var !program="a"; for(int pc=0; pc<program#; pc++) { var command=program[pc]; return command; } return 0;`.
+  - `Chapter10Test.testWhileWithNullInside`: the loop's result Phi starts at its
+    declared `i64` while incomplete. Closing the loop exposes a BOTTOM Load on
+    the backedge; Phi.compute explicitly propagates BOTTOM, violating the
+    pessimistic `setType` narrowing assertion. Trace: Phi#1458 goes from i64 to
+    BOTTOM with Load#1462 on its backedge. This occurs during parsing, before SCCP.
+  - `Chapter10Test.testNullGuardErrors`: ReturnNode sees BOTTOM without any
+    recorded scalar return kind, so its `No defined return type` error wins
+    before the Load's `Might be null` diagnostic.
+  - `Chapter13Test.testLinkedList0`: `head.next` becomes BOTTOM, and parsing the
+    following `.i` reports `Expected reference but found Bot` first.
+  Scratch instrumentation lives entirely under `build/load-bottom-probe`.
+  Reduced sources pass or report the intended null error with the HEAD Load
+  compiled separately, and reproduce the failures with the one-line change
+  (`build/load-bottom-reduced-baseline.log`, `build/load-bottom-reduced.log`,
+  `build/load-bottom-trace.log`). No earlier chapter was changed. Fixing these
+  requires coordinating parse-time incomplete types, typed loop-Phi bounds,
+  and diagnostics; the assertion and expected errors have not been weakened.
+
 - **Chapter 25 BOTTOM-on-error backport boundary (2026-09-28).** Cliff requested
   investigating the earlier arithmetic contracts. In 24, changing ArithNode's
   non-integer fallback to global BOTTOM breaks the valid `testCoRecur`: the
@@ -24,17 +58,9 @@ renumbering chapters is deferred.
   (`build/arithmetic-top-24.log`). The Java return signature itself has no typed
   caller dependency. Further BOTTOM work is paused for Cliff's decision about
   separating forward/unresolved expressions from initialization errors in the
-  earlier parser. Earlier loads also retain declared types on errors; do not
-  silently change that contract. The known-null regression is already rejected
+  earlier parser. The independent Load experiment is recorded above. The
+  known-null regression is already rejected
   during parsing in 10-24. Keep this separate from the constructor/memory fixes.
-
-- **Chapter 25 Load TODO, seed `-4628356252269023530`.** The regression wrapper
-  reaches the default TODO in `LoadNode.idealize`'s memory walk with worklist
-  seed 456. Reproduced on 2026-09-28 both with the constructor-check changes
-  and with the original HEAD Parser compiled separately against the current
-  node edits. This is independent of the missing-constructor diagnostic;
-  it remains in both the regression and open-failure seed lists. Logs:
-  `build/ctor-baseline-seed.log` and `build/ctor-check-tests.log`.
 
 - **FunPtrNode lifetime backport, now next after the allocator review.**
   `return {->42;};` and `return sys.io.p;` fail during relocation in Chapter 22
@@ -51,13 +77,14 @@ renumbering chapters is deferred.
   addresses. Do not enlarge relocation arrays or add an interim address scan.
   Validate returned pointers by calling them, including library pointers, while
   still deleting genuinely unused helpers. Keep module/escape machinery in 25.
-- **Chapter 25 ARM extern data.** `i32 errno="C"; return 0;`, compiled through
-  Encoding with ARM/SystemV, reaches `arm.load_str_imm` with register -1 for the
-  extern-data value stored by `<clinit>`. Both the saved original and final
-  compiler reproduce it. This is an extern-data lowering/encoding issue, not
-  the repaired float-store allocation conflict. The historical Bubble Sort
-  replay allocates successfully but also exposes this failure if ARM encoding
-  is requested. Do not describe its allocation statistics as runtime coverage.
+- **Chapter 25 narrow C return values need ABI extension.** During the direct
+  data-binding checks, `sys.libc.close(-1)==-1` evaluated false on x86/Cygwin.
+  Disassembly compares the full RAX to -1 immediately after `close`, without
+  sign-extending its declared i32 result. C can return -1 in EAX with the high
+  half zero. This is independent of C data loads (which do sign-extend). The
+  errno accessor regression calls `close(-1)` and checks errno directly; it
+  does not claim to validate negative C return values. Investigate the ABI
+  return normalization separately.
 
 ## AOT class initialization: larger independent work
 
@@ -211,6 +238,9 @@ and its separate validation are recorded independently.
 
 | Completed work | Scope and evidence retained |
 |---|---|
+| Chapter 25 direct C data bindings | On 2026-09-28, full `make tests` passed after the Field/ExternOffset refactor: 476 ordinary tests plus the fuzzer wrapper (17 seeds). Coverage checks zero layout space for external fields, native shared integer/float storage across C calls, compound updates, source/precompiled imports sharing aliases and preserving storage metadata, ARM/RISC-V emulated address relocation and signed loads, and the errno accessor after a failed native call. Direct bindings remain in 25: 22-24 have different singleton-pointer constant and instruction-selection contracts. Serialization retains magic C0DE; the changed layout requires rebuilding all objects. Only the independent RISC-V fixes below were selected for backport. |
+| RISC-V right shifts and pointer relocation | Backported from 25 to 22-24 on 2026-09-28. EvalRisc5 selects arithmetic/logical right shifts correctly; TMPRISC rounds the AUIPC high part to account for signed ADDI low bits. New regressions cover immediate/register shifts and forward/backward relocation boundaries. Both fail before the Chapter 22 fixes (arithmetic shift becomes logical; delta 0x800 lands 4 KB low). Full Make suites passed: 22 (427), 23 (449), 24 (479), each plus its fuzzer wrapper. Baseline suites also passed (425/447/477). |
+| Chapter 25 Load fuzzer recheck | At `8212a66f`, seed `-4628356252269023530` passes its direct fuzzPeepsRegression replay (`build/load-seed-recheck.log`). The complete `make fuzzer` wrapper also passes all 17 seeds on 2026-09-28 (one JUnit wrapper test). The seed remains a regression; OPEN_FAILING_SEEDS is empty. No new compiler fix was needed. The older Load TODO report is superseded. |
 | Arithmetic high results at the SCCP boundary | Chapter 24 integer and float arithmetic now return global TOP for high operands, matching 25. Widened ArithNode.compute's Java return signature to Type; no caller requires TypeInteger. Retained the typed integer fallback for unresolved/error operands, for the parser dependency in the pending queue. The TOP change starts with SCCP in 24; earlier snapshots retain their typed contracts. Full Chapter 24 Make suite passed: 477 tests plus its fuzzer wrapper (`build/arithmetic-top-full-24.log`). |
 | Required-field and memory-check backport | Chapters 16-24 retain allocation-time checks for inline `new S { ... }` initialization. Chapter 17 had its TOP/unset-field check commented out; restored it. Expanded the existing missing-initializer regression through 24 (introduced its array-field cases in 16), and forwarded the known-null load regression to 10-24 using their existing parse-time diagnostic. Added the fresh-allocation zero-fold monotonicity assertion in 19-24 and the TOP-pointer store-diagnostic guard in 18-23 (already present in 24). Before 18, TOP pointers already produce a diagnostic before the store's pointer cast. Chapter 25's constructor-exit snapshots and implicit-constructor declaration check stay with its separate allocation/constructor model. Its CallEnd return and MemMerge load-dependency corrections already have equivalent behavior in the applicable earlier implementations; storage-type nullability machinery stays with 25. Global error-result type changes are paused in the queue above. |
 | Chapter 25 required constructor fields | Parser records each explicit constructor's merged exit field types by Var identity and checks them against the complete field list when the struct closes. With no user constructor, declaration defaults are checked as an implicit empty constructor. Never-returning constructors have no completion obligation; nested blocks retain constructor context. Declaration-body assignments to required fields now emit their initializing stores. Load's fresh-allocation zero fold is restored with a monotonicity guard. Existing constructor tests cover partial/early returns, shadowing, later fields, valid defaults and non-returning constructors; older unused-struct/String fixtures now provide constructors, with measured spill expectations updated. Seed `6506797708065910879` is rejected during parsing and passes its regression. On 2026-09-28, all 472 non-fuzzer tests passed across `build/ctor-check-tests.log` and `build/ctor-remaining-tests.log`; the full Make run remains red solely on the independent Load TODO seed above. Allocation-time initialization checking was lost in the August 10 rewrite (`51f1f8f4`); this restores the obligation in the parser without depending on optimized private memory. |

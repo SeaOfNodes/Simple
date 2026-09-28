@@ -21,6 +21,87 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter25Test {
+    @Test
+    public void testExternData() throws IOException {
+        String src = """
+            i32 counter="C";
+            i8 small="C";
+            f64 fraction="C";
+            {int} bump="C";
+            val test_global={ ->
+                val before=counter;
+                counter=before;
+                counter=++counter+1;
+                counter+=1;
+                val mid=bump();
+                small++;
+                fraction=fraction+0.5;
+                return before*10000+mid*100+counter;
+            };
+            """;
+        TestC.runC(src,"extern_data","",-1);
+    }
+
+    @Test
+    public void testExternDataEncoding() {
+        for( String cpu : new String[]{"arm","riscv"} ) {
+            CodeGen code = new CheckedCodeGen("i32 counter=\"C\"; counter=counter+3; return counter;");
+            // Exercise signed low-12 relocation arithmetic, past the first page.
+            int addr = 0x3800;
+            code._externDataAddresses.put("counter",addr);
+            code.driver(cpu,"SystemV",true,false);
+            byte[] image = new byte[1<<20];
+            var bits = code._encoding._bits;
+            System.arraycopy(bits.buf(),0,image,0,bits.size());
+            if( cpu.equals("arm") ) {
+                EvalArm64 arm = new EvalArm64(image,1<<16);
+                arm.st4(addr,-7);
+                assertEquals(0,arm.step(1000));
+                assertEquals(-4,arm.regs[0]);
+                assertEquals(-4,arm.ld4s(addr));
+            } else {
+                EvalRisc5 r5 = new EvalRisc5(image,1<<16);
+                r5.st4(addr,-7);
+                assertEquals(0,r5.step(1000));
+                assertEquals(-4,r5.regs[10]);
+                assertEquals(-4,r5.ld4s(addr));
+            }
+        }
+    }
+
+    @Test
+    public void testExternDataImports() throws IOException {
+        Path dir = Files.createTempDirectory(Path.of("build/objs"),"extern_data_");
+        String globals = "i32 counter=\"C\"; val read={ -> counter; };";
+        CodeGen globalCode = new CodeGen(null,dir.toString(),null,"Globals",globals,126,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+        var clz = globalCode.compunit()._clz;
+        int counter = clz.find("counter");
+        assertTrue(clz._fields[counter]._extern);
+        assertEquals(-1,clz.offset(counter));
+        assertEquals(clz.remove(counter).size(),clz.size());
+        // Load the serialized declaration and ideal graph from Globals.o.
+        String src = """
+            i32 counter="C";
+            val test_global={ ->
+                val before=Globals.counter;
+                Globals.counter=before+1;
+                counter+=2;
+                return before*100+Globals.read();
+            };
+            """;
+        Ary<String> paths = new Ary<>(new String[]{dir.toString()});
+        for( boolean imported : new boolean[]{true,false} ) {
+            Path root = dir.resolve(imported ? "binary" : "source");
+            Files.createDirectories(root.resolve("Main"));
+            if( !imported ) Files.writeString(root.resolve("Main/Globals.smp"),globals);
+            new CodeGen(root.toString(),root.toString(),imported ? paths : null,"Main",src,126,true,TypeInteger.BOT)
+                .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+            assertEquals("",TestC.gcc(root+"/Main.o","",TestC.C_DRIVERS_DIR+"extern_data_import.c",
+                (String)null,new Ary<>(new String[]{dir+"/Globals.o"}),root+"/main"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
+        }
+    }
+
     @Test public void testPrintingConstantPool() throws Exception {
         com.seaofnodes.simple.codegen.PrintRegTestSupport.checkConstantPool();
     }
@@ -309,6 +390,13 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
         TestC.run(src,"redirectedRead",new Ary<>(new String[]{SYS_BLDDIR}),
                   TestC.CALL_CONVENTION, null, null,
                   "abc", "", -1);
+    }
+
+    @Test
+    public void testErrnoAccessor() throws IOException {
+        String src = "sys.libc.close(-1); return sys.libc.errno()==0;";
+        TestC.run(src,"errnoAccessor",new Ary<>(new String[]{SYS_BLDDIR}),
+                  TestC.CALL_CONVENTION,null,null,"",-1);
     }
 
     @Test

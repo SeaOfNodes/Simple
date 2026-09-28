@@ -84,7 +84,7 @@ public abstract class Node implements Cloneable {
         New,Never,Not,Or,Parm,Phi,Proj,
         ReadOnly,Return,Region,RoundF32,
         Sar,Shl,Shr,Start,Stop,Store,Sub,ToFloat,
-        XCtrl,Xor,StartCU,StopCU,Guard,MemPhi,BulkMemPhi,PtrToInt;
+        XCtrl,Xor,StartCU,StopCU,Guard,MemPhi,BulkMemPhi,PtrToInt,ExternOffset;
         public static final Tag[] VALS = values();
         public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
             return switch(this) {
@@ -124,6 +124,7 @@ public abstract class Node implements Cloneable {
             case Con   ->  ConstantNode.make(bais     ,types);
             case Escape->    EscapeNode.make(bais     ,types);
             case Extern->    ExternNode.make(bais,strs,types);
+            case ExternOffset-> new ExternOffsetNode(strs[bais.packed2()]);
             case FunPtr->   FunPtrNode.make(bais,     types);
             case Fun   ->       FunNode.make(bais,strs,types);
             case Load  ->       new LoadNode(bais,strs,types,fileAliases,aliases);

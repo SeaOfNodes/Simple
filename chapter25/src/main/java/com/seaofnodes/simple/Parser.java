@@ -346,9 +346,11 @@ public class Parser {
             Var v = _scope.var(lex + nvar++);
             // Field with sharper type
             Field old = tself.field(v._name);
-            Field fld = old == null
+            Field fld = v._extern!=0
+                ? Field.make(v._name,v.type(),v._extern,false,true)
+                : old == null
                 ? Field.make(v._name,v.type(),_code.alias(_ref._cname),v._final)
-                : Field.make(v._name,v.type(), old._alias,           old._final);
+                : old.makeFrom(v.type());
             tself = tself.addOrUpdate(fld);
         }
         TYPES.put(typeName,tself);
@@ -426,7 +428,7 @@ public class Parser {
             if( vidx == -1 )
                 continue;
             Var v = _scope.var(vidx);
-            if( v._fref ) continue; // Forward refs not declared here
+            if( v._fref || v._extern!=0 ) continue; // C storage has no Simple initializer
             // NewNode's TOP field is the zero-code poison for a required
             // field. Leave it alone unless the declaration body supplied a
             // value; otherwise a user constructor must initialize it.
@@ -970,6 +972,9 @@ public class Parser {
         if( def==null )
             throw error("Undefined name '" + name + "'");
 
+        if( def._extern!=0 )    // Parse the C binding as a memory lvalue
+            {  pos(old);  return parseExpression();  }
+
         // TOP fields are for late-initialized fields; these have never
         // been written to, and this must be the final write.  Other writes
         // outside the constructor need to check the final bit.
@@ -1101,6 +1106,14 @@ public class Parser {
         Node expr;
         if( match("=") ) {
             if( isExternDecl() ) {
+                if( !(t instanceof TypeFunPtr) ) {
+                    Node ptr = externData(name,t);
+                    // The lexical binding is a fixed address; its contents are mutable.
+                    if( !_scope.define(name,t,true,ptr,loc) )
+                        throw error("Redefining name '"+name+"'",loc);
+                    _scope.lookup(name)._extern = _code.externAlias(name);
+                    return _code.ZERO;
+                }
                 expr = externDecl(name,t);
                 t = expr._type; // Upgrade declared type to the exact extern decl type
             } else if( isConstructorDecl(name) ) {
@@ -1280,7 +1293,7 @@ public class Parser {
         priv.keep();
         for( Field field : ts._fields ) {
             Type storage = field._t.makeStorage();
-            Field escaped = field._final ? field : Field.make(field._fname,storage,field._alias,true);
+            Field escaped = field._final ? field : field.makeFrom(storage).makeFrom(true);
             pub.keep();
             Node esc = new EscapeNode(escaped,self,priv,pub).peephole();
             MemMergeNode merge = new MemMergeNode(null,pub);
@@ -1879,6 +1892,8 @@ public class Parser {
             if( name!=null ) {
                 Var n = _scope.lookup(name);
                 if( n != null && !(n.type() instanceof TypeMemPtr) ) {
+                    if( n._extern!=0 )
+                        return parsePostfixName(_scope.in(n),name,delta);
                     if( n._final )
                         throw error("Cannot reassign final '"+n._name+"'");
                     Node expr = zsMask(peep(new AddNode(_scope.in(n),con(delta))),n.type());
@@ -1963,6 +1978,8 @@ public class Parser {
 
         // Load local value
         Node rvalue = _scope.in(var);
+        if( var._extern!=0 )
+            return parsePostfixName(rvalue,id,0);
         if( var._fref )
             return parsePostfix(rvalue);
         // Required constructor fields begin as their declared pointer type
@@ -1980,7 +1997,7 @@ public class Parser {
         Kind fk = _scope._kinds.at(fx);
         // Access instance field from 'self'
         if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method )
-            return parsePostfixName(_scope.in(method._lexSize),id);
+            return parsePostfixName(_scope.in(method._lexSize),id,0);
 
         // Check for a function-escaping variable; these require true
         // closures.  Final constants are OK; final vars require a hidden var
@@ -1998,7 +2015,7 @@ public class Parser {
                 // Get the most recent sharpen global
                 TypeStruct clz = (TypeStruct) TYPES.get( ((TypeMemPtr) clzptr.type())._obj._name );
                 TypeMemPtr clztmp = TypeMemPtr.make( (byte) 2, clz, true );
-                return parsePostfixName( con( clztmp ), id );
+                return parsePostfixName( con( clztmp ), id,0 );
                 //return parsePostfixName(_scope.in(2),id);
             }
         }
@@ -2206,7 +2223,7 @@ public class Parser {
         else if( match("(") ) return parsePostfix(require(functionCall(expr,defaultSelf()),")"));
         else return expr;       // No postfix
 
-        return parsePostfixName(expr,name);
+        return parsePostfixName(expr,name,0);
     }
 
     private Node defaultSelf() {
@@ -2225,7 +2242,8 @@ public class Parser {
      * </pre>
      */
 
-    private Node parsePostfixName(Node expr, String name) {
+    // pre is +/-1 for a prefix update, otherwise parse a postfix operation.
+    private Node parsePostfixName(Node expr, String name, int pre) {
         // Keep expr across possible updates
         expr.keep();
 
@@ -2278,7 +2296,7 @@ public class Parser {
             : fldoff(expr,name)).keep();
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
-        if( matchOpx('=','=') ) {
+        if( pre==0 && matchOpx('=','=') ) {
             // Field assignment
             Node val = parseAsgn().keep();
             // Lift value for store
@@ -2306,20 +2324,20 @@ public class Parser {
         Node load = peep(new LoadNode(loc(),name, alias, ctrl(), mem, expr, off));
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
-        char ch = _lexer.matchOperAssign();
+        char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
             if( fld!=null && decl==Type.BOTTOM )
                 throw error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
-            Node op = opAssign(ch,load, decl );
+            Node op = opAssign(ch,load, decl ).keep();
             mem.keep();
             Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
             storeMem(st,alias,mem);
             st.unkeep();
             mem.unkeep();
 
-            load = postfix(ch) ? load.unkeep() : op;
-            // And use the original loaded value as the result
-            return load;
+            op.unkeep(); // A narrow Store may have folded away the expression's conversion.
+            if( postfix(ch) ) load.unkeep();
+            return pre==0 && postfix(ch) ? load : op;
         }
         off.unkill();
         // Might be a method call, so pass expr as 'self'
@@ -2485,6 +2503,19 @@ public class Parser {
             t = tfp;
         }
         return (ExternNode)(new ExternNode(t,ex).peephole());
+    }
+
+    // A lexical C binding has a singleton namespace with one external field.
+    // The namespace occupies no storage; its field offset supplies the address.
+    private Node externData(String name, Type t) {
+        if( !(t instanceof TypeInteger) && !(t instanceof TypeFloat) )
+            throw error("C data binding requires an integer or float type");
+        String cname = ("C:"+name).intern();
+        TypeStruct ts = TypeStruct.make(cname,false,Field.make(name,t,_code.externAlias(name),false,true));
+        Type old = TYPES.putIfAbsent(cname,ts);
+        if( old!=null && old!=ts )
+            throw error("Conflicting types for C data '"+name+"'");
+        return con(TypeMemPtr.make((byte)2,ts,true));
     }
 
     /**

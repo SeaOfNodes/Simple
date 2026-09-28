@@ -321,6 +321,12 @@ public class CodeGen {
     public final GlobalBits _aliases = new GlobalBits();
     public int alias(String clz) { return _aliases.next(clz); }
 
+    // C storage has one global alias per symbol, including across object files.
+    public int externAlias(String name) { return _aliases.next("C:"+name,GlobalBits.RESERVED); }
+
+    // External data addresses supplied by an in-memory linker (image offsets).
+    public final HashMap<String,Integer> _externDataAddresses = new HashMap<>();
+
     // Compute local function index (FIDX) from global function info.  This is
     // called *in order* during parsing, and that order is part of the global
     // unique mapping
@@ -740,6 +746,13 @@ public class CodeGen {
         }
 
         // Produce a machine node from n; map it to flag as done so stops cycles.
+        if( n instanceof MemOpNode mem && mem.off() instanceof ExternOffsetNode off ) {
+            // External fields replace base+offset with symbol+0. Keep the ideal
+            // declaring type on the address for machine load/store width selection.
+            TypeMemPtr ptr = (TypeMemPtr)mem.ptr()._type;
+            n._inputs.set(2,new ExternNode(TypeMemPtr.make((byte)2,ptr._obj,true),off._extern));
+            n._inputs.set(3,ConstantNode.raw(TypeInteger.ZERO));
+        }
         map.put(n, x=_mach.instSelect(n) );
         // Carry loop-tree and pre-order info across the ideal->mach transition
         if( n instanceof CFGNode ncfg && x instanceof CFGNode xcfg ) {

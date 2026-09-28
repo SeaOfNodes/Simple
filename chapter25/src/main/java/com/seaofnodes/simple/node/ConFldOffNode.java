@@ -52,6 +52,9 @@ public class ConFldOffNode extends ConstantNode {
     public Node asOffset() {
         int fldx = _fname==" len" ? _ts._fields.length : _ts.find(_fname);
         if( fldx == -1 ) return null;
+        // " len" selects the terminal size slot, not a Field.
+        if( fldx < _ts._fields.length && _ts._fields[fldx]._extern )
+            return new ExternOffsetNode(_fname).peephole();
         return ConstantNode.make(TypeInteger.constant(_ts.offset(fldx))).peephole();
     }
 

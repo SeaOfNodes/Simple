@@ -30,8 +30,9 @@ i32 STDERR = 2;
 
 // status
 {  i32 -> i32 } _exit = "C";
-// Error return from many native calls
-i32 errno = "C";
+// errno is not an ordinary C data symbol; read it through the native runtime.
+{ i32 } simple_errno = "C";
+val errno = { -> simple_errno(); };
 // addr len prot flags fd  off -> void*
 {  i64  i64 i32  i32   i32 i32 -> i64 } mmap = "C";
 // mmap flags
