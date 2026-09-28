@@ -678,7 +678,7 @@ public class arm extends Machine {
         case OrNode or       -> or(or);
         case ParmNode parm   -> new ParmARM(parm);
         case PhiNode phi     -> new PhiNode(phi);
-        case ProjNode prj    -> new ProjARM(prj);
+        case ProjNode prj    -> prj(prj);
         case ReadOnlyNode read -> new ReadOnlyMach(read);
         case ReturnNode ret  -> new RetARM(ret,ret.fun());
         case SarNode sar     -> asr(sar);
@@ -821,5 +821,10 @@ public class arm extends Machine {
         return mop;
     }
 
+
+    private Node prj(ProjNode prj) {
+        TypeInteger ret = cReturn(prj);
+        return ret==null ? new ProjARM(prj) : new ExtendARM(prj,ret);
+    }
 
 }

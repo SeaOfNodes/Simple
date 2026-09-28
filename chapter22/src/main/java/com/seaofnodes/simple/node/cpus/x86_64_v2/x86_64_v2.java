@@ -548,6 +548,8 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node prj( ProjNode prj ) {
+        TypeInteger ret = cReturn(prj);
+        if( ret!=null ) return new ExtendX86(prj,ret);
         return new ProjX86(prj);
     }
 

@@ -11,6 +11,77 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter22Test {
+
+    @Test public void testNarrowCReturnsEmulated() {
+        String[] types = {"i8","u8","i16","u16","i32","u32","int"};
+        long[] values = {0xa5a5a5a500000000L,0xa5a5a5a50000007fL,0xa5a5a5a500000080L,
+            0xa5a5a5a500007fffL,0xa5a5a5a500008000L,0xa5a5a5a57fffffffL,
+            0xa5a5a5a580000000L,0xa5a5a5a5ffffffffL};
+        for( String target : new String[]{"arm","riscv"} )
+            for( int i=0; i<types.length; i++ ) {
+                String src = "{"+types[i]+"} c_narrow=\"C\"; return c_narrow();";
+                CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,target,"SystemV");
+                var enc = code._encoding;
+                // Link the external call to a tiny independent native stub.
+                var call = code._stop.walk(n -> n instanceof com.seaofnodes.simple.node.CallNode ? n : null);
+                int start = enc.opStart(call);
+                ((com.seaofnodes.simple.codegen.RIPRelSize)call).patch(enc,start,enc.opLen(call),0x1000-start);
+                for( long value : values ) {
+                    long expected = switch(i) {
+                    case 0 -> (byte)value; case 1 -> value&255;
+                    case 2 -> (short)value; case 3 -> value&65535;
+                    case 4 -> (int)value; case 5 -> value&0xffffffffL;
+                    default -> value;
+                    };
+                    byte[] image = new byte[1<<16];
+                    byte[] bits = enc.bits();
+                    System.arraycopy(bits,0,image,0,bits.length);
+                    if( target.equals("arm") ) {
+                        EvalArm64 cpu = new EvalArm64(image,1<<15);
+                        // MOVZ X0,0x1100; LDR X0,[X0]; RET X30.
+                        cpu.st4(0x1000,0xd2822000); cpu.st4(0x1004,0xf9400000);
+                        cpu.st4(0x1008,0xd65f03c0);
+                        cpu.st8(0x1100,value);
+                        assertEquals(0,cpu.step(1000));
+                        assertEquals(0,cpu._pc);
+                        assertEquals(types[i],expected,cpu.regs[0]);
+                    } else {
+                        EvalRisc5 cpu = new EvalRisc5(image,1<<15);
+                        // AUIPC a0,0; LD a0,12(a0); RET.
+                        cpu.st4(0x1000,0x00000517); cpu.st4(0x1004,0x00c53503);
+                        cpu.st4(0x1008,0x00008067);
+                        // RV64 widens even u32 returns by sign-extending bit 31.
+                        cpu.st8(0x100c,i==6 ? value : (int)expected);
+                        assertEquals(0,cpu.step(1000));
+                        assertEquals(0,cpu._pc);
+                        assertEquals(types[i],expected,cpu.regs[riscv.A0]);
+                    }
+                }
+            }
+    }
+
+    @Test public void testNarrowCReturns() throws IOException {
+        String src = """
+            {i8} c_i8="C"; {u8} c_u8="C";
+            {i16} c_i16="C"; {u16} c_u16="C";
+            {i32} c_i32="C"; {u32} c_u32="C";
+            {int} c_i64="C";
+            val test_i8={->return c_i8();};
+            val test_u8={->return c_u8();};
+            val test_i16={->return c_i16();};
+            val test_u16={->return c_u16();};
+            val test_i32={->return c_i32();};
+            val test_u32={->return c_u32();};
+            val test_i64={->return c_i64();};
+            val test_cmp={->return c_i32()==-1;};
+            """;
+        for( String conv : new String[]{"SystemV","win64"} )
+            TestC.run(src,"c_returns"+conv,null,conv,
+                      conv.equals("SystemV") ? "sysv_abi" : "ms_abi",
+                      TestC.C_DRIVERS_DIR+"c_returns.c","",-1);
+    }
+
+
     @Test public void testSubZeroTypeError() {
         try {
             new CodeGen("return null-0;").parse().opto().typeCheck();

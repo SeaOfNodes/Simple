@@ -394,7 +394,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testErrnoAccessor() throws IOException {
-        String src = "sys.libc.close(-1); return sys.libc.errno()==0;";
+        String src = "val status=sys.libc.close(-1); return status != -1 || sys.libc.errno()==0;";
         TestC.run(src,"errnoAccessor",new Ary<>(new String[]{SYS_BLDDIR}),
                   TestC.CALL_CONVENTION,null,null,"",-1);
     }

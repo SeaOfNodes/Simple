@@ -11,6 +11,23 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter21Test {
+
+    @Test public void testArmBitfieldExtracts() {
+        // Independent SXT/UXT instruction words, plus ASR, LSR and LSL aliases.
+        int[] ops = {0x93401c20,0xd3401c20,0x93403c20,0xd3403c20,
+                     0x93407c20,0xd3407c20,0x9344fc20,0xd344fc20,0xd37cec20};
+        long value = 0xa5a5a5a580008080L;
+        long[] expected = {(byte)value,value&255,(short)value,value&65535,
+                           (int)value,value&0xffffffffL,value>>4,value>>>4,value<<4};
+        for( int i=0; i<ops.length; i++ ) {
+            EvalArm64 cpu = new EvalArm64(new byte[1<<16],1<<15);
+            cpu.st4(0,ops[i]); cpu.regs[1]=value;
+            assertEquals(0,cpu.step(1));
+            assertEquals(expected[i],cpu.regs[0]);
+        }
+    }
+
+
     @Test public void testReturnedFunctionEncoding() throws IOException {
         String src = "if(arg) return {->42;}; return {->43;};";
         CodeGen code = new CodeGen(src).driver("riscv","SystemV",null);

@@ -438,9 +438,20 @@ Consequences:
   selection, which removes the lifetime edge from machine operands before
   scheduling and cloning. Never substitute relocation-array growth or a linker
   address scan for correct retention.
+- The direct-call exemption requires the pointer to occur only as the call
+  target: `call.fptr()==ptr && call._inputs.find(ptr)==call.nIns()-1`. A pointer
+  also passed as an argument still needs unknown callers retained.
 - Validate returned addresses by calling them. Include anonymous and library
   functions, plus unused-body removal. Methods gain a receiver argument in 23;
   native/emulator probes must honor it even when the body does not use self.
+  A wrong native signature initially passed because a stale argument register
+  happened to contain the right pointer; a passing call alone cannot prove ABI
+  correctness.
+- Chapter 21's empty-main heuristic can remove main for `return {->42;};`.
+  Use `if(arg) return {->42;}; return {->43;};` to probe returned addresses,
+  and invoke main explicitly at its encoding offset. Its CodeGen.driver cannot
+  resume after an explicit opto() call; use the remaining phases explicitly or
+  start a fresh driver.
 - Function-address encoding begins in 21. RISC-V AUIPC/ADDI occupies eight bytes;
   patch the second instruction at opStart+4 and round the high part for signed
   low bits. Anonymous bodies need emitted code, but no exported ELF symbol.
@@ -467,6 +478,21 @@ Consequences:
 
 ## Serialization and code generation
 
+- Narrow direct C integer returns are normalized during instruction selection
+  in 22-25, using the declaration's width and signedness. An ideal cast would
+  fold away because the CallEnd already advertises the narrow semantic type.
+  In 25, identify external functions through their FIDX mapping: ExternNode can
+  fold into an ordinary ConstantNode. x86 upper return bits can be garbage;
+  RV64 sign-extends even u32 returns, which Simple must zero-extend again.
+  Native/emulator regressions start in Chapter22Test; Chapter25Test's errno
+  check also verifies the negative close result after importing sys.o.
+- Machine expansions must use the copying constructor and directly populate
+  input arrays, leaving reverse edges to CodeGen._instOuts. Using the ordinary
+  edge-registering constructor duplicates uses; the narrow-return expansion
+  exposed this during FileIO register splitting.
+- Keep Serialize's magic C0DE unchanged for now. Cliff explicitly unwound the
+  proposed magic bump; a real format version is future work. Rebuild all object
+  files after incompatible layout changes while there are no external users.
 - Class storage must be writable during `<clinit>`, even when all final field
   values are constant. `Encoding.Relo.readOnly()` owns this distinction for
   pool emission, ELF symbols, in-memory linking, and assembly printing. Ordinary

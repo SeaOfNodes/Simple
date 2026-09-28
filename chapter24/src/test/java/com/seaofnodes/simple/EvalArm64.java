@@ -320,11 +320,15 @@ public class EvalArm64 {
                 rval = regs[rn] & immediate;
                 break;
             }
-            case 0x93: {
-                // asr(immediate)
-                int imm = (ir >> 16) & 0x3F;
-                int rn = (ir >> 5) & 0x1F;
-                rval     = regs[rn] >> (imm);
+            case 0x93, 0xD3: { // SBFM/UBFM: shifts and signed/unsigned extracts
+                int immr = (ir >>> 16) & 63;
+                int imms = (ir >>> 10) & 63;
+                int rn = (ir >>> 5) & 31;
+                boolean signed = (ir & 0x40000000)==0;
+                long value = regs[rn] << (63-imms);
+                value = signed ? value >> (63-imms) : value >>> (63-imms);
+                rval = immr > imms ? value << (64-immr)
+                    : signed ? value >> immr : value >>> immr;
                 break;
             }
 
@@ -573,13 +577,6 @@ public class EvalArm64 {
                 break;
             }
 
-            case 0xD3: {
-                // lsl(immediate)
-                int imm = (ir >> 16) & 0x3F;
-                int rn = (ir >> 5) & 0x1F;
-                rval     = regs[rn] << (64 - imm);
-                break;
-            }
             case 0xD6: {
                 int op = ir & 0xFFFFFC1F;
                 int rn = (ir >>> 5) & 31;

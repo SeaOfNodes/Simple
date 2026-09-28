@@ -12,6 +12,14 @@ SSA with incomplete types in Chapter 25 for now; moving that architecture or
 renumbering chapters is deferred. Cliff wants to revisit splitting Chapter 25
 into smaller chapters; escape analysis remains in 25 until that larger review.
 
+Reset checkpoint (2026-09-28): Cliff committed the completed FunPtr work as
+`75390f47` (`Backport FunPtr`), following `586c8f65` (direct C data bindings) and
+`8212a66f` (constructor checks). The working tree was clean before this notes
+update. No FunPtr implementation or validation remains outstanding; the full
+21-25 results are recorded below. The subsequent narrow C integer-return ABI
+correction starts in 22 and is forwarded through 25; see the validation record.
+Splitting Chapter 25 is deferred, not an instruction to renumber.
+
 ## Pending corrections
 
 - **Chapter 24 Load BOTTOM-on-error backport, unwound/deferred (2026-09-28).**
@@ -62,15 +70,6 @@ into smaller chapters; escape analysis remains in 25 until that larger review.
   earlier parser. The independent Load experiment is recorded above. The
   known-null regression is already rejected
   during parsing in 10-24. Keep this separate from the constructor/memory fixes.
-
-- **Chapter 25 narrow C return values need ABI extension.** During the direct
-  data-binding checks, `sys.libc.close(-1)==-1` evaluated false on x86/Cygwin.
-  Disassembly compares the full RAX to -1 immediately after `close`, without
-  sign-extending its declared i32 result. C can return -1 in EAX with the high
-  half zero. This is independent of C data loads (which do sign-extend). The
-  errno accessor regression calls `close(-1)` and checks errno directly; it
-  does not claim to validate negative C return values. Investigate the ABI
-  return normalization separately.
 
 ## AOT class initialization: larger independent work
 
@@ -224,6 +223,8 @@ and its separate validation are recorded independently.
 
 | Completed work | Scope and evidence retained |
 |---|---|
+| Narrow C integer returns | On 2026-09-28, instruction selection in 22-25 sign/zero-extends direct C call results according to the declared 8/16/32-bit return type. x86 uses MOVSX/MOVZX/MOVSXD or a 32-bit MOV; ARM uses SBFM/UBFM; RISC-V uses shifts, including zero-extension of its sign-extended u32 ABI result. Chapter 25 consults external function identities because optimization can replace ExternNode with an ordinary constant. Native regressions run both x86 calling conventions with garbage upper return bits; ARM/RISC-V stubs exercise signed/unsigned boundaries and unchanged i64 results. Chapter 25's errno test now also requires `close(-1)==-1`. Original selectors reproduce failures in 22 and 25, including the libc case (`build/c-return-negative-{22,25}.log`). Full Make suites passed: 22 (433), 23 (455), 24 (485), 25 (479), plus each default fuzzer wrapper; 25 rebuilt sys.o (`build/c-return-final2.log`). |
+| ARM bitfield emulation | SBFM/UBFM decoding now handles both immediate fields, covering signed/unsigned extracts as well as ASR/LSR/LSL. The previous emulator treated all SBFM as ASR and all UBFM as LSL, hiding a logical-right-shift error and rejecting the new extension results. Introduced the correction and independent instruction-word regression in 21 and forwarded through 25. Full 21 suite passed (412 tests plus fuzzer; baseline 411); 22-25 validation is included above. |
 | FunPtr lifetime and callable entries | On 2026-09-28, introduced Return-linked FunPtrNode in 22-24, including semantic constant folding. Direct call targets retain existing call-graph treatment; all other address uses conservatively retain unknown callers, without escape analysis. Stop retains each callable Return through instruction selection; machine operands omit the lifetime edge. Anonymous/library returns failed relocation on all three targets before the change; 24 also failed named returns. New tests call returned anonymous/named/library pointers on ARM/RISC-V and from native C, and check discarded anonymous bodies disappear. Full Make suites passed: 21 (411), 22 (430), 23 (452), 24 (482), each plus its fuzzer wrapper. Baselines passed at 410/427/449/479. Chapter 24's Phi-selected functions retain general parameter types; graph expectations reflect that conservative rule. |
 | Function-address backend and worklist corrections | RISC-V TFPRISC now patches ADDI at opStart+4, rounds AUIPC for signed low bits, and reports its actual eight-byte size (21-24). ELF export emits anonymous bodies without exported names (21-24). Actual invocation exposed both bugs after retention was repaired; Chapter 21's reduced conditional-return probe trapped before the encoding fix. Chapter 22 gains the later inlining dominator null guard. In 24, killing Call#618 reduced FunPtr#540 to one use without waking dependent CallEnd#560; Node.kill now wakes the remaining definition's dependencies after removing a use (24-25). The no-return String workload loses unused hash bodies; its spill expectations become zero on all targets. Chapter 24 spill-stats passes all 212 original compilation entries at 1,351 moves / 3,115 weighted moves; its README separates this measurement from the original allocator ablation. Full Chapter 25 Make validation also passed: 476 ordinary tests plus its 17-seed fuzzer wrapper, with sys.o rebuilt. |
 | Chapter 25 direct C data bindings | On 2026-09-28, full `make tests` passed after the Field/ExternOffset refactor: 476 ordinary tests plus the fuzzer wrapper (17 seeds). Coverage checks zero layout space for external fields, native shared integer/float storage across C calls, compound updates, source/precompiled imports sharing aliases and preserving storage metadata, ARM/RISC-V emulated address relocation and signed loads, and the errno accessor after a failed native call. Direct bindings remain in 25: 22-24 have different singleton-pointer constant and instruction-selection contracts. Serialization retains magic C0DE; the changed layout requires rebuilding all objects. Only the independent RISC-V fixes below were selected for backport. |

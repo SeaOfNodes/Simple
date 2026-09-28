@@ -531,6 +531,8 @@ public class riscv extends Machine {
     }
 
     private Node prj(ProjNode prj) {
+        TypeInteger ret = cReturn(prj);
+        if( ret!=null ) return new ExtendRISC(prj,ret);
         return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjRISC(prj);
     }
 
