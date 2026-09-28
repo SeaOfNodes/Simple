@@ -144,14 +144,11 @@ return p;
 
     @Test
     public void testStructFinal3() {
-        Parser parser = new Parser("""
-struct Point { var x; var y; };
-Point p = new Point;
-p.x++;
-return p;
-""");
-        try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
+        for( String fields : new String[] { "var x; var y;", "int[] x;", "int[] !x;" } ) {
+            String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
+            try { new Parser(src).parse().iterate(); fail(fields); }
+            catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
+        }
     }
 
     @Test

@@ -29,16 +29,7 @@ public class Chapter25Test {
     @Ignore
     @Test
     public void testJig() {
-        String src =" while(1?!0:arg++) {";
-        String src2 = """
-int v0=0^0;
-    while(1) {
-        arg=v0++&0;
-            int v2=0;
-                    if(v0)
-                        if(v0) v2=0;
-    }
-    """;
+        String src = "struct I { int x; };  struct F { I p; };  return new F.p.x;";
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("2",Eval2.eval(code,0));
     }

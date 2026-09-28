@@ -488,18 +488,8 @@ public abstract class Node implements Cloneable {
         // Compute initial or improved Type
         Type old = setType(compute());
 
-        // Replace constant computations from non-constants with a constant
-        // node.  If peeps are disabled, still allow high Phis to collapse;
-        // they typically come from dead Regions, and we want the Region to
-        // collapse, which requires the Phis to die first.
+        // Replace constant computations from non-constants with a constant node.
         if( !isConst() && !(this instanceof ParmNode parm && parm.inProgress()) &&
-            // A high Load through a bad pointer still owns the source error;
-            // do not replace it with an unlocated constant before typeCheck.
-            !(this instanceof LoadNode && err()!=null) &&
-            // A CallEnd can be temporarily high while optimistic call-graph
-            // linking is still discovering its target Returns.  Its result
-            // projections must remain attached so they can sharpen later.
-            !(this instanceof ProjNode proj && proj.in(0) instanceof CallEndNode && _type.isHigh()) &&
             _type.isHighOrConst() )
             return ConstantNode.make(_type).peephole();
 

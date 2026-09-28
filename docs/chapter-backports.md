@@ -13,6 +13,29 @@ renumbering chapters is deferred.
 
 ## Pending corrections
 
+- **Chapter 25 BOTTOM-on-error backport boundary (2026-09-28).** Cliff requested
+  investigating the earlier arithmetic contracts. In 24, changing ArithNode's
+  non-integer fallback to global BOTTOM breaks the valid `testCoRecur`: the
+  declaration `val az = x*2` refers to `x` defined later, and the allocation-time
+  check confuses its temporary BOTTOM with an unset field. Three arithmetic
+  diagnostics also become generic parser errors (`testNullRef5`, `testMaskFloat`,
+  `testSubZeroTypeError`). Full-suite evidence: `build/arithmetic-contract-24.log`.
+  Restoring the integer fallback fixes all four in a 40-test focused run
+  (`build/arithmetic-top-24.log`). The Java return signature itself has no typed
+  caller dependency. Further BOTTOM work is paused for Cliff's decision about
+  separating forward/unresolved expressions from initialization errors in the
+  earlier parser. Earlier loads also retain declared types on errors; do not
+  silently change that contract. The known-null regression is already rejected
+  during parsing in 10-24. Keep this separate from the constructor/memory fixes.
+
+- **Chapter 25 Load TODO, seed `-4628356252269023530`.** The regression wrapper
+  reaches the default TODO in `LoadNode.idealize`'s memory walk with worklist
+  seed 456. Reproduced on 2026-09-28 both with the constructor-check changes
+  and with the original HEAD Parser compiled separately against the current
+  node edits. This is independent of the missing-constructor diagnostic;
+  it remains in both the regression and open-failure seed lists. Logs:
+  `build/ctor-baseline-seed.log` and `build/ctor-check-tests.log`.
+
 - **FunPtrNode lifetime backport, now next after the allocator review.**
   `return {->42;};` and `return sys.io.p;` fail during relocation in Chapter 22
   on all three targets at seed 123. Opto's name-based pruning equates no linked
@@ -28,16 +51,6 @@ renumbering chapters is deferred.
   addresses. Do not enlarge relocation arrays or add an interim address scan.
   Validate returned pointers by calling them, including library pointers, while
   still deleting genuinely unused helpers. Keep module/escape machinery in 25.
-- **Chapter 25 null-dereference diagnostic.** This setup was accepted despite
-  dereferencing null on the taken arm; investigate separately from B13:
-
-  ```java
-  struct Point { int x; new Point={int v -> x=v;}; };
-  Point?[] !points=new Point?[2]; points[arg]=new Point(42);
-  Point? p=points[1];
-  if(p==null) return p.x; return -1;
-  ```
-
 - **Chapter 25 ARM extern data.** `i32 errno="C"; return 0;`, compiled through
   Encoding with ARM/SystemV, reaches `arm.load_str_imm` with register -1 for the
   extern-data value stored by `<clinit>`. Both the saved original and final
@@ -190,8 +203,18 @@ old revisions. Earlier detailed traces are in Git history; durable invariants
 have been consolidated into the [AI notes](../skills/chapter25-codex-notes.md).
 Unresolved reproductions have been promoted to the pending queue above.
 
+On 2026-09-28, the constructor/memory-check backport passed the full Make suites
+in every compiler snapshot from 10 through 24, including their default fuzzer
+wrappers (`build/error-backport-tests.log`). The destination baseline was also
+green (`build/error-backport-baseline.log`). The arithmetic contract experiment
+and its separate validation are recorded independently.
+
 | Completed work | Scope and evidence retained |
 |---|---|
+| Arithmetic high results at the SCCP boundary | Chapter 24 integer and float arithmetic now return global TOP for high operands, matching 25. Widened ArithNode.compute's Java return signature to Type; no caller requires TypeInteger. Retained the typed integer fallback for unresolved/error operands, for the parser dependency in the pending queue. The TOP change starts with SCCP in 24; earlier snapshots retain their typed contracts. Full Chapter 24 Make suite passed: 477 tests plus its fuzzer wrapper (`build/arithmetic-top-full-24.log`). |
+| Required-field and memory-check backport | Chapters 16-24 retain allocation-time checks for inline `new S { ... }` initialization. Chapter 17 had its TOP/unset-field check commented out; restored it. Expanded the existing missing-initializer regression through 24 (introduced its array-field cases in 16), and forwarded the known-null load regression to 10-24 using their existing parse-time diagnostic. Added the fresh-allocation zero-fold monotonicity assertion in 19-24 and the TOP-pointer store-diagnostic guard in 18-23 (already present in 24). Before 18, TOP pointers already produce a diagnostic before the store's pointer cast. Chapter 25's constructor-exit snapshots and implicit-constructor declaration check stay with its separate allocation/constructor model. Its CallEnd return and MemMerge load-dependency corrections already have equivalent behavior in the applicable earlier implementations; storage-type nullability machinery stays with 25. Global error-result type changes are paused in the queue above. |
+| Chapter 25 required constructor fields | Parser records each explicit constructor's merged exit field types by Var identity and checks them against the complete field list when the struct closes. With no user constructor, declaration defaults are checked as an implicit empty constructor. Never-returning constructors have no completion obligation; nested blocks retain constructor context. Declaration-body assignments to required fields now emit their initializing stores. Load's fresh-allocation zero fold is restored with a monotonicity guard. Existing constructor tests cover partial/early returns, shadowing, later fields, valid defaults and non-returning constructors; older unused-struct/String fixtures now provide constructors, with measured spill expectations updated. Seed `6506797708065910879` is rejected during parsing and passes its regression. On 2026-09-28, all 472 non-fuzzer tests passed across `build/ctor-check-tests.log` and `build/ctor-remaining-tests.log`; the full Make run remains red solely on the independent Load TODO seed above. Allocation-time initialization checking was lost in the August 10 rewrite (`51f1f8f4`); this restores the obligation in the parser without depending on optimized private memory. |
+| Chapter 25 null-dereference diagnostic | Existing `Chapter10Test.testNullGuardErrors` includes `if (p == null) return p.x; return -1;`. The earlier recursive constant-fold error guard was removed by Cliff in favor of erroneous nodes computing BOTTOM, with related eager-folding and monotonicity corrections. The earlier full-suite pass in `build/null-deref-arith-top.log` applies to the superseded guard implementation, not the current edits. The exposed uninitialized-field failure is fixed by the constructor checks recorded above. |
 | Chapter 22 String without an explicit return | Backported 23's default-main teardown: when top-level control falls through, replace main's Start input with XCTRL and queue its users. Previously 22 omitted the return while retaining live control, leaving loop fragments with missing exits. Current seed 0 reproduced a missing-successor failure in Encoding; the earlier GCM changes had moved it past the originally recorded failure. The unchanged `Chapter20Test.testString` now also checks seed 0 through Encoding on x86/RISC-V/ARM, preserving its existing seed-123 allocator checks. Two Chapter09Test graph expectations now reflect removal of a default main with no live return; their sources are unchanged. Baseline and final full Chapter 22 suites passed (425 tests plus fuzzer), logged in `build/string-baseline.log` and `build/string-final.log`. Chapters 23-24 already contain this teardown; no later compiler changes were needed. |
 | Infinite-loop evaluation | Eval2 now runs the missing loop-tree phase in 21 and explicitly follows NeverNode projection 0 in 21-25. Existing `testFcn9` expects timeout in 21-24. Full 18-25 Make suites passed on 2026-09-26 (`build/never-exit-tests.log` and `build/never-exit-final.log`). On 2026-09-27, Cliff requested removal of the frozen-source fixture, replay tests, related reductions, and seed-list entry as unnecessary test overhead; the evaluator fixes remain. |
 | Always-on peepholes | Removed the global disable flag and branches in 2-18, the Chapter 18 parse overload, test toggles, and transpiler metadata/Rust output. Updated early graph expectations and READMEs; removed duplicate no-peephole scope tests. Chapter 8 fuzzing checks compilation/evaluation for failures; 9-18 compare worklist seeds 123/456 like later chapters. The Chapter 18 Load type workaround was unnecessary with normal forwarding and was removed. All 1-25 default Make suites passed across `build/always-peeps-tests.log` and `build/always-peeps-final.log`; later evaluator corrections are recorded above. The baseline was green in `build/always-peeps-baseline.log`. Direct checks exercised both worklist seeds in 9-18. The transpiler compiles and its focused grammar/Rust-output check passes; its existing repository-wide test stops at source-free chapter00 with `no source files`. |
@@ -201,7 +224,7 @@ Unresolved reproductions have been promoted to the pending queue above.
 | Short type extrema | Memory, struct and memory-pointer BOT/TOP names from 10; function-pointer names from 18. Exact types use shortcuts in ordinary, nested and HTML prints; precise types retain their details. Full Make suites in 10-20 and type/frontend suites in 21-25 passed; canonical/nested print checks passed in 10-25. |
 | Integer result types | Integer-op fallbacks in 4-13 and remaining unary cases through 17 retain integer types; 5's Phis meet their data-input types. Full Make suites in 4-17 passed, plus a chapter 5 snapshot check of Phi/Add types. Integer BOT starts in 4; later arithmetic already has typed fallbacks, with unresolved bimorphic modes preserved in 25. |
 | B14 cyclic leaf-kind equality | 23-24 backport; 25 already correct. Cyclic equality starts in 23. `TypeTest.testCyclicLeafKinds` fails before the fix; earlier interned-child equality already checks kinds. Full affected suites passed. |
-| B13 / #246 null guards | Nested Not/null guard discovery from 10; short-circuit Phi availability in 23-24. Regression and full suites in 10-25 passed. Separate null-dereference diagnostic remains queued. |
+| B13 / #246 null guards | Nested Not/null guard discovery from 10; short-circuit Phi availability in 23-24. Regression and full suites in 10-25 passed. Separate Chapter 25 null-dereference diagnostic is recorded above. |
 | B09 and #251 debug printing | Side-effect-free print/accessor paths from their first applicable chapters; `_` diagnostic naming, type interning allowed, layouts forbidden. Dead nodes use `isDead()`, not null `_inputs`, from 7. Original-printer negative checks and full affected suites passed. |
 | #247 emulator stores | Full eight-byte writes in ARM/RISC-V emulators, 21-25. Independent byte-pattern/overwrite regressions failed before the fix; all affected suites passed. |
 | B12 x86 immediate multiply | Dedicated destination-register encoder in 21; 22-25 already had it. Low/extended-register encoding regressions and full 21-25 suites passed. |

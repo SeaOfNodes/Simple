@@ -104,7 +104,7 @@ public class IterPeeps {
         while( (n=_work.pop()) != null ) {
             if( n.isDead() )  continue;
             _cnt++;              // Useful for debugging, searching which peephole broke things
-            var obs = code._obs;
+            var obs = code._obs; // Collect peephole neighbors for graph display
             if( obs != null ) obs.before(n);
             Node x = n.peepholeOpt();
             if( n instanceof CallEndNode cend )

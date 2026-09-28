@@ -101,6 +101,9 @@ public class Parser {
     ScopeNode _returnScope;     // Merge all the function exits  here
     Ary<FRefNode> _frefs;       // Forward refs created during this parse
     TypeStruct _ctorOpenStruct; // Open struct being initialized by an allocation constructor block.
+    // Constructor exit types survive scope teardown until all fields are known.
+    // A null entry denotes a constructor with no returning path.
+    private ArrayList<IdentityHashMap<Var,Type>> _ctorExits;
 
     // Mapping from a type name to a Type.  The string name matches
     // `type.str()` call.
@@ -389,6 +392,19 @@ public class Parser {
                 smem._declaredType = smem._type = TypeMem.makePrivate(tself);
         }
 
+        if( !upgrade ) {
+            IdentityHashMap<Var,Type> exit = null;
+            if( _returnScope!=null && !_returnScope.ctrl()._type.isHigh() ) {
+                exit = new IdentityHashMap<>();
+                int first = _scope._kinds.at(_scope.depth()-2)._lexSize+2;
+                for( int i=first; i<lex; i++ )
+                    exit.put(_scope.var(i),_returnScope.in(i)._type);
+            }
+            _ctorExits.add(exit);
+        } else if( !isClz ) {
+            checkInitFields(tself,base);
+        }
+
         // When can _returnScope be null here? A never-exit constructor will
         // not have any returns, and thus no need to gather values and store
         // them into the (never) constructed object
@@ -412,13 +428,11 @@ public class Parser {
             Var v = _scope.var(vidx);
             if( v._fref ) continue; // Forward refs not declared here
             // NewNode's TOP field is the zero-code poison for a required
-            // field.  The parser Var retains the typed nullable state for
-            // early-read diagnostics; only a user constructor writes memory.
-            if( upgrade && v._uninit ) continue;
+            // field. Leave it alone unless the declaration body supplied a
+            // value; otherwise a user constructor must initialize it.
             Node val = _returnScope.in(vidx);
-            if( !upgrade && v._uninit && val._type instanceof TypeNil tn && tn.nullable() )
-                throw error("'"+tself._name+"' is not fully initialized, field '"+
-                            fld._fname+"' is only partially set in the constructor",v._loc);
+            if( upgrade && v._uninit &&
+                !(val._type instanceof TypeNil tn && tn.notNull() && !val._type.isHigh()) ) continue;
             // Store value into extended struct
             Node prior = mmm.keep();
             Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, prior, self, off(tself,fld._fname), val, fld._final));
@@ -435,6 +449,28 @@ public class Parser {
             // completed class-field aggregate as the <clinit> return memory.
             _returnScope.mem(mmm);
             //_code.add(mmm);
+    }
+
+    // Validate each user constructor, or an implicit empty one, before the
+    // declaration scope goes away. Later fields use their declaration defaults.
+    private void checkInitFields(TypeStruct ts, int base) {
+        if( _returnScope==null || _returnScope.ctrl()._type.isHigh() ) return;
+        boolean implicit = _ctorExits.isEmpty();
+        if( implicit ) _ctorExits.add(new IdentityHashMap<>());
+        for( IdentityHashMap<Var,Type> exit : _ctorExits ) {
+            if( exit==null ) continue;
+            for( Field fld : ts._fields ) {
+                int idx = fieldVarIdx(base,fld._fname);
+                if( idx == -1 ) continue;
+                Var v = _scope.var(idx);
+                if( !v._uninit || v._fref ) continue;
+                Type t = exit.getOrDefault(v,_returnScope.in(idx)._type);
+                if( !(t instanceof TypeNil tn && tn.notNull() && !t.isHigh()) )
+                    throw error("'"+ts._name+"' is not fully initialized, field '"+fld._fname+
+                                (implicit ? "' needs to be set in a constructor" :
+                                            "' is only partially set in the constructor"),v._loc);
+            }
+        }
     }
 
     private int fieldVarIdx( int base, String name ) {
@@ -460,8 +496,7 @@ public class Parser {
     }
 
     private boolean inExplicitConstructor() {
-        if( !(_scope.klast() instanceof Kind.Func func) )
-            return false;
+        Kind.Func func = (Kind.Func)_scope._kinds.at(_scope.enclosingFuncOrDecl());
         return isExplicitConstructorName(func._name);
     }
 
@@ -886,6 +921,12 @@ public class Parser {
                 _returnScope._vars.add(vexpr);
                 _returnScope.addDef(oldX);
             }
+        } else if( isExplicitConstructorName(k._name) ) {
+            // Field bindings live in the enclosing declaration, not among the
+            // constructor's arguments/locals. Force lazy Phis on every exit.
+            int first = _scope._kinds.at(lexN-1)._lexSize+2;
+            for( int i=first; i<k._lexSize; i++ )
+                _scope.update(_scope.var(i),null);
         }
 
         // No prior merge point?  Just clone and hang on to it
@@ -1268,6 +1309,8 @@ public class Parser {
 
     // Parse a struct declaration (not an allocation); file-level is a class-init, and scope structs are normal
     private ReturnNode parseStruct( boolean isClz, String typeName ) {
+        var oldExits = _ctorExits;
+        _ctorExits = new ArrayList<>();
         // Record & restore global state set during parsing the <init> code
         Node oldCtrl= _scope.ctrl().keep();
         Node oldMem = _scope.mem ().keep();
@@ -1289,6 +1332,7 @@ public class Parser {
 
         // Struct decls look like function bodies.  Parse function body normally.
         ReturnNode ret = _parseFunctionBody(fname,sig,loc(),ids);
+        _ctorExits = oldExits;
         // Unwind global state.
         ctrl(oldCtrl.unkeep());
         mem (oldMem .unkeep());

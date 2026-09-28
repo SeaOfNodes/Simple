@@ -20,7 +20,7 @@ public abstract class ArithFNode extends Node {
     public Type compute() {
         Type t1 = in(1)._type, t2 = in(2)._type;
         if( t1.isHigh() || t2.isHigh() )
-            return TypeFloat.TOP;
+            return Type.TOP;
         if( t1 instanceof TypeFloat f1 &&
             t2 instanceof TypeFloat f2 ) {
             if( f1.isConstant() && f2.isConstant() )

@@ -110,12 +110,9 @@ public abstract class ArithNode extends Node implements ModeNode {
     @Override
     public final Type compute() {
         Type t1 = in(1)._type, t2 = in(2)._type;
-        if( t1==null || t2==null )
-            return Type.TOP;
-        if( t1.isHigh() || t2.isHigh() )
-            return _mode==0 ? Type.TOP :
-                _mode==1 ? TypeInteger.TOP :
-                TypeFloat.F64.dual();
+        if( t1==null || t2==null )        return Type.TOP;
+        if( t1.isHigh() || t2.isHigh() )  return Type.TOP;
+        if( t1==Type.BOTTOM || t2==Type.BOTTOM ) return Type.BOTTOM;
         byte mode = _mode==0 ? mode(t1,t2) : _mode;
         if( mode==0 )
             return CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal() ? Type.BOTTOM : Type.TOP;

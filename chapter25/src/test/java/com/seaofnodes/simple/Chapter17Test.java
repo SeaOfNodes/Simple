@@ -268,15 +268,38 @@ A x = new A;
 
     @Test
     public void testVar15() {
-        CodeGen code = new CodeGen("""
-struct B {};
-struct A { B b; new A = { ->
-    if (arg) b = new B; // Constructor ends with partial init of b
-}; };
-return (new A).b;
-""");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
+        for( String fields : new String[] {
+            "B b; new A = { -> if (arg) b = new B; };",
+            "B b; new A = { -> if (arg) return 0; b = new B; };",
+            "B b; new A = { B b -> b = new B; };", // Argument shadows field
+            "new A = { -> }; B b;",              // Field declared later
+        } ) {
+            CodeGen code = new CodeGen("struct B {}; struct A { "+fields+" }; return 0;");
+            try { code.parse(); fail(fields); }
+            catch( Parser.ParseException e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
+        }
+    }
+
+    @Test
+    public void testDefaultConstructorFields() {
+        for( String field : new String[] { "B b;", "B !b;" } ) {
+            CodeGen code = new CodeGen("struct B {}; struct A { "+field+" }; return new A;");
+            try { code.parse(); fail(field); }
+            catch( Parser.ParseException e ) { assertEquals("'Test.A' is not fully initialized, field 'b' needs to be set in a constructor",e.getMessage()); }
+        }
+        for( String fields : new String[] {
+            "B b = new B;",
+            "B b; b = new B;",
+            "new A = { -> }; B b = new B;",
+            "B b; new A = { -> if (arg) { b = new B; return 0; } b = new B; };",
+        } ) {
+            CodeGen code = new CodeGen("struct B {}; struct A { "+fields+" }; return new A.b != null;");
+            code.parse().opto().typeCheck();
+            assertEquals("1",Eval2.eval(code,0));
+            assertEquals("1",Eval2.eval(code,1));
+        }
+        // No returning path means no object can escape uninitialized.
+        new CodeGen("struct B {}; struct A { B b; new A = { -> while (true) {} }; }; return 0;").parse();
     }
 
     @Test

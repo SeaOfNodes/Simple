@@ -26,10 +26,10 @@ public abstract class ArithNode extends Node {
     // Generic airthmetic op math: high returns high; low returns low; 2
     // constants fold; only 2 non-constants call specialized math.
     @Override
-    public final TypeInteger compute() {
+    public final Type compute() {
         Type t1 = in(1)._type, t2 = in(2)._type;
         if( t1.isHigh() || t2.isHigh() )
-            return TypeInteger.TOP;
+            return Type.TOP;
         if( t1 instanceof TypeInteger x &&
             t2 instanceof TypeInteger y )
             return x.isConstant() && y.isConstant()

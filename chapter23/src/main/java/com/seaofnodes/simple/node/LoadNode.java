@@ -162,6 +162,7 @@ public class LoadNode extends MemOpNode {
     private Node zero(NewNode nnn) {
         TypeStruct ts = nnn._ptr._obj;
         Type zero = ts._fields[ts.findAlias(_alias)]._t.makeZero();
+        assert zero.isa(_type); // Catch an uninitialized non-null field
         return castRO(new ConstantNode(zero).peephole());
     }
 

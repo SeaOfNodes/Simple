@@ -333,6 +333,12 @@ Consequences:
   non-defaultable fields on every exit before the object escapes.
 - Constructor field state is tracked in parser `Var` metadata. Early reads of
   possibly-uninitialized fields are errors.
+- Check constructor completion in the parser, independent of allocation and
+  optimized memory. Save each constructor's merged exit field types by Var
+  identity and validate against the complete declaration at struct close.
+  No user constructor means an implicit empty constructor using declaration
+  defaults; a non-returning constructor has no completion obligation. Nested
+  blocks retain the enclosing constructor context, but nested functions do not.
 - Recursive constructors may reasonably be rejected; constructor chaining must
   preserve private-memory initialization state.
 

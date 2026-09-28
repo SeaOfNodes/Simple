@@ -9,6 +9,15 @@ import static org.junit.Assert.fail;
 public class Chapter16Test {
 
     @Test
+    public void testStructFinal3() {
+        for( String fields : new String[] { "int[] x;", "int[] !x;" } ) {
+            String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
+            try { new Parser(src).parse().iterate(); fail(fields); }
+            catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
+        }
+    }
+
+    @Test
     public void testJig() {
         Parser parser = new Parser(
 """

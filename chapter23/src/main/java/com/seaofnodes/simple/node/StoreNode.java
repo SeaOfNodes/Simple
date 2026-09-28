@@ -130,6 +130,8 @@ public class StoreNode extends MemOpNode {
     public Parser.ParseException err() {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
+        if( ptr()._type == Type.TOP )
+            return null; // Dead store
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
         if( tmp._obj.field(_name)._final && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);

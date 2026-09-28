@@ -182,7 +182,7 @@ return root;
     public void testNestedStructAddMemProj() {
         CodeGen code = new CodeGen(
 """
-struct _S { int a; int[] b; };
+struct _S { int a; int[] b; new _S = { int[] ary -> b=ary; }; };
 return 0;
 """);
         code.parse().opto();

@@ -145,14 +145,11 @@ return p;
 
     @Test
     public void testStructFinal3() {
-        CodeGen code = new CodeGen("""
-struct Point { var x; var y; };
-Point p = new Point;
-p.x++;
-return p;
-""");
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
+        for( String fields : new String[] { "var x; var y;", "int[] x;", "int[] !x;" } ) {
+            String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
+            try { new CodeGen(src).parse().opto(); fail(fields); }
+            catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
+        }
     }
 
     @Test

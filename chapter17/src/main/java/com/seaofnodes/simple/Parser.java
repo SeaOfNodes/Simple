@@ -992,7 +992,7 @@ public class Parser {
         }
         // Check that all fields are initialized
         for( int i=idx; i<init.size(); i++ )
-            if( /*init.at(i)._type == Type.TOP ||*/ init.at(i)._type == Type.BOTTOM )
+            if( init.at(i)._type == Type.TOP || init.at(i)._type == Type.BOTTOM )
                 throw error("'"+tmp._obj._name+"' is not fully initialized, field '" + fs[i-idx]._fname + "' needs to be set in a constructor");
         Node ptr = newStruct(tmp._obj, con(tmp._obj.offset(fs.length)), idx, init );
         if( hasConstructor )

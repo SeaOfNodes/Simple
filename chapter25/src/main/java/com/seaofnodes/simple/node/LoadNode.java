@@ -48,12 +48,15 @@ public class LoadNode extends MemOpNode {
         if( mem._t == Type.TOP )
             return TypeScalar.TOP;
         if( ptr0 == Type.NIL )
-            return TypeScalar.TOP;
-        if( !(ptr0 instanceof TypeMemPtr ptr) )
+            return Type.BOTTOM; // Load from nil is error
+        if( ptr0 == Type.BOTTOM )
+            return Type.BOTTOM; // Error in is error out
+        if( !(ptr0 instanceof TypeMemPtr tmp) )
             return scalar(mem._t);
+        if( tmp.nullable() )
+            return Type.BOTTOM; // Load from nil-able is error
 
         // Load field from object
-        TypeMemPtr tmp = ptr;
         Field pfld = tmp._obj.field(_name);
         // No field?  Open objects might yet get the field when falling;
         // closed objects with missing field are an error.
@@ -110,11 +113,6 @@ public class LoadNode extends MemOpNode {
         if( _alias == 1 )
             return null;
 
-        if( mem instanceof MemMergeNode merge ) {
-            setDef(1,merge.alias(_alias));
-            return this;
-        }
-
         // Simple Load-after-Store on same address.
         if( mem instanceof StoreNode st &&
             ptr == st.nnptr() &&
@@ -124,15 +122,16 @@ public class LoadNode extends MemOpNode {
             return extend(st.val());
         }
 
-        //// Expose the same effective memory input already observed by compute.
-        //if( mem != mem() ) {
-        //    for( Node ld : mem._outputs )
-        //        if( ld instanceof LoadNode )
-        //            CodeGen.CODE.add(ld);
-        //    if( mem instanceof BulkMemPhiNode ) CodeGen.CODE.add(mem);
-        //    setDef(1,mem);
-        //    return this;
-        //}
+        if( mem instanceof MemMergeNode merge ) {
+            setDef(1,merge.alias(_alias));
+            // In support of uplifting control to a prior dominating load, if
+            // we move our memory, recheck other loads to see if they can hoist.
+            for( Node use : in(1).outs() )
+                if( use instanceof LoadNode ld && use != this && ptr == ld.ptr() )
+                    CodeGen.CODE.add(ld);
+
+            return this;
+        }
 
         // Uplift control to a prior dominating load.
         for( Node memuse : mem._outputs )
@@ -167,18 +166,21 @@ public class LoadNode extends MemOpNode {
                 // Assume related
                 addDep(phi);
                 break outer;
-            //case ConstantNode con:
-            //    // Load from constant memory
-            //    if( con._con instanceof TypeMem tmem )
+            case ConstantNode con:
+                // Load from constant memory
+                if( con._con instanceof TypeMem tmem )
+                    throw Utils.TODO("need to see a test case");
             //        return ConstantNode.make(tmem._t);
-            //    break outer;  // Assume shortly dead
+                break outer;  // Assume shortly dead
             case ProjNode mproj: // Memory projection
                 switch( mproj.in(0) ) {
                 case NewNode nnn1:
                     // Direct load from fresh zero/default-filled allocation.
                     Type decl = declaredType();
                     assert decl!=Type.BOTTOM;
-                    return ConstantNode.make(decl.makeZero());
+                    Type zero = decl.makeZero();
+                    assert zero.isa(_type); // Catch bug uninitialized null field
+                    return ConstantNode.make(zero);
                 case CallEndNode cend: addDep(mproj); break outer; // TODO: Bypass no-alias call
                 default: throw Utils.TODO("Should not reach here");
                 }

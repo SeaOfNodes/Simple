@@ -18,7 +18,7 @@ public class FuzzerWrap {
          -148471672577312953L, // bulk mem
         -5037182906211190034L, // dead Guard control
         -6359653295501938199L, // monotonicity, escape is dead
-         6506797708065910879L, // missing ModeNode._mode is optimistic
+         6506797708065910879L, // required field without a user constructor
           650692970082394944L, // recursive bulk mem split
          8335100609598232836L, // ternary result killed by region cleanup
          2520958273643234516L, // nested guard merge

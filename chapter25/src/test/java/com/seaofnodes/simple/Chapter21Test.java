@@ -292,6 +292,7 @@ return v0;
 struct String {
     u8[] cs;
     int _hashCode;
+    new String = { u8[] data -> cs=data; };
 };
 
 // Compare two Strings
@@ -319,9 +320,9 @@ val _hashCodeString = { String self ->
     return hash;
 };
 """;
-        testCPU(src,"x86_64_v2", "SystemV",18,null);
-        testCPU(src,"riscv"    , "SystemV", 7,null);
-        testCPU(src,"arm"      , "SystemV", 8,null);
+        testCPU(src,"x86_64_v2", "SystemV",21,null);
+        testCPU(src,"riscv"    , "SystemV",10,null);
+        testCPU(src,"arm"      , "SystemV",10,null);
     }
 
     @Test public void testStringExport() throws IOException {
@@ -330,6 +331,7 @@ val _hashCodeString = { String self ->
 struct String {
     u8[] cs;
     int _hashCode;
+    new String = { u8[] data -> cs=data; };
 };
 
 // Compare two Strings
@@ -357,7 +359,7 @@ val _hashCodeString = { String self ->
     return hash;
 };
 """;
-        TestC.runC(src, "stringHash", "",18);
+        TestC.runC(src, "stringHash", "",21);
     }
 
     @Test public void testLoop2() {

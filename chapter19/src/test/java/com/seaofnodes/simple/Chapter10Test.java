@@ -46,6 +46,7 @@ public class Chapter10Test {
     public void testNullGuardErrors() {
         for( String body : new String[] {
             "return p.x;",
+            "if (p == null) return p.x; return -1;",
             "if (!!points) return p.x; return -1;",
             "if (!!p) { int x = p.x; } return p.x;"
         } ) {
@@ -53,7 +54,10 @@ public class Chapter10Test {
                 new CodeGen(NULLABLE_POINT_SOURCE+body).parse().opto().typeCheck();
                 fail(body);
             } catch( RuntimeException e ) {
-                assertEquals(body,"Might be null accessing 'x'",e.getMessage());
+                // Known null is rejected during parsing in these chapters.
+                String expected = body.startsWith("if (p == null)")
+                    ? "Accessing unknown field 'x' from 'null'" : "Might be null accessing 'x'";
+                assertEquals(body,expected,e.getMessage());
             }
         }
     }

@@ -68,6 +68,7 @@ public class Chapter10Test {
     public void testNullGuardErrors() {
         for( String body : new String[] {
             "return p.x;",
+            "if (p == null) return p.x; return -1;",
             "if (!!points) return p.x; return -1;",
             "if (!!p) { int x = p.x; } return p.x;"
         } ) {

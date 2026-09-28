@@ -71,7 +71,7 @@ public class TypeMemPtr extends TypeNil {
     /** Inferred mutable local: nullable, public and non-singleton. */
     public TypeMemPtr makeVar() { return (TypeMemPtr)makeStorage(); }
     /** Public-memory shape: nullable and non-singleton, preserving the referent. */
-    @Override TypeMemPtr _makeStorage() { return make((byte)3,_obj._makeStorage(),false,true); }
+    @Override TypeMemPtr _makeStorage() { return make(_nil,_obj._makeStorage(),false,true); }
     @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one, _pub); }
     @Override public Type nonZero() { return makeFrom((byte)(_nil <= 1 ? 1 : 2)); }
 

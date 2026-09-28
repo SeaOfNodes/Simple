@@ -85,7 +85,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // Mid-fold, just take the one single callers' return type
         if( _folding ) {
             TypeTuple tt = (TypeTuple)in(1)._type;
-            return tt.makeFrom(2,tt.ret().join(tfp._ret));
+            return tt.makeFrom(2,tt.ret());
         }
 
         // Here, if I can figure out I've linked *all* callers, then I can meet
