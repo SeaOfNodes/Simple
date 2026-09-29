@@ -138,6 +138,7 @@ public class Evaluator {
             case CastNode     cast  -> val(cast.in(1));
             case LoadNode     load  -> load(load);
             case StoreNode    store -> store(store);
+            case MemMergeNode merge -> MEMORY;
             case NewNode      alloc -> alloc(alloc);
             case CProjNode    cproj -> ((Object[])val(cproj.ctrl()))[cproj._idx];
             case ProjNode     proj  -> ((Object[])val( proj.in(0) ))[ proj._idx];
@@ -151,8 +152,8 @@ public class Evaluator {
     public Object evaluate(long parameter, int loops) {
         if (start == null) return Status.TIMEOUT;
         var s = new Object[start.compute()._types.length];
-        s[1] = parameter;
-        for(int i=2;i<s.length;i++) s[i] = MEMORY;
+        s[1] = MEMORY;
+        s[2] = parameter;
         values[start._nid] = s;
         int i=0;
         Scheduler.Block block = this.startBlock;
@@ -163,7 +164,7 @@ public class Evaluator {
                 case null:
                     return Status.FALLTHROUGH;
                 case ReturnNode ret:
-                    return val(ret.in(1));
+                    return val(ret.expr());
                 case IfNode ifn:
                     block = block.next()[isTrue(val(ifn.in(1))) ? 0 : 1];
                     if (block == null) return Status.FALLTHROUGH;

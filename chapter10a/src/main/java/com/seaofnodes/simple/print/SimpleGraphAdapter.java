@@ -52,7 +52,7 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
         if( n instanceof ProjNode ) return n.isCFG() ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof RegionNode && i == 0 ) return Role.ASSOC;
         if( i == 0 || n instanceof RegionNode || n instanceof StopNode ) return Role.CTRL;
-        if( i == 1 && n instanceof MemOpNode || i == 2 && n instanceof ReturnNode ) return Role.MEM;
+        if( i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode) ) return Role.MEM;
         Node def = n.in(i);
         if( def != null && isMem(def) ) return Role.MEM;
         return Role.DATA;

@@ -37,7 +37,11 @@ different fields are independent. Chapter 10b will remove it.
 | `Store`  | Memory, pointer, field name, value | The updated whole-memory state |
 | `Load`   | Memory, pointer, field name | The value of the field |
 | `Start`  | External entry | Control, initial memory, and `arg` |
-| `Return` | Control, result, memory | Completion with all preceding effects retained |
+| `Return` | Control, memory, result | Completion with all preceding effects retained |
+
+For nodes consuming or producing both control and memory, control occupies slot
+0 and memory slot 1. Start's outputs are `{ctrl, $mem, arg}`; Return's inputs
+are `{ctrl, $mem, result}`.
 
 The memory edge is a dependency, not a copy of the heap.  The graph determines
 the legal execution order.  In hardware, a Store updates physical memory

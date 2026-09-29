@@ -448,6 +448,14 @@ public abstract class Node implements OutNode {
      * being added must benefit from this node being peepholed.
      */
     Node addDep( Node dep ) {
+        return addDep(dep,false);
+    }
+
+    // A bulk Phi inspects its users' partitions. Def-to-use propagation does
+    // not revisit that producer when an immediate user's partition changes.
+    Node addDepForwards(Node dep) { return addDep(dep,true); }
+
+    private Node addDep(Node dep, boolean forwards) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( IterPeeps.midAssert() ) return this;
@@ -455,8 +463,8 @@ public abstract class Node implements OutNode {
         if( obs != null ) obs.dep(this, dep);
         if( _deps==null ) _deps = new ArrayList<>();
         if( Utils.find(_deps  ,dep) != -1 ) return this; // Already on list
-        if( Utils.find(_inputs,dep) != -1 ) return this; // No need for deps on immediate neighbors
-        if( Utils.find(_outputs,dep)!= -1 ) return this;
+        if( !forwards && Utils.find(_inputs,dep) != -1 ) return this;
+        if( !forwards && Utils.find(_outputs,dep)!= -1 ) return this;
         _deps.add(dep);
         return this;
     }

@@ -1,9 +1,18 @@
 # Chapter 11: Global Code Motion
 
-The preceding memory lesson is now split into [10a](../chapter10a/README.md)
-and [10b](../chapter10b/README.md). This snapshot still constructs the older
-per-alias memory chains in the parser. The language is unchanged; forwarding
-10b's bulk-memory representation through Chapters 11-24 is a separate migration.
+This chapter schedules the memory representation introduced in
+[10b](../chapter10b/README.md): one parser-visible `$mem`, with `MemMerge`,
+`MemPhi`, and `BulkMemPhi` recovering independent field chains. Start supplies
+`{ctrl, $mem, arg}`. Return consumes `{ctrl, $mem, result}`, with the complete
+memory aggregate in slot 1. Nodes consuming or producing both control and
+memory consistently use slot 0 for control and slot 1 for memory.
+
+The new scheduling rule is to distinguish a memory aggregate from a memory
+write. `MemMerge` gets a placement from its inputs and uses, but emits no heap
+operation and creates no load/store anti-dependency. A Store or MemPhi can
+constrain a Load only for the same alias; a BulkMemPhi can constrain it only
+while it still covers that alias. Both kinds of memory Phi remain attached to
+their Region, just like scalar Phis.
 
 
 # Table of Contents
@@ -56,7 +65,7 @@ At its core, the scheduling algorithm works in two phases:
 
 * Schedule Early - in this phase, we do an upward DFS walk on the "inputs" of each Node, starting from the bottom (Stop). We schedule each data node to the
   first control block where they are dominated by their inputs.
-* Schedule Late - in this phase we do a downward DFS walk on the "outputs" of each Node starting from the top (Start), and move data nodes to a block between the first block calculated above,
+* Schedule Late - in this phase we work backwards from Stop, scheduling uses before definitions, and move data nodes to a block between the first block calculated above,
   and the last control block where they dominate all their uses. The placement is subject to the condition that it is in the shallowest loop nest possible, and is as control dependent as possible.
   Additionally, the placement of Load instructions must ensure correct ordering between Loads and Stores of the same memory location.
 
@@ -77,6 +86,10 @@ return i;
 ```
 
 First lets look at the graph before scheduling.
+
+These walkthrough diagrams show the precise `S.f` chain and the final
+MemMerge consumed by Return. The unchanged default memory comes from Start;
+any redundant bulk Phis have folded away. Arrows point from uses to definitions.
 
 ![Graph1](./docs/graph1.svg)
 
@@ -369,133 +382,148 @@ A pre-condition of this is to ensure that infinite loops have been "fixed" as de
 The implementation of early schedule is shown below:
 
 ```java
-    // ------------------------------------------------------------------------
-private static void schedEarly() {
-  ArrayList<CFGNode> rpo = new ArrayList<>();
-  BitSet visit = new BitSet();
-  _rpo_cfg(Parser.START, visit, rpo);
-  // Reverse Post-Order on CFG
-  for( int j=rpo.size()-1; j>=0; j-- ) {
-    CFGNode cfg = rpo.get(j);
-    cfg.loopDepth();
-    for( Node n : cfg._inputs )
-      _schedEarly(n,visit);
-    // Strictly for dead infinite loops, we can have entire code blocks
-    // not reachable from below - so we reach down, from above, one
-    // step.  Since _schedEarly modifies the output arrays, the normal
-    // region._outputs ArrayList iterator throws CME.  The extra edges
-    // are always *added* after any Phis, so just walk the Phi prefix.
-    if( cfg instanceof RegionNode region ) {
-      int len = region.nOuts();
-      for( int i=0; i<len; i++ )
-        if( region.out(i) instanceof PhiNode phi )
-          _schedEarly(phi,visit);
+    private static void schedEarly() {
+        ArrayList<CFGNode> rpo = new ArrayList<>();
+        BitSet visit = new BitSet();
+        _rpo_cfg(Parser.START, visit, rpo);
+        // Reverse Post-Order on CFG
+        for( int j=rpo.size()-1; j>=0; j-- ) {
+            CFGNode cfg = rpo.get(j);
+            cfg.loopDepth();
+            for( Node n : cfg._inputs )
+                _schedEarly(n,visit);
+            // In dead infinite loops, entire code blocks may be unreachable
+            // from below.  Reach down from the CFG to their Phis so their
+            // inputs are scheduled too.
+            if( cfg instanceof RegionNode ) {
+                int len = cfg.nOuts();
+                for( int i=0; i<len; i++ )
+                    if( cfg.out(i) instanceof PhiNode phi )
+                        _schedEarly(phi,visit);
+            }
+        }
     }
-  }
-}
 
-// Post-Order of CFG
-private static void _rpo_cfg(Node n, BitSet visit, ArrayList<CFGNode> rpo) {
-  if( !(n instanceof CFGNode cfg) || visit.get(cfg._nid) )
-    return;             // Been there, done that
-  visit.set(cfg._nid);
-  for( Node use : cfg._outputs )
-    _rpo_cfg(use,visit,rpo);
-  rpo.add(cfg);
-}
+    // Post-Order of CFG
+    private static void _rpo_cfg(Node n, BitSet visit, ArrayList<CFGNode> rpo) {
+        if( !(n instanceof CFGNode cfg) || visit.get(cfg._nid) )
+            return;             // Been there, done that
+        visit.set(cfg._nid);
+        for( Node use : cfg._outputs )
+            _rpo_cfg(use,visit,rpo);
+        rpo.add(cfg);
+    }
 
-private static void _schedEarly(Node n, BitSet visit) {
-  if( n==null || visit.get(n._nid) ) return; // Been there, done that
-  visit.set(n._nid);
-  // Schedule not-pinned not-CFG inputs before self.  Since skipping
-  // Pinned, this never walks the backedge of Phis (and thus spins around
-  // a data-only loop, eventually attempting relying on some pre-visited-
-  // not-post-visited data op with no scheduled control.
-  for( Node def : n._inputs )
-    if( def!=null && !def.isPinned() )
-      _schedEarly(def,visit);
-  // If not-pinned (e.g. constants, projections, phi) and not-CFG
-  if( !n.isPinned() ) {
-    // Schedule at deepest input
-    CFGNode early = Parser.START; // Maximally early, lowest idepth
-    for( int i=1; i<n.nIns(); i++ )
-      if( n.in(i).cfg0().idepth() > early.idepth() )
-        early = n.in(i).cfg0(); // Latest/deepest input
-    n.setDef(0,early);              // First place this can go
-  }
-}
+    private static void _schedEarly(Node n, BitSet visit) {
+        if( n==null || visit.get(n._nid) ) return; // Been there, done that
+        visit.set(n._nid);
+        // Schedule inputs first, except Phis: following their backedges would
+        // enter a data cycle before its control has been scheduled.
+        for( Node def : n._inputs )
+            if( def!=null && !(def instanceof PhiNode) )
+                _schedEarly(def,visit);
+        // An existing edge 0 already supplies control (or a Phi/Proj binding).
+        if( n.in(0)==null ) {
+            // Schedule at deepest input
+            CFGNode early = Parser.START; // Maximally early, lowest idepth
+            for( int i=1; i<n.nIns(); i++ )
+                if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
+                    early = n.in(i).cfg0(); // Latest/deepest input
+            n.setDef(0,early);              // First place this can go
+        }
+    }
 ```
 
-* The early schedule populates the control input for data nodes - recall that this is null up to this point as data nodes are not attached to any control flow nodes until now.
-* Most of the code above is about walking the graph in the right order. The actual computation of the early schedule is in these lines:
-
-```java
-  // If not-pinned (e.g. constants, projections, phi) and not-CFG
-  if( !n.isPinned() ) {
-    // Schedule at deepest input
-    CFGNode early = Parser.START; // Maximally early, lowest idepth
-    for( int i=1; i<n.nIns(); i++ )
-      if( n.in(i).cfg0().idepth() > early.idepth() )
-        early = n.in(i).cfg0(); // Latest/deepest input
-    n.setDef(0,early);              // First place this can go
-  }
-```
+Existing control and Phi/Proj bindings are preserved. Floating nodes receive
+the deepest input block as their earliest placement. MemMerge follows this
+same rule, ignoring absent entries in its sparse alias table.
 
 ## Late Schedule
 
-During this phase we do a downward DFS walk on the "outputs" of each Node starting from the top (Start), and move data nodes to a block between the first block in the early schedule,
-and the last control block where they dominate all their uses. The placement is subject to the condition that it is in the shallowest loop nest possible, and is as control dependent as possible.
-Additionally, the placement of Load instructions must ensure correct ordering between Loads and Stores of the same memory location.
-
-The code for computing the late schedule is shown below.
+Late scheduling starts at Stop and uses a worklist to place uses before their
+definitions. CFG nodes, Phis, projections, and allocations provide fixed
+placements. Other nodes wait until their uses have been scheduled; a Load also
+waits for memory users that can overwrite or merge its alias. The chosen block
+lies between the early placement and the common dominator of all uses, favoring
+shallower loops and then deeper control flow.
 
 ```java
-    // ------------------------------------------------------------------------
-    private static void schedLate(StartNode start) {
+    private static void schedLate( StopNode stop) {
         CFGNode[] late = new CFGNode[Node.UID()];
         Node[] ns = new Node[Node.UID()];
-        _schedLate(start,ns,late);
+        // Record Load NIDs at all their CFG block choices, then check against
+        // Store block choices to force a Load above an anti-dependent Store.
+        int[] anti = new int[Node.UID()];
+        // Breadth-first scheduling
+        breadth(stop,ns,late,anti);
+
+        // Copy the best placement choice into the control slot
         for( int i=0; i<late.length; i++ )
-            if( ns[i] != null )
+            if( ns[i] != null && !(ns[i] instanceof ProjNode) )
                 ns[i].setDef(0,late[i]);
     }
 
-    // Forwards post-order pass.  Schedule all outputs first, then draw a
-    // idom-tree line from the LCA of uses to the early schedule.  Schedule is
-    // legal anywhere on this line; pick the most control-dependent (largest
-    // idepth) in the shallowest loop nest.
-    private static void _schedLate(Node n, Node[] ns, CFGNode[] late) {
-        if( late[n._nid]!=null ) return; // Been there, done that
-        // These I know the late schedule of, and need to set early for loops
-        if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
-        if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
+    private static void breadth(Node stop, Node[] ns, CFGNode[] late, int[] anti) {
+        // Things on the worklist have some (but perhaps not all) uses done.
+        WorkList<Node> work = new WorkList<>();
+        work.push(stop);
+        Node n;
+        outer:
+        while( (n = work.pop()) != null ) {
+            assert late[n._nid]==null; // No double visit
+            // These I know the late schedule of, and need to set early for loops
+            if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
+            else if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
+            // These nodes have a fixed late placement at their original control.
+            else if( n instanceof ProjNode || n instanceof NewNode || n==Parser.ZERO ) late[n._nid] = n.cfg0();
+            else {
 
-        // Walk Stores before Loads, so we can get the anti-deps right
-        for( Node use : n._outputs )
-            if( isForwardsEdge(use,n) &&
-                use._type instanceof TypeMem )
-                _schedLate(use,ns,late);
-        // Walk everybody now
-        for( Node use : n._outputs )
-            if( isForwardsEdge(use,n) )
-                _schedLate(use,ns,late);
-        // Already implicitly scheduled
-        if( n.isPinned() ) return;
-        // Need to schedule n
+                // All uses done?
+                for( Node use : n._outputs )
+                    if( use!=null && late[use._nid]==null )
+                        continue outer; // Nope, await all uses done
 
+                // Loads need their memory inputs' uses also done
+                if( n instanceof LoadNode ld )
+                    for( Node memuse : ld.mem()._outputs )
+                        if( antiUse(ld,memuse) && late[memuse._nid]==null )
+                            continue outer;
+
+                // All uses done, schedule
+                _doSchedLate(n,ns,late,anti);
+            }
+
+            // A use just finished; reconsider its inputs and waiting loads,
+            // even when the shared memory input was already scheduled.
+            for( Node def : n._inputs ) {
+                if( def==null ) continue;
+                if( late[def._nid]==null ) work.push(def);
+                for( Node out : def._outputs )
+                    if( out instanceof LoadNode ld && late[ld._nid]==null )
+                        work.push(ld);
+            }
+            if( n instanceof LoopNode loop )
+                for( Node phi : loop._outputs )
+                    if( phi instanceof PhiNode && late[phi._nid]==null )
+                        work.push(phi);
+        }
+    }
+
+    private static void _doSchedLate(Node n, Node[] ns, CFGNode[] late, int[] anti) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
-        CFGNode early = (CFGNode)n.in(0);
+        CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
         assert early != null;
         CFGNode lca = null;
         for( Node use : n._outputs )
-            lca = use_block(n,use, late).idom(lca);
+            if( use != null )
+              lca = use_block(n,use, late).domLCA(lca);
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof LoadNode load )
-            lca = find_anti_dep(lca,load,early,late);
+            lca = find_anti_dep(lca,load,early,late,anti);
 
         // Walk up from the LCA to the early, looking for best place.  This is
-        // lowest execution frequency, approximated by least loop depth and
+        // the lowest execution frequency, approximated by least loop depth and
         // deepest control flow.
         CFGNode best = lca;
         lca = lca.idom();       // Already found best for starting LCA
@@ -515,35 +543,41 @@ The code for computing the late schedule is shown below.
         CFGNode found=null;
         for( int i=1; i<phi.nIns(); i++ )
             if( phi.in(i)==n )
-                if( found==null ) found = phi.region().cfg(i);
-                else Utils.TODO(); // Can be more than once
+                found = phi.region().cfg(i).domLCA(found); // Can be more than one matching input.
         assert found!=null;
         return found;
     }
 
+
     // Least loop depth first, then largest idepth
     private static boolean better( CFGNode lca, CFGNode best ) {
-        return lca._loopDepth < best._loopDepth ||
-                (lca.idepth() > best.idepth() || best instanceof IfNode);
-    }
-
-    // Skip iteration if a backedge
-    private static boolean isForwardsEdge(Node use, Node def) {
-        return use != null && def != null &&
-            !(use.nIns()>2 && use.in(2)==def && (use instanceof LoopNode || (use instanceof PhiNode phi && phi.region() instanceof LoopNode)));
+        return lca.loopDepth() < best.loopDepth() ||
+            lca instanceof NeverNode ||
+            lca.idepth() > best.idepth() ||
+            best instanceof IfNode;
     }
 ```
 
 ## Inserting Anti Dependencies
 
-To ensure that Loads and Stores to the same memory location are correctly ordered, we insert an edge from the Load to the Store as described below.
+To ensure that Loads and Stores to the same memory location are correctly ordered, we insert an edge from the Store to the Load as described below: the Store must wait for the earlier Load.
 We call these edges anti-dependencies because they do not represent the Def-Use dependency that we normally capture in SoN, and are purely present as scheduling constraints.
 
 We compute anti-dependencies DURING running schedule late. This is because we rely on the early-schedule, and the late-schedule of the Load's uses (before scheduling the Load).
 
-Looking backwards from the Load we follow the memory edge to the "memory definer" - a start-mem-projection, or a phi-mem, or a store.
-We look forwards from the mem-def to all its mem-def users. There is always at least one; there may be many. These completely (all of it) and exactly (no doubling up) cover the forward memory space, sort of like a network flow problem - but we limit our analysis to same-alias,
-because for example, a start-mem-proj produces all aliases. This gives us a candidate set of mem-defs; some of these need the anti-dependency on the Load, but not all.
+Looking backwards from the Load, we follow its memory input to Start's memory
+projection, a memory Phi, or a Store. Optimization has already selected the
+Load's precise slice through any MemMerge. We inspect users of that memory
+definition, keeping only Stores and memory Phis that cover the Load's alias.
+Start's single memory projection may supply many aliases, so sharing a memory
+input alone does not imply an anti-dependency.
+
+MemMerge only packages slices; it does not overwrite any of them. Treating it
+as a write could make a Load wait for an aggregate which itself depends on the
+Load's result. The same alias filter is used both when deciding whether a Load
+is ready to schedule and when computing its anti-dependencies. A completed
+memory user wakes waiting loads even if their shared memory definition has
+already been scheduled.
 
 Since we're in the middle of "schedule late", we have already computed all the late schedules of a Load's users, and we have the Loads "Least Common Ancestor" of uses, the LCA or late position.
 We inspect the set of mem-defs that might impact the Load, and either add an anti-dependency from Store to Load, or raise the Loads effective LCA.
@@ -553,38 +587,50 @@ For stores, we do the same - until/unless we find stores with the SAME block as 
 The implementation is shown below.
 
 ```java
-    private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late) {
+    // Only a store or memory Phi covering this alias can constrain a load.
+    // MemMerge packages slices without overwriting them.
+    private static boolean antiUse(LoadNode load, Node use) {
+        return switch( use ) {
+        case StoreNode st -> st._alias==load._alias;
+        case MemPhiNode phi -> phi._alias==load._alias;
+        case BulkMemPhiNode phi -> !phi.isSplit(load._alias);
+        default -> false;
+        };
+    }
+
+    private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late, int[] anti) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
         for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
-            cfg._anti = load._nid;
+            anti[cfg._nid] = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
         for( Node mem : load.mem()._outputs ) {
+            if( !antiUse(load,mem) ) continue;
             switch( mem ) {
             case StoreNode st:
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st);
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.
                 // No anti-dep edges but may raise the LCA.
                 for( int i=1; i<phi.nIns(); i++ )
                     if( phi.in(i)==load.mem() )
-                        lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null);
+                        lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null,anti);
                 break;
-            case LoadNode ld: break; // Loads do not cause anti-deps on other loads
-            case ReturnNode ret: break; // Load must already be ahead of Return
             default: throw Utils.TODO();
             }
         }
         return lca;
     }
 
-    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st ) {
-        // Walk store blocks "reach" from its scheduled location to its earliest
+    //
+    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
+        // Preserve the full store range for the earlier evaluator scheduler.
+        // It places nodes independently of GCM and may hoist this store.
         for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
             // Store and Load overlap, need anti-dependence
-            if( stblk._anti==load._nid ) {
-                lca = stblk.idom(lca); // Raise Loads LCA
+            if( anti[stblk._nid]==load._nid ) {
+                lca = stblk.domLCA(lca); // Raise Loads LCA
                 if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
                     st.addDef(load);   // Add anti-dep as well
                 return lca;            // Cap this stores' anti-dep to here

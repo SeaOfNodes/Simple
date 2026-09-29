@@ -27,6 +27,11 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 - Printers are valid debugging tools. If printing changes behavior, fixing the
   printer/accessor side effect is immediately high priority.
 - Keep edited text files LF-only, including on Windows.
+- When mixing `||` and `&&` in one expression, always parenthesize the groups
+  explicitly rather than relying on operator precedence.
+- For any node consuming or producing both control and memory, control belongs
+  in slot 0 and memory in slot 1; other inputs/results follow. This applies to
+  Start, Return, and future forward ports of Call, CallEnd, and other such nodes.
 - Preserve unrelated dirty changes. Emacs lock/backup files are common and are
   not permission to clean the tree.
 - Do not push without explicit approval. Prefer commits at meaningful test
@@ -38,8 +43,12 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 ## Tutorial backports
 
 - Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
-  (lazy graph partitioning). Both are standalone snapshots. Chapters 11-24
-  still use their prior memory representation; forwarding 10b is pending.
+  (lazy graph partitioning). Both are standalone snapshots. Chapter 11 now
+  schedules this representation; Cliff requested review at the first significant
+  adaptation, so stop there until reviewed. Chapters 12-24 still use their prior
+  memory representation. GCM readiness and anti-dependency checks must both
+  filter by alias and ignore MemMerge as a clobber; keep the evaluator's same
+  alias filtering too. MemMerge still needs ordinary data-dependency placement.
 
 - The preferred direction is: introduce a fix in the earliest applicable chapter,
   then use the same implementation in later snapshots where practical. Tutorial

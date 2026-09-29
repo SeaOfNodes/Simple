@@ -162,7 +162,7 @@ public class Evaluator {
                 case null:
                     return Status.FALLTHROUGH;
                 case ReturnNode ret:
-                    return val(ret.in(1));
+                    return val(ret.expr());
                 case IfNode ifn:
                     block = block.next()[isTrue(val(ifn.in(1))) ? 0 : 1];
                     if (block == null) return Status.FALLTHROUGH;

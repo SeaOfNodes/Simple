@@ -36,6 +36,10 @@ public class Parser {
 
     public StopNode STOP;
 
+    // Field identities are independent of the memory graph and Start's tuple.
+    private final HashMap<String,Integer> _aliases = new HashMap<>();
+    private int _alias = 2;
+
     // Debugger Printing.
     public static boolean SCHEDULED; // True if debug printer can use schedule info
 
@@ -96,7 +100,7 @@ public class Parser {
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
-        START = new StartNode(new Type[]{ Type.CONTROL, arg });
+        START = new StartNode(new Type[]{ Type.CONTROL, TypeMem.BOT, arg });
         STOP = new StopNode(source);
         ZERO = new ConstantNode(TypeInteger.constant(0)).peephole().keep();
         XCTRL= new XCtrlNode().peephole().keep();
@@ -123,7 +127,8 @@ public class Parser {
         // Enter a new scope for the initial control and arguments
         _scope.push();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole());
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 1, ScopeNode.ARG0).peephole());
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 2, ScopeNode.ARG0).peephole());
+        _scope.define("$mem", TypeMem.BOT, new ProjNode(START, 1, "$mem").peephole());
         parseBlock();
         if( ctrl()._type==Type.CONTROL )
             STOP.addReturn(new ReturnNode(ctrl(), new ConstantNode(TypeInteger.constant(0)).peephole(), _scope).peephole());
@@ -211,7 +216,8 @@ public class Parser {
         // Build and install the TypeStruct
         TypeStruct ts = TypeStruct.make(typeName, fields);
         OBJS.put(typeName, ts); // Insert the struct name in the collection of all struct names
-        START.addMemProj(ts, _scope); // Insert memory edges
+        _aliases.put(typeName,_alias);
+        _alias += ts._fields.length;
         return parseStatement();
     }
 
@@ -599,21 +605,24 @@ public class Parser {
      */
     private Node newStruct(TypeStruct obj) {
         Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
-        int alias = START._aliasStarts.get(obj._name);
+        int alias = _aliases.get(obj._name);
         for( Field field : obj._fields ) {
-            memAlias(alias, new StoreNode(field._fname, alias, ctrl(), memAlias(alias), n, ZERO).peephole());
+            store(field._fname,alias,n,ZERO);
             alias++;
         }
         return n.unkeep();
     }
 
-    // We set up memory aliases by inserting special vars in the scope these
-    // variables are prefixed by $ so they cannot be referenced in Simple code.
-    // Using vars has the benefit that all the existing machinery of scoping
-    // and phis work as expected
-    private Node memAlias(int alias         ) { return _scope.lookup(memName(alias)    ); }
-    private Node memAlias(int alias, Node st) { return _scope.update(memName(alias), st); }
-    public static String memName(int alias) { return ("$"+alias).intern(); }
+    // Memory is one hidden SSA variable, including across branches and loops.
+    private Node mem() { return _scope.lookup("$mem"); }
+    private Node mem(Node n) { return _scope.update("$mem",n); }
+
+    private void store(String name, int alias, Node ptr, Node val) {
+        Node prior = mem().keep();
+        Node st = new StoreNode(name,alias,ctrl(),prior,ptr,val).peephole();
+        mem(new MemMergeNode(prior,alias,st).peephole());
+        prior.unkeep();
+    }
 
     /**
      * Parse postfix expression. For now this is just a field
@@ -632,20 +641,20 @@ public class Parser {
         String name = requireId().intern();
         int idx = ptr._obj==null ? -1 : ptr._obj.find(name);
         if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
-        int alias = START._aliasStarts.get(ptr._obj._name)+idx;
+        int alias = _aliases.get(ptr._obj._name)+idx;
 
         if( match("=") ) {
             // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
             if( peek('=') ) _lexer._position--;
             else {
                 Node val = parseExpression();
-                memAlias(alias, new StoreNode(name, alias, ctrl(), memAlias(alias), expr, val).peephole());
+                store(name,alias,expr,val);
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
         }
 
         Type declaredType = ptr._obj._fields[idx]._type;
-        return parsePostfix(new LoadNode(name, alias, declaredType, memAlias(alias), expr).peephole());
+        return parsePostfix(new LoadNode(name, alias, declaredType, mem(), expr).peephole());
     }
 
     /**

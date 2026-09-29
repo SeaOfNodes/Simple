@@ -4,15 +4,16 @@ import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
 
-/** Keeps the return value and all preceding memory effects alive. */
+/** Keeps all preceding memory effects and the return value alive: {ctrl, $mem, value}. */
 public class ReturnNode extends Node {
 
     public ReturnNode(Node ctrl, Node data, ScopeNode scope) {
-        super(ctrl, data, scope.lookup("$mem"));
+        super(ctrl, scope.lookup("$mem"), data);
     }
 
     public Node ctrl() { return in(0); }
-    public Node expr() { return in(1); }
+    public Node mem () { return in(1); }
+    public Node expr() { return in(2); }
 
     @Override
     public String label() { return "Return"; }
@@ -28,7 +29,8 @@ public class ReturnNode extends Node {
 
     @Override
     public Type compute() {
-        return TypeTuple.make(ctrl()._type,expr()._type);
+        // Return exposes the complete memory state.
+        return TypeTuple.make(ctrl()._type,TypeMem.BOT,expr()._type);
     }
 
     @Override

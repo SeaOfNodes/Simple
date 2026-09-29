@@ -22,10 +22,13 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
-- **Forward Chapter 10b memory partitioning through 11-24.** The 10a/10b split
+- **Forward Chapter 10b memory partitioning through 12-24; review 11 first.** The 10a/10b split
   introduces whole-memory SSA first, then `MemMerge`, `MemPhi`, and `BulkMemPhi`.
-  Later snapshots retain their original memory representation. Migration
-  boundaries include scheduling in 11, array/allocation memory in 15, the
+  Chapter 11 is implemented and tested, awaiting Cliff's requested review at
+  the first significant adaptation: scheduling aggregates and alias-filtered
+  anti-dependencies. Do not continue to 12 before that review. Later snapshots
+  retain their original memory representation. Further migration
+  boundaries include array/allocation memory in 15, the
   parser's `ScopeMinNode` in 16, and call/return aggregation in 18. Keep private
   constructor memory, escape tracking, and incomplete-type inference in 25.
 
@@ -217,6 +220,31 @@ The top-level runner accepts explicit chapter lists, e.g.
 
 ## Validation record
 
+- **Control/memory slot convention (10a, 10b, 11).** Return now takes
+  `{ctrl, $mem, result}` and describes its result tuple in that order, with
+  whole memory typed as `TypeMem.BOT`. Evaluators use `expr()` rather than a
+  literal result index. Updated viewer roles, existing projection checks,
+  documentation, and numbered diagram edges. Make tests pass **156 / 159 / 174**
+  respectively, and all three release jars build. Log:
+  `build/return-memory-slots.log`. Preserve control slot 0 and memory slot 1
+  when forwarding Call, CallEnd, and other nodes in later chapters.
+
+- **Chapter 11 memory forward port (2026-09-29, review checkpoint).** Parser,
+  Start, Scope, and Return now use 10b's one-memory model and its three memory
+  nodes. GCM schedules MemMerge as a dependency node, filters both Load
+  readiness and anti-dependencies by alias, and retains the full Store placement
+  range needed by the evaluator. Synthetic never-taken loop returns remain
+  scope-free. Updated the evaluator, viewer Return edge roles, walkthrough
+  diagrams, and scheduling code excerpts. The baseline passed **168 tests**;
+  the port passes **174**, including all six forwarded memory regressions.
+  Fifty existing printed expectations changed only Region/Loop node IDs.
+  Five memory programs pass seven inputs across 100 optimizer seeds, with
+  scheduling assertions and final heap/value checks (**3,500 evaluations**).
+  Make also builds the release jar and regenerates all six updated walkthrough
+  diagrams; `git diff --check` passes.
+  Logs: `build/memory-forward-11-baseline.log`, `build/memory-forward-11.log`.
+  Chapters 12-24 are untouched pending review.
+
 - **Chapter 10a/10b split (2026-09-29).** Replaced `chapter10` with two
   independently buildable snapshots: whole-memory SSA in 10a, then lazy
   `MemMerge`/`MemPhi`/`BulkMemPhi` partitioning in 10b. Updated Make discovery,
@@ -228,8 +256,9 @@ The top-level runner accepts explicit chapter lists, e.g.
   seven inputs across 100 optimizer seeds in each compiler (**3,500 executions
   per chapter**). Seed 97's missed bulk-Phi revisit is retained as a regression.
   Logs: `build/chapter10-clean-build.log`, `build/chapter10-maven.log`,
-  `build/10a-seeds.log`, and `build/10b-seeds.log`. Chapters 11-24 have not yet
-  adopted the new memory representation; that forward migration is queued above.
+  `build/10a-seeds.log`, and `build/10b-seeds.log`. At this checkpoint Chapters
+  11-24 had not yet adopted the new memory representation; forward-port progress
+  is recorded above.
 
 This is a condensed completion record, not a list of current suite counts for
 old revisions. Earlier detailed traces are in Git history; durable invariants

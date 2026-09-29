@@ -41,7 +41,8 @@ of a memory aggregate is 1; precise slots are greater than 1.
 
 We do not allocate a Start projection, scope binding, or loop Phi for every
 declared field. Start supplies one memory value, Scope holds one `$mem` binding,
-and Return consumes one complete memory value. The optimizer introduces slices
+and Return consumes `{ctrl, $mem, result}`. As with Start's outputs, control is
+in slot 0 and memory in slot 1. The optimizer introduces slices
 only where graph operations require them.
 
 ## Three memory nodes
@@ -159,10 +160,10 @@ alias to become known later, using the same representation. Its private
 constructor memory, escape tracking, incomplete types, and module alias
 remapping are separate extensions and are not needed here.
 
-Chapters 11-24 currently retain their older parser-managed memory chains.
-Forwarding this representation through those snapshots is tracked in the
-[backport queue](../docs/chapter-backports.md). Chapter 11's scheduling lesson
-therefore still shows the older graph construction, with the same language.
+Chapter 11 schedules this representation, including alias-specific load/store
+anti-dependencies. Chapters 12-24 currently retain their older parser-managed
+memory chains; forwarding through those snapshots is tracked in the
+[backport queue](../docs/chapter-backports.md).
 
 ## Build and test
 

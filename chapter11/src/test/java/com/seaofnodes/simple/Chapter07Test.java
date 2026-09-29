@@ -18,7 +18,7 @@ public class Chapter07Test {
                 return arg;
                 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop8,arg,(Phi_arg+1));", stop.toString());
+        assertEquals("return Phi(Loop9,arg,(Phi_arg+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -35,7 +35,7 @@ if(arg){}else{
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region26,1,Phi(Loop15,1,(Phi_a+1)));", stop.toString());
+        assertEquals("return Phi(Region27,1,Phi(Loop16,1,(Phi_a+1)));", stop.toString());
     }
 
     @Test
@@ -55,7 +55,7 @@ while(i < arg) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,0,Phi(Loop22,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", stop.toString());
+        assertEquals("return Phi(Loop11,0,Phi(Loop23,Phi_sum,(Phi_sum+Phi(Loop,0,(Phi_j+1)))));", stop.toString());
     }
 
     @Test
@@ -71,7 +71,7 @@ while(a < 10) {
 return b;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop10,2,Phi(Region29,Phi_b,4));", stop.toString());
+        assertEquals("return Phi(Loop11,2,Phi(Region30,Phi_b,4));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -90,7 +90,7 @@ while(a < 10) {
 return b;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,2,(Phi(Region29,Phi_b,4)+1));", stop.toString());
+        assertEquals("return Phi(Loop11,2,(Phi(Region30,Phi_b,4)+1));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -107,7 +107,7 @@ while(a < 10) {
 return a;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop9,1,(Phi_a+3));", stop.toString());
+        assertEquals("return Phi(Loop10,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -123,7 +123,7 @@ while(a < 10) {
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop9,1,(Phi_a+3));", stop.toString());
+        assertEquals("return Phi(Loop10,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -136,7 +136,7 @@ while(arg) a = 2;
 return a;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop9,1,2);", stop.toString());
+        assertEquals("return Phi(Loop10,1,2);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -149,7 +149,7 @@ while(arg) a = 2;
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop9,1,2);", stop.toString());
+        assertEquals("return Phi(Loop10,1,2);", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -165,7 +165,7 @@ while(a < 10) {
 return a;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop9,1,(Phi_a+3));", stop.toString());
+        assertEquals("return Phi(Loop10,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -181,7 +181,7 @@ while(a < 10) {
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop9,1,(Phi_a+3));", stop.toString());
+        assertEquals("return Phi(Loop10,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -198,7 +198,7 @@ while(a < 10) {
 return a;
 """);
         StopNode stop = parser.parse();
-        assertEquals("return Phi(Loop10,1,(Phi_a+3));", stop.toString());
+        assertEquals("return Phi(Loop11,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 
@@ -215,7 +215,7 @@ while(a < 10) {
 return a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,1,(Phi_a+3));", stop.toString());
+        assertEquals("return Phi(Loop11,1,(Phi_a+3));", stop.toString());
         assertTrue(stop.ret().ctrl() instanceof CProjNode);
     }
 

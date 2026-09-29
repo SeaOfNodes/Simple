@@ -129,7 +129,7 @@ public class ScopeNode extends Node {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(idx,new PhiNode(name, lookupDeclaredType(name),loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
+                : loop.setDef(idx,PhiNode.make(name, lookupDeclaredType(name),loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
             setDef(idx,old);
         }
         return n==null ? old : setDef(idx,n); // Not lazy, so this is the answer
@@ -207,7 +207,7 @@ public class ScopeNode extends Node {
             if( in(i) != that.in(i) ) // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
-                setDef(i, new PhiNode(ns[i], this.lookupDeclaredType(ns[i]), r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
+                setDef(i, PhiNode.make(ns[i], this.lookupDeclaredType(ns[i]), r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
         that.kill();            // Kill merged scope
         IterPeeps.add(r);
         return r.unkeep().peephole();

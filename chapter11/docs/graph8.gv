@@ -39,7 +39,7 @@ return 0;
 	Never18 -> Con_4[taillabel=1];
 	Stop3 -> Return21[taillabel=0 color=red];
 	Return21 -> Never18:p0[taillabel=0 color=red];
-	Return21 -> Con_4[taillabel=1];
+	Return21 -> Con_4[taillabel=2];
 	Loop8 -> Start2:p0[taillabel=1 color=red];
 	Loop8 -> Never18:p1[taillabel=2 color=red constraint=false];
 }

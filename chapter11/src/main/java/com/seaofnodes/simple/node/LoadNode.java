@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.Field;
 
@@ -38,10 +39,15 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        if( mem() instanceof MemMergeNode merge ) {
+            setDef(1,IterPeeps.add(merge.alias(_alias)));
+            return this;
+        }
+
 
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
-            ptr() == st.ptr() ) { // Must check same object
+            ptr() == st.ptr() && _alias==st._alias ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
             return st.val();
         }
@@ -53,7 +59,7 @@ public class LoadNode extends MemOpNode {
         //   if( pred ) ptr.x = e0;         val = pred ? e0
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
-        if( mem() instanceof PhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 ) {
+        if( mem() instanceof MemPhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 ) {
             // Profit on RHS/Loop backedge
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
@@ -70,6 +76,6 @@ public class LoadNode extends MemOpNode {
     // Profitable if we find a matching Store on this Phi arm.
     private boolean profit(PhiNode phi, int idx) {
         Node px = phi.in(idx);
-        return px!=null && px.addDep(this) instanceof StoreNode st1 && ptr()==st1.ptr();
+        return px!=null && px.addDep(this) instanceof StoreNode st1 && ptr()==st1.ptr() && _alias==st1._alias;
     }
 }
