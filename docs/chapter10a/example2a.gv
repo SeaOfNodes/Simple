@@ -1,0 +1,10 @@
+digraph Memory {
+  rankdir=RL;
+  node [shape=box];
+  M [label="Incoming memory"];
+  A [label="True: Store x"];
+  B [label="False: Store y"];
+  P [label="Phi(memory)"];
+  P -> A -> M [color=blue]; P -> B -> M [color=blue];
+  P -> Region [style=dashed]; Return -> P [color=blue];
+}
