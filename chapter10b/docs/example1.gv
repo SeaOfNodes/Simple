@@ -1,0 +1,11 @@
+digraph Memory {
+  rankdir=LR;
+  node [shape=box];
+  M [label="Initial memory"];
+  X [label="Store x = 42"];
+  Y [label="Loop: Store y"];
+  L [label="Load x -> 42"];
+  M -> X -> L [color=blue]; M -> Y [color=green];
+  X -> MemMerge [color=blue]; Y -> MemMerge [color=green];
+  MemMerge -> Return; L -> Return;
+}

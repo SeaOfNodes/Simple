@@ -1,0 +1,8 @@
+digraph Memory {
+  rankdir=LR;
+  node [shape=box];
+  P [label="Phi(memory)"];
+  S [label="Loop-body Store"];
+  Entry -> P [color=blue]; P -> S -> P [color=blue];
+  Loop -> P [style=dashed]; P -> Return [color=blue];
+}

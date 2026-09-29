@@ -7,9 +7,9 @@ are disposable build artifacts. Reusable rules live in
 
 Introduce independent fixes in the earliest applicable chapter and propagate
 them through every affected snapshot. Testing Chapter 25's inherited tests does
-not validate the compilers in the earlier chapter directories. Keep building
-SSA with incomplete types in Chapter 25 for now; moving that architecture or
-renumbering chapters is deferred. Cliff wants to revisit splitting Chapter 25
+not validate the compilers in the earlier chapter directories. Chapter 10 is
+now split into 10a (bulk memory) and 10b (lazy memory partitioning). Keep the
+rest of SSA construction with incomplete types in Chapter 25 for now. Cliff wants to revisit splitting Chapter 25
 into smaller chapters; escape analysis remains in 25 until that larger review.
 
 Reset checkpoint (2026-09-28): Cliff committed the completed FunPtr work as
@@ -21,6 +21,13 @@ correction starts in 22 and is forwarded through 25; see the validation record.
 Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
+
+- **Forward Chapter 10b memory partitioning through 11-24.** The 10a/10b split
+  introduces whole-memory SSA first, then `MemMerge`, `MemPhi`, and `BulkMemPhi`.
+  Later snapshots retain their original memory representation. Migration
+  boundaries include scheduling in 11, array/allocation memory in 15, the
+  parser's `ScopeMinNode` in 16, and call/return aggregation in 18. Keep private
+  constructor memory, escape tracking, and incomplete-type inference in 25.
 
 - **Chapter 24 Load BOTTOM-on-error backport, unwound/deferred (2026-09-28).**
   Cliff requested starting with 24 and analyzing failures before proceeding.
@@ -209,6 +216,20 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **Chapter 10a/10b split (2026-09-29).** Replaced `chapter10` with two
+  independently buildable snapshots: whole-memory SSA in 10a, then lazy
+  `MemMerge`/`MemPhi`/`BulkMemPhi` partitioning in 10b. Updated Make discovery,
+  Maven modules, IDEA descriptors/local module list, chapter navigation,
+  linear-history link handling, and regenerated the memory diagrams.
+  Fresh Make builds pass **156 tests in 10a and 159 in 10b**, including the
+  chapter-local fuzzer regression wrapper. Both release jars and tags build.
+  Offline Maven tests pass in both modules. Five memory programs each pass
+  seven inputs across 100 optimizer seeds in each compiler (**3,500 executions
+  per chapter**). Seed 97's missed bulk-Phi revisit is retained as a regression.
+  Logs: `build/chapter10-clean-build.log`, `build/chapter10-maven.log`,
+  `build/10a-seeds.log`, and `build/10b-seeds.log`. Chapters 11-24 have not yet
+  adopted the new memory representation; that forward migration is queued above.
 
 This is a condensed completion record, not a list of current suite counts for
 old revisions. Earlier detailed traces are in Git history; durable invariants

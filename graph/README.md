@@ -40,7 +40,7 @@ Frame numbers start at 1. Jumps lay out only their destination. When the slider
 moves during layout, the viewer finishes that calculation and then handles the
 latest request, skipping intermediate requests. Already visited layouts stay cached.
 
-Chapters 10–25 run their existing TypeCheck pass after optimization. A successful
+Chapters 10a, 10b, and 11–25 run their existing TypeCheck pass after optimization. A successful
 check adds a TypeCheck phase-complete frame. An error adds a final graph frame
 with the compiler's diagnostic; stepping or jumping to it centers the error node
 at a readable scale, outlines it in red, and shows the message on the phase line

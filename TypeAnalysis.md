@@ -305,7 +305,7 @@ but we will shortly use them in building structs and functions.
 [Lattice6](./docs/lattice_iffct.svg) <img src = ./docs/lattice_iffct.svg>
 
 
-First appears in [Simple chapter10](https://github.com/SeaOfNodes/Simple/tree/main/chapter10)
+First appears in [Simple chapter10a](https://github.com/SeaOfNodes/Simple/tree/main/chapter10a)
 along with structs and pointers.
 
 
@@ -337,7 +337,7 @@ desired semantics, as well as the normal *meet* on the field type.
 I am not covering here how to initialize struct members, or the syntax for
 declaring structs or traits - just the resulting types.
 
-First appears in [Simple chapter10](https://github.com/SeaOfNodes/Simple/tree/main/chapter10)
+First appears in [Simple chapter10a](https://github.com/SeaOfNodes/Simple/tree/main/chapter10a)
 along with tuples and pointers.
 
 
@@ -377,7 +377,7 @@ Here the load to fetch the `makeSound` method fails during error reporting; in
 Simple this is just a `LoadNode` which has an error check against its pointer
 input being possibly `null`.
 
-First appears in [Simple chapter10](https://github.com/SeaOfNodes/Simple/tree/main/chapter10),
+First appears in [Simple chapter10a](https://github.com/SeaOfNodes/Simple/tree/main/chapter10a),
 along with structs and tuples.
 
 

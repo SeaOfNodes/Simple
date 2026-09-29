@@ -1,0 +1,10 @@
+digraph Memory {
+  rankdir=LR;
+  node [shape=box];
+  M [label="Prior x memory"];
+  L [label="Load p.x"];
+  S [label="Store p.x"];
+  M -> L [color=blue]; M -> S [color=blue];
+  L -> S [style=dashed,label="execute load first"];
+  Y [label="Store p.y: independent"];
+}

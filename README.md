@@ -21,7 +21,7 @@ ahead-of-time compilation - but with an eye towards JIT compilation.
 
 This repo also is not intended to be a complete language in any sense, and so
 the backend starts with levering Java: the Evaluator (first appears in Chapter
-10) directly slowly interprets the SoN IR.  Code-gen first appears in Chapter
+10a) directly slowly interprets the SoN IR.  Code-gen first appears in Chapter
 19.
 
 
@@ -51,9 +51,10 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 7](chapter07/README.md): `while` statement; looping constructs - eager phi approach.
 * [Chapter 8](chapter08/README.md): Looping constructs continued, lazy phi creation, `break` and `continue` statements.
 * [Chapter 9](chapter09/README.md): Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
-* [Chapter 10](chapter10/README.md): User defined Struct types. Memory effects:
-  general memory edges in SSA.  Equivalence class aliasing.  Null pointer
-  analysis.  Peephole optimization around load-after-store/store-after-store.
+* [Chapter 10a](chapter10a/README.md): User defined structs, pointers and null
+  analysis. One memory value in SSA. Loads, stores, and an executable evaluator.
+* [Chapter 10b](chapter10b/README.md): Equivalence class aliasing. Lazy memory
+  partitioning with `MemMerge`, `MemPhi`, and `BulkMemPhi`.
 * [Chapter 11](chapter11/README.md): Global Code Motion - Scheduling.
 * [Chapter 12](chapter12/README.md): Float type.
 * [Chapter 13](chapter13/README.md): Nested references in Structs.
@@ -73,7 +74,7 @@ The Simple language is styled after a subset of C or Java.
 ## Building across chapters
 
 The optional [interactive graph viewer](graph/README.md) is shared in `graph/`.
-Chapters 18–25 launch it with `make view` from the chapter directory.
+Chapters 10a, 10b, and 18–25 launch it with `make view` from the chapter directory.
 
 The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 `release`, or `lib` target. Start with `make lib` on a fresh checkout, then
@@ -81,4 +82,17 @@ The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 
 The [chapter backport queue](docs/chapter-backports.md) records proposed small
 corrections and the per-chapter test/review workflow. Larger architectural moves
-remain deferred while that workflow is established.
+are tracked separately there. The 10a/10b split is complete; forwarding 10b's
+memory representation through Chapters 11-24 remains pending. Those snapshots
+still use their earlier parser-managed alias chains.
+
+To build and test just the memory chapters:
+
+```sh
+make lib tests release CHAPTERS="chapter10a chapter10b"
+```
+
+The root Maven reactor also includes both modules. Each chapter has its own
+IDEA module descriptor and depends on the shared `graph` module. Chapter
+directories with letter suffixes participate in the normal Make chapter discovery
+and in the linear-history workflow.

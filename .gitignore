@@ -23,3 +23,8 @@ TAGS
 
 # Libs
 */lib/*jar
+
+# Portable IDEA descriptors for the split memory chapters
+!chapter10a/chapter10a.iml
+!chapter10b/chapter10b.iml
+!graph/graph.iml

@@ -37,6 +37,10 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Tutorial backports
 
+- Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
+  (lazy graph partitioning). Both are standalone snapshots. Chapters 11-24
+  still use their prior memory representation; forwarding 10b is pending.
+
 - The preferred direction is: introduce a fix in the earliest applicable chapter,
   then use the same implementation in later snapshots where practical. Tutorial
   progression takes priority over importing the fully general Chapter 25 solution.
@@ -48,7 +52,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   port it into the same test class in every later affected chapter directory.
 - Every directory contains its own compiler snapshot. Testing Chapter 25's
   inherited `Chapter10Test` does not validate the Chapter 10 compiler. Use the
-  top-level runner, e.g. `make -k tests CHAPTERS="chapter10 chapter11"`, with all
+  top-level runner, e.g. `make -k tests CHAPTERS="chapter10a chapter10b chapter11"`, with all
   affected directories explicitly listed. Establish the destination baseline
   before changing it; older Makefiles may need a forced rebuild after API changes.
 - Keep unrelated discoveries separate in `docs/chapter-backports.md`. Completed

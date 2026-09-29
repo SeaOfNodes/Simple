@@ -1,5 +1,11 @@
 # Chapter 11: Global Code Motion
 
+The preceding memory lesson is now split into [10a](../chapter10a/README.md)
+and [10b](../chapter10b/README.md). This snapshot still constructs the older
+per-alias memory chains in the parser. The language is unchanged; forwarding
+10b's bulk-memory representation through Chapters 11-24 is a separate migration.
+
+
 # Table of Contents
 
 1. [High Level Overview](#high-level-overview)
@@ -16,7 +22,7 @@
 12. [Video Walk Through](#video-walk-through)
 
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter11) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter10...linear-chapter11) it to the previous chapter.
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter11) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter10b...linear-chapter11) it to the previous chapter.
 
 
 The original input source program defines a sequence in which things happen. As we parse the program into Sea of Nodes representation
