@@ -4,19 +4,11 @@ import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
 
-/**
- * The Return node has two inputs.  The first input is a control node and the
- * second is the data node that supplies the return value.
- * <p>
- * In this presentation, Return functions as a Stop node, since multiple <code>return</code> statements are not possible.
- * The Stop node will be introduced in Chapter 6 when we implement <code>if</code> statements.
- * <p>
- * The Return's output is the value from the data node.
- */
+/** Keeps the return value and all preceding memory effects alive. */
 public class ReturnNode extends Node {
 
-    public ReturnNode(Node ctrl, Node data) {
-        super(ctrl, data);
+    public ReturnNode(Node ctrl, Node data, ScopeNode scope) {
+        super(ctrl, data, scope.lookup("$mem"));
     }
 
     public Node ctrl() { return in(0); }
@@ -27,7 +19,9 @@ public class ReturnNode extends Node {
 
     @Override
     StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return expr()._print0(sb.append("return "), visited).append(";");
+        sb.append("return ");
+        expr()._print0(sb, visited);
+        return sb.append(";");
     }
 
     @Override public boolean isCFG() { return true; }
