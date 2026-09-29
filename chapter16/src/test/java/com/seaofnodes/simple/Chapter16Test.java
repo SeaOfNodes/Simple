@@ -73,7 +73,7 @@ if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
 return y;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region21,9,3);", stop.toString());
+        assertEquals("return Phi(Region19,9,3);", stop.toString());
         assertEquals(3L, Evaluator.evaluate(stop, 0));
         assertEquals(9L, Evaluator.evaluate(stop, 1));
     }
@@ -204,5 +204,28 @@ return new Square;
         assertEquals("return Square;", stop.toString());
         assertEquals("Obj<Square>{side=3.0,diag=1.7320508075688772}", Evaluator.evaluate(stop,  3).toString());
         assertEquals("Obj<Square>{side=4.0,diag=2.0}", Evaluator.evaluate(stop, 4).toString());
+    }
+    static final String CONSTRUCTOR_MEMORY = """
+        struct S { int x; int y; };
+        struct T { int z=arg+40; };
+        T t = new T;
+        S a = new S { x=11; y=7; };
+        S b = new S { x=22; y=9; };
+        S p=a;
+        if (arg) p=b;
+        int before=p.x;
+        S c = new S {
+            x=p.x+1;
+            { int i=0; while (i<2) { p.y=p.y+1; i=i+1; } }
+            y=p.y;
+        };
+        p.x=33;
+        return before*10000+c.x*100+c.y+t.z;
+        """;
+
+    @Test public void testConstructorMemory() {
+        StopNode stop = new Parser(CONSTRUCTOR_MEMORY).parse().iterate();
+        assertEquals(111249L,Evaluator.evaluate(stop,0));
+        assertEquals(222352L,Evaluator.evaluate(stop,1));
     }
 }

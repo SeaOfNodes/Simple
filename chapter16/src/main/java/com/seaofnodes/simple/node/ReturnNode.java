@@ -4,27 +4,17 @@ import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
 
-/**
- * The Return node has two inputs.  The first input is a control node and the
- * second is the data node that supplies the return value.
- * <p>
- * In this presentation, Return functions as a Stop node, since multiple <code>return</code> statements are not possible.
- * The Stop node will be introduced in Chapter 6 when we implement <code>if</code> statements.
- * <p>
- * The Return's output is the value from the data node.
- */
+/** Keeps all preceding memory effects and the return value alive: {ctrl, $mem, value}. */
 public class ReturnNode extends CFGNode {
 
     public ReturnNode(Node ctrl, Node data, ScopeNode scope) {
-        // Add memory slices to Return, so all memory updates are live-on-exit.
-        super(ctrl, data);
-        if( scope!=null )
-            for( int i=2; i<scope.mem().nIns(); i++ )
-                addDef(scope.mem().in(i));
+        // A synthetic never-taken loop exit has no source scope.
+        super(ctrl, scope == null ? null : scope.mem(), data);
     }
 
     public Node ctrl() { return in(0); }
-    public Node expr() { return in(1); }
+    public Node mem () { return in(1); }
+    public Node expr() { return in(2); }
 
     @Override
     public String label() { return "Return"; }
@@ -38,7 +28,8 @@ public class ReturnNode extends CFGNode {
 
     @Override
     public Type compute() {
-        return TypeTuple.make(ctrl()._type,expr()._type);
+        // Return exposes the complete memory state.
+        return TypeTuple.make(ctrl()._type,TypeMem.BOT,expr()._type);
     }
 
     @Override

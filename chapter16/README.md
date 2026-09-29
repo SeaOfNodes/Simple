@@ -6,6 +6,7 @@
 2. [Initialization code](#initialization-code)
 3. [Final fields](#final-fields)
 4. [Multiple Decls](#multiple-declarations-of-the-same-type)
+5. [Memory through constructors](#memory-through-constructors)
 
 In this chapter, we add constructors and final fields.
 
@@ -126,3 +127,30 @@ struct Point { int x,y,z; }; // Three fields declared
 ```
 int !x=3,!y=5; // Two int variables declared, both are final and initialized
 ```
+## Memory through constructors
+
+The lazy memory partitioning from [Chapter 10b](../chapter10b/README.md) continues
+through constructors. The parser tracks one `$mem` variable alongside its scalar
+variables. Branches and loops merge that binding with BulkMemPhi; field access
+splits out precise MemPhis when needed. The variable records for types and final
+fields live in ScopeNode. There is no separate parser table of memory aliases.
+
+A constructor computes its field values before the allocation. Reads, writes,
+and loops in its body update the same `$mem` binding as ordinary code. New then
+takes `{ctrl, $mem, size, field values...}` and produces `{ptr, $mem}`. The input
+memory is a partial MemMerge containing the struct's aliases; the output memory
+covers those same aliases. A whole-memory MemMerge preserves unrelated slices.
+Arrays use the same layout, supplying their length and default element value as
+initializer inputs.
+
+A Load from its own New can use the matching initializer input. Alias contents
+combine the initializer's type with incoming contents from older objects, so a
+new object does not erase facts or effects for existing objects. Loads bypass
+only allocations proven to be distinct. Scheduling follows partial aggregates
+when establishing read-before-write order.
+
+Sharing one allocation memory result makes Store-to-New folding more
+conservative: the existing sole-use check now sees users of every covered
+alias. This can leave a field Load where separate memory projections previously
+allowed a constant fold. Phi factoring also retains the simple one-step Load
+safety check.

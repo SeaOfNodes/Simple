@@ -44,9 +44,9 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 - Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
   (lazy graph partitioning). Both are standalone snapshots. Cliff reviewed and
-  committed Chapter 11; the forward port now runs through Chapter 15, whose
-  allocation design Cliff approved for implementation. Stop for implementation
-  review here; leave 16-24 unchanged. See the concrete boundary notes
+  committed the forward port through Chapter 15. Chapter 16 now carries lazy
+  memory through constructors and removes ScopeMinNode. Stop for implementation
+  review here; leave 17-24 unchanged. See the concrete boundary notes
   in `docs/chapter-backports.md`. GCM readiness and anti-dependency checks must both
   filter by alias and ignore MemMerge as a clobber; keep the evaluator's same
   alias filtering too. MemMerge still needs ordinary data-dependency placement.
@@ -70,7 +70,14 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   Use a locally sensible fix when the general solution requires concepts not yet
   introduced; report substantial representation changes for review.
 
-- Generalized Phi factoring now starts in 10a and is forwarded through 15.
+- Chapter 16 extends New inputs to `{ctrl, $mem, size, fields...}` while
+  retaining `{ptr, $mem}` outputs and partial alias coverage. Constructor values
+  determine alias contents; register dependencies on their nodes as well as
+  New. ScopeNode owns Var records and the single memory binding. The existing
+  sole-use Store-to-New guard is intentionally conservative with a shared memory
+  result; do not add alias traversal just to recover a small constant fold.
+
+- Generalized Phi factoring now starts in 10a and is forwarded through 16.
   Memory-specific eligibility lives in `MemOpNode.canDrop`, with virtual Load
   and Store checks. Load owns `clobbered`: all these chapters check only
   immediate memory users, without recursion or a visited set. Stop at Stores,
@@ -85,8 +92,11 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   lookup assumes Region/alias identifies the completed memory point. Existing
   control-bound Stores in 11-14 remain ineligible. `delUse` wakes recorded
   dependents for user-count queries; Region's empty-diamond fold depends on
-  projection rewiring as well as projection types. Carry these with the 16+
+  projection rewiring as well as projection types. Carry these with the 17+
   memory port; do not duplicate the later chapters' existing `copyEmpty`.
+  `subsume` must wake each rewired user's recorded dependents, just as `setDef`
+  does: operand identity changes can enable a Phi fold without changing the
+  intervening operation's type (`Chapter14Test.testCloneAnd` in 16).
 - Find the chapter where the relevant feature first appears, not just the chapter
   that can parse the original reproducer. Reduce away later syntax/features when
   possible. Put the regression in that earliest `ChapterNTest.java`, and forward

@@ -31,6 +31,8 @@ import java.util.*;
  */
 public class Scheduler {
 
+    private final HashMap<Node,ArrayList<NodeData>> readers = new HashMap<>();
+
     /**
      * A basic block with a schedule of the containing nodes.
      *
@@ -252,7 +254,7 @@ public class Scheduler {
                 // but they did not refine the placement
                 // so do that now.
                 var mem = l.in(1);
-                for(var out : mem._outputs) {
+                for(var out : l.antiDeps()) {
                     if (out instanceof PhiNode p) {
                         var r = p.in(0);
                         for (int i = 1; i < p.nIns(); i++) {
@@ -270,13 +272,9 @@ public class Scheduler {
             for(var in:data.node._inputs) {
                 if (in!=null) update(d(in), data.block);
             }
-            if (data.node instanceof StoreNode s) {
-                // Store nodes have anti-deps to load nodes.
-                // So decrease the uses of these loads when the store is placed.
-                for (var out: s.in(1)._outputs) {
-                    if (out instanceof LoadNode) od(out).ifPresent(this::decUsers);
-                }
-            }
+            var loads = readers.get(data.node);
+            if (loads != null)
+                for (var load : loads) decUsers(load);
         }
 
         // Now all nodes should be placed and have a block assigned
@@ -442,7 +440,6 @@ public class Scheduler {
     private void doMarkAlive(Node node) {
         var cfgQueue = new Stack<NodeData>();
         var dataQueue = new Stack<NodeData>();
-        var mem = new Stack<NodeData>();
         markAlive(cfgQueue, node, true);
         // Mark all CFG nodes.
         while (!cfgQueue.isEmpty()) {
@@ -467,16 +464,16 @@ public class Scheduler {
             } else {
                 for (var in : node._inputs) if (in != null && !(in instanceof CFGNode)) markAlive(dataQueue, in, false);
             }
-            if (node instanceof StoreNode) mem.push(data);
         }
-        // Handle store nodes and increase load with an anti-dep to the store.
-        while (!mem.isEmpty()) {
-            var data = mem.pop();
-            node = data.node;
-            for(var out:node.in(1)._outputs) {
-                if (out instanceof LoadNode) od(out).ifPresent(d->d.users++);
-            }
-        }
+        // Writes, including New behind an aggregate, schedule before their
+        // anti-dependent reads in this reverse scheduling pass.
+        for (var load : data.values())
+            if (load.node instanceof LoadNode l)
+                for (var use : l.antiDeps())
+                    if ((use instanceof StoreNode || use instanceof NewNode) && data.containsKey(use)) {
+                        load.users++;
+                        readers.computeIfAbsent(use,k->new ArrayList<>()).add(load);
+                    }
     }
 
     /**

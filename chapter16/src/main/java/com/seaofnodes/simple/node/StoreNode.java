@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
@@ -26,6 +27,10 @@ public class StoreNode extends MemOpNode {
     }
 
     // Debugger label
+    @Override boolean canDrop(MemOpNode other, Node dep) {
+        return super.canDrop(other,dep) && _init==((StoreNode)other)._init;
+    }
+
     @Override public String  label() { return "st_"+mlabel(); }
     @Override public boolean isMem() { return true; }
 
@@ -38,22 +43,23 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Type compute() {
-        Type val = val()._type;
-        TypeMem mem = (TypeMem)mem()._type; // Invariant
-        Type t = mem._alias==_alias
-            ? val.meet(mem._t)  // Meet into existing memory
-            : Type.BOTTOM;
+        Type t = val()._type.meet(MemMergeNode.contents(mem(),_alias,this));
         return TypeMem.make(_alias,t);
     }
 
     @Override
     public Node idealize() {
+        if( mem() instanceof MemMergeNode merge ) {
+            setDef(1,IterPeeps.add(merge.alias(_alias)));
+            return this;
+        }
+
 
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
-            ptr()==st.ptr() &&  // Must check same object
-            off()==st.off() &&  // And same offset (could be "same alias" but this handles arrays to same index)
+            ptr()==st.ptr() && _alias==st._alias &&  // Must check same object
+            off()==st.off() &&  // And same offset
             ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.

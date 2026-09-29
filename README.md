@@ -83,9 +83,9 @@ The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 The [chapter backport queue](docs/chapter-backports.md) records proposed small
 corrections and the per-chapter test/review workflow. Larger architectural moves
 are tracked separately there. The 10a/10b split is complete; forwarding 10b's
-memory representation now runs through Chapter 15, including two-result
-allocation with partial memory and typed alias contents. Chapter 15 is ready
-for review; Chapters 16-24 still use their earlier parser-managed alias chains.
+memory representation now runs through Chapter 16, including two-result
+allocation with partial memory and explicit constructor values. Chapter 16 is
+ready for review; Chapters 17-24 still use their earlier parser-managed alias chains.
 
 To build and test just the memory chapters:
 

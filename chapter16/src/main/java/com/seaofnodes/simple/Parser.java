@@ -163,11 +163,8 @@ public class Parser {
         _xScopes.push(_scope);
         // Enter a new scope for the initial control and arguments
         _scope.push();
-        ScopeMinNode mem = new ScopeMinNode();
-        mem.addDef(null);
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, new CProjNode(START, 0, ScopeNode.CTRL).peephole());
-        mem.addDef(                                           new  ProjNode(START, 1, ScopeNode.MEM0).peephole());
-        _scope.define(ScopeNode.MEM0, TypeMem.TOP    , false, mem                                    .peephole());
+        _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, new  ProjNode(START, 1, ScopeNode.MEM0).peephole());
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, new  ProjNode(START, 2, ScopeNode.ARG0).peephole());
 
         // Parse whole program
@@ -430,7 +427,7 @@ public class Parser {
         // Defining a new variable vs updating an old one
         if( !isDecl ) { // Assigning over an existing name
             // Lookup
-            ScopeMinNode.Var def = _scope.lookup(name);
+            ScopeNode.Var def = _scope.lookup(name);
             if( def==null )
                 throw error("Undefined name '" + name + "'");
             // TOP fields are for late-initialized fields; these have never
@@ -526,7 +523,7 @@ public class Parser {
         Field[] fs = new Field[varlen-lexlen];
         for( int i=lexlen; i<varlen; i++ ) {
             s.addDef(_scope.in(i));
-            ScopeMinNode.Var v = _scope._vars.at(i);
+            ScopeNode.Var v = _scope._vars.at(i);
             fs[i-lexlen] = Field.make(v._name,v._type,ALIAS++,v._final);
         }
         TypeStruct ts = s._ts = TypeStruct.make(typeName, fs);
@@ -758,7 +755,7 @@ public class Parser {
         // Expect an identifier now
         String name = _lexer.matchId();
         if( name == null) throw errorSyntax("an identifier or expression");
-        ScopeMinNode.Var n = _scope.lookup(name);
+        ScopeNode.Var n = _scope.lookup(name);
         if( n!=null ) return _scope.in(n);
         throw error("Undefined name '" + name + "'");
     }
@@ -822,21 +819,25 @@ public class Parser {
         Field[] fs = obj._fields;
         if( fs==null )
             throw error("Unknown struct type '" + obj._name + "'");
-        int len = fs.length;
-        Node[] ns = new Node[2+len+len];
-        ns[0] = ctrl();         // Control in slot 0
-        // Total allocated length in bytes
-        ns[1] = size;
-        // Memory aliases for every field
-        for( int i = 0; i < len; i++ )
-            ns[2    +i] = memAlias(fs[i]._alias);
-        // Initial values for every field
-        for( int i = 0; i < len; i++ )
-            ns[2+len+i] = init.get(i+idx);
-        Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole();
-        for( int i = 0; i < len; i++ )
-            memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
-        return new ProjNode(nnn,1,obj._name).peephole();
+        Node prior = mem().keep();
+        MemMergeNode input = new MemMergeNode(null);
+        for( Field f : fs ) input.alias(f._alias,prior);
+        // Constructor values follow control, memory, and allocation size.
+        Node[] ns = new Node[3+fs.length];
+        ns[0] = ctrl();
+        ns[1] = input.peephole();
+        ns[2] = size;
+        for( int i=0; i<fs.length; i++ ) ns[3+i] = init.get(idx+i);
+        Node nnn = new NewNode(TypeMemPtr.make(obj),ns).peephole().keep();
+        Node ptr = new ProjNode(nnn,0,obj._name).peephole().keep();
+        Node out = new ProjNode(nnn,1,"$mem").peephole().keep();
+        MemMergeNode after = new MemMergeNode(prior);
+        for( Field f : fs ) after.alias(f._alias,out);
+        mem(after.peephole());
+        out.unkeep();
+        nnn.unkeep();
+        prior.unkeep();
+        return ptr.unkeep();
     }
 
     private static final Ary<Node> ALTMP = new Ary<>(Node.class);
@@ -845,16 +846,23 @@ public class Parser {
         int scale= ary.aryScale();
         Node size = new AddNode(con(base),new ShlNode(len,con(scale)).peephole()).peephole();
         ALTMP.clear();  ALTMP.add(len); ALTMP.add(con(ary._fields[1]._type.makeInit()));
-        return newStruct(ary,size,0,ALTMP);
+        Node ptr = newStruct(ary,size,0,ALTMP);
+        len.unkeep();
+        return ptr;
     }
 
-    // We set up memory aliases by inserting special vars in the scope these
-    // variables are prefixed by $ so they cannot be referenced in Simple code.
-    // Using vars has the benefit that all the existing machinery of scoping
-    // and phis work as expected
-    private Node memAlias(int alias         ) { return _scope.mem(alias    ); }
-    private void memAlias(int alias, Node st) {        _scope.mem(alias, st); }
-    public static String memName(int alias) { return ("$"+alias).intern(); }
+    // Memory is one hidden SSA variable, including across branches and loops.
+    private Node mem() { return _scope.mem(); }
+    private void mem(Node n) { _scope.mem(n); }
+
+    private void store(String name, int alias, Type glb, Node ptr, Node off, Node val, boolean init, Node ctrl) {
+        Node prior = mem().keep();
+        Node st = new StoreNode(name,alias,glb,prior,ptr,off,val,init);
+        st.setDef(0,ctrl);
+        st = st.peephole();
+        mem(new MemMergeNode(prior,alias,st).peephole());
+        prior.unkeep();
+    }
 
     /**
      * Parse postfix expression. For now this is just a field
@@ -894,6 +902,7 @@ public class Parser {
         // Get field type and layout offset from base type and field index fidx
         Field f = base._fields[fidx];  // Field from field index
 
+        expr.keep();
         Node off = name.equals("[]")       // If field is an array body
             // Array index math
             ? new AddNode(con(base.aryBase()),new ShlNode(require(parseExpression(),"]"),con(base.aryScale())).peephole()).peephole()
@@ -902,19 +911,14 @@ public class Parser {
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
-            Node val = parseExpression();
-            // Auto-truncate when storing to narrow fields
-            val = zsMask(val,f._type);
-            Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr, off, val, false);
-            // Arrays include control, as a proxy for a safety range check.
-            // Structs don't need this; they only need a NPE check which is
-            // done via the type system.
-            if( base.isAry() )  st.setDef(0,ctrl());
-            memAlias(f._alias, st.peephole());
-            return val;        // "obj.a = expr" returns the expression while updating memory
+            off.keep();
+            Node val = zsMask(parseExpression(),f._type).keep();
+            // Array control stands in for the future bounds check.
+            store(name,f._alias,f._type,expr.unkeep(),off.unkeep(),val,false,base.isAry() ? ctrl() : null);
+            return val.unkeep();
         }
 
-        Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr, off);
+        Node load = new LoadNode(name, f._alias, f._type.glb(), mem(), expr.unkeep(), off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.

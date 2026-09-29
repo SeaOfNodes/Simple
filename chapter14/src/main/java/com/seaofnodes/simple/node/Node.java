@@ -265,6 +265,7 @@ public abstract class Node implements OutNode, Cloneable {
             n.unlock();
             int idx = Utils.find(n._inputs, this);
             n._inputs.set(idx,nnn);
+            n.moveDepsToWorklist(); // Rewiring can change a dependent query without changing type.
             nnn.addUse(n);
         }
         kill();

@@ -1,19 +1,15 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.IterPeeps;
-import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
 
-import static com.seaofnodes.simple.Utils.TODO;
-
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
- * stack of hashmaps.
+ * stack of variable records.
  */
-public class ScopeNode extends ScopeMinNode {
+public class ScopeNode extends Node {
 
     /**
      * The control is a name that binds to the currently active control
@@ -23,15 +19,35 @@ public class ScopeNode extends ScopeMinNode {
     public static final String ARG0 = "arg";
     public static final String MEM0 = "$mem";
 
+    /** The tracked fields are now complex enough to deserve an array-of-structs layout
+     */
+    public static class Var {
+        public final int _idx;
+        public final String _name;
+        public final Type _type;
+        public final boolean _final;
+        public Var(int idx, String name, Type type, boolean xfinal) {
+            _idx = idx;
+            _name = name;
+            _type = type;
+            _final = xfinal;
+        }
+    }
+
+    public Node in(Var v) { return in(v._idx); }
+
+    @Override public Type compute() { return Type.BOTTOM; }
+    @Override public Node idealize() { return null; }
+
     // All active/live variables in all nested scopes, all run together
     public final Ary<Var> _vars;
 
-    // Since of each nested lexical scope
+    // Size of each nested lexical scope
     public final Ary<Integer> _lexSize;
 
 
     // A new ScopeNode
-    public ScopeNode() { _vars = new Ary<>(Var.class); _lexSize = new Ary<>(Integer.class); }
+    public ScopeNode() { _type = Type.BOTTOM; _vars = new Ary<>(Var.class); _lexSize = new Ary<>(Integer.class); }
 
     @Override public String label() { return "Scope"; }
 
@@ -63,7 +79,8 @@ public class ScopeNode extends ScopeMinNode {
 
 
     public Node ctrl() { return in(0); }
-    public ScopeMinNode mem() { return (ScopeMinNode)in(1); }
+    public Node mem() { return in(lookup(MEM0)); }
+    public void mem(Node n) { update(MEM0,n); }
 
     /**
      * The ctrl of a ScopeNode is always bound to the currently active
@@ -110,12 +127,6 @@ public class ScopeNode extends ScopeMinNode {
         return true;
     }
 
-    // Read from memory
-    public Node mem( int alias ) { return mem()._mem(alias,null); }
-    // Write to memory
-    public void mem( int alias, Node st ) { mem()._mem(alias,st); }
-
-
     /**
      * Lookup a name in all scopes starting from most deeply nested.
      *
@@ -151,7 +162,7 @@ public class ScopeNode extends ScopeMinNode {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(v._idx,new PhiNode(v._name, v._type instanceof TypeMemPtr ? v._type : v._type.glb(), loop.ctrl(), loop.in(loop._update(v,null)._idx),null).peephole());
+                : loop.setDef(v._idx,PhiNode.make(v._name, v._type instanceof TypeMemPtr ? v._type : v._type.glb(), loop.ctrl(), loop.in(loop._update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
         if( st!=null ) setDef(v._idx,st); // Set new value
@@ -182,20 +193,8 @@ public class ScopeNode extends ScopeMinNode {
         dup._lexSize.addAll(_lexSize);
         dup.addDef(ctrl());     // Control input is just copied
 
-        // Memory input is a shallow copy
-        ScopeMinNode memdup = new ScopeMinNode(), mem = mem();
-        memdup.addDef(null);
-        memdup.addDef(loop ? this : mem.in(1));
-        for( int i=2; i<mem.nIns(); i++ )
-            // For lazy phis on loops we use a sentinel
-            // that will trigger phi creation on update
-            memdup.addDef(loop ? this : mem.in(i));
-        dup.addDef(memdup);
-
-        // Copy of other inputs
-        for( int i=2; i<nIns(); i++ )
-            // For lazy phis on loops we use a sentinel
-            // that will trigger phi creation on update
+        // Memory is one binding, with the same lazy loop Phi as scalar names.
+        for( int i=1; i<nIns(); i++ )
             dup.addDef(loop ? this : in(i));
         return dup;
     }
@@ -210,22 +209,21 @@ public class ScopeNode extends ScopeMinNode {
      */
     public Node mergeScopes(ScopeNode that) {
         RegionNode r = (RegionNode) ctrl(new RegionNode(null,ctrl(), that.ctrl()).keep());
-        mem()._merge(that.mem(),r);
-        this ._merge(that      ,r);
+        _merge(that,r);
         that.kill();            // Kill merged scope
         IterPeeps.add(r);
         return r.unkeep().peephole();
     }
 
     private void _merge(ScopeNode that, RegionNode r) {
-        for( int i = 2; i < nIns(); i++)
+        for( int i = 1; i < nIns(); i++)
             if( in(i) != that.in(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
                 Var v = _vars.at(i);
                 Node lhs = this.in(this._update(v,null));
                 Node rhs = that.in(that._update(v,null));
-                setDef(i, new PhiNode(v._name, v._type, r, lhs, rhs).peephole());
+                setDef(i, PhiNode.make(v._name, v._type, r, lhs, rhs).peephole());
             }
     }
 
@@ -236,21 +234,15 @@ public class ScopeNode extends ScopeMinNode {
         assert ctrl instanceof LoopNode loop && loop.inProgress();
         ctrl.setDef(2,back.ctrl());
 
-        mem()._endLoopMem( this, back.mem(), exit.mem() );
-        this ._endLoop   ( this, back      , exit       );
+        _endLoop(this,back,exit);
         back.kill();            // Loop backedge is dead
         // Now one-time do a useless-phi removal
-        mem()._useless();
-        this ._useless();
-
-        // The exit mem's lazy default value had been the loop top,
-        // now it goes back to predating the loop.
-        exit.mem().setDef(1,mem().in(1));
+        _useless();
     }
 
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
-        for( int i=2; i<nIns(); i++ ) {
+        for( int i=1; i<nIns(); i++ ) {
             if( back.in(i) != scope ) {
                 PhiNode phi = (PhiNode)in(i);
                 assert phi.region()==scope.ctrl() && phi.in(2)==null;
@@ -262,12 +254,30 @@ public class ScopeNode extends ScopeMinNode {
     }
 
 
+    // Now one-time do a useless-phi removal
+    void _useless( ) {
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) instanceof PhiNode phi ) {
+                // Do an eager useless-phi removal
+                Node in = phi.peephole();
+                IterPeeps.addAll(phi._outputs);
+                phi.moveDepsToWorklist();
+                if( in != phi ) {
+                    if( !phi.iskeep() ) // Keeping phi around for parser elsewhere
+                        phi.subsume(in);
+                    setDef(i,in); // Set the update back into Scope
+                }
+            }
+        }
+    }
+
     // Up-casting: using the results of an If to improve a value.
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
 
     // This Scope looks for direct variable uses, or certain simple
     // combinations, and replaces the variable with the upcast variant.
     public Node upcast( Node ctrl, Node pred, boolean invert ) {
+        if( ctrl._type==Type.XCONTROL ) return null;
         // A single negation is handled below. For !!p (including p != null),
         // also refine the underlying p without changing the Boolean result.
         if( pred instanceof NotNode not && not.in(1) instanceof NotNode ) {

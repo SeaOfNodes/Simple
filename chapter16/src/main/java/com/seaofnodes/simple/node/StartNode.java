@@ -1,19 +1,11 @@
 package com.seaofnodes.simple.node;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
 import static com.seaofnodes.simple.Utils.TODO;
 
-/**
- * The Start node represents the start of the function.
- *
- * Start initially has 1 input (arg) from outside and the initial control.
- * In ch10 we also add mem aliases as structs get defined; each field in struct
- * adds a distinct alias to Start's tuple.
- */
+/** Start supplies control, whole memory, and the argument, in that order. */
 public class StartNode extends CFGNode implements MultiNode {
 
     final Type _arg;
@@ -32,7 +24,7 @@ public class StartNode extends CFGNode implements MultiNode {
     @Override public CFGNode cfg0() { return this; }
 
     @Override public TypeTuple compute() {
-        return TypeTuple.make(Type.CONTROL,TypeMem.TOP,_arg);
+        return TypeTuple.make(Type.CONTROL,TypeMem.BOT,_arg);
     }
 
     @Override public Node idealize() { return null; }

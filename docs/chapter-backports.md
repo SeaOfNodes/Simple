@@ -22,16 +22,15 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
-- **Forward Chapter 10b memory partitioning through 16-24.** The 10a/10b split
+- **Forward Chapter 10b memory partitioning through 17-24.** The 10a/10b split
   introduces whole-memory SSA first, then `MemMerge`, `MemPhi`, and `BulkMemPhi`.
-  Cliff reviewed and committed Chapter 11 as `b475b072`. Chapters 12-15 are
-  implemented and tested. Chapter 15's approved allocation design is now ready
-  for implementation review; stop here before proceeding to 16. Subsequent
-  boundaries include the parser's `ScopeMinNode` in 16 and call/return
-  aggregation in 18. Keep private constructor memory, escape tracking, and
-  incomplete-type inference in 25.
-  Carry the generalized Phi factoring and its dependency fixes from 10a-15
-  with the next ports; later snapshots already have parts of that rewrite.
+  Cliff reviewed and committed the port through 15 in `684c23f1`. Chapter 16 is
+  implemented and tested; stop here for review of constructor integration and
+  removal of `ScopeMinNode`. The next boundary is call/return aggregation in 18.
+  Keep private constructor memory, escape tracking, and incomplete-type
+  inference in 25. Carry generalized Phi factoring, its one-step Load guard,
+  and dependency fixes with the next ports; later snapshots already have parts
+  of that rewrite.
 
 ### Chapter 15 allocation design (implemented)
 
@@ -64,6 +63,22 @@ Array length remains a subsequent Store; array access control inputs remain.
 Global code motion and the evaluator scheduler both follow an alias through
 MemMerge to discover the allocation's ordering constraint. MemMerge is packaging,
 not itself a clobber. The viewer and evaluator use the new slot conventions.
+
+### Chapter 16 constructor integration (implemented, review checkpoint)
+
+ScopeNode now owns the variable records and one `$mem` binding; the obsolete
+ScopeMin alias table is removed. New inputs are `{ctrl, $mem, size, fields...}`,
+with initializer inputs in struct-field order. Outputs remain `{ptr, $mem}`;
+partial memory coverage and whole-memory integration are unchanged from 15.
+Alias contents read initializer types with dependencies, rather than assuming
+zero. The evaluator reads these same inputs, including array length. Constructor
+body effects participate in ordinary lazy branch/loop memory SSA.
+
+The sole-use Store-to-New check is deliberately unchanged. A shared allocation
+memory result has more users than a per-alias result, so it permits fewer folds.
+`Chapter15Test.testBasic5` retains a `.y` Load instead of folding it to 3.14;
+both runtime results remain checked. Other changed printed expectations only
+adjust Region/Loop IDs after removing parser memory nodes.
 
 ### Other pending corrections
 
@@ -254,6 +269,20 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **Chapter 16 lazy memory and constructors.** Baseline: 237 tests. The port
+  passes 247 tests, including nine carried memory regressions and one constructor
+  case combining reads, writes, a loop, and an unrelated alias. Full Make tests
+  and release builds for 10a-16 pass: **1,568 tests across eight snapshots**.
+  An additional **7,700 evaluations across 100 optimizer seeds** check memory
+  behavior, complete scheduling, two-result New, and partial allocation inputs.
+  Logs: `build/memory16-baseline.log`, `build/memory16-all-tests.log`, and
+  `build/memory16-seeds.log`.
+  The changed graph order exposed a dependency notification gap in
+  `Chapter14Test.testCloneAnd`: replacing Minus#25 rewired And#28 without waking
+  its dependent Phi#26. `Node.subsume` now wakes each rewired user's recorded
+  dependents in 10a-16. The existing test passes without weakening its assertions.
+  Chapters 17+ are unchanged; constructor integration is the review boundary.
 
 - **Generalized Phi factoring, 10a through 15.** Replaced binary-only factoring
   and the blanket memory exclusion with operand-wise Phis and exact-class
