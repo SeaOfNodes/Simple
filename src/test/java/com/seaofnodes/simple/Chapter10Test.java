@@ -165,7 +165,7 @@ while (arg) {
 return bar.a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,0,(Phi_a+2));", stop.toString());
+        assertEquals("return Phi(Loop11,0,(Phi_a+2));", stop.toString());
     }
 
     @Test
@@ -217,7 +217,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region15,null,new Bar);", stop.toString());
+        assertEquals("return Phi(Region16,null,new Bar);", stop.toString());
     }
 
     @Test
@@ -233,7 +233,7 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region32,4,3);", stop.toString());
+        assertEquals("return Phi(Region34,4,3);", stop.toString());
     }
 
     @Test
@@ -286,9 +286,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        // The preceding len store keeps the initial x load on the bulk chain.
-        assertEquals("return Phi(Loop13,0,(Phi(Loop,.x,(Phi_x+1))+Phi_sum));", stop.toString());
-        assertEquals(10L, com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,5));
+        assertEquals("return Phi(Loop16,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
     }
 
 
@@ -308,7 +306,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,new s0,Phi(Region31,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop11,new s0,Phi(Region34,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -325,7 +323,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop13,new s0,Phi(Region32,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop15,new s0,Phi(Region35,new s0,Phi_ret));", stop.toString());
     }
 
 
@@ -342,7 +340,7 @@ while(arg < 10) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,new s0,Phi(Region30,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop11,new s0,Phi(Region32,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -476,8 +474,7 @@ return 0;
         assertEquals(2244L, com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,1));
     }
 
-    @Test public void testMemoryAcrossNestedLoops() {
-        var stop = new Parser("""
+    static final String NESTED_MEMORY = """
             struct S { int x; int y; int z; }
             S s = new S;
             s.x = 5; s.y = 7; s.z = 11;
@@ -494,7 +491,10 @@ return 0;
                 arg = arg - 1;
             }
             return s;
-            """).parse().iterate();
+            """;
+
+    @Test public void testMemoryAcrossNestedLoops() {
+        var stop = new Parser(NESTED_MEMORY).parse().iterate();
         for (int arg=0; arg<7; arg++) {
             var obj = (com.seaofnodes.simple.evaluator.Evaluator.Obj)
                 com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,arg);

@@ -16,6 +16,10 @@ public class PhiNode extends Node {
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
 
+    public static PhiNode make(String label, Type type, Node... inputs) {
+        return type instanceof TypeMem ? new BulkMemPhiNode(label,inputs) : new PhiNode(label,type,inputs);
+    }
+
     @Override public String label() { return "Phi_"+_label; }
 
     @Override
@@ -71,7 +75,7 @@ public class PhiNode extends Node {
         //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
         //     op(Phi(A,Q,X), Phi(B,R,Y)).
         Node op = in(1);
-        if( op.nIns()==3 && op.in(0)==null && !op.isCFG() && same_op() ) {
+        if( !isMem() && op.nIns()==3 && op.in(0)==null && !op.isCFG() && same_op() ) {
             Node[] lhss = new Node[nIns()];
             Node[] rhss = new Node[nIns()];
             lhss[0] = rhss[0] = in(0); // Set Region
