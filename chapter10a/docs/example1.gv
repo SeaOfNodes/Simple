@@ -1,0 +1,10 @@
+digraph Memory {
+  rankdir=RL;
+  node [shape=box];
+  M0 [label="Initial memory"];
+  X [label="Store p.x = 3"];
+  Y [label="Store p.y = arg"];
+  L [label="Load p.x"];
+  L -> Y -> X -> M0 [color=blue];
+  Return -> Y [color=blue]; Return -> L;
+}

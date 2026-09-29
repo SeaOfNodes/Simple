@@ -84,7 +84,7 @@ while read -r chapter; do
     cp "$repo"/{README.md,pom.xml} .
     mkdir docs
     # Remove links to chapters.
-    sed -Ei 's,\[Chapter ([0-9]+)\]\(chapter0?\1/README\.md\),Chapter \1,' README.md
+    sed -Ei 's,\[Chapter ([0-9]+[a-z]?)\]\(chapter0?\1/README\.md\),Chapter \1,' README.md
     # Change to a JAR and delete the modules, for a single-project structure.
     sed -i -e 's,<packaging>pom</packaging>,<packaging>jar</packaging>,' \
            -e '/<modules>/,/^$/d' pom.xml

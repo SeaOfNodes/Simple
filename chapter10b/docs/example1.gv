@@ -1,0 +1,13 @@
+digraph Memory {
+  rankdir=BT;
+  node [shape=box];
+  M [label="Initial memory"];
+  X [label="Store x = 42"];
+  Y [label="Loop: Store y"];
+  L [label="Load x (42)"];
+  L -> X -> M [color=blue]; Y -> M [color=green];
+  MemMerge -> X [color=blue]; MemMerge -> Y [color=green];
+  Return -> MemMerge; Return -> L;
+  { rank=same; MemMerge -> L [style=invis]; }
+  Y -> X [style=invis]; // Layout only: keep the stores in code order.
+}

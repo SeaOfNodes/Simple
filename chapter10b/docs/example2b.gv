@@ -1,0 +1,10 @@
+digraph Memory {
+  rankdir=RL;
+  node [shape=box];
+  P [label="MemPhi(x)"];
+  B [label="BulkMemPhi(All except x)"];
+  P -> Left [label="slice x",color=blue]; P -> Right [label="slice x",color=blue];
+  B -> Left; B -> Right;
+  P -> Region [style=dashed]; B -> Region [style=dashed];
+  MemMerge -> P [label="x",color=blue]; MemMerge -> B [label="default"];
+}

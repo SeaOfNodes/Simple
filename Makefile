@@ -2,7 +2,7 @@
 #   make tests CHAPTERS="chapter21 chapter22"
 #   make -k tests   # continue through failures, but return a failing status
 .DEFAULT_GOAL := tests
-CHAPTERS ?= $(sort $(patsubst %/pom.xml,%,$(wildcard chapter[0-9][0-9]/pom.xml)))
+CHAPTERS ?= $(sort $(patsubst %/pom.xml,%,$(wildcard chapter[0-9][0-9]/pom.xml chapter[0-9][0-9][a-z]/pom.xml)))
 ACTIONS := tests tags release lib
 CHAPTER_TARGETS := $(foreach action,$(ACTIONS),$(addsuffix /$(action),$(CHAPTERS)))
 
