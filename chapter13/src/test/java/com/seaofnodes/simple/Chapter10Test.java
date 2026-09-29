@@ -1,6 +1,11 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.node.LoadNode;
+import com.seaofnodes.simple.node.StoreNode;
+import com.seaofnodes.simple.evaluator.Evaluator;
+import java.util.BitSet;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -160,7 +165,7 @@ while (arg) {
 return bar.a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop12,0,(Phi_a+2));", stop.toString());
+        assertEquals("return Phi(Loop13,0,(Phi_a+2));", stop.toString());
     }
 
     @Test
@@ -212,7 +217,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region31,(*void)Phi(Region19,null,new Bar),null);", stop.toString());
+        assertEquals("return Phi(Region33,(*void)Phi(Region20,null,new Bar),null);", stop.toString());
     }
 
     @Test
@@ -228,7 +233,7 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region37,4,3);", stop.toString());
+        assertEquals("return Phi(Region39,4,3);", stop.toString());
     }
 
     @Test
@@ -282,7 +287,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop17,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
+        assertEquals("return Phi(Loop19,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
     }
 
 
@@ -303,7 +308,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop12,new s0,Phi(Region34,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop13,new s0,Phi(Region37,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -321,7 +326,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop15,new s0,Phi(Region35,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop17,new s0,Phi(Region38,new s0,Phi_ret));", stop.toString());
     }
 
 
@@ -338,7 +343,7 @@ while(arg < 10) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop12,new s0,Phi(Region33,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop13,new s0,Phi(Region35,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -456,4 +461,121 @@ return 0;
         assertEquals("return 0;", stop.toString());
     }
 
+    @Test public void testReadBeforeStores() {
+        var stop = new Parser("""
+            struct S { int x; int y; }
+            S a = new S; S b = new S;
+            a.x = 11; b.x = 22;
+            S p = a; if (arg) p = b;
+            int before = p.x;
+            a.y = 55; b.y = 66;
+            a.x = 33; b.x = 44;
+            return before*100 + p.x;
+            """).parse().iterate();
+        assertEquals(1133L, com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,0));
+        assertEquals(2244L, com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,1));
+    }
+
+    static final String NESTED_MEMORY = """
+            struct S { int x; int y; int z; }
+            S s = new S;
+            s.x = 5; s.y = 7; s.z = 11;
+            while (arg > 0) {
+                s.x = s.x + 1;
+                int j = 3;
+                while (j > 0) {
+                    j = j - 1;
+                    if (j == 1) continue;
+                    s.y = s.y + arg;
+                    if (arg == 2) break;
+                    s.z = s.z + 1;
+                }
+                arg = arg - 1;
+            }
+            return s;
+            """;
+
+    @Test public void testMemoryAcrossNestedLoops() {
+        var stop = new Parser(NESTED_MEMORY).parse().iterate();
+        for (int arg=0; arg<7; arg++) {
+            var obj = (com.seaofnodes.simple.evaluator.Evaluator.Obj)
+                com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,arg);
+            org.junit.Assert.assertArrayEquals(new Object[] {
+                5L+arg, 7L+arg*(arg+1)-(arg>=2 ? 2 : 0), 11L+2*arg-(arg>=2 ? 2 : 0)
+            }, obj.fields());
+        }
+    }
+
+    @Test public void testMemoryAtEarlyReturns() {
+        var stop = new Parser("""
+            struct S { int x; int y; int z; }
+            S s = new S;
+            s.x = 3; s.y = 5; s.z = 7;
+            if (arg) { s.x = 11; s.z = 13; return s; }
+            s.y = 17;
+            return s;
+            """).parse().iterate();
+        for (int arg=0; arg<2; arg++) {
+            var obj = (com.seaofnodes.simple.evaluator.Evaluator.Obj)
+                com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,arg);
+            org.junit.Assert.assertArrayEquals(arg==0 ? new Object[]{3L,17L,7L} : new Object[]{11L,5L,13L}, obj.fields());
+        }
+    }
+
+    @Test public void testKeepLoadsAtMerge() {
+        StopNode stop = new Parser("""
+            struct S { int x; }
+            S a = new S; S b = new S;
+            a.x = arg; b.x = arg+1;
+            S p = a; S q = b;
+            if (arg<0) { p=b; q=a; }
+            int v;
+            if (arg>1) v=p.x; else v=q.x;
+            return v;
+            """).parse().iterate();
+        // The one-step safety check stops at the memory aggregate.
+        assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
+        assertEquals(-1L,Evaluator.evaluate(stop,-1));
+        assertEquals(1L,Evaluator.evaluate(stop,0));
+        assertEquals(3L,Evaluator.evaluate(stop,3));
+    }
+
+    @Test public void testDropStores() {
+        StopNode stop = new Parser("""
+            struct S { int x; }
+            S s = new S;
+            if (arg) s.x=arg+1; else s.x=arg+2;
+            return s;
+            """).parse().iterate();
+        // These chapters still bind struct Stores to branch control.
+        assertEquals(3,countMemoryNodes(stop,StoreNode.class,new BitSet()));
+        assertEquals(2L,((Evaluator.Obj)Evaluator.evaluate(stop,0)).fields()[0]);
+        assertEquals(4L,((Evaluator.Obj)Evaluator.evaluate(stop,3)).fields()[0]);
+    }
+
+    @Test public void testKeepReadsBeforeWrites() {
+        StopNode stop = new Parser("""
+            struct S { int x; int y; }
+            S a = new S; S b = new S;
+            a.x=arg; b.x=arg+1;
+            S p=a; S q=b;
+            if (arg<0) { p=b; q=a; }
+            int v;
+            if (arg>1) { v=p.x; p.x=41; p.y=5; }
+            else       { v=q.x; q.x=42; }
+            return v;
+            """).parse().iterate();
+        assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
+        assertEquals(-1L,Evaluator.evaluate(stop,-1));
+        assertEquals(1L,Evaluator.evaluate(stop,0));
+        assertEquals(3L,Evaluator.evaluate(stop,3));
+    }
+
+    private static int countMemoryNodes(Node n, Class<?> kind, BitSet seen) {
+        if (n==null || seen.get(n._nid)) return 0;
+        seen.set(n._nid);
+        int cnt=kind.isInstance(n) ? 1 : 0;
+        for (Node def : n._inputs) cnt+=countMemoryNodes(def,kind,seen);
+        return cnt;
+    }
 }

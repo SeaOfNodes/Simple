@@ -12,6 +12,70 @@ import static org.junit.Assert.fail;
 
 public class Chapter15Test {
 
+    @Test public void testPartialAllocationMemory() {
+        StopNode stop = new Parser("""
+            struct Other { int a; int b; int c; }
+            struct S { int x; flt y; S? next; }
+            Other other = new Other;
+            other.c = 7;
+            S a = new S;
+            a.x = arg;
+            a.y = 1.5;
+            S b = new S;
+            // S's aliases are global identities, not tuple or input positions.
+            // Bypass b's zeroing for a, preserving the unrelated Other slice.
+            return a.x + a.y + b.x + b.y + other.c;
+            """).parse().iterate();
+        assertEquals(8.5, Evaluator.evaluate(stop,0));
+        assertEquals(12.5, Evaluator.evaluate(stop,4));
+
+        stop = new Parser("""
+            struct S { int x; flt y; S? next; }
+            S a = new S; S b = new S;
+            S p = a; if (arg) p = b;
+            // The memory result carries distinct int, float and pointer facts.
+            if (p.next != null) return 99;
+            return p.x + p.y;
+            """).parse().iterate();
+        assertEquals("return 0.0;",stop.toString());
+        assertEquals(0.0,Evaluator.evaluate(stop,1));
+    }
+
+    @Test public void testReadAcrossAllocation() {
+        StopNode stop = new Parser("""
+            struct S { int x; }
+            S a = new S; S b = new S;
+            a.x = 11; b.x = 22;
+            S p = a; if (arg) p = b;
+            int before = p.x;
+            S c = new S;
+            a.x = 33; b.x = 44;
+            // The partial input to c must not hide the read/write ordering.
+            // p can alias either object, so node inequality cannot bypass New.
+            return before*100 + p.x + c.x;
+            """).parse().iterate();
+        assertEquals(1133L,Evaluator.evaluate(stop,0));
+        assertEquals(2244L,Evaluator.evaluate(stop,1));
+    }
+
+    @Test public void testAllocationInLoop() {
+        StopNode stop = new Parser("""
+            struct S { int x; flt y; S? next; }
+            S old = new S; old.x = 7;
+            S last = old;
+            while (arg > 0) {
+                S fresh = new S;
+                fresh.x = last.x + 1;
+                fresh.next = last;
+                last = fresh;
+                arg = arg - 1;
+            }
+            return old.x*100 + last.x;
+            """).parse().iterate();
+        assertEquals(707L,Evaluator.evaluate(stop,0));
+        assertEquals(712L,Evaluator.evaluate(stop,5));
+    }
+
     @Test
     public void testJig() {
         Parser parser = new Parser("""
@@ -34,7 +98,7 @@ if (arg) {
 return b[0] + b[1];
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region69,1,0);", stop.toString());
+        assertEquals("return Phi(Region72,1,0);", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
         assertEquals(1L, Evaluator.evaluate(stop,  1));
     }
@@ -151,7 +215,7 @@ else {
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region118,1.2,Phi(Region115,2.3,.y));", stop.toString());
+        assertEquals("return Phi(Region122,1.2,Phi(Region119,2.3,.y));", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop, 0));
     }
 

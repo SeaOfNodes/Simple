@@ -43,18 +43,50 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 ## Tutorial backports
 
 - Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
-  (lazy graph partitioning). Both are standalone snapshots. Chapter 11 now
-  schedules this representation; Cliff requested review at the first significant
-  adaptation, so stop there until reviewed. Chapters 12-24 still use their prior
-  memory representation. GCM readiness and anti-dependency checks must both
+  (lazy graph partitioning). Both are standalone snapshots. Cliff reviewed and
+  committed Chapter 11; the forward port now runs through Chapter 15, whose
+  allocation design Cliff approved for implementation. Stop for implementation
+  review here; leave 16-24 unchanged. See the concrete boundary notes
+  in `docs/chapter-backports.md`. GCM readiness and anti-dependency checks must both
   filter by alias and ignore MemMerge as a clobber; keep the evaluator's same
   alias filtering too. MemMerge still needs ordinary data-dependency placement.
+
+- Chapter 15 New consumes `{ctrl, $mem, size}` and produces `{ptr, $mem}`:
+  no control result, pointer slot 0, memory slot 1. Its TypeStruct/TypeMemPtr
+  defines the covered field aliases. Use a partial input MemMerge (null default),
+  one memory output projection shared across those aliases, and a whole-memory
+  aggregate preserving unrelated prior slices. Missing partial aliases are
+  uncovered, not zero or unknown memory. Typed alias queries follow New's input
+  and meet in each field's initializer; cached MemPhi types break cycles, and
+  explicit dependencies preserve worklist progress. Start's contents are empty
+  in this chapter because it has no heap arguments; revisit that in Chapter 18.
+  Both schedulers must follow aggregates to find New's effect for a read alias.
+  Only a proven distinct allocation permits Load to bypass New; unequal pointer
+  nodes alone do not prove disjoint objects.
 
 - The preferred direction is: introduce a fix in the earliest applicable chapter,
   then use the same implementation in later snapshots where practical. Tutorial
   progression takes priority over importing the fully general Chapter 25 solution.
   Use a locally sensible fix when the general solution requires concepts not yet
   introduced; report substantial representation changes for review.
+
+- Generalized Phi factoring now starts in 10a and is forwarded through 15.
+  Memory-specific eligibility lives in `MemOpNode.canDrop`, with virtual Load
+  and Store checks. Load owns `clobbered`: all these chapters check only
+  immediate memory users, without recursion or a visited set. Stop at Stores,
+  Phis, MemMerges (10b+), and New (15); do not chase aliases or aggregates just
+  to save one Load. Keep this teaching optimization simple and conservative.
+  Preserve exact operation attributes with clone-based `copyEmpty`, type each
+  operand Phi separately, reuse identical inputs, and reject type widening.
+  Stores require sole use by the Phi; Loads inspect memory users for clobbers
+  before GCM has made anti-dependence edges. From 10b, create precise memory
+  Phis for the factored operands. Do not factor aggregates or bulk Phis;
+  wait for other BulkMemPhis at the Region to disappear, since their slice
+  lookup assumes Region/alias identifies the completed memory point. Existing
+  control-bound Stores in 11-14 remain ineligible. `delUse` wakes recorded
+  dependents for user-count queries; Region's empty-diamond fold depends on
+  projection rewiring as well as projection types. Carry these with the 16+
+  memory port; do not duplicate the later chapters' existing `copyEmpty`.
 - Find the chapter where the relevant feature first appears, not just the chapter
   that can parse the original reproducer. Reduce away later syntax/features when
   possible. Put the regression in that earliest `ChapterNTest.java`, and forward

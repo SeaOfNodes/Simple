@@ -1,5 +1,10 @@
 # Chapter 13: References
 
+Memory retains one `$mem` binding and lazy partitions. Typed initialization
+stores now include each field's declared type and initialization flag, while
+`MemMerge` preserves the other fields. Start and Return keep control in slot 0
+and memory in slot 1.
+
 # Table of Contents
 
 1. [References](#references)
@@ -64,21 +69,23 @@ p.tree.la = null; // Accessing unknown field 'la' from 'null'
 It turns out `p.tree` is `null`, so we can't access the field `la` from it.
 ```java 
 // name  = "tree"
-// memAlias(alias) = StoreNode
+// mem() is the current aggregate; its tree alias selects the initializing Store.
 // in(3) = {ConstantNode@1651} "null"
-return parsePostfix(new LoadNode(name, alias, declaredType.glb(), memAlias(alias), expr).peephole());
+return parsePostfix(new LoadNode(name, alias, declaredType.glb(), mem(), expr).peephole());
 ```
 `LoadNode::idealize`
-In LoadNode idealize we return st.val().
+LoadNode first selects its alias through any MemMerge, then returns `st.val()`
+when it finds a matching Store to the same object.
 ```java 
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
-            ptr() == st.ptr() ) { // Must check same object
+            ptr() == st.ptr() && _alias == st._alias ) { // Same object and field
             assert _name.equals(st._name); // Equiv class aliasing is perfect
             return st.val(); // // <<-- {ConstantNode@1651} "null"
         }
 ```
-`mem(): ` refers to `memAlias(alias)`. Therefore, in the next iteration, we will end up with:
+After alias selection, the Load's `mem()` refers to that initializing Store.
+In the next iteration, we will end up with:
 
 ```java
 ...
@@ -98,9 +105,9 @@ When we are creating the struct, we set up the initial value to Null:
 ```java
 private Node newStruct(TypeStruct obj) {
    Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
-   int alias = START._aliasStarts.get(obj._name);
+   int alias = _aliases.get(obj._name);
    for( Field field : obj._fields ) {
-       memAlias(alias, new StoreNode(field._fname, alias, field._type, ctrl(), memAlias(alias), n, new ConstantNode(field._type.makeInit()).peephole(),true).peephole());
+       store(field._fname,alias,field._type,n,new ConstantNode(field._type.makeInit()).peephole(),true);
        alias++;
    }
    return n.unkeep();
@@ -114,7 +121,7 @@ for( Field field : obj._fields ) {
     // field._type = *FamilyTree?
     // REMEMBER:
     // @Override public TypeMemPtr makeInit() { return NULLPTR; }
-  memAlias(..., new ConstantNode(field._type.makeInit()).peephole(),true).peephole());
+  store(field._fname,alias,field._type,n,new ConstantNode(field._type.makeInit()).peephole(),true);
   alias++;
 }
 ```

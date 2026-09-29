@@ -250,6 +250,12 @@ public class Scheduler {
                 // so do that now.
                 var mem = l.in(1);
                 for(var out : mem._outputs) {
+                    // Aggregates describe partitions; they do not overwrite
+                    // memory. Only users of this alias constrain the load.
+                    if (out instanceof MemMergeNode || out instanceof ReturnNode) continue;
+                    if (out instanceof StoreNode s && s._alias != l._alias) continue;
+                    if (out instanceof MemPhiNode p && p._alias != l._alias) continue;
+                    if (out instanceof BulkMemPhiNode p && p.isSplit(l._alias)) continue;
                     if (out instanceof PhiNode p) {
                         var r = p.in(0);
                         for (int i = 1; i < p.nIns(); i++) {
@@ -271,7 +277,7 @@ public class Scheduler {
                 // Store nodes have anti-deps to load nodes.
                 // So decrease the uses of these loads when the store is placed.
                 for (var out: s.in(1)._outputs) {
-                    if (out instanceof LoadNode) od(out).ifPresent(this::decUsers);
+                    if (out instanceof LoadNode l && l._alias==s._alias) od(out).ifPresent(this::decUsers);
                 }
             }
         }
@@ -469,7 +475,8 @@ public class Scheduler {
             var data = mem.pop();
             node = data.node;
             for(var out:node.in(1)._outputs) {
-                if (out instanceof LoadNode) od(out).ifPresent(d->d.users++);
+                if (out instanceof LoadNode l && l._alias==((StoreNode)node)._alias)
+                    od(out).ifPresent(d->d.users++);
             }
         }
     }

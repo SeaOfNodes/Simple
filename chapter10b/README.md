@@ -123,8 +123,17 @@ not to an expanded type lattice. As in Chapter 10a, diagram edges show lattice
 order, with top above bottom; field and tuple-element type lattices are elided.
 
 Scalar Phis remain ordinary PhiNodes. The scope's Phi factory chooses a
-BulkMemPhi for whole memory; splitting constructs MemPhis explicitly. Generic
-arithmetic factoring through Phis must not factor a memory aggregate.
+BulkMemPhi for whole memory; splitting constructs MemPhis explicitly. Phi
+factoring can combine matching Loads or Stores as in Chapter 10a, but cannot
+factor MemMerge or BulkMemPhi. Its new memory operands use precise MemPhis for
+the operation's alias. Load safety checks only immediate memory users, rejecting
+Stores, Phis, and MemMerges. A Phi or aggregate might lead to a later write;
+we conservatively skip the rewrite instead of searching farther to save one Load.
+
+Factoring waits while a BulkMemPhi remains at the same Region. Bulk splitting
+identifies parallel slices by Region and alias, whereas factoring a Store can
+introduce a memory Phi *before* the Store at that same Region. Waiting avoids
+mistaking that earlier memory for the aggregate's completed slice.
 
 Memory splitting can increase node count. Progress comes from extracting an
 alias from a bulk Phi and simplifying its precise chain, rather than from
@@ -137,7 +146,9 @@ This also extends the worklist lesson from Chapter 9. A bulk Phi inspects its
 users, so changes to a user's partition must wake the producer. Selecting a
 slice from an aggregate can expose a new bulk-Phi user; that selected definition
 must be queued too. The optimizer's worklist completeness assertion remains
-enabled and checks these dependencies.
+enabled and checks these dependencies. Factoring also depends on user counts:
+removing a use wakes recorded dependents even when the definition's type stays
+unchanged.
 
 ## Evaluation and ordering
 
@@ -160,8 +171,9 @@ alias to become known later, using the same representation. Its private
 constructor memory, escape tracking, incomplete types, and module alias
 remapping are separate extensions and are not needed here.
 
-Chapter 11 schedules this representation, including alias-specific load/store
-anti-dependencies. Chapters 12-24 currently retain their older parser-managed
+Chapters 11-15 use this representation, including alias-specific load/store
+anti-dependencies. Chapter 15 adds allocation with partial memory and typed
+alias contents. Chapters 16-24 currently retain their older parser-managed
 memory chains; forwarding through those snapshots is tracked in the
 [backport queue](../docs/chapter-backports.md).
 

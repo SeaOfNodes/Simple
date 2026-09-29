@@ -16,6 +16,10 @@ public class PhiNode extends Node {
 
     public PhiNode(String label, Type declaredType, Node... inputs) { super(inputs); _label = label;  assert declaredType!=null; _declaredType = declaredType; }
 
+    public static PhiNode make(String label, Type type, Node... inputs) {
+        return type instanceof TypeMem ? new BulkMemPhiNode(label,inputs) : new PhiNode(label,type,inputs);
+    }
+
     @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 
     @Override
@@ -65,24 +69,9 @@ public class PhiNode extends Node {
         if (live != null)
             return live;
 
-        // Pull "down" a common data op.  One less op in the world.  One more
-        // Phi, but Phis do not make code.
-        //   Phi(op(A,B),op(Q,R),op(X,Y)) becomes
-        //     op(Phi(A,Q,X), Phi(B,R,Y)).
-        Node op = in(1);
-        if( op.nIns()==3 && op.in(0)==null && same_op() ) {
-            assert !(op instanceof CFGNode);
-            Node[] lhss = new Node[nIns()];
-            Node[] rhss = new Node[nIns()];
-            lhss[0] = rhss[0] = in(0); // Set Region
-            for( int i=1; i<nIns(); i++ ) {
-                lhss[i] = in(i).in(1);
-                rhss[i] = in(i).in(2);
-            }
-            Node phi_lhs = new PhiNode(_label, _declaredType,lhss).peephole();
-            Node phi_rhs = new PhiNode(_label, _declaredType,rhss).peephole();
-            return op.copy(phi_lhs,phi_rhs);
-        }
+        // Phi(op(a,b,...),op(c,d,...)) -> op(Phi(a,c),Phi(b,d),...).
+        Node down;
+        if( same_op() && (down=drop_same_op())!=null ) return down;
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
@@ -112,10 +101,70 @@ public class PhiNode extends Node {
     }
 
     private boolean same_op() {
-        for( int i=2; i<nIns(); i++ )
-            if( in(1).getClass() != in(i).getClass() )
-                return false;
+        Node op = in(1);
+        if( op instanceof CFGNode || op instanceof ConstantNode || op instanceof PhiNode ||
+            op instanceof ProjNode || op instanceof NewNode || op instanceof ScopeNode || op instanceof MemMergeNode ) return false;
+        // A bulk Phi must split its aliases before factoring precise Stores.
+        if( this instanceof BulkMemPhiNode ) return false;
+        // Bulk splitting currently identifies parallel slices by Region/alias.
+        // Factoring can introduce another slice at a different memory point;
+        // wait until that Region's bulk partitioning has finished.
+        if( op instanceof MemOpNode )
+            for( Node use : region()._outputs )
+                if( use instanceof BulkMemPhiNode ) {
+                    use.addDepForwards(this);
+                    return false;
+                }
+        Node busy = null;
+        for( int i=1; i<nIns(); i++ ) {
+            Node n = in(i);
+            if( region().in(i).addDep(this)._type==Type.XCONTROL ||
+                op.getClass()!=n.getClass() || n.nIns()!=op.nIns() || n.in(0)!=null || !op.eq(n) ) return false;
+            if( n instanceof MemOpNode mem && !mem.canDrop((MemOpNode)op,this) ) return false;
+            // Moving a Store must remove the old effect, not duplicate it.
+            // Allow one shared arm: the other arms disappear into the single
+            // factored operation, usually reducing the total operation count.
+            n.addDepForwards(this);
+            if( n.nOuts()>1 ) {
+                for( Node use : n._outputs )
+                    if( use!=null && use!=this ) use.addDepForwards(this);
+                if( n instanceof StoreNode || busy!=null ) return false;
+                busy=n;
+            }
+            for( int j=1; j<n.nIns(); j++ )
+                if( n.in(j) instanceof ScopeNode || ((n.in(j)==null) != (op.in(j)==null)) ) return false;
+        }
         return true;
+    }
+
+    private Node drop_same_op() {
+        Node op = in(1), cp = op.copyEmpty();
+        cp._type = null;
+        cp.addDef(null);
+        for( int j=1; j<op.nIns(); j++ ) {
+            Node x = op.in(j);
+            boolean different = false;
+            for( int i=2; i<nIns(); i++ )
+                if( in(i).in(j)!=x ) different=true;
+            if( different ) {
+                Node[] ins = new Node[nIns()];
+                ins[0] = region();
+                Type t = Type.TOP;
+                for( int i=1; i<nIns(); i++ ) {
+                    ins[i] = in(i).in(j);
+                    t = t.meet(ins[i]._type);
+                }
+                PhiNode phi = j==1 && op instanceof MemOpNode mem
+                    ? new MemPhiNode(_label,mem._alias,ins)
+                    : PhiNode.make(_label,t.glb(),ins);
+                x = phi.peephole();
+            }
+            cp.addDef(x);
+        }
+        // Factoring must not widen the result (e.g. correlated And operands).
+        if( cp.compute().isa(compute()) ) return cp;
+        cp.kill();
+        return null;
     }
 
     /**

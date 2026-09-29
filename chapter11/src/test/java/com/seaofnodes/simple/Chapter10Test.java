@@ -1,6 +1,11 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.node.LoadNode;
+import com.seaofnodes.simple.node.StoreNode;
+import com.seaofnodes.simple.evaluator.Evaluator;
+import java.util.BitSet;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -515,5 +520,62 @@ return 0;
                 com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,arg);
             org.junit.Assert.assertArrayEquals(arg==0 ? new Object[]{3L,17L,7L} : new Object[]{11L,5L,13L}, obj.fields());
         }
+    }
+
+    @Test public void testKeepLoadsAtMerge() {
+        StopNode stop = new Parser("""
+            struct S { int x; }
+            S a = new S; S b = new S;
+            a.x = arg; b.x = arg+1;
+            S p = a; S q = b;
+            if (arg<0) { p=b; q=a; }
+            int v;
+            if (arg>1) v=p.x; else v=q.x;
+            return v;
+            """).parse().iterate();
+        // The one-step safety check stops at the memory aggregate.
+        assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
+        assertEquals(-1L,Evaluator.evaluate(stop,-1));
+        assertEquals(1L,Evaluator.evaluate(stop,0));
+        assertEquals(3L,Evaluator.evaluate(stop,3));
+    }
+
+    @Test public void testDropStores() {
+        StopNode stop = new Parser("""
+            struct S { int x; }
+            S s = new S;
+            if (arg) s.x=arg+1; else s.x=arg+2;
+            return s;
+            """).parse().iterate();
+        // These chapters still bind struct Stores to branch control.
+        assertEquals(3,countMemoryNodes(stop,StoreNode.class,new BitSet()));
+        assertEquals(2L,((Evaluator.Obj)Evaluator.evaluate(stop,0)).fields()[0]);
+        assertEquals(4L,((Evaluator.Obj)Evaluator.evaluate(stop,3)).fields()[0]);
+    }
+
+    @Test public void testKeepReadsBeforeWrites() {
+        StopNode stop = new Parser("""
+            struct S { int x; int y; }
+            S a = new S; S b = new S;
+            a.x=arg; b.x=arg+1;
+            S p=a; S q=b;
+            if (arg<0) { p=b; q=a; }
+            int v;
+            if (arg>1) { v=p.x; p.x=41; p.y=5; }
+            else       { v=q.x; q.x=42; }
+            return v;
+            """).parse().iterate();
+        assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
+        assertEquals(-1L,Evaluator.evaluate(stop,-1));
+        assertEquals(1L,Evaluator.evaluate(stop,0));
+        assertEquals(3L,Evaluator.evaluate(stop,3));
+    }
+
+    private static int countMemoryNodes(Node n, Class<?> kind, BitSet seen) {
+        if (n==null || seen.get(n._nid)) return 0;
+        seen.set(n._nid);
+        int cnt=kind.isInstance(n) ? 1 : 0;
+        for (Node def : n._inputs) cnt+=countMemoryNodes(def,kind,seen);
+        return cnt;
     }
 }

@@ -149,7 +149,7 @@ public abstract class GlobalCodeMotion {
                 // Loads need their memory inputs' uses also done
                 if( n instanceof LoadNode ld )
                     for( Node memuse : ld.mem()._outputs )
-                        if( memuse._type instanceof TypeMem && late[memuse._nid]==null )
+                        if( antiUse(ld,memuse) && late[memuse._nid]==null )
                             continue outer;
 
                 // All uses done, schedule
@@ -219,6 +219,17 @@ public abstract class GlobalCodeMotion {
             best instanceof IfNode;
     }
 
+    // Only a store or memory Phi covering this alias can constrain a load.
+    // MemMerge packages slices without overwriting them.
+    private static boolean antiUse(LoadNode load, Node use) {
+        return switch( use ) {
+        case StoreNode st -> st._alias==load._alias;
+        case MemPhiNode phi -> phi._alias==load._alias;
+        case BulkMemPhiNode phi -> !phi.isSplit(load._alias);
+        default -> false;
+        };
+    }
+
     private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late, int[] anti) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
@@ -226,6 +237,7 @@ public abstract class GlobalCodeMotion {
             anti[cfg._nid] = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
         for( Node mem : load.mem()._outputs ) {
+            if( !antiUse(load,mem) ) continue;
             switch( mem ) {
             case StoreNode st:
                 assert late[st._nid]!=null;
@@ -238,9 +250,6 @@ public abstract class GlobalCodeMotion {
                     if( phi.in(i)==load.mem() )
                         lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null,anti);
                 break;
-            case LoadNode ld: break; // Loads do not cause anti-deps on other loads
-            case ReturnNode ret: break; // Load must already be ahead of Return
-            case NeverNode never: break;
             default: throw Utils.TODO();
             }
         }

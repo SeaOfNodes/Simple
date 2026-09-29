@@ -22,15 +22,50 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
-- **Forward Chapter 10b memory partitioning through 12-24; review 11 first.** The 10a/10b split
+- **Forward Chapter 10b memory partitioning through 16-24.** The 10a/10b split
   introduces whole-memory SSA first, then `MemMerge`, `MemPhi`, and `BulkMemPhi`.
-  Chapter 11 is implemented and tested, awaiting Cliff's requested review at
-  the first significant adaptation: scheduling aggregates and alias-filtered
-  anti-dependencies. Do not continue to 12 before that review. Later snapshots
-  retain their original memory representation. Further migration
-  boundaries include array/allocation memory in 15, the
-  parser's `ScopeMinNode` in 16, and call/return aggregation in 18. Keep private
-  constructor memory, escape tracking, and incomplete-type inference in 25.
+  Cliff reviewed and committed Chapter 11 as `b475b072`. Chapters 12-15 are
+  implemented and tested. Chapter 15's approved allocation design is now ready
+  for implementation review; stop here before proceeding to 16. Subsequent
+  boundaries include the parser's `ScopeMinNode` in 16 and call/return
+  aggregation in 18. Keep private constructor memory, escape tracking, and
+  incomplete-type inference in 25.
+  Carry the generalized Phi factoring and its dependency fixes from 10a-15
+  with the next ports; later snapshots already have parts of that rewrite.
+
+### Chapter 15 allocation design (implemented)
+
+Chapters 12-14 retain explicit initialization Stores. Chapter 15 replaces them
+with New's zeroing operation while keeping one parser-visible `$mem`.
+
+| Interface | Chapter 15 |
+|---|---|
+| New inputs | `{ctrl, $mem, size}` |
+| New outputs | `{ptr, $mem}`; no control result or per-alias projections |
+| Coverage | field aliases from New's internal TypeStruct/TypeMemPtr |
+| Input memory | partial MemMerge, no default, entries for affected aliases |
+| Result integration | whole-memory MemMerge, prior default, affected entries all using the same New memory projection |
+| Memory types | existing alias plus stored-value type; no lattice extension |
+
+A null MemMerge default means absent aliases are uncovered. Empty structs
+therefore have an empty partial input; their allocation does not change the
+whole-memory aggregate. New's output also covers only its own aliases.
+
+An alias-specific contents query combines incoming values with the field's
+initializer from New's struct (integer zero, floating zero, or null). It records
+optimizer dependencies and stops at cached Phi types to break loops. MemPhi
+merges the scalar contents of its precise alias. Start's incoming heap is empty
+in this chapter; functions with heap arguments will require a different entry
+query in Chapter 18.
+
+Loads fold against their own New and bypass a proven distinct allocation via
+New's memory input. Different pointer nodes alone do not establish disjointness.
+Array length remains a subsequent Store; array access control inputs remain.
+Global code motion and the evaluator scheduler both follow an alias through
+MemMerge to discover the allocation's ordering constraint. MemMerge is packaging,
+not itself a clobber. The viewer and evaluator use the new slot conventions.
+
+### Other pending corrections
 
 - **Chapter 24 Load BOTTOM-on-error backport, unwound/deferred (2026-09-28).**
   Cliff requested starting with 24 and analyzing failures before proceeding.
@@ -219,6 +254,62 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **Generalized Phi factoring, 10a through 15.** Replaced binary-only factoring
+  and the blanket memory exclusion with operand-wise Phis and exact-class
+  `copyEmpty`. Matching Loads and sole-use Stores are eligible when unbound to
+  control; operation attributes, field/alias identity, operand types, and
+  result-type monotonicity are preserved. Load safety examines memory users
+  before explicit GCM anti-dependencies exist. The final guard checks only
+  immediate users, stopping at Stores, Phis, MemMerges, and New in 15. Memory factoring waits for bulk
+  partitioning at its Region; MemMerge and BulkMemPhi are never factored.
+  Stores bound to control in 11-14 remain excluded. User removal now wakes
+  recorded dependents, and empty-diamond folding observes projection rewiring.
+  Three regressions live in each snapshot's `Chapter10Test`; the original 10a
+  Phi fails both positive folding checks, and disabling the Load safety guard
+  exposes an invalid read/write schedule in the negative probe.
+  Full Make tests pass **159 / 162 / 177 / 181 / 196 / 216 / 230** and all seven
+  release jars build. A 10a Phi label and one 14 Region ID were refreshed;
+  expression/value expectations remain unchanged. Each snapshot also passes
+  **3,500 evaluations across 100 optimizer seeds**, and 15 passes another
+  **7,000 allocation/memory evaluations**. Logs: `build/phi-drop-baseline.log`,
+  `build/phi-drop-tests.log`, `build/phi-drop-seeds*.log`,
+  `build/phi-drop-negative.log`, `build/phi-drop-antidep-negative.log`, and
+  `build/phi-drop-allocation-seeds15.log`. Chapters 16+ are unchanged.
+  The subsequent guard refactor moves memory eligibility into virtual
+  `MemOpNode.canDrop` overrides and clobber inspection into Load. Removed 10a's
+  unused visited set. All 1,321 tests and seven release builds passed
+  (`build/phi-guards-refactor.log`). At Cliff's request, the subsequent
+  simplification also removes recursive aggregate traversal from 10b-15:
+  a one-step check conservatively stops at possible indirect clobbers,
+  keeping the teaching cost proportionate to saving one Load. The aggregate
+  example now keeps two Loads in 10b-15; its runtime checks remain unchanged.
+  All 1,321 tests and seven release builds pass with the simpler guard
+  (`build/phi-guards-one-step.log`).
+
+- **Chapter 15 partial allocation memory (review checkpoint).** Implemented the
+  approved two-result New and carried the lazy memory model through parser,
+  scheduling, evaluator, viewer roles, and chapter documentation. Full Make
+  suite passes **227 tests** and the release jar builds, up from baseline **218**: six carried memory
+  regressions plus three allocation regressions. They cover unrelated aliases,
+  mixed integer/float/pointer contents, reads across allocation, and allocation
+  inside loops. A disposable probe also passed **7,000 evaluations across 100
+  optimizer seeds**, including empty structs, arrays, both slot conventions,
+  partial coverage, and complete scheduling of live definitions. Region/Loop
+  golden changes only alter IDs; the nullable-access diagnostic matches 13-14.
+  Logs: `build/memory15-baseline.log`, `build/memory-forward-15.log`, and
+  `build/memory15-seeds.log`; final tests and release: `build/memory15-final.log`.
+
+- **Memory forward port through Chapters 12-14.** Preserved
+  floating-point operations, typed reference initialization, and narrow stores
+  while forwarding the reviewed parser, memory nodes, GCM, Return slots, and
+  evaluator. Each chapter inherits all six memory regressions. Make tests pass
+  **178 / 193 / 213**, up from baselines **172 / 187 / 207**; all three release
+  jars build. Updated printed Region/Loop IDs without changing expression
+  expectations. The invalid `head.next.i` test in 13 and 14 now reports the
+  possibly-null `i` access first; both accesses remain invalid, and the test
+  still requires rejection. Logs: `build/memory-forward-baselines.log` and
+  `build/memory-forward-12-14.log`. The subsequent allocation port is recorded above.
 
 - **Control/memory slot convention (10a, 10b, 11).** Return now takes
   `{ctrl, $mem, result}` and describes its result tuple in that order, with

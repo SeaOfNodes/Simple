@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.Utils;
+import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
 
 import java.util.BitSet;
@@ -37,11 +38,16 @@ public class StoreNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        if( mem() instanceof MemMergeNode merge ) {
+            setDef(1,IterPeeps.add(merge.alias(_alias)));
+            return this;
+        }
+
 
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
-            ptr()==st.ptr() &&  // Must check same object
+            ptr()==st.ptr() && _alias==st._alias &&  // Must check same object
             ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.

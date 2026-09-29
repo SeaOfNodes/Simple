@@ -16,14 +16,14 @@ import java.util.function.Function;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node implements OutNode {
+public abstract class Node implements OutNode, Cloneable {
 
     /**
      * Each node has a unique dense Node ID within a compilation context
      * The ID is useful for debugging, for using as an offset in a bitvector,
      * as well as for computing equality of nodes (to be implemented later).
      */
-    public final int _nid;
+    public int _nid;
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -32,7 +32,7 @@ public abstract class Node implements OutNode {
      * Ordering is required because e.g. "a/b" is different from "b/a".
      * The first input (offset 0) is often a {@link #isCFG} node.
      */
-    public final ArrayList<Node> _inputs;
+    public ArrayList<Node> _inputs;
 
     /**
      * Outputs reference Nodes that are not null and have this Node as an
@@ -43,7 +43,7 @@ public abstract class Node implements OutNode {
      * walked in either direction.  These outputs are typically used for
      * efficient optimizations but otherwise have no semantics meaning.
      */
-    public final ArrayList<Node> _outputs;
+    public ArrayList<Node> _outputs;
 
 
     /**
@@ -208,6 +208,7 @@ public abstract class Node implements OutNode {
     // Error is 'use' does not exist; ok for 'use' to be null.
     protected boolean delUse( Node use ) {
         Utils.del(_outputs, Utils.find(_outputs, use));
+        moveDepsToWorklist(); // User-count and anti-dependence queries can now change.
         return _outputs.isEmpty();
     }
 
@@ -449,6 +450,14 @@ public abstract class Node implements OutNode {
      * being added must benefit from this node being peepholed.
      */
     Node addDep( Node dep ) {
+        return addDep(dep,false);
+    }
+
+    // A bulk Phi inspects its users' partitions. Def-to-use propagation does
+    // not revisit that producer when an immediate user's partition changes.
+    Node addDepForwards(Node dep) { return addDep(dep,true); }
+
+    private Node addDep(Node dep, boolean forwards) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( IterPeeps.midAssert() ) return this;
@@ -456,8 +465,8 @@ public abstract class Node implements OutNode {
         if( obs != null ) obs.dep(this, dep);
         if( _deps==null ) _deps = new ArrayList<>();
         if( Utils.find(_deps  ,dep) != -1 ) return this; // Already on list
-        if( Utils.find(_inputs,dep) != -1 ) return this; // No need for deps on immediate neighbors
-        if( Utils.find(_outputs,dep)!= -1 ) return this;
+        if( !forwards && Utils.find(_inputs,dep) != -1 ) return this;
+        if( !forwards && Utils.find(_outputs,dep)!= -1 ) return this;
         _deps.add(dep);
         return this;
     }
@@ -588,6 +597,20 @@ public abstract class Node implements OutNode {
     // empty outputs and a new Node ID.  The original inputs are ignored.
     // Does not need to be implemented in isCFG() nodes.
     Node copy(Node lhs, Node rhs) { throw Utils.TODO("Binary ops need to implement copy"); }
+
+    // Exact-class copy preserving operation attributes, with fresh identity
+    // and no edges, dependencies, or GVN membership.
+    public final Node copyEmpty() {
+        Node n;
+        try { n = (Node)clone(); }
+        catch( CloneNotSupportedException e ) { throw new AssertionError(e); }
+        n._nid = UNIQUE_ID++;
+        n._inputs = new ArrayList<>();
+        n._outputs = new ArrayList<>();
+        n._deps = null;
+        n._hash = 0;
+        return n;
+    }
 
     // Report any post-optimize errors
     String err() { return null; }

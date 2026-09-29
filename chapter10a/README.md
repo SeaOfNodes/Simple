@@ -98,6 +98,25 @@ A load can also move through a memory Phi when doing so exposes a useful
 load-after-store fold. On a loop, the backedge must fold, preventing this rewrite
 from repeatedly moving the load around the cycle.
 
+The reverse direction can save an operation: a Phi of matching Loads or Stores
+can become one operation after the join. For example, these two writes:
+
+```java
+if (arg) s.x = arg+1;
+else     s.x = arg+2;
+```
+
+can become `s.x = Phi(arg+1,arg+2)`. The general rewrite creates a separate,
+correctly typed Phi for each differing operand, including memory and pointers;
+identical operands need no Phi. An exact-class copy preserves the operation's
+attributes. The proposed result must not widen the original Phi's type.
+
+Every arm must match the operation and field and have no control input. A Store
+must have no other users, so moving it removes the original effect. A Load must
+have no possible conflicting write or memory merge among its memory's users;
+otherwise delaying the read could change its value. The check happens during
+optimization, before any scheduler can supply explicit anti-dependency edges.
+
 The single chain is conservative. A store to `y` can prevent forwarding an
 earlier store to `x`, even when the objects are identical. This is a missed
 optimization, not a correctness problem; it motivates the next chapter.

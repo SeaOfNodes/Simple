@@ -59,7 +59,7 @@ while( b ) b = b + 456;// Truncate
 return b;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop9,123,((Phi_b+456)&255));", stop.toString());
+        assertEquals("return Phi(Loop10,123,((Phi_b+456)&255));", stop.toString());
     }
 
     @Test
@@ -152,7 +152,7 @@ if (arg) j = 1;
 return j;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region28,1,(-((arg&9223372036854775807)+-9223372036854775808)));", stop.toString());
+        assertEquals("return Phi(Region29,1,(-((arg&9223372036854775807)+-9223372036854775808)));", stop.toString());
         assertEquals(-9223372036854775808L, Evaluator.evaluate(stop,  0));
         assertEquals(1L, Evaluator.evaluate(stop,  1));
     }
@@ -209,7 +209,7 @@ else     i = b.i;
 return i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region31,.i,.i);", stop.toString());
+        assertEquals("return Phi(Region34,.i,.i);", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop, 0));
     }
 
@@ -229,7 +229,7 @@ while (1) {
 }
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return ((arg>>Phi(Region32,2,3))+1);", stop.toString());
+        assertEquals("return ((arg>>Phi(Region33,2,3))+1);", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop, 0));
         assertEquals(1L, Evaluator.evaluate(stop, 1));
         assertEquals(2L, Evaluator.evaluate(stop, 7));
@@ -248,7 +248,7 @@ if (arg&5) b = arg == 1;
 return b;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region37,(arg==1),((flt)arg==Phi(Region23,1.0,2.0)));", stop.toString());
+        assertEquals("return Phi(Region35,(arg==1),((flt)arg==Phi(Region24,1.0,2.0)));", stop.toString());
         assertEquals(1L, Evaluator.evaluate(stop, 1));
         assertEquals(0L, Evaluator.evaluate(stop, 2));
         assertEquals(0L, Evaluator.evaluate(stop, 3));
@@ -264,7 +264,7 @@ else       i=2;
 return (arg == i) == 1;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return (arg==Phi(Region18,3,2));", stop.toString());
+        assertEquals("return (arg==Phi(Region19,3,2));", stop.toString());
         assertEquals(0L, Evaluator.evaluate(stop,  0));
         assertEquals(0L, Evaluator.evaluate(stop,  1));
         assertEquals(0L, Evaluator.evaluate(stop,  2));
@@ -283,7 +283,7 @@ while (1) {
 }
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return (Phi(Region43,((arg&3)+9223372036854775804),((arg&7)+9223372036854775800))+-1);", stop.toString());
+        assertEquals("return (Phi(Region44,((arg&3)+9223372036854775804),((arg&7)+9223372036854775800))+-1);", stop.toString());
         assertEquals(0x7FFFFFFFFFFFFFF7L, Evaluator.evaluate(stop,  0));
         assertEquals(0x7FFFFFFFFFFFFFFCL, Evaluator.evaluate(stop,  1));
     }

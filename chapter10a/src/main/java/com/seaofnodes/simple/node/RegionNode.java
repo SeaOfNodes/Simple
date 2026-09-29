@@ -67,7 +67,7 @@ public class RegionNode extends Node {
         if( !hasPhi() &&       // No Phi users, just a control user
             in(1) instanceof ProjNode p1 &&
             in(2) instanceof ProjNode p2 &&
-            p1.in(0)==p2.in(0) &&
+            p1.addDepForwards(this).in(0)==p2.addDepForwards(this).in(0) &&
             p1.in(0) instanceof IfNode iff )
             return iff.ctrl();
 

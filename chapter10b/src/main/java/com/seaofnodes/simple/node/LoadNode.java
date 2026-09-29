@@ -26,6 +26,24 @@ public class LoadNode extends MemOpNode {
         _declaredType = glb;
     }
 
+    @Override boolean canDrop(MemOpNode other, Node dep) {
+        return super.canDrop(other,dep) && _declaredType==((LoadNode)other)._declaredType && !clobbered(dep);
+    }
+
+    // Check only immediate memory users. Stores clobber memory; Phis and
+    // aggregates might lead to a clobber, so stop rather than search further.
+    private boolean clobbered(Node dep) {
+        Node mem = mem();
+        mem.addDepForwards(dep);
+        for( Node use : mem._outputs ) {
+            if( use==null ) continue;
+            use.addDepForwards(dep);
+            if( use instanceof StoreNode || use instanceof PhiNode ||
+                use instanceof MemMergeNode ) return true;
+        }
+        return false;
+    }
+
     @Override
     public String label() { return "Load"; }
 

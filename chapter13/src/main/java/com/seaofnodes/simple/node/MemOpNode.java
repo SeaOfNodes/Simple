@@ -24,6 +24,13 @@ public abstract class MemOpNode extends Node {
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
 
+    // Extra conditions for factoring matching memory operations through a Phi.
+    // The caller has already checked the opcode, input shape and control.
+    boolean canDrop(MemOpNode other, Node dep) {
+        ptr().addDep(dep);
+        return _alias==other._alias && _declaredType==other._declaredType && err()==null;
+    }
+
     @Override
     boolean eq(Node n) {
         MemOpNode mem = (MemOpNode)n; // Invariant

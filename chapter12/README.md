@@ -1,5 +1,10 @@
 # Chapter 12: Floats
 
+Memory keeps Chapter 11's single `$mem` binding and lazy `MemMerge`, `MemPhi`,
+and `BulkMemPhi` partitions. Start produces `{ctrl, $mem, arg}` and Return
+consumes `{ctrl, $mem, result}`; floating-point arithmetic needs no new memory
+representation.
+
 # Table of Contents
 
 1. [Float](#floats)
@@ -55,4 +60,3 @@ Within the Type Lattice, we now add the following domain:
   with a TOP, BOT and constants
 
 ![Graph1](./docs/lattice.svg)
-

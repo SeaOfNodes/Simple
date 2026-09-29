@@ -4,6 +4,7 @@
 
 1. [Parser changes](#parser)
 2. [TypeArray is TypeStruct](#type-array-is-typestruct)
+3. [Allocation and partial memory](#allocation-and-partial-memory)
 4. [New Address Math](#new-address-math)
 5. [Struct Layout](#struct-layout)
 6. [Some Simple Address Math Peeps](#some-simple-address-math-peeps)
@@ -80,6 +81,49 @@ the Parser, users cannot write their own structs which get confused as arrays.
 
 These `TypeStruct` arrays otherwise behave exactly as a `TypeStruct`.
 
+
+## Allocation and partial memory
+
+This chapter keeps Chapter 10b's single hidden `$mem` variable and lazy
+`BulkMemPhi`/`MemPhi` partitioning. Start produces `{ctrl, $mem, arg}` and
+Return consumes `{ctrl, $mem, value}`. Array initialization changes New:
+instead of separate initializing Stores, New allocates and zeros the object.
+
+New consumes `{ctrl, $mem, size}` and produces just `{ptr, $mem}`. The pointer
+is result 0 because New has no control result. Its memory input and result
+cover only the field aliases in New's internal `TypeStruct`, also available
+through its `TypeMemPtr`. Alias numbers are identities, not projection indices.
+
+For an allocation affecting aliases `A`, the parser builds:
+
+```text
+input = MemMerge(default: absent, each a in A: before[a])
+new   = New(ctrl, input, size)
+ptr   = Proj(new, 0)
+after = MemMerge(default: before, each a in A: Proj(new, 1))
+```
+
+All affected entries share the same memory projection. The input MemMerge is
+partial: a null default means an unlisted alias is **not covered**. The output
+aggregate retains the previous memory for unrelated aliases. An empty struct
+has an empty partial input and leaves whole memory unchanged.
+
+Memory types now pair an alias with the type of values stored in that slice.
+An alias query through New combines the incoming contents with the field's
+initializer: integer zero, floating zero, or null. The query follows aggregates
+and allocations, stops at cached Phi types, and records optimizer dependencies.
+MemPhi merges these value types for its one alias. No per-alias New projections
+or new lattice domain are needed.
+
+A Load using New's own pointer can fold to the initialized value. A pointer
+from a distinct New can bypass the allocation to its memory input. Mere node
+inequality is insufficient: a Phi or cast can still denote the allocated object.
+Array length is set by a subsequent Store; the array body is zeroed by New.
+Array accesses retain their existing control input as the bounds-check proxy.
+
+Both schedulers follow an alias through MemMerge to find New's memory effect.
+MemMerge itself does not overwrite memory, but must not hide the ordering of
+a read before allocation and a later write to an existing object.
 
 ## New Address Math
 
@@ -208,4 +252,3 @@ for( int i=0; i < ary#; i++ )
 that would be entirely syntatic-sugar over the existing parser, but would
 really help make array looping syntax clearer.  There are lots of options
 here, which should really be the focus of another chapter!
-

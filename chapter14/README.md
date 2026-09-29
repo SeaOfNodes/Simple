@@ -1,5 +1,9 @@
 # Chapter 14: Narrow types
 
+Memory retains the single `$mem` binding and lazy partitions from Chapter 10b.
+Narrow-field stores perform this chapter's truncation before updating their
+alias in MemMerge. Start and Return keep control in slot 0 and memory in slot 1.
+
 # Table of Contents
 
 1. [Narrow Word Types](#narrow-or-sub-word-types)
@@ -347,4 +351,3 @@ slightly different `idealize()` calls.
 
 [^1]:  Hacker's delight.
     4-2 Propagating Bounds through Add's and Subtract's
-

@@ -128,7 +128,7 @@ public class Parser {
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
         _continueScope = _breakScope = null;
-        START = new StartNode(new Type[]{ Type.CONTROL, arg });
+        START = new StartNode(new Type[]{ Type.CONTROL, TypeMem.BOT, arg });
         STOP = new StopNode(source);
         ZERO = con(0).keep();
         XCTRL= new XCtrlNode().peephole().keep();
@@ -156,9 +156,8 @@ public class Parser {
         // Enter a new scope for the initial control and arguments
         _scope.push();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , new CProjNode(START, 0, ScopeNode.CTRL).peephole());
-        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 1, ScopeNode.ARG0).peephole());
-
-        // Parse whole program
+        _scope.define(ScopeNode.ARG0, TypeInteger.BOT, new  ProjNode(START, 2, ScopeNode.ARG0).peephole());
+        _scope.define("$mem", TypeMem.BOT, new ProjNode(START, 1, "$mem").peephole());
         parseBlock();
 
         if( ctrl()._type==Type.CONTROL )
@@ -250,7 +249,6 @@ public class Parser {
         // Build and install the TypeStruct
         TypeStruct ts = TypeStruct.make(typeName, fields.toArray(new Field[fields.size()]));
         TYPES.put(typeName, TypeMemPtr.make(ts));
-        START.addMemProj(ts, _scope); // Insert memory edges
         return parseStatement();
     }
 
@@ -536,7 +534,6 @@ public class Parser {
         TypeStruct ts = TypeStruct.makeAry(TypeInteger.BOT,ALIAS++,t,ALIAS++);
         TypeMemPtr tary = TypeMemPtr.make(ts);
         TYPES.put(tname,tary);
-        START.addMemProj(ts, _scope); // Insert memory alias edges
         return tary;
     }
 
@@ -727,16 +724,22 @@ public class Parser {
      * Return a NewNode with pre-zeroed memory
      */
     private Node newStruct(TypeStruct obj, Node size) {
-        Field[] fs = obj._fields;
-        Node[] ns = new Node[2+fs.length];
-        ns[0] = ctrl();
-        ns[1] = size;
-        for( int i = 0; i < fs.length; i++ )
-            ns[i+2] = memAlias(fs[i]._alias);
-        Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole();
-        for( int i = 0; i < fs.length; i++ )
-            memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
-        return new ProjNode(nnn,1,obj._name).peephole();
+        Node prior = mem().keep();
+        // No default: only the aliases initialized by this allocation.
+        MemMergeNode input = new MemMergeNode(null);
+        for( Field f : obj._fields )
+            input.alias(f._alias,prior);
+        Node nnn = new NewNode(TypeMemPtr.make(obj),ctrl(),input.peephole(),size).peephole().keep();
+        Node ptr = new ProjNode(nnn,0,obj._name).peephole().keep();
+        Node out = new ProjNode(nnn,1,"$mem").peephole().keep();
+        MemMergeNode after = new MemMergeNode(prior);
+        for( Field f : obj._fields )
+            after.alias(f._alias,out);
+        mem(after.peephole());
+        out.unkeep();
+        nnn.unkeep();
+        prior.unkeep();
+        return ptr.unkeep();
     }
 
     private Node newArray(TypeStruct ary, Node len) {
@@ -745,17 +748,22 @@ public class Parser {
         Node size = new AddNode(con(base),new ShlNode(len,con(scale)).peephole()).peephole();
         Node ptr = newStruct(ary,size);
         int alias = ary._fields[0]._alias; // Length alias
-        memAlias(alias,new StoreNode("#",alias,TypeInteger.BOT,memAlias(alias),ptr,con( ary.offset(0) ), len.unkeep(), true ).peephole());
+        store("#",alias,TypeInteger.BOT,ptr,con(ary.offset(0)),len.unkeep(),true,null);
         return ptr;
     }
 
-    // We set up memory aliases by inserting special vars in the scope these
-    // variables are prefixed by $ so they cannot be referenced in Simple code.
-    // Using vars has the benefit that all the existing machinery of scoping
-    // and phis work as expected
-    private Node memAlias(int alias         ) { return _scope.lookup(memName(alias)    ); }
-    private Node memAlias(int alias, Node st) { return _scope.update(memName(alias), st); }
-    public static String memName(int alias) { return ("$"+alias).intern(); }
+    // Memory is one hidden SSA variable, including across branches and loops.
+    private Node mem() { return _scope.lookup("$mem"); }
+    private Node mem(Node n) { return _scope.update("$mem",n); }
+
+    private void store(String name, int alias, Type glb, Node ptr, Node off, Node val, boolean init, Node ctrl) {
+        Node prior = mem().keep();
+        Node st = new StoreNode(name,alias,glb,prior,ptr,off,val,init);
+        st.setDef(0,ctrl);
+        st = st.peephole();
+        mem(new MemMergeNode(prior,alias,st).peephole());
+        prior.unkeep();
+    }
 
     /**
      * Parse postfix expression. For now this is just a field
@@ -808,17 +816,13 @@ public class Parser {
                 Node val = parseExpression();
                 // Auto-truncate when storing to narrow fields
                 val = zsMask(val,f._type).keep();
-                Node st = new StoreNode(name, f._alias, f._type, memAlias(f._alias), expr.unkeep(), off.unkeep(), val, false);
-                // Arrays include control, as a proxy for a safety range check.
-                // Structs don't need this; they only need a NPE check which is
-                // done via the type system.
-                if( base.isAry() )  st.setDef(0,ctrl());
-                memAlias(f._alias, st.peephole());
+                // Array control stands in for the future bounds check.
+                store(name,f._alias,f._type,expr.unkeep(),off.unkeep(),val,false,base.isAry() ? ctrl() : null);
                 return val.unkeep(); // "obj.a = expr" returns the expression while updating memory
             }
         }
 
-        Node load = new LoadNode(name, f._alias, f._type.glb(), memAlias(f._alias), expr.unkeep(), off);
+        Node load = new LoadNode(name, f._alias, f._type.glb(), mem(), expr.unkeep(), off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
