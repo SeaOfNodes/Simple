@@ -134,6 +134,21 @@ return a;
     }
 
     @Test
+    public void testMergeSameCon() {
+        CodeGen code = new CodeGen(
+"""
+int a=arg;
+if( arg==1 )
+    a=3;
+else
+    a=3;
+return a;
+""");
+        code.parse().opto();
+        assertEquals("return 3;", code.print());
+    }
+
+    @Test
     public void testTrue() {
       CodeGen code = new CodeGen("return true;").parse();
       assertEquals("return 1;",code.print());
