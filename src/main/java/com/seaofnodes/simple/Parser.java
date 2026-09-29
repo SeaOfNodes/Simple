@@ -33,6 +33,10 @@ public class Parser {
 
     public StopNode STOP;
 
+    // Field identities are independent of the memory graph and Start's tuple.
+    private final HashMap<String,Integer> _aliases = new HashMap<>();
+    private int _alias = 2;
+
     // The Lexer.  Thin wrapper over a byte[] buffer with a cursor.
     private final Lexer _lexer;
 
@@ -200,6 +204,8 @@ public class Parser {
         require("}");
         // Build and install the TypeStruct
         TypeStruct ts = TypeStruct.make(typeName, fields);
+        _aliases.put(typeName,_alias);
+        _alias += ts._fields.length;
         OBJS.put(typeName, ts); // Insert the struct name in the collection of all struct names
         return parseStatement();
     }
@@ -589,8 +595,10 @@ public class Parser {
     private Node newStruct( TypeStruct obj ) {
         Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
         Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
+        int alias = _aliases.get(obj._name);
         for( Field field : obj._fields ) {
-            mem(new StoreNode(field._fname, mem(), n, initValue).peephole());
+            store(field._fname,alias,n,initValue);
+            alias++;
         }
         return n.unkeep();
     }
@@ -598,6 +606,13 @@ public class Parser {
     // Memory is one hidden SSA variable, including across branches and loops.
     private Node mem() { return _scope.lookup("$mem"); }
     private Node mem(Node n) { return _scope.update("$mem",n); }
+
+    private void store(String name, int alias, Node ptr, Node val) {
+        Node prior = mem().keep();
+        Node st = new StoreNode(name,alias,prior,ptr,val).peephole();
+        mem(new MemMergeNode(prior,alias,st).peephole());
+        prior.unkeep();
+    }
 
     /**
      * Parse postfix expression. For now this is just a field
@@ -616,19 +631,20 @@ public class Parser {
         String name = requireId().intern();
         int idx = ptr._obj==null ? -1 : ptr._obj.find(name);
         if( idx == -1 ) throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
+        int alias = _aliases.get(ptr._obj._name)+idx;
 
         if( match("=") ) {
             // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
             if( peek('=') ) _lexer._position--;
             else {
                 Node val = parseExpression();
-                mem(new StoreNode(name, mem(), expr, val).peephole());
+                store(name,alias,expr,val);
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
         }
 
         Type declaredType = ptr._obj._fields[idx]._type;
-        return parsePostfix(new LoadNode(name, declaredType, mem(), expr).peephole());
+        return parsePostfix(new LoadNode(name, alias, declaredType, mem(), expr).peephole());
     }
 
     /**
