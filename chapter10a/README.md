@@ -30,8 +30,8 @@ different fields are independent. Chapter 10b will remove it.
 
 ![One chain orders stores and loads](docs/example1.svg)
 
-These diagrams are schematic dependency graphs: arrows run from definitions to
-uses. Pointer and value inputs are omitted where they do not explain ordering.
+These diagrams are schematic dependency graphs: arrows run from uses to their
+definitions. Pointer and value inputs are omitted where they do not explain ordering.
 
 | Node | Inputs | Result |
 |---|---|---|

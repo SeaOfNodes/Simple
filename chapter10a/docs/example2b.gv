@@ -3,6 +3,6 @@ digraph Memory {
   node [shape=box];
   P [label="Phi(memory)"];
   S [label="Loop-body Store"];
-  Entry -> P [color=blue]; P -> S -> P [color=blue];
-  Loop -> P [style=dashed]; P -> Return [color=blue];
+  P -> Entry [color=blue]; P -> S -> P [color=blue];
+  P -> Loop [style=dashed]; Return -> P [color=blue];
 }

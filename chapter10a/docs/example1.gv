@@ -5,6 +5,6 @@ digraph Memory {
   X [label="Store p.x = 3"];
   Y [label="Store p.y = arg"];
   L [label="Load p.x"];
-  M0 -> X -> Y -> L [color=blue];
-  Y -> Return [color=blue]; L -> Return;
+  L -> Y -> X -> M0 [color=blue];
+  Return -> Y [color=blue]; Return -> L;
 }

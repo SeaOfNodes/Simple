@@ -12,62 +12,62 @@
 <!-- M0 -->
 <g id="node1" class="node">
 <title>M0</title>
-<polygon fill="none" stroke="black" points="98.5,-36 0,-36 0,0 98.5,0 98.5,-36"/>
-<text text-anchor="middle" x="49.25" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Initial memory</text>
+<polygon fill="none" stroke="black" points="547.75,-59 449.25,-59 449.25,-23 547.75,-23 547.75,-59"/>
+<text text-anchor="middle" x="498.5" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Initial memory</text>
 </g>
 <!-- X -->
 <g id="node2" class="node">
 <title>X</title>
-<polygon fill="none" stroke="black" points="222.5,-36 134.5,-36 134.5,0 222.5,0 222.5,-36"/>
-<text text-anchor="middle" x="178.5" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Store p.x = 3</text>
+<polygon fill="none" stroke="black" points="413.25,-59 325.25,-59 325.25,-23 413.25,-23 413.25,-59"/>
+<text text-anchor="middle" x="369.25" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Store p.x = 3</text>
 </g>
-<!-- M0&#45;&gt;X -->
-<g id="edge1" class="edge">
-<title>M0&#45;&gt;X</title>
-<path fill="none" stroke="blue" d="M98.72,-18C106.55,-18 114.71,-18 122.68,-18"/>
-<polygon fill="blue" stroke="blue" points="122.65,-21.5 132.65,-18 122.65,-14.5 122.65,-21.5"/>
+<!-- X&#45;&gt;M0 -->
+<g id="edge3" class="edge">
+<title>X&#45;&gt;M0</title>
+<path fill="none" stroke="blue" d="M413.69,-41C421.42,-41 429.59,-41 437.69,-41"/>
+<polygon fill="blue" stroke="blue" points="437.51,-44.5 447.51,-41 437.51,-37.5 437.51,-44.5"/>
 </g>
 <!-- Y -->
 <g id="node3" class="node">
 <title>Y</title>
-<polygon fill="none" stroke="black" points="357,-36 258.5,-36 258.5,0 357,0 357,-36"/>
-<text text-anchor="middle" x="307.75" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Store p.y = arg</text>
+<polygon fill="none" stroke="black" points="289.25,-59 190.75,-59 190.75,-23 289.25,-23 289.25,-59"/>
+<text text-anchor="middle" x="240" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Store p.y = arg</text>
 </g>
-<!-- X&#45;&gt;Y -->
+<!-- Y&#45;&gt;X -->
 <g id="edge2" class="edge">
-<title>X&#45;&gt;Y</title>
-<path fill="none" stroke="blue" d="M222.94,-18C230.67,-18 238.84,-18 246.94,-18"/>
-<polygon fill="blue" stroke="blue" points="246.76,-21.5 256.76,-18 246.76,-14.5 246.76,-21.5"/>
+<title>Y&#45;&gt;X</title>
+<path fill="none" stroke="blue" d="M289.47,-41C297.3,-41 305.46,-41 313.43,-41"/>
+<polygon fill="blue" stroke="blue" points="313.4,-44.5 323.4,-41 313.4,-37.5 313.4,-44.5"/>
 </g>
 <!-- L -->
 <g id="node4" class="node">
 <title>L</title>
-<polygon fill="none" stroke="black" points="457.75,-59 393,-59 393,-23 457.75,-23 457.75,-59"/>
-<text text-anchor="middle" x="425.38" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Load p.x</text>
+<polygon fill="none" stroke="black" points="154.75,-36 90,-36 90,0 154.75,0 154.75,-36"/>
+<text text-anchor="middle" x="122.38" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Load p.x</text>
 </g>
-<!-- Y&#45;&gt;L -->
-<g id="edge3" class="edge">
-<title>Y&#45;&gt;L</title>
-<path fill="none" stroke="blue" d="M357.45,-27.69C365.41,-29.27 373.61,-30.9 381.42,-32.46"/>
-<polygon fill="blue" stroke="blue" points="380.54,-35.85 391.03,-34.37 381.9,-28.98 380.54,-35.85"/>
+<!-- L&#45;&gt;Y -->
+<g id="edge1" class="edge">
+<title>L&#45;&gt;Y</title>
+<path fill="none" stroke="blue" d="M154.97,-24.28C162.59,-25.8 170.99,-27.47 179.44,-29.15"/>
+<polygon fill="blue" stroke="blue" points="178.53,-32.54 189.02,-31.06 179.9,-25.68 178.53,-32.54"/>
 </g>
 <!-- Return -->
 <g id="node5" class="node">
 <title>Return</title>
-<polygon fill="none" stroke="black" points="547.75,-36 493.75,-36 493.75,0 547.75,0 547.75,-36"/>
-<text text-anchor="middle" x="520.75" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Return</text>
+<polygon fill="none" stroke="black" points="54,-59 0,-59 0,-23 54,-23 54,-59"/>
+<text text-anchor="middle" x="27" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Return</text>
 </g>
-<!-- Y&#45;&gt;Return -->
+<!-- Return&#45;&gt;Y -->
 <g id="edge4" class="edge">
-<title>Y&#45;&gt;Return</title>
-<path fill="none" stroke="blue" d="M357.3,-15.3C368.98,-14.76 381.44,-14.27 393,-14 421.77,-13.32 428.99,-13.07 457.75,-14 465.65,-14.25 474.1,-14.69 482.14,-15.18"/>
-<polygon fill="blue" stroke="blue" points="481.8,-18.67 492.01,-15.83 482.26,-11.68 481.8,-18.67"/>
+<title>Return&#45;&gt;Y</title>
+<path fill="none" stroke="blue" d="M54.23,-43.07C65.26,-43.84 78.25,-44.62 90,-45 118.76,-45.93 125.98,-45.68 154.75,-45 162.61,-44.81 170.88,-44.53 179.04,-44.2"/>
+<polygon fill="blue" stroke="blue" points="179.1,-47.7 188.94,-43.76 178.8,-40.7 179.1,-47.7"/>
 </g>
-<!-- L&#45;&gt;Return -->
+<!-- Return&#45;&gt;L -->
 <g id="edge5" class="edge">
-<title>L&#45;&gt;Return</title>
-<path fill="none" stroke="black" d="M458.25,-33.15C466,-31.24 474.37,-29.18 482.36,-27.21"/>
-<polygon fill="black" stroke="black" points="482.95,-30.67 491.82,-24.88 481.28,-23.87 482.95,-30.67"/>
+<title>Return&#45;&gt;L</title>
+<path fill="none" stroke="black" d="M54.01,-34.59C61.58,-32.73 70.06,-30.64 78.37,-28.59"/>
+<polygon fill="black" stroke="black" points="79.18,-32 88.05,-26.21 77.51,-25.2 79.18,-32"/>
 </g>
 </g>
 </svg>

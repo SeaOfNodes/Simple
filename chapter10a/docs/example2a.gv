@@ -5,6 +5,6 @@ digraph Memory {
   A [label="True: Store x"];
   B [label="False: Store y"];
   P [label="Phi(memory)"];
-  M -> A -> P [color=blue]; M -> B -> P [color=blue];
-  Region -> P [style=dashed]; P -> Return [color=blue];
+  P -> A -> M [color=blue]; P -> B -> M [color=blue];
+  P -> Region [style=dashed]; Return -> P [color=blue];
 }

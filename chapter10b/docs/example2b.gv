@@ -3,8 +3,8 @@ digraph Memory {
   node [shape=box];
   P [label="MemPhi(x)"];
   B [label="BulkMemPhi(All except x)"];
-  Left -> P [label="slice x",color=blue]; Right -> P [label="slice x",color=blue];
-  Left -> B; Right -> B;
-  Region -> P [style=dashed]; Region -> B [style=dashed];
-  P -> MemMerge [label="x",color=blue]; B -> MemMerge [label="default"];
+  P -> Left [label="slice x",color=blue]; P -> Right [label="slice x",color=blue];
+  B -> Left; B -> Right;
+  P -> Region [style=dashed]; B -> Region [style=dashed];
+  MemMerge -> P [label="x",color=blue]; MemMerge -> B [label="default"];
 }

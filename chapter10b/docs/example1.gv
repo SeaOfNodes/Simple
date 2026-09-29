@@ -5,7 +5,7 @@ digraph Memory {
   X [label="Store x = 42"];
   Y [label="Loop: Store y"];
   L [label="Load x -> 42"];
-  M -> X -> L [color=blue]; M -> Y [color=green];
-  X -> MemMerge [color=blue]; Y -> MemMerge [color=green];
-  MemMerge -> Return; L -> Return;
+  L -> X -> M [color=blue]; Y -> M [color=green];
+  MemMerge -> X [color=blue]; MemMerge -> Y [color=green];
+  Return -> MemMerge; Return -> L;
 }

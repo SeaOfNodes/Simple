@@ -4,6 +4,6 @@ digraph Memory {
   M [label="Prior memory"];
   L [label="Load p.x"];
   S [label="Store p.x"];
-  M -> L [color=blue]; M -> S [color=blue];
-  L -> S [style=dashed,label="execute load first"];
+  L -> M [color=blue]; S -> M [color=blue];
+  S -> L [style=dashed,label="execute load first"];
 }

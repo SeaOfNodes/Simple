@@ -27,7 +27,7 @@ load-after-store forwarding turn the return value into 42.
 
 ![Independent field dependencies](docs/example1.svg)
 
-These are schematic dependency graphs, with arrows from definitions to uses.
+These are schematic dependency graphs, with arrows from uses to their definitions.
 Control, pointer, and value edges are omitted when they do not explain memory.
 
 ## Equivalence-class aliasing
