@@ -27,17 +27,12 @@ load-after-store forwarding turn the return value into 42.
 
 ![Independent field dependencies](docs/example1.svg)
 
-These are schematic dependency graphs, with arrows from uses to their definitions.
-In horizontal diagrams, definitions appear on the left and uses on the right;
-in vertical diagrams, definitions appear above uses.
-Control, pointer, and value edges are omitted when they do not explain memory.
-
 ## Equivalence-class aliasing
 
-Each struct field has an integer alias identity. Two different fields receive
+Each struct field has an integer alias identity.  Two different fields receive
 different identities, even if they have the same spelling in different structs.
-Two instances of the same struct share their field aliases. Thus different
-classes never alias; accesses in the same class **may alias**. Same-class does
+Two instances of the same struct share their field aliases.  Thus different
+classes never alias; accesses in the same class **may alias**.  Same-class does
 not mean same-address: forwarding still checks pointer identity.
 
 The parser assigns field identities at struct declarations, beginning at 2.

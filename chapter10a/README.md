@@ -52,12 +52,29 @@ same `ScopeNode` lookup and update operations as a local variable.
 For an `if`, the two branches can finish with different memory values. An
 ordinary Phi selects the memory from the branch that executed:
 
+```java
+struct Point { int x; int y; }
+Point p = new Point;
+if( arg ) p.x = 3; else p.x = 4;
+return p.x;
+```
+
 ![Whole memory across a branch](docs/example2a.svg)
 
 Loops reuse Chapter 8's lazy Phi construction. Reading or updating `$mem` in a
 loop creates an initially incomplete memory Phi. Closing the loop supplies its
 backedge. `break`, `continue`, nested loops, and early returns use the same scope
 mechanics as scalar variables.
+
+```java
+struct Point { int x; int y; }
+Point p = new Point;
+while( arg ) {
+    p.x = arg;
+    arg = arg-1;
+};
+return p.x;
+```
 
 ![Whole memory around a loop](docs/example2b.svg)
 
@@ -97,10 +114,11 @@ The implementation's `$TOP` and `$BOT` names need not appear in the diagram:
 | `⊤:struct` | struct top | `TypeStruct.TOP` | `$TOP` |
 | `⊥:struct` | struct bottom | `TypeStruct.BOT` | `$BOT` |
 
-Edges in this diagram show lattice order, with top above bottom. They are not
-the use-to-definition edges of the program graphs elsewhere in the chapter.
-Boxes containing an ellipsis abbreviate further parallel alternatives; they
-are not extra union types. Field and tuple-element type lattices are elided.
+Edges in this diagram show lattice order, with top above bottom.  Boxes
+containing an ellipsis abbreviate further parallel alternatives; they are not
+extra union types. Field and tuple-element type lattices are elided in the
+diagram.  Field types can be any scalar type (Integer or Pointer), Tuple types
+can be *any* lattice type, including Control and Memory.
 
 Within the type lattice, we now have the following domains:
 
@@ -169,7 +187,7 @@ We use the following operations on the lattice:
   * The join of `1` and `2` is integer top.
 
 As we construct the Sea of Nodes graph, we ensure that values stay inside the
-domain they are created in - that is ptr fields will never contain ints
+domain they are created in - that is pointer fields will never contain integers
 (obviously)... nor even the generic `TOP` and `BOT`.  There are a couple of
 nuances worth highlighting.
 
