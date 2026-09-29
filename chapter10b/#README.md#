@@ -27,17 +27,14 @@ load-after-store forwarding turn the return value into 42.
 
 ![Independent field dependencies](docs/example1.svg)
 
-These are schematic dependency graphs, with arrows from uses to their definitions.
-In horizontal diagrams, definitions appear on the left and uses on the right;
-in vertical diagrams, definitions appear above uses.
 Control, pointer, and value edges are omitted when they do not explain memory.
 
 ## Equivalence-class aliasing
 
-Each struct field has an integer alias identity. Two different fields receive
+Each struct field has an integer alias identity.  Two different fields receive
 different identities, even if they have the same spelling in different structs.
-Two instances of the same struct share their field aliases. Thus different
-classes never alias; accesses in the same class **may alias**. Same-class does
+Two instances of the same struct share their field aliases.  Thus different
+classes never alias; accesses in the same class **may alias**.  Same-class does
 not mean same-address: forwarding still checks pointer identity.
 
 The parser assigns field identities at struct declarations, beginning at 2.
@@ -106,25 +103,12 @@ that would lose the explicit updates.
 
 ## Types and the worklist
 
-The type lattice retains Chapter 10a's six domains, colors, and notation:
-`⊤` means top, `⊥` means bottom, and a suffix names the domain. The other five
-domains are unchanged; memory now adds a flat element `MEM#N` for each precise
-alias between memory top (`TypeMem.TOP`) and memory bottom (`TypeMem.BOT`).
+The memory type lattice adds a flat element `MEM#N` for each precise alias.
+Meeting different aliases gives `TypeMem.BOT`. It does not track field values,
+private objects, or escape information. Bulk exclusion sets belong to the
+graph nodes, not to an expanded type lattice.
 
 ![The type domains, including precise memory aliases](docs/lattice.svg)
-
-The parallel `MEM#2`, `MEM#3`, and further alias elements describe independent
-field slices. For the first `Point` declaration above, these two aliases identify
-`Point.x` and `Point.y`. Meeting different aliases gives memory bottom; joining
-them gives memory top. Each precise alias is its own dual. The ellipsis stands
-for more parallel aliases, not a type representing a set of aliases.
-
-Memory bottom covers all memory. The default aggregate slot numbered 1 is a
-graph input position, not a precise field alias in this diagram. Types do not
-track field values, private objects, or escape information. Bulk exclusion sets
-and the default-plus-overrides structure of MemMerge belong to graph nodes,
-not to an expanded type lattice. As in Chapter 10a, diagram edges show lattice
-order, with top above bottom; field and tuple-element type lattices are elided.
 
 Scalar Phis remain ordinary PhiNodes. The scope's Phi factory chooses a
 BulkMemPhi for whole memory; splitting constructs MemPhis explicitly. Generic

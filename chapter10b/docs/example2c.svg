@@ -12,45 +12,45 @@
 <!-- M -->
 <g id="node1" class="node">
 <title>M</title>
-<polygon fill="none" stroke="black" points="474.25,-59 370.5,-59 370.5,-23 474.25,-23 474.25,-59"/>
-<text text-anchor="middle" x="422.38" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Prior x memory</text>
+<polygon fill="none" stroke="black" points="103.75,-59 0,-59 0,-23 103.75,-23 103.75,-59"/>
+<text text-anchor="middle" x="51.88" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Prior x memory</text>
 </g>
 <!-- L -->
 <g id="node2" class="node">
 <title>L</title>
-<polygon fill="none" stroke="black" points="333.5,-36 268.75,-36 268.75,0 333.5,0 333.5,-36"/>
-<text text-anchor="middle" x="301.12" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Load p.x</text>
+<polygon fill="none" stroke="black" points="205.5,-36 140.75,-36 140.75,0 205.5,0 205.5,-36"/>
+<text text-anchor="middle" x="173.12" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Load p.x</text>
 </g>
 <!-- L&#45;&gt;M -->
 <g id="edge1" class="edge">
 <title>L&#45;&gt;M</title>
-<path fill="none" stroke="blue" d="M333.77,-24.1C341.63,-25.62 350.33,-27.3 359.1,-28.99"/>
-<polygon fill="blue" stroke="blue" points="358.23,-32.39 368.71,-30.84 359.56,-25.51 358.23,-32.39"/>
+<path fill="none" stroke="blue" d="M140.48,-24.1C132.62,-25.62 123.92,-27.3 115.15,-28.99"/>
+<polygon fill="blue" stroke="blue" points="114.69,-25.51 105.54,-30.84 116.02,-32.39 114.69,-25.51"/>
 </g>
 <!-- S -->
 <g id="node3" class="node">
 <title>S</title>
-<polygon fill="none" stroke="black" points="102.25,-59 36.75,-59 36.75,-23 102.25,-23 102.25,-59"/>
-<text text-anchor="middle" x="69.5" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Store p.x</text>
+<polygon fill="none" stroke="black" points="437.5,-59 372,-59 372,-23 437.5,-23 437.5,-59"/>
+<text text-anchor="middle" x="404.75" y="-35.95" font-family="Times New Roman,serif" font-size="14.00">Store p.x</text>
 </g>
 <!-- S&#45;&gt;M -->
 <g id="edge2" class="edge">
 <title>S&#45;&gt;M</title>
-<path fill="none" stroke="blue" d="M102.48,-45.13C118.77,-47.03 138.91,-49.06 157,-50 226.01,-53.58 305.22,-49.84 358.81,-46.15"/>
-<polygon fill="blue" stroke="blue" points="358.94,-49.65 368.67,-45.45 358.44,-42.67 358.94,-49.65"/>
+<path fill="none" stroke="blue" d="M371.77,-45.13C355.48,-47.03 335.34,-49.06 317.25,-50 248.24,-53.58 169.03,-49.84 115.44,-46.15"/>
+<polygon fill="blue" stroke="blue" points="115.81,-42.67 105.58,-45.45 115.31,-49.65 115.81,-42.67"/>
 </g>
 <!-- S&#45;&gt;L -->
 <g id="edge3" class="edge">
 <title>S&#45;&gt;L</title>
-<path fill="none" stroke="black" stroke-dasharray="5,2" d="M102.43,-37.8C142.7,-33.77 212.1,-26.82 257.04,-22.32"/>
-<polygon fill="black" stroke="black" points="257.36,-25.8 266.96,-21.32 256.66,-18.84 257.36,-25.8"/>
-<text text-anchor="middle" x="203.88" y="-35.44" font-family="Times New Roman,serif" font-size="14.00">execute load first</text>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M371.82,-37.8C331.55,-33.77 262.15,-26.82 217.21,-22.32"/>
+<polygon fill="black" stroke="black" points="217.59,-18.84 207.29,-21.32 216.89,-25.8 217.59,-18.84"/>
+<text text-anchor="middle" x="270.38" y="-35.44" font-family="Times New Roman,serif" font-size="14.00">execute load first</text>
 </g>
 <!-- Y -->
 <g id="node4" class="node">
 <title>Y</title>
-<polygon fill="none" stroke="black" points="139,-113 0,-113 0,-77 139,-77 139,-113"/>
-<text text-anchor="middle" x="69.5" y="-89.95" font-family="Times New Roman,serif" font-size="14.00">Store p.y: independent</text>
+<polygon fill="none" stroke="black" points="474.25,-113 335.25,-113 335.25,-77 474.25,-77 474.25,-113"/>
+<text text-anchor="middle" x="404.75" y="-89.95" font-family="Times New Roman,serif" font-size="14.00">Store p.y: independent</text>
 </g>
 </g>
 </svg>

@@ -1,5 +1,5 @@
 digraph Memory {
-  rankdir=LR;
+  rankdir=RL;
   node [shape=box];
   M0 [label="Initial memory"];
   X [label="Store p.x = 3"];

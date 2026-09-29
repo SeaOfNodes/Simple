@@ -1,8 +1,11 @@
 digraph Memory {
-  rankdir=LR;
+  rankdir=RL;
   node [shape=box];
   P [label="Phi(memory)"];
   S [label="Loop-body Store"];
-  P -> Entry [color=blue]; P -> S -> P [color=blue];
+  P -> Entry [color=blue];
+  P -> S [color=blue,constraint=false]; // Backedge must not place Store before Phi.
+  S -> P [color=blue];
   P -> Loop [style=dashed]; Return -> P [color=blue];
+  Return -> S [style=invis]; // Layout only: Phi, Store, Return from left to right.
 }

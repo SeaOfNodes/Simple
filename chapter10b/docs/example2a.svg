@@ -12,71 +12,71 @@
 <!-- M -->
 <g id="node1" class="node">
 <title>M</title>
-<polygon fill="none" stroke="black" points="414.5,-90 307.75,-90 307.75,-54 414.5,-54 414.5,-90"/>
-<text text-anchor="middle" x="361.12" y="-66.95" font-family="Times New Roman,serif" font-size="14.00">Default memory</text>
+<polygon fill="none" stroke="black" points="106.75,-90 0,-90 0,-54 106.75,-54 106.75,-90"/>
+<text text-anchor="middle" x="53.38" y="-66.95" font-family="Times New Roman,serif" font-size="14.00">Default memory</text>
 </g>
 <!-- X -->
 <g id="node2" class="node">
 <title>X</title>
-<polygon fill="none" stroke="black" points="270.75,-90 215.75,-90 215.75,-54 270.75,-54 270.75,-90"/>
-<text text-anchor="middle" x="243.25" y="-66.95" font-family="Times New Roman,serif" font-size="14.00">Store x</text>
+<polygon fill="none" stroke="black" points="198.75,-90 143.75,-90 143.75,-54 198.75,-54 198.75,-90"/>
+<text text-anchor="middle" x="171.25" y="-66.95" font-family="Times New Roman,serif" font-size="14.00">Store x</text>
 </g>
 <!-- X&#45;&gt;M -->
 <g id="edge1" class="edge">
 <title>X&#45;&gt;M</title>
-<path fill="none" stroke="blue" d="M271.13,-72C278.66,-72 287.18,-72 295.9,-72"/>
-<polygon fill="blue" stroke="blue" points="295.89,-75.5 305.89,-72 295.89,-68.5 295.89,-75.5"/>
+<path fill="none" stroke="blue" d="M143.37,-72C135.84,-72 127.32,-72 118.6,-72"/>
+<polygon fill="blue" stroke="blue" points="118.61,-68.5 108.61,-72 118.61,-75.5 118.61,-68.5"/>
 </g>
 <!-- Y -->
 <g id="node3" class="node">
 <title>Y</title>
-<polygon fill="none" stroke="black" points="270.75,-36 215.75,-36 215.75,0 270.75,0 270.75,-36"/>
-<text text-anchor="middle" x="243.25" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Store y</text>
+<polygon fill="none" stroke="black" points="198.75,-36 143.75,-36 143.75,0 198.75,0 198.75,-36"/>
+<text text-anchor="middle" x="171.25" y="-12.95" font-family="Times New Roman,serif" font-size="14.00">Store y</text>
 </g>
 <!-- Y&#45;&gt;M -->
 <g id="edge2" class="edge">
 <title>Y&#45;&gt;M</title>
-<path fill="none" stroke="green" d="M271.13,-30.52C282.85,-35.99 296.97,-42.57 310.49,-48.87"/>
-<polygon fill="green" stroke="green" points="308.74,-51.91 319.28,-52.97 311.69,-45.57 308.74,-51.91"/>
+<path fill="none" stroke="green" d="M143.37,-30.52C131.65,-35.99 117.53,-42.57 104.01,-48.87"/>
+<polygon fill="green" stroke="green" points="102.81,-45.57 95.22,-52.97 105.76,-51.91 102.81,-45.57"/>
 </g>
 <!-- MemMerge -->
 <g id="node4" class="node">
 <title>MemMerge</title>
-<polygon fill="none" stroke="black" points="173,-90 91,-90 91,-54 173,-54 173,-90"/>
-<text text-anchor="middle" x="132" y="-66.95" font-family="Times New Roman,serif" font-size="14.00">MemMerge</text>
+<polygon fill="none" stroke="black" points="323.5,-90 241.5,-90 241.5,-54 323.5,-54 323.5,-90"/>
+<text text-anchor="middle" x="282.5" y="-66.95" font-family="Times New Roman,serif" font-size="14.00">MemMerge</text>
 </g>
 <!-- MemMerge&#45;&gt;M -->
 <g id="edge3" class="edge">
 <title>MemMerge&#45;&gt;M</title>
-<path fill="none" stroke="black" d="M173.11,-88.58C186.42,-93.14 201.5,-97.3 215.75,-99 240.02,-101.9 246.57,-102.57 270.75,-99 279.43,-97.72 288.44,-95.77 297.24,-93.5"/>
-<polygon fill="black" stroke="black" points="298.08,-96.9 306.79,-90.87 296.22,-90.15 298.08,-96.9"/>
-<text text-anchor="middle" x="243.25" y="-104.63" font-family="Times New Roman,serif" font-size="14.00">default</text>
+<path fill="none" stroke="black" d="M241.39,-88.58C228.08,-93.14 213,-97.3 198.75,-99 174.48,-101.9 167.93,-102.57 143.75,-99 135.07,-97.72 126.06,-95.77 117.26,-93.5"/>
+<polygon fill="black" stroke="black" points="118.28,-90.15 107.71,-90.87 116.42,-96.9 118.28,-90.15"/>
+<text text-anchor="middle" x="171.25" y="-104.63" font-family="Times New Roman,serif" font-size="14.00">default</text>
 </g>
 <!-- MemMerge&#45;&gt;X -->
 <g id="edge4" class="edge">
 <title>MemMerge&#45;&gt;X</title>
-<path fill="none" stroke="blue" d="M173.37,-72C183.42,-72 194.16,-72 204.1,-72"/>
-<polygon fill="blue" stroke="blue" points="203.79,-75.5 213.79,-72 203.79,-68.5 203.79,-75.5"/>
-<text text-anchor="middle" x="194.38" y="-75.2" font-family="Times New Roman,serif" font-size="14.00">x</text>
+<path fill="none" stroke="blue" d="M241.13,-72C231.08,-72 220.34,-72 210.4,-72"/>
+<polygon fill="blue" stroke="blue" points="210.71,-68.5 200.71,-72 210.71,-75.5 210.71,-68.5"/>
+<text text-anchor="middle" x="220.12" y="-75.2" font-family="Times New Roman,serif" font-size="14.00">x</text>
 </g>
 <!-- MemMerge&#45;&gt;Y -->
 <g id="edge5" class="edge">
 <title>MemMerge&#45;&gt;Y</title>
-<path fill="none" stroke="green" d="M170.29,-53.57C181.65,-47.95 194.12,-41.79 205.45,-36.19"/>
-<polygon fill="green" stroke="green" points="206.69,-39.48 214.11,-31.91 203.59,-33.2 206.69,-39.48"/>
-<text text-anchor="middle" x="194.38" y="-44.97" font-family="Times New Roman,serif" font-size="14.00">y</text>
+<path fill="none" stroke="green" d="M244.21,-53.57C232.85,-47.95 220.38,-41.79 209.05,-36.19"/>
+<polygon fill="green" stroke="green" points="210.91,-33.2 200.39,-31.91 207.81,-39.48 210.91,-33.2"/>
+<text text-anchor="middle" x="220.12" y="-44.97" font-family="Times New Roman,serif" font-size="14.00">y</text>
 </g>
 <!-- Return -->
 <g id="node5" class="node">
 <title>Return</title>
-<polygon fill="none" stroke="black" points="54,-90 0,-90 0,-54 54,-54 54,-90"/>
-<text text-anchor="middle" x="27" y="-66.95" font-family="Times New Roman,serif" font-size="14.00">Return</text>
+<polygon fill="none" stroke="black" points="414.5,-90 360.5,-90 360.5,-54 414.5,-54 414.5,-90"/>
+<text text-anchor="middle" x="387.5" y="-66.95" font-family="Times New Roman,serif" font-size="14.00">Return</text>
 </g>
 <!-- Return&#45;&gt;MemMerge -->
 <g id="edge6" class="edge">
 <title>Return&#45;&gt;MemMerge</title>
-<path fill="none" stroke="black" d="M54.26,-72C61.97,-72 70.68,-72 79.39,-72"/>
-<polygon fill="black" stroke="black" points="79.25,-75.5 89.25,-72 79.25,-68.5 79.25,-75.5"/>
+<path fill="none" stroke="black" d="M360.24,-72C352.53,-72 343.82,-72 335.11,-72"/>
+<polygon fill="black" stroke="black" points="335.25,-68.5 325.25,-72 335.25,-75.5 335.25,-68.5"/>
 </g>
 </g>
 </svg>
