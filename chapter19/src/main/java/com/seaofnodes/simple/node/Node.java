@@ -114,7 +114,7 @@ public abstract class Node implements Cloneable {
             : _print1(sb, visited);
     }
     // Every Node implements this; a partial-line recursive print
-    abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
+    abstract public StringBuilder _print1(StringBuilder sb, BitSet visited);
 
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 

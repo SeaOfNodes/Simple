@@ -26,7 +26,7 @@ public class ReturnNode extends Node {
     public String label() { return "Return"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return expr()._print0(sb.append("return "), visited).append(";");
     }
 

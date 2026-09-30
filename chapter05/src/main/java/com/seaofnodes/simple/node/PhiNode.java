@@ -11,7 +11,7 @@ public class PhiNode extends Node {
     @Override public String label() { return "Phi_"+_label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
         sb.append("Phi(");
         for( Node in : _inputs )
             in._print0(sb).append(",");

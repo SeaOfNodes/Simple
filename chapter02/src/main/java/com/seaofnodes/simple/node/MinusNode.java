@@ -9,7 +9,7 @@ public class MinusNode extends Node {
     @Override public String label() { return "Minus"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
         in(1)._print0(sb.append("(-"));
         return sb.append(")");
     }

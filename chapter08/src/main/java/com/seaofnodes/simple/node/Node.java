@@ -111,7 +111,7 @@ public abstract class Node {
             : _print1(sb, visited);
     }
     // Every Node implements this; a partial-line recursive print
-    abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
+    abstract public StringBuilder _print1(StringBuilder sb, BitSet visited);
 
 
     // Print a node on 1 line, columnar aligned, as:

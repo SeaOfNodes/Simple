@@ -15,7 +15,7 @@ public class StartNode extends CFGNode implements MultiNode {
     @Override public String label() { return "Start"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
       return sb.append(label());
     }
 

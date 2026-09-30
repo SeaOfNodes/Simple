@@ -23,7 +23,7 @@ public class ProjNode extends Node {
     @Override public String label() { return _label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
 
     @Override public CFGNode cfg0() { return in(0).cfg0(); }
 

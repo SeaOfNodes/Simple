@@ -22,7 +22,7 @@ public class CallNode extends CFGNode {
     public String label() { return "Call"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         String fname = null;
         Node fptr = fptr();
         if( fptr._type instanceof TypeFunPtr tfp && tfp.isConstant() )

@@ -13,7 +13,7 @@ public class StopNode extends Node {
     }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
         if( ret()!=null ) return ret()._print0(sb);
         sb.append("Stop[ ");
         for( Node ret : _inputs )

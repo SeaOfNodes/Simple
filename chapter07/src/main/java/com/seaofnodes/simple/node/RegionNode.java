@@ -13,7 +13,7 @@ public class RegionNode extends Node {
     public String label() { return "Region"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append(label()).append(_nid);
     }
 

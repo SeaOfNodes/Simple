@@ -21,7 +21,7 @@ public class CallNode extends CFGNode {
 
     @Override public String label() { return "Call"; }
 
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         String fname = name();
         if( fname == null ) fptr()._print0(sb,visited);
         else sb.append(fname);

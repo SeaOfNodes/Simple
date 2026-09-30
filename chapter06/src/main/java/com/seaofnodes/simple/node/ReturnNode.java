@@ -24,7 +24,7 @@ public class ReturnNode extends Node {
     public String label() { return "Return"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
         return expr()._print0(sb.append("return ")).append(";");
     }
 

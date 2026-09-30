@@ -23,7 +23,7 @@ public class CProjNode extends CFGNode implements MultiUse {
     @Override public String label() { return _label; }
     @Override public int idx() { return _idx; }
 
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
 
     @Override public boolean isMultiTail() { return in(0).isMultiHead(); }
     @Override public boolean blockHead() { return true; }

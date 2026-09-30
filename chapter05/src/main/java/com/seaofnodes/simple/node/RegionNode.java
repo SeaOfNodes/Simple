@@ -9,7 +9,7 @@ public class RegionNode extends Node {
     public String label() { return "Region"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
         return sb.append(label()).append(_nid);
     }
 

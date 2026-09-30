@@ -20,7 +20,7 @@ public class StopNode extends Node {
     }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         if( ret()!=null ) return ret()._print0(sb, visited);
         sb.append("Stop[ ");
         for( Node ret : _inputs )

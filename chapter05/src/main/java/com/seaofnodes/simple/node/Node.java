@@ -94,7 +94,7 @@ public abstract class Node {
             : _print1(sb);
     }
     // Every Node implements this.
-    abstract StringBuilder _print1(StringBuilder sb);
+    abstract public StringBuilder _print1(StringBuilder sb);
 
 
     /**

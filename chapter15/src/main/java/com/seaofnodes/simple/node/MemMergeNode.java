@@ -52,7 +52,7 @@ public class MemMergeNode extends Node {
     @Override public String label() { return "MemMerge"; }
     @Override public boolean isMem() { return true; }
     @Override public Type compute() { return TypeMem.BOT; }
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("MEM[");
         for( int i=1; i<nIns(); i++ )
             if( in(i)!=null ) {

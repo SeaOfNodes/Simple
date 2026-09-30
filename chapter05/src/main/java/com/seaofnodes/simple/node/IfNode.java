@@ -14,7 +14,7 @@ public class IfNode extends MultiNode {
     public String label() { return "If"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
         sb.append("if( ");
         return in(1)._print0(sb).append(" )");
     }

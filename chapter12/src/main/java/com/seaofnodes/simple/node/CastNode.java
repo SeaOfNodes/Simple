@@ -22,7 +22,7 @@ public class CastNode extends Node {
     public String uniqueName() { return "Cast_" + _nid; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return in(1)._print0(sb.append(label()), visited);
     }
 

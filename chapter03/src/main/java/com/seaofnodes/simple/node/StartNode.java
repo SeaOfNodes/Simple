@@ -19,7 +19,7 @@ public class StartNode extends Node {
     public String label() { return "Start"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
       return sb.append(label());
     }
 

@@ -29,7 +29,7 @@ public class ConstantNode extends Node {
     public String uniqueName() { return "Con_" + _nid; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
         return _con.print(sb);
     }
 

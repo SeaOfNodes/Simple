@@ -18,7 +18,7 @@ abstract public class BoolNode extends Node {
     public String label() { return getClass().getSimpleName(); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         in(1)._print0(sb.append("("), visited);
         in(2)._print0(sb.append(op()), visited);
         return sb.append(")");

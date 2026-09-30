@@ -24,7 +24,7 @@ public class CProjNode extends CFGNode {
 
     @Override public String label() { return _label; }
 
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
+    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
 
     @Override public boolean blockHead() { return true; }
 

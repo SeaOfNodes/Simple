@@ -45,7 +45,7 @@ public class ScopeMinNode extends Node {
     @Override public String label() { return "MEM"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("MEM[ ");
         for( int j=2; j<nIns(); j++ ) {
             sb.append(j);

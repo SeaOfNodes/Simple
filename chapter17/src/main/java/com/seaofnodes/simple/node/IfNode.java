@@ -18,7 +18,7 @@ public class IfNode extends CFGNode implements MultiNode {
     public String label() { return "If"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("if( ");
         return in(1)._print0(sb, visited).append(" )");
     }

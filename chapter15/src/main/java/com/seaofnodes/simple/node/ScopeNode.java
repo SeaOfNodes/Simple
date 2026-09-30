@@ -39,7 +39,7 @@ public class ScopeNode extends Node {
     @Override public String label() { return "Scope"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         sb.append("Scope[ ");
         String[] names = reverseNames();
         for( int j=0; j<nIns(); j++ ) {

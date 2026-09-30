@@ -43,7 +43,7 @@ public class LoadNode extends MemOpNode {
 
     @Override public String  label() { return     _name; }
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
 
     @Override
     public Type compute() {

@@ -36,7 +36,7 @@ public class ConstantNode extends Node {
     public String uniqueName() { return "Con_" + _nid; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
         return sb.append(_con.print(new SB()));
     }
 

@@ -33,7 +33,7 @@ public class ScopeNode extends Node {
     @Override public String label() { return "Scope"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
+    public StringBuilder _print1(StringBuilder sb) {
         sb.append(label());
         for( HashMap<String,Integer> scope : _scopes ) {
             sb.append("[");
