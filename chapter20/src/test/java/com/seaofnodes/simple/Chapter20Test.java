@@ -157,7 +157,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testTarget(src,"x86_64_v2", "SystemV",5,"return .[];");
+        testTarget(src,"x86_64_v2", "SystemV",13,"return .[];");
         testTarget(src,"riscv"    , "SystemV",1,"return (add,.[],(mul,.[],1000));");
         testTarget(src,"arm"      , "SystemV",1,"return (add,.[],(muli,.[]));");
     }
@@ -202,7 +202,7 @@ hashCode(s);
 """;
         testTarget(src,"x86_64_v2", "SystemV",21,null);
         testTarget(src,"riscv"    , "SystemV", 3,null);
-        testTarget(src,"arm"      , "SystemV", 5,null);
+        testTarget(src,"arm"      , "SystemV", 3,null);
     }
 
     @Test
@@ -244,5 +244,26 @@ return arg;
         testTarget(src,"x86_64_v2", "SystemV",3,null);
         testTarget(src,"riscv"    , "SystemV",2,null);
         testTarget(src,"arm"      , "SystemV",2,null);
+    }
+
+    @Test public void testMemoryAllocation() {
+        for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
+            for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
+                                          Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY,
+                                          "int[] !a = new int[3]; a[arg]=arg; return a[0]+1;"} ) {
+                var code = new CodeGen(src).parse().opto().typeCheck()
+                    .instSelect(PORTS,cpu,"SystemV").GCM().localSched().regAlloc();
+                com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+                code._stop.walk(n -> {
+                    // Whole memory, precise Phis, and memory projections need no register.
+                    if( n._type instanceof com.seaofnodes.simple.type.TypeMem )
+                        assertEquals(-1,code._regAlloc.regnum(n));
+                    if( n instanceof com.seaofnodes.simple.node.NewNode nn ) {
+                        assertTrue(code._regAlloc.regnum(nn.proj(0))>=0);
+                        assertEquals(-1,code._regAlloc.regnum(nn.proj(1)));
+                    }
+                    return null;
+                });
+            }
     }
 }

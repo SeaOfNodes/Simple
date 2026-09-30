@@ -34,7 +34,7 @@ public class StoreARM extends MemOpARM {
         if( i==2 ) return arm.RMASK;
         if( i==3 ) return arm.RMASK;
         if( i==4 ) return arm.RMASK;
-        throw Utils.TODO();
+        return null; // Trailing anti-dependence edges
     }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { return null; }

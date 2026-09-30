@@ -57,6 +57,8 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
         return sb.append(".").append(_name);
     }
 
+    @Override public boolean isMem() { return _type instanceof TypeMem; }
+
     @Override public String label() { return op(); }
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }
@@ -67,7 +69,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
         if( i==2 ) return x86_64_v2.RMASK;    // base  in GPR
         if( i==3 ) return x86_64_v2.RMASK;    // index in GPR
         if( i==4 ) return _sz >= '4' ? x86_64_v2.MEM_MASK : x86_64_v2.RMASK; // Narrow stores need GPRs
-        throw Utils.TODO();
+        return null; // Trailing anti-dependence edges
     }
 
     @Override public int encoding(ByteArrayOutputStream bytes) { throw Utils.TODO(); }

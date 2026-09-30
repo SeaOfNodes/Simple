@@ -7,9 +7,9 @@ import java.util.*;
 
 /**
  * The Scope node is purely a parser helper - it tracks names to nodes with a
- * stack of variables.
+ * stack of variable records.
  */
-public class ScopeNode extends MemMergeNode {
+public class ScopeNode extends Node {
 
     /**
      * The control is a name that binds to the currently active control
@@ -18,6 +18,11 @@ public class ScopeNode extends MemMergeNode {
     public static final String CTRL = "$ctrl";
     public static final String ARG0 = "arg";
     public static final String MEM0 = "$mem";
+
+    public Node in(Var v) { return in(v._idx); }
+
+    @Override public Type compute() { return Type.BOTTOM; }
+    @Override public Node idealize() { return null; }
 
     // All active/live variables in all nested scopes, all run together
     public final Ary<Var> _vars;
@@ -34,7 +39,7 @@ public class ScopeNode extends MemMergeNode {
 
     // A new ScopeNode
     public ScopeNode() {
-        super(true);
+        _type = Type.BOTTOM;
         _vars   = new Ary<>(Var    .class);
         _lexSize= new Ary<>(Integer.class);
         _kinds  = new Ary<>(Kind   .class);
@@ -70,7 +75,7 @@ public class ScopeNode extends MemMergeNode {
 
 
     public Node ctrl() { return in(0); }
-    public MemMergeNode mem() { return (MemMergeNode)in(1); }
+    public Node mem() { return in(lookup(MEM0)); }
 
     /**
      * The ctrl of a ScopeNode is always bound to the currently active
@@ -83,7 +88,7 @@ public class ScopeNode extends MemMergeNode {
      * @return Node that was bound
      */
     public <N extends Node> N ctrl(N n) { return setDef(0,n); }
-    public Node mem(Node n) { return setDef(1,n); }
+    public Node mem(Node n) { update(MEM0,n); return n; }
 
     public void push(Kind kind) {
         assert _lexSize._len==_kinds._len;
@@ -166,12 +171,6 @@ public class ScopeNode extends MemMergeNode {
         return true;
     }
 
-    // Read from memory
-    public Node mem( int alias ) { return mem()._mem(alias,null); }
-    // Write to memory
-    public void mem( int alias, Node st ) { mem()._mem(alias,st); }
-
-
     /**
      * Lookup a name in all scopes starting from most deeply nested.
      *
@@ -207,7 +206,7 @@ public class ScopeNode extends MemMergeNode {
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
                 // lookup, which might have insert a Phi in every loop nest.
-                : loop.setDef(v._idx,new PhiNode(v._name, v.lazyGLB(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
+                : loop.setDef(v._idx,PhiNode.make(v._name, v.lazyGLB(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
         assert !v._final || st==null;
@@ -246,20 +245,8 @@ public class ScopeNode extends MemMergeNode {
                 n.keep();
         dup.addDef(ctrl());     // Control input is just copied
 
-        // Memory input is a shallow copy
-        MemMergeNode memdup = new MemMergeNode(true), mem = mem();
-        memdup.addDef(null);
-        memdup.addDef(loop ? this : mem.in(1));
-        for( int i=2; i<mem.nIns(); i++ )
-            // For lazy phis on loops we use a sentinel
-            // that will trigger phi creation on update
-            memdup.addDef(loop ? this : mem.in(i));
-        dup.addDef(memdup);
-
-        // Copy of other inputs
-        for( int i=2; i<nIns(); i++ )
-            // For lazy phis on loops we use a sentinel
-            // that will trigger phi creation on update
+        // Memory is one binding, with the same lazy loop Phi as scalar names.
+        for( int i=1; i<nIns(); i++ )
             dup.addDef(loop && !_vars.at(i)._final ? this : in(i));
         return dup;
     }
@@ -274,22 +261,21 @@ public class ScopeNode extends MemMergeNode {
      */
     public RegionNode mergeScopes(ScopeNode that, Parser.Lexer loc) {
         RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
-        mem()._merge(that.mem(),r);
-        this ._merge(that      ,r);
+        _merge(that,r);
         that.kill();            // Kill merged scope
         CodeGen.CODE.add(r);
         return r.unkeep();
     }
 
     private void _merge(ScopeNode that, RegionNode r) {
-        for( int i = 2; i < nIns(); i++)
+        for( int i = 1; i < nIns(); i++)
             if( in(i) != that.in(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
                 // by name as it will trigger a phi creation
                 Var v = _vars.at(i);
                 Node lhs = this.in(this.update(v,null));
                 Node rhs = that.in(that.update(v,null));
-                setDef(i, new PhiNode(v._name, v.type(), r, lhs, rhs).peephole());
+                setDef(i, PhiNode.make(v._name, v.type(), r, lhs, rhs).peephole());
             }
     }
 
@@ -314,21 +300,15 @@ public class ScopeNode extends MemMergeNode {
         assert ctrl instanceof LoopNode loop && loop.inProgress();
         ctrl.setDef(2,back.ctrl());
 
-        mem()._endLoopMem( this, back.mem(), exit.mem() );
-        this ._endLoop   ( this, back      , exit       );
+        _endLoop(this,back,exit);
         back.kill();            // Loop backedge is dead
         // Now one-time do a useless-phi removal
-        mem()._useless();
-        this ._useless();
-
-        // The exit mem's lazy default value had been the loop top,
-        // now it goes back to predating the loop.
-        exit.mem().setDef(1,mem().in(1));
+        _useless();
     }
 
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
-        for( int i=2; i<nIns(); i++ ) {
+        for( int i=1; i<nIns(); i++ ) {
             if( _vars.at(i)._final ) continue; // Final vars did not get modified in the loop
             if( _vars.at(i).type().isHighOrConst() ) continue; // Cannot lift higher than a constant, so no Phi
             if( back.in(i) != scope ) {
@@ -341,6 +321,23 @@ public class ScopeNode extends MemMergeNode {
         }
     }
 
+
+    // Now one-time do a useless-phi removal
+    void _useless( ) {
+        for( int i=1; i<nIns(); i++ ) {
+            if( in(i) instanceof PhiNode phi ) {
+                // Do an eager useless-phi removal
+                Node in = phi.peephole();
+                CodeGen.CODE.addAll(phi._outputs);
+                phi.moveDepsToWorklist();
+                if( in != phi ) {
+                    if( !phi.iskeep() ) // Keeping phi around for parser elsewhere
+                        phi.subsume(in);
+                    setDef(i,in); // Set the update back into Scope
+                }
+            }
+        }
+    }
 
     // Up-casting: using the results of an If to improve a value.
     // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.

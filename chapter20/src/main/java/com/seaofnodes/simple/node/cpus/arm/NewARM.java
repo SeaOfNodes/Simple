@@ -12,9 +12,9 @@ public class NewARM extends NewNode implements MachNode {
     // A pre-zeroed chunk of memory.
     NewARM(NewNode nnn) { super(nnn); }
     // Size and pointer result in standard calling convention; null for all the
-    // memory aliases edges
-    @Override public RegMask    regmap(int i) { return i == 1 ? arm. X0_MASK : null; }
-    @Override public RegMask outregmap(int i) { return i == 1 ? arm. X0_MASK : null; }
+    // memory and ordering edges
+    @Override public RegMask    regmap(int i) { return i == 2 ? arm. X0_MASK : null; }
+    @Override public RegMask outregmap(int i) { return i == 0 ? arm. X0_MASK : null; }
     @Override public RegMask outregmap() { return null; }
 
     // Encoding is appended into the byte array; size is returned

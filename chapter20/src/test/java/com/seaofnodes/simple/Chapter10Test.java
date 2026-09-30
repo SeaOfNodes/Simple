@@ -2,6 +2,8 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Test;
+import com.seaofnodes.simple.node.*;
+import java.util.BitSet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -450,4 +452,121 @@ return 0;
         assertEquals("return 0;", code.print());
     }
 
+    @Test public void testReadBeforeStores() {
+        var code = new CodeGen("""
+            struct S { int x; int y; };
+            S !a = new S; S !b = new S;
+            a.x = 11; b.x = 22;
+            S !p = a; if (arg) p = b;
+            int before = p.x;
+            a.y = 55; b.y = 66;
+            a.x = 33; b.x = 44;
+            return before*100 + p.x;
+            """).parse().opto();
+        StopNode stop = code._stop;
+        assertEquals("1133",Eval2.eval(code,0));
+        assertEquals("2244",Eval2.eval(code,1));
+    }
+
+    static final String NESTED_MEMORY = """
+            struct S { int x; int y; int z; };
+            S !s = new S;
+            s.x = 5; s.y = 7; s.z = 11;
+            while (arg > 0) {
+                s.x = s.x + 1;
+                int j = 3;
+                while (j > 0) {
+                    j = j - 1;
+                    if (j == 1) continue;
+                    s.y = s.y + arg;
+                    if (arg == 2) break;
+                    s.z = s.z + 1;
+                }
+                arg = arg - 1;
+            }
+            return s;
+            """;
+
+    @Test public void testMemoryAcrossNestedLoops() {
+        var code = new CodeGen(NESTED_MEMORY).parse().opto();
+        StopNode stop = code._stop;
+        for (int arg=0; arg<7; arg++) {
+            assertEquals("S{x="+(5L+arg)+",y="+(7L+arg*(arg+1)-(arg>=2 ? 2 : 0))+
+                         ",z="+(11L+2*arg-(arg>=2 ? 2 : 0))+"}",Eval2.eval(code,arg));
+        }
+    }
+
+    @Test public void testMemoryAtEarlyReturns() {
+        var code = new CodeGen("""
+            struct S { int x; int y; int z; };
+            S !s = new S;
+            s.x = 3; s.y = 5; s.z = 7;
+            if (arg) { s.x = 11; s.z = 13; return s; }
+            s.y = 17;
+            return s;
+            """).parse().opto();
+        StopNode stop = code._stop;
+        for (int arg=0; arg<2; arg++) {
+            assertEquals(arg==0 ? "S{x=3,y=17,z=7}" : "S{x=11,y=5,z=13}",Eval2.eval(code,arg));
+        }
+    }
+
+    @Test public void testKeepLoadsAtMerge() {
+        var code = new CodeGen("""
+            struct S { int x; };
+            S !a = new S; S !b = new S;
+            a.x = arg; b.x = arg+1;
+            S !p = a; S !q = b;
+            if (arg<0) { p=b; q=a; }
+            int v;
+            if (arg>1) v=p.x; else v=q.x;
+            return v;
+            """).parse().opto();
+        StopNode stop = code._stop;
+        // The one-step safety check stops at the memory aggregate.
+        assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
+        assertEquals("-1",Eval2.eval(code,-1));
+        assertEquals("1",Eval2.eval(code,0));
+        assertEquals("3",Eval2.eval(code,3));
+    }
+
+    @Test public void testDropStores() {
+        var code = new CodeGen("""
+            struct S { int x; };
+            S !s = new S;
+            if (arg) s.x=arg+1; else s.x=arg+2;
+            return s;
+            """).parse().opto();
+        StopNode stop = code._stop;
+        assertEquals(1,countMemoryNodes(stop,StoreNode.class,new BitSet()));
+        assertEquals("S{x=2}",Eval2.eval(code,0));
+        assertEquals("S{x=4}",Eval2.eval(code,3));
+    }
+
+    @Test public void testKeepReadsBeforeWrites() {
+        var code = new CodeGen("""
+            struct S { int x; int y; };
+            S !a = new S; S !b = new S;
+            a.x=arg; b.x=arg+1;
+            S !p=a; S !q=b;
+            if (arg<0) { p=b; q=a; }
+            int v;
+            if (arg>1) { v=p.x; p.x=41; p.y=5; }
+            else       { v=q.x; q.x=42; }
+            return v;
+            """).parse().opto();
+        StopNode stop = code._stop;
+        assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
+        assertEquals("-1",Eval2.eval(code,-1));
+        assertEquals("1",Eval2.eval(code,0));
+        assertEquals("3",Eval2.eval(code,3));
+    }
+
+    private static int countMemoryNodes(Node n, Class<?> kind, BitSet seen) {
+        if (n==null || seen.get(n._nid)) return 0;
+        seen.set(n._nid);
+        int cnt=kind.isInstance(n) ? 1 : 0;
+        for (Node def : n._inputs) cnt+=countMemoryNodes(def,kind,seen);
+        return cnt;
+    }
 }

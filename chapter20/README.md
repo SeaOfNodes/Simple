@@ -152,6 +152,11 @@ represent mutable bitsets with the allocator routinely masking off bits when
 accumulating a set of constraints.  To help keep these uses apart, the
 `RegMask` class includes mutable and immutable variants.
 
+#### Memory
+
+Memory edges exist to enforce ordering, but do not get any registers.
+The allocator basically ignores them.
+
 
 ### Callee/Caller Save Registers
 
@@ -505,20 +510,40 @@ checks, not additional program benchmarks.
 
 | Program-test cohort | Allocator chapter | Compilations | Split moves | Loop-weighted moves |
 |---|---:|---:|---:|---:|
-| Chapter 20 | 20 | 39 | 238 | 357 |
+| Chapter 20 | 20 | 39 | 234 | 360 |
 
 `_spills` counts surviving split moves, including register-to-register copies;
 it does not count only stack stores. `_spillScaled` weights each move by
 `8^loopDepth`, a rough cost estimate rather than measured execution frequency.
-The weighted subtotals are 154 for x86-64, 101 for RISC-V, and 102 for ARM.
+The weighted subtotals are 161 for x86-64, 100 for RISC-V, and 99 for ARM.
 
 ### Comments on the measurements
 
 Before the correctness fixes, this cohort had 235 moves / 354 weighted moves.
-The final corrected baseline costs three more of each. The final narrow x86
+The corrected baseline before lazy memory cost three more of each. The final narrow x86
 store-mask backport accounts for two of those moves: an integer byte/short store
 cannot consume an XMM register. This is a correctness cost, not a quality gain.
 The fixed-neighbor color-bias correction changes no counts in this cohort.
+
+With lazy memory and selected-read ordering, the same 39 compilations have
+234 moves / 360 weighted moves, versus 238 / 357 before the port. Register
+legality passes on every target; allocator heuristics are unchanged. The changed
+programs are:
+
+| Program | Target | Moves before / after | Weighted before / after |
+|---|---|---:|---:|
+| Array access (`testAlloc2`) | x86-64 | 1 / 2 | 1 / 2 |
+| Array prefix sum (`testArray1`) | x86-64 | 5 / 6 | 5 / 13 |
+| String hash | x86-64 | 7 / 5 | 21 / 19 |
+| String hash | RISC-V | 4 / 3 | 4 / 3 |
+| String hash | ARM | 5 / 3 | 5 / 3 |
+| Merge sort | ARM | 37 / 36 | 37 / 36 |
+
+The prefix sum's extra loop move follows from scheduling selected reads before
+clobbering writes. A diagnostic build omitting that ordering returns to 5 / 5;
+it is not a valid alternative schedule. These are changed frontend and scheduling
+graphs, not a comparison of allocator heuristics. The new memory-allocation
+regressions check legality but do not add entries to this measured cohort.
 
 Later chapters will add one quality technique at a time and end with this kind
 of table: Chapter 21 will measure both the Chapter 20 and Chapter 21 program

@@ -138,7 +138,7 @@ public class Parser {
         _scope.define(ScopeNode.ARG0, TypeInteger.BOT, false, null, _lexer);
 
         ctrl(XCTRL);
-        _scope.mem(new MemMergeNode(false));
+        _scope.mem(con(TypeMem.BOT));
 
         // Parse whole program, as-if function header "{ int arg -> body }"
         parseFunctionBody(_code._main,loc(),"arg");
@@ -178,7 +178,7 @@ public class Parser {
         // Build a multi-exit return point for all function returns
         RegionNode r = new RegionNode((Lexer)null,null,null).init();
         assert r.inProgress();
-        PhiNode rmem = new PhiNode(ScopeNode.MEM0,TypeMem.BOT,r,null).init();
+        PhiNode rmem = new BulkMemPhiNode(ScopeNode.MEM0,r,null).init();
         PhiNode rrez = new PhiNode(ScopeNode.ARG0,Type.BOTTOM,r,null).init();
         ReturnNode ret = new ReturnNode(r, rmem, rrez, rpc, fun).init();
         fun.setRet(ret);
@@ -190,11 +190,8 @@ public class Parser {
         // external calls.
         _scope.push(ScopeNode.Kind.Function);
         ctrl(fun);              // Scope control from function
-        // Private mem alias tracking per function
-        MemMergeNode mem = new MemMergeNode(true);
-        mem.addDef(null);       // Alias#0
-        mem.addDef(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole()); // All aliases
-        _scope.mem(mem);
+        // Unknown callers supply whole memory; field aliases are discovered lazily.
+        _scope.mem(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,con(TypeMem.BOT)).peephole());
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
@@ -208,7 +205,7 @@ public class Parser {
 
         // Last expression is the return
         if( ctrl()._type==Type.CONTROL )
-            fun.addReturn(ctrl(), _scope.mem().merge(), last);
+            fun.addReturn(ctrl(), _scope.mem(), last);
 
         // Pop off the inProgress node on the multi-exit Region merge
         assert r.inProgress();
@@ -568,9 +565,8 @@ public class Parser {
      */
     private Node parseReturn() {
         var expr = require(parseAsgn(), ";");
-        // Need default memory, since it can be lazy, need to force
-        // a non-lazy Phi
-        _fun.addReturn(ctrl(), _scope.mem().merge(), expr);
+        // Force the lazy whole-memory Phi before closing this exit.
+        _fun.addReturn(ctrl(), _scope.mem(), expr);
         ctrl(XCTRL);            // Kill control
         return expr;
     }
@@ -1183,29 +1179,31 @@ public class Parser {
         Field[] fs = obj._fields;
         if( fs==null )
             throw error("Unknown struct type '" + obj._name + "'");
-        int len = fs.length;
-        Node[] ns = new Node[2+len];
-        ns[0] = ctrl();         // Control in slot 0
-        // Total allocated length in bytes
-        ns[1] = size;
-        // Memory aliases for every field
-        for( int i = 0; i < len; i++ )
-            ns[2+i] = memAlias(fs[i]._alias);
-        Node nnn = new NewNode(TypeMemPtr.make(obj), ns).peephole().keep();
-        for( int i = 0; i < len; i++ )
-            memAlias(fs[i]._alias, new ProjNode(nnn,i+2,memName(fs[i]._alias)).peephole());
-        Node ptr = new ProjNode(nnn.unkeep(),1,obj._name).peephole().keep();
-
-        // Initial nonzero values for every field
-        for( int i = 0; i < len; i++ ) {
-            Node val = init.get( i + idx );
+        Node prior = mem().keep();
+        MemMergeNode input = new MemMergeNode((Node)null);
+        for( Field f : fs ) input.alias(f._alias,prior);
+        // Allocation zeroes its fields; nonzero initializers become explicit Stores.
+        Node[] ns = new Node[3];
+        ns[0] = ctrl();
+        ns[1] = input.peephole();
+        ns[2] = size;
+        Node nnn = new NewNode(TypeMemPtr.make(obj),ns).peephole().keep();
+        Node ptr = new ProjNode(nnn,0,obj._name).peephole().keep();
+        Node out = new ProjNode(nnn,1,"$mem").peephole().keep();
+        MemMergeNode after = new MemMergeNode(prior);
+        for( Field f : fs ) after.alias(f._alias,out);
+        mem(after.peephole());
+        out.unkeep();
+        nnn.unkeep();
+        prior.unkeep();
+        for( int i=0; i<fs.length; i++ ) {
+            Node val = init.get(idx+i);
             if( val._type != val._type.makeZero() ) {
-                Node mem = memAlias(fs[i]._alias);
-                Node st = new StoreNode(loc(),fs[i]._fname,fs[i]._alias,fs[i]._type,mem,ptr,con(obj.offset(i)),val,true).peephole();
-                memAlias(fs[i]._alias,st);
+                Field f = fs[i];
+                Node st = new StoreNode(loc(),f._fname,f._alias,f._type,mem(),ptr,con(obj.offset(i)),val,true).peephole();
+                mem(new MemMergeNode(mem(),f._alias,st).peephole());
             }
         }
-
         return ptr.unkeep();
     }
 
@@ -1218,13 +1216,18 @@ public class Parser {
         return newStruct(ary,size,0,ALTMP);
     }
 
-    // We set up memory aliases by inserting special vars in the scope these
-    // variables are prefixed by $ so they cannot be referenced in Simple code.
-    // Using vars has the benefit that all the existing machinery of scoping
-    // and phis work as expected
-    private Node memAlias(int alias         ) { return _scope.mem(alias    ); }
-    private void memAlias(int alias, Node st) {        _scope.mem(alias, st); }
-    public static String memName(int alias) { return ("$"+alias).intern(); }
+    // Memory is one hidden SSA variable, including across branches and loops.
+    private Node mem() { return _scope.mem(); }
+    private void mem(Node n) { _scope.mem(n); }
+
+    private void store(String name, int alias, Type glb, Node ptr, Node off, Node val, boolean init, Node ctrl) {
+        Node prior = mem().keep();
+        Node st = new StoreNode(loc(),name,alias,glb,prior,ptr,off,val,init);
+        st.setDef(0,ctrl);
+        st = st.peephole();
+        mem(new MemMergeNode(prior,alias,st).peephole());
+        prior.unkeep();
+    }
 
     /**
      * Parse postfix expression; this can be a field expression, an array
@@ -1267,6 +1270,7 @@ public class Parser {
         if( tf instanceof TypeMemPtr ftmp && ftmp.isFRef() )
             tf = ftmp.makeFrom(((TypeMemPtr)(TYPES.get(ftmp._obj._name)))._obj);
 
+        expr.keep();
         // Field offset; fixed for structs, computed for arrays
         Node off = (name.equals("[]")       // If field is an array body
             // Array index math
@@ -1279,16 +1283,11 @@ public class Parser {
             Node val = parseAsgn().keep();
             Node lift = liftExpr( val, tf, f._final );
 
-            Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr, off.unkeep(), lift, false);
-            // Arrays include control, as a proxy for a safety range check.
-            // Structs don't need this; they only need a NPE check which is
-            // done via the type system.
-            if( base.isAry() )  st.setDef(0,ctrl());
-            memAlias(f._alias, st.peephole());
+            store(name,f._alias,tf,expr.unkeep(),off.unkeep(),lift,false,base.isAry() ? ctrl() : null);
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
         }
 
-        Node load = new LoadNode(loc(),name, f._alias, tf, memAlias(f._alias), expr.keep(), off);
+        Node load = new LoadNode(loc(),name, f._alias, tf, mem(), expr, off);
         // Arrays include control, as a proxy for a safety range check
         // Structs don't need this; they only need a NPE check which is
         // done via the type system.
@@ -1299,12 +1298,7 @@ public class Parser {
         char ch = _lexer.matchOperAssign();
         if( ch!=0 ) {
             Node op = opAssign(ch,load,f._final,tf,name);
-            Node st = new StoreNode(loc(), name, f._alias, tf, memAlias(f._alias), expr.unkeep(), off, op, false);
-            // Arrays include control, as a proxy for a safety range check.
-            // Structs don't need this; they only need a NPE check which is
-            // done via the type system.
-            if( base.isAry() )  st.setDef(0,ctrl());
-            memAlias(f._alias, peep(st));
+            store(name,f._alias,tf,expr.unkeep(),off,op,false,base.isAry() ? ctrl() : null);
             load = postfix(ch) ? load.unkeep() : op;
             // And use the original loaded value as the result
         } else expr.unkill();
@@ -1385,7 +1379,7 @@ public class Parser {
         }
         // Control & memory after parsing args
         args.set(0,ctrl().keep());
-        args.set(1,_scope.mem().merge().keep());
+        args.set(1,_scope.mem().keep());
         args.push(expr);        // Function pointer
         // Unkeep them all
         for( Node arg : args )
@@ -1405,11 +1399,8 @@ public class Parser {
         CallEndNode cend = (CallEndNode)new CallEndNode(call).peephole();
         // Control from CallEnd
         ctrl(new CProjNode(cend,0,ScopeNode.CTRL).peephole());
-        // Memory from CallEnd
-        MemMergeNode mem = new MemMergeNode(true);
-        mem.addDef(null);       // Alias#0
-        mem.addDef(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
-        _scope.mem(mem);
+        // A call may update any alias, so its memory result is the new whole state.
+        _scope.mem(new ProjNode(cend,1,ScopeNode.MEM0).peephole());
         // Call result
         return new ProjNode(cend,2,"#2").peephole();
     }

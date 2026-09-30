@@ -34,7 +34,7 @@ public class StoreRISC extends MemOpRISC {
         if( i==2 ) return riscv.RMASK;
         if( i==3 ) return riscv.RMASK;
         if( i==4 ) return riscv.RMASK;
-        throw Utils.TODO();
+        return null; // Trailing anti-dependence edges
     }
 
 

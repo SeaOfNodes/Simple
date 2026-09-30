@@ -22,10 +22,9 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
-- **Forward Chapter 10b memory partitioning through 20-24.** Cliff reviewed
-  and committed the port through 18 in `2d51b647`. Chapter 19 is implemented
-  and tested; stop here for review of instruction selection and selected memory
-  scheduling. Parameters, calls, and returns carry whole memory; aliases split
+- **Forward Chapter 10b memory partitioning through 21-24.** Cliff reviewed
+  and committed the port through 19 in `612555ee`. Chapter 20 is implemented
+  and tested; stop here for review of register allocation and spill measurements. Parameters, calls, and returns carry whole memory; aliases split
   lazily within functions.
   Keep private constructor memory, escape tracking, and incomplete-type
   inference in 25. Carry generalized Phi factoring, its one-step Load guard,
@@ -99,7 +98,7 @@ clobber for every alias. GCM raises a Load before the Call's block terminator;
 it must not append the Load to the Call's inputs, which encode arguments and a
 last-slot function pointer. The one-step Phi Load guard also stops at Calls.
 
-### Chapter 19 instruction selection (implemented, review checkpoint)
+### Chapter 19 instruction selection (reviewed)
 
 Both selectors preserve BulkMemPhi exclusions and MemPhi aliases. Selected
 memory instructions carry their alias through MemOpNode; GCM follows aggregates
@@ -116,6 +115,22 @@ Both CPU allocation register masks and both evaluators use the new slots.
 The nested-loop regression reaches x86's existing right-hand Load/Add TODO;
 that commutative case now uses AddMemX86 just like a left-hand Load. No other
 unfinished instruction patterns or encoding work is included.
+
+### Chapter 20 register allocation (implemented, review checkpoint)
+
+ARM joins x86-64 and RISC-V in preserving bulk/precise memory Phis, allocation
+slots, and selected memory effects. The allocator already excludes TypeMem Phis
+and gives memory/ordering edges no register constraints; no allocator heuristic
+changes are needed. Allocation regressions check that memory stays unallocated
+and the pointer projection receives a legal register on all three targets.
+
+Folded x86 Add must retain a value input for its two-address result even when
+that value is constant. The old immediate form omitted input 4 and caused a null
+live range in BuildLRG. Both left- and right-hand Load patterns now retain the
+other addend; the existing constant selector materializes it.
+
+Keep Chapter 20's inlining-safe Return typing and the dependency registrations
+on a rejected Phi factoring attempt. Those fixes predate this memory port.
 
 ### Other pending corrections
 
@@ -285,7 +300,8 @@ earlier ranking saves five moves on the clients but fails a fresh `sys` allocati
 at the eight-round limit; a failed library cannot be omitted from the comparison.
 
 The earlier tables are refreshed where the final mask fixes changed them:
-Chapter 20 is 238 / 357; Chapter 21 is 840 / 1,456. Coalescing on/off now saves
+Chapter 20 was 238 / 357 before the subsequent lazy-memory port (now 234 / 360);
+Chapter 21 is 840 / 1,456. Coalescing on/off now saves
 230 / 433 moves in Chapter 21 with identical legality fixes. Chapters 22-24's
 aggregate values are unchanged. Full details and comparison limits belong in
 the individual READMEs rather than a second evolving set of tables here.
@@ -313,6 +329,24 @@ The top-level runner accepts explicit chapter lists, e.g.
 
 ## Validation record
 
+- **Chapter 20 lazy memory and register allocation.** Baseline: 380 tests plus
+  the fuzzer wrapper. Final: **396 tests plus the fuzzer wrapper**, with the
+  15 forwarded regressions and one allocation regression spanning all three
+  targets. **9,800 scheduled runtime evaluations** pass across 100 optimizer
+  seeds. **42 selected/scheduled/allocated graphs** pass legality checks at fixed
+  seed 123 on x86-64, RISC-V, and ARM. Make release and spill-stats pass.
+  The unchanged 39-entry spill cohort changes from **238 / 357** retained /
+  weighted moves to **234 / 360**. The x86 array prefix sum changes 5 / 5 to
+  6 / 13 because selected-read ordering adds a loop move; a scratch ablation
+  omitting that ordering returns to 5 / 5. No allocator heuristics or benchmark
+  membership changed. The chapter README records all six changed program rows.
+  Logs: `build/memory20-baseline.log`, `build/memory20-final.log`,
+  `build/memory20-seeds.log`, `build/memory20-machine.log`,
+  `build/memory20-spills-baseline.log`, `build/memory20-spills-final.log`,
+  `build/memory20-spills-ablation.log`, and `build/memory20-release.log`.
+  Chapters 21+ are unchanged for review.
+
+
 - **Chapter 19 lazy memory and instruction selection.** Baseline: 360 tests
   plus the fuzzer wrapper. Final: **375 tests plus the fuzzer wrapper**; release
   jar builds with Make alone. Forwarded 13 memory regressions and added two
@@ -325,7 +359,7 @@ The top-level runner accepts explicit chapter lists, e.g.
   `build/memory19-final.log`, `build/memory19-seeds.log`,
   `build/memory19-machine-seeds.log`, and `build/memory19-release.log`.
   Chapter 14's inherited And graph factors here without widening; its runtime
-  assertion remains. Chapters 20+ are unchanged for this review checkpoint.
+  assertion remains. This checkpoint was reviewed and committed as `612555ee`.
 
 
 - **Lazy memory through 17 and 18.** Baselines: 17 has 288 tests; 18 has 318

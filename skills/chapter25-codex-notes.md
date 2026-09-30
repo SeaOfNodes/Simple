@@ -44,9 +44,9 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 - Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
   (lazy graph partitioning). Both are standalone snapshots. Cliff reviewed and
-  committed the forward port through Chapter 18. Chapter 19 now carries lazy
-  memory through instruction selection. Stop for implementation review at
-  Chapter 19; leave 20-24 unchanged. See the concrete boundary notes
+  committed the forward port through Chapter 19. Chapter 20 now carries lazy
+  memory through register allocation on all three targets. Stop for implementation
+  review at Chapter 20; leave 21-24 unchanged. See the concrete boundary notes
   in `docs/chapter-backports.md`. GCM readiness and anti-dependency checks must both
   filter by alias and ignore MemMerge as a clobber; keep the evaluator's same
   alias filtering too. MemMerge still needs ordinary data-dependency placement.
@@ -95,7 +95,16 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   requirement. Direct machine Calls embed the target, but still must not gain
   scheduling-only inputs. The one-step Phi Load guard remains unchanged.
 
-- Generalized Phi factoring now starts in 10a and is forwarded through 19.
+- Chapter 20 includes ARM and moves CodeGen to the codegen package. Memory
+  Phis and projections have no live range; the existing allocator already
+  excludes TypeMem. Preserve its inlining-safe Return compute and rejected-Phi
+  operand dependencies. Folded x86 Add requires a register value in slot 4 even
+  for a constant addend, because that value is also its two-address result.
+  Spill counts use the same fixed 39-entry cohort and seed 123: the lazy-memory
+  port changes 238 / 357 moves / weighted moves to 234 / 360 without changing
+  allocator heuristics. Selected-read ordering explains the extra hot array move.
+
+- Generalized Phi factoring now starts in 10a and is forwarded through 20.
   Memory-specific eligibility lives in `MemOpNode.canDrop`, with virtual Load
   and Store checks. Load owns `clobbered`: all these chapters check only
   immediate memory users, without recursion or a visited set. Stop at Stores,
@@ -110,7 +119,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   lookup assumes Region/alias identifies the completed memory point. Existing
   control-bound Stores in 11-14 remain ineligible. `delUse` wakes recorded
   dependents for user-count queries; Region's empty-diamond fold depends on
-  projection rewiring as well as projection types. Carry these with the 20+
+  projection rewiring as well as projection types. Carry these with the 21+
   memory port; do not duplicate the later chapters' existing `copyEmpty`.
   `subsume` must wake each rewired user's recorded dependents, just as `setDef`
   does: operand identity changes can enable a Phi fold without changing the

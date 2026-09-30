@@ -235,6 +235,8 @@ public class x86_64_v2 extends Machine {
         case NewNode      nnn   -> new NewX86(nnn);
         case OrNode       or   ->  or(or);
         case ParmNode     parm  -> new ParmX86(parm);
+        case BulkMemPhiNode phi -> new BulkMemPhiNode(phi);
+        case MemPhiNode phi -> new MemPhiNode(phi);
         case PhiNode      phi   -> new PhiNode(phi);
         case ProjNode     prj   -> prj(prj);
         case ReadOnlyNode read  -> new ReadOnlyNode(read);
@@ -261,11 +263,12 @@ public class x86_64_v2 extends Machine {
     private Node add( AddNode add ) {
         Node lhs = add.in(1);
         Node rhs = add.in(2);
+        // The other addend must occupy the result register, even if constant.
         if( lhs instanceof LoadNode ld && ld.nOuts()==1 )
-            return new AddMemX86(add,address(ld),ld.ptr(),idx,off,scale, imm(rhs),val);
+            return new AddMemX86(add,address(ld),ld.ptr(),idx,off,scale, 0,rhs);
 
         if( rhs instanceof LoadNode ld && ld.nOuts()==1 )
-            throw Utils.TODO(); // Swap load sides
+            return new AddMemX86(add,address(ld),ld.ptr(),idx,off,scale, 0,lhs);
 
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS
