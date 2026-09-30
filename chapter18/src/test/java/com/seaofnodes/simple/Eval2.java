@@ -327,7 +327,7 @@ public abstract class Eval2 {
     private static Object alloc(NewNode alloc) {
         TypeStruct type = alloc._ptr._obj;
         if( type.isAry() ) {
-            long sz = (Long)val(alloc.in(1));
+            long sz = (Long)val(alloc.size());
             long x = offToIdx(sz, type);
             int n = (int)x;
             if( n!=x || n<0 )
@@ -347,7 +347,7 @@ public abstract class Eval2 {
         int num = type._fields.length;
         Object[] ptr = new Object[num];
         for( int i=0; i<num; i++ )
-            ptr[i] = val(alloc.in(2+i+num));
+            ptr[i] = val(alloc.in(3+i));
         return ptr;
     }
 
@@ -438,9 +438,9 @@ public abstract class Eval2 {
         case TypeRPC rpc -> sb.p(x.toString());
         case TypeMem mem -> sb.p("$mem");
         case TypeTuple tt -> {
-            if( tt._types.length>1 && tt._types[1] instanceof TypeMemPtr )
+            if( tt._types.length>1 && tt._types[0] instanceof TypeMemPtr )
                 // Assume a NewNode
-                yield _print( tt._types[1], x, sb, visit );
+                yield _print( tt._types[0], x, sb, visit );
             throw Utils.TODO();
         }
         case Type tt -> {

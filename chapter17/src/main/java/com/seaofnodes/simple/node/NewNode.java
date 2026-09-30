@@ -1,34 +1,33 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.Utils;
 import java.util.BitSet;
 
-/**
- *  Allocation!  Allocate a chunk of memory, and pre-zero it.
- *  The inputs include control and size, and ALL aliases being set.
- *  The output is large tuple, one for every alias plus the created pointer.
- *  New is expected to be followed by projections for every alias.
+/** Allocate and initialize an object. Inputs {ctrl, $mem, size, fields...};
+ *  results {ptr, $mem}.
+ *  The memory input and result cover only the aliases in the allocated struct.
  */
 public class NewNode extends Node implements MultiNode {
 
     public final TypeMemPtr _ptr;
-    public final int _len;
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);
         _ptr = ptr;
-        _len = ptr._obj._fields.length;
-        // Control in slot 0
-        assert nodes[0]._type==Type.CONTROL || nodes[0]._type == Type.XCONTROL;
-        // Malloc-length in slot 1
-        assert nodes[1]._type instanceof TypeInteger;
-        for( int i=0; i<_len; i++ ) {
-            // Memory slices for all fields.
-            assert nodes[2+     i]._type instanceof TypeMem;
-            // Value  slices for all fields.
-            assert nodes[2 + _len + i]._type != null;
-        }
+        assert nodes.length==3+ptr._obj._fields.length;
+        assert nodes[0]._type==Type.CONTROL || nodes[0]._type==Type.XCONTROL;
+        assert nodes[1]._type instanceof TypeMem;
+        assert nodes[2]._type instanceof TypeInteger;
+        for( int i=3; i<nodes.length; i++ ) assert nodes[i]._type!=null;
+    }
+
+    public Node mem() { return in(1); }
+    public Node size() { return in(2); }
+
+    public Field field(int alias) {
+        for( Field f : _ptr._obj._fields )
+            if( f._alias==alias ) return f;
+        return null;
     }
 
     @Override public String label() {
@@ -42,22 +41,13 @@ public class NewNode extends Node implements MultiNode {
 
     // Find matching alias input
     int findAlias(int alias) {
-        return 2+_ptr._obj.findAlias(alias)+_len;
+        return 3+_ptr._obj.findAlias(alias);
     }
 
 
     @Override
     public TypeTuple compute() {
-        Field[] fs = _ptr._obj._fields;
-        Type[] ts = new Type[fs.length+2];
-        ts[0] = Type.CONTROL;
-        ts[1] = _ptr;
-        for( int i=0; i<fs.length; i++ ) {
-            TypeMem mem = (TypeMem)in(i+2)._type;
-            Type tfld = in(2+_len+i)._type.meet(mem._t);
-            ts[i+2] = TypeMem.make(fs[i]._alias,tfld);
-        }
-        return TypeTuple.make(ts);
+        return TypeTuple.make(_ptr,TypeMem.BOT);
     }
 
     @Override

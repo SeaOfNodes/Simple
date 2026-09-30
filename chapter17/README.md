@@ -165,3 +165,18 @@ for( int i=0; i<ary#; i++ )
     return i;
 return -1;
 ```
+
+## Memory effects
+
+The lazy memory representation from [Chapter 10b](../chapter10b/README.md) and
+constructor layout from [Chapter 16](../chapter16/README.md#memory-through-constructors)
+continue here. ScopeNode tracks one `$mem` binding. Field and array writes,
+including increments, update their alias in a MemMerge. Branches, conditional
+expressions, and loops merge whole memory with BulkMemPhi; MemPhis are discovered
+as field uses require them.
+
+Readonly references retain their deep immutability when Loads fold through
+Stores or allocations. Forward reference types still resolve lazily. Phi
+factoring uses the same one-step Load safety check. Allocation memory remains
+shared across the struct's aliases, so the sole-use Store-to-New check may
+leave a Load that separate memory projections allowed to fold.

@@ -185,7 +185,7 @@ public class Evaluator {
         Object[] body=null;
         int num;
         if( type.isAry() ) {
-            long sz = (Long)val(alloc.in(1));
+            long sz = (Long)val(alloc.size());
             long n = offToIdx(sz, type);
             if( n < 0 )
                 throw new NegativeArraySizeException(""+n);
@@ -199,17 +199,14 @@ public class Evaluator {
                 assert elem instanceof TypeMemPtr;
             }
             // Length value
-            body[0] = vall(alloc.in(2+2));
+            body[0] = vall(alloc.in(3));
         } else {
             body = new Object[num = type._fields.length];
             for (int i=0; i<num; i++)
-                body[i] = val(alloc.in(2+i+num));
+                body[i] = val(alloc.in(3+i));
         }
-        Object[] mems = new Object[type._fields.length+2];
-        // mems[0] is control
-        mems[1] = new Obj(type,body); // the ref
-        // mems[2+...] are memory aliases
-        return mems;
+        return new Object[]{new Obj(type,body),null};
+
     }
 
     private Object load(LoadNode load) {

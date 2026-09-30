@@ -152,7 +152,7 @@ if( iss[arg] )
 return rez;
 """);
         try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'y'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null accessing '[]'",e.getMessage()); }
     }
 
     @Test

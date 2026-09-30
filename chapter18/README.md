@@ -7,6 +7,7 @@
 3. [Functions](#functions)
 4. [CodeGen - The Compile Driver](#codegen---the-compile-driver)
 5. [Graph Visualizer](#graph-visualizer)
+6. [Memory across functions](#memory-across-functions)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter18) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter17...linear-chapter18) it to the previous chapter.
 
@@ -236,3 +237,32 @@ Nodes are color coded according to type, same as the lattice diagrams.  Nodes
 are shaped according to node function as well.  At the bottom are `ScopeNode`s,
 which only exist for the Parser but are actual Nodes and have `use->def` edges
 into the IR.
+
+## Memory across functions
+
+Each function has one `$mem` parameter and the parser keeps one memory binding.
+Branches, loops, and multiple returns merge whole memory with BulkMemPhi. Field
+uses discover precise MemPhis, while MemMerge packages a default memory state
+and its alias overrides. MemMerge is an ordinary graph node; it no longer doubles
+as a mutable parser alias table.
+
+| Boundary | Memory convention |
+|---|---|
+| Function entry | Parm 1 carries whole memory; heap contents are unknown |
+| Call inputs | `{ctrl, $mem, arguments..., function pointer}` |
+| CallEnd outputs | `{ctrl, $mem, value}` |
+| Return inputs | `{ctrl, $mem, value, rpc}` |
+| New inputs | `{ctrl, $mem, size, field values...}` |
+| New outputs | `{ptr, $mem}`, covering only the allocated struct's aliases |
+
+A function may receive an existing object, so its entry memory cannot be treated
+as an empty heap. Calls conservatively affect every alias. The returned memory
+becomes the caller's new whole-memory state; there is no per-function alias
+summary. Trivial inlining removes this boundary and lets the ordinary memory
+rewrites see through the function body.
+
+Scheduling follows the relevant alias through MemMerge when looking for writes
+or calls that must follow a Load. Calls end their basic block, so moving the Load
+before that terminator supplies the required order without appending scheduling
+edges to the argument list. Phi factoring keeps the simple one-step Load guard;
+a direct Call user blocks that rewrite.

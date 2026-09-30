@@ -22,15 +22,15 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
-- **Forward Chapter 10b memory partitioning through 17-24.** The 10a/10b split
-  introduces whole-memory SSA first, then `MemMerge`, `MemPhi`, and `BulkMemPhi`.
-  Cliff reviewed and committed the port through 15 in `684c23f1`. Chapter 16 is
-  implemented and tested; stop here for review of constructor integration and
-  removal of `ScopeMinNode`. The next boundary is call/return aggregation in 18.
+- **Forward Chapter 10b memory partitioning through 19-24.** Cliff reviewed
+  and committed the port through 16 in `75b57151`. Chapters 17 and 18 are now
+  implemented and tested. Stop at 18 for review of function memory: parameters,
+  calls, and returns carry whole memory; aliases split lazily within functions.
   Keep private constructor memory, escape tracking, and incomplete-type
   inference in 25. Carry generalized Phi factoring, its one-step Load guard,
   and dependency fixes with the next ports; later snapshots already have parts
-  of that rewrite.
+  of that rewrite. Calls must keep their last input as the function pointer;
+  scheduling must not append anti-dependence edges to their argument lists.
 
 ### Chapter 15 allocation design (implemented)
 
@@ -64,7 +64,7 @@ Global code motion and the evaluator scheduler both follow an alias through
 MemMerge to discover the allocation's ordering constraint. MemMerge is packaging,
 not itself a clobber. The viewer and evaluator use the new slot conventions.
 
-### Chapter 16 constructor integration (implemented, review checkpoint)
+### Chapter 16 constructor integration (reviewed)
 
 ScopeNode now owns the variable records and one `$mem` binding; the obsolete
 ScopeMin alias table is removed. New inputs are `{ctrl, $mem, size, fields...}`,
@@ -80,7 +80,30 @@ memory result has more users than a per-alias result, so it permits fewer folds.
 both runtime results remain checked. Other changed printed expectations only
 adjust Region/Loop IDs after removing parser memory nodes.
 
+### Chapter 18 function memory (implemented, review checkpoint)
+
+Chapter 17 retains readonly casts, forward reference type updates, lexical
+guards, and increment/assignment semantics while replacing ScopeMin with one
+memory binding. Chapter 18 keeps its top-level Var class and makes MemMerge an
+ordinary optimizer node rather than a parser alias table. Memory Parm 1 stays
+opaque; local branches, loops, and merged returns use BulkMemPhi/MemPhi.
+Function entry and CallEnd memory have unknown contents, including heap arguments.
+Calls consume and return the complete memory state. There are no alias summaries
+or private constructor effects. Inlining can expose the existing alias rewrites.
+
+New retains `{ctrl, $mem, size, fields...}` inputs and `{ptr, $mem}` outputs.
+The evaluator, Eval2, graph viewer, and scheduling use those slots. Call is a
+clobber for every alias. GCM raises a Load before the Call's block terminator;
+it must not append the Load to the Call's inputs, which encode arguments and a
+last-slot function pointer. The one-step Phi Load guard also stops at Calls.
+
 ### Other pending corrections
+
+- **Existing Chapter 18 floating-array assertion.** The unchanged
+  `TypeStruct.makeAry` assertion accepts integers and nullable references but
+  excludes TypeFloat; `return new flt[1];` fails under `-ea`. The Chapter 18
+  memory probe uses floating struct fields for initialization coverage instead.
+  Investigate separately; this port does not change the array type lattice.
 
 - **Chapter 24 Load BOTTOM-on-error backport, unwound/deferred (2026-09-28).**
   Cliff requested starting with 24 and analyzing failures before proceeding.
@@ -269,6 +292,24 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **Lazy memory through 17 and 18.** Baselines: 17 has 288 tests; 18 has 318
+  plus its fuzzer wrapper. The port passes **298 tests in 17** and **331 tests
+  plus the fuzzer wrapper in 18**. Both carry the nine memory regressions and
+  constructor regression; 18 adds checks for non-inlined calls, recursive heap
+  updates, and allocation inside an inlined function. The non-inlined check
+  also verifies Call's input count and last-slot function pointer after GCM.
+  **7,700 / 9,800 evaluations across 100 optimizer seeds** pass in 17 / 18,
+  checking final memory values, complete scheduling, partial New inputs, and
+  two-result New. Full suites and both release jars build with Make alone.
+  Logs: `build/memory17-18-baseline.log`, `build/memory17-18-final.log`,
+  `build/memory17-seeds.log`, and `build/memory18-seeds.log`.
+  Chapter 17's And graph remains unfactored when the result would widen; the
+  existing runtime assertion is unchanged. Shared allocation memory retains
+  the `.y` Load in its inherited array example, as in 16. Nullable diagnostics
+  select the earlier array dereference in 17/18. The Chapter 17 null test now
+  makes `p2` mutable so its setup does not fail first on an unrelated final-field
+  store. Chapters 19+ remain unchanged for the Chapter 18 review checkpoint.
 
 - **Chapter 16 lazy memory and constructors.** Baseline: 237 tests. The port
   passes 247 tests, including nine carried memory regressions and one constructor

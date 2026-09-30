@@ -130,7 +130,7 @@ else {
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region,1.2,Phi(Region,2.3,3.14));", stop.toString());
+        assertEquals("return Phi(Region,1.2,Phi(Region,2.3,.y));", stop.toString());
         assertEquals(3.14, Evaluator.evaluate(stop, 0));
         assertEquals(1.2 , Evaluator.evaluate(stop, 1));
     }
@@ -156,7 +156,7 @@ if( iss[arg] )
 return rez;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'y'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null accessing '[]'",e.getMessage()); }
     }
 
     @Test
