@@ -53,6 +53,32 @@ global.  In short the compiler gets a lot more functional, and a big step
 towards concurrent or multi-threaded compilation.
 
 
+## Memory through instruction selection
+
+The parser carries one `$mem` binding. BulkMemPhi splits aliases on demand into
+parallel MemPhis, while MemMerge packages a default memory and explicit slices.
+Both machine selectors preserve these node classes and their alias information;
+they do not turn memory Phis into ordinary value Phis.
+
+This chapter lowers nonzero constructor values into explicit Stores, keeping the
+allocation itself a zeroing operation. New consumes `{ctrl, $mem, size}` and
+produces `{ptr, $mem}`. Its input is a partial MemMerge covering the allocated
+struct's aliases; its single memory result covers those same aliases. The parser
+preserves unrelated memory in the surrounding aggregate. The allocation's size
+register is input 2, its pointer result is output 0, and memory has no register.
+
+Selected memory operations retain their field alias even when an x86 arithmetic
+or comparison instruction absorbs a Load. Global scheduling therefore finds
+anti-dependencies through the common MemOpNode, following the relevant slice
+through MemMerge. Memory-result instructions are writers; other memory operations
+are readers. Trailing ordering edges on writers impose no register requirement.
+The simple one-step Load guard used when factoring Phis is unchanged.
+
+Calls still consume and produce whole memory. They terminate their blocks, so
+scheduling raises a read before a Call without adding inputs to its argument
+list. Direct machine calls embed their constant target and retain only control,
+memory, and argument inputs.
+
 
 ## Registers and Register Masks
 

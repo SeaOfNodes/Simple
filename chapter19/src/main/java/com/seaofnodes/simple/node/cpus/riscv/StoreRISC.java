@@ -20,7 +20,7 @@ public class StoreRISC extends MemOpRISC {
     }
 
     @Override public RegMask regmap(int i) {
-        return riscv.RMASK;
+        return i>=2 && i<=4 ? riscv.RMASK : null;
     }
 
 

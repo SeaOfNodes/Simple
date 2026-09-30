@@ -22,15 +22,17 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
-- **Forward Chapter 10b memory partitioning through 19-24.** Cliff reviewed
-  and committed the port through 16 in `75b57151`. Chapters 17 and 18 are now
-  implemented and tested. Stop at 18 for review of function memory: parameters,
-  calls, and returns carry whole memory; aliases split lazily within functions.
+- **Forward Chapter 10b memory partitioning through 20-24.** Cliff reviewed
+  and committed the port through 18 in `2d51b647`. Chapter 19 is implemented
+  and tested; stop here for review of instruction selection and selected memory
+  scheduling. Parameters, calls, and returns carry whole memory; aliases split
+  lazily within functions.
   Keep private constructor memory, escape tracking, and incomplete-type
   inference in 25. Carry generalized Phi factoring, its one-step Load guard,
   and dependency fixes with the next ports; later snapshots already have parts
-  of that rewrite. Calls must keep their last input as the function pointer;
-  scheduling must not append anti-dependence edges to their argument lists.
+  of that rewrite. Ideal Calls must keep their last input as the function pointer; direct machine
+  calls embed that target. Scheduling must not append anti-dependence edges to
+  either argument list.
 
 ### Chapter 15 allocation design (implemented)
 
@@ -80,7 +82,7 @@ memory result has more users than a per-alias result, so it permits fewer folds.
 both runtime results remain checked. Other changed printed expectations only
 adjust Region/Loop IDs after removing parser memory nodes.
 
-### Chapter 18 function memory (implemented, review checkpoint)
+### Chapter 18 function memory (reviewed)
 
 Chapter 17 retains readonly casts, forward reference type updates, lexical
 guards, and increment/assignment semantics while replacing ScopeMin with one
@@ -96,6 +98,24 @@ The evaluator, Eval2, graph viewer, and scheduling use those slots. Call is a
 clobber for every alias. GCM raises a Load before the Call's block terminator;
 it must not append the Load to the Call's inputs, which encode arguments and a
 last-slot function pointer. The one-step Phi Load guard also stops at Calls.
+
+### Chapter 19 instruction selection (implemented, review checkpoint)
+
+Both selectors preserve BulkMemPhi exclusions and MemPhi aliases. Selected
+memory instructions carry their alias through MemOpNode; GCM follows aggregates
+for ordinary and folded reads, waits for matching writers, and inserts ordering
+edges that require no register. Direct machine calls embed their target and must
+keep their argument lists intact, just like ideal Calls.
+
+Preserve this chapter's existing lowering of nonzero initializers into Stores.
+New now takes `{ctrl, $mem, size}` and produces `{ptr, $mem}`; there are no field
+value inputs at this stage. Partial coverage and whole-memory integration are
+unchanged. New's alias contents meet incoming memory with the field's zero type.
+Both CPU allocation register masks and both evaluators use the new slots.
+
+The nested-loop regression reaches x86's existing right-hand Load/Add TODO;
+that commutative case now uses AddMemX86 just like a left-hand Load. No other
+unfinished instruction patterns or encoding work is included.
 
 ### Other pending corrections
 
@@ -293,6 +313,21 @@ The top-level runner accepts explicit chapter lists, e.g.
 
 ## Validation record
 
+- **Chapter 19 lazy memory and instruction selection.** Baseline: 360 tests
+  plus the fuzzer wrapper. Final: **375 tests plus the fuzzer wrapper**; release
+  jar builds with Make alone. Forwarded 13 memory regressions and added two
+  instruction-selection checks: alias/Phi preservation and allocation/call slots
+  on both targets, and folded x86 reads ordered before clobbering Stores.
+  **9,800 scheduled evaluations** and **2,800 selected/scheduled graphs** pass
+  across 100 optimizer seeds, with x86_64_v2 and riscv selection exercised.
+  The latter checks graph scheduling and shape; this chapter does not execute
+  encoded machine code. Logs: `build/memory19-baseline.log`,
+  `build/memory19-final.log`, `build/memory19-seeds.log`,
+  `build/memory19-machine-seeds.log`, and `build/memory19-release.log`.
+  Chapter 14's inherited And graph factors here without widening; its runtime
+  assertion remains. Chapters 20+ are unchanged for this review checkpoint.
+
+
 - **Lazy memory through 17 and 18.** Baselines: 17 has 288 tests; 18 has 318
   plus its fuzzer wrapper. The port passes **298 tests in 17** and **331 tests
   plus the fuzzer wrapper in 18**. Both carry the nine memory regressions and
@@ -309,7 +344,7 @@ The top-level runner accepts explicit chapter lists, e.g.
   the `.y` Load in its inherited array example, as in 16. Nullable diagnostics
   select the earlier array dereference in 17/18. The Chapter 17 null test now
   makes `p2` mutable so its setup does not fail first on an unrelated final-field
-  store. Chapters 19+ remain unchanged for the Chapter 18 review checkpoint.
+  store. This checkpoint was reviewed and committed as `2d51b647`.
 
 - **Chapter 16 lazy memory and constructors.** Baseline: 237 tests. The port
   passes 247 tests, including nine carried memory regressions and one constructor

@@ -53,6 +53,8 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
 
     @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
 
+    @Override public boolean isMem() { return _type instanceof TypeMem; }
+
     @Override public String label() { return op(); }
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }
@@ -63,7 +65,7 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
         if( i==2 ) return x86_64_v2.RMASK;  // base
         if( i==3 ) return x86_64_v2.RMASK;  // index
         if( i==4 ) return x86_64_v2.RMASK;  // value
-        throw Utils.TODO();
+        return null;          // Trailing anti-dependence edges
     }
     // Register mask allowed as a result.  0 for no register.
     @Override public RegMask outregmap() { throw Utils.TODO(); }

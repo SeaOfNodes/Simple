@@ -1,7 +1,6 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.CodeGen;
-
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
@@ -225,6 +224,7 @@ public abstract class Node implements Cloneable {
     // Error is 'use' does not exist; ok for 'use' to be null.
     protected boolean delUse( Node use ) {
         _outputs.del(_outputs.find(use));
+        moveDepsToWorklist(); // User-count and anti-dependence queries can now change.
         return _outputs.isEmpty();
     }
 
@@ -283,6 +283,7 @@ public abstract class Node implements Cloneable {
             n.unlock();
             int idx = n._inputs.find(this);
             n._inputs.set(idx,nnn);
+            n.moveDepsToWorklist(); // Rewiring can change a dependent query without changing type.
             nnn.addUse(n);
             CODE.addAll(n._outputs);
         }
@@ -473,6 +474,14 @@ public abstract class Node implements Cloneable {
      * being added must benefit from this node being peepholed.
      */
     Node addDep( Node dep ) {
+        return addDep(dep,false);
+    }
+
+    // A bulk Phi inspects its users' partitions. Def-to-use propagation does
+    // not revisit that producer when an immediate user's partition changes.
+    Node addDepForwards(Node dep) { return addDep(dep,true); }
+
+    private Node addDep(Node dep, boolean forwards) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( CODE._midAssert ) return this;
@@ -481,8 +490,8 @@ public abstract class Node implements Cloneable {
         if( dep == null ) return this;
         if( _deps==null ) _deps = new Ary<>(Node.class);
         if( _deps   .find(dep) != -1 ) return this; // Already on list
-        if( _inputs .find(dep) != -1 ) return this; // No need for deps on immediate neighbors
-        if( _outputs.find(dep) != -1 ) return this;
+        if( !forwards && _inputs .find(dep) != -1 ) return this; // No need for deps on immediate neighbors
+        if( !forwards && _outputs.find(dep) != -1 ) return this;
         _deps.add(dep);
         return this;
     }

@@ -16,6 +16,8 @@ public class MemOpRISC extends MemOpNode implements MachNode{
     }
     @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
 
+    @Override public boolean isMem() { return _type instanceof TypeMem; }
+
     @Override public String label() { return op(); }
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }

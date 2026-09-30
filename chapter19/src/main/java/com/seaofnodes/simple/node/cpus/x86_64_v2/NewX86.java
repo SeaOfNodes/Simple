@@ -12,8 +12,8 @@ public class NewX86 extends NewNode implements MachNode {
     // Register mask allowed on input i, the size
     @Override public RegMask regmap(int i) {
         // Size
-        if( i==1 ) return x86_64_v2.RDI_MASK;
-        // All the memory alias edges
+        if( i==2 ) return x86_64_v2.RDI_MASK;
+        // Memory has no register
         return null;
     }
     @Override public RegMask outregmap() { throw Utils.TODO(); }
@@ -21,8 +21,8 @@ public class NewX86 extends NewNode implements MachNode {
     // Register mask allowed as a result.  Pointer result in standard calling
     // convention.
     @Override public RegMask outregmap(int i) {
-        if( i == 1 ) return x86_64_v2.RET_MASK;
-        // All the memory aliases edges
+        if( i == 0 ) return x86_64_v2.RET_MASK;
+        // Memory has no register
         return null;
     }
 
