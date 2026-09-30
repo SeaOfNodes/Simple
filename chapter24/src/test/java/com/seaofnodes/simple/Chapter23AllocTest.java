@@ -11,7 +11,7 @@ public class Chapter23AllocTest {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         Chapter23Test.testCPU(src,"x86_64_v2", "SystemV", 9,null);
         Chapter23Test.testCPU(src,"riscv"    , "SystemV", 3,null);
-        Chapter23Test.testCPU(src,"arm"      , "SystemV", 3,null);
+        Chapter23Test.testCPU(src,"arm"      , "SystemV", 1,null);
     }
 
     @Test

@@ -115,7 +115,7 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        testTarget(src,"x86_64_v2", "SystemV",48,null);
+        testTarget(src,"x86_64_v2", "SystemV",40,null);
         testTarget(src,"riscv"    , "SystemV",17,null);
         testTarget(src,"arm"      , "SystemV",18,null);
     }
@@ -162,7 +162,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testTarget(src,"x86_64_v2", "SystemV",9,"return .[];");
+        testTarget(src,"x86_64_v2", "SystemV",7,"return .[];");
         testTarget(src,"riscv"    , "SystemV",7,"return (add,.[],(mul,.[],1000));");
         testTarget(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
     }

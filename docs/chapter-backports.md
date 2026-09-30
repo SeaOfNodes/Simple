@@ -22,9 +22,9 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
-- **Forward Chapter 10b memory partitioning through 21-24.** Cliff reviewed
-  and committed the port through 19 in `612555ee`. Chapter 20 is implemented
-  and tested; stop here for review of register allocation and spill measurements. Parameters, calls, and returns carry whole memory; aliases split
+- **Forward Chapter 10b memory partitioning through 22-24.** Cliff reviewed
+  and committed the port through 20 in `f01ee052`. Chapter 21 is implemented
+  and tested; stop here for review of encoding and execution. Parameters, calls, and returns carry whole memory; aliases split
   lazily within functions.
   Keep private constructor memory, escape tracking, and incomplete-type
   inference in 25. Carry generalized Phi factoring, its one-step Load guard,
@@ -116,7 +116,7 @@ The nested-loop regression reaches x86's existing right-hand Load/Add TODO;
 that commutative case now uses AddMemX86 just like a left-hand Load. No other
 unfinished instruction patterns or encoding work is included.
 
-### Chapter 20 register allocation (implemented, review checkpoint)
+### Chapter 20 register allocation (reviewed)
 
 ARM joins x86-64 and RISC-V in preserving bulk/precise memory Phis, allocation
 slots, and selected memory effects. The allocator already excludes TypeMem Phis
@@ -132,7 +132,147 @@ other addend; the existing constant selector materializes it.
 Keep Chapter 20's inlining-safe Return typing and the dependency registrations
 on a rejected Phi factoring attempt. Those fixes predate this memory port.
 
+### Chapter 21 encoding (implemented, review checkpoint)
+
+All three targets retain the memory Phi subclasses and New's pointer slot 0,
+memory slot 1, and size input 2. Chapter 21 caches New's register masks in the
+shared node during register allocation; update that shared interface. Keep its
+existing scheduler rule that writers are already placed when adding read-before-
+write constraints. Calls receive no scheduling-only operands.
+
+Dependency registration reverses direction here: `consumer.addDep(producer)`.
+The forwarded memory queries and explicit forward dependencies follow that API.
+Synthetic no-exit loops collect MemPhi inputs by alias and use BulkMemPhi for
+the merged return memory. The one-step Load factoring guard is unchanged.
+
+Actual execution exposed a full-width integer Load allocated to XMM but encoded
+as a GPR load. LoadX86 now selects the encoding from the allocated register bank,
+preserving register masks. ARM's emulator now supports MOVK and MOVZ's complete
+16-bit immediate and halfword shift. Carry these narrow fixes with later ports.
+
+BrainFuck follow-up: both the original and ported compilers retain 12 ideal
+Loads and 114 Stores (106 Stores initialize the program). In the RISC-V Hello
+World run, both execute 3,261 heap loads and 646 heap stores; stack loads/stores
+change from 15/15 to 1,006/572, mostly spilling `d+4`. There are also pre-existing
+missed length optimizations: `program#` reloads the known 106 on all 907 loop
+tests, and `old#` is reloaded after allocating the replacement output array.
+Load forwarding stops at memory Phis; its loop-profit test does not see through
+the backedge's multiway Phi. The old-output pointer is itself a Phi, beyond the
+two-direct-allocations disjointness test. Field aliases distinguish array length
+from array data, but do not distinguish separate arrays of the same element type.
+A scratch source replacing only `program#` with 106 passes Hello World, removes
+907 heap loads, and returns stack traffic to 15/15. Its weighted split score
+nevertheless rises from 130 to 165 as allocation inserts many pointer copies
+before initialization stores; this score is not a dynamic memory-traffic measurement. No compiler
+optimization was changed in this investigation. Probe sources and before/after
+logs: `build/BrainMemory{Probe,Variants}.java`, `build/brain-memory-*.log`, and
+`build/brain-variants-*.log`.
+
+The subsequent Chapter 21 Load search now folds `program#` through the loop.
+The search returns a folding witness without creating nodes or rewiring edges;
+it retains optimizer dependencies. At a non-loop MemPhi it must prove every
+arm, with a BitSet remembering successful merges. Returning to the original
+loop memory is success only for an invariant pointer. Unknown clobbers, other
+loops, and incomplete merges fail. A separate builder creates value Phis after
+the proof; unchanged paths refer to the new loop value Phi. Enqueue that Phi:
+a self-edge can otherwise keep an obsolete Phi alive after local folding.
+Controlled array accesses are not hoisted across a merge. The one-step
+`Load.clobbered` factoring guard is unchanged. Carry this search with later ports.
+
+The unmodified BrainFuck source now has 11 Loads. RISC-V Hello World executes
+2,354 heap loads, 646 heap stores, and 15/15 stack loads/stores, compared with
+3,261 / 646 / 1,006 / 572 before this search. Emulator instruction count drops
+22,965 to 21,920 (not a hardware timing). Retained/weighted moves change
+46/130 to 144/165 as allocation inserts repeated initialization-store pointer copies.
+Four reduced cases cover unchanged N-way arms, a possibly aliasing arm,
+loop-carried pointers, and distinct values folding on all arms; they pass
+2,800 evaluations across 100 seeds. The existing 9,800 memory evaluations pass.
+At that checkpoint, the 432-test suite had only the user-edited BrainFuck golden failure
+(42 versus 165). A temporary test copy restoring native BrainFuck execution
+and using 165 passes all 91 spill-cohort entries and their runtime checks:
+943 / 1,594 moves / weighted moves. The user's test edits were preserved.
+Logs: `build/load-search21-tests5.log`, `build/load-search21-seeds.log`,
+`build/load-search21-loop-seeds.log`, `build/brain-variants-search.log`, and
+`build/load-search21-spills-complete.log`.
+
+### Adjacent-copy forwarding: Chapters 21-25
+
+Chapter 21 now removes a post-color Split when its sole use is the immediately
+following non-Phi, non-CFG instruction, the operand accepts the source register,
+and the operand is not two-address tied. Adjacency proves no intervening clobber.
+The same rule and focused guard regression are present in 22-25; Chapter 20
+retains its baseline allocator. No spill-selection or CFG splitting rule changed.
+
+RISC-V BrainFuck keeps its original source and now has 35 / 42 retained / weighted
+moves instead of 144 / 165. Hello World executes 21,787 emulator instructions
+instead of 21,920; heap traffic remains 2,354 loads / 646 stores and stack traffic
+15 / 15. Full Make suites and fuzzer targets pass in 21-25. Chapters 21-24 also
+pass complete spill reports after refreshing reduced-move expectations:
+
+| Compiler | Allocations | Retained moves | Weighted moves |
+|---|---:|---:|---:|
+| 21 | 91 | 821 | 1,444 |
+| 22 | 117 | 826 | 1,470 |
+| 23 | 147 | 913 | 1,711 |
+| 24 | 214 | 1,310 | 2,969 |
+
+Cohort 22 includes the two zero-move C return ABI checks added since the older
+24-entry audit. Chapter 25's frozen 212-entry manifest remains unchanged.
+Its reporter currently fails on ten pre-existing String-constructor parse errors;
+the unmodified allocator reproduces all ten. The same 216 successful allocations
+(including 14 current cohort-25 allocations) improve from 2,563 / 5,496 to
+2,494 / 5,399, but these are partial totals. Fresh system-library encoding and
+native cohort-25 checks pass. Logs: `build/copy-forward21-spills-final.log`
+through `build/copy-forward24-spills-final.log`, `build/copy-forward25-spills.log`,
+`build/copy-forward25-baseline.log`, and `build/copy-forward*-tests*.log`.
+
 ### Other pending corrections
+
+- **Chapter 25 historical String fixtures.** Ten replay entries fail before RA
+  because `Test.String.cs` is not fully initialized. They come from
+  `Chapter21Test-testStringExport.smp` (four entries),
+  `Chapter21AllocTest-testString.smp` (three), and
+  `Chapter23AllocTest-testString.smp` (three), under
+  `chapter25/src/test/java/com/seaofnodes/simple/spill/`. Both original and
+  adjacent-copy-forwarding allocators reproduce them. Adapt these constructor
+  fixtures separately and document the comparability change; do not omit the
+  failed entries from a claimed complete spill total. The ordinary Chapter 25
+  suite passes, including its current String programs.
+
+
+- **Chapter 21 read-before-conditional-store scheduling.** A reduced negative
+  test for Load search exposed an existing ordering error: summing `a.x` before
+  a possibly aliasing conditional store in a loop returns 140 instead of 120
+  when the pointer aliases `a`. It reproduces with the saved pre-search Load
+  class as well. Source and before/after graph dumps are in
+  `build/LoadSearchProbe.java` and `build/load-search-probe-{before,after}.txt`.
+  The Load-search rejection tests put the Store before the read to isolate
+  the optimization from that separate scheduling defect. Investigate separately.
+
+- **Forward Chapter 21 whole-program printer ordering through 22-25.**
+  `CodeGen.toString()` before scheduling now uses function-local CFG RPO and
+  groups every Region/Loop with its Phis. Chapter 25 supplied the function
+  ownership and grouping approach, but its combined CFG/data walk still puts
+  BrainFuck's closing Region before the body when adapted to 21. Chapter 21
+  therefore orders control edges first, then places data for display using
+  private identity maps. No scheduling, idom queries, or graph mutation occurs.
+  The depth-limited node printer and scheduled whole-program printer retain
+  their existing entry points. Checked 18 parse/opto/loop-tree snapshots for
+  complete unique output, CFG ordering, Phi adjacency, repeatability, and
+  unchanged graph/cache state. Updated BrainFuck dump:
+  `build/brain-print-after-opto.txt`; diagnostic probe: `build/Print21Check.java`.
+  Release passes. The current full suite passes 430/431 tests; the sole failure
+  is the debugger-edited BrainFuck spill golden (42 versus the unchanged 130).
+  Those test edits were preserved. Log: `build/printer21-tests.log`.
+
+- **Chapter 21 synthetic TOP return allocation.** The original compiler at
+  `f01ee052` and the memory port both fail in `Coalesce.coalesce`: a Split of
+  TOP has no input live range. Reproduction: `struct S { int x; int y; };
+  S !a=new S; if(arg) while(1) { a.x+=arg; a.y+=a.x; } return a.x+a.y;`
+  through Encoding on x86/SystemV. The new memory regression checks both
+  precise slices of the synthetic exit, then schedules all three targets;
+  allocation of its scalar TOP arm remains separate work. Do not hide the
+  missing live range with a null guard in coalescing.
 
 - **Existing Chapter 18 floating-array assertion.** The unchanged
   `TypeStruct.makeAry` assertion accepts integers and nullable references but
@@ -261,11 +401,11 @@ reports actual retained moves, per target and cohort, with assertions enabled.
 | Chapter | Additional technique | Final cohort sizes |
 |---|---|---|
 | 20 | Basic coloring, rematerialization and loop splitting, with shared legality/progress fixes | 39 |
-| 21 | Conservative copy coalescing | 39, 52 |
-| 22 | Stronger copy-chain/backedge bias and cheap-spill ordering | 39, 52, 24 |
-| 23 | Group popular single-def uses by compatible register classes | 39, 52, 24, 30 |
-| 24 | One cold-only attempt for loop-Phi self-conflicts, then mandatory fallback | 39, 52, 24, 30, 67 |
-| 25 | Existing area/cost ranking and later conflict strategies | 39, 52, 24, 30, 67, 10 |
+| 21 | Conservative copy coalescing and adjacent-copy forwarding | 39, 52 |
+| 22 | Stronger copy-chain/backedge bias and cheap-spill ordering | 39, 52, 26 |
+| 23 | Group popular single-def uses by compatible register classes | 39, 52, 26, 30 |
+| 24 | One cold-only attempt for loop-Phi self-conflicts, then mandatory fallback | 39, 52, 26, 30, 67 |
+| 25 | Existing area/cost ranking and later conflict strategies | 39, 52, 24, 30, 67, 14 (ten historical entries currently fail) |
 
 Shared corrections include RegMask/LRG bookkeeping, null use masks, kills without
 an output LRG, self-conflict splitting, compatible rematerialization, clobber-aware
@@ -294,16 +434,16 @@ Chapter 25 freezes the 212 earlier compilation entries in
 Constructor/library adaptations change IR, so this is a program-cohort comparison,
 not identical machine graphs. Those rows replay allocation and legality checks;
 current Chapter25Test native checks and a fresh system-library encoding contribute
-ten more allocations. Total: **2,597 moves / 5,579 loop-weighted moves** over 222
+ten more allocations. Earlier audit total, before adjacent-copy forwarding: **2,597 moves / 5,579 loop-weighted moves** over 222
 compilations. Chapter 25's area/cost implementation is retained. Substituting the
 earlier ranking saves five moves on the clients but fails a fresh `sys` allocation
 at the eight-round limit; a failed library cannot be omitted from the comparison.
 
 The earlier tables are refreshed where the final mask fixes changed them:
 Chapter 20 was 238 / 357 before the subsequent lazy-memory port (now 234 / 360);
-Chapter 21 is 840 / 1,456. Coalescing on/off now saves
-230 / 433 moves in Chapter 21 with identical legality fixes. Chapters 22-24's
-aggregate values are unchanged. Full details and comparison limits belong in
+Chapter 21 was 840 / 1,456 before lazy memory and adjacent-copy forwarding.
+The audit's coalescing on/off comparison saves
+230 / 433 moves in Chapter 21 with identical legality fixes. Current totals for 21-24 appear in the adjacent-copy record above. Full details and comparison limits belong in
 the individual READMEs rather than a second evolving set of tables here.
 
 ## Review and test protocol
@@ -329,6 +469,25 @@ The top-level runner accepts explicit chapter lists, e.g.
 
 ## Validation record
 
+- **Chapter 21 lazy memory and encoding.** Baseline: **412 tests plus the
+  fuzzer wrapper**. Final: **431 tests plus the fuzzer wrapper**. Make release
+  and spill-stats pass. The 16 forwarded memory checks retain scheduling and
+  allocation coverage; three execution/synthetic-exit tests add 42 native x86
+  and 84 ARM/RISC-V evaluations with independent expected results, plus checks
+  of no-exit loop memory through scheduling. **9,800 scheduled evaluations**
+  pass across 100 optimizer seeds. Emulated multi-function programs enter at
+  main's encoded offset, which need not be zero.
+  The unchanged **91-entry** spill cohort changes **840 / 1,456** retained /
+  weighted moves to **845 / 1,559**. RISC-V BrainFuck changes 35 / 42 to
+  37 / 58 in the Chapter 20 cohort and 35 / 42 to 46 / 130 in Chapter 21.
+  An ablation omitting only read-before-New ordering returns those rows to
+  35 / 42 and 37 / 58; the ordering is retained, with no allocator tuning.
+  All eleven changed rows are recorded in the chapter README.
+  Logs: `build/memory21-baseline.log`, `build/memory21-final.log`,
+  `build/memory21-seeds.log`, `build/memory21-spills-baseline.log`,
+  `build/memory21-spills-final.log`, `build/memory21-spills-ablation.log`,
+  and `build/memory21-release.log`. Chapters 22+ are unchanged for review.
+
 - **Chapter 20 lazy memory and register allocation.** Baseline: 380 tests plus
   the fuzzer wrapper. Final: **396 tests plus the fuzzer wrapper**, with the
   15 forwarded regressions and one allocation regression spanning all three
@@ -344,7 +503,7 @@ The top-level runner accepts explicit chapter lists, e.g.
   `build/memory20-seeds.log`, `build/memory20-machine.log`,
   `build/memory20-spills-baseline.log`, `build/memory20-spills-final.log`,
   `build/memory20-spills-ablation.log`, and `build/memory20-release.log`.
-  Chapters 21+ are unchanged for review.
+  This checkpoint was reviewed and committed as `f01ee052`.
 
 
 - **Chapter 19 lazy memory and instruction selection.** Baseline: 360 tests

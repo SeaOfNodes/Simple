@@ -116,10 +116,11 @@ public class EvalArm64 {
             }
             // for the opcode we just match for bits[31:24];
             switch(opcode1) {
-                case 0xD2: {
-                    // movz
-                    // get immediate
-                    rval = (ir >> 5) & 0x7FFF;
+                case 0xD2: // MOVZ
+                case 0xF2: { // MOVK preserves the other halfwords
+                    int shift = ((ir >> 21) & 3)*16;
+                    rval = ((ir >> 5) & 0xFFFFL) << shift;
+                    if( opcode1==0xF2 ) rval |= regs[rdid] & ~(0xFFFFL << shift);
                     break;
                 }
                 case 0x38: {

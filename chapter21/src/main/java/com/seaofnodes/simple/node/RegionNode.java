@@ -48,7 +48,7 @@ public class RegionNode extends CFGNode {
         if( !hasPhi() &&         // No Phi users, just a control user
             in(1) instanceof CProjNode p1 &&
             in(2) instanceof CProjNode p2 &&
-            addDep(p1.in(0))==addDep(p2.in(0)) &&
+            addDepForwards(p1).in(0)==addDepForwards(p2).in(0) &&
             p1.in(0) instanceof IfNode iff ) {
             // Replace with the iff.ctrl directly
             if( nIns()==3 ) return iff.ctrl();

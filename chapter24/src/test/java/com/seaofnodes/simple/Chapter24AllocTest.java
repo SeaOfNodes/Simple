@@ -25,7 +25,7 @@ val sqrt = { int x ->
 int cast_int = arg+2;
 return sqrt(arg) + sqrt(cast_int);
 """;
-        Chapter24Test.testCPU(src,"x86_64_v2", "Win64"  ,48,null);
+        Chapter24Test.testCPU(src,"x86_64_v2", "Win64"  ,40,null);
         Chapter24Test.testCPU(src,"riscv"    , "SystemV",19,null);
         Chapter24Test.testCPU(src,"arm"      , "SystemV",19,null);
     }

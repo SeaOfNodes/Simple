@@ -44,9 +44,9 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 - Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
   (lazy graph partitioning). Both are standalone snapshots. Cliff reviewed and
-  committed the forward port through Chapter 19. Chapter 20 now carries lazy
-  memory through register allocation on all three targets. Stop for implementation
-  review at Chapter 20; leave 21-24 unchanged. See the concrete boundary notes
+  committed the forward port through Chapter 20. Chapter 21 now carries lazy
+  memory through encoding and execution on all three targets. Stop for implementation
+  review at Chapter 21; leave 22-24 unchanged. See the concrete boundary notes
   in `docs/chapter-backports.md`. GCM readiness and anti-dependency checks must both
   filter by alias and ignore MemMerge as a clobber; keep the evaluator's same
   alias filtering too. MemMerge still needs ordinary data-dependency placement.
@@ -104,7 +104,34 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   port changes 238 / 357 moves / weighted moves to 234 / 360 without changing
   allocator heuristics. Selected-read ordering explains the extra hot array move.
 
-- Generalized Phi factoring now starts in 10a and is forwarded through 20.
+- Chapter 21 reverses addDep's direction: use `consumer.addDep(producer)`,
+  including explicit forward dependencies. New's register masks are cached in
+  the common node during allocation; size uses input 2 and pointer output 0.
+  Its GCM already places writers before adding read-before-write constraints;
+  preserve that chapter-specific rule. LoopNode.forceExit reconstructs memory
+  using actual MemPhi aliases and merges return memory with BulkMemPhi. Machine
+  execution tests must find main's encoded offset, rather than assuming PC 0.
+  Full-width x86 loads choose their instruction from the allocated register
+  bank, preserving integer bits when allocated to XMM. ARM's emulator needs
+  MOVK and full MOVZ immediate/shift support. The 91-entry spill cohort changes
+  840 / 1,456 to 845 / 1,559; read-before-New ordering explains most of the
+  RISC-V BrainFuck increase. No allocator heuristics changed. Synthetic scalar
+  TOP exit allocation already failed before this port; see the pending queue.
+
+- Chapter 21's Load search is separate from the one-step factoring guard.
+  It creates no nodes or rewiring, but records dependencies and returns folding
+  witnesses. All arms of a non-loop memory Phi must succeed; a BitSet records
+  successfully checked merges. Only the original loop Phi closes an unchanged
+  path, and only for a loop-invariant pointer. Build value Phis after proving
+  profitability, and enqueue the root value Phi even when it folds locally:
+  self-edges otherwise keep an obsolete Phi alive outside the worklist. Reject
+  hoisting controlled array accesses. BrainFuck's program length now folds;
+  its RISC-V run loses 907 heap loads and all hot stack spills. Static move
+  counts initially rose from repeated initialization-store pointer copies;
+  adjacent-copy forwarding removes them. Measure executed memory traffic too.
+  Carry this search with subsequent memory ports.
+
+- Generalized Phi factoring now starts in 10a and is forwarded through 21.
   Memory-specific eligibility lives in `MemOpNode.canDrop`, with virtual Load
   and Store checks. Load owns `clobbered`: all these chapters check only
   immediate memory users, without recursion or a visited set. Stop at Stores,
@@ -251,16 +278,22 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   all 13 original programs; Chapter21AllocTest retains the four revised cases,
   counted with the native variants as cohort 21. On Windows the cohorts are
   39 and 52 compilations. Preserve source/target membership when moving forward.
+- Chapter 21 adds adjacent-copy forwarding after coloring; carry it through 25.
+  A Split with exactly one use, in the next scheduled instruction, can be removed
+  if the operand accepts the source register and is not two-address tied. Exclude
+  Phi/CFG users. Adjacency supplies the no-clobber proof; do not expand this into
+  CFG lifetime partitioning. Chapter 20 keeps its simpler baseline.
 - Chapter 22 adds stronger copy-chain/backedge bias and cheap-spill ordering;
   popular-use grouping remains for 23. Preserve `person21` (64-bit age) separately
   from 22's narrower person example, and keep its revised infinite-loop input in
-  cohort 22. The Windows cohort counts are 39, 52, and 24.
+  cohort 22. The Windows cohort counts are now 39, 52, and 26; the two added C return
+  ABI checks have zero moves.
 - Chapter 23 groups popular single-def uses by compatible register masks. One
   intersection pass suffices: narrowing a class preserves its earlier users,
   and newly added classes are disjoint. Snapshot distinct users before rewiring,
   ignore null register masks, and count a call once despite repeated arguments.
   The grouping correction/regression is already forwarded through 25.
-- Chapter 23's frozen cohorts count 39, 52, 24, and 30 allocations. Preserve
+- Chapter 23's current cohorts count 39, 52, 26, and 30 allocations. Preserve
   `stringHash21` (with the old guard); its revised source and newly enabled Jig
   tests belong to 23. Grouping on/off gives identical 933 raw / 1,745 weighted
   moves here; report the zero gain rather than implying every heuristic helps
@@ -592,6 +625,16 @@ Consequences:
   registers. The Chapter 25 Bubble Sort failure exposed this in `MulIX86`.
 
 ## Side-effect-free diagnostics: B09 lessons
+
+- Chapter 21's pre-scheduling `CodeGen.toString()` uses a separate CFG-only
+  RPO walk, then printer-local data placement. Walking CFG and data uses in
+  the same DFS can move a loop's closing Region before its body via Phi
+  backedges, even when CFG uses are visited first. Keep Loop/Region Phis
+  contiguous with their header, without pulling their backedge definitions
+  up to the header. Preserve function boundaries at Calls/Returns. This
+  correction remains queued for 22-25; 25 supplied the grouping approach but
+  still mixes CFG and data traversal. All printer bookkeeping uses identity
+  maps and raw edges, without invoking actual scheduling or dominator queries.
 
 - `Node._inputs` remains allocated after `kill()`. Use `isDead()` when printing
   or filtering dead nodes; an empty input array alone does not imply death.

@@ -481,18 +481,24 @@ the fallback, including splitting an existing copy when all uses have the same
 loop depth. Cold-first loop splitting is left for Chapter 24; area/cost spill
 ranking remains for Chapter 25.
 
+Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
+a sole use in the next instruction can read the source register when its
+operand mask permits it and no two-address tie is broken. The table below
+includes this cleanup. Cohort 22 now also includes the two zero-move C return
+ABI checks added since the earlier audit (26 entries instead of 24).
+
 Run `make spill-stats` in this directory. All rows below use **this chapter's
 compiler**, seed 123, and frozen source/target combinations from each cohort.
 The Windows run combines x86 SystemV/Win64 and RISC-V/ARM SystemV. Diagnostic
 machine graphs are checked separately and do not contribute to the counts.
 
-| Program cohort | Compilations | Split/move count | Loop-weighted count |
+| Program cohort | Compilations | Retained moves | Loop-weighted moves |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 332 | 458 |
-| Chapter 21 | 52 | 450 | 989 |
-| Chapter 22 | 24 | 67 | 67 |
-| Chapter 23 | 30 | 84 | 231 |
-| **Total** | **145** | **933** | **1,745** |
+| Chapter 20 | 39 | 326 | 445 |
+| Chapter 21 | 52 | 439 | 971 |
+| Chapter 22 | 26 | 67 | 67 |
+| Chapter 23 | 30 | 81 | 228 |
+| **Total** | **147** | **913** | **1,711** |
 
 `_spills` counts retained SplitNodes, including register moves; `_spillScaled`
 weights them by `8^loopDepth`. These estimate compiler-generated moves, not
@@ -500,7 +506,7 @@ runtime memory traffic. The reporter prints individual compilations and sums
 by CPU/ABI, and still reports failure when a spill expectation or execution
 check fails.
 
-With grouping disabled and everything else held fixed, this suite produces
+In the earlier audit, before adjacent-copy forwarding, disabling grouping produced
 **the same 933 moves / 1,745 weighted moves**. The original grouping code also
 has those totals. This suite therefore shows no spill improvement from grouping;
 the reduced machine-graph regression exercises its compatibility and call rules,
@@ -508,7 +514,7 @@ including a null-mask crash in the old implementation. A plausible allocator
 heuristic needs measurements on workloads that reach it before claiming a win.
 
 For the older cohorts alone, Chapter 22's compiler produced 838 moves / 1,496
-weighted moves; this compiler produces 849 / 1,514. That comparison includes
+weighted moves; this compiler then produced 849 / 1,514. That comparison includes
 changes outside allocation. In particular, Chapter 20's frozen String input
 survives optimization here and costs 16 weighted moves; Chapter 22 eliminated
 it at this seed. It would be misleading to attribute that difference to grouping.

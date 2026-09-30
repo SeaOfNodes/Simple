@@ -169,6 +169,7 @@ public class Chapter21Test {
 
 
     @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
+    @Test public void testCopyForward() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.copyForward(); }
 
     @Test public void testArmSubtractRegisters() {
         EvalArm64 cpu = new EvalArm64(new byte[16],16);
@@ -339,7 +340,7 @@ val _hashCodeString = { String self ->
 """;
         testCPU(src,"x86_64_v2", "SystemV",21,null);
         testCPU(src,"riscv"    , "SystemV",10,null);
-        testCPU(src,"arm"      , "SystemV",10,null);
+        testCPU(src,"arm"      , "SystemV",8,null);
     }
 
     @Test public void testStringExport() throws IOException {

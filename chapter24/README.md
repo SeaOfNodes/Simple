@@ -296,19 +296,25 @@ also covers a backedge-only conflict where the first attempt inserts no copy:
 that attempt must still consume the one permitted delay. A regression checks
 both the cheaper first attempt and the mandatory fallback.
 
+Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
+a sole use in the next instruction can read the source register when its
+operand mask permits it and no two-address tie is broken. The table below
+includes this cleanup. Cohort 22 now also includes the two zero-move C return
+ABI checks added since the earlier audit (26 entries instead of 24).
+
 Run `make spill-stats`. All rows use **Chapter 24's compiler**, optimizer seed
 123, and the same source/target combinations as the earlier cohort tables.
 These Windows results combine x86 SystemV/Win64 and RISC-V/ARM SystemV,
 remeasured on 2026-09-28 after the function-pointer lifetime backport.
 
-| Program cohort | Compilations | Split/move count | Loop-weighted count |
+| Program cohort | Compilations | Retained moves | Loop-weighted moves |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 323 | 442 |
-| Chapter 21 | 52 | 436 | 975 |
-| Chapter 22 | 24 | 67 | 67 |
-| Chapter 23 | 30 | 84 | 231 |
-| Chapter 24 | 67 | 441 | 1,400 |
-| **Total** | **212** | **1,351** | **3,115** |
+| Chapter 20 | 39 | 319 | 431 |
+| Chapter 21 | 52 | 425 | 957 |
+| Chapter 22 | 26 | 67 | 67 |
+| Chapter 23 | 30 | 81 | 228 |
+| Chapter 24 | 67 | 418 | 1,286 |
+| **Total** | **214** | **1,310** | **2,969** |
 
 `_spills` counts retained SplitNodes, including register moves. `_spillScaled`
 weights those moves by `8^loopDepth`; it is a cost estimate, not measured memory

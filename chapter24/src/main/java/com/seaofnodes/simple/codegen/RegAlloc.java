@@ -618,8 +618,8 @@ public class RegAlloc {
                 if( defreg != usereg && splitBypass(bb,j,n,defreg) )
                     usereg = lrg(n.in(1))._reg;
 
-                // Split has same reg?  Useless!  Can remove it!
-                if( defreg == usereg ) {
+                // Same register, or the next instruction can use the source directly.
+                if( defreg == usereg || splitForward(bb,j,n,usereg) ) {
                     n.removeSplit();
                     j--;
                     continue;
@@ -630,6 +630,18 @@ public class RegAlloc {
                 assert _spillScaled >= 0;
             }
         }
+    }
+
+    // A sole, adjacent use can read the source register directly.  Nothing can
+    // clobber it in between; only the operand mask and two-address tie remain.
+    private boolean splitForward( CFGNode bb, int j, Node split, int reg ) {
+        if( split.nOuts()!=1 || j+1==bb.nOuts() ) return false;
+        Node use = split.out(0);
+        if( use!=bb.out(j+1) || use instanceof PhiNode || use instanceof CFGNode ||
+            !(use instanceof MachNode mach) ) return false;
+        int i = use._inputs.find(split);
+        RegMask mask = mach.regmap(i);
+        return mask!=null && mask.test(reg) && mach.twoAddress()!=i;
     }
 
     private boolean splitBypass( CFGNode bb, int j, Node lo, int defreg ) {

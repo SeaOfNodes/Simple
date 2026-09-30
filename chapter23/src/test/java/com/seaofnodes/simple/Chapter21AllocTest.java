@@ -21,7 +21,7 @@ val sqrt = { int x ->
 };
 return sqrt(arg) + sqrt(arg+2);
 """;
-        Chapter21Test.testCPU(src,"x86_64_v2", "Win64"  ,48,null);
+        Chapter21Test.testCPU(src,"x86_64_v2", "Win64"  ,40,null);
         Chapter21Test.testCPU(src,"riscv"    , "SystemV",19,null);
         Chapter21Test.testCPU(src,"arm"      , "SystemV",19,null);
     }
@@ -49,7 +49,7 @@ return sqrt(arg) + sqrt(arg+2);
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash21.smp"));
         Chapter21Test.testCPU(src,"x86_64_v2", "SystemV", 9,null);
         Chapter21Test.testCPU(src,"riscv"    , "SystemV", 3,null);
-        Chapter21Test.testCPU(src,"arm"      , "SystemV", 3,null);
+        Chapter21Test.testCPU(src,"arm"      , "SystemV", 1,null);
     }
 
 }

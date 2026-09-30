@@ -196,6 +196,7 @@ public class Chapter21Test {
 
 
     @Test public void testCoalescing() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coalescing(); }
+    @Test public void testCopyForward() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.copyForward(); }
 
     @Test public void testNarrowStores() throws IOException {
         for( String type : new String[]{"i8","u8","i16","u16"} ) {
@@ -339,7 +340,7 @@ public class Chapter21Test {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         testCPU(src,"x86_64_v2", "SystemV", 9,null);
         testCPU(src,"riscv"    , "SystemV", 3,null);
-        testCPU(src,"arm"      , "SystemV", 3,null);
+        testCPU(src,"arm"      , "SystemV", 1,null);
     }
 
     @Test public void testStringExport() throws IOException {

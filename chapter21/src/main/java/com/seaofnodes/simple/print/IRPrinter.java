@@ -9,6 +9,9 @@ import com.seaofnodes.simple.type.TypeFunPtr;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.IdentityHashMap;
 
 public abstract class IRPrinter {
 
@@ -176,6 +179,168 @@ public abstract class IRPrinter {
                     return true;
             return false;
         }
+    }
+
+    // Whole-program dump before scheduling, using printer-private RPO.
+    public static String prettyPrint(CodeGen code) {
+        SB sb = new SB();
+        printLine(code._start,sb);
+        ArrayList<Node> globals = new ArrayList<>();
+        ArrayList<FunNode> funs = new ArrayList<>();
+        for( Node n : code._start._outputs ) {
+            if( n!=null && n.isConst() ) globals.add(n);
+            if( n instanceof FunNode fun && !fun.isDead() ) funs.add(fun);
+        }
+        globals.sort(Comparator.comparingInt(n -> n._nid));
+        for( Node n : globals ) printLine(n,sb);
+        funs.sort(Comparator.comparingInt(n -> n._nid));
+        for( FunNode fun : funs ) printFunction(fun,sb);
+        printLine(code._stop,sb);
+        return sb.toString();
+    }
+
+    /** Print one function without ever traversing a call-graph linkage. */
+    private static void printFunction(FunNode fun, SB sb) {
+        sb.nl().p("--- ");
+        fun.sig().print(sb.p(fun._name==null ? "" : fun._name).p(" "),false);
+        sb.p("----------------------\n");
+
+        IdentityHashMap<Node,Boolean> owned = new IdentityHashMap<>();
+        collectFunction(fun,fun,owned);
+        ArrayList<CFGNode> post = new ArrayList<>();
+        controlPost(fun,owned,new IdentityHashMap<>(),post);
+        Collections.reverse(post);
+
+        IdentityHashMap<Node,Integer> blocks = new IdentityHashMap<>();
+        ArrayList<ArrayList<Node>> body = new ArrayList<>();
+        for( int i=0; i<post.size(); i++ ) {
+            blocks.put(post.get(i),i);
+            body.add(new ArrayList<>());
+        }
+        ArrayList<Node> nodes = new ArrayList<>(owned.keySet());
+        nodes.sort(Comparator.comparingInt(n -> n._nid));
+        for( Node n : nodes )
+            if( !(n instanceof CFGNode) && !(n instanceof ConstantNode) )
+                body.get(block(n,owned,blocks)).add(n);
+
+        IdentityHashMap<Node,Boolean> emitted = new IdentityHashMap<>();
+        for( int i=0; i<post.size(); i++ ) {
+            CFGNode cfg = post.get(i);
+            sb.nl();
+            emitLocalDefs(cfg,owned,emitted,sb);
+            printLine(cfg,sb);
+            emitted.put(cfg,Boolean.TRUE);
+            if( cfg instanceof MultiNode ) emitProjections(cfg,emitted,sb);
+            // Loop-carried inputs belong in the body, not before their Phi.
+            for( Node n : body.get(i) )
+                if( n instanceof PhiNode ) {
+                    printLine(n,sb);
+                    emitted.put(n,Boolean.TRUE);
+                }
+            for( Node n : body.get(i) ) emit(n,owned,emitted,sb);
+        }
+        sb.p("--- ").p(fun._name==null ? "" : fun._name).p(" ----------------------\n");
+    }
+
+    private static void emit(Node n, IdentityHashMap<Node,Boolean> owned,
+                             IdentityHashMap<Node,Boolean> emitted, SB sb) {
+        if( emitted.containsKey(n) || n instanceof CFGNode || n instanceof ConstantNode ||
+            n instanceof PhiNode || !owned.containsKey(n) ) return;
+        if( n instanceof ProjNode ) {
+            emit(input0(n),owned,emitted,sb);
+            return;
+        }
+        emitted.put(n,Boolean.TRUE);
+        emitLocalDefs(n,owned,emitted,sb);
+        printLine(n,sb);
+        if( n instanceof MultiNode ) emitProjections(n,emitted,sb);
+    }
+
+    private static void emitProjections(Node n, IdentityHashMap<Node,Boolean> emitted, SB sb) {
+        for( Node proj : projections(n) ) {
+            printLine(proj,sb);
+            emitted.put(proj,Boolean.TRUE);
+        }
+    }
+
+    private static void emitLocalDefs(Node n, IdentityHashMap<Node,Boolean> owned,
+                                      IdentityHashMap<Node,Boolean> emitted, SB sb) {
+        for( Node def : n._inputs )
+            if( def!=null ) emit(def,owned,emitted,sb);
+    }
+
+    // Diagnostic placement only: anchor data at its latest definition in CFG
+    // RPO. Phi inputs do not move the Phi out of its owning header. This uses
+    // local identity state, never compiler scheduling or dominator caches.
+    private static int block(Node n, IdentityHashMap<Node,Boolean> owned,
+                             IdentityHashMap<Node,Integer> blocks) {
+        Integer old = blocks.get(n);
+        if( old!=null ) return old;
+        if( !owned.containsKey(n) || n instanceof ConstantNode ) return 0;
+        blocks.put(n,0); // Break incomplete data cycles in debugger snapshots.
+        int b=0;
+        if( input0(n) instanceof CFGNode || n instanceof ProjNode )
+            b=block(input0(n),owned,blocks);
+        else
+            for( Node def : n._inputs )
+                if( def!=null ) b=Math.max(b,block(def,owned,blocks));
+        blocks.put(n,b);
+        return b;
+    }
+
+    // Complete the CFG walk before inspecting data uses: a Phi's backedge
+    // users must not pull the loop's closing Region ahead of its body.
+    private static void controlPost(CFGNode n, IdentityHashMap<Node,Boolean> owned,
+                                    IdentityHashMap<Node,Boolean> visit,
+                                    ArrayList<CFGNode> post) {
+        if( visit.put(n,Boolean.TRUE)!=null ) return;
+        ArrayList<CFGNode> uses = new ArrayList<>();
+        if( !(n instanceof ReturnNode) )
+            for( Node use : n._outputs )
+                if( use instanceof CFGNode cfg && owned.containsKey(cfg) &&
+                    !(cfg instanceof FunNode) &&
+                    ((cfg instanceof RegionNode && cfg._inputs.find(n)>0) || input0(cfg)==n) )
+                    uses.add(cfg);
+        uses.sort(Comparator.comparingInt(use -> use._nid));
+        for( CFGNode use : uses ) controlPost(use,owned,visit,post);
+        post.add(n);
+    }
+
+    /** Collect one function without following call-graph linkage. */
+    private static void collectFunction(Node n, FunNode owner,
+                                        IdentityHashMap<Node,Boolean> visit) {
+        if( n==null || n.isDead() || visit.containsKey(n) ) return;
+        if( n instanceof FunNode fun && fun!=owner ) return;
+        if( n instanceof ParmNode && input0(n)!=owner ) return;
+        if( n instanceof StopNode || n instanceof StartNode ) return;
+        if( n instanceof CallEndNode && input0(n) instanceof CallNode call &&
+            !visit.containsKey(call) ) return;
+        visit.put(n,Boolean.TRUE);
+        // A Return's users are linkage hooks, not continuation in this function.
+        if( !(n instanceof ReturnNode) )
+            for( Node use : n._outputs ) collectFunction(use,owner,visit);
+    }
+
+    private static ArrayList<Node> projections(Node multi) {
+        ArrayList<Node> ps = new ArrayList<>();
+        for( Node use : multi._outputs )
+            if( use instanceof ProjNode && !use.isDead() && input0(use)==multi ) ps.add(use);
+        ps.sort(Comparator.comparingInt(IRPrinter::sortOrder));
+        return ps;
+    }
+
+    // Raw, bounds-safe graph inspection for the debugger.  In particular do
+    // not call an accessor which might assert, sharpen, cache, or lazily kill.
+    private static Node input0(Node n) {
+        return n==null || n._inputs.isEmpty()
+            ? null : n._inputs.at(0);
+    }
+
+
+    private static int sortOrder(Node n) {
+        if( n instanceof ProjNode proj ) return proj._idx;
+        if( n instanceof CProjNode proj ) return proj._idx;
+        return n._nid;
     }
 
     public static String _prettyPrint( CodeGen code ) {

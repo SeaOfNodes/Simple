@@ -230,6 +230,7 @@ public abstract class Node implements Cloneable {
     // Error is 'use' does not exist; ok for 'use' to be null.
     protected boolean delUse( Node use ) {
         _outputs.del(_outputs.find(use));
+        moveDepsToWorklist(); // User-count and anti-dependence queries can now change.
         return _outputs.isEmpty();
     }
 
@@ -299,6 +300,7 @@ public abstract class Node implements Cloneable {
             n.unlock();
             int idx = n._inputs.find(this);
             n._inputs.set(idx,nnn);
+            n.moveDepsToWorklist(); // Rewiring can change a dependent query without changing type.
             nnn.addUse(n);
             CODE.addAll(n._outputs);
         }
@@ -545,7 +547,12 @@ public abstract class Node implements Cloneable {
      * or output of this node, that is, it is at least one step away.  The node
      * being added must benefit from this node being peepholed.
      */
-    <N extends Node> N addDep( N dep ) {
+    <N extends Node> N addDep( N dep ) { return addDep(dep,false); }
+
+    // Keep an explicit dependency when inspecting an immediate user's shape.
+    <N extends Node> N addDepForwards(N dep) { return addDep(dep,true); }
+
+    private <N extends Node> N addDep(N dep, boolean forwards) {
         // Running peepholes during the big assert cannot have side effects
         // like adding dependencies.
         if( CODE._midAssert ) return dep;
@@ -553,8 +560,8 @@ public abstract class Node implements Cloneable {
         if( obs != null ) obs.dep(this, dep);
         if( dep._deps==null ) dep._deps = new Ary<>(Node.class);
         if( dep._deps   .find(this) != -1 ) return dep; // Already on list
-        if( dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors
-        if( dep._outputs.find(this) != -1 ) return dep;
+        if( !forwards && dep._inputs .find(this) != -1 ) return dep; // No need for deps on immediate neighbors
+        if( !forwards && dep._outputs.find(this) != -1 ) return dep;
         dep._deps.add(this);
         return dep;
     }

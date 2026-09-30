@@ -189,17 +189,23 @@ are cheap to split. Register order breaks ties between callee saves. These are
 small preferences, not a general cost model. Grouping popular values by register
 class is left for Chapter 23, cold loop splits for 24, and area/cost ranking for 25.
 
+Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
+a sole use in the next instruction can read the source register when its
+operand mask permits it and no two-address tie is broken. The table below
+includes this cleanup. Cohort 22 now also includes the two zero-move C return
+ABI checks added since the earlier audit (26 entries instead of 24).
+
 Run `make spill-stats` in this directory. Each row below uses **this chapter's
 compiler**, default worklist seed 123, and the same source/target combinations
 as the earlier cohort. The Windows run combines x86 SystemV/Win64 and RISC-V/ARM
 SystemV. Diagnostic graphs and mask regressions do not contribute to the totals.
 
-| Program cohort | Compilations | Split/move count | Loop-weighted count |
+| Program cohort | Compilations | Retained moves | Loop-weighted moves |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 324 | 443 |
-| Chapter 21 | 52 | 447 | 986 |
-| Chapter 22 | 24 | 67 | 67 |
-| **Total** | **115** | **838** | **1,496** |
+| Chapter 20 | 39 | 321 | 433 |
+| Chapter 21 | 52 | 438 | 970 |
+| Chapter 22 | 26 | 67 | 67 |
+| **Total** | **117** | **826** | **1,470** |
 
 `_spills` counts retained SplitNodes, including register moves; `_spillScaled`
 weights each by `8^loopDepth`. These are compiler estimates, not measured runtime
@@ -207,7 +213,7 @@ memory traffic. The reporter also prints individual allocations and CPU/ABI sums
 Chapter 21's original `int age` person example is preserved as `person21`; this
 chapter's `i32 age` version and revised infinite-loop example belong to cohort 22.
 
-For a controlled comparison, the same compiler and correctness fixes with
+Before adjacent-copy forwarding, a controlled comparison of the same compiler and correctness fixes with
 Chapter 21's color preferences and spill ordering produce 885 moves and 1,543
 weighted moves. This chapter saves **47 weighted moves (3.0%)**. RISC-V BrainFuck
 improves from 42 to 28 and ARM from 34 to 28 in each of its two cohorts. Some

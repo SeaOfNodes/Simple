@@ -251,6 +251,31 @@ public class RegAllocTestSupport {
         }
     }
 
+    public static void copyForward() throws Exception {
+        // Forwarding, fixed operand, two-address tie, intervening clobber,
+        // another user, and a scheduling-only edge.
+        for( int kind=0; kind<6; kind++ ) {
+            CodeGen code = graph();
+            RegAlloc alloc = new RegAlloc(code);
+            Op def = new Op(A,null,null,false,code._start);
+            alloc.newLRG(def,null)._reg=0;
+            SplitNode copy = code._mach.split(null,"test",(byte)0);
+            copy.setDef(0,code._start); copy.setDef(1,def);
+            alloc.newLRG(copy,null)._reg=1;
+            if( kind==3 ) new Op(null,null,A,false,code._start);
+            int twoAddress = kind==2 ? 1 : 0;
+            RegMask mask = kind==1 ? B : kind==5 ? null : new RegMask(3L);
+            Op use = new Op(null,mask,null,false,code._start,copy) {
+                @Override public int twoAddress() { return twoAddress; }
+            };
+            if( kind==4 ) new Op(null,B,null,false,code._start,copy);
+            var post = RegAlloc.class.getDeclaredMethod("postColor");
+            post.setAccessible(true); post.invoke(alloc);
+            assertSame("copy case "+kind,kind==0 ? def : copy,use.in(1));
+            assertEquals(kind==0 ? 0 : 1,alloc._spills);
+        }
+    }
+
     public static void coalescing() {
         // Merge, incompatible masks, interference, capacity, and adjacency remapping.
         for( int kind=0; kind<5; kind++ ) {

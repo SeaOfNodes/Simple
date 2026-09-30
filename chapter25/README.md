@@ -163,6 +163,20 @@ first allocator. Shared legality fixes still start in the earliest affected
 chapter. The final audit corrected fixed-neighbor color bias in 20-25, narrow
 store masks in 20-21, and ARM register-bank/float-memory encoding in 21-25.
 
+Chapter 21's adjacent-copy forwarding carries forward here as well: a copy
+used only by the next instruction is removed when the operand accepts its
+source register and is not tied to the instruction's result.
+
+The table below is the **earlier audit**, before adjacent-copy forwarding.
+The current replay has ten String-constructor parse failures, also reproduced
+with the original allocator. On the identical 216 successful allocations,
+forwarding reduces 2,563 / 5,496 moves / weighted moves to 2,494 / 5,399.
+This is a partial comparison, not a replacement complete-suite total. The
+current cohort 25 has 14 allocations, including later C return ABI checks;
+the historical table has ten. Native cohort-25 checks and fresh system-library
+encoding pass in both runs. See the [backport record](../docs/chapter-backports.md)
+for the pending fixture failures.
+
 Run `make spill-stats`. Each row uses **Chapter 25's compiler**. The first five
 rows preserve the earlier 212 program/target entries, adapted to this chapter's
 syntax and library organization; the [fixture notes](src/test/java/com/seaofnodes/simple/spill/README.md)

@@ -74,6 +74,23 @@ relocation are two stages of the same obligation to make references correct.
 
 ## Execute the result
 
+Chapter 10b's lazy memory partitioning now carries through encoding. Parameters,
+calls, and returns carry whole memory; `BulkMemPhi`, `MemPhi`, and `MemMerge`
+discover precise aliases inside each function. New consumes `{ctrl, $mem, size}`
+and produces `{ptr, $mem}`. Its memory covers the allocated struct's aliases;
+the surrounding merge retains unrelated aliases. Nonzero initialization still
+uses explicit Stores. Memory nodes and ordering edges require no registers.
+
+Scheduling follows aliases through aggregates to order reads before matching
+Stores, allocations, and calls. Calls retain their argument lists, with no added
+ordering operands. Synthetic loop exits collect precise memory by alias.
+
+The execution regressions cover constructors, non-inlined and recursive calls,
+inlining, and array updates, using native x86 and both emulators. A full-width
+x86 load uses the allocated register bank when choosing its encoding, since an
+integer may reside in XMM. ARM emulation handles MOVZ/MOVK halfword construction
+for the large constants in these checks.
+
 `make tests` includes C harnesses that link and run generated x86 code, and
 RISC-V/AArch64 emulator checks. The tests compare results as well as spill counts.
 Native process failures retain their full exit status. Emulator checks must read
@@ -85,7 +102,7 @@ is recorded without skipping the remaining targets or execution checks; any such
 mismatch still makes the command fail. Structural allocator regressions are
 excluded from the spill totals.
 
-## RegAlloc improvements: conservative copy coalescing
+## RegAlloc improvements: eliminating copies
 
 A split inserts a copy between two live ranges. If both can safely become one
 range, the copy can disappear before coloring. [Coalesce.java](src/main/java/com/seaofnodes/simple/codegen/Coalesce.java)
@@ -99,6 +116,13 @@ to the deleted copy. A rejected merge restores the original adjacency list.
 Mask compatibility alone is insufficient: two values that are simultaneously
 live cannot share a register merely because both permit it.
 
+After coloring, a copy with one use in the immediately following instruction
+can also disappear when that operand accepts the source register and is not
+its two-address operand. For example, `mov rpc=s8; st1 [rpc+4],s1` becomes
+`st1 [s8+4],s1`. Adjacency proves that nothing overwrites the source in between.
+Phi and control-flow users are excluded. This local cleanup leaves spill
+selection unchanged; it complements coalescing without another CFG analysis.
+
 Chapter 20's legality and progress fixes carry forward, including compatible
 rematerialization and clobber-aware copy reuse. Chapter 21 retains its native
 frame and ABI support. Stronger color bias and cheap-spill ranking are reserved
@@ -110,11 +134,11 @@ These are measured sums with **this chapter's compiler**, default optimizer seed
 moves; it is not necessarily a memory spill. Weighted counts multiply each split
 by `8^loopDepth`.
 
-| Test cohort | Allocations | Splits | Loop-weighted splits |
+| Program cohort | Compilations | Retained moves | Loop-weighted moves |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 379 | 484 |
-| Chapter 21 | 52 | 461 | 972 |
-| Total | 91 | 840 | 1,456 |
+| Chapter 20 | 39 | 367 | 472 |
+| Chapter 21 | 52 | 454 | 972 |
+| **Total** | **91** | **821** | **1,444** |
 
 The Chapter 20 row freezes all 13 original inputs, including BrainFuck and
 MergeSort, on three SystemV targets. They live in `Chapter20Test`. The revised
@@ -124,10 +148,47 @@ the Chapter 21 row. That row includes 17 ARM/SystemV, 17 RISC-V/SystemV, eight
 x86/SystemV, and ten x86/Win64 compilations. Native host ABI changes affect this
 row; compare the same host and targets.
 
-| Controlled comparison, same 91 compilations | Splits | Loop-weighted splits |
+Before adjacent-copy forwarding, the memory port changed the previous total of 840 / 1,456 to 845 / 1,559,
+with identical cohort membership and allocator heuristics. These are all changed
+rows; each entry is retained / loop-weighted splits:
+
+| Cohort / program | Target / ABI | Before | Lazy memory |
+|---|---|---:|---:|
+| 20 / MergeSort | ARM / SystemV | 44 / 44 | 41 / 41 |
+| 20 / BrainFuck | RISC-V / SystemV | 35 / 42 | 37 / 58 |
+| 20 / Alloc2 | x86 / SystemV | 3 / 3 | 4 / 4 |
+| 20 / Alloc2 | ARM / SystemV | 10 / 10 | 9 / 9 |
+| 20 / String | x86 / SystemV | 7 / 14 | 8 / 15 |
+| 20 / String | RISC-V / SystemV | 14 / 14 | 10 / 10 |
+| 20 / String | ARM / SystemV | 13 / 13 | 10 / 10 |
+| 21 / Sieve | x86 / Win64 | 24 / 178 | 24 / 185 |
+| 21 / Sieve | RISC-V / SystemV | 19 / 89 | 22 / 92 |
+| 21 / Sieve | ARM / SystemV | 23 / 93 | 21 / 91 |
+| 21 / BrainFuck | RISC-V / SystemV | 35 / 42 | 46 / 130 |
+
+RISC-V BrainFuck accounts for most of the weighted increase. A diagnostic run
+omitting only read-before-New ordering changes its two rows to 35 / 42 and
+37 / 58. That explains most of the cost; the compiler retains the ordering
+constraint. No heuristic tuning is included in the memory port.
+
+The subsequent Load-search improvement folds BrainFuck's fixed program length
+through the loop's N-way memory merge. Every backedge arm must fold or return
+to unchanged memory for the same pointer. It removes 907 executed heap loads
+in the RISC-V Hello World run and reduces stack traffic from 1,006 loads / 572
+stores to 15 / 15. Before copy forwarding, that row had 144 / 165 moves / weighted moves,
+and the complete 91-entry total was 943 / 1,594. Adjacent-copy forwarding
+reduces these to 35 / 42 and 821 / 1,444 respectively. The RISC-V Hello World
+run executes 21,787 instructions instead of 21,920, with unchanged heap and
+stack traffic. These are emulator instruction counts, not hardware timings.
+The current native BrainFuck test and all runtime assertions are enabled.
+
+The following coalescing comparison predates lazy memory. Both sides use the
+same compiler from that audit; it is not a fresh ablation of the current graph:
+
+| Earlier controlled comparison, same 91 compilations | Splits | Loop-weighted splits |
 |---|---:|---:|
-| Current compiler with coalescing disabled | 1,070 | 1,889 |
-| Current compiler with coalescing | 840 | 1,456 |
+| Audit compiler with coalescing disabled | 1,070 | 1,889 |
+| Audit compiler with coalescing | 840 | 1,456 |
 
 The controlled run disables only `Coalesce.coalesce` in `graphColor`. Allocation,
 register constraints, and runtime checks pass in both runs. The disabled run
