@@ -134,6 +134,21 @@ return a;""");
     }
 
     @Test
+    public void testMergeSameCon() {
+        Parser parser = new Parser(
+"""
+int a=arg;
+if( arg==1 )
+    a=3;
+else
+    a=3;
+return a;
+""");
+        StopNode ret = parser.parse();
+        assertEquals("return 3;", ret.toString());
+    }
+
+    @Test
     public void testTrue() {
       StopNode stop = new Parser("return true;").parse();
       assertEquals("return 1;",stop.toString());
