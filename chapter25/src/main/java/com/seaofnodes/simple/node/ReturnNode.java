@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
@@ -7,7 +9,6 @@ import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
-import java.util.BitSet;
 
 /**
  * The Return node has two inputs.  The first input is a control node and the
@@ -36,11 +37,11 @@ public class ReturnNode extends CFGNode {
     @Override public FunNode fun() { return _fun; }
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("return ");
-        if( expr()==null ) sb.append("----");
-        else expr()._print0(sb, visited);
-        return sb.append(";");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("return ");
+        if( expr()==null ) p.p("----");
+        else p.n(expr());
+        return p.p(";");
     }
 
     // No one unique control follows; can be many call end sites

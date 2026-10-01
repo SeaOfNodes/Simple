@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeTuple;
@@ -13,11 +14,7 @@ public class IfNode extends MultiNode {
     @Override
     public String label() { return "If"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb) {
-        sb.append("if( ");
-        return in(1)._print0(sb).append(" )");
-    }
+    @Override protected String format() { return "if( %1 )"; }
 
     @Override public boolean isCFG() { return true; }
 

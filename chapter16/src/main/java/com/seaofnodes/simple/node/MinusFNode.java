@@ -1,20 +1,16 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 
-import java.util.BitSet;
 
 public class MinusFNode extends Node {
     public MinusFNode(Node in) { super(null, in); }
 
     @Override public String label() { return "MinusF"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("(-"), visited);
-        return sb.append(")");
-    }
+    @Override protected String format() { return "(-%1)"; }
 
     @Override
     public Type compute() {

@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.Utils;
 
-import java.util.BitSet;
 
 public class PhiNode extends Node {
 
@@ -19,18 +20,12 @@ public class PhiNode extends Node {
     @Override public String label() { return "Phi_"+_label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         if( !(region() instanceof RegionNode r) || r.inProgress() )
-            sb.append("Z");
-        sb.append("Phi(");
-        for( Node in : _inputs ) {
-            if (in == null) sb.append("____");
-            else in._print0(sb, visited);
-            sb.append(",");
-        }
-        sb.setLength(sb.length()-1);
-        sb.append(")");
-        return sb;
+            p.p("Z");
+        p.p("Phi(");
+        for( Node in : _inputs ) p.n(in).p(",");
+        return p.unchar(',').close();
     }
 
     Node region() { return in(0); }

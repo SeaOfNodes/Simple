@@ -156,8 +156,9 @@ All chapters share the Java viewer plumbing as well as the browser:
   `GraphObserver<N>`. Chapter subclasses compile source, attach/detach the observer,
   and supply roots, phase and parser position. Each compilation gets fresh capture
   state and a new compilation key, even when the previous compilation failed.
-- `GraphAdapter<N>` supplies node facts and indexed graph/dependency access.
-  Dependency access defaults to an empty set in chapters without those lists.
+- `BaseNode<N>` in `print/` supplies identity and indexed graph/dependency access.
+  Dependency access defaults to an empty set. `GraphAdapter<N>` adds viewer roles
+  and grouping facts for the chapter.
 
 Shared Java has no dependency on chapter classes.
 The WebSocket listener and built-in asset server bind to 127.0.0.1.
@@ -344,13 +345,12 @@ interactive viewer also loads the web assets from this checkout.
 
 The shared Java code is in `src/main/java/com/seaofnodes/graph/`:
 
-- `GraphAdapter<N>` is an abstract base with hooks for `id`, `desc`, and indexed
-  edge access (`nIns`/`in`, `nOuts`/`out`). Its final `snap` method walks definitions and
-  uses iteratively, handles cycles, and sorts the copied records by ID.
-- `GraphSnapshot` is detached data: compilation key, step, roots, active scope, nodes and groups.
-  Each node has an ID, plain-text label/type, kind, edges to its defs, and optional
-  projection metadata. It contains no chapter classes or layout coordinates.
-  Node and edge lists are concrete `ArrayList`s, treated as read-only after capture.
+- `GraphAdapter<N extends BaseNode<N>>` reads identity, edges, dependencies,
+  labels, and types directly from the shared node contract. It constructs node
+  and edge records centrally. Chapter hooks provide kinds, edge roles, scope
+  binding names, projection indices, call shortcuts, and folding state as needed.
+  Its final `snap` method walks definitions and uses iteratively, handles cycles,
+  and sorts the copied records by ID.
 
 Root IDs use `int[]`. Capture uses a node table indexed by ID for visitation and
 root deduplication; no boxed integer lists, sets or map keys are needed.
@@ -358,8 +358,9 @@ Indexed edge access reads each chapter's native storage without copying it into
 a different collection type.
 
 Every chapter implements `com.seaofnodes.simple.print.SimpleGraphAdapter`,
-extending `GraphAdapter<Node>`. The chapter owns classification and extraction; the base owns traversal
-and snapshot assembly. No new Java interface is involved.
+extending `GraphAdapter<Node>`. The chapter owns semantic classification; the
+base owns edge extraction, traversal, and snapshot assembly. The common
+`BaseNode` class lives in `print/`, which is also an IDEA dependency of `graph/`.
 
 For chapter 4:
 

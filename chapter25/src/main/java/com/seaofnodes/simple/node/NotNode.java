@@ -1,18 +1,14 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Utils;
-import java.util.BitSet;
 
 public class NotNode extends Node {
     public NotNode(Node in) { super(null, in); }
     @Override public Tag serialTag() { return Tag.Not; }
 
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("(!"), visited);
-        return sb.append(")");
-    }
+    @Override protected String format() { return "(!%1)"; }
 
     @Override
     public TypeInteger compute() {

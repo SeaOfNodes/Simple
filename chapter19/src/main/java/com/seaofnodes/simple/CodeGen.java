@@ -298,7 +298,7 @@ public class CodeGen {
     String print() { return _stop.print(); }
 
     // Debugging helper
-    @Override public String toString() { return _stop.p(9999); }
+    @Override public String toString() { return IRPrinter.prettyPrint(this); }
 
     // Debugging helper
     public Node f(int idx) { return _stop.find(idx); }

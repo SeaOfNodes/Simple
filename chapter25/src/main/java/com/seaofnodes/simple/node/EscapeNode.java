@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -43,13 +44,13 @@ public class EscapeNode extends TypeNode {
     }
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("Esc#").append(fld()._alias).append(" {");
-        if( self()==null ) sb.append("---");
-        else self()._print0(sb,visited).append(",");
-        priv()._print0(sb,visited).append("}, ");
-        pub ()._print0(sb,visited);
-        return sb;
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("Esc#").p(fld()._alias).p(" {");
+        if( self()==null ) p.p("---");
+        else p.n(self()).p(",");
+        p.n(priv()).p("}, ");
+        p.n(pub ());
+        return p;
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.BaseNode;
+
 import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.Type;
@@ -14,14 +16,7 @@ import static com.seaofnodes.simple.CodeGen.CODE;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node implements Cloneable {
-
-    /**
-     * Each node has a unique dense Node ID within a compilation context
-     * The ID is useful for debugging, for using as an offset in a bitvector,
-     * as well as for computing equality of nodes (to be implemented later).
-     */
-    public int _nid;
+public abstract class Node extends BaseNode<Node> implements Cloneable {
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -43,16 +38,14 @@ public abstract class Node implements Cloneable {
      */
     public Ary<Node> _outputs;
 
-
     /**
      * Current computed type for this Node.  This value changes as the graph
      * changes and more knowledge is gained about the program.
      */
     public Type _type;
 
-
     Node(Node... inputs) {
-        _nid = CODE.getUID(); // allocate unique dense ID
+        super(CODE.getUID()); // allocate unique dense ID
         _inputs = new Ary<>(Node.class);
         Collections.addAll(_inputs,inputs);
         _outputs = new Ary<>(Node.class);
@@ -64,8 +57,8 @@ public abstract class Node implements Cloneable {
     // Make a Node using the existing arrays of nodes.
     // Used by any pass rewriting all Node classes but not the edges.
     Node( Node n ) {
+        super(CODE.getUID()); // allocate unique dense ID
         assert CodeGen.CODE._phase == CodeGen.Phase.InstructionSelection;
-        _nid = CODE.getUID(); // allocate unique dense ID
         _inputs  = new Ary<>(n._inputs.asAry());
         _outputs = new Ary<>(Node.class);
         _type = n._type;
@@ -76,45 +69,6 @@ public abstract class Node implements Cloneable {
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 
-    // Unique label for debugging, e.g. "Add12" or "Region30" or "EQ99"
-    public String uniqueName() {
-        return label() + _nid;
-    }
-
-    // Extra fun stuff, for assembly printing.  Jump labels, parser locations,
-    // variable types, etc.
-    public String comment() { return null; }
-
-    // ------------------------------------------------------------------------
-
-    // Debugger Printing.
-
-    // {@code toString} is what you get in the debugger.  It has to print 1
-    // line (because this is what a debugger typically displays by default) and
-    // has to be robust with broken graph/nodes.
-    @Override
-    public final String toString() {  return print(); }
-
-    // This is a *deep* print.  We print with a mutually recursive tik-tok
-    // style; the common _print0 calls the per-Node _print1, which calls back
-    // to _print0;
-    public final String print() {
-        return _print0(new StringBuilder(), new BitSet()).toString();
-    }
-
-    // This is the common print: check for repeats, check for DEAD and print
-    // "DEAD" else call the per-Node print1.
-    final StringBuilder _print0(StringBuilder sb, BitSet visited) {
-        if (visited.get(_nid) && !(this instanceof ConstantNode) )
-            return sb.append(label());
-        visited.set(_nid);
-        return isDead()
-            ? sb.append(uniqueName()).append(":DEAD")
-            : _print1(sb, visited);
-    }
-    // Every Node implements this; a partial-line recursive print
-    abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
-
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
     public boolean isMultiHead() { return false; }
@@ -123,6 +77,8 @@ public abstract class Node implements Cloneable {
 
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
+
+    @Override public String typeName() { return _type==null ? null : _type.toString(); }
 
     /**
      * Gets the ith input node
@@ -198,7 +154,6 @@ public abstract class Node implements Cloneable {
         return setDef(idx,new_def);
     }
 
-
     /**
      * Add a new def to an existing Node.  Keep the edges correct by
      * adding the corresponding <em>def->use</em> edge.
@@ -273,7 +228,6 @@ public abstract class Node implements Cloneable {
         if( unkeep().isUnused() )
             kill();
     }
-
 
     // Replace self with nnn in the graph, making 'this' go dead
     public void subsume( Node nnn ) {
@@ -458,7 +412,6 @@ public abstract class Node implements Cloneable {
      */
     public abstract Node idealize();
 
-
     // Some of the peephole rules get complex, and search further afield than
     // just the nearest neighbor.  These peepholes can fail the pattern match
     // on a node some distance away, and if that node ever changes we should
@@ -503,7 +456,6 @@ public abstract class Node implements Cloneable {
         _deps.clear();
     }
 
-
     // Two nodes are equal if they have the same inputs and the same "opcode"
     // which means the same Java class, plus same internal parts.
     @Override public final boolean equals( Object o ) {
@@ -521,7 +473,6 @@ public abstract class Node implements Cloneable {
     // and can assume "this!=n" and has the same Java class.
     boolean eq( Node n ) { return true; }
 
-
     // Cached hash.  If zero, then not computed AND this Node is NOT in the GVN
     // table - and can have its edges hacked (which will change his hash
     // anyway).  If Non-Zero then this Node is IN the GVN table, or is being
@@ -536,7 +487,6 @@ public abstract class Node implements Cloneable {
         assert old==this;
         _hash=0;                // Out of table now
     }
-
 
     // Hash of opcode and inputs
     @Override public final int hashCode() {
@@ -557,7 +507,6 @@ public abstract class Node implements Cloneable {
     /** Is this Node Memory related */
     public boolean isMem() { return false; }
 
-
     // Semantic change to the graph (so NOT a peephole), used by the Parser.
     // If any input is a float, flip to a float-flavored opcode and widen any
     // non-float input.
@@ -577,7 +526,6 @@ public abstract class Node implements Cloneable {
         return false;
     }
     Node copyF() { return null; }
-
 
     // ------------------------------------------------------------------------
     // Peephole utilities
@@ -604,7 +552,6 @@ public abstract class Node implements Cloneable {
             }
         return true;
     }
-
 
     // Make a shallow copy (same class) of this Node, with given inputs and
     // empty outputs and a new Node ID.  The original inputs are ignored.

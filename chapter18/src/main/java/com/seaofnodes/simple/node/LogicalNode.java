@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-import java.util.BitSet;
 
 public abstract class LogicalNode extends Node {
     // Source location for late reported errors
@@ -12,11 +13,8 @@ public abstract class LogicalNode extends Node {
     public LogicalNode(Parser.Lexer loc, Node lhs, Node rhs) { super(null, lhs, rhs); _loc = loc; }
     abstract String op();
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("("), visited);
-        in(2)._print0(sb.append(op()), visited);
-        return sb.append(")");
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.open().n(in(1)).p(op()).n(in(2)).close();
     }
 
 

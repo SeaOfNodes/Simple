@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
-import java.util.BitSet;
 
 public class StopNode extends CFGNode {
 
@@ -21,18 +22,18 @@ public class StopNode extends CFGNode {
     }
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         // For the sake of many old tests, and single value prints as "return val"
         ReturnNode ret1 = ret();
-        if( ret1!=null ) return ret1._print0(sb,visited);
-        sb.append("Stop[ ");
+        if( ret1!=null ) return p.n(ret1);
+        p.p("Stop[ ");
         for( Node ret : _inputs )
             if( ret!=null ) {
                 String name = ((ReturnNode)ret).fun()._name;
                 if( name== null || !name.startsWith("sys.") )
-                    ret._print0(sb, visited).append(" ");
+                    p.n(ret).p(" ");
             }
-        return sb.append("]");
+        return p.p("]");
     }
 
     @Override public boolean blockHead() { return true; }

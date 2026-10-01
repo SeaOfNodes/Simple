@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
-import java.util.BitSet;
 
 /** A default slice and explicit alias overrides. A null default means partial
  *  memory: absent aliases are not covered, rather than having unknown contents.
@@ -52,14 +53,14 @@ public class MemMergeNode extends Node {
     @Override public String label() { return "MemMerge"; }
     @Override public boolean isMem() { return true; }
     @Override public Type compute() { return TypeMem.BOT; }
-    @Override StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("MEM[");
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("MEM[");
         for( int i=1; i<nIns(); i++ )
             if( in(i)!=null ) {
-                sb.append(i==1 ? "default:" : i+":");
-                in(i)._print0(sb,visited).append(" ");
+                p.p(i==1 ? "default:" : i+":");
+                p.n(in(i)).p(" ");
             }
-        return sb.append("]");
+        return p.p("]");
     }
 
     @Override public Node idealize() {

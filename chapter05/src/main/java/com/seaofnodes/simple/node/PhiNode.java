@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.Type;
 
 public class PhiNode extends Node {
@@ -11,13 +13,11 @@ public class PhiNode extends Node {
     @Override public String label() { return "Phi_"+_label; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
-        sb.append("Phi(");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("Phi(");
         for( Node in : _inputs )
-            in._print0(sb).append(",");
-        sb.setLength(sb.length()-1);
-        sb.append(")");
-        return sb;
+            p.n(in).p(",");
+        return p.unchar(',').close();
     }
 
     Node region() { return in(0); }

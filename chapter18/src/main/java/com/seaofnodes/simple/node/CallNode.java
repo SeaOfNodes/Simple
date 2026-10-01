@@ -1,12 +1,13 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
-import java.util.BitSet;
 
 /**
  *  Call
@@ -22,18 +23,17 @@ public class CallNode extends CFGNode {
     public String label() { return "Call"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         String fname = null;
         Node fptr = fptr();
         if( fptr._type instanceof TypeFunPtr tfp && tfp.isConstant() )
             fname = tfp._name;
-        if( fname==null ) fptr._print0(sb,visited);
-        else sb.append(fname);
-        sb.append("( ");
+        if( fname==null ) p.n(fptr);
+        else p.p(fname);
+        p.p("( ");
         for( int i=2; i<nIns()-1; i++ )
-            in(i)._print0(sb,visited).append(",");
-        sb.setLength(sb.length()-1);
-        return sb.append(")");
+            p.n(in(i)).p(",");
+        return p.unchar(',').unchar(' ').close();
     }
 
     Node ctrl() { return in(0); }

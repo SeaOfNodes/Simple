@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
@@ -48,8 +50,8 @@ public abstract class MemOpNode extends Node {
     public Node ptr() { return in(2); }
     public Node off() { return in(3); }
 
-    @Override StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
-    public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return _printMach(p);  }
+    protected ExprPrinter<Node> _printMach(ExprPrinter<Node> p) { throw Utils.TODO(); }
 
 
     // Extra conditions for factoring matching memory operations through a Phi.

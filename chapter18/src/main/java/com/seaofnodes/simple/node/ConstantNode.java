@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.Type;
 
-import java.util.BitSet;
 
 /**
  * A Constant node represents a constant value.  At present, the only constants
@@ -31,13 +32,14 @@ public class ConstantNode extends Node {
         return new ConstantNode(type);
     }
 
-    @Override public String  label() { return "#"+_con; }
-    @Override
-    public String uniqueName() { return "Con_" + _nid; }
+    @Override protected String repeatName() {
+        return _con==null || _con.toString().length()<=32 ? null : uniqueName();
+    }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb.append(_con.print(new SB()));
+    @Override public String label() { return "Con"; }
+
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.p(_con.print(new SB()));
     }
 
     @Override public boolean isMultiTail() { return true; }

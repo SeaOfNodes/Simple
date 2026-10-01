@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.*;
 
 public class AddNode extends Node {
@@ -7,12 +8,7 @@ public class AddNode extends Node {
 
     @Override public String label() { return "Add"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb) {
-        in(1)._print0(sb.append("("));
-        in(2)._print0(sb.append("+"));
-        return sb.append(")");
-    }
+    @Override protected String format() { return "(%1+%2)"; }
 
 
     @Override

@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.BaseNode;
+
 import java.util.*;
 
 /**
@@ -7,14 +9,7 @@ import java.util.*;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node {
-
-    /**
-     * Each node has a unique dense Node ID within a compilation context
-     * The ID is useful for debugging, for using as an offset in a bitvector,
-     * as well as for computing equality of nodes (to be implemented later).
-     */
-    public final int _nid;
+public abstract class Node extends BaseNode<Node> {
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -44,7 +39,7 @@ public abstract class Node {
     private static int UNIQUE_ID = 1;
 
     protected Node(Node... inputs) {
-        _nid = UNIQUE_ID++; // allocate unique dense ID
+        super(UNIQUE_ID++); // allocate unique dense ID
         _inputs = new ArrayList<>();
         Collections.addAll(_inputs,inputs);
         _outputs = new ArrayList<>();
@@ -62,12 +57,11 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
+    public Node out(int i) { return _outputs.get(i); }
+
     public int nOuts() { return _outputs.size(); }
 
     public boolean isUnused() { return nOuts() == 0; }
-
-    public boolean isCFG() { return false; }
-
 
     /**
      * Used to allow repeating tests in the same JVM.  This just resets the

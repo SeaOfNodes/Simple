@@ -1,18 +1,15 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 
-import java.util.BitSet;
 
 public class RoundF32Node extends Node {
     public RoundF32Node(Node lhs) { super(null, lhs); }
     @Override public Tag serialTag() { return Tag.RoundF32; }
 
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return in(1)._print0(sb.append("((f32)"), visited).append(")");
-    }
+    @Override protected String format() { return "((f32)%1)"; }
 
     @Override
     public Type compute() {

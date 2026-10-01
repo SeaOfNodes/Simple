@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 
-import java.util.BitSet;
 import java.util.HashMap;
 
 // Convert a value to an authoritative destination type.  The destination is
@@ -24,8 +25,8 @@ public class ConvertNode extends Node {
     public Node val() { return in(1); }
 
     @Override public String label() { return "Convert_"+_dst.str(); }
-    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return val()._print0(sb.append(label()).append("("),visited).append(")");
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.p(label()).open().n(val()).close();
     }
 
     // The declaration fixes the result family during pessimistic parsing.

@@ -53,6 +53,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <!-- Also works at the root of a linearized chapter checkout. -->
         <simple.graph.directory>${project.basedir}/graph</simple.graph.directory>
+        <simple.print.directory>${project.basedir}/print</simple.print.directory>
     </properties>
 
     <dependencies>
@@ -76,7 +77,10 @@
                         <phase>generate-sources</phase>
                         <goals><goal>add-source</goal></goals>
                         <configuration>
-                            <sources><source>${simple.graph.directory}/src/main/java</source></sources>
+                            <sources>
+                                <source>${simple.graph.directory}/src/main/java</source>
+                                <source>${simple.print.directory}/src/main/java</source>
+                            </sources>
                         </configuration>
                     </execution>
                 </executions>

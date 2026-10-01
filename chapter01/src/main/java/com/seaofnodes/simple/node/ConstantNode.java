@@ -16,6 +16,10 @@ import com.seaofnodes.simple.Parser;
  */
 public class ConstantNode extends Node {
 
+    @Override public String label() { return "Con"; }
+    @Override protected String format() { return Long.toString(_value); }
+    @Override protected String repeatName() { return null; }
+
     public final long _value;
 
     public ConstantNode(long value) {

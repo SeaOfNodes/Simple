@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.type.*;
-import java.util.BitSet;
 
 /**
  * Build a compound object
@@ -14,16 +15,15 @@ public class StructNode extends Node {
     @Override public String label() { return _ts==null ? "STRUCT?" : _ts.str(); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( _ts==null ) return sb.append("STRUCT?");
-        sb.append(_ts._name).append(" {");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        if( _ts==null ) return p.p("STRUCT?");
+        p.p(_ts._name).p(" {");
         for( int i=0; i<nIns(); i++ ) {
-            sb.append(_ts._fields[i]._fname).append(":");
-            sb.append((in(i)==null ? Type.BOTTOM : in(i)._type).print(new SB()));
-            sb.append("; ");
+            p.p(_ts._fields[i]._fname).p(":");
+            p.p((in(i)==null ? Type.BOTTOM : in(i)._type).print(new SB()));
+            p.p("; ");
         }
-        sb.setLength(sb.length()-2);
-        return sb.append("}");
+        return p.unchar("; ").p("}");
     }
 
     @Override

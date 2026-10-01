@@ -648,15 +648,24 @@ Consequences:
 
 ## Side-effect-free diagnostics: B09 lessons
 
-- Chapter 21's pre-scheduling `CodeGen.toString()` uses a separate CFG-only
-  RPO walk, then printer-local data placement. Walking CFG and data uses in
-  the same DFS can move a loop's closing Region before its body via Phi
-  backedges, even when CFG uses are visited first. Keep Loop/Region Phis
-  contiguous with their header, without pulling their backedge definitions
-  up to the header. Preserve function boundaries at Calls/Returns. This
-  correction remains queued for 22-25; 25 supplied the grouping approach but
-  still mixes CFG and data traversal. All printer bookkeeping uses identity
-  maps and raw edges, without invoking actual scheduling or dominator queries.
+- Shared debug printing lives in `print/`; see its README for the API. All
+  chapter Nodes extend `BaseNode<Node>`, which owns the ID field, unique naming,
+  print/toString, and default expression formatting. Compiler constructors pass
+  IDs from their existing allocator to super; clone still assigns a fresh ID.
+  Simple hooks override `format()` with input slots (`%1`, `%10`, literal `%%`).
+  Custom protected `_print1` hooks use `p.p(...)`, `p.n(...)`, open/close, and
+  matching-suffix unchar. Every print tracks repeats; short constant types expand
+  repeatedly. Both IR and graph adapters consume the common indexed edge and
+  dependency accessors. Graph record/edge construction belongs in GraphAdapter;
+  chapters supply only their semantic roles, names, projections and grouping.
+- Shared IR ordering finishes CFG RPO before placing data. Walking control and
+  data uses together can move a loop's closing Region before its body via Phi
+  backedges. Keep Loop/Region Phis contiguous with their header without pulling
+  backedge definitions up. Parm inputs belong to callers; stop at function
+  boundaries, and print globally shared floating expressions once with globals.
+  All traversal/placement state uses private identity maps and raw edges, without
+  invoking scheduling or dominator queries. Machine hooks must format correctly
+  into an initially empty buffer; multiline expansions are laid out centrally.
 
 - `Node._inputs` remains allocated after `kill()`. Use `isDead()` when printing
   or filtering dead nodes; an empty input array alone does not imply death.
@@ -673,7 +682,7 @@ Consequences:
   display that recorded layout instead of asking Types to compute one.
 - Use the `_` prefix for no-side-effect variants of accessors: `CodeGen._link`,
   `RegAlloc._lrg`, `Var._type`, and the existing leaf `_isConstant` predicates.
-  The printer's local `_idepth` does not populate compiler dominator caches.
+  Shared printer placement must not populate compiler dominator caches.
   Keep mutating compiler accessors available for their normal jobs.
 - Audit the whole call chain from `Node.p(depth)`, `print`/`toString`, labels,
   scope/graph viewers, and machine `asm` methods. `link` prunes dead functions

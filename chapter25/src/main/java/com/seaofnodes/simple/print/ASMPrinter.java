@@ -1,309 +1,94 @@
 package com.seaofnodes.simple.print;
 
-import com.seaofnodes.simple.codegen.CompUnit;
+import com.seaofnodes.print.AssemblyAdapter;
+import com.seaofnodes.print.ASMPrinter.Data;
+import com.seaofnodes.print.ASMPrinter.Pool;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.Encoding.Relo;
-import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.*;
+import java.util.ArrayList;
+import com.seaofnodes.simple.codegen.Encoding;
+import com.seaofnodes.simple.util.BAOS;
 import java.util.HashMap;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Set;
 
-public abstract class ASMPrinter {
-
-    public static SB print(SB sb, CodeGen code ) {
-        Encoding enc = code._encoding;
-        Ary<CFGNode> cfg = enc == null ? code._cfg : enc._cfg;
-        if( cfg == null || cfg._len == 0 ) return sb.p("No scheduled code for ").p(code._srcName);
-
-        // instruction address
-        int iadr = 0;
-        // Print all functions in order
-        for( int i=0; i<cfg._len; i++ )
-            if( cfg.at(i) instanceof FunNode fun )
-                iadr = print(iadr,sb,code,enc,cfg,fun,i);
-
-        // constant pools
-        if( enc != null ) {
-            iadr = (iadr+15)&-16; // pad to 16
-            if( enc._cpool.size()>0 )
-                iadr = printConstantPool(iadr, sb, enc._cpool,enc._bigCons,true ,"Constant Pool");
-
-            iadr = (iadr+15)&-16; // pad to 16
-            if( enc._sdata.size()>0 )
-                iadr = printConstantPool(iadr, sb,enc._sdata,enc._bigCons,false, "Static Data"  );
-        }
-
-        return sb;
+/** Machine-specific facts; traversal, columns and byte display live in print/. */
+public final class ASMPrinter extends AssemblyAdapter<Node> {
+    private final CodeGen _code;
+    private final Encoding _enc;
+    private ASMPrinter(CodeGen code) {
+        super(new IRPrinter());
+        _code=code;
+        _enc=code._encoding;
     }
-
-
-    static int printConstantPool( int iadr, SB sb, BAOS bits, HashMap<Node,Relo> bigCons, boolean ro, String msg ) {
-        sb.p("--- ").p(msg).p(" ------").nl();
-        // radix sort the big constants by alignment
-        Ary<Relo>[] raligns = new Ary[5];
-        for( Relo relo : bigCons.values() ) {
-            if( relo.readOnly() != ro )
-                continue;
-            int align = relo._align;
-            Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>( Relo.class)) : raligns[align];
-            relos.add(relo);
-        }
-
-        Set<Type> targets = Collections.newSetFromMap(new IdentityHashMap<>());
-
-        // By alignment
-        int dadr=0;
-        for( int align = 4; align >= 0; align-- ) {
-            Ary<Relo> relos = raligns[align];
-            if( relos == null ) continue;
-            for( Relo relo : relos ) {
-                if( targets.contains(relo._t) ) continue;
-                targets.add(relo._t);
-                sb.hex2(iadr+dadr).p("  ");
-                if( relo._t instanceof TypeStruct ts ) {
-                    int sz = relo._structSize;
-                    int log = 1<<align;
-                    sz = (sz + (log -1)) & -log; // Round up final padding
-                    for( int i=0; i<sz; i++ )
-                        sb.hex1(bits.read1(dadr++));
-                } else {
-                    // Simple primitive (e.g. larger int, float)
-                    pN(bits,sb,dadr,align).fix(9-(1<<align),"");
-                    dadr += (1<<align);
-                }
-                relo._t.print(sb.p('\t')).nl();
-            }
-        }
-        return iadr+dadr;
+    public static SB print(SB sb, CodeGen code) {
+        return sb.p(new com.seaofnodes.print.ASMPrinter<>(new ASMPrinter(code)).print());
     }
-
-
-    private static SB pN( BAOS bits, SB sb, int dadr, int log ) {
-        switch( log ) {
-        case 0: sb.hex1(bits.read1(dadr)); break;
-        case 1: sb.hex2(bits.read2(dadr)); break;
-        case 2: sb.hex4(bits.read4(dadr)); break;
-        case 3: sb.hex8(bits.read8(dadr)); break;
-        }
-        return sb;
+    @Override public ArrayList<Node> blocks() {
+        var blocks=new ArrayList<Node>();
+        var cfg=_enc==null ? _code._cfg : _enc._cfg;
+        if( cfg!=null ) for( Node n : cfg ) blocks.add(n);
+        return blocks;
     }
-
-
-    private static int print(int iadr, SB sb, CodeGen code, Encoding enc, Ary<CFGNode> cfg, FunNode fun, int cfgidx) {
-        // Function header
-        sb.nl().p("---");
-        if( fun._name != null ) sb.p(fun._name).p(" ");
-        fun.sig().print(sb);
-        sb.p("---------------------------").nl();
-        iadr = (iadr + 15)&-16; // All function entries padded to 16 align
-
-        if( fun._frameAdjust != 0 )
-            iadr = doInst(iadr,sb,code,enc, cfgidx,fun,true,enc!=null);
-        while( !(cfg.at(cfgidx) instanceof ReturnNode) )
-            iadr = doBlock(iadr,sb,code,enc,cfg,fun,cfgidx++);
-
-        // Function separator
-        sb.p("---");
-        fun.sig().print(sb);
-        sb.p("---------------------------").nl();
-        return iadr;
+    @Override public String op(Node n) { return n instanceof MachNode m ? m.op() : n.label(); }
+    @Override public String register(Node n) { return _code.reg(n); }
+    @Override public String comment(Node n) { return n.comment(); }
+    @Override public String phiName(Node n) { return ((PhiNode)n)._label; }
+    @Override public String operands(Node n) {
+        SB sb=new SB();
+        if( n instanceof MachNode m ) m.asm(_code,sb);
+        else if( !(n._type instanceof TypeMem) ) {
+            sb.p(n._nid).p(": ");
+            for( Node def : n._inputs ) sb.p(def==null ? "___" : Integer.toString(def._nid)).p(' ');
+        }
+        return sb.toString();
     }
-
-    static private final int opWidth = 5;
-    static private final int argWidth = 30;
-    static int doBlock(int iadr, SB sb, CodeGen code, Encoding enc, Ary<CFGNode> cfg, FunNode fun, int cfgidx) {
-        final int encWidth = code._mach==null ? 2 : code._mach.defaultOpSize()*2;
-        CFGNode bb = cfg.at(cfgidx);
-        if( bb != fun && !(bb instanceof IfNode) && !(bb instanceof CallEndNode) && !(bb instanceof CallNode)  && !(bb instanceof CProjNode && bb.in(0) instanceof CallEndNode ))
-            sb.p(label(bb)).p(":").nl();
-        if( bb instanceof CallNode ) return iadr;
-        final boolean postEncode= code._phase.ordinal() >=CodeGen.Phase.Encoding.ordinal();
-        final boolean postAlloc = code._phase.ordinal() > CodeGen.Phase.RegAlloc.ordinal() ||
-            (code._phase.ordinal() == CodeGen.Phase.RegAlloc.ordinal() && code._regAlloc.done());
-
-        boolean once=false;
-        for( Node n : bb.outs() ) {
-            if( !(n instanceof PhiNode phi) ) continue;
-            if( phi._type instanceof TypeMem || phi._type instanceof TypeRPC ) continue; // Nothing for the hidden ones
-            // Post-RegAlloc phi prints all on one line
-            if( postAlloc ) {
-                if( !once ) { once=true; sb.fix(4," ").p(" ").fix(encWidth,"").p("  "); }
-                sb.p(phi._label).p(':').p(code.reg(phi)).p(',');
-            } else {
-                // Pre-RegAlloc phi prints one line per
-                sb.fix(4," ").p(" ").fix(encWidth,"").p("  ").fix(opWidth,phi._label).p(" ").p(code.reg(phi));
-                if( phi.getClass() == PhiNode.class ) {
-                    sb.p(" = phi( ");
-                    for( int i=1; i<phi.nIns(); i++ )
-                        sb.p("N").p(phi.in(i)._nid).p(",");
-                    sb.unchar().p(" )");
-                }
-                sb.nl();
-            }
-        }
-        if( once ) sb.unchar().nl();
-
-        // All the non-phis
-        for( int i=0; i<bb.nOuts(); i++ )
-            if( !(bb.out(i) instanceof PhiNode) )
-                iadr = doInst(iadr, sb,code, enc, cfgidx, bb.out(i),postAlloc, postEncode );
-
-        return iadr;
+    @Override public boolean labelBlock(Node n) {
+        return !(n instanceof FunNode) && !(n instanceof IfNode) && !(n instanceof CallNode) &&
+            !(n instanceof CallEndNode) && !(n instanceof CProjNode && ir.input0(n) instanceof CallEndNode);
     }
-
-    static int doInst( int iadr, SB sb, CodeGen code, Encoding enc, int cfgidx, Node n, boolean postAlloc, boolean postEncode ) {
-        if( n==null || n instanceof CProjNode ) return iadr;
-        if( postAlloc && n instanceof CalleeSaveNode ) return iadr;
-        if( postEncode && n instanceof ProjNode ) return iadr;
-        if( n instanceof MemMergeNode ) return iadr;
-        if( n instanceof EscapeNode ) return iadr;
-        if( n.getClass() == ConstantNode.class ) return iadr; // Default placeholders
-        final int dopz = code._mach==null ? 2 : code._mach.defaultOpSize();
-        final int encWidth = dopz*2;
-
-        // All blocks ending in a Region will need to either fall into or jump
-        // to this block.  Until the post-reg-alloc block layout cleanup, we
-        // need to assume a jump.  There's no real hardware op here, yet.
-        if( n instanceof RegionNode cfg && !(n instanceof FunNode) ) {
-            if( postEncode ) return iadr; // All jumps inserted already
-            Ary<CFGNode> blocks = enc == null ? code._cfg : enc._cfg;
-            while( cfgidx < blocks._len-1 ) {
-                CFGNode next = blocks.at(++cfgidx);
-                if( next == n ) return iadr; // Fall-through, no branch
-                if( next.nOuts()>1 )
-                    break;      // Has code in the block, need to jump around
-                // No code in the block, can fall through it
-            }
-            sb.hex2(iadr++).p(" ").fix(encWidth,"??").p("  ").fix(opWidth,"JMP").p(" ").fix(argWidth,label(cfg)).nl();
-            return iadr;
-        }
-
-        // ProjNodes following a multi (e.g. Call or New results),
-        // get indent slightly and just print their index & node#
-        if( n instanceof ProjNode proj ) {
-            if( proj._type instanceof TypeMem ) return iadr; // Nothing for the hidden ones
-            sb.fix(4," ").p(" ").fix(encWidth,"").p("    ").fix(opWidth,code.reg(n)).p(" // ");
-            if( proj._label != null ) sb.p(proj._label);
-            sb.nl();
-            return iadr;
-        }
-
-        // ADDR ENCODING  Op--- dst = src op src       // Comment
-        // 1234 abcdefgh  ld4   RAX = [Rbase + off]    // Comment
-        sb.hex2(iadr).p(" ");
-
-        // Encoding
-        int fatEncoding = 0;
-        if( enc != null ) {
-            int size = enc.opLen(n);
-            if( code._asmLittle )
-                for( int i=0; i<Math.min(size,dopz); i++ )
-                    sb.hex1(enc._bits.buf()[iadr++]);
-            else {
-                iadr += Math.min(size,dopz);
-                for( int i=0; i<Math.min(size,dopz); i++ )
-                    sb.hex1(enc._bits.buf()[iadr-i-1]);
-            }
-            for( int i=size*2; i<encWidth; i++ )
-                sb.p(" ");
-            fatEncoding = size - (encWidth>>1); // Not-printed parts of encoding
-        } else
-            sb.fix(encWidth,"");
-        sb.p("  ");
-
-        // Op; generally "ld4" or "call"
-        sb.fix(opWidth, n instanceof MachNode mach ? mach.op() : n.label()).p(" ");
-
-        // General asm args
-        String isMultiOp = null;
-        if( n instanceof MachNode mach ) {
-            int old = sb.len();
-            mach.asm(code,sb);
-            int len = sb.len();
-            isMultiOp = isMultiOp(sb,old,len);
-            sb.fix(argWidth-(len-old),""); // Pad out
-
-        } else if( !(n._type instanceof TypeMem) ) {
-            // Room for some inputs
-            sb.fix(5, n._nid+":" );
-            int off = 0;
-            for( int i=0; i<n.nIns(); i++ ) {
-                sb.fix(5, n.in(i) == null ? "___" : String.valueOf(n.in(i)._nid));
-                off += 5;
-                if( off >= argWidth ) break;
-            }
-            if( off < argWidth ) sb.fix(argWidth-off,"");
-        }
-        sb.p(" ");
-
-        // Comment
-        String comment = n.comment();
-        if( comment!=null ) sb.p("// ").p(comment);
-
-        sb.nl();
-
-        // Printing more op bits than fit
-        if( isMultiOp != null && enc != null ) {
-            // Multiple ops, template style, no RA, no scheduling.  Print out
-            // one-line-per-newline, with encoding bits up front.
-            int size = enc != null ? enc.opLen(n) : 0;
-            int off = Math.min(size,dopz);
-            while( isMultiOp!=null ) {
-                sb.hex2(iadr).p(" ");
-                int len = Math.min(size-off,dopz);
-                for( int i=0; i<len; i++ )
-                    sb.hex1(enc._bits.buf()[iadr++]);
-                off += len;
-                for( int i=len; i<dopz; i++ ) sb.p("  ");
-                sb.p("  ");
-                int x = isMultiOp.indexOf('\n');
-                if( x== -1 ) {  // Last line
-                    sb.p(isMultiOp).nl();
-                    isMultiOp = null;
-                } else {
-                    sb.p(isMultiOp.substring(0,x+1)); // Includes the newline
-                    isMultiOp = isMultiOp.substring(x+1);
-                }
-
-            }
-
-        } else if( isMultiOp != null ) {
-            sb.p(isMultiOp).nl();
-
-        } else if( fatEncoding > 0 ) {
-            // Extra bytes past the default encoding width, all put on a line by
-            // themselves.  X86 special for super long encodings
-            sb.hex2(iadr).p(" ");
-            for( int i=0; i<fatEncoding; i++ )
-                sb.hex1(enc._bits.buf()[iadr++]);
-            sb.nl();
-        }
-
-
-        // MultiNodes are immediately followed by projection(s)
-        if( !(n instanceof CFGNode) && n instanceof MultiNode ) {
-            for( Node proj : n._outputs ) {
-                if( proj instanceof ProjNode ) // it could also be an ante-dep
-                    doInst(iadr,sb,code,enc, cfgidx, proj,postAlloc,postEncode);
-            }
-        }
-
-        return iadr;
+    @Override public boolean hidden(Node n) {
+        if( n instanceof PhiNode || n instanceof ProjNode )
+            if( n._type instanceof TypeMem || n._type instanceof TypeRPC ) return true;
+        if( postAlloc() && n instanceof CalleeSaveNode ) return true;
+        if( n instanceof MemMergeNode ) return true;
+        if( n instanceof EscapeNode ) return true;
+        return n.getClass()==ConstantNode.class;
     }
-
-    private static String label( CFGNode bb ) {
-        return (bb instanceof LoopNode ? "LOOP" : "L")+bb._nid;
+    @Override public boolean postAlloc() { return _code._phase.ordinal()>CodeGen.Phase.RegAlloc.ordinal() ||
+        (_code._phase==CodeGen.Phase.RegAlloc && _code._regAlloc!=null && _code._regAlloc.done()); }
+    @Override public boolean encoded() { return _enc!=null && _code._phase.ordinal()>=CodeGen.Phase.Encoding.ordinal(); }
+    @Override public int defaultSize() { return _code._mach==null ? 2 : _code._mach.defaultOpSize(); }
+    @Override public boolean littleEndian() { return _code._asmLittle; }
+    @Override public boolean prologue(Node n) { return ((FunNode)n)._frameAdjust!=0; }
+    @Override public byte[] bytes() { return encoded() ? _enc._bits.buf() : null; }
+    @Override public int offset(Node n) { return encoded() ? _enc.opStart(n) : -1; }
+    @Override public int size(Node n) { return encoded() ? _enc.opLen(n)&255 : 0; }
+    private static ArrayList<Data> entries(Iterable<Encoding.Relo> relos, boolean ro) {
+        var data=new ArrayList<Data>();
+        for( Encoding.Relo r : relos ) {
+            if( r.readOnly()!=ro ) continue;
+            int align=1<<r._align;
+            int size=r._t instanceof TypeStruct ? (r._structSize+align-1)&-align : align;
+            data.add(new Data(r._t,r._t.str(),r._align,size));
+        }
+        return data;
     }
-
-    private static String isMultiOp(SB sb, int old, int len) {
-        if( old==len || sb.at(old)!='\n' ) return null;
-        String rest = sb.subString(old+1,len);
-        sb.setLen(old);
-        return rest;
+    @Override public ArrayList<Pool> pools(int codeEnd) {
+        var pools=new ArrayList<Pool>();
+        if( !encoded() ) return pools;
+        int base=(codeEnd+15)&-16;
+        if( _enc._cpool.size()>0 )
+            pools.add(new Pool("Constant Pool",_enc._cpool.buf(),0,base,entries(_enc._bigCons.values(),true)));
+        base=(base+_enc._cpool.size()+15)&-16;
+        if( _enc._sdata.size()>0 )
+            pools.add(new Pool("Static Data",_enc._sdata.buf(),0,base,entries(_enc._bigCons.values(),false)));
+        return pools;
     }
-
+    // Retain this diagnostic entry point for checking that pool printing never lays out types.
+    static int printConstantPool(int address, SB sb, BAOS bits, HashMap<Node,Encoding.Relo> relos,
+                                 boolean ro, String name) {
+        sb.p(com.seaofnodes.print.ASMPrinter.pool(new Pool(name,bits.buf(),0,address,entries(relos.values(),ro))));
+        return address+bits.size();
+    }
 }

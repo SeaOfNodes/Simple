@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.BaseNode;
+
 import com.seaofnodes.simple.Parser;
 
 import com.seaofnodes.simple.IRPrinter;
@@ -15,14 +17,7 @@ import java.util.function.Function;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node implements Cloneable {
-
-    /**
-     * Each node has a unique dense Node ID within a compilation context
-     * The ID is useful for debugging, for using as an offset in a bitvector,
-     * as well as for computing equality of nodes (to be implemented later).
-     */
-    public int _nid;
+public abstract class Node extends BaseNode<Node> implements Cloneable {
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -44,13 +39,11 @@ public abstract class Node implements Cloneable {
      */
     public ArrayList<Node> _outputs;
 
-
     /**
      * Current computed type for this Node.  This value changes as the graph
      * changes and more knowledge is gained about the program.
      */
     public Type _type;
-
 
     /**
      * A private Global Static mutable counter, for unique node id generation.
@@ -61,7 +54,7 @@ public abstract class Node implements Cloneable {
     public static int UID() { return UNIQUE_ID; }
 
     protected Node(Node... inputs) {
-        _nid = UNIQUE_ID++; // allocate unique dense ID
+        super(UNIQUE_ID++); // allocate unique dense ID
         _inputs = new ArrayList<>();
         Collections.addAll(_inputs,inputs);
         _outputs = new ArrayList<>();
@@ -73,42 +66,6 @@ public abstract class Node implements Cloneable {
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 
-    // Unique label for debugging, e.g. "Add12" or "Region30" or "EQ99"
-    public String uniqueName() {
-        return label() + _nid;
-    }
-
-    // ------------------------------------------------------------------------
-
-    // Debugger Printing.
-
-    // {@code toString} is what you get in the debugger.  It has to print 1
-    // line (because this is what a debugger typically displays by default) and
-    // has to be robust with broken graph/nodes.
-    @Override
-    public final String toString() {  return print(); }
-
-    // This is a *deep* print.  This version will fail on cycles, which we will
-    // correct later when we can parse programs with loops.  We print with a
-    // tik-tok style; the common _print0 calls the per-Node _print1, which
-    // calls back to _print0;
-    public final String print() {
-        return _print0(new StringBuilder(), new BitSet()).toString();
-    }
-
-    // This is the common print: check for repeats, check for DEAD and print
-    // "DEAD" else call the per-Node print1.
-    final StringBuilder _print0(StringBuilder sb, BitSet visited) {
-        if (visited.get(_nid) && !(this instanceof ConstantNode) )
-            return sb.append(label());
-        visited.set(_nid);
-        return isDead()
-            ? sb.append(uniqueName()).append(":DEAD")
-            : _print1(sb, visited);
-    }
-    // Every Node implements this; a partial-line recursive print
-    abstract StringBuilder _print1(StringBuilder sb, BitSet visited);
-
     public String p(int depth) { return IRPrinter.prettyPrint(this,depth); }
 
     public boolean isMultiHead() { return false; }
@@ -116,6 +73,8 @@ public abstract class Node implements Cloneable {
 
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
+
+    @Override public String typeName() { return _type==null ? null : _type.toString(); }
 
     /**
      * Gets the ith input node
@@ -130,8 +89,6 @@ public abstract class Node implements Cloneable {
     public int nOuts() { return _outputs.size(); }
 
     public boolean isUnused() { return nOuts() == 0; }
-
-    public boolean isCFG() { return false; }
 
     public boolean isMem() { return false; }
 
@@ -256,7 +213,6 @@ public abstract class Node implements Cloneable {
     public <N extends Node> N unkeep() { delUse(null); return (N)this; }
     // Test "keep" status
     public boolean iskeep() { return Utils.find(_outputs,null) != -1; }
-
 
     // Replace self with nnn in the graph, making 'this' go dead
     public void subsume( Node nnn ) {
@@ -388,7 +344,6 @@ public abstract class Node implements Cloneable {
         return old;
     }
 
-
     /**
      * This function rewrites the current Node into a more "idealized" form.
      * This is the bulk of our peephole rewrite rules, and we use this to
@@ -436,7 +391,6 @@ public abstract class Node implements Cloneable {
      */
     public abstract Node idealize();
 
-
     // Some of the peephole rules get complex, and search further afield than
     // just the nearest neighbor.  These peepholes can fail the pattern match
     // on a node some distance away, and if that node ever changes we should
@@ -480,7 +434,6 @@ public abstract class Node implements Cloneable {
         _deps.clear();
     }
 
-
     // Global Value Numbering.  Hash over opcode and inputs; hits in this table
     // are structurally equal.
     public static final HashMap<Node,Node> GVN = new HashMap<>();
@@ -502,7 +455,6 @@ public abstract class Node implements Cloneable {
     // and can assume "this!=n" and has the same Java class.
     boolean eq( Node n ) { return true; }
 
-
     // Cached hash.  If zero, then not computed AND this Node is NOT in the GVN
     // table - and can have its edges hacked (which will change his hash
     // anyway).  If Non-Zero then this Node is IN the GVN table, or is being
@@ -518,7 +470,6 @@ public abstract class Node implements Cloneable {
         _hash=0;                // Out of table now
     }
 
-
     // Hash of opcode and inputs
     @Override public final int hashCode() {
         if( _hash != 0 ) return _hash;
@@ -531,7 +482,6 @@ public abstract class Node implements Cloneable {
     }
     // Subclasses add extra hash info (such as ConstantNodes constant)
     int hash() { return 0; }
-
 
     // ------------------------------------------------------------------------
     // Peephole utilities
@@ -561,7 +511,6 @@ public abstract class Node implements Cloneable {
         return true;
     }
 
-
     /**
      * Immediate dominator tree depth, used to approximate a real IDOM depth
      * during parsing where we do not have the whole program, and also
@@ -590,7 +539,6 @@ public abstract class Node implements Cloneable {
         assert 0 <= depth && depth <= Character.MAX_VALUE : "Dominator depth exceeds 65535";
         return _idepth = (char)depth;
     }
-
 
     // Return the immediate dominator of this Node.
     Node idom() { return in(0); }
@@ -626,7 +574,6 @@ public abstract class Node implements Cloneable {
         GVN.clear();
         ITER_CNT = ITER_NOP_CNT = 0;
     }
-
 
     // Utility to walk the entire graph applying a function; return the first
     // not-null result.

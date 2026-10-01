@@ -1,12 +1,13 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.util.BAOS;
 
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -35,7 +36,7 @@ public class CProjNode extends CFGNode implements Proj {
 
     @Override public String label() { return _label; }
 
-    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(_label); }
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p(_label); }
 
     @Override public boolean blockHead() { return true; }
 

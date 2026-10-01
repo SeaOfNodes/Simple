@@ -14,3 +14,8 @@ $(foreach action,$(ACTIONS),$(eval $(action): $(addsuffix /$(action),$(CHAPTERS)
 
 $(CHAPTER_TARGETS):
 	+$(MAKE) --no-print-directory -C $(dir $@) $(notdir $@)
+
+.PHONY: print/tests
+tests: print/tests
+print/tests:
+	+$(MAKE) --no-print-directory -C print tests

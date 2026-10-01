@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.Type;
 
-import java.util.BitSet;
 
 /**
  * Load represents extracting a value from inside a memory object,
@@ -44,7 +45,7 @@ public class LoadNode extends MemOpNode {
     public String label() { return "Load"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p(".").p(_name); }
 
     @Override
     public Type compute() {

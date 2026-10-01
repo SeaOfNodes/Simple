@@ -1,10 +1,10 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeTuple;
 
-import java.util.BitSet;
 
 public class IfNode extends MultiNode {
 
@@ -15,11 +15,7 @@ public class IfNode extends MultiNode {
     @Override
     public String label() { return "If"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("if( ");
-        return in(1)._print0(sb, visited).append(" )");
-    }
+    @Override protected String format() { return "if( %1 )"; }
 
     @Override public boolean isCFG() { return true; }
     @Override public boolean isMultiHead() { return true; }

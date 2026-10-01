@@ -18,6 +18,7 @@ main_classes := $(CLZDIR)/main/.mtag
 test_classes := $(CLZDIR)/test/.ttag
 
 include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
+include $(firstword $(wildcard ../print/print.mk print/print.mk))
 
 .PHONY: build
 build: $(main_classes)

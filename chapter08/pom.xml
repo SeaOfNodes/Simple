@@ -13,5 +13,6 @@
     <name>Chapter 8</name>
     <properties>
         <simple.graph.directory>${project.basedir}/../graph</simple.graph.directory>
+        <simple.print.directory>${project.basedir}/../print</simple.print.directory>
     </properties>
 </project>

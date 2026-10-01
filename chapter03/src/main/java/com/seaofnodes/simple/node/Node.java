@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.BaseNode;
+
 import com.seaofnodes.simple.Parser;
 
 import com.seaofnodes.simple.Utils;
@@ -12,14 +14,7 @@ import java.util.*;
  * The Node class provides common functionality used by all subtypes.
  * Subtypes of Node specialize by overriding methods.
  */
-public abstract class Node {
-
-    /**
-     * Each node has a unique dense Node ID within a compilation context
-     * The ID is useful for debugging, for using as an offset in a bitvector,
-     * as well as for computing equality of nodes (to be implemented later).
-     */
-    public final int _nid;
+public abstract class Node extends BaseNode<Node> {
 
     /**
      * Inputs to the node. These are use-def references to Nodes.
@@ -41,7 +36,6 @@ public abstract class Node {
      */
     public final ArrayList<Node> _outputs;
 
-
     /**
      * Current computed type for this Node.  This value changes as the graph
      * changes and more knowledge is gained about the program.
@@ -56,7 +50,7 @@ public abstract class Node {
     private static int UNIQUE_ID = 1;
 
     protected Node(Node... inputs) {
-        _nid = UNIQUE_ID++; // allocate unique dense ID
+        super(UNIQUE_ID++); // allocate unique dense ID
         _inputs = new ArrayList<>();
         Collections.addAll(_inputs,inputs);
         _outputs = new ArrayList<>();
@@ -68,43 +62,7 @@ public abstract class Node {
     // Easy reading label for debugger, e.g. "Add" or "Region" or "EQ"
     public abstract String label();
 
-    // Unique label for debugging, e.g. "Add12" or "Region30" or "EQ99"
-    public String uniqueName() { return label() + _nid; }
-
-    // ------------------------------------------------------------------------
-
-    // Debugger Printing.
-
-    // {@code toString} is what you get in the debugger.  It has to print 1
-    // line (because this is what a debugger typically displays by default) and
-    // has to be robust with broken graph/nodes.
-    @Override
-    public final String toString() {
-        // TODO: The print evolves in later chapters.  For now, a simple
-        // recursive print does well.  Later with control flow and later still
-        // with loops, we need some serious algorithm work to get a decent
-        // print.  So you should consider the "print" to always be a work-in-
-        // progress as we march through the chapters.
-        return print();
-    }
-
-    // This is a *deep* print.  This version will fail on cycles, which we will
-    // correct later when we can parse programs with loops.  We print with a
-    // tik-tok style; the common _print0 calls the per-Node _print1, which
-    // calls back to _print0;
-    public final String print() {
-        return _print0(new StringBuilder()).toString();
-    }
-    // This is the common print: check for DEAD and print "DEAD" else call the
-    // per-Node print1.
-    final StringBuilder _print0(StringBuilder sb) {
-        return isDead()
-            ? sb.append(uniqueName()).append(":DEAD")
-            : _print1(sb);
-    }
-    // Every Node implements this.
-    abstract StringBuilder _print1(StringBuilder sb);
-
+    @Override public String typeName() { return _type==null ? null : _type.toString(); }
 
     /**
      * Gets the ith input node
@@ -120,10 +78,6 @@ public abstract class Node {
     public int nOuts() { return _outputs.size(); }
 
     public boolean isUnused() { return nOuts() == 0; }
-
-    public boolean isCFG() { return false; }
-
-
 
     /**
      * Change a <em>def</em> into a Node.  Keeps the edges correct, by removing

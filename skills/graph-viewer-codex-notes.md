@@ -51,6 +51,14 @@ chapter25 Chapter13Test (16). This was NOT an all-chapter full test-suite run.
 
 ## Durable design and owner preferences
 
+- Printer/viewer consolidation: all chapters' Node classes now extend
+  `com.seaofnodes.print.BaseNode<Node>`. GraphAdapter reads identity, raw indexed
+  edges, dependencies, labels, deadness and type text from that common contract.
+  It constructs node/edge records centrally. Chapter adapters retain semantic
+  kind/role rules, scope binding names, projection indices, call jumps and folding
+  state. The graph IDEA module depends on print; both Make source sets are already
+  compiled together. Browser protocol and grouping algorithms are unchanged.
+
 - Shared Java capture/model and browser code live in graph/. Each chapter keeps
   a small SimpleGraphAdapter and SimpleGraphObserver, plus compiler callbacks.
   No Maven requirement. DOT compiler/viewer support is gone; existing docs GV/SVG

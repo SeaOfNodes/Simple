@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
@@ -17,9 +19,8 @@ public class RegionNode extends CFGNode {
     @Override
     public String label() { return "Region"; }
 
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb.append(label());
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.p(label());
     }
 
     @Override public boolean blockHead() { return true; }

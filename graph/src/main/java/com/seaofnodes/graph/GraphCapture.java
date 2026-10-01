@@ -1,12 +1,13 @@
 package com.seaofnodes.graph;
 
+import com.seaofnodes.print.BaseNode;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.UUID;
 
 /** Shared compilation lifecycle, capture, event nesting and neighborhoods. */
-public abstract class GraphCapture<N> extends GraphObserver<N> {
+public abstract class GraphCapture<N extends BaseNode<N>> extends GraphObserver<N> {
 
     private final GraphAdapter<N> _graph;
     private String _comp;

@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -25,7 +26,6 @@ public class FunPtrNode extends TypeNode {
     public FunNode fun() { return ret().fun(); }
 
     @Override public String label() { return "#"+_con; }
-    @Override public String uniqueName() { return "FunPtr_" + _nid; }
     @Override public Node copy() {
         FunPtrNode fptr = new FunPtrNode((TypeFunPtr)_con,null,null);
         fptr._type = _type;
@@ -33,11 +33,11 @@ public class FunPtrNode extends TypeNode {
     }
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         FunNode fun = CodeGen.CODE._link(((TypeFunPtr)_con).fidx());
         return fun!=null && fun._name!=null
-            ? sb.append("{ ").append(fun._name).append("}")
-            : sb.append(_con);
+            ? p.p("{ ").p(fun._name).p("}")
+            : p.p(_con);
     }
 
     @Override public boolean isConst() { return true; }

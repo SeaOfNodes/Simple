@@ -37,6 +37,7 @@ main_javas   := $(wildcard $(SRC)/$(SIMPLE)/*java $(SRC)/$(SIMPLE)/*/*java $(SRC
 test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
+include $(firstword $(wildcard ../print/print.mk print/print.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
 classes = $(main_classes) $(test_classes)
@@ -54,7 +55,7 @@ endif
 default: $(default_targets)
 
 # Compile just the out-of-date files
-$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java $(graph_javas)
+$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java $(graph_javas) $(print_javas)
 	@echo "compiling " $@ " because " $?
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
 	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas)

@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.*;
 
-import java.util.BitSet;
 
 import static com.seaofnodes.simple.Parser.con;
 
@@ -12,12 +12,7 @@ public class AddNode extends Node {
 
     @Override public String label() { return "Add"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("("), visited);
-        in(2)._print0(sb.append("+"), visited);
-        return sb.append(")");
-    }
+    @Override protected String format() { return "(%1+%2)"; }
 
 
     @Override

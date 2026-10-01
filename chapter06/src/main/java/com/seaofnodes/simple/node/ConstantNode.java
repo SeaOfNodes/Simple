@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 
@@ -22,15 +24,16 @@ public class ConstantNode extends Node {
         _con = type;
     }
 
-    @Override
-    public String label() { return ""+_con; }
+    @Override protected String repeatName() {
+        return _con==null || _con.toString().length()<=32 ? null : uniqueName();
+    }
 
     @Override
-    public String uniqueName() { return "Con_" + _nid; }
+    public String label() { return "Con"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb) {
-        return _con.print(sb);
+
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.p(_con);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.seaofnodes.graph;
 
+import com.seaofnodes.print.BaseNode;
+import static com.seaofnodes.graph.GraphSnapshot.*;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,18 +12,40 @@ import java.util.Comparator;
  * Capture on the compiler thread, while the graph is not being modified.
  * Hooks must only read the IR: no computing types, peepholes or scheduling.
  */
-public abstract class GraphAdapter<N> {
-    protected abstract int id(N node);
-    protected abstract int nIns(N node);
-    protected abstract N in(N node, int idx);
-    protected abstract int nOuts(N node);
-    protected abstract N out(N node, int idx);
-    protected abstract GraphSnapshot.Node desc(N node);
-    protected abstract boolean dead(N node);
+public abstract class GraphAdapter<N extends BaseNode<N>> {
+    protected final int id(N n) { return n._nid; }
+    protected final int nIns(N n) { return n.nIns(); }
+    protected final N in(N n, int i) { return n.in(i); }
+    protected final int nOuts(N n) { return n.nOuts(); }
+    protected final N out(N n, int i) { return n.out(i); }
+    protected final boolean dead(N n) { return n.isDead(); }
+    protected final int nDeps(N n) { return n.nDeps(); }
+    protected final N dep(N n, int i) { return n.dep(i); }
+
+    // Chapters supply only semantic distinctions that their IR has introduced.
+    protected Kind kind(N n) { return n.isCFG() ? Kind.CTRL : Kind.DATA; }
+    protected Role role(N n, int i) { return i==0 ? Role.CTRL : Role.DATA; }
+    protected String[] edgeNames(N n) { return null; }
+    protected String edgeName(N n, int i) { return null; }
+    protected int edgeJump(N n, int i) { return 0; }
+    protected int projectionIndex(N n) { return -1; }
+    protected boolean folding(N n) { return false; }
     // Omit cached helpers with no graph uses; still walk through them.
-    protected boolean show(N node) { return true; }
-    protected int nDeps(N node) { return 0; }
-    protected N dep(N node, int idx) { throw new IndexOutOfBoundsException(idx); }
+    protected boolean show(N n) { return true; }
+
+    protected final GraphSnapshot.Node desc(N n) {
+        var edges=new ArrayList<Edge>();
+        String[] names=edgeNames(n);
+        for( int i=0; i<n.nIns(); i++ ) {
+            String name=names!=null && i<names.length ? names[i] : edgeName(n,i);
+            edges.add(new Edge(i,ref(n.in(i)),role(n,i),name,edgeJump(n,i)));
+        }
+        int idx=projectionIndex(n);
+        Projection proj=idx<0 ? null : new Projection(n.nIns()==0 ? 0 : ref(n.in(0)),idx);
+        String label=n.label();
+        return new GraphSnapshot.Node(n._nid,label==null ? n.getClass().getSimpleName() : label,
+                                      n.typeName(),kind(n),edges,proj,folding(n));
+    }
 
     protected final int ref(N node) { return node == null ? 0 : id(node); }
 

@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
-import java.util.BitSet;
 
 // Conditional branch such as: BEQ
 public class BranchRISC extends IfNode implements MachNode {
@@ -23,11 +24,11 @@ public class BranchRISC extends IfNode implements MachNode {
     @Override public RegMask regmap(int i) { return riscv.RMASK; }
     @Override public RegMask outregmap() { return null; }
 
-    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("if( "),visited).append(_bop);
-        if( in(2)==null ) sb.append("0");
-        else in(2)._print0(sb,visited);
-        return sb.append(" )");
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("if( ").n(in(1)).p(_bop);
+        if( in(2)==null ) p.p("0");
+        else p.n(in(2));
+        return p.p(" )");
     }
 
     // Encoding is appended into the byte array; size is returned

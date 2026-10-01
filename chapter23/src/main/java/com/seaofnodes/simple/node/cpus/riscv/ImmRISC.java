@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.SB;
-import java.util.BitSet;
 
 abstract public class ImmRISC extends MachConcreteNode implements MachNode {
     public final int _imm12;
@@ -28,10 +29,10 @@ abstract public class ImmRISC extends MachConcreteNode implements MachNode {
         return in(1) instanceof LUI || in(1) instanceof AUIPC;
     }
 
-    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         int imm12 = (_imm12<<20)>>20; // Sign extend 12 bits
-        in(1)._print0(sb.append("( "), visited);
-        return sb.append(String.format(" %s #%d )",glabel(),imm12));
+        p.p("( ").n(in(1));
+        return p.p(String.format(" %s #%d )",glabel(),imm12));
     }
 
     abstract int opcode();

@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.util.BAOS;
 
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -66,19 +67,22 @@ public class ConstantNode extends TypeNode {
     // own the constructor function; the class FunPtr does.
     public static ConstantNode seed( Type type ) { return new ConstantNode(type,true); }
 
-    @Override public String  label() { return "#"+_con; }
-    @Override public String uniqueName() { return "Con_" + _nid; }
+    @Override protected String repeatName() {
+        return _con==null || _con.toString().length()<=32 ? null : uniqueName();
+    }
+
+    @Override public String label() { return "Con"; }
     @Override public Node copy() { return raw(this); }
 
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         if( _con instanceof TypeFunPtr tfp && tfp._isConstant() && tfp.notNull() ) {
             FunNode fun = CodeGen.CODE._link(tfp);
             if( fun!=null && fun._name != null )
-                return sb.append("{ ").append(fun._name).append("}");
+                return p.p("{ ").p(fun._name).p("}");
         }
-        return sb.append(_con==null ? "---" : _con.toString());
+        return p.p(_con==null ? "---" : _con.toString());
     }
 
     @Override public boolean isConst() { return true; }

@@ -1,20 +1,15 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
-import java.util.BitSet;
 
 public class DivNode extends Node {
     public DivNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
     @Override public String label() { return "Div"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("("), visited);
-        in(2)._print0(sb.append("/"), visited);
-        return sb.append(")");
-    }
+    @Override protected String format() { return "(%1/%2)"; }
 
     @Override
     public Type compute() {

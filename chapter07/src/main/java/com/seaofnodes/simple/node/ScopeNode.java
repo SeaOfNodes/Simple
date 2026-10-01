@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
@@ -33,16 +35,15 @@ public class ScopeNode extends Node {
     @Override public String label() { return "Scope"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("Scope[ ");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("Scope[ ");
         String[] names = reverseNames();
         for( int j=0; j<nIns(); j++ ) {
-            sb.append(names[j]).append(":");
+            p.p(names[j]).p(":");
             Node n = in(j);
-            n._print0(sb, visited).append(" ");
+            p.n(n).p(" ");
         }
-        sb.setLength(sb.length()-1);
-        return sb.append("]");
+        return p.unchar(' ').p("]");
     }
 
     /**

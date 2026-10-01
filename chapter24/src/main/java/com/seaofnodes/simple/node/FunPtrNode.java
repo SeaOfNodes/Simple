@@ -9,5 +9,4 @@ public class FunPtrNode extends ConstantNode {
         addDef(ret);
     }
     public ReturnNode ret() { return (ReturnNode)in(1); }
-    @Override public String uniqueName() { return "FunPtr_"+_nid; }
 }

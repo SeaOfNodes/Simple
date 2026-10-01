@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
-import java.util.BitSet;
 
 /**
  * Store represents setting a value to a memory based object, in chapter 10
@@ -35,8 +36,8 @@ public class StoreNode extends MemOpNode {
     public Node val() { return in(4); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return sb.append(".").append(_name).append("=").append( val()).append(";");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.p(".").p(_name).p("=").p( val()).p(";");
     }
 
     @Override

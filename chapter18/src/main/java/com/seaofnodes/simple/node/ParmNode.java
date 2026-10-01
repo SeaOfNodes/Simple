@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
-import java.util.BitSet;
 
 public class ParmNode extends PhiNode {
 
@@ -19,18 +20,12 @@ public class ParmNode extends PhiNode {
     public FunNode fun() { return (FunNode)in(0); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         if( "main".equals(fun().sig()._name) && _label.equals("arg") )
-            return sb.append("arg");
-        sb.append("Parm_").append(_label).append("(");
-        for( Node in : _inputs ) {
-            if (in == null) sb.append("____");
-            else in._print0(sb, visited);
-            sb.append(",");
-        }
-        sb.setLength(sb.length()-1);
-        sb.append(")");
-        return sb;
+            return p.p("arg");
+        p.p("Parm_").p(_label).open();
+        for( Node in : _inputs ) p.n(in).p(",");
+        return p.unchar(',').close();
     }
 
 

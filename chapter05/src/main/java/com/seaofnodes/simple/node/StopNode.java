@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.Type;
 
 public class StopNode extends Node {
@@ -13,12 +15,12 @@ public class StopNode extends Node {
     }
 
     @Override
-    StringBuilder _print1(StringBuilder sb) {
-        if( ret()!=null ) return ret()._print0(sb);
-        sb.append("Stop[ ");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        if( ret()!=null ) return p.n(ret());
+        p.p("Stop[ ");
         for( Node ret : _inputs )
-            ret._print0(sb).append(" ");
-        return sb.append("]");
+            p.n(ret).p(" ");
+        return p.p("]");
     }
 
     @Override public boolean isCFG() { return true; }

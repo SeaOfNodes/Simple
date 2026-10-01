@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -25,7 +26,7 @@ public class StopNode extends CFGNode {
     }
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         // For the sake of many old tests, and single value prints as "return val"
         ReturnNode ret1 = null;
         for( Node n : _inputs ) {
@@ -34,16 +35,16 @@ public class StopNode extends CFGNode {
                 ret1 = ret;
             }
         }
-        if( ret1!=null ) return ret1._print0(sb,visited);
+        if( ret1!=null ) return p.n(ret1);
 
-        sb.append("Stop[ ");
+        p.p("Stop[ ");
         for( Node n : _inputs )
             if( n instanceof ReturnNode ret ) {
                 String name = ret.fun()._name;
                 if( name== null || !name.startsWith("sys.") )
-                    ret._print0(sb, visited).append(" ");
+                    p.n(ret).p(" ");
             }
-        return sb.append("]");
+        return p.p("]");
     }
 
     @Override public boolean blockHead() { return true; }

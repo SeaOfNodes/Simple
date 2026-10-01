@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
@@ -8,12 +9,7 @@ public class DivNode extends Node {
 
     @Override public String label() { return "Div"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb) {
-        in(1)._print0(sb.append("("));
-        in(2)._print0(sb.append("/"));
-        return sb.append(")");
-    }
+    @Override protected String format() { return "(%1/%2)"; }
 
     @Override
     public Type compute() {

@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
@@ -7,7 +9,6 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
 import java.lang.StringBuilder;
-import java.util.BitSet;
 
 // Generic X86 memory operand base.
 // inputs:
@@ -53,8 +54,8 @@ public abstract class MemOpX86 extends MemOpNode implements MachNode {
     Node idx() { return in(3); }
     Node val() { return in(4); } // Only for stores, including op-to-memory
 
-    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) {
-        return sb.append(".").append(_name);
+    @Override protected ExprPrinter<Node> _printMach(ExprPrinter<Node> p) {
+        return p.p(".").p(_name);
     }
 
     @Override public boolean isMem() { return _type instanceof TypeMem; }

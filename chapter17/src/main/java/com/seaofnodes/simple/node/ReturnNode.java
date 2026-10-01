@@ -1,8 +1,9 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.*;
 
-import java.util.BitSet;
 
 /** Keeps all preceding memory effects and the return value alive: {ctrl, $mem, value}. */
 public class ReturnNode extends CFGNode {
@@ -20,10 +21,10 @@ public class ReturnNode extends CFGNode {
     public String label() { return "Return"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("return ");
-        expr()._print0(sb, visited);
-        return sb.append(";");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("return ");
+        p.n(expr());
+        return p.p(";");
     }
 
     @Override

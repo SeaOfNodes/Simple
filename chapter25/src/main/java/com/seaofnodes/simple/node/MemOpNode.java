@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
@@ -98,8 +100,8 @@ public abstract class MemOpNode extends TypeNode {
         return fld == null || fld._t == null ? Type.BOTTOM : fld._t;
     }
 
-    @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
-    public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return _printMach(p);  }
+    protected ExprPrinter<Node> _printMach(ExprPrinter<Node> p) { throw Utils.TODO(); }
 
 
     // Extra conditions for factoring matching memory operations through a Phi.

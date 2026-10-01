@@ -1,16 +1,17 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
-import java.util.BitSet;
 
 // unconditional jump
 public class UJmpRISC extends CFGNode implements MachNode, RIPRelSize {
     @Override public String op() { return "jmp"; }
     @Override public String label() { return op(); }
-    @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return sb.append("jmp "); }
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p("jmp "); }
     @Override public RegMask regmap(int i) {return null; }
     @Override public RegMask outregmap() { return null; }
     @Override public Type compute() { throw Utils.TODO(); }

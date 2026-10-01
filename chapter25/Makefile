@@ -66,6 +66,7 @@ test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 simple_driver := $(TST)/$(SIMPLE)/Simple.java
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
+include $(firstword $(wildcard ../print/print.mk print/print.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 # These tests do not rely on the stdlib
 test_alone := com.seaofnodes.simple.BrainFuckTest com.seaofnodes.simple.MergeSortTest com.seaofnodes.simple.TypeTest

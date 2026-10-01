@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.*;
@@ -48,28 +50,26 @@ public class ScopeNode extends Node {
     @Override public String label() { return "Scope"; }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("Scope[ ");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("Scope[ ");
         int j=1;
         for( int i=0; i<nIns(); i++ ) {
-            if( j < _lexSize._len && i == _lexSize.at(j) ) { sb.append("| "); j++; }
+            if( j < _lexSize._len && i == _lexSize.at(j) ) { p.p("| "); j++; }
             Var v = _vars.get(i);
-            sb.append(v._type().print(new SB()));
-            sb.append(" ");
-            if( v._final ) sb.append("!");
-            sb.append(v._name);
-            sb.append("=");
+            p.p(v._type().print(new SB()));
+            p.p(" ");
+            if( v._final ) p.p("!");
+            p.p(v._name);
+            p.p("=");
             Node n = in(i);
             while( n instanceof ScopeNode loop ) {
-                sb.append("Lazy_");
+                p.p("Lazy_");
                 n = loop.in(i);
             }
-            if( n==null ) sb.append("___");
-            else n._print0(sb, visited);
-            sb.append(", ");
+            p.n(n);
+            p.p(", ");
         }
-        sb.setLength(sb.length()-2);
-        return sb.append("]");
+        return p.unchar(", ").p("]");
     }
 
 

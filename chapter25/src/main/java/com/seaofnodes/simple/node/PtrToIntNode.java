@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMemPtr;
 
-import java.util.BitSet;
 
 /**
  * Reinterpret a non-null managed pointer as its raw integer address.
@@ -19,9 +19,7 @@ public class PtrToIntNode extends Node {
     public PtrToIntNode(PtrToIntNode ptr) { super(ptr); }
 
     @Override public Tag serialTag() { return Tag.PtrToInt; }
-    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return in(1)._print0(sb.append("(i64*)"),visited);
-    }
+    @Override protected String format() { return "(i64*)%1"; }
 
     @Override public Type compute() {
         return in(1)._type.isHigh() ? TypeInteger.TOP : TypeInteger.BOT;

@@ -205,7 +205,7 @@ New returns high results while its control is high, and alias contents register
 a dependency on that control. The existing integer widening and call-graph
 solver remain intact. Register checks run before encoding adds untyped branches.
 Private constructor memory, escape tracking, and incomplete-type SSA stay in 25.
-The separate pretty-printer consolidation remains pending.
+Pretty-printer consolidation is implemented below.
 
 ### Chapter 25 memory follow-through (implemented, same review batch)
 
@@ -254,6 +254,63 @@ native cohort-25 checks pass. Logs: `build/copy-forward21-spills-final.log`
 through `build/copy-forward24-spills-final.log`, `build/copy-forward25-spills.log`,
 `build/copy-forward25-baseline.log`, and `build/copy-forward*-tests*.log`.
 
+### Shared debug printers: Chapters 2-25 (implemented)
+
+The new [`print/`](../print/README.md) module owns expression recursion, IR
+row formatting and ordering, scheduled dumps, and assembly listing layout.
+Chapters retain their node spelling and small adapters for graph/machine facts.
+All chapter Nodes extend the shared `BaseNode<Node>`, providing one read-only
+node contract for printers and the viewer. Chapter 2 arithmetic needs only a
+one-line `format()` hook such as `"(%1+%2)"`; variable forms use protected hooks
+with `p.p(...)` and `p.n(...)`. Repeat tracking is universal, with repeated
+expansion for short constants. Common graph edge and snapshot construction has
+also moved out of chapter adapters.
+This also addresses issue #259's outside-package subclass use case. PR #260's
+public `_print1` change is superseded by the context API, rather than merged.
+
+The shared CFG-first RPO carries the Chapter 21 BrainFuck ordering correction
+through 25: loop headers precede their bodies, closing Regions follow them,
+and Phis stay with their headers. Function boundaries exclude caller arguments;
+shared floating expressions of constants print once with globals. All traversal
+and placement state is private; raw edges and captured encoding/layout metadata
+keep diagnostics read-only. `Node.toString()`/`print()` remain the expression
+entry points; `Node.p(depth)` starts structured dumps in Chapter 8, and
+`CodeGen.toString()` starts whole-program dumps in Chapter 18. The unused
+Chapter 7 IR adapter, `Node._printLine`, legacy LLVM-format wrappers, and
+`prettyPrintScheduled` aliases are removed. Evaluator/compiler `printLine`
+callers and the scheduled whole-program path in Chapters 20-24 remain.
+The wrapper cleanup passes all 26 chapter suites and the shared printer
+contracts (`build/prune-print-tests.log`, Chapters 1-9, and
+`build/prune-print-later-tests.log`, Chapters 10a-25).
+
+Make, Maven source paths, IDEA module dependencies, release packaging, and
+linearized checkout support include the shared sources. Shared contracts cover
+cycles, function boundaries, shared globals, Phi/projection grouping, multiline
+assembly, and captured pool metadata. Disposable real-graph checks cover
+BrainFuck and call/loop programs through Chapter 25, including repeatability,
+complete unique output, CFG order, and graph/cache identity. An outside-package
+Chapter 2 subclass compiles and prints nested operands using the protected hook.
+
+Validation: all 26 chapter Make suites and the shared contracts pass
+(`build/print-final-tests.log`). Chapters 21-24 each pass 18 real-graph snapshots;
+25 passes 12 (`build/print-probe-*.log`). Assembly checks cover all available
+CPUs in 19-25 before/after allocation and encoding (`build/asm-probe-*.log`).
+Fresh linearized Chapter 2 and 21 releases contain the shared printer classes;
+Chapter 2's fresh tests also pass (`build/print-linear{02,21}.log`). Maven/IDE XML
+parses, the linearization script passes its syntax check, and changes are LF-only.
+
+The subsequent BaseNode cleanup also passes all 26 suites
+(`build/base-early-final-tests.log`, `build/base-late-tests.log`) and the updated
+shared contracts, including multi-digit slots, escaped percent signs, missing
+inputs, cycles and matching-suffix trimming. Three Chapter 5-6 print expectations
+now use a short reference on a repeated Region. Nine Chapter 21 viewer snapshots
+match their pre-cleanup baseline except for canonical constant labels; both 21
+and 25 pass nine read-only, repeatable captures. Outside-package expression and
+format hooks compile. Fresh linearized Chapter 2/21 releases contain BaseNode and
+viewer classes (`build/base-linear{02,21}.log`). The graph IDEA module now depends
+on print. This cleanup removes about 2,800 node-source lines and 550 viewer-adapter
+lines beyond the original extraction.
+
 ### Other pending corrections
 
 - **Chapter 25 historical String fixtures.** Ten replay entries fail before RA
@@ -276,22 +333,6 @@ through `build/copy-forward24-spills-final.log`, `build/copy-forward25-spills.lo
   `build/LoadSearchProbe.java` and `build/load-search-probe-{before,after}.txt`.
   The Load-search rejection tests put the Store before the read to isolate
   the optimization from that separate scheduling defect. Investigate separately.
-
-- **Forward Chapter 21 whole-program printer ordering through 22-25.**
-  `CodeGen.toString()` before scheduling now uses function-local CFG RPO and
-  groups every Region/Loop with its Phis. Chapter 25 supplied the function
-  ownership and grouping approach, but its combined CFG/data walk still puts
-  BrainFuck's closing Region before the body when adapted to 21. Chapter 21
-  therefore orders control edges first, then places data for display using
-  private identity maps. No scheduling, idom queries, or graph mutation occurs.
-  The depth-limited node printer and scheduled whole-program printer retain
-  their existing entry points. Checked 18 parse/opto/loop-tree snapshots for
-  complete unique output, CFG ordering, Phi adjacency, repeatability, and
-  unchanged graph/cache state. Updated BrainFuck dump:
-  `build/brain-print-after-opto.txt`; diagnostic probe: `build/Print21Check.java`.
-  Release passes. The current full suite passes 430/431 tests; the sole failure
-  is the debugger-edited BrainFuck spill golden (42 versus the unchanged 130).
-  Those test edits were preserved. Log: `build/printer21-tests.log`.
 
 - **Chapter 21 synthetic TOP return allocation.** The original compiler at
   `f01ee052` and the memory port both fail in `Coalesce.coalesce`: a Split of

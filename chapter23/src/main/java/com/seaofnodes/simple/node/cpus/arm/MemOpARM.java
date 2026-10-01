@@ -1,12 +1,13 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
-import java.util.BitSet;
 
 public abstract class MemOpARM extends MemOpNode implements MachNode {
     final int _off;             // Limit 9 bits sized, or (13 bits<<logsize) unsigned
@@ -31,7 +32,7 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
     @Override public String label() { return op();}
     Node val() { return in(4); } // Only for stores
 
-    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+    @Override protected ExprPrinter<Node> _printMach(ExprPrinter<Node> p) { return p.p(".").p(_name); }
 
     @Override public Type compute() { throw Utils.TODO(); }
     @Override public Node idealize() { throw Utils.TODO(); }

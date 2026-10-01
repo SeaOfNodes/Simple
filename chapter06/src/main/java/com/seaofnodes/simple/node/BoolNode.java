@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
@@ -14,11 +16,8 @@ abstract public class BoolNode extends Node {
     @Override
     public String label() { return getClass().getSimpleName(); }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb) {
-        in(1)._print0(sb.append("("));
-        in(2)._print0(sb.append(op()));
-        return sb.append(")");
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.open().n(in(1)).p(op()).n(in(2)).close();
     }
 
     @Override

@@ -76,6 +76,11 @@ The Simple language is styled after a subset of C or Java.
 The optional [interactive graph viewer](graph/README.md) is shared in `graph/`.
 Chapters 10a, 10b, and 18–25 launch it with `make view` from the chapter directory.
 
+The [debug printers](print/README.md) are shared in `print/`; Chapter 2 needs only
+a one-line expression format. A shared `BaseNode` supplies identity and edge
+access to both printers and the viewer; chapter adapters add semantic details
+as the IR grows.
+
 The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 `release`, or `lib` target. Start with `make lib` on a fresh checkout, then
 `make tests`.

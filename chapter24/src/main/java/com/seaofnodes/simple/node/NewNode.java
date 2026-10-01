@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 
-import java.util.BitSet;
 
 /** Allocate a zeroed object. Inputs {ctrl, $mem, size};
  *  results {ptr, $mem}.
@@ -38,10 +39,8 @@ public class NewNode extends Node implements MultiNode {
 
 
     @Override public String label() { return "new_"+(_ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._t.str() : _ptr._obj.str()); }
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("new ");
-        return sb.append(_ptr._obj.str());
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.p("new ").p(_ptr._obj.str());
     }
 
 

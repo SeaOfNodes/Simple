@@ -1,11 +1,11 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -28,11 +28,7 @@ public class MinusNode extends Node implements ModeNode {
         return this;
     }
 
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("(-"), visited);
-        return sb.append(")");
-    }
+    @Override protected String format() { return "(-%1)"; }
 
     @Override
     public Type compute() {

@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.util.BAOS;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -35,11 +36,11 @@ public class ProjNode extends Node implements Proj {
     @Override public String label() { return _label; }
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        if( _label != null )  return sb.append(_label);
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        if( _label != null )  return p.p(_label);
         if( in(0) instanceof CallEndNode cend && cend.call()!=null )
-            return cend.call()._print0(sb,visited);
-        return sb.append("LONELY PROJ");
+            return p.n(cend.call());
+        return p.p("LONELY PROJ");
     }
 
     @Override public CFGNode cfg0() {

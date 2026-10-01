@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 
@@ -8,11 +9,7 @@ public class NotNode extends Node {
 
     @Override public String label() { return "Not"; }
 
-    @Override
-    StringBuilder _print1(StringBuilder sb) {
-        in(1)._print0(sb.append("(!"));
-        return sb.append(")");
-    }
+    @Override protected String format() { return "(!%1)"; }
 
     @Override
     public Type compute() {

@@ -1,9 +1,10 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
-import java.util.BitSet;
 
 public class IfNode extends CFGNode implements MultiNode {
 
@@ -17,11 +18,11 @@ public class IfNode extends CFGNode implements MultiNode {
     public String label() { return "If"; }
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("if( ");
-        if( in(1)==null ) sb.append("never");
-        else in(1)._print0(sb, visited);
-        return sb.append(" )");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("if( ");
+        if( in(1)==null ) p.p("never");
+        else p.n(in(1));
+        return p.p(" )");
     }
 
     public Node ctrl() { return in(0); }

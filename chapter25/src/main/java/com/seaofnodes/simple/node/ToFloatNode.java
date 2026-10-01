@@ -1,19 +1,16 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
 import com.seaofnodes.simple.type.TypeInteger;
 
-import java.util.BitSet;
 
 public class ToFloatNode extends Node {
     public ToFloatNode(Node lhs) { super(null, lhs); }
     @Override public Tag serialTag() { return Tag.ToFloat; }
 
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        return in(1)._print0(sb.append("(flt)"), visited);
-    }
+    @Override protected String format() { return "(flt)%1"; }
 
     @Override
     public Type compute() {

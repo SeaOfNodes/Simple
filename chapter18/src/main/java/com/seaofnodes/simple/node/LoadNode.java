@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.IterPeeps;
@@ -47,7 +49,7 @@ public class LoadNode extends MemOpNode {
     // Debugger label
     @Override public String  label() { return "ld_"+mlabel(); }
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p(".").p(_name); }
 
     @Override
     public Type compute() {

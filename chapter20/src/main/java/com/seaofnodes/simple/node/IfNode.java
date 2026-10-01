@@ -1,9 +1,9 @@
 package com.seaofnodes.simple.node;
 
+
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.type.*;
-import java.util.BitSet;
 import java.util.HashSet;
 
 public class IfNode extends CFGNode implements MultiNode {
@@ -17,11 +17,7 @@ public class IfNode extends CFGNode implements MultiNode {
     @Override
     public String label() { return "If"; }
 
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("if( ");
-        return in(1)._print0(sb, visited).append(" )");
-    }
+    @Override protected String format() { return "if( %1 )"; }
 
     public Node ctrl() { return in(0); }
     public Node pred() { return in(1); }

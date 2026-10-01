@@ -1,12 +1,13 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.cpus.x86_64_v2.x86_64_v2;
 import com.seaofnodes.simple.type.*;
 import java.io.ByteArrayOutputStream;
 import java.lang.StringBuilder;
-import java.util.BitSet;
 
 
 public class MemOpRISC extends MemOpNode implements MachNode{
@@ -14,7 +15,7 @@ public class MemOpRISC extends MemOpNode implements MachNode{
     MemOpRISC(Node op, MemOpNode mop) {
         super(op, mop);
     }
-    @Override public  StringBuilder _printMach(StringBuilder sb, BitSet visited) { return sb.append(".").append(_name); }
+    @Override protected ExprPrinter<Node> _printMach(ExprPrinter<Node> p) { return p.p(".").p(_name); }
 
     @Override public boolean isMem() { return _type instanceof TypeMem; }
 

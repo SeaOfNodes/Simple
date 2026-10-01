@@ -1,17 +1,15 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFloat;
-import java.util.BitSet;
 
 public abstract class ArithFNode extends Node {
     public ArithFNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
 
-    @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        in(1)._print0(sb.append("("), visited);
-        in(2)._print0(sb.append(glabel()), visited);
-        return sb.append(")");
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.open().n(in(1)).p(glabel()).n(in(2)).close();
     }
 
     abstract double doOp(double x, double y);

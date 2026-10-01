@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StoreNode;
-import java.util.BitSet;
 
 public class StoreX86 extends MemOpX86 {
     StoreX86( StoreNode st, Node base, Node idx, int off, int scale, int imm, Node val ) {
@@ -14,12 +15,12 @@ public class StoreX86 extends MemOpX86 {
 
     @Override public String op() { return "st"+_sz; }
 
-    @Override public StringBuilder _printMach(StringBuilder sb, BitSet visited) {
+    @Override protected ExprPrinter<Node> _printMach(ExprPrinter<Node> p) {
         Node val = val();
-        sb.append(".").append(_name).append("=");
-        if( val==null ) sb.append(_imm);
-        else val._print0(sb,visited);
-        return sb.append(";");
+        p.p(".").p(_name).p("=");
+        if( val==null ) p.p(_imm);
+        else p.n(val);
+        return p.p(";");
     }
 
     // Register mask allowed as a result.  0 for no register.

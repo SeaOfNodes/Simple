@@ -1,10 +1,11 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
-import java.util.BitSet;
 
 // Conditional branch such as: BEQ
 public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
@@ -31,14 +32,14 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
         }
     }
 
-    @Override public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("if( ");
-        if( in(1)==null ) sb.append("0");
-        else in(1)._print0(sb,visited);
-        sb.append(_bop);
-        if( in(2)==null ) sb.append("0");
-        else in(2)._print0(sb,visited);
-        return sb.append(" )");
+    @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("if( ");
+        if( in(1)==null ) p.p("0");
+        else p.n(in(1));
+        p.p(_bop);
+        if( in(2)==null ) p.p("0");
+        else p.n(in(2));
+        return p.p(" )");
     }
 
     @Override public void encoding( Encoding enc ) {

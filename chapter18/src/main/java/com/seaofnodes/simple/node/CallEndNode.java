@@ -1,11 +1,12 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.CodeGen;
 import com.seaofnodes.simple.IterPeeps;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.*;
-import java.util.BitSet;
 
 /**
  *  CallEnd
@@ -26,13 +27,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
     CallNode call() { return (CallNode)in(0); }
 
     @Override
-    StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("cend( ");
-        sb.append( in(0) instanceof CallNode ? "Call, " : "----, ");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("cend( ");
+        p.p( in(0) instanceof CallNode ? "Call, " : "----, ");
         for( int i=1; i<nIns()-1; i++ )
-            in(i)._print0(sb,visited).append(",");
-        sb.setLength(sb.length()-1);
-        return sb.append(")");
+            p.n(in(i)).p(",");
+        return p.unchar(',').unchar(' ').close();
     }
 
     @Override

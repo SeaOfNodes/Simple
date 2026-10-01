@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.print.ExprPrinter;
+
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.util.BAOS;
@@ -24,21 +26,20 @@ public class MemMergeNode extends Node {
     @Override public boolean isMem() { return true; }
 
     @Override
-    public StringBuilder _print1(StringBuilder sb, BitSet visited) {
-        sb.append("MEM[ ");
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("MEM[ ");
         for( int j=2; j<nIns(); j++ ) {
-            sb.append(j);
-            sb.append(":");
+            p.p(j);
+            p.p(":");
             Node n = in(j);
             while( n instanceof ScopeNode loop ) {
-                sb.append("Lazy_");
+                p.p("Lazy_");
                 n = loop.mem();
             }
-            if( n==null ) sb.append("___ ");
-            else n._print0(sb, visited).append(" ");
+            if( n==null ) p.p("___ ");
+            else p.n(n).p(" ");
         }
-        sb.setLength(sb.length()-1);
-        return sb.append("]");
+        return p.unchar(' ').p("]");
     }
 
 

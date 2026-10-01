@@ -29,7 +29,6 @@ public class ExternNode extends ConstantNode {
     }
 
     @Override public String  label() { return "#"+_con+":"+_extern; }
-    @Override public String uniqueName() { return "Extern_" + _nid; }
 
     @Override public boolean eq(Node n) { return this==n; }
     @Override public void gather( HashMap<String,Integer> strs ) {
