@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -20,14 +21,7 @@ public abstract class ImmX86 extends MachConcreteNode implements MachNode {
     abstract int mod();
 
     @Override public final void encoding( Encoding enc ) {
-        short dst = enc.reg(this); // Also src1
-        enc.add1(x86_64_v2.rex(0, dst, 0));
-        // opcode; 0x81 or 0x83; 0x69 or 0x6B
-        enc.add1( opcode() + (x86_64_v2.imm8(_imm) ? 2 : 0) );
-        enc.add1( x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, mod(), dst) );
-        // immediate(4 bytes) 32 bits or (1 byte)8 bits
-        if( x86_64_v2.imm8(_imm) ) enc.add1(_imm);
-        else                       enc.add4(_imm);
+        X86.imm(enc,opcode(),mod(),enc.reg(this),_imm);
     }
 
     // General form: "addi  dst += #imm"

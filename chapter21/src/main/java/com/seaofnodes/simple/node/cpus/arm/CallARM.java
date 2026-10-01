@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -27,7 +28,7 @@ public class CallARM extends CallNode implements MachNode, RIPRelSize {
     @Override public void encoding( Encoding enc ) {
         enc.relo(this);
         // BL
-        enc.add4(arm.b(arm.OP_CALL,0)); // Target patched at link time
+        enc.add4(Arm64.b(Arm64.OP_CALL,0)); // Target patched at link time
     }
 
     // Delta is from opcode start, but X86 measures from the end of the 5-byte encoding
@@ -35,7 +36,7 @@ public class CallARM extends CallNode implements MachNode, RIPRelSize {
 
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
-        enc.patch4(opStart,arm.b(arm.OP_CALL,delta));
+        enc.patch4(opStart,Arm64.b(Arm64.OP_CALL,delta));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

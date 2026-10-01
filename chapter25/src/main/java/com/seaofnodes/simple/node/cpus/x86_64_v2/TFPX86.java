@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -25,17 +26,9 @@ public class TFPX86 extends FunPtrNode implements MachNode, RIPRelSize {
     @Override public RegMask regmap(int i) { return null; }
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public void encoding( Encoding enc ) {
-        if( _ext==null ) enc.relo(this);          // Internal patch
-        else             enc.external(this,_ext); // ELF-file external patch
-        // lea to load function pointer address
-        // lea rax, [rip+disp32]
-        short dst = enc.reg(this);
-        // 0 or 1 for REX depending on the dst.
-        // Zero/sign extend should be fine, so not wide.
-        _opLen = (byte)(6+ x86_64_v2.rexF(dst, 0, 0, true, enc));
-        enc.add1(0x8D); // opcode
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0b101));
-        enc.add4(0);
+        if( _ext==null ) enc.relo(this);
+        else enc.external(this,_ext);
+        _opLen=X86.rip(enc,0,0x8D,true,enc.reg(this));
     }
 
     @Override public byte encSize(int delta) { return _opLen; }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -15,20 +16,7 @@ public class MemAddX86 extends MemOpX86 {
     @Override public RegMask outregmap() { return null; }
     @Override public RegMask killmap() { return x86_64_v2.FLAGS_MASK; }
     @Override public void encoding( Encoding enc ) {
-        // add something to memory
-        // REX.W + 01 /r | REX.W + 81 /0 id
-        // ADD [mem], imm32/reg
-        short ptr = enc.reg(ptr());
-        short idx = enc.reg(idx());
-        short src = enc.reg(val());
-
-        enc.add1(x86_64_v2.rex(src, ptr, idx));
-        // opcode
-        enc.add1( src == -1 ? (_imm==1 ? 0xFF : 0x81): 0x01);
-
-        // includes modrm
-        x86_64_v2.indirectAdr(_scale, idx, ptr, _off, src == -1 ? 0 : src, enc);
-        if( src == -1 && _imm!=1 ) enc.add4(_imm);
+        X86.addMem(enc,enc.reg(val()),_imm,enc.reg(ptr()),enc.reg(idx()),_off,_scale);
     }
     // General form: "add  [base + idx<<2 + 12] += src"
     @Override public void asm(CodeGen code, SB sb) {

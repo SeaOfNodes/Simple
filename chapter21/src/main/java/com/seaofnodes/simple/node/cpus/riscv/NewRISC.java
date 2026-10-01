@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -13,9 +14,9 @@ public class NewRISC extends NewNode implements MachNode, RIPRelSize {
         enc.external(this,"calloc");
         // A1 is a caller-save, allowed to crush building external address
         // auipc
-        enc.add4(riscv.i_type(riscv.OP_IMM  , _arg2Reg , 0, riscv.ZERO, 1));
-        enc.add4(riscv.u_type(riscv.OP_AUIPC, riscv.A2 , 0));
-        enc.add4(riscv.i_type(riscv.OP_JALR , riscv.RPC, 0, riscv.A2, 0));
+        enc.add4(RiscV.i_type(RiscV.OP_IMM  , _arg2Reg , 0, riscv.ZERO, 1));
+        enc.add4(RiscV.u_type(RiscV.OP_AUIPC, riscv.A2 , 0));
+        enc.add4(RiscV.i_type(RiscV.OP_JALR , riscv.RPC, 0, riscv.A2, 0));
     }
 
     // Patch is for running "new" in a JIT.
@@ -31,8 +32,8 @@ public class NewRISC extends NewNode implements MachNode, RIPRelSize {
             int imm20 = delta>>12;
             if( ((delta>>11)&1)==1 ) imm20++; // Correct accidental sign extension
             int imm12 = delta&0xFFF;
-            enc.patch4(opStart+4,riscv.u_type(riscv.OP_AUIPC, riscv.A2 , imm20));
-            enc.patch4(opStart+8,riscv.i_type(riscv.OP_JALR , riscv.RPC, 0, riscv.A2, imm12));
+            enc.patch4(opStart+4,RiscV.u_type(RiscV.OP_AUIPC, riscv.A2 , imm20));
+            enc.patch4(opStart+8,RiscV.i_type(RiscV.OP_JALR , riscv.RPC, 0, riscv.A2, imm12));
         } else
             throw Utils.TODO();
     }

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -28,7 +29,7 @@ public class CmpIARM extends MachConcreteNode implements MachNode {
     @Override public boolean isClone() { return true; }
     @Override public Node copy() { return new CmpIARM(this); }
 
-    @Override public void encoding( Encoding enc ) { arm.imm_inst_subs(enc,in(1),in(1), arm.OPI_CMP,_imm); }
+    @Override public void encoding( Encoding enc ) { arm.imm_inst_subs(enc,in(1),in(1), Arm64.OPI_CMP,_imm); }
 
     // General form: "cmp  rs1, 1"
     @Override public void asm(CodeGen code, SB sb) {

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -12,18 +13,7 @@ public class AddMemX86 extends MemOpX86 {
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
     @Override public int twoAddress() { return 4; }
     @Override public void encoding( Encoding enc ) {
-        // add something to register from memory
-        // add   eax,DWORD PTR [rdi+0xc]
-        // REX.W + 03 /r	ADD r64, r/m64
-        short dst = enc.reg(this );
-        short ptr = enc.reg(ptr());
-        short idx = enc.reg(idx());
-
-        enc.add1(x86_64_v2.rex(dst, ptr, idx));
-        // opcode
-        enc.add1(0x03);
-
-        x86_64_v2.indirectAdr(_scale, idx, ptr, _off, dst, enc);
+        X86.memory(enc,0,0x03,true,enc.reg(this),enc.reg(ptr()),enc.reg(idx()),_off,_scale);
     }
 
     // General form: "add  dst += [base + idx<<2 + 12]"

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
@@ -22,7 +23,7 @@ public class AsrIARM extends MachConcreteNode implements MachNode {
         short rd = enc.reg(this);
         short rn = enc.reg(in(1));
         assert _imm > 0;
-        enc.add4(arm.imm_shift(arm.OPI_ASR,_imm, 0b111111, rn, rd));
+        enc.add4(Arm64.imm_shift(Arm64.OPI_ASR,_imm, 0b111111, rn, rd));
     }
     // General form: "asri  rd = rs1 >> imm"
     @Override public void asm(CodeGen code, SB sb) {

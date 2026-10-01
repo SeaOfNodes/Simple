@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
@@ -19,9 +20,9 @@ public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
         short dst = enc.reg(this);
         TypeFunPtr tfp = (TypeFunPtr)_con;
         // auipc  t0,0
-        int auipc = riscv.u_type(riscv.OP_AUIPC, dst, 0);
+        int auipc = RiscV.u_type(RiscV.OP_AUIPC, dst, 0);
         // addi   t1,t0 + #0
-        int addi = riscv.i_type(riscv.OP_IMM, dst, 0, dst, 0);
+        int addi = RiscV.i_type(RiscV.OP_IMM, dst, 0, dst, 0);
         enc.add4(auipc);
         enc.add4(addi);
     }
@@ -33,8 +34,8 @@ public class TFPRISC extends ConstantNode implements MachNode, RIPRelSize {
         short rpc = enc.reg(this);
         if( opLen==8 ) {
             // ADDI sign-extends its low 12 bits, so round the AUIPC high part.
-            enc.patch4(opStart  ,riscv.u_type(riscv.OP_AUIPC, rpc, (delta+0x800)>>12));
-            enc.patch4(opStart+4,riscv.i_type(riscv.OP_IMM, rpc, 0, rpc, delta & 0xFFF));
+            enc.patch4(opStart  ,RiscV.u_type(RiscV.OP_AUIPC, rpc, (delta+0x800)>>12));
+            enc.patch4(opStart+4,RiscV.i_type(RiscV.OP_IMM, rpc, 0, rpc, delta & 0xFFF));
         } else {
              // should not happen as one instruction is 4 byte, and TFP arm encodes 2.
             throw Utils.TODO();

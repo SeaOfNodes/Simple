@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.LoadNode;
 import com.seaofnodes.simple.node.Node;
@@ -24,33 +25,14 @@ public class LoadX86 extends MemOpX86 {
     }
 
     static void enc( Encoding enc, Type decl, short dst, short ptr, short idx, int off, int scale ) {
-        // Allocation may put a full-width integer in an XMM register (or a
-        // floating value in a GPR). Move its bits using the selected register bank.
-        if( dst>=x86_64_v2.XMM_OFFSET && decl.log_size()==3 ) decl=TypeFloat.F64;
-        else if( dst<x86_64_v2.XMM_OFFSET && decl instanceof TypeFloat )
-            decl = decl==TypeFloat.F32 ? TypeInteger.U32 : TypeInteger.BOT;
-        if( decl == TypeFloat.F32) enc.add1(0xF3);
-        if( decl == TypeFloat.F64) enc.add1(0xF2);
-
-        if( decl.isa(TypeFloat.F64) )
-            dst -= (short)x86_64_v2.XMM_OFFSET;
-
-        x86_64_v2.rexF(dst, ptr, idx, decl != TypeInteger.U32 && decl != TypeFloat.F32 && decl != TypeFloat.F64, enc);
-
-        if( false ) ;
-        else if( decl == TypeFloat.F32   ) enc.add1(0x0F).add1(0x10); // F3 0F 10 /r MOVSS xmm1, m32
-        else if( decl == TypeFloat.F64   ) enc.add1(0x0F).add1(0x10); // F2 0F 10 /r MOVSD xmm1, m64
-        else if( decl.isa(TypeInteger.I8)) enc.add1(0x0F).add1(0xBE); // sign extend: REX.W + 0F BE /r MOVSX r64, r/m8
-        else if( decl == TypeInteger.I16 ) enc.add1(0x0F).add1(0xBF); // sign extend: REX.W + 0F BF /r MOVSX r64, r/m16
-        else if( decl == TypeInteger.I32 ) enc.add1(0x63);            // sign extend: REX.W + 63 /r    MOVSXD r64, r/m32
-        else if( decl == TypeInteger.U8  ) enc.add1(0x0F).add1(0xB6); // zero extend: REX.W + 0F B6 /r MOVZX r64, r/m8
-        else if( decl == TypeInteger.U16 ) enc.add1(0x0F).add1(0xB7); // zero extend: REX.W + 0F B7 /r MOVZX r64, r/m16
-        // Covers U32, I64/BOT, TMP
-        else if( decl.log_size()>=2 )     enc.add1(0x8B);            // zero extend:         8B /r    MOV r32, r/m32
-        else throw Utils.TODO();
-
-        // includes modrm internally
-        x86_64_v2.indirectAdr(scale, idx, ptr, off, dst, enc);
+        // The chapter chooses the register bank and extension from its own type facts.
+        boolean xmm=dst>=x86_64_v2.XMM_OFFSET;
+        if( xmm && decl.log_size()==3 ) decl=TypeFloat.F64;
+        else if( !xmm && decl instanceof TypeFloat )
+            decl=decl==TypeFloat.F32 ? TypeInteger.U32 : TypeInteger.BOT;
+        boolean signed=decl.isa(TypeInteger.I8) || decl==TypeInteger.I16 || decl==TypeInteger.I32;
+        X86.load(enc,decl.log_size(),signed,xmm,
+                 xmm ? dst-x86_64_v2.XMM_OFFSET : dst,ptr,idx,off,scale);
     }
 
 

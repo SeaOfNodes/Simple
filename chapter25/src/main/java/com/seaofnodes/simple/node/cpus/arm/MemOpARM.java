@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.codegen.*;
@@ -66,8 +67,8 @@ public abstract class MemOpARM extends MemOpNode implements MachNode {
             val -= arm.D0;
         }
         int body = off() == null
-            ? arm.load_str_imm(opcode_imm, _off, ptr, val, size)
-            : arm.indr_adr(opcode_reg, off, arm.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
+            ? Arm64.load_str_imm(opcode_imm, _off, ptr, val, size)
+            : Arm64.indr_adr(opcode_reg, off, Arm64.STORE_LOAD_OPTION.SXTX, 0, ptr, val);
         enc.add4(body);
     }
 

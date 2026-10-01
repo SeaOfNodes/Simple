@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -34,10 +35,10 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
         // by comparison (or sub).  No need for regs because it uses flags
         if( in(1)!=null ) {
             // B.cond
-            enc.add4( arm.b_cond(arm.OP_BRANCH, 0, arm.make_condition(_bop)) );
+            enc.add4( Arm64.b_cond(Arm64.OP_BRANCH, 0, Arm64.make_condition(_bop)) );
         } else {
             if( _bop=="!=" ) return; // Inverted, no code
-            enc.add4(arm.b(arm.OP_UJMP, 0));
+            enc.add4(Arm64.b(Arm64.OP_UJMP, 0));
         }
         enc.jump(this,cproj(0));
     }
@@ -54,7 +55,7 @@ public class BranchARM extends IfNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         assert !( in(1)==null && _bop=="!=" ); // Inverted never-node, no code no patch
         if( opLen==4 ) {
-            enc.patch4(opStart,arm.b_cond(arm.OP_BRANCH, delta, arm.make_condition(_bop)));
+            enc.patch4(opStart,Arm64.b_cond(Arm64.OP_BRANCH, delta, Arm64.make_condition(_bop)));
         } else {
             throw Utils.TODO();
         }

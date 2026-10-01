@@ -38,6 +38,7 @@ test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 include $(firstword $(wildcard ../print/print.mk print/print.mk))
+include $(firstword $(wildcard ../isa/isa.mk isa/isa.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java)) com.seaofnodes.simple.codegen.X86EncodingTest
 classes = $(main_classes) $(test_classes)
@@ -55,15 +56,15 @@ endif
 default: $(default_targets)
 
 # Compile just the out-of-date files
-$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java $(graph_javas) $(print_javas)
+$(main_classes): $(CLZDIR)/main/%class: $(SRC)/%java $(graph_javas) $(print_javas) $(isa_javas)
 	@echo "compiling " $@ " because " $?
 	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
 	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main $(main_javas)
 
-$(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes)
+$(test_classes): $(CLZDIR)/test/%class: $(TST)/%java $(main_classes) $(isa_test_javas)
 	@echo "compiling " $@ " because " $?
 	@[ -d $(CLZDIR)/test ] || mkdir -p $(CLZDIR)/test
-	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(test_javas)
+	@javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test $(test_javas) $(isa_test_javas)
 
 # Base launch line for JVM tests
 JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"

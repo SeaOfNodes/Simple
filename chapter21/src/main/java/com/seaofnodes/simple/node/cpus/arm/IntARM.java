@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
@@ -21,39 +22,7 @@ public class IntARM extends ConstantNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         short self = enc.reg(this);
         long x = _con==Type.NIL ? 0 : ((TypeInteger)_con).value();
-        int nb0 = 0;
-        int nb1 = 0;
-        // Count number of 0000 and FFFF blocks
-        for (int i=0; i<64; i+=16) {
-            int block = (int)(x >> i) & 0xFFFF;
-            if (block == 0) nb0++;
-            if (block == 0xFFFF) nb1++;
-        }
-        int pattern;
-        int op;
-        if(nb0 >= nb1) {
-            // More 0 blocks then F blocks, use movz
-            pattern = 0;
-            op = arm.OP_MOVZ;
-        } else {
-            // More F blocks then 0 blocks, use movn
-            pattern = 0xFFFF;
-            op = arm.OP_MOVN;
-        }
-        int invert = pattern;
-        for (int i=0; i<4; i++) {
-            int block = (int)x & 0xFFFF;
-            x >>= 16;
-            if (block != pattern) {
-                enc.add4(arm.mov(op, i, block ^ invert, self));
-                op = arm.OP_MOVK;
-                invert = 0;
-            }
-        }
-        if (op != arm.OP_MOVK) {
-            // All blocks are the same, special case
-            enc.add4(arm.mov(op, 0, 0, self));
-        }
+        Arm64.constant(enc,self,x);
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

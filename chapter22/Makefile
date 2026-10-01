@@ -66,6 +66,7 @@ test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 include $(firstword $(wildcard ../print/print.mk print/print.mk))
+include $(firstword $(wildcard ../isa/isa.mk isa/isa.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 test_cp      := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java)) com.seaofnodes.simple.codegen.X86EncodingTest
 classes = $(main_classes) $(test_classes)
@@ -108,8 +109,8 @@ $(main_classes): $(CLZDIR)/main/.mtag
 
 #######################################################
 
-OODT :=
-$(CLZDIR)/test/.ttag: $(test_classes) $(test_javas) $(CLZDIR)/main/.mtag
+OODT := $(isa_test_javas)
+$(CLZDIR)/test/.ttag: $(test_classes) $(test_javas) $(isa_test_javas) $(CLZDIR)/main/.mtag
 	@[ -d $(CLZDIR)/test ] || mkdir -p $(CLZDIR)/test
 	$(file >.argsT.txt,$(OODT))
 	@if [ ! -z "$(OODT)" ] ; then \

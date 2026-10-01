@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StoreNode;
@@ -22,9 +23,9 @@ public class StoreARM extends MemOpARM {
     @Override public String op() { return "st"+_sz; }
     @Override public RegMask outregmap() { return null; }
 
-    private static final int[] OP_STORES = new int[]{ arm.OP_STORE_IMM_8, arm.OP_STORE_IMM_16, arm.OP_STORE_IMM_32, arm.OP_STORE_IMM_64, };
+    private static final int[] OP_STORES = new int[]{ Arm64.OP_STORE_IMM_8, Arm64.OP_STORE_IMM_16, Arm64.OP_STORE_IMM_32, Arm64.OP_STORE_IMM_64, };
 
-    private static final int[] OP_STORE_RS = new int[]{ arm.OP_STORE_R_8, arm.OP_STORE_R_16, arm.OP_STORE_R_32, arm.OP_STORE_R_64, };
+    private static final int[] OP_STORE_RS = new int[]{ Arm64.OP_STORE_R_8, Arm64.OP_STORE_R_16, Arm64.OP_STORE_R_32, Arm64.OP_STORE_R_64, };
 
     @Override public void encoding( Encoding enc ) {
         ldst_encode(enc, OP_STORES[Integer.numberOfTrailingZeros(size())], OP_STORE_RS[Integer.numberOfTrailingZeros(_bytes)], val(), size());

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -23,9 +24,9 @@ public class Int8RISC extends ConstantNode implements MachNode, RIPRelSize {
         short tmp = (short)riscv.T6;
         enc.largeConstant(this,_con, 0, -1);
         // AUIPC dst,#hi20_constant_pool
-        enc.add4(riscv.u_type(riscv.OP_AUIPC, tmp, 0));
+        enc.add4(RiscV.u_type(RiscV.OP_AUIPC, tmp, 0));
         // Load dst,[dst+#low12_constant_pool]
-        enc.add4(riscv.i_type(riscv.OP_LOAD, dst, 0b11, tmp, 0));
+        enc.add4(RiscV.i_type(RiscV.OP_LOAD, dst, 0b11, tmp, 0));
     }
     @Override public RegMask killmap() { return new RegMask(riscv.T6); }
 
@@ -34,9 +35,9 @@ public class Int8RISC extends ConstantNode implements MachNode, RIPRelSize {
         short dst = enc.reg(this);
         short tmp = (short)riscv.T6;
         // AUIPC dst,#hi20_constant_pool
-        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, tmp, delta>>12));
+        enc.patch4(opStart  , RiscV.u_type(RiscV.OP_AUIPC, tmp, delta>>12));
         // Load dst,[dst+#low12_constant_pool]
-        enc.patch4(opStart+4, riscv.i_type(riscv.OP_LOAD, dst, 0b11, tmp, delta & 0xFFF));
+        enc.patch4(opStart+4, RiscV.i_type(RiscV.OP_LOAD, dst, 0b11, tmp, delta & 0xFFF));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
@@ -22,8 +23,8 @@ public class ExtendRISC extends MachConcreteNode {
     @Override public void encoding(Encoding enc) {
         short dst = enc.reg(this), src = enc.reg(in(1));
         int shift = 64-_bits;
-        enc.add4(riscv.i_type(riscv.OP_IMM,dst,1,src,shift));
-        enc.add4(riscv.i_type(riscv.OP_IMM,dst,5,dst,shift | (_signed ? 0x400 : 0)));
+        enc.add4(RiscV.i_type(RiscV.OP_IMM,dst,1,src,shift));
+        enc.add4(RiscV.i_type(RiscV.OP_IMM,dst,5,dst,shift | (_signed ? 0x400 : 0)));
     }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1)));

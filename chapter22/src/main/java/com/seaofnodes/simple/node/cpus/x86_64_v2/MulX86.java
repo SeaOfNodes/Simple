@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -13,13 +14,7 @@ public class MulX86 extends MachConcreteNode implements MachNode {
     @Override public boolean commutes() { return true; }
 
     @Override public void encoding( Encoding enc ) {
-        // REX.W + 0F AF /r	IMUL r64, r/m64
-        short dst = enc.reg(this ); // src1
-        short src = enc.reg(in(2)); // src2
-        enc.add1(x86_64_v2.rex(dst, src, 0));
-        enc.add1(0x0F); // opcode
-        enc.add1(0xAF); // opcode
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src));
+        X86.reg(enc,0x0FAF,enc.reg(this),enc.reg(in(2)));
     }
 
     // General form: "mul  dst *= src"

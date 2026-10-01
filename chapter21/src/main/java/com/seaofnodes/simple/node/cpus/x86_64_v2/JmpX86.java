@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -29,38 +30,21 @@ public class JmpX86 extends IfNode implements MachNode, RIPRelSize {
     @Override public void negate() { _bop = negate(_bop);  }
 
     @Override public void encoding( Encoding enc ) {
-        if( in(1)!=null ) {
-            int op = x86_64_v2.jumpop(_bop);
-            enc.add1(op-16).add1(0); // Short form jump
-        } else {
-            if( _bop=="!=" ) return; // Inverted, no code
-            enc.add1(0xEB).add1(0);  // Never-node
-        }
+        if( in(1)==null && _bop=="!=" ) return;
+        X86.branch(enc,in(1)==null ? -1 : x86_64_v2.jumpop(_bop)&15);
         enc.jump(this,cproj(0));
     }
 
     // Delta is from opcode start, but X86 measures from the end of the 2-byte encoding
     @Override public byte encSize(int delta) {
-        if( in(1)==null && _bop=="!=" ) return 0; // Inverted never-node, no code
-        return (byte)(x86_64_v2.imm8(delta-2) ? 2 : 6);
+        if( in(1)==null && _bop=="!=" ) return 0;
+        return X86.branchSize(delta,in(1)!=null);
     }
 
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
-        assert !( in(1)==null && _bop=="!=" ); // Inverted never-node, no code no patch
-        byte[] bits = enc.bits();
-        if( opLen==2 ) {
-            assert in(1)==null || bits[opStart] == x86_64_v2.jumpop(_bop)-16;
-            delta -= 2;         // Offset from opcode END
-            assert (byte)delta==delta;
-            bits[opStart+1] = (byte)delta;
-        } else {
-            assert in(1)==null || bits[opStart] == x86_64_v2.jumpop(_bop)-16;
-            delta -= 6;         // Offset from opcode END
-            bits[opStart] = 0x0F;
-            bits[opStart+1] = (byte)(in(1)==null ? 0xE9 : x86_64_v2.jumpop(_bop));
-            enc.patch4(opStart+2,delta);
-        }
+        assert !(in(1)==null && _bop=="!=");
+        X86.patchBranch(enc.bits(),opStart,opLen,delta,in(1)==null ? -1 : x86_64_v2.jumpop(_bop)&15);
     }
 
     @Override public void asm(CodeGen code, SB sb) {

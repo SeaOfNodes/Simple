@@ -19,7 +19,7 @@ import java.util.*;
  *  There are also a bunch of generic utilities for managing bits and bytes
  *  common in all encodings.
  */
-public class Encoding {
+public class Encoding implements com.seaofnodes.isa.CodeSink {
 
     // Top-level program graph structure
     public final CodeGen _code;

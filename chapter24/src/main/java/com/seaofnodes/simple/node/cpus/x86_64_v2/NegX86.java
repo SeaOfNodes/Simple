@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -13,10 +14,7 @@ public class NegX86 extends MachConcreteNode implements MachNode {
     @Override public int twoAddress() { return 1; }
 
     @Override public void encoding( Encoding enc ) {
-        short dst = enc.reg(this );
-        enc.add1(x86_64_v2.rex(0, dst, 0));
-        enc.add1(0xF7); // opcode
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 3, dst));
+        X86.unary(enc,0xF7,3,enc.reg(this));
     }
     @Override public void asm(CodeGen code, SB sb) { sb.p(code.reg(this)); }
 }

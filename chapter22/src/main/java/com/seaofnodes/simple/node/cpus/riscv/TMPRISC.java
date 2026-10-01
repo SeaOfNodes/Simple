@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
@@ -18,9 +19,9 @@ public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
         enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
         short dst = enc.reg(this);
         // AUIPC dst,#hi20_constant_pool
-        enc.add4(riscv.u_type(riscv.OP_AUIPC, dst, 0));
+        enc.add4(RiscV.u_type(RiscV.OP_AUIPC, dst, 0));
         // addi dst,[dst+#low12_constant_pool]
-        enc.add4(riscv.i_type(riscv.OP_IMM, dst, 0, dst, 0));
+        enc.add4(RiscV.i_type(RiscV.OP_IMM, dst, 0, dst, 0));
     }
 
     @Override public byte encSize(int delta) { return 8; }
@@ -29,9 +30,9 @@ public class TMPRISC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short dst = enc.reg(this);
         // Round the high part because ADDI's low 12 bits are signed.
-        enc.patch4(opStart  , riscv.u_type(riscv.OP_AUIPC, dst, (delta+0x800)>>12));
+        enc.patch4(opStart  , RiscV.u_type(RiscV.OP_AUIPC, dst, (delta+0x800)>>12));
         // ADDI dst,dst,#low12_constant_pool
-        enc.patch4(opStart+4, riscv.i_type(riscv.OP_IMM, dst, 0, dst, delta & 0xFFF));
+        enc.patch4(opStart+4, RiscV.i_type(RiscV.OP_IMM, dst, 0, dst, delta & 0xFFF));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

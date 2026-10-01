@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.BoolNode;
 import com.seaofnodes.simple.node.MachConcreteNode;
@@ -23,7 +24,7 @@ public class SetFRISC extends MachConcreteNode implements MachNode {
         short dst  =         enc.reg(this );
         short src1 = (short)(enc.reg(in(1))-riscv.F_OFFSET);
         short src2 = (short)(enc.reg(in(2))-riscv.F_OFFSET);
-        int body = riscv.r_type(riscv.OP_FP,dst,riscv.fsetop(_bop),src1,src2,0b1010001/*FCMP*/);
+        int body = RiscV.r_type(RiscV.OP_FP,dst,RiscV.fsetop(_bop),src1,src2,0b1010001/*FCMP*/);
         enc.add4(body);
     }
 

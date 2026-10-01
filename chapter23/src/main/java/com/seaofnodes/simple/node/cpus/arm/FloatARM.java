@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -20,7 +21,7 @@ public class FloatARM extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void encoding( Encoding enc ) {
         enc.largeConstant(this,_con,0,-1/*TODO: ARM-style ELF patching*/);
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
-        enc.add4(arm.load_pc(arm.OPF_ARM, 0, dst));
+        enc.add4(Arm64.load_pc(Arm64.OPF_ARM, 0, dst));
     }
 
     // Delta is from opcode start.
@@ -29,7 +30,7 @@ public class FloatARM extends ConstantNode implements MachNode, RIPRelSize {
     // Delta is from opcode start
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short dst = (short)(enc.reg(this) - arm.D_OFFSET);
-        enc.patch4(opStart, arm.load_pc(arm.OPF_ARM, delta, dst));
+        enc.patch4(opStart, Arm64.load_pc(Arm64.OPF_ARM, delta, dst));
     }
 
     // Human-readable form appended to the SB.  Things like the encoding,

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.util.Utils;
 
@@ -8,7 +9,7 @@ public class AddIRISC extends ImmRISC {
     public AddIRISC( Node add, int imm12, boolean pop ) { super(add,imm12,pop); }
     @Override public String op() { return "addi"; }
     @Override public String glabel() { return "+"; }
-    @Override int opcode() {  return riscv.OP_IMM; }
+    @Override int opcode() {  return RiscV.OP_IMM; }
     @Override int func3() {return 0;}
     @Override public AddIRISC copy() {
         // Clone the AddI, using the same inputs-only code used during inst select.

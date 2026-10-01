@@ -67,13 +67,6 @@ public class x86_64_v2 extends Machine {
     public static int REX_WRB= 0x4D;
     public static int REX_WB = 0x49;
 
-    public enum MOD {
-        INDIRECT,               //  [mem]
-        INDIRECT_disp8,         // [mem + 0x12]
-        INDIRECT_disp32,        // [mem + 0x12345678]
-        DIRECT,                 // mem
-    };
-
     // opcode included here
     // 0F 84 cd	JE  rel32
     // 0F 85 cd	JNE rel32
@@ -92,90 +85,6 @@ public class x86_64_v2 extends Machine {
         default -> throw new IllegalArgumentException("Too many arguments");
         };
     }
-
-    public static int modrm(MOD mod, int reg, int m_r) {
-        if( reg == -1 ) reg=0;  // Missing reg in this flavor
-        // combine all the bits
-        assert 0 <= reg  &&  reg < 16;
-        assert 0 <= m_r  &&  m_r < 16;
-        return (mod.ordinal() << 6) | ((reg & 0x07) << 3) | m_r & 0x07;
-    }
-
-    // 00 000 000
-    // same bit-layout as modrm
-    public static int sib(int scale, int index, int base) {
-        assert 0 <= base  &&  base < 16;
-        assert 0 <= index && index < 16;
-        return (scale << 6) | ((index & 0x07) << 3) | base & 0x07;
-    }
-
-    // reg1 is reg(R)
-    // reg2 is r/mem(B)
-    // reg3 is X(index)
-    // reg4 is X(base)
-
-    // 0 denotes no direct register
-    public static int rex(int reg, int ptr, int idx, boolean wide) {
-        // assuming 64 bit by default so: 0100 1000
-        assert -1 <= reg && reg < 16;
-        assert -1 <= ptr && ptr < 16;
-        assert -1 <= idx && idx < 16;
-
-        int rex = wide ? REX_W : REX;
-        if( 8 <= reg ) rex |= 0b00000100; // REX.R
-        if( 8 <= ptr ) rex |= 0b00000001; // REX.B
-        if( 8 <= idx ) rex |= 0b00000010; // REX.X
-        return rex;
-    }
-
-    public static int rex(int reg, int ptr, int idx) {
-        return rex(reg, ptr, idx, true);
-    }
-
-    // rex for floats.  Return size (0 or 1)
-    // don't need to use REX if 0x40.
-    public static byte rexF(int reg, int ptr, int idx, boolean wide, Encoding enc) {
-        int rex = rex(reg, ptr, idx, wide);
-        if (rex == REX) return 0;
-        enc.add1(rex);
-        return 1;
-    }
-    // Function used for encoding indirect memory addresses
-    // Does not always generate SIB byte e.g index == -1.
-    // -1 denotes empty value, not set - note 0 is different from -1 as it can represent rax.
-    // Looks for best mod locally
-    public static void indirectAdr( int scale, short index, short base, int offset, int reg, Encoding enc ) {
-        // Assume indirect
-        assert 0 <= base && base < 16;
-        assert -1 <= index && index < 16 && index != RSP;
-
-        MOD mod = MOD.INDIRECT;
-        // is 1 byte enough or need more?
-        if( offset != 0 )
-            mod = imm8(offset)
-                    ? MOD.INDIRECT_disp8
-                    : MOD.INDIRECT_disp32;
-
-        if( mod == MOD.INDIRECT && (base == RBP || base == R13) ) {
-            mod = MOD.INDIRECT_disp8;
-        } else if( index == -1 && (base == RSP || base == R12) ) {
-            index = RSP;
-        }
-
-        if( index == -1 ) {
-            enc.add1(modrm(mod, reg, base));
-        } else {
-            enc.add1(modrm(mod, reg, x86_64_v2.RSP));
-            enc.add1(sib(scale, index, base));
-        }
-
-        if( mod == MOD.INDIRECT_disp8 ) {
-            enc.add1(offset);
-        } else if( mod == MOD.INDIRECT_disp32 ) {
-            enc.add4(offset);
-        }
-    }
-
 
     // Limit of float args passed in registers
     static RegMask[] XMMS8 = new RegMask[]{

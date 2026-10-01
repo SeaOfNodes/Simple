@@ -67,6 +67,7 @@ simple_driver := $(TST)/$(SIMPLE)/Simple.java
 main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
 include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
 include $(firstword $(wildcard ../print/print.mk print/print.mk))
+include $(firstword $(wildcard ../isa/isa.mk isa/isa.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 # These tests do not rely on the stdlib
 test_alone := com.seaofnodes.simple.BrainFuckTest com.seaofnodes.simple.MergeSortTest com.seaofnodes.simple.TypeTest
@@ -127,9 +128,9 @@ $(CLZDIR)/main/.mtag: $(main_javas)
 
 #######################################################
 
-$(CLZDIR)/test/.ttag: $(test_javas) $(CLZDIR)/main/.mtag
+$(CLZDIR)/test/.ttag: $(test_javas) $(isa_test_javas) $(CLZDIR)/main/.mtag
 	@[ -d $(CLZDIR)/test ] || mkdir -p $(CLZDIR)/test
-	$(file > .argsT.txt, $(test_javas))
+	$(file > .argsT.txt, $(test_javas) $(isa_test_javas))
 	@echo "compiling test " `wc -w < .argsT.txt` " files"
 	@if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test @.argsT.txt >& .out.txt ; then \
             cat .out.txt ; \

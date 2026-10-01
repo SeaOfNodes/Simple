@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -9,7 +10,7 @@ public class SubFARM extends MachConcreteNode implements MachNode {
     @Override public String op() { return "subf"; }
     @Override public RegMask regmap(int i) { return arm.DMASK; }
     @Override public RegMask outregmap() { return arm.DMASK; }
-    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,arm.OPF_SUB); }
+    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,Arm64.OPF_SUB); }
     // Default on double precision for now(64 bits)
     // General form: "vsub.f32  rd = src1 + src2
     @Override public void asm(CodeGen code, SB sb) {

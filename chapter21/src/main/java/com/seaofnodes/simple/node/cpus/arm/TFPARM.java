@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
@@ -18,10 +19,10 @@ public class TFPARM extends ConstantNode implements MachNode, RIPRelSize {
         enc.relo(this);
         short self = enc.reg(this);
         // adrp    x0, 0
-        int adrp = arm.adrp(1,0, arm.OP_ADRP, 0,self);
+        int adrp = Arm64.adrp(1,0, Arm64.OP_ADRP, 0,self);
         // add     x0, x0, 0
         enc.add4(adrp);
-        arm.imm_inst(enc,arm.OPI_ADD,0, 0);
+        arm.imm_inst(enc,Arm64.OPI_ADD,0, 0);
     }
 
     @Override public byte encSize(int delta) {
@@ -37,9 +38,9 @@ public class TFPARM extends ConstantNode implements MachNode, RIPRelSize {
             int next = opStart + opLen;
             int adrp_delta = delta >> 12;
             // patch upper 20 bits via adrp
-            enc.patch4(opStart, arm.adrp(1, adrp_delta & 0b11, 0b10000, adrp_delta >> 2, rpc));
+            enc.patch4(opStart, Arm64.adrp(1, adrp_delta & 0b11, 0b10000, adrp_delta >> 2, rpc));
             // low 12 bits via add
-            enc.patch4(next, arm.imm_inst_l(arm.OPI_ADD, delta & 0xfff, rpc));
+            enc.patch4(next, Arm64.imm_inst_l(Arm64.OPI_ADD, delta & 0xfff, rpc));
         } else {
             // should not happen as one instruction is 4 byte, and TFP arm encodes 2.
             throw Utils.TODO();

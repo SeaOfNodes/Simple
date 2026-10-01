@@ -42,6 +42,15 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Tutorial backports
 
+- Shared ISA encoding lives in `isa/` for Chapters 21-25: x86 bytes behind
+  `CodeSink`, ARM/RISC-V word packing, and test-only evaluators. Chapter code still
+  owns machine nodes, register masks, operand/type interpretation, layouts and
+  relocations. Fix shared forms once there; keep their byte tests independent
+  of compiler IR and retain chapter execution tests. See `isa/README.md` for
+  the exact boundary. Only 21-25 add ISA main/test sources to their builds;
+  the linearized Maven build adds them at 21. Make's release jars still bundle
+  tests and their evaluators; Maven treats the evaluators as test sources.
+
 - Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
   (lazy graph partitioning). Both are standalone snapshots. Cliff reviewed and
   committed the forward port through Chapter 21. Chapters 22-24 now carry lazy

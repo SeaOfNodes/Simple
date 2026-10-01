@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
@@ -17,7 +18,7 @@ public class AUIPC extends ConstantNode implements MachNode, RIPRelSize {
     @Override public void encoding( Encoding enc ) {
         enc.relo(this);
         short dst = enc.reg(this);
-        enc.add4(riscv.u_type(riscv.OP_AUIPC, dst, 0));
+        enc.add4(RiscV.u_type(RiscV.OP_AUIPC, dst, 0));
     }
 
     // Delta is from opcode start, but X86 measures from the end of the 5-byte encoding
@@ -28,7 +29,7 @@ public class AUIPC extends ConstantNode implements MachNode, RIPRelSize {
         //short rpc = enc.reg(this);
         //// High half is where the TFP constant used to be, the last input
         //short auipc = enc.reg(in(_inputs._len-1));
-        //enc.patch4(opStart,riscv.i_type(0x67, rpc, 0, auipc, delta));
+        //enc.patch4(opStart,RiscV.i_type(0x67, rpc, 0, auipc, delta));
         throw Utils.TODO();
     }
 

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -11,18 +12,7 @@ public class I2f8X86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.XMASK; }
 
     @Override public void encoding( Encoding enc ) {
-        // F2 0F 2A /r CVTSI2SD xmm1, r32/m32
-        short dst = (short)(enc.reg(this ) - x86_64_v2.XMM_OFFSET);
-        short src =         enc.reg(in(1));
-
-        // Fopcode
-        enc.add1(0xF2);
-        // rex prefix must come next (REX.W is not set)
-        x86_64_v2.rexF(dst, src, 0, true, enc);
-
-        enc.add1(0x0F).add1(0x2A);
-
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src));
+        X86.sse(enc,0xF2,0x0F2A,true,enc.reg(this)-x86_64_v2.XMM_OFFSET,enc.reg(in(1)));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

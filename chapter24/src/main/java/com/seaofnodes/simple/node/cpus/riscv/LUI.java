@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -21,7 +22,7 @@ public class LUI extends ConstantNode implements MachNode {
         long x = ((TypeInteger)_con).value();
         int imm20 = (int)(x>>12) & 0xFFFFF;
         short dst = enc.reg(this);
-        int lui = riscv.u_type(riscv.OP_LUI, dst, imm20);
+        int lui = RiscV.u_type(RiscV.OP_LUI, dst, imm20);
         enc.add4(lui);
     }
 

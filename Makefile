@@ -19,3 +19,8 @@ $(CHAPTER_TARGETS):
 tests: print/tests
 print/tests:
 	+$(MAKE) --no-print-directory -C print tests
+
+.PHONY: isa/tests
+tests: isa/tests
+isa/tests:
+	+$(MAKE) --no-print-directory -C isa tests

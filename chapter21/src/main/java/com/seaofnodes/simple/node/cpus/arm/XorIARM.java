@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.node.MachConcreteNode;
 import com.seaofnodes.simple.node.MachNode;
 
@@ -20,7 +21,7 @@ public class XorIARM extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return arm.WMASK; }
 
     // General form: "xori  rd = rs1 ^ imm"
-    @Override public void encoding( Encoding enc ) { arm.imm_inst_n(enc,this, in(1), arm.OPI_XOR,_imm); }
+    @Override public void encoding( Encoding enc ) { arm.imm_inst_n(enc,this, in(1), Arm64.OPI_XOR,_imm); }
     @Override public void asm(CodeGen code, SB sb) {
         sb.p(code.reg(this)).p(" = ").p(code.reg(in(1))).p(" ^ #").p(_imm);
     }

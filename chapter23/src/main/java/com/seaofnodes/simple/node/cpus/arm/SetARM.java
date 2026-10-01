@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -20,7 +21,7 @@ public class SetARM extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return arm.WMASK; }
 
     @Override public void encoding( Encoding enc ) {
-        int body = arm.cset(arm.OP_CSET,0b11111, arm.make_condition(_bop), 0b011111, enc.reg(this));
+        int body = Arm64.cset(Arm64.OP_CSET,0b11111, Arm64.make_condition(_bop), 0b011111, enc.reg(this));
         enc.add4(body);
     }
 

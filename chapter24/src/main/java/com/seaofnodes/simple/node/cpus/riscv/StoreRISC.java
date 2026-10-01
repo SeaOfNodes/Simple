@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.codegen.RegMask;
 import com.seaofnodes.simple.node.*;
@@ -36,9 +37,9 @@ public class StoreRISC extends MemOpRISC {
     @Override public void encoding( Encoding enc ) {
         short val = enc.reg(val());
         short ptr = enc.reg(ptr());
-        int op = val >= riscv.F_OFFSET ? riscv.OP_STOREFP : riscv.OP_STORE;
+        int op = val >= riscv.F_OFFSET ? RiscV.OP_STOREFP : RiscV.OP_STORE;
         if( val >= riscv.F_OFFSET  ) val -= riscv.F_OFFSET;
-        enc.add4(riscv.s_type(op, func3()&7, ptr, val == -1 ? riscv.ZERO : val, _off));
+        enc.add4(RiscV.s_type(op, func3()&7, ptr, val == -1 ? riscv.ZERO : val, _off));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

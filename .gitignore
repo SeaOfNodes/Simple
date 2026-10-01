@@ -29,3 +29,5 @@ TAGS
 !chapter10b/chapter10b.iml
 !graph/graph.iml
 !print/print.iml
+!isa/isa.iml
+!isa/src/test-support/isa-eval.iml

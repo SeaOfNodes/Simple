@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -17,12 +18,7 @@ public class CmpX86 extends MachConcreteNode implements MachNode {
     @Override public boolean isClone() { return true; }
 
     @Override public void encoding( Encoding enc ) {
-        short dst = enc.reg(in(1));
-        short src = enc.reg(in(2));
-
-        enc.add1(x86_64_v2.rex(dst, src, 0));
-        enc.add1(0x3B);
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, src));
+        X86.reg(enc,0x3B,enc.reg(in(1)),enc.reg(in(2)));
     }
     @Override public void asm(CodeGen code, SB sb) {
         String dst = code.reg(this);

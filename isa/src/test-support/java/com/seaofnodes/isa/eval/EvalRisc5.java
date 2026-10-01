@@ -1,4 +1,4 @@
- package com.seaofnodes.simple;
+ package com.seaofnodes.isa.eval;
 
 /** Simple RISC5 CPU Emulator
  *
@@ -8,8 +8,6 @@
  * Load code into memory and go!
  */
 
-import com.seaofnodes.simple.codegen.Encoding;
-import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 
@@ -19,27 +17,32 @@ public class EvalRisc5 {
     public final byte[] _buf;
 
     // GPRs
-    final long[] regs;
+    public final long[] regs;
     // FRs
-    final double[] fregs;
+    public final double[] fregs;
     // PC
-    int _pc;
+    public int _pc;
 
     // Start of free memory for allocation
-    int _heap;
+    public int _heap;
 
     // Standard out and err streams
-    ByteArrayOutputStream _stdout, _stderr;
+    public ByteArrayOutputStream _stdout, _stderr;
 
     // Cycle counters
-    int _cycle;
+    public int _cycle;
 
-    EvalRisc5( byte[] buf, int stackSize ) {
+    // Default test-runtime entry points; callers can supply another link convention.
+    private final int _calloc, _write;
+    public EvalRisc5(byte[] buf, int stackSize) { this(buf,stackSize,-4,-8); }
+    public EvalRisc5(byte[] buf, int stackSize, int calloc, int write) {
+        _calloc = calloc;
+        _write = write;
         _buf  = buf;
         regs  = new long[32];
         fregs = new double[32];
         // Stack grows down, heap grows up
-        regs[riscv.RSP] = _heap = stackSize;
+        regs[2] = _heap = stackSize;
         _pc = 0;
     }
 
@@ -64,7 +67,7 @@ public class EvalRisc5 {
     // Bits 0..1 = privilege.
     // Bit 2 = WFI (Wait for interrupt)
     // Bit 3+ = Load/Store reservation LSBs.
-    int _extraflags;
+    public int _extraflags;
 
     public int step( int maxops ) {
         int trap = 0;
@@ -103,7 +106,7 @@ public class EvalRisc5 {
                 if( (reladdy & 0x00100000)!=0 ) reladdy |= 0xffe00000; // Sign extension.
                 rval = pc + 4;
                 pc = pc + reladdy - 4;
-                if( pc+4 == Encoding.SENTINEL_WRITE ) {
+                if( pc+4 == _write ) {
                     ByteArrayOutputStream baos = switch((int)regs[10]) {
                     case 1 -> _stdout==null ? (_stdout = new ByteArrayOutputStream()) : _stdout;
                     case 2 -> _stderr==null ? (_stderr = new ByteArrayOutputStream()) : _stderr;
@@ -126,7 +129,7 @@ public class EvalRisc5 {
                     break outer;
                 }
                 // Inline CALLOC effect
-                if( pc == Encoding.SENTINEL_CALLOC ) {
+                if( pc == _calloc ) {
                     assert (_heap&7) == 0; // 8-byte aligned
                     int size = (int)(regs[10]*regs[11]);
                     size = (size+7) & -8; // 8-byte aligned
@@ -315,7 +318,7 @@ public class EvalRisc5 {
                 double rhs = fregs[rs2];
                 int func5 = (ir >> 27) & 0x1F;
                 int func2 = (ir >> 25) & 0x3;
-                if( func2 != 1 ) throw Utils.TODO(); // 1==double
+                if( func2 != 1 ) throw new UnsupportedOperationException(); // 1==double
                 switch( func5 ) {
                 case  0:  frval = lhs + rhs;  break;  // fadd.d
                 case  1:  frval = lhs - rhs;  break;  // fsub.d
@@ -328,13 +331,13 @@ public class EvalRisc5 {
                     case 0 -> lhs <= rhs ? 1 : 0;
                     case 1 -> lhs == rhs ? 1 : 0;
                     case 2 -> lhs <  rhs ? 1 : 0;
-                    default -> throw Utils.TODO();
+                    default -> throw new UnsupportedOperationException();
                     };
                     break;
                 case 26:  frval = (double)regs[rs1]; break; // fcvt.w.d
                 default:
                     trap  = (2+1); // Fault: Invalid opcode.
-                    throw Utils.TODO();
+                    throw new UnsupportedOperationException();
                 }
                 break;
             }

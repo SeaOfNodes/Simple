@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
@@ -33,7 +34,7 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
         if( fun==null ) enc.external(this,_name);
         else enc.relo(this);
         short rpc = enc.reg(this);
-        enc.add4(riscv.j_type(riscv.OP_JAL, rpc, 0));
+        enc.add4(RiscV.j_type(RiscV.OP_JAL, rpc, 0));
     }
 
     // Delta is from opcode start
@@ -47,7 +48,7 @@ public class CallRISC extends CallNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         short rpc = enc.reg(this);
         if( opLen==4 ) {
-            enc.patch4(opStart,riscv.j_type(riscv.OP_JAL, rpc, delta));
+            enc.patch4(opStart,RiscV.j_type(RiscV.OP_JAL, rpc, delta));
         } else {
             throw Utils.TODO();
         }

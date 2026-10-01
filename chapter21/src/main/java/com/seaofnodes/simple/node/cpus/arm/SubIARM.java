@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.MachConcreteNode;
 
@@ -19,7 +20,7 @@ public class SubIARM extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return arm.WMASK; }
 
     @Override public void encoding( Encoding enc ) {
-        arm.imm_inst(enc,this, in(1), arm.OPI_SUB,_imm);
+        arm.imm_inst(enc,this, in(1), Arm64.OPI_SUB,_imm);
     }
 
     // General form: "subi  rd = rs1 - imm"

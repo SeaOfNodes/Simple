@@ -34,7 +34,8 @@ convention; the generated program must preserve the caller's values too.
 
 ## Three instruction sets
 
-The targets share this driver, but their machine nodes own the bit details.
+The targets share this driver. Machine nodes resolve compiler operands, then
+call the shared [ISA encoders](../isa/README.md).
 
 | Target | Main encoding concerns |
 |---|---|
@@ -50,8 +51,29 @@ for different machine nodes.
 The [encoding reference](docs/encoding-reference.md) retains the detailed bit
 layouts, worked examples, and ISA links. Those details matter when implementing
 a particular instruction, but do not change the compiler pipeline described here.
-The implementations live under
-[node/cpus](src/main/java/com/seaofnodes/simple/node/cpus).
+The machine-node wiring lives under
+[node/cpus](src/main/java/com/seaofnodes/simple/node/cpus). The shared
+[X86 encoder](../isa/src/main/java/com/seaofnodes/isa/X86.java) owns x86 byte
+emission; [Arm64](../isa/src/main/java/com/seaofnodes/isa/Arm64.java) and
+[RiscV](../isa/src/main/java/com/seaofnodes/isa/RiscV.java) pack instruction words.
+
+For example, `AddX86` chooses opcode `0x03`. Its `RegX86` base reads the two
+allocated registers and calls `X86.reg(enc,opcode(),dst,src)`. The shared method
+writes REX.W, the opcode, and ModRM directly into `Encoding`'s byte buffer.
+For `add r9,r10`, the bytes are `4d 03 ca`. Register constraints and the
+two-address requirement remain on the chapter's machine node. This separates
+the decision to use ADD from the fixed bit representation of that instruction.
+
+Loads use the same boundary: the chapter resolves width, sign extension, and
+register bank from its types and allocated operands. `X86.load` receives those
+facts and the concrete address; it has no dependency on the chapter's graph or
+type lattice. Later chapters reuse these encodings as their compiler evolves.
+
+ARM and RISC-V execution tests also reuse the evaluators in `isa/src/test-support`.
+The chapter's test harness prepares and links a memory image; the evaluator
+executes its bytes. This keeps instruction semantics in one place while image
+construction follows each chapter's compiler. They compile with the tests;
+Make's release jar continues to bundle the test harness as well as the compiler.
 
 ## Relocation and ELF
 

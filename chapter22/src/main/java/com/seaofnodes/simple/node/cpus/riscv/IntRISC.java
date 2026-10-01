@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
@@ -21,7 +22,7 @@ public class IntRISC extends ConstantNode implements MachNode {
         int val = _con==Type.NIL ? 0 : (int)(((TypeInteger)_con).value() & 0xFFF);
         // Explicit truncation of larger immediates; this will sign-extend on
         // load and this is handled during instruction selection.
-        enc.add4(riscv.i_type(riscv.OP_IMM, dst, 0, riscv.ZERO, val));
+        enc.add4(RiscV.i_type(RiscV.OP_IMM, dst, 0, riscv.ZERO, val));
     }
     @Override public void asm(CodeGen code, SB sb) {
         String reg = code.reg(this);

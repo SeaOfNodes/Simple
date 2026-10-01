@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
@@ -41,7 +42,7 @@ abstract public class ImmRISC extends MachConcreteNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this );
         short src = enc.reg(in(1));
-        enc.add4(riscv.i_type(opcode(), dst, func3(), src, _imm12 & 0xFFF));
+        enc.add4(RiscV.i_type(opcode(), dst, func3(), src, _imm12 & 0xFFF));
     }
 
     // General form: "addi  rd = rs1 + imm"

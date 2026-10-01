@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -24,27 +25,15 @@ public class SetX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
     @Override public void encoding( Encoding enc ) {
-        // REX + 0F 94
-        short dst = enc.reg(this );
-
-        // Optional rex, for dst
-        if( dst >= 4 ) enc.add1(x86_64_v2.rex(0, dst, 0, false));
-        enc.add1(0x0F);         // opcode
-        enc.add1(switch (_bop) {
+        int op=switch (_bop) {
             case "==" -> 0x94;  // SETE
             case "<"  -> _unsigned ? 0x92 : 0x9C;  // SETB /SETL
             case "<=" -> _unsigned ? 0x96 : 0x9E;  // SETBE/SETLE
             case ">=" -> _unsigned ? 0x93 : 0x9D;  // SETAE/SETGE
             case ">"  -> _unsigned ? 0x97 : 0x9F;  // SETA /SETG
             default -> throw Utils.TODO();
-            });
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, 0, dst));
-
-        // low 8 bites are set, now zero extend for next instruction
-        if( dst >= 4 ) enc.add1(x86_64_v2.rex(dst, dst, 0, false));
-        enc.add1(0x0F); // opcode
-        enc.add1(0xB6); // opcode
-        enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.DIRECT, dst, dst));
+            };
+        X86.set(enc,op&15,enc.reg(this));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

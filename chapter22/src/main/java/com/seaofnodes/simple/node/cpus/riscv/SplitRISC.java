@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.codegen.*;
@@ -25,36 +26,36 @@ public class SplitRISC extends SplitNode {
                 throw Utils.TODO(); // Very rare stack-stack move
             }
             int off = enc._fun.computeStackOffset(enc._code,dst);
-            int op = srcX ? riscv.OP_STOREFP : riscv.OP_STORE;
+            int op = srcX ? RiscV.OP_STOREFP : RiscV.OP_STORE;
             if( srcX ) src -= riscv.F_OFFSET;
-            enc.add4(riscv.s_type(op, 0b011, riscv.RSP, src, off));
+            enc.add4(RiscV.s_type(op, 0b011, riscv.RSP, src, off));
             return;
         }
         if( src >= riscv.MAX_REG ) {
             // Load from SP
             int off = enc._fun.computeStackOffset(enc._code,src);
-            int op = dstX ? riscv.OP_LOADFP : riscv.OP_LOAD;
+            int op = dstX ? RiscV.OP_LOADFP : RiscV.OP_LOAD;
             if( dstX ) dst -= riscv.F_OFFSET;
-            enc.add4(riscv.i_type(op, dst, 0b011, riscv.RSP, off));
+            enc.add4(RiscV.i_type(op, dst, 0b011, riscv.RSP, off));
             return;
         }
         // pick opcode based on regs
         if( !dstX && !srcX ) {
             // GPR->GPR
-            enc.add4(riscv.r_type(riscv.OP,dst,0,src,riscv.ZERO,0));
+            enc.add4(RiscV.r_type(RiscV.OP,dst,0,src,riscv.ZERO,0));
         } else if( dstX && srcX ) {
             // FPR->FPR
             src -= riscv.F_OFFSET;
             dst -= riscv.F_OFFSET;
-            enc.add4(riscv.r_type(riscv.OP_FP, dst, 0b000, src, src, 0b0010101)); // dst = FMIN(src,src)
+            enc.add4(RiscV.r_type(RiscV.OP_FP, dst, 0b000, src, src, 0b0010101)); // dst = FMIN(src,src)
         } else if(!srcX && dstX) {
             //GPR->FPR
             // fmv.d.x
-            enc.add4(riscv.r_type(riscv.OP_FP, dst - riscv.F_OFFSET, 0, src, 0, 0b1111001));
+            enc.add4(RiscV.r_type(RiscV.OP_FP, dst - riscv.F_OFFSET, 0, src, 0, 0b1111001));
         } else if(srcX && !dstX) {
             //FPR->GPR
             //fmv.x.d
-            enc.add4(riscv.r_type(riscv.OP_FP, dst, 0, src - riscv.F_OFFSET, 0, 0b1110001));
+            enc.add4(RiscV.r_type(RiscV.OP_FP, dst, 0, src - riscv.F_OFFSET, 0, 0b1110001));
         }
     }
 

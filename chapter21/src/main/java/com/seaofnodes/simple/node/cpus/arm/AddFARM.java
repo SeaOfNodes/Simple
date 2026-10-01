@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -11,7 +12,7 @@ public class AddFARM extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return arm.DMASK; }
 
     //FADD (scalar)
-    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,arm.OPF_OP_ADD);}
+    @Override public void encoding( Encoding enc ) { arm.f_scalar(enc,this,Arm64.OPF_OP_ADD);}
 
     // Default on double precision for now(64 bits)
     // General form: "addf  rd = src1 + src2

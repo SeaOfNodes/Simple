@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.*;
@@ -45,12 +46,12 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
         if( in(1)==null && _bop=="!=" ) return; // Inverted never-node, no code
         enc.jump(this,cproj(0));
         if( in(1)==null )       // Never node
-            enc.add4(riscv.j_type(riscv.OP_JAL, 0, 0));
+            enc.add4(RiscV.j_type(RiscV.OP_JAL, 0, 0));
         else {
             // Todo: relocs (for offset - immf)
             short src1 = enc.reg(in(1));
             short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
-            enc.add4(riscv.b_type(riscv.OP_BRANCH, riscv.jumpop(_bop), src1, src2, 0));
+            enc.add4(RiscV.b_type(RiscV.OP_BRANCH, RiscV.jumpop(_bop), src1, src2, 0));
         }
     }
 
@@ -66,12 +67,12 @@ public class BranchRISC extends IfNode implements MachNode, RIPRelSize {
     @Override public void patch( Encoding enc, int opStart, int opLen, int delta ) {
         assert !( in(1)==null && _bop=="!=" ); // Inverted never-node, no code no patch
         if( in(1)==null ) {     // Never node
-            enc.patch4(opStart,riscv.j_type(riscv.OP_JAL, 0, delta));
+            enc.patch4(opStart,RiscV.j_type(RiscV.OP_JAL, 0, delta));
         } else {
             short src1 = enc.reg(in(1));
             short src2 = in(2)==null ? (short)riscv.ZERO : enc.reg(in(2));
             if( opLen==4 ) {
-                enc.patch4(opStart,riscv.b_type(riscv.OP_BRANCH, riscv.jumpop(_bop), src1, src2, delta));
+                enc.patch4(opStart,RiscV.b_type(RiscV.OP_BRANCH, RiscV.jumpop(_bop), src1, src2, delta));
             } else {
                 throw Utils.TODO();
             }

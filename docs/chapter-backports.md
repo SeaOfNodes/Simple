@@ -22,6 +22,41 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
+### Shared ISA encoders and evaluators: Chapters 21-25 (review checkpoint)
+
+Issue #257's extraction is implemented in [`isa/`](../isa/README.md). `X86`
+accepts concrete registers, widths, immediates and addresses; `Arm64` and `RiscV`
+pack instruction words. Chapter `Encoding` classes implement `CodeSink` using
+their existing byte writers. ARM logical immediates and constant construction
+are shared too. None of these helpers imports compiler classes.
+
+Instruction selection and masks, compiler-type interpretation, frame and block
+layout, branch relaxation, relocations, constants, and ELF remain chapter-local.
+Branch byte sizes and patching are shared; the chapter still runs relaxation
+and supplies targets. One shared `EvalArm64` and `EvalRisc5` replace the five
+copies of each. Image construction and test assertions stay in chapter harnesses.
+Evaluators compile as test support. Make continues to bundle tests in its release
+jars; Maven and IDEA retain separate main/test dependencies.
+
+Direct byte tests also cover corrections exposed by consolidation: x86 legacy
+prefix order for 16-bit memory operations, indirect register calls and their REX
+bits, imm8 shift counts, high-register PUSH/POP, low-byte SETcc, and five-byte
+unconditional near jumps. RISC-V JAL now takes its sign bit from displacement
+bit 20. ARM masks negative literal-load offsets, checks byte displacement ranges
+correctly, and its evaluator distinguishes MOVN from AND-immediate.
+A disposable GNU assembler comparison agrees on all 5,760 tested x86
+load/store/LEA instructions (`build/IsaOracle.java`). Shared tests add fixed ARM
+and RISC-V words and evaluator checks for multi-instruction ARM constants.
+Make, Maven source paths, IDEA wiring, and linearized checkouts include `isa/`
+starting at Chapter 21; Chapters 1-20 have no ISA dependency.
+
+Validation: full Chapter 21-25 Make suites pass, including native execution and
+the existing allocator checks (`build/isa-final-tests.log`). The independent
+shared ISA tests pass; a fresh linear Chapter 21 release contains all three
+encoders and shared evaluators (`build/isa-linear21-complete-release.log`).
+Maven/IDE XML parses; the standalone POM gains main and test ISA source roots
+at Chapter 21 only. Shell syntax and LF checks pass. Nothing has been pushed.
+
 ### Chapter 15 allocation design (implemented)
 
 Chapters 12-14 retain explicit initialization Stores. Chapter 15 replaces them

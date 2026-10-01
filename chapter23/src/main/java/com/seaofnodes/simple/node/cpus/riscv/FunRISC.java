@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -17,6 +18,6 @@ public class FunRISC extends FunNode implements MachNode {
         int sz = _frameAdjust;
         if( sz == 0 ) return; // Skip if no frame adjust
         if( sz >= 1L<<12 ) throw Utils.TODO();
-        enc.add4(riscv.i_type(riscv.OP_IMM, riscv.RSP, 0, riscv.RSP, -sz & 0xFFF));
+        enc.add4(RiscV.i_type(RiscV.OP_IMM, riscv.RSP, 0, riscv.RSP, -sz & 0xFFF));
     }
 }

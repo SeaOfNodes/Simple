@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.LoadNode;
@@ -18,9 +19,9 @@ public class LoadARM extends MemOpARM {
     @Override public String op() { return "ld"+_sz; }
     @Override public RegMask outregmap() { return size() >= 4 ? arm.MEM_MASK : arm.RMASK; }
 
-    private static final int[] OP_LOADS  = new int[]{ arm.OP_LOAD_IMM_8,  arm.OP_LOAD_IMM_16,  arm.OP_LOAD_IMM_32,  arm.OP_LOAD_IMM_64, };
+    private static final int[] OP_LOADS  = new int[]{ Arm64.OP_LOAD_IMM_8,  Arm64.OP_LOAD_IMM_16,  Arm64.OP_LOAD_IMM_32,  Arm64.OP_LOAD_IMM_64, };
 
-    private static final int[] OP_LOAD_RS  = new int[]{ arm.OP_LOAD_R_8 , arm.OP_LOAD_R_16 , arm.OP_LOAD_R_32 , arm.OP_LOAD_R_64,  };
+    private static final int[] OP_LOAD_RS  = new int[]{ Arm64.OP_LOAD_R_8 , Arm64.OP_LOAD_R_16 , Arm64.OP_LOAD_R_32 , Arm64.OP_LOAD_R_64,  };
 
     // ldr(immediate - unsigned offset) | ldr(register)
     @Override public void encoding( Encoding enc ) {

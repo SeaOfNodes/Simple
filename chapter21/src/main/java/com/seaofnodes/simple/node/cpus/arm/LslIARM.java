@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Encoding;
@@ -24,7 +25,7 @@ public class LslIARM extends MachConcreteNode implements MachNode {
         assert _imm > 0;
         // UBFM <Xd>, <Xn>, #(-<shift> MOD 64), #(63-<shift>)
         // immr must be (-<shift> MOD 64) = 64 - shift
-        enc.add4(arm.imm_shift(arm.OPI_LSL, 64 - _imm, (64 - _imm) - 1, rn, rd));
+        enc.add4(Arm64.imm_shift(Arm64.OPI_LSL, 64 - _imm, (64 - _imm) - 1, rn, rd));
     }
     // General form: "lsli  rd = rs1 << imm"
     @Override public void asm(CodeGen code, SB sb) {

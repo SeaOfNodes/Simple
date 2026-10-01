@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -15,8 +16,8 @@ public class TMPX86 extends ConstantNode implements MachNode, RIPRelSize{
 
     @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this);
-        x86_64_v2.rexF(dst, 0, 0, true, enc);
-        enc.add1(0x8D).add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0b101)).add4(0);
+        X86.rexF(dst, 0, 0, true, enc);
+        enc.add1(0x8D).add1(X86.modrm(X86.MOD.INDIRECT, dst, 0b101)).add4(0);
         enc.largeConstant(this,((TypeMemPtr)_con)._obj,7-4,2/*ELF encoding PC32*/);
     }
 

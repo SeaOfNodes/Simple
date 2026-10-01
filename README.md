@@ -81,6 +81,11 @@ a one-line expression format. A shared `BaseNode` supplies identity and edge
 access to both printers and the viewer; chapter adapters add semantic details
 as the IR grows.
 
+The [instruction encoders](isa/README.md) share x86-64, ARM, and RISC-V byte
+emission for Chapters 21-25, along with ARM/RISC-V test evaluators. Machine-node
+selection, register allocation, and code layout remain in each chapter; the
+shared layer takes concrete operands and writes bytes.
+
 The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 `release`, or `lib` target. Start with `make lib` on a fresh checkout, then
 `make tests`.

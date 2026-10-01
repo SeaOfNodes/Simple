@@ -1,7 +1,6 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.isa.eval;
 
-import com.seaofnodes.simple.codegen.Encoding;
-import com.seaofnodes.simple.node.cpus.arm.arm;
+import com.seaofnodes.isa.Arm64;
 import java.io.ByteArrayOutputStream;
 
 public class EvalArm64 {
@@ -9,33 +8,38 @@ public class EvalArm64 {
     public final byte[] _buf;
 
     // GPRs
-    final long[] regs;
+    public final long[] regs;
     // FRs
-    final double[] fregs;
+    public final double[] fregs;
 
-    int _pc;
+    public int _pc;
 
     // Start of free memory for allocation
-    int _heap;
+    public int _heap;
 
     // Standard out and err streams
-    ByteArrayOutputStream _stdout, _stderr;
+    public ByteArrayOutputStream _stdout, _stderr;
 
     // Cycle counters
-    int _cycle;
+    public int _cycle;
 
     // flags
-    boolean N = false;
-    boolean Z = false;
-    boolean C = false;
-    boolean V = false;
+    public boolean N = false;
+    public boolean Z = false;
+    public boolean C = false;
+    public boolean V = false;
 
-    EvalArm64(byte[] buf, int stackSize) {
+    // Default test-runtime entry points; callers can supply another link convention.
+    private final int _calloc, _write;
+    public EvalArm64(byte[] buf, int stackSize) { this(buf,stackSize,-4,-8); }
+    public EvalArm64(byte[] buf, int stackSize, int calloc, int write) {
+        _calloc = calloc;
+        _write = write;
         _buf = buf;
         regs  = new long[32];
         fregs = new double[32];
         // Stack grows down, heap grows up
-        regs[arm.RSP] = _heap = stackSize;
+        regs[31] = _heap = stackSize;
         _pc = 0;
     }
 
@@ -62,9 +66,9 @@ public class EvalArm64 {
         double frval = 0;
         int pc = _pc;
         int cycle = _cycle;
-        boolean is_f = false;
         outer:
         for(int icount = 0; icount < maxops; icount++) {
+            boolean is_f = false;
             int ir = 0;
             rval = 0;
             frval = 0;
@@ -73,7 +77,6 @@ public class EvalArm64 {
                 trap = 1 + 1;  // Handle access violation on instruction read.
                 break;
             }
-
             if( (pc & 3)!=0 ) {
                 trap = 1;  // Handle PC-misaligned access
                 break;
@@ -96,29 +99,28 @@ public class EvalArm64 {
             }
             case 0x1E: {                // floats
                 is_f = true;
-                int rs1 = (ir >> 5) & 0x1F;
+                int rs1 = (ir >>  5) & 0x1F;
                 int rs2 = (ir >> 16) & 0x1F;
 
                 int op = (ir >> 10) & 0x3F;
                 switch(op) {
                 case 16: frval = fregs[rs1]; break; // fmov
-                case 10:frval = fregs[rs1] + fregs[rs2]; break; // fadd
+                case 10: frval = fregs[rs1] + fregs[rs2]; break; // fadd
 
                 case 6: if (fregs[rs2] == 0) frval = 0; else frval = fregs[rs1] / fregs[rs2]; break; // fdiv
                 case 8: {
                     // fcmp
-                    double lhs  = fregs[rs1];
+                    double lhs = fregs[rs1];
                     double rhs = fregs[rs2];
 
                     Z = (lhs == rhs);
-                    N = (lhs < rhs);
-                    C = lhs >= rhs;
+                    N = (lhs <  rhs);
+                    C = (lhs >  rhs);
                     V = Double.isNaN(lhs) || Double.isNaN(rhs);
                     rdid = -1;
-
                     break;
                 }
-                case 2: frval = fregs[rs1] * fregs[rs2]; break; // fmul
+                case  2: frval = fregs[rs1] * fregs[rs2]; break; // fmul
                 case 14: frval = fregs[rs1] - fregs[rs2]; break; // fsub
                 default: trap = (2+1);
                 }
@@ -133,12 +135,12 @@ public class EvalArm64 {
                 opcode1 = (ir >> 21) & 0x7FF;
                 switch( ir >> 21 & 0x7 ) {
                 case 0x1 -> {     // store
-                    if( opcode1 == arm.OP_STORE_R_8 ) st1((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
+                    if( opcode1 == Arm64.OP_STORE_R_8 ) st1((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
                     else trap = (2+1);
                     rdid = -1;
                 }
                 case 0x3 -> {     // load
-                    if( opcode1 == arm.OP_LOAD_R_8 ) rval = ld1s((int)regs[rn] + (int)regs[rm]);
+                    if( opcode1 == Arm64.OP_LOAD_R_8 ) rval = ld1s((int)regs[rn] + (int)regs[rm]);
                     else  trap = (2+1);
                 }
                 default -> trap = (2+1);
@@ -159,7 +161,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x0: {
                     // store
-                    if(opcode1 == arm.OP_STORE_IMM_8) {
+                    if(opcode1 == Arm64.OP_STORE_IMM_8) {
                         st1((int)rval, (int)regs[rdid]);
                     } else trap = (2+1);
                     rdid = -1;
@@ -168,7 +170,7 @@ public class EvalArm64 {
                 }
                 case 0x1: {
                     // LDR (immediate)
-                    if(opcode1 == arm.OP_LOAD_IMM_8) {
+                    if(opcode1 == Arm64.OP_LOAD_IMM_8) {
                         rval = ld1s((int)rval);
                     } else trap = (2+1);
                     rdid = -1;
@@ -226,7 +228,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x1: {
                     // store
-                    if(opcode1 == arm.OP_STORE_R_16) {
+                    if(opcode1 == Arm64.OP_STORE_R_16) {
                         st1((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
                     }else {
                         trap = (2+1);
@@ -236,7 +238,7 @@ public class EvalArm64 {
                 }
                 case 0x3: {
                     // load
-                    if(opcode1 == arm.OP_LOAD_R_16) {
+                    if(opcode1 == Arm64.OP_LOAD_R_16) {
                         rval = ld1s((int)regs[rn] + (int)regs[rm]);
                     } else {
                         trap = (2+1);
@@ -261,7 +263,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x0: {
                     // store
-                    if(opcode1 == arm.OP_STORE_IMM_16) {
+                    if(opcode1 == Arm64.OP_STORE_IMM_16) {
                         st2((int)rval, (int)regs[rdid]);
                     } else trap = (2+1);
                     rdid = -1;
@@ -270,7 +272,7 @@ public class EvalArm64 {
                 }
                 case 0x1: {
                     // LDR (immediate)
-                    if(opcode1 == arm.OP_LOAD_IMM_16) {
+                    if(opcode1 == Arm64.OP_LOAD_IMM_16) {
                         rval = ld2s((int)rval);
                     } else trap = (2+1);
                     rdid = -1;
@@ -298,10 +300,12 @@ public class EvalArm64 {
                 break;
             }
 
-            case 0x90: { // adrp
-                int immhi = ( (ir& ~0x1F) << 8 ) >> 8;
+            case 0x90, 0xB0, 0xD0, 0xF0: { // adrp
+                int immhi = ( ir << 8 ) >>> (8+5);
                 int immlo = (ir>>29)& 3;
-                int imm = ((immhi<<2) | immlo) << 12;
+                int imm = ((immhi<<2) | immlo);
+                imm = (imm << 11) >> 11;
+                imm <<= 12;
                 rval = (pc & ~0xFFF) + imm;
                 break;
             }
@@ -313,9 +317,14 @@ public class EvalArm64 {
                 rval = opcode1==0x91 ? regs[rn] + immediate : regs[rn] - immediate;
                 break;
             }
-            case 0x92: {        // and(immediate)
+            case 0x92: {        // MOVN or AND (immediate)
+                if( (ir & 0x00800000)!=0 ) {
+                    int shift = ((ir >> 21) & 3)*16;
+                    rval = ~(((ir >> 5) & 0xFFFFL) << shift);
+                    break;
+                }
                 int imm12 = (ir >> 10) & 0x1FFF;
-                long immediate = arm.decodeImm12(imm12);
+                long immediate = Arm64.decodeImm12(imm12);
                 int rn = (ir >> 5) & 0x1F;
                 rval = regs[rn] & immediate;
                 break;
@@ -335,20 +344,19 @@ public class EvalArm64 {
             case 0x94, 0x95, 0x96, 0x97: { // bl
                 rdid = -1; // BL writes only X30, not a displacement-selected register.
                 rval = pc + 4;
-                regs[arm.X30] = rval;
+                regs[30] = rval;
                 int imm26 = (ir & 0x03FFFFFF);
                 int imm = (imm26 << 6) >> 6;
                 pc = pc + (imm << 2) ;
-                if( pc == Encoding.SENTINEL_CALLOC ) {
+                if( pc == _calloc ) {
                     assert (_heap&7) == 0; // 8-byte aligned
-                    long size = regs[arm.X0]*regs[arm.X1];
+                    long size = regs[0]*regs[1];
                     size = (size+7) & -8; // 8-byte aligned
-                    regs[arm.X0] = _heap;
+                    regs[0] = _heap;
                     _heap += (int)size;
                     pc = (int)rval;
-                    rdid = -1;
                 }
-                if( pc == Encoding.SENTINEL_WRITE ) {
+                if( pc == _write ) {
                     ByteArrayOutputStream baos = switch((int)regs[0]) {
                     case 1 -> _stdout==null ? (_stdout = new ByteArrayOutputStream()) : _stdout;
                     case 2 -> _stderr==null ? (_stderr = new ByteArrayOutputStream()) : _stderr;
@@ -357,33 +365,36 @@ public class EvalArm64 {
                     baos.write(_buf,(int)regs[1],(int)regs[2]);
                     regs[0] = regs[2];
                     pc = (int)rval;
-                    rdid = -1;
                 }
                 pc -= 4;
+                rdid = -1;
                 break;
             }
 
             case 0x9A: {
+                int encodedCond = (ir >> 12) & 0xF;
+                int decodedCond  = encodedCond ^ 1;
                 // conditional select(csel)
-                int rm = (ir >> 16) & 0x1F;
-                switch((ir >> 12) & 0xF) {
-                case 0x0: if(Z)  rval = regs[rm]; break; // eq
-                case 0x1: if(!Z) rval = regs[rm]; break; // ne
-                case 0x2: if(C)  rval = regs[rm]; break; // cs
-                case 0x3: if(!C) rval = regs[rm]; break;
-                case 0x4: if(N) rval  =  regs[rm]; break; // mi
-                case 0x5: if(!N) rval = regs[rm]; break; // pl
-                case 0x6: if(V) rval = regs[rm]; break; // vs
-                case 0x7: if(!V) rval = regs[rm]; break; // vc
-                case 0x8: if(C && !Z) rval = regs[rm]; break; // hi
-                case 0x9: if(!C || Z) rval = regs[rm]; break; // ls
-                case 0xA: if(N == V) rval = regs[rm]; break; // ge
-                case 0xB: if(N != V) rval = regs[rm]; break; // lt
-                case 0xC: if(!Z && N == V) rval  = regs[rm]; break; // gt
-                case 0xD: if(Z || N != V) rval = regs[rm]; break; // le
-                case 0xE: rval = regs[rm]; break; // always executed(al)
-                default:  rval = regs[(ir >> 5) & 0x1F];
-                }
+                boolean cond = switch (decodedCond) {
+                case 0x0 ->   Z            ;   // eq
+                case 0x1 ->  !Z            ;   // ne
+                case 0x2 ->   C            ;   // cs
+                case 0x3 ->  !C            ;   // cc
+                case 0x4 ->   N            ;   // mi
+                case 0x5 ->  !N            ;   // pl
+                case 0x6 ->   V            ;   // vs
+                case 0x7 ->  !V            ;   // vc
+                case 0x8 -> ( C && !Z )    ;   // hi
+                case 0x9 -> (!C ||  Z )    ;   // ls
+                case 0xA -> (      N == V) ;   // ge
+                case 0xB -> (      N != V) ;   // lt
+                case 0xC -> (!Z && N == V) ;   // gt
+                case 0xD -> ( Z || N != V );   // le
+                case 0xE -> true           ;   // always
+                case 0xF -> false          ;   // never
+                default -> throw new UnsupportedOperationException();
+                };
+                if( cond ) rval = 1;
                 break;
             }
             case 0x9B: {       // mul
@@ -416,7 +427,7 @@ public class EvalArm64 {
                 opcode1 = (ir >> 21) & 0x7FF;
                 switch(opc) {
                 case 0x1: {
-                    if(opcode1 == arm.OP_STORE_R_32) {
+                    if(opcode1 == Arm64.OP_STORE_R_32) {
                         st4((int)regs[rn] + (int)regs[rm], (int)regs[rdid]);
                     }else {
                         trap = (2+1);
@@ -428,7 +439,7 @@ public class EvalArm64 {
                 }
                 case 0x3: {
                     // load
-                    if( opcode1 == arm.OP_LOAD_R_32) {
+                    if( opcode1 == Arm64.OP_LOAD_R_32) {
                         rval = ld4s((int) (regs[rn] + regs[rm]));
                     } else {
                         trap = (2+1);
@@ -454,7 +465,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x0: {
                     // store
-                    if(opcode1 == arm.OP_STORE_IMM_32) {
+                    if(opcode1 == Arm64.OP_STORE_IMM_32) {
                         st4((int)rval, (int)regs[rdid]);
                     } else trap = (2+1);
 
@@ -463,7 +474,7 @@ public class EvalArm64 {
                 }
                 case 0x1: {
                     // LDR (immediate)
-                    if(opcode1 == arm.OP_LOAD_IMM_32) {
+                    if(opcode1 == Arm64.OP_LOAD_IMM_32) {
                         rval = ld4s((int) rval);
                     } else trap = (2+1);
                     break;
@@ -483,7 +494,7 @@ public class EvalArm64 {
                 opcode1 = (ir >> 21) & 0x7FF;
                 switch(opc) {
                 case 0x1: {
-                    if(opcode1 == arm.OPF_STORE_R_32) {
+                    if(opcode1 == Arm64.OPF_STORE_R_32) {
                         st4((int)regs[rn] + (int)regs[rm], Float.floatToRawIntBits((float)fregs[rdid]));
                     }else {
                         trap = (2+1);
@@ -495,7 +506,7 @@ public class EvalArm64 {
                 }
                 case 0x3: {
                     // load
-                    if(opcode1 == arm.OPF_LOAD_R_32) {
+                    if(opcode1 == Arm64.OPF_LOAD_R_32) {
                         frval = ld4f((int) (regs[rn] + regs[rm]));
                     } else {
                         trap = (2+1);
@@ -522,7 +533,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x0: {
                     // store
-                    if(opcode1 == arm.OPF_STORE_IMM_32) {
+                    if(opcode1 == Arm64.OPF_STORE_IMM_32) {
                         st4((int)rval, Float.floatToRawIntBits((float)fregs[rdid]));
                     }  else trap = (2+1);
 
@@ -531,7 +542,7 @@ public class EvalArm64 {
                 }
                 case 0x1: {
                     // LDR (immediate)
-                    if(opcode1 == arm.OPF_LOAD_IMM_32) {
+                    if(opcode1 == Arm64.OPF_LOAD_IMM_32) {
                         frval = ld4f((int)rval);
                     } else trap = (2+1);
                     break;
@@ -577,7 +588,7 @@ public class EvalArm64 {
                 int rn = (ir >>> 5) & 31;
                 int target = (int)regs[rn]; // Read before BLR overwrites X30.
                 rdid = -1;
-                if( op==0xD63F0000 ) regs[arm.X30] = pc+4; // BLR
+                if( op==0xD63F0000 ) regs[30] = pc+4; // BLR
                 else if( op!=0xD65F0000 ) { trap = 3; break; } // RET
                 pc = target;
                 if( op==0xD65F0000 && pc==0 ) break outer;
@@ -614,7 +625,7 @@ public class EvalArm64 {
                 opcode1 = (ir >> 21) & 0x7FF;
                 switch(opc) {
                 case 0x1: {
-                    if(opcode1 == arm.OP_STORE_R_64) {
+                    if(opcode1 == Arm64.OP_STORE_R_64) {
                         st8((int)regs[rn] + (int)regs[rm], regs[rdid]);
                     }else {
                         trap = (2+1);
@@ -626,7 +637,7 @@ public class EvalArm64 {
                 }
                 case 0x3: {
                     // load
-                    if(opcode1 == arm.OP_LOAD_R_64) {
+                    if(opcode1 == Arm64.OP_LOAD_R_64) {
                         rval = ld8((int) (regs[rn] + regs[rm]));
                     } else {
                         trap = (2+1);
@@ -652,7 +663,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x0: {
                     // store
-                    if(opcode1 == arm.OP_STORE_IMM_64) {
+                    if(opcode1 == Arm64.OP_STORE_IMM_64) {
                         st8((int)rval, regs[rdid]);
                     }  else trap = (2+1);
 
@@ -661,7 +672,7 @@ public class EvalArm64 {
                 }
                 case 0x1: {
                     // LDR (immediate)
-                    if(opcode1 == arm.OP_LOAD_IMM_64) {
+                    if(opcode1 == Arm64.OP_LOAD_IMM_64) {
                         rval = ld8((int)rval);
                     } else trap = (2+1);
                     break;
@@ -681,7 +692,7 @@ public class EvalArm64 {
                 opcode1 = (ir >> 21) & 0x7FF;
                 switch(opc) {
                 case 0x1: {
-                    if(opcode1 == arm.OPF_STORE_R_64) {
+                    if(opcode1 == Arm64.OPF_STORE_R_64) {
                         st8((int)regs[rn] + (int)regs[rm], Double.doubleToRawLongBits(fregs[rdid]));
                     }else {
                         trap = (2+1);
@@ -693,7 +704,7 @@ public class EvalArm64 {
                 }
                 case 0x3: {
                     // load
-                    if(opcode1 == arm.OPF_LOAD_R_64) {
+                    if(opcode1 == Arm64.OPF_LOAD_R_64) {
                         frval = ld8f((int) (regs[rn] + regs[rm]));
                     } else {
                         trap = (2+1);
@@ -719,7 +730,7 @@ public class EvalArm64 {
                 switch(opc) {
                 case 0x0: {
                     // store
-                    if(opcode1 == arm.OPF_STORE_IMM_64) {
+                    if(opcode1 == Arm64.OPF_STORE_IMM_64) {
                         st8((int)rval, Double.doubleToRawLongBits(fregs[rdid]));
                     }  else trap = (2+1);
 
@@ -728,7 +739,7 @@ public class EvalArm64 {
                 }
                 case 0x1: {
                     // LDR (immediate)
-                    if(opcode1 == arm.OPF_LOAD_IMM_64) {
+                    if(opcode1 == Arm64.OPF_LOAD_IMM_64) {
                         frval = ld8f((int)rval);
                     } else trap = (2+1);
                     break;
@@ -746,16 +757,15 @@ public class EvalArm64 {
                 break;
             }
             if(rdid != -1) {
-                if(is_f) {fregs[rdid] = frval; is_f = false;}
-                else regs[rdid] = rval;
+                if(is_f) fregs[rdid] = frval;
+                else      regs[rdid] =  rval;
             }
 
             pc += 4;
         }
         // Handle traps and interrupts.
-        if(trap != 0) {
+        if(trap != 0)
             return trap;
-        }
         _cycle = cycle;
         _pc = pc;
         return 0;

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -17,9 +18,9 @@ public class LoadRISC extends MemOpRISC {
     @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this );
         short ptr = enc.reg(ptr());
-        int op = dst >= riscv.F_OFFSET ? riscv.OP_LOADFP  : riscv.OP_LOAD;
+        int op = dst >= riscv.F_OFFSET ? RiscV.OP_LOADFP  : RiscV.OP_LOAD;
         if( dst >= riscv.F_OFFSET  ) dst -= riscv.F_OFFSET;
-        enc.add4(riscv.i_type(op, dst, func3(), ptr, _off));
+        enc.add4(RiscV.i_type(op, dst, func3(), ptr, _off));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

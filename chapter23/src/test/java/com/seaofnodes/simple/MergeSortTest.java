@@ -1,5 +1,7 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.isa.eval.EvalRisc5;
+
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;

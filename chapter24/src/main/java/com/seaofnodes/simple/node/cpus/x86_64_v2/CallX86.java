@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeFunPtr;
@@ -28,7 +29,7 @@ public class CallX86 extends CallNode implements MachNode, RIPRelSize {
         FunNode fun = CodeGen.CODE.link(_tfp);
         if( fun==null ) enc.external(this,_name);
         else enc.relo(this);
-        enc.add1(0xe8).add4(0);
+        X86.call(enc);
     }
 
     // Delta is from opcode start, but X86 measures from the end of the 5-byte encoding

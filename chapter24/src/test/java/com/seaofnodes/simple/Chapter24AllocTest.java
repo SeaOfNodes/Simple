@@ -1,5 +1,9 @@
 package com.seaofnodes.simple;
 
+import com.seaofnodes.isa.eval.EvalRisc5;
+
+import com.seaofnodes.isa.eval.EvalArm64;
+
 import java.io.IOException;
 import java.nio.file.*;
 import com.seaofnodes.simple.node.cpus.arm.arm;

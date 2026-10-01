@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -19,7 +20,7 @@ public class CallRRARM extends CallNode implements MachNode {
         // Needs a register, typically a jump-and-link-register opcode
         // blr
         short self = enc.reg(this);
-        enc.add4(arm.blr(arm.OP_CALLRARM, self));
+        enc.add4(Arm64.blr(Arm64.OP_CALLRARM, self));
     }
 
     @Override public void asm(CodeGen code, SB sb) {

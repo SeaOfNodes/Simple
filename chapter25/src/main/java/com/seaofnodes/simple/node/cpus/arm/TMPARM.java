@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -21,9 +22,9 @@ public class TMPARM extends ConstantNode implements MachNode, RIPRelSize {
         else enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
         short dst = enc.reg(this);
         // adrp    x0, 0
-        enc.add4(arm.adrp(1,0, arm.OP_ADRP, 0,dst));
+        enc.add4(Arm64.adrp(1,0, Arm64.OP_ADRP, 0,dst));
         // add     x0, x0, 0
-        arm.imm_inst(enc,arm.OPI_ADD,0, dst);
+        arm.imm_inst(enc,Arm64.OPI_ADD,0, dst);
     }
 
     @Override public byte encSize(int delta) {

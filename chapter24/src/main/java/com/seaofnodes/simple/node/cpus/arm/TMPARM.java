@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.ConstantNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -19,9 +20,9 @@ public class TMPARM extends ConstantNode implements MachNode, RIPRelSize {
         enc.largeConstant(this,((TypeMemPtr)_con)._obj,0,-1);
         short dst = enc.reg(this);
         // adrp    x0, 0
-        enc.add4(arm.adrp(1,0, arm.OP_ADRP, 0,dst));
+        enc.add4(Arm64.adrp(1,0, Arm64.OP_ADRP, 0,dst));
         // add     x0, x0, 0
-        arm.imm_inst(enc,arm.OPI_ADD,0, dst);
+        arm.imm_inst(enc,Arm64.OPI_ADD,0, dst);
     }
 
     @Override public byte encSize(int delta) {
@@ -38,9 +39,9 @@ public class TMPARM extends ConstantNode implements MachNode, RIPRelSize {
             delta = target-base;
             int adrp_delta = delta >> 12;
             // patch upper 20 bits via adrp
-            enc.patch4(opStart, arm.adrp(1, adrp_delta & 0b11, 0b10000, adrp_delta >> 2, dst));
+            enc.patch4(opStart, Arm64.adrp(1, adrp_delta & 0b11, 0b10000, adrp_delta >> 2, dst));
             // low 12 bits via add
-            enc.patch4(opStart+4, arm.imm_inst_l(arm.OPI_ADD, delta & 0xfff, dst));
+            enc.patch4(opStart+4, Arm64.imm_inst_l(Arm64.OPI_ADD, delta & 0xfff, dst));
         } else {
             throw Utils.TODO();
         }

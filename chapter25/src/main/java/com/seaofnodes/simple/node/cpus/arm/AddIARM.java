@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -18,7 +19,7 @@ public class AddIARM extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return arm.WMASK; }
     //ADD (immediate)
     @Override public void encoding( Encoding enc ) {
-        arm.imm_inst(enc,this, in(1), arm.OPI_ADD,_imm);
+        arm.imm_inst(enc,this, in(1), Arm64.OPI_ADD,_imm);
     }
     // General form: "addi  rd = rs1 + imm"
     @Override public void asm(CodeGen code, SB sb) {

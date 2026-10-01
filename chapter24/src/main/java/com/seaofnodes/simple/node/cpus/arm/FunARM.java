@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.MachNode;
@@ -16,6 +17,6 @@ public class FunARM  extends FunNode implements MachNode {
         int sz = _frameAdjust;
         if( sz == 0 ) return;   // Skip if no frame adjust
         if( sz >= 1L<<12 ) throw Utils.TODO();
-        enc.add4(arm.imm_inst(arm.OPI_SUB, sz, arm.RSP, arm.RSP));
+        enc.add4(Arm64.imm_inst(Arm64.OPI_SUB, sz, arm.RSP, arm.RSP));
     }
 }

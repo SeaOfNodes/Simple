@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -18,7 +19,7 @@ public class CallRRISC extends CallNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         short rpc = enc.reg(this);
         short src = enc.reg(in(_inputs._len-1));
-        int body = riscv.i_type(riscv.OP_JALR, rpc, 0, src, 0);
+        int body = RiscV.i_type(RiscV.OP_JALR, rpc, 0, src, 0);
         enc.add4(body);
     }
 

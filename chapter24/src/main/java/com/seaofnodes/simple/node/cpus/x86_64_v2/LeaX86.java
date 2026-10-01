@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.x86_64_v2;
 
+import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
@@ -23,25 +24,7 @@ public class LeaX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
     @Override public void encoding( Encoding enc ) {
-        // REX.W + 8D /r	LEA r64,m
-        short dst = enc.reg(this);
-        short ptr = enc.reg(in(1));
-        short idx = enc.reg(in(2));
-        // ptr is null
-        // just do: [(index * s) + disp32]
-        if( ptr == -1 ) {
-            enc.add1(x86_64_v2.rex(dst, 0, idx));
-            enc.add1(0x8D); // opcode
-            enc.add1(x86_64_v2.modrm(x86_64_v2.MOD.INDIRECT, dst, 0x04));
-            enc.add1(x86_64_v2.sib(_scale, idx, x86_64_v2.RBP));
-            enc.add4(_offset);
-            return;
-        }
-
-        enc.add1(x86_64_v2.rex(dst, ptr, idx));
-        enc.add1(0x8D); // opcode
-        // rsp is hard-coded here(0x04)
-        x86_64_v2.indirectAdr(_scale, idx, ptr, _offset, dst, enc);
+        X86.lea(enc,enc.reg(this),enc.reg(in(1)),enc.reg(in(2)),_offset,_scale);
     }
 
     // General form: "lea  dst = base + 4*idx + 12"

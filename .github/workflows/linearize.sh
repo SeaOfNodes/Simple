@@ -47,7 +47,7 @@ while read -r chapter; do
   done <<< "$all_authors"
 
   # Get the first and last dates this chapter was modified.
-  root_files=(README.md LICENSE pom.xml .gitignore .dir-locals.el transpile-tests graph print build-support)
+  root_files=(README.md LICENSE pom.xml .gitignore .dir-locals.el transpile-tests graph print isa build-support)
   author_root_files=()
   if [[ $chapter = chapter01 ]]; then
     # Only include the commit date of the root files for chapter01.
@@ -71,7 +71,7 @@ while read -r chapter; do
   git add .
 
   # Add the shared files in the root, except for README.md and pom.xml.
-  root_files=(LICENSE .gitignore .dir-locals.el transpile-tests graph print build-support)
+  root_files=(LICENSE .gitignore .dir-locals.el transpile-tests graph print isa build-support)
   cp -R "${root_files[@]/#/"$repo/"}" .
   git add "${root_files[@]}"
 
@@ -89,11 +89,24 @@ while read -r chapter; do
     sed -i -e 's,<packaging>pom</packaging>,<packaging>jar</packaging>,' \
            -e '/<modules>/,/^$/d' pom.xml
   fi
+  # ISA sources enter the standalone Maven build with instruction encoding.
+  if [[ "$chapter_number" == 21 ]]; then
+    sed -i '/<source>${simple.print.directory}\/src\/main\/java<\/source>/a\                                <source>${project.basedir}/isa/src/main/java</source>' pom.xml
+    sed -i '/<\/executions>/i\                    <execution>\
+                        <id>shared-isa-test-sources</id>\
+                        <phase>generate-test-sources</phase>\
+                        <goals><goal>add-test-source</goal></goals>\
+                        <configuration><sources>\
+                            <source>${project.basedir}/isa/src/test-support/java</source>\
+                        </sources></configuration>\
+                    </execution>' pom.xml
+  fi
   git mv chapter_docs "docs/$chapter"
   # Restore the link to this chapter.
   sed -Ei "s,^\* Chapter $chapter_number: ,* [Chapter $chapter_number](docs/$chapter/README.md): ," README.md
   # Repair links for this chapter.
   sed -Ei 's,\bdocs/,,' "docs/$chapter/README.md"
+  sed -Ei 's,\(\.\./isa/,(../../isa/,g' "docs/$chapter/README.md"
   git add README.md "docs/$chapter/README.md" pom.xml
 
   # Create a commit for the chapter, using the metadata.

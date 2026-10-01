@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
@@ -13,7 +14,7 @@ public class I2F8ARM extends MachConcreteNode implements MachNode {
         // SCVTF
         short self = (short)(enc.reg(this )-arm.D_OFFSET);
         short reg1 = enc.reg(in(1));
-        int body = arm.float_cast(arm.OP_FLOAT_C, 1, reg1, self);
+        int body = Arm64.float_cast(Arm64.OP_FLOAT_C, 1, reg1, self);
         enc.add4(body);
     }
 
