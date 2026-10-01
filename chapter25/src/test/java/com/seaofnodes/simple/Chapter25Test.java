@@ -98,7 +98,7 @@ public class Chapter25Test {
             new CodeGen(root.toString(),root.toString(),imported ? paths : null,"Main",src,126,true,TypeInteger.BOT)
                 .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
             assertEquals("",TestC.gcc(root+"/Main.o","",TestC.C_DRIVERS_DIR+"extern_data_import.c",
-                (String)null,new Ary<>(new String[]{dir+"/Globals.o"}),root+"/main"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
+                (String)null,new Ary<>(new String[]{dir+"/Globals.o"}),root+"/program"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
         }
     }
 
@@ -364,8 +364,7 @@ public class Chapter25Test {
         String syms = run(new String[]{"nm",obj});
         assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
 
-        String out = run(new String[]{"gcc",obj,SYS_FILE.toString(),TestC.runtimeObject(),"-lm","-g","-o",exe});
-        assertEquals("",out);
+        TestC.linkExe(obj,null,null,new Ary<>(new String[]{SYS_FILE.toString()}),exe);
         String rez = run(new String[]{exe});
         assertEquals(expected,rez);
     }

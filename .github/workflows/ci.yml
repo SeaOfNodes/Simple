@@ -1,4 +1,4 @@
-name: Java CI with Maven
+name: Java CI with Make
 
 on: [ push, pull_request ]
 
@@ -14,6 +14,5 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'maven'
-      - name: Build with Maven
-        run: mvn --batch-mode --update-snapshots verify
+      - name: Build and test all chapters
+        run: make lib tests CTAGS=

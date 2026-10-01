@@ -711,6 +711,10 @@ Consequences:
    `helloWorld`, Chapter25Test uses `helloWorldSys`, and driver variants have
    separate output directories. `NativeExecutionTest` covers overwriting an
    executable between link and execution, full exit statuses, and driver errors.
+9. CI uses `make lib tests CTAGS=` so native runtime and sys prerequisites are
+   built. Chapter 25's default ABI must match TestC: win64 on Windows, SystemV
+   elsewhere. Native spill expectations can differ by ABI (Newton is 42/34);
+   validate Linux as well as Windows when changing native test setup.
 
 Useful test ladder:
 

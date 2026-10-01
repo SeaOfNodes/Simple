@@ -146,7 +146,7 @@ $(CLZDIR)/test/.ttag: $(test_javas) $(CLZDIR)/main/.mtag
 OBJS:= build/objs
 SYS_SMPS:= $(wildcard src/main/smp/*.smp src/main/smp/*/*.smp src/main/smp/*/*/*.smp)
 CPU_PORT:= x86_64_v2
-CALL_CONV:= win64
+CALL_CONV:= $(if $(filter Windows_NT,$(OS)),win64,SystemV)
 CPU_ABI:= $(CPU_PORT)_$(CALL_CONV)
 RELEASE:= build/release
 TEST_SYS:= $(OBJS)/lib_$(CPU_ABI)/sys.o

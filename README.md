@@ -78,7 +78,11 @@ Chapters 10a, 10b, and 18–25 launch it with `make view` from the chapter direc
 
 The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 `release`, or `lib` target. Start with `make lib` on a fresh checkout, then
-`make tests`. 
+`make tests`.
+
+CI runs `make lib tests CTAGS=` on Linux with JDK 21. The Make targets also build
+Chapter 25's native runtime and `sys` library before running the tests that use
+them; Maven's Java build alone does not produce those prerequisites.
 
 The [chapter backport queue](docs/chapter-backports.md) records proposed small
 corrections and the per-chapter test/review workflow. Larger architectural moves
