@@ -260,7 +260,10 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 - Keep anti-dependence marks in a pass-local array, not CFGNode. In 11-20 the
   evaluator independently reschedules nodes, so retain the full store placement
   range when constraining loads; using only GCM's final store block breaks
-  `SchedulerTest.testStoreInIf2`. From 21, the chosen store block suffices.
+  `SchedulerTest.testStoreInIf2`. Retain the dominator walk from 21 onward too:
+  a conditional Store can precede a Load's late block without dominating it.
+  Its exact block need not be marked, but an ancestor intersects the Load's
+  placement range. `Chapter21Test.testReadBeforeConditionalStore` checks this.
   Preserve each chapter's alias/tuple memory representation when finding stores.
 - Changes in node order can expose encoding bugs. Chapter 21's empty-block scan
   mistook entry to a nested loop for a backedge; require the same loop-tree node,

@@ -306,7 +306,7 @@ for( int pc = 0; pc < program#; pc++ ) {
 return output;
 """;
         testTarget(src,"x86_64_v2", "SystemV",40,null);
-        testTarget(src,"riscv"    , "SystemV",42,null);
+        testTarget(src,"riscv"    , "SystemV",146,null);
         testTarget(src,"arm"      , "SystemV",34,null);
         //assertEquals("Hello World!\n", Eval2.eval(code, 0, 10000));
     }

@@ -266,22 +266,22 @@ public abstract class GlobalCodeMotion {
             switch( mem ) {
             case MemOpNode st:
                 assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],lca,st,anti);
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;
             case EscapeNode st:
                 assert late[st._nid]!=null;
-                lca = anti_dep(load,late[st._nid],lca,st,anti);
+                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
                 break;
             case CallNode call:
                 assert late[call._nid]!=null;
-                lca = anti_dep(load,late[call._nid],lca,call,anti);
+                lca = anti_dep(load,late[call._nid],call.cfg0(),lca,call,anti);
                 break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.
                 // No anti-dep edges but may raise the LCA.
                 for( int i=1; i<phi.nIns(); i++ )
                     if( phi.in(i)==load.mem() )
-                        lca = anti_dep(load,phi.region().cfg(i),lca,null,anti);
+                        lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null,anti);
                 break;
             default: throw Utils.TODO("Should not reach here");
             }
@@ -290,12 +290,17 @@ public abstract class GlobalCodeMotion {
     }
 
     //
-    private static CFGNode anti_dep( MemOpNode load, CFGNode stblk, CFGNode lca, Node st, int[] anti ) {
-        // Stores are already placed.  Constrain the load at that block only.
-        if( anti[stblk._nid]==load._nid ) {
-            lca = stblk.domLCA(lca,null);
-            if( lca==stblk && st!=null && !(st instanceof CallNode) && st._inputs.find(load) == -1 )
-                st.addDef(load); // Same-block load must precede the store.
+    private static CFGNode anti_dep( MemOpNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
+        // A conditional writer can precede the load without dominating its late block.
+        // Walk back to the first overlap with the load's placement range.
+        for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
+            // Store and Load overlap, need anti-dependence
+            if( anti[stblk._nid]==load._nid ) {
+                lca = stblk.domLCA(lca,null); // Raise Loads LCA
+                if( lca == stblk && st != null && !(st instanceof CallNode) && st._inputs.find(load) == -1 ) // And if something moved,
+                    st.addDef(load);   // Add anti-dep as well; Calls already end their block.
+                return lca;            // Cap this stores' anti-dep to here
+            }
         }
         return lca;
     }

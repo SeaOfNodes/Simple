@@ -158,9 +158,9 @@ by `8^loopDepth`.
 
 | Program cohort | Compilations | Retained moves | Loop-weighted moves |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 367 | 472 |
-| Chapter 21 | 52 | 454 | 972 |
-| **Total** | **91** | **821** | **1,444** |
+| Chapter 20 | 39 | 380 | 576 |
+| Chapter 21 | 52 | 467 | 1,076 |
+| **Total** | **91** | **847** | **1,652** |
 
 The Chapter 20 row freezes all 13 original inputs, including BrainFuck and
 MergeSort, on three SystemV targets. They live in `Chapter20Test`. The revised
@@ -203,6 +203,14 @@ reduces these to 35 / 42 and 821 / 1,444 respectively. The RISC-V Hello World
 run executes 21,787 instructions instead of 21,920, with unchanged heap and
 stack traffic. These are emulator instruction counts, not hardware timings.
 The current native BrainFuck test and all runtime assertions are enabled.
+
+Restoring GCM's anti-dependence dominator walk subsequently changes each
+RISC-V BrainFuck row from 35 / 42 to 48 / 146, giving the current table above.
+A conditional writer need not dominate a later Load placement, so checking
+only the writer's exact block misses required ordering. The restored walk
+fixes a read-before-conditional-store program that returned 140 instead of 120.
+Both BrainFuck execution checks and the complete 91-entry spill audit pass;
+the increased move count is recorded without changing allocator heuristics.
 
 The following coalescing comparison predates lazy memory. Both sides use the
 same compiler from that audit; it is not a fresh ablation of the current graph:

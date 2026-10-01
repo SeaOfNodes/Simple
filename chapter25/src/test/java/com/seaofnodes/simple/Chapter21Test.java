@@ -15,6 +15,24 @@ import static org.junit.Assert.*;
 
 public class Chapter21Test {
 
+    @Test public void testReadBeforeConditionalStore() {
+        var code = new CodeGen("""
+            struct S { int x; }; S !a=new S; S !b=new S;
+            a.x=10; b.x=20; S !p=a; if(arg&1) p=b;
+            int sum=0;
+            for(int i=0; i<6; i++) {
+                sum+=a.x;
+                if(i==2) p.x=30;
+                else if(i==4) b.x=40;
+            }
+            return sum;
+            """).parse().opto();
+        // The i==2 read still sees 10: three reads of 10, then three of 30.
+        assertEquals("120",Eval2.eval(code,0));
+        assertEquals("60",Eval2.eval(code,1));
+    }
+
+
     @Test public void testArmBitfieldExtracts() {
         // Independent SXT/UXT instruction words, plus ASR, LSR and LSL aliases.
         int[] ops = {0x93401c20,0xd3401c20,0x93403c20,0xd3403c20,

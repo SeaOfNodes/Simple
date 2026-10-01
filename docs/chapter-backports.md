@@ -160,9 +160,10 @@ on a rejected Phi factoring attempt. Those fixes predate this memory port.
 
 All three targets retain the memory Phi subclasses and New's pointer slot 0,
 memory slot 1, and size input 2. Chapter 21 caches New's register masks in the
-shared node during register allocation; update that shared interface. Keep its
-existing scheduler rule that writers are already placed when adding read-before-
-write constraints. Calls receive no scheduling-only operands.
+shared node during register allocation; update that shared interface. Writers
+are placed before adding read-before-write constraints; the dominator walk
+must still find conditional writers above a Load's proposed merge placement.
+Calls receive no scheduling-only operands.
 
 Dependency registration reverses direction here: `consumer.addDep(producer)`.
 The forwarded memory queries and explicit forward dependencies follow that API.
@@ -359,15 +360,6 @@ lines beyond the original extraction.
   failed entries from a claimed complete spill total. The ordinary Chapter 25
   suite passes, including its current String programs.
 
-
-- **Chapter 21 read-before-conditional-store scheduling.** A reduced negative
-  test for Load search exposed an existing ordering error: summing `a.x` before
-  a possibly aliasing conditional store in a loop returns 140 instead of 120
-  when the pointer aliases `a`. It reproduces with the saved pre-search Load
-  class as well. Source and before/after graph dumps are in
-  `build/LoadSearchProbe.java` and `build/load-search-probe-{before,after}.txt`.
-  The Load-search rejection tests put the Store before the read to isolate
-  the optimization from that separate scheduling defect. Investigate separately.
 
 - **Chapter 21 synthetic TOP return allocation.** The original compiler at
   `f01ee052` and the memory port both fail in `Coalesce.coalesce`: a Split of
@@ -572,6 +564,21 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **GCM conditional-writer ordering, Chapters 21-25.** Restored the `idom()`
+  walk from a writer's late block through its early bound, including matching
+  memory-Phi predecessor paths. Chapters 11-20 already retained this walk.
+  Exact-block checking missed a conditional Store that executes before a Load
+  sunk below the merge. `Chapter21Test.testReadBeforeConditionalStore`, forwarded
+  through 25, checks 120 for the aliasing case and 60 for the distinct-pointer
+  case. Generated ARM/RISC-V execution agrees in Chapter 21. The walk was
+  removed in `798bd959` (April 12, 2025, PR #201), before the Chapter 21 squash.
+  Chapter 21's two RISC-V BrainFuck rows change from 35 / 42 to 48 / 146
+  retained / weighted moves; the full 91-entry audit is now 847 / 1,652.
+  Runtime checks pass and the two quality goldens are updated; no allocator
+  heuristic changed. Validation logs: `build/gcm-walk-tests.log` (22-24),
+  `build/gcm-walk21-final.log` (complete 21 rerun and spill audit), and
+  `build/gcm-walk25-final.log` (complete 25 rerun).
 
 - **Chapter 25 memory follow-through.** Full Make validation passes **482 tests
   plus the 17-seed fuzzer wrapper**, and the release jar and system library build.
