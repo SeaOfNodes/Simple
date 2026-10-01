@@ -279,7 +279,7 @@ for( int i=0; i<ary#-1; i++ )
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
         testCPU(src,"x86_64_v2", "SystemV",-1,"return mov(.[]);");
-        testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"riscv"    , "SystemV", 9,"return (add,.[],(mul,.[],1000));");
         testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
     }
 
@@ -500,7 +500,7 @@ val sieve = { int N ->
 
         // Evaluate on ARM5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 105, false);
+        EvalArm64 A5 = TestArm64.build("sieve", src, 100, 88, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];

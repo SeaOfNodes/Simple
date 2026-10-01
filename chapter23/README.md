@@ -43,6 +43,12 @@ Also in this chapter we revisit our Types and make some major changes:
   etc; only the implementation details change.
 
 
+The lazy memory model from Chapter 10b continues through the new type system.
+BulkMemPhi/MemPhi discover aliases during optimization. Each New covers only
+instance fields; class-wide (`_one`) fields are excluded from its partial memory.
+Field offsets stay symbolic until layout, and Loads retain cyclic field types
+and deep-final information while querying the contents of a precise alias.
+
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter23) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) it to the previous chapter.
 
 
@@ -484,7 +490,7 @@ ranking remains for Chapter 25.
 Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
 a sole use in the next instruction can read the source register when its
 operand mask permits it and no two-address tie is broken. The table below
-includes this cleanup. Cohort 22 now also includes the two zero-move C return
+includes this cleanup and the lazy memory forward port. Cohort 22 now also includes the two zero-move C return
 ABI checks added since the earlier audit (26 entries instead of 24).
 
 Run `make spill-stats` in this directory. All rows below use **this chapter's
@@ -494,11 +500,11 @@ machine graphs are checked separately and do not contribute to the counts.
 
 | Program cohort | Compilations | Retained moves | Loop-weighted moves |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 326 | 445 |
-| Chapter 21 | 52 | 439 | 971 |
+| Chapter 20 | 39 | 323 | 442 |
+| Chapter 21 | 52 | 433 | 965 |
 | Chapter 22 | 26 | 67 | 67 |
-| Chapter 23 | 30 | 81 | 228 |
-| **Total** | **147** | **913** | **1,711** |
+| Chapter 23 | 30 | 78 | 225 |
+| **Total** | **147** | **901** | **1,699** |
 
 `_spills` counts retained SplitNodes, including register moves; `_spillScaled`
 weights them by `8^loopDepth`. These estimate compiler-generated moves, not

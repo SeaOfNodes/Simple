@@ -46,10 +46,10 @@ public class RegionNode extends CFGNode {
 
         // If a CFG diamond with no merging, delete: "if( pred ) {} else {};"
         if( !hasPhi() && nIns()>3 &&  // No Phi users, just a control user
-                in(1) instanceof CProjNode p1 &&
-                in(2) instanceof CProjNode p2 &&
-                addDep(p1.in(0))==addDep(p2.in(0)) &&
-                p1.in(0) instanceof IfNode iff ) {
+            in(1) instanceof CProjNode p1 &&
+            in(2) instanceof CProjNode p2 &&
+            addDepForwards(p1).in(0)==addDepForwards(p2).in(0) &&
+            p1.in(0) instanceof IfNode iff ) {
             // Replace with the iff.ctrl directly
             if( nIns()==3 ) return iff.ctrl();
             // Just delete the path for fat Regions

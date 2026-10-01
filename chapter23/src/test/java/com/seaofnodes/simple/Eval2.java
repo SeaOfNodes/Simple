@@ -314,6 +314,8 @@ public abstract class Eval2 {
         case TypeFunPtr tfp -> tfp;
         case TypeMem mem -> "MEM";
         case TypeMemPtr tmp -> {
+            // Unknown-caller inputs are type placeholders, not heap constants.
+            if( !tmp.isConstant() ) yield tmp;
             if( tmp._obj.isAry() ) { // Constant array ptr
                 TypeConAry con = (TypeConAry)tmp._obj.field("[]")._t;
                 Object[] xs = new Object[con.len()];
@@ -341,7 +343,7 @@ public abstract class Eval2 {
     private static Object alloc(NewNode alloc) {
         TypeStruct type = alloc._ptr._obj;
         if( type.isAry() ) {
-            long sz = (Long)val(alloc.in(1));
+            long sz = (Long)val(alloc.size());
             long x = offToIdx(sz, type);
             int n = (int)x;
             if( n!=x || n<0 )
@@ -462,9 +464,9 @@ public abstract class Eval2 {
         case TypeRPC rpc -> sb.p(x.toString());
         case TypeMem mem -> sb.p("$mem");
         case TypeTuple tt -> {
-            if( tt._types.length>1 && tt._types[1] instanceof TypeMemPtr )
+            if( tt._types.length>1 && tt._types[0] instanceof TypeMemPtr )
                 // Assume a NewNode
-                yield _print( tt._types[1], x, sb, visit );
+                yield _print( tt._types[0], x, sb, visit );
             throw Utils.TODO();
         }
         case Type tt -> {

@@ -35,6 +35,10 @@ public class PhiNode extends Node {
             addDef(sample);
     }
 
+    public static PhiNode make(String label, Type type, Node... inputs) {
+        return type instanceof TypeMem ? new BulkMemPhiNode(label,inputs) : new PhiNode(label,type,inputs);
+    }
+
     @Override public String label() { return "Phi_"+MemOpNode.mlabel(_label); }
 
     @Override
@@ -114,6 +118,8 @@ public class PhiNode extends Node {
         if( live != null ) {
             if( live._type.isa(_type) )
                 return live;
+            // Let the bulk input split this alias before collapsing a precise Phi.
+            if( live instanceof BulkMemPhiNode ) return null;
             // Keep the Phi upcast
             return new CastNode(_type,null,live);
         }
@@ -123,19 +129,9 @@ public class PhiNode extends Node {
             if( r.in(i)._type == Type.XCONTROL )
                 return null;
 
-        // Simple Phi-after-MemMerge to a known alias can bypass.  Happens when inlining.
-        if( _type instanceof TypeMem tmem && tmem._alias!=1 ) {
-            for( int i=1; i<nIns(); i++ )
-                if( in(i) instanceof MemMergeNode mem ) {
-                    setDef(i,mem.alias(tmem._alias));
-                    return this;
-                }
-        }
-
-        // Generic "pull down op"
-        Node progress;
-        if( same_op() && (progress = drop_same_op()) != null )
-            return progress;
+        // Phi(op(a,b,...),op(c,d,...)) -> op(Phi(a,c),Phi(b,d),...).
+        Node down;
+        if( same_op() && (down=drop_same_op())!=null ) return down;
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
@@ -170,50 +166,77 @@ public class PhiNode extends Node {
     // Same op on all Phi paths; all ops have only the Phi as a use.
     // None have a control input.
     private boolean same_op() {
+        Node op = in(1);
+        if( op instanceof CFGNode || op instanceof ConstantNode || op instanceof PhiNode ||
+            op instanceof ProjNode || op instanceof NewNode || op instanceof ScopeNode || op instanceof MemMergeNode ) return false;
+        // A bulk Phi must split its aliases before factoring precise Stores.
+        if( this instanceof BulkMemPhiNode ) return false;
+        // Bulk splitting currently identifies parallel slices by Region/alias.
+        // Factoring can introduce another slice at a different memory point;
+        // wait until that Region's bulk partitioning has finished.
+        if( op instanceof MemOpNode )
+            for( Node use : region()._outputs )
+                if( use instanceof BulkMemPhiNode ) {
+                    addDepForwards(use);
+                    return false;
+                }
+        Node busy = null;
         for( int i=1; i<nIns(); i++ ) {
-            Node op = in(i);
-            if( in(1).getClass() != op.getClass() || op.in(0)!=null || in(1).nIns() != op.nIns() )
-                return false;      // Wrong class or CFG bound or mismatched inputs
-            if( in(1) instanceof MemOpNode mem && mem._alias != ((MemOpNode)op)._alias )
-                return false;
-            if( op.nOuts() > 1 ) { // Too many users, but addDep in case lose users
-                for( Node out : op._outputs )
-                    if( out!=null && out!=this )
-                        addDep(out);
-                return false;
+            Node n = in(i);
+            if( addDep(region().in(i))._type==Type.XCONTROL ||
+                op.getClass()!=n.getClass() || n.nIns()!=op.nIns() || n.in(0)!=null || !op.eq(n) ) return false;
+            if( n instanceof MemOpNode mem && !mem.canDrop((MemOpNode)op,this) ) return false;
+            // Moving a Store must remove the old effect, not duplicate it.
+            // Allow one shared arm: the other arms disappear into the single
+            // factored operation, usually reducing the total operation count.
+            addDepForwards(n);
+            if( n.nOuts()>1 ) {
+                for( Node use : n._outputs )
+                    if( use!=null && use!=this ) addDepForwards(use);
+                if( n instanceof StoreNode || busy!=null ) return false;
+                busy=n;
             }
-            for( int j=1; j<in(1).nIns(); j++ )
-                if( op.in(j) instanceof ScopeNode || (op.in(j)==null ^ in(1).in(j)==null) )
-                    return false; // Lazy Phi input
+            for( int j=1; j<n.nIns(); j++ )
+                if( n.in(j) instanceof ScopeNode || ((n.in(j)==null) != (op.in(j)==null)) ) return false;
         }
         return true;
     }
 
     private Node drop_same_op() {
-        assert !(in(1) instanceof CFGNode);
-        Node op = in(1);
-        Node cp = op.copy();
-        cp._type = null;    // Fresh type
-        cp.addDef(null);    // No control
-
+        Node op = in(1), cp = op.copyEmpty();
+        cp._type = null;
+        cp.addDef(null);
         for( int j=1; j<op.nIns(); j++ ) {
-            boolean needsPhi = false;
-            Node x = op.in(j); // Jth input from sample #1
+            Node x = op.in(j);
+            boolean different = false;
             for( int i=2; i<nIns(); i++ )
-                if( in(i).in(j) != x )
-                    { needsPhi=true; break; }
-            if( needsPhi ) {
-                x = new PhiNode(_label,op.in(j)._type.glb(false));
-                x.addDef(region());
-                for( int i=1; i<nIns(); i++ )
-                    x.addDef(in(i).in(j));
-                x = x.peephole();
+                if( in(i).in(j)!=x ) different=true;
+            if( different ) {
+                Node[] ins = new Node[nIns()];
+                ins[0] = region();
+                Type t = Type.TOP;
+                for( int i=1; i<nIns(); i++ ) {
+                    ins[i] = in(i).in(j);
+                    t = t.meet(ins[i]._type);
+                }
+                // Not accepts both pointers and integers, but a Phi cannot mix them.
+                if( t==Type.BOTTOM ) {
+                    for( int i=1; i<ins.length; i++ ) addDep(ins[i]);
+                    cp.kill();
+                    return null;
+                }
+                PhiNode phi = j==1 && op instanceof MemOpNode mem
+                    ? new MemPhiNode(_label,mem._alias,ins)
+                    : PhiNode.make(_label,t.glb(false),ins);
+                x = phi.peephole();
             }
             cp.addDef(x);
         }
-        // Test not running backwards, which can happen for e.g. And's
-        if( cp.compute().isa(compute()) )
-            return cp;
+        // Factoring must not widen the result (e.g. correlated And operands).
+        if( cp.compute().isa(compute()) ) return cp;
+        for( int i=1; i<nIns(); i++ )
+            for( int j=1; j<in(i).nIns(); j++ )
+                if( in(i).in(j)!=null ) addDep(in(i).in(j));
         cp.kill();
         return null;
     }

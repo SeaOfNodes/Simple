@@ -306,6 +306,7 @@ public abstract class Node implements Cloneable {
     // Error is 'use' does not exist; ok for 'use' to be null.
     public boolean delUse( Node use ) {
         _outputs.del(_outputs.find(use));
+        moveDepsToWorklist(); // User-count and anti-dependence queries can now change.
         return _outputs.isEmpty();
     }
 

@@ -50,7 +50,7 @@ public abstract class GlobalCodeMotion {
         var cons = new ArrayList<Node>();
         for( Node con : start._outputs )
             if( con!=null && !(con instanceof CFGNode) &&
-                (con.isConst() || con instanceof MachNode mach && mach.outregmap()!=null) ) {
+                (con.isConst() || (con instanceof MachNode mach && mach.outregmap()!=null)) ) {
                 globals.put(con,true);
                 cons.add(con.keep()); // Preserve original inputs while rewiring users.
             }
@@ -172,16 +172,8 @@ public abstract class GlobalCodeMotion {
 
                 // Loads need their memory inputs' uses also done
                 if( n instanceof MemOpNode ld && ld._isLoad )
-                    for( Node memuse : ld.mem()._outputs )
-                        if( late[memuse._nid]==null &&
-                            // New makes new memory, never crushes load memory
-                            !(memuse instanceof NewNode) &&
-                            // Load-use directly defines memory
-                            (memuse._type instanceof TypeMem ||
-                             // Load-use directly defines memory
-                             memuse instanceof CallNode ||
-                             // Load-use indirectly defines memory
-                             (memuse._type instanceof TypeTuple tt && tt._types[ld._alias] instanceof TypeMem)) )
+                    for( Node memuse : ld.antiDeps() )
+                        if( late[memuse._nid]==null )
                             continue outer;
 
                 // All uses done, schedule
@@ -193,9 +185,7 @@ public abstract class GlobalCodeMotion {
             for( Node def : n._inputs ) {
                 if( def==null ) continue;
                 if( late[def._nid]==null ) work.push(def);
-                for( Node out : def._outputs )
-                    if( out instanceof MemOpNode ld && ld._isLoad && late[ld._nid]==null )
-                        work.push(ld);
+                wakeLoads(def,late,work,new BitSet());
             }
             if( n instanceof LoopNode loop )
                 for( Node phi : loop._outputs )
@@ -255,23 +245,32 @@ public abstract class GlobalCodeMotion {
             best instanceof IfNode;
     }
 
+    // An allocation may consume a load's memory through a partial aggregate.
+    private static void wakeLoads(Node def, CFGNode[] late, WorkList<Node> work, BitSet visit) {
+        if( visit.get(def._nid) ) return;
+        visit.set(def._nid);
+        for( Node out : def._outputs )
+            if( out instanceof MemOpNode ld && ld._isLoad && late[ld._nid]==null ) work.push(ld);
+        if( def instanceof MemMergeNode )
+            for( int i=1; i<def.nIns(); i++ )
+                if( def.in(i)!=null ) wakeLoads(def.in(i),late,work,visit);
+    }
+
     private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late, int[] anti) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
         for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
             anti[cfg._nid] = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
-        for( Node mem : load.mem()._outputs ) {
+        for( Node mem : load.antiDeps() ) {
             switch( mem ) {
             case MemOpNode st:
-                if( !st._isLoad && load._alias == st._alias ) {
-                    assert late[mem._nid] != null;
-                    lca = anti_dep(load,late[mem._nid],lca,st,anti);
-                }
-                break; // Loads do not cause anti-deps on other loads
-            case CallNode call:
-                assert late[call._nid]!=null;
-                lca = anti_dep(load,late[call._nid],lca,call,anti);
+                assert late[st._nid]!=null;
+                lca = anti_dep(load,late[st._nid],lca,st,anti);
+                break;
+            case CallNode st:
+                assert late[st._nid]!=null;
+                lca = anti_dep(load,late[st._nid],lca,st,anti);
                 break;
             case PhiNode phi:
                 // Repeat anti-dep for matching Phi inputs.
@@ -280,10 +279,10 @@ public abstract class GlobalCodeMotion {
                     if( phi.in(i)==load.mem() )
                         lca = anti_dep(load,phi.region().cfg(i),lca,null,anti);
                 break;
-            case NewNode st: break;
-            case ReturnNode ret: break; // Load must already be ahead of Return
-            case MemMergeNode ret: break; // Mem uses now on ScopeMin
-            case NeverNode never: break;
+            case NewNode st:
+                assert late[st._nid]!=null;
+                lca = anti_dep(load,late[st._nid],lca,st,anti);
+                break;
             default: throw Utils.TODO();
             }
         }
@@ -295,7 +294,7 @@ public abstract class GlobalCodeMotion {
         // Stores are already placed.  Constrain the load at that block only.
         if( anti[stblk._nid]==load._nid ) {
             lca = stblk.domLCA(lca,null);
-            if( lca==stblk && st!=null && st._inputs.find(load) == -1 )
+            if( lca==stblk && st!=null && !(st instanceof CallNode) && st._inputs.find(load) == -1 )
                 st.addDef(load); // Same-block load must precede the store.
         }
         return lca;

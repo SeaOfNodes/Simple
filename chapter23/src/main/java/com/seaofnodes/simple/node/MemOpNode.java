@@ -6,6 +6,7 @@ import com.seaofnodes.simple.type.TypeMemPtr;
 import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
 import java.util.BitSet;
+import java.util.ArrayList;
 
 /**
  * Convenience common base for Load and Store.
@@ -78,6 +79,8 @@ public abstract class MemOpNode extends Node {
     static String mlabel(String name) { return "[]".equals(name) ? "ary" : ("#".equals(name) ? "len" : name); }
     String mlabel() { return mlabel(_name); }
 
+    @Override public boolean isMem() { return !_isLoad; }
+
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
     public Node off() { return in(3); }
@@ -85,6 +88,13 @@ public abstract class MemOpNode extends Node {
     @Override public StringBuilder _print1( StringBuilder sb, BitSet visited ) { return _printMach(sb,visited);  }
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
     public int log_size() { return _declaredType.log_size();  }
+
+    // Extra conditions for factoring matching memory operations through a Phi.
+    // The caller has already checked the opcode, input shape and control.
+    boolean canDrop(MemOpNode other, Node dep) {
+        dep.addDep(ptr());
+        return _alias==other._alias && _declaredType==other._declaredType && err()==null;
+    }
 
     @Override
     public boolean eq(Node n) {
@@ -105,5 +115,30 @@ public abstract class MemOpNode extends Node {
         if( ptr instanceof TypeMemPtr tmp && tmp.notNull() )
             return null;
         return Parser.error( "Might be null accessing '" + _name + "'",_loc);
+    }
+    // Memory writers which must follow this read. A packaging node is not a
+    // write, but can hide New's input, so follow this alias through aggregates.
+    public ArrayList<Node> antiDeps() {
+        ArrayList<Node> deps = new ArrayList<>();
+        antiDeps(mem(),deps,new BitSet());
+        return deps;
+    }
+
+    private void antiDeps(Node mem, ArrayList<Node> deps, BitSet visit) {
+        if( visit.get(mem._nid) ) return;
+        visit.set(mem._nid);
+        for( Node use : mem._outputs ) {
+            if( use instanceof MemMergeNode merge ) {
+                Node slice = _alias<merge.nIns() ? merge.in(_alias) : null;
+                if( (slice==mem) || (slice==null && merge.in(1)==mem) )
+                    antiDeps(merge,deps,visit);
+            } else if( use instanceof CallNode ||
+                       (use instanceof MemOpNode st && !st._isLoad && st._alias==_alias) ||
+                       (use instanceof NewNode nnn && nnn.field(_alias)!=null) ||
+                       (use instanceof MemPhiNode phi && phi._alias==_alias) ||
+                       (use instanceof BulkMemPhiNode phi && !phi.isSplit(_alias)) ) {
+                if( !deps.contains(use) ) deps.add(use);
+            }
+        }
     }
 }

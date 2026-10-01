@@ -253,7 +253,7 @@ public class BulkMemPhiNode extends PhiNode {
         mphi.setType(TypeMem.BOT.makeFrom(alias));
         for( int i=1; i<nIns(); i++ )
             mphi.addDef(CodeGen.CODE.add(preciseInput(in(i),alias)));
-        return (MemPhiNode)mphi.peephole();
+        return CodeGen.CODE.add(mphi);
     }
 
     MemPhiNode _findPhi(int alias) {

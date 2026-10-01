@@ -363,6 +363,8 @@ public class x86_64_v2 extends Machine {
         case NotNode      not -> new NotX86(not);
         case OrNode        or -> or(or);
         case ParmNode    parm -> new ParmX86(parm);
+        case BulkMemPhiNode phi -> new BulkMemPhiNode(phi);
+        case MemPhiNode phi -> new MemPhiNode(phi);
         case PhiNode      phi -> new PhiNode(phi);
         case ProjNode     prj -> prj(prj);
         case ReadOnlyNode read-> new ReadOnlyMach(read);
@@ -396,9 +398,8 @@ public class x86_64_v2 extends Machine {
         if( lhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3)
             return new AddMemX86(add, address(ld), ld.ptr(), idx, off, scale, 0, rhs);
 
-//        if(rhs instanceof LoadNode ld && ld.nOuts() == 1 && ld._declaredType.log_size() >= 3) {
-//            throw Utils.TODO(); // Swap load sides
-//        }
+        if( rhs instanceof LoadNode ld && ld.nOuts()==1 && ld._declaredType.log_size()>=3 )
+            return new AddMemX86(add,address(ld),ld.ptr(),idx,off,scale, 0,lhs);
 
         // Attempt a full LEA-style break down.
         // Returns one of AddX86, AddIX86, LeaX86, or LHS

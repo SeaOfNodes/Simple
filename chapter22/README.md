@@ -29,6 +29,12 @@ Let's break it down.
   pool*, and from there in an ELF file's RODATA section.
 
 
+Chapter 10b's lazy memory partitioning continues here: the parser carries one
+`$mem`, and BulkMemPhi/MemPhi discover field aliases during optimization.
+Allocations consume a partial MemMerge and produce `{ptr, $mem}`; calls carry
+whole memory. The loop Load search follows every arm of a memory merge, so
+BrainFuck's invariant program length folds out of its main loop.
+
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter22) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter21...linear-chapter22) it to the previous chapter.
 
 
@@ -192,7 +198,7 @@ class is left for Chapter 23, cold loop splits for 24, and area/cost ranking for
 Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
 a sole use in the next instruction can read the source register when its
 operand mask permits it and no two-address tie is broken. The table below
-includes this cleanup. Cohort 22 now also includes the two zero-move C return
+includes this cleanup and the lazy memory forward port. Cohort 22 now also includes the two zero-move C return
 ABI checks added since the earlier audit (26 entries instead of 24).
 
 Run `make spill-stats` in this directory. Each row below uses **this chapter's
@@ -202,10 +208,10 @@ SystemV. Diagnostic graphs and mask regressions do not contribute to the totals.
 
 | Program cohort | Compilations | Retained moves | Loop-weighted moves |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 321 | 433 |
-| Chapter 21 | 52 | 438 | 970 |
+| Chapter 20 | 39 | 324 | 443 |
+| Chapter 21 | 52 | 432 | 964 |
 | Chapter 22 | 26 | 67 | 67 |
-| **Total** | **117** | **826** | **1,470** |
+| **Total** | **117** | **823** | **1,474** |
 
 `_spills` counts retained SplitNodes, including register moves; `_spillScaled`
 weights each by `8^loopDepth`. These are compiler estimates, not measured runtime
@@ -225,7 +231,9 @@ The original Chapter 22 snapshot, which mixed several later heuristics, produced
 staged version saves 240 weighted moves (13.8%). Neither comparison should be
 confused with comparing entire compiler chapters: lowering also changes. For
 example, the frozen Chapter 20 String input has no explicit return, and Chapter
-22's default-return handling eliminates that workload at the default seed.
+22's default-return handling eliminated that workload in the earlier audit.
+With lazy memory, some target compilations retain callable bodies; the current
+table includes their moves.
 
 The full suite and statistics runner pass. Routine backend comparisons use a
 fixed optimizer seed:

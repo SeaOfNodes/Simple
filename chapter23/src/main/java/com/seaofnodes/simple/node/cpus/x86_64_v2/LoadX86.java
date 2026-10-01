@@ -24,6 +24,11 @@ public class LoadX86 extends MemOpX86 {
     }
 
     static void enc( Encoding enc, Type decl, short dst, short ptr, short idx, int off, int scale ) {
+        // Allocation may put a full-width integer in an XMM register (or a
+        // floating value in a GPR). Move its bits using the selected register bank.
+        if( dst>=x86_64_v2.XMM_OFFSET && decl.log_size()==3 ) decl=TypeFloat.F64;
+        else if( dst<x86_64_v2.XMM_OFFSET && decl instanceof TypeFloat )
+            decl = decl==TypeFloat.F32 ? TypeInteger.U32 : TypeInteger.BOT;
         if( decl == TypeFloat.F32) enc.add1(0xF3);
         if( decl == TypeFloat.F64) enc.add1(0xF2);
 

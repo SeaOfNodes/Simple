@@ -5,10 +5,12 @@ where `score` in the middle does not have to be repeated.
 
 The main compiler change is Interprocedural Sparse Conditional Constant
 Propagation (SCCP): an optimistic type solve which also discovers call-graph
-edges. This snapshot still uses the earlier parser/type and memory machinery;
-Chapter 25 currently contains the larger incomplete-types SSA redesign and
-separate compilation. Independent correctness fixes will move backward first;
-see the [backport review queue](../docs/chapter-backports.md).
+edges. Memory follows Chapter 10b's lazy partitioning: BulkMemPhi represents
+whole memory, MemPhi merges precise aliases, and allocations consume and produce
+partial memory for their instance fields. During SCCP, memory Phis ignore
+unreachable inputs and allocation results stay high until control reaches them.
+Chapter 25 retains the larger incomplete-types SSA redesign, private constructor
+memory, and separate compilation; see the [backport review queue](../docs/chapter-backports.md).
 
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter23...linear-chapter24) it to the previous chapter.
@@ -299,22 +301,22 @@ both the cheaper first attempt and the mandatory fallback.
 Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
 a sole use in the next instruction can read the source register when its
 operand mask permits it and no two-address tie is broken. The table below
-includes this cleanup. Cohort 22 now also includes the two zero-move C return
+includes this cleanup and the lazy memory forward port. Cohort 22 now also includes the two zero-move C return
 ABI checks added since the earlier audit (26 entries instead of 24).
 
 Run `make spill-stats`. All rows use **Chapter 24's compiler**, optimizer seed
 123, and the same source/target combinations as the earlier cohort tables.
 These Windows results combine x86 SystemV/Win64 and RISC-V/ARM SystemV,
-remeasured on 2026-09-28 after the function-pointer lifetime backport.
+remeasured after the lazy memory forward port.
 
 | Program cohort | Compilations | Retained moves | Loop-weighted moves |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 319 | 431 |
-| Chapter 21 | 52 | 425 | 957 |
+| Chapter 20 | 39 | 320 | 439 |
+| Chapter 21 | 52 | 420 | 952 |
 | Chapter 22 | 26 | 67 | 67 |
-| Chapter 23 | 30 | 81 | 228 |
-| Chapter 24 | 67 | 418 | 1,286 |
-| **Total** | **214** | **1,310** | **2,969** |
+| Chapter 23 | 30 | 78 | 225 |
+| Chapter 24 | 67 | 422 | 1,325 |
+| **Total** | **214** | **1,307** | **3,008** |
 
 `_spills` counts retained SplitNodes, including register moves. `_spillScaled`
 weights those moves by `8^loopDepth`; it is a cost estimate, not measured memory

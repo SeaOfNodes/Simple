@@ -9,6 +9,16 @@ These are the contents of the current snapshot. Independent correctness fixes
 will move to earlier chapters first; moving the larger SSA redesign backward,
 or splitting this chapter, is deferred. See the [backport queue](../docs/chapter-backports.md).
 
+The memory work from Chapters 21-24 carries forward here: Load search proves
+all arms of a merge before moving a read out of a loop, Phi factoring checks
+memory clobbers, and scheduling follows aliases through memory aggregates.
+The search follows `EscapeNode` to private or public memory and waits for
+unresolved Store aliases. Array-length reads have no element bounds check;
+array-element reads retain control. Integer value Phis use the existing typed
+conversion machinery to preserve the load's width across loop widening.
+New still produces private constructor memory, with publication handled by
+Escape; the earlier chapters' allocation-input design does not replace it.
+
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter25)
 in the [linear history](https://github.com/SeaOfNodes/Simple/tree/linear) and
 [compare it with Chapter 24](https://github.com/SeaOfNodes/Simple/compare/linear-chapter24...linear-chapter25).
@@ -168,10 +178,12 @@ used only by the next instruction is removed when the operand accepts its
 source register and is not tied to the instruction's result.
 
 The table below is the **earlier audit**, before adjacent-copy forwarding.
-The current replay has ten String-constructor parse failures, also reproduced
+The replay has ten String-constructor parse failures, also reproduced
 with the original allocator. On the identical 216 successful allocations,
-forwarding reduces 2,563 / 5,496 moves / weighted moves to 2,494 / 5,399.
-This is a partial comparison, not a replacement complete-suite total. The
+adjacent-copy forwarding reduced 2,563 / 5,496 moves / weighted moves to
+2,494 / 5,399. The subsequent memory corrections produce 2,488 / 5,379 on
+those same 216 successful allocations. These are partial comparisons, not
+replacement complete-suite totals. The
 current cohort 25 has 14 allocations, including later C return ABI checks;
 the historical table has ten. Native cohort-25 checks and fresh system-library
 encoding pass in both runs. See the [backport record](../docs/chapter-backports.md)

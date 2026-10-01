@@ -253,4 +253,27 @@ return new Square;
         assertEquals("Square{side=3.0,diag=1.7320508075688772}", Eval2.eval(code,  3));
         assertEquals("Square{side=4.0,diag=2.0}", Eval2.eval(code, 4));
     }
+    static final String CONSTRUCTOR_MEMORY = """
+        struct S { int x; int y; };
+        struct T { int z=arg+40; };
+        T !t = new T;
+        S !a = new S { x=11; y=7; };
+        S !b = new S { x=22; y=9; };
+        S !p=a;
+        if (arg) p=b;
+        int before=p.x;
+        S !c = new S {
+            x=p.x+1;
+            { int i=0; while (i<2) { p.y=p.y+1; i=i+1; } }
+            y=p.y;
+        };
+        p.x=33;
+        return before*10000+c.x*100+c.y+t.z;
+        """;
+
+    @Test public void testConstructorMemory() {
+        var code = new CodeGen(CONSTRUCTOR_MEMORY).parse().opto();
+        assertEquals("111249",Eval2.eval(code,0));
+        assertEquals("222352",Eval2.eval(code,1));
+    }
 }

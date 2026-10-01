@@ -544,10 +544,13 @@ public class EvalArm64 {
                 break;
             }
 
-            case 0xD2: {
+            case 0xD2: // MOVZ
+            case 0xF2: { // MOVK preserves the other halfwords
                 // movz
                 // get immediate
-                rval = (ir >> 5) & 0x7FFF;
+                int shift = ((ir >> 21) & 3)*16;
+                rval = ((ir >> 5) & 0xFFFFL) << shift;
+                if( opcode1==0xF2 ) rval |= regs[rdid] & ~(0xFFFFL << shift);
                 break;
             }
 

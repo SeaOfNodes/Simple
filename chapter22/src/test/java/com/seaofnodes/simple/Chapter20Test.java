@@ -162,7 +162,7 @@ for( int i=0; i<ary#-1; i++ )
     ary[i+1] += ary[i];
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """;
-        testTarget(src,"x86_64_v2", "SystemV",7,"return .[];");
+        testTarget(src,"x86_64_v2", "SystemV",5,"return .[];");
         testTarget(src,"riscv"    , "SystemV",7,"return (add,.[],(mul,.[],1000));");
         testTarget(src,"arm"      , "SystemV",5,"return (add,.[],(mul,.[],1000));");
     }
@@ -210,8 +210,8 @@ hashCode(s);
         for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
             new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,0)
                 .driver(CodeGen.Phase.Encoding,cpu,"SystemV");
-        testTarget(src,"x86_64_v2", "SystemV",0,null);
-        testTarget(src,"riscv"    , "SystemV",0,null);
+        testTarget(src,"x86_64_v2", "SystemV",9,null);
+        testTarget(src,"riscv"    , "SystemV",3,null);
         testTarget(src,"arm"      , "SystemV",0,null);
     }
 
@@ -371,8 +371,29 @@ return a;
 """;
         testTarget(src,"x86_64_v2", "SystemV",52,null);
         testTarget(src,"riscv"    , "SystemV",44,null);
-        testTarget(src,"arm"      , "SystemV",44,null);
+        testTarget(src,"arm"      , "SystemV",41,null);
 //assertEquals("int[ 1,2,3,4,5,6,7,8,9,10,11]", Eval2.eval(code, 11));
     }
 
+
+    @Test public void testMemoryAllocation() {
+        for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
+            for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
+                                          Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY,
+                                          "int[] !a = new int[3]; a[arg]=arg; return a[0]+1;"} ) {
+                var code = new CodeGen(src).parse().opto().typeCheck().loopTree()
+                    .instSelect(cpu,"SystemV").GCM().localSched().regAlloc();
+                com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+                code._stop.walk(n -> {
+                    // Whole memory, precise Phis, and memory projections need no register.
+                    if( n._type instanceof com.seaofnodes.simple.type.TypeMem )
+                        assertEquals(-1,code._regAlloc.regnum(n));
+                    if( n instanceof com.seaofnodes.simple.node.NewNode nn ) {
+                        assertTrue(code._regAlloc.regnum(nn.proj(0))>=0);
+                        assertEquals(-1,code._regAlloc.regnum(nn.proj(1)));
+                    }
+                    return null;
+                });
+            }
+    }
 }

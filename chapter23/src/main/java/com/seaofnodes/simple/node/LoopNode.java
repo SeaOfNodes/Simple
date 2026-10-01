@@ -57,11 +57,12 @@ public class LoopNode extends RegionNode {
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
         Node top = new ConstantNode(Type.TOP).peephole();
-        Node memout = new MemMergeNode(false);
-        memout.addDef(f); // placeholder for control
+        MemMergeNode memout = new MemMergeNode(new ConstantNode(TypeMem.BOT).peephole());
+        memout.setDef(0,f);
         for( Node u : _outputs )
-            if( u instanceof PhiNode phi && phi._type.isa(TypeMem.BOT) )
-                memout.addDef(phi);
+            if( u instanceof BulkMemPhiNode ) memout.setDef(1,u);
+            else if( u instanceof MemPhiNode phi ) memout.alias(phi._alias,phi);
+        memout.init();
 
         Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
         if( ctrl!=null && ctrl._type != Type.XCONTROL ) {
@@ -72,7 +73,7 @@ public class LoopNode extends RegionNode {
                 // Nope, insert an aligned exit layer
                 RegionNode r = new RegionNode(_loc,null,ctrl).init();
                 ctrl = r;  r._ltree = stop._ltree;
-                mem  = new PhiNode(r,mem ).init();
+                mem  = new BulkMemPhiNode(ScopeNode.MEM0,r,mem).init();
                 expr = new PhiNode(r,expr).init();
             }
             // Append new Never exit

@@ -83,10 +83,11 @@ The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 The [chapter backport queue](docs/chapter-backports.md) records proposed small
 corrections and the per-chapter test/review workflow. Larger architectural moves
 are tracked separately there. The 10a/10b split is complete; forwarding 10b's
-memory representation now runs through Chapter 21, including constructors,
-mutability, whole-memory function calls, instruction selection, and register
-allocation and machine-code execution. Chapter 21 is ready for review; Chapters 22-24 still use their earlier
-parser-managed alias chains.
+memory representation now runs through Chapter 24, including constructors,
+mutability, whole-memory function calls, machine-code execution, cyclic field
+types, and SCCP. Chapters 22-25 are ready for review. Chapter 25 includes the
+related Load-search, Phi-factoring, and scheduling corrections while retaining
+its separate constructor-memory and incomplete-type SSA design.
 
 To build and test just the memory chapters:
 

@@ -152,6 +152,8 @@ return v.f;
 """);
         code.parse().opto();
         assertEquals("return Phi(Loop,0,2);", code.print());
+        for( int arg : new int[]{-1,0,1,3,100} )
+            assertEquals("0",Eval2.eval(code,arg));
     }
 
     @Test

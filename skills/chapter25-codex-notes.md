@@ -44,9 +44,11 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 - Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
   (lazy graph partitioning). Both are standalone snapshots. Cliff reviewed and
-  committed the forward port through Chapter 20. Chapter 21 now carries lazy
-  memory through encoding and execution on all three targets. Stop for implementation
-  review at Chapter 21; leave 22-24 unchanged. See the concrete boundary notes
+  committed the forward port through Chapter 21. Chapters 22-24 now carry lazy
+  memory through cyclic types and SCCP; related corrections now reach 25.
+  The 22-25 batch is ready for review.
+  Keep Chapter 25's separate constructor-memory and incomplete-type design.
+  See the concrete boundary notes
   in `docs/chapter-backports.md`. GCM readiness and anti-dependency checks must both
   filter by alias and ignore MemMerge as a clobber; keep the evaluator's same
   alias filtering too. MemMerge still needs ordinary data-dependency placement.
@@ -131,7 +133,27 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   adjacent-copy forwarding removes them. Measure executed memory traffic too.
   Carry this search with subsequent memory ports.
 
-- Generalized Phi factoring now starts in 10a and is forwarded through 21.
+- Chapters 23-24 exclude class-wide (`Field._one`) fields from New's alias
+  coverage and keep symbolic field offsets until layout. Alias contents must
+  preserve cyclic field types and readonly information. Phi factoring must not
+  introduce a pointer/integer operand Phi even when the result is boolean.
+  A precise Phi must let its bulk input split before collapsing to it; inserting
+  a scalar-style upcast would hide the alias request from the bulk Phi.
+  Chapter 24 MemPhi skips both TOP and XCONTROL predecessor arms during SCCP;
+  New's outputs and alias-contents query stay high while its control is high.
+  Check registers before encoding, which may add untyped branch nodes.
+
+- Chapter 25 Load search follows Escape to private/public memory; New has no
+  public-memory input to bypass. Alias 1 on a Store is unresolved, so it blocks
+  the search. External storage cannot use allocation disjointness. Array length
+  Loads can drop control, while element Loads retain it. New integer value Phis
+  start at i64 and use Convert at the result to preserve the declared width;
+  decline hoisting when that would lose a sharper inferred range. Queue every
+  new value Phi, including nested merges, and queue new precise memory Phis
+  instead of eagerly folding them while bulk splitting is still in progress.
+  User-count dependencies must wake from Node.delUse, including unkeep.
+
+- Generalized Phi factoring now starts in 10a and is forwarded through 25.
   Memory-specific eligibility lives in `MemOpNode.canDrop`, with virtual Load
   and Store checks. Load owns `clobbered`: all these chapters check only
   immediate memory users, without recursion or a visited set. Stop at Stores,

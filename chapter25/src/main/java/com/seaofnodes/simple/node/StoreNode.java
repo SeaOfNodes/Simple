@@ -49,6 +49,10 @@ public class StoreNode extends MemOpNode {
         baos.write(_size);
     }
 
+    @Override boolean canDrop(MemOpNode other, Node dep) {
+        return super.canDrop(other,dep) && _init==((StoreNode)other)._init;
+    }
+
     // Debugger label
     @Override public String  label() { return "st_"+mlabel(); }
     @Override public boolean isMem() { return true; }

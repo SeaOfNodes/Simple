@@ -8,6 +8,7 @@ import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 import java.lang.StringBuilder;
 import java.util.BitSet;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -101,6 +102,13 @@ public abstract class MemOpNode extends TypeNode {
     public StringBuilder _printMach( StringBuilder sb, BitSet visited ) { throw Utils.TODO(); }
 
 
+    // Extra conditions for factoring matching memory operations through a Phi.
+    // The caller has already checked the opcode, input shape and control.
+    boolean canDrop(MemOpNode other, Node dep) {
+        dep.addDep(ptr());
+        return _alias>1 && _alias==other._alias && declaredType()==other.declaredType() && err()==null;
+    }
+
     @Override
     public boolean eq(Node n) {
         MemOpNode mem = (MemOpNode)n; // Invariant
@@ -127,5 +135,31 @@ public abstract class MemOpNode extends TypeNode {
             return Parser.error("Accessing unknown field '"+_name+"' from '*"+tmp._obj._name+"'",_loc);
         return null;
 
+    }
+
+    // Memory writers which must follow this read. A packaging node is not a
+    // write; follow this alias through aggregates to its writers.
+    public ArrayList<Node> antiDeps() {
+        ArrayList<Node> deps = new ArrayList<>();
+        antiDeps(mem(),deps,new BitSet());
+        return deps;
+    }
+
+    private void antiDeps(Node mem, ArrayList<Node> deps, BitSet visit) {
+        if( visit.get(mem._nid) ) return;
+        visit.set(mem._nid);
+        for( Node use : mem._outputs ) {
+            if( use instanceof MemMergeNode merge ) {
+                Node slice = _alias<merge.nIns() ? merge.in(_alias) : null;
+                if( (slice==mem) || (slice==null && merge.in(1)==mem) )
+                    antiDeps(merge,deps,visit);
+            } else if( use instanceof CallNode ||
+                       (use instanceof MemOpNode st && !st._isLoad && st._alias==_alias) ||
+                       (use instanceof EscapeNode esc && esc.fld()._alias==_alias) ||
+                       (use instanceof MemPhiNode phi && phi._alias==_alias) ||
+                       (use instanceof BulkMemPhiNode phi && !phi.isSplit(_alias)) ) {
+                if( !deps.contains(use) ) deps.add(use);
+            }
+        }
     }
 }

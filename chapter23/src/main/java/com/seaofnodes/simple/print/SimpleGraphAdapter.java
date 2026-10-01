@@ -67,7 +67,7 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
             return n instanceof CFGNode ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof RegionNode && i == 0 ) return Role.ASSOC;
         if( i == 0 || n instanceof RegionNode || n instanceof StopNode ) return Role.CTRL;
-        if( n instanceof MemMergeNode || i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode || n instanceof CallNode) ) return Role.MEM;
+        if( n instanceof MemMergeNode || (i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode || n instanceof CallNode || n instanceof NewNode)) ) return Role.MEM;
         Node def = n.in(i);
         if( def != null && isMem(def) ) return Role.MEM;
         return Role.DATA;

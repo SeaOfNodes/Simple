@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.type.*;
 import java.util.BitSet;
@@ -25,6 +26,10 @@ public class StoreNode extends MemOpNode {
     }
 
     // Debugger label
+    @Override boolean canDrop(MemOpNode other, Node dep) {
+        return super.canDrop(other,dep) && _init==((StoreNode)other)._init;
+    }
+
     @Override public String  label() { return "st_"+mlabel(); }
     @Override public boolean isMem() { return true; }
 
@@ -38,24 +43,18 @@ public class StoreNode extends MemOpNode {
     @Override
     public Type compute() {
         Type val = val()._type;
-        Type mem0 = mem()._type;
-        if( mem0 == Type.TOP ) return TypeMem.TOP;
-        TypeMem mem = (TypeMem)mem0; // Invariant
-        if( mem == TypeMem.TOP ) return TypeMem.TOP;
-        Type t = Type.BOTTOM;               // No idea on field contents
-        // Same alias, lift val to the declared type and then meet into other fields
-        if( mem._alias == _alias ) {
-            assert !_declaredType.isFRef();
-            // Sharpen memory value; required for narrowing stores where the parser inserts
-            // zero/sign masking and somebody reads the TypeMem type.
-            val = val.join(_declaredType);
-            t = val.meet(mem._t);
-        }
+        assert !_declaredType.isFRef();
+        Type t = val.join(_declaredType).meet(MemMergeNode.contents(mem(),_alias,this));
         return TypeMem.make(_alias,t);
     }
 
     @Override
     public Node idealize() {
+        if( mem() instanceof MemMergeNode merge ) {
+            setDef(1,CodeGen.CODE.add(merge.alias(_alias)));
+            return this;
+        }
+
 
         if( mem() instanceof CastNode cast ) {
             setDef(1,cast.in(1));
@@ -65,20 +64,14 @@ public class StoreNode extends MemOpNode {
         // Simple store-after-store on same address.  Should pick up the
         // required init-store being stomped by a first user store.
         if( mem() instanceof StoreNode st &&
-            ptr()==st.ptr() &&  // Must check same object
-            off()==st.off() &&  // And same offset (could be "same alias" but this handles arrays to same index)
+            ptr()==st.ptr() && _alias==st._alias &&  // Must check same object
+            off()==st.off() &&  // And same offset
             ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
             // Must have exactly one use of "this" or you get weird
             // non-serializable memory effects in the worse case.
             checkOnlyUse(st) ) {
             assert _name.equals(st._name); // Equiv class aliasing is perfect
             setDef(1,st.mem());
-            return this;
-        }
-
-        // Simple store-after-MemMerge to a known alias can bypass.  Happens when inlining.
-        if( mem() instanceof MemMergeNode mem ) {
-            setDef(1,mem.alias(_alias));
             return this;
         }
 

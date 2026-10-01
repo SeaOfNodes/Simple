@@ -6,33 +6,35 @@ import com.seaofnodes.simple.util.SB;
 
 import java.util.BitSet;
 
-/**
- *  Allocation!  Allocate a chunk of memory, and pre-zero it.
- *  The inputs include control and size, and ALL aliases being set.
- *  The output is large tuple, one for every alias plus the created pointer.
- *  New is expected to be followed by projections for every alias.
+/** Allocate a zeroed object. Inputs {ctrl, $mem, size};
+ *  results {ptr, $mem}.
+ *  The memory input and result cover only the aliases in the allocated struct.
  */
 public class NewNode extends Node implements MultiNode {
 
     public final TypeMemPtr _ptr;
-    public final int _len;
 
     public NewNode(TypeMemPtr ptr, Node... nodes) {
         super(nodes);
         assert !ptr.nullable();
         _ptr = ptr;
-        _len = ptr._obj._fields.length;
-        // Control in slot 0
-        assert nodes[0]._type==Type.CONTROL || nodes[0]._type == Type.XCONTROL;
-        // Malloc-length in slot 1
-        assert nodes[1]._type instanceof TypeInteger || nodes[1]._type==Type.NIL;
-        for( int i=0; i<_len; i++ )
-          assert ptr._obj._fields[i]._one || nodes[2 + i]._type.isa( TypeMem.BOT );
+        assert nodes.length==3;
+        assert nodes[0]._type==Type.CONTROL || nodes[0]._type==Type.XCONTROL;
+        assert nodes[1]._type instanceof TypeMem;
+        assert nodes[2]._type instanceof TypeInteger || nodes[2]._type==Type.NIL;
     }
 
-    public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; _len = nnn._len; }
+    public Node mem() { return in(1); }
+    public Node size() { return in(2); }
 
-    public Node mem (int idx) { return in(idx+2); }
+    public Field field(int alias) {
+        for( Field f : _ptr._obj._fields )
+            if( !f._one && f._alias==alias ) return f;
+        return null;
+    }
+
+    public NewNode(NewNode nnn) { super(nnn); _ptr = nnn._ptr; }
+
 
     @Override public String label() { return "new_"+(_ptr._obj.isAry() ? "ary_"+_ptr._obj._fields[1]._t.str() : _ptr._obj.str()); }
     @Override
@@ -41,38 +43,10 @@ public class NewNode extends Node implements MultiNode {
         return sb.append(_ptr._obj.str());
     }
 
-    int findAlias(int alias) {
-        int idx = _ptr._obj.findAlias(alias);
-        assert idx!= -1;        // Error, caller should be calling
-        return idx+2;           // Skip ctrl, size
-    }
-
-    // 0 - ctrl
-    // 1 - byte size
-    // 2-len+2 - aliases, one per field
-    // len+2 - 2*len+2 - initial values, one per field
-    public Node size() { return in(1); }
 
     @Override
     public TypeTuple compute() {
-        Field[] fs = _ptr._obj._fields;
-        Type[] ts = new Type[fs.length+2];
-        ts[0] = Type.CONTROL;
-        ts[1] = _ptr;
-        for( int i=0; i<fs.length; i++ ) {
-            if( _ptr._obj._fields[i]._one ) {
-                // Once-only fields use the declared type
-                ts[i+2] = _ptr._obj._fields[i]._t;
-            } else {
-                // Others take from the inputs
-                Type mt = in(i+2)._type;
-                TypeMem mem = mt==Type.TOP ? TypeMem.TOP : (TypeMem)mt;
-                Type tfld = mem._t.meet(mem._t.makeZero());
-                Type tfld2 = tfld.join(fs[i]._t );
-                ts[i+2] = TypeMem.make(fs[i]._alias,tfld2);
-            }
-        }
-        return TypeTuple.make(ts);
+        return TypeTuple.make(_ptr,TypeMem.BOT);
     }
 
     @Override
@@ -117,9 +91,9 @@ public class NewNode extends Node implements MultiNode {
         _kills = kills;
     }
     public String op() { return "alloc"; }
-    public RegMask regmap(int i) { return i==1 ? _arg3Mask : null; }
+    public RegMask regmap(int i) { return i==2 ? _arg3Mask : null; }
     public RegMask outregmap() { return null; }
-    public RegMask outregmap(int idx) { return idx==1  ? _retMask : null; }
+    public RegMask outregmap(int idx) { return idx==0  ? _retMask : null; }
     public RegMask killmap() { return _kills; }
     public void asm(CodeGen code, SB sb) {
         sb.p("#calloc, ").p(code.reg(size()));

@@ -516,7 +516,7 @@ var stack11 = { int x ->
 """
 return 0 < arg < arg+1 < 4;
 """;
-        TestC.run(src, "stacked_r_11x", null, stack11,0);
+        TestC.run(src, "stacked_r_11x", null, stack11,2);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build("stacked_r_11", src2, 1, 2, false);
@@ -525,7 +525,7 @@ return 0 < arg < arg+1 < 4;
         assertEquals(1,R5.regs[riscv.A0]);
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_11", src2, 1, 2, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_11", src2, 1, 0, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(1,arm.regs[0]);

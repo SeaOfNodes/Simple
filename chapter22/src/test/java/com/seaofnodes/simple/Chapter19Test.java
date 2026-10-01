@@ -47,7 +47,7 @@ return 0;
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); return Phi(Region,1,0,0,1); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
         //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
     }
 
@@ -350,5 +350,73 @@ return sq(arg) + sq(3);
 """);
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("Stop[ return (mul,Parm_x(sq,int),x); return (add,#2,#2); ]", code.print());
+    }
+
+    @Test public void testSelectedMemory() {
+        for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
+            for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
+                                          Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY} ) {
+                var code = new CodeGen(src).parse().opto().typeCheck();
+                var aliases = memoryPhis(code._stop);
+                code.loopTree().instSelect(cpu,"SystemV");
+                assertEquals(aliases,memoryPhis(code._stop));
+                code.GCM().localSched();
+                code._stop.walk(n -> {
+                    if( !(n instanceof CFGNode) && !(n instanceof ProjNode) )
+                        assertTrue(n.in(0) instanceof CFGNode);
+                    if( n instanceof NewNode nn ) {
+                        assertEquals(2,((TypeTuple)nn._type)._types.length);
+                        assertTrue(nn.mem() instanceof MemMergeNode);
+                        assertNull(nn.mem().in(1)); // Partial allocation input.
+                        nn.cacheRegs(code);
+                        MachNode mach = (MachNode)nn;
+                        assertNull(mach.regmap(1));
+                        assertNotNull(mach.regmap(2));
+                        assertNotNull(mach.outregmap(0));
+                        assertNull(mach.outregmap(1));
+                    }
+                    if( n instanceof CallNode call ) {
+                        assertEquals(4,call.nIns()); // ctrl, memory, two args; direct target is embedded.
+                    }
+                    return null;
+                });
+            }
+    }
+
+    private static java.util.ArrayList<String> memoryPhis(Node stop) {
+        var phis = new java.util.ArrayList<String>();
+        stop.walk(n -> {
+            if( n instanceof MemPhiNode phi ) phis.add("alias:"+phi._alias);
+            if( n instanceof BulkMemPhiNode phi ) phis.add("bulk:"+phi._aliases);
+            assertFalse(n instanceof PhiNode && n.isMem() &&
+                !(n instanceof MemPhiNode) && !(n instanceof BulkMemPhiNode) && !(n instanceof ParmNode));
+            return null;
+        });
+        java.util.Collections.sort(phis);
+        return phis;
+    }
+
+    @Test public void testFoldedReadBeforeWrites() {
+        var code = new CodeGen("""
+            struct S { int x; };
+            S !a = new S { x=11; }; S !b = new S { x=22; };
+            S !p = a; if( arg ) p = b;
+            int before = p.x + arg;
+            a.x=33; b.x=44;
+            return before;
+            """).parse().opto().typeCheck().loopTree().instSelect("x86_64_v2","SystemV").GCM().localSched();
+        var read = (MemOpNode)code._stop.walk(n ->
+            n instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.AddMemX86 ? n : null);
+        assertNotNull(read);
+        int writes = 0;
+        for( Node use : read.antiDeps() )
+            if( use instanceof MemOpNode st && st.isMem() ) {
+                assertSame(read.cfg0(),st.cfg0());
+                assertTrue(st._inputs.find(read)>=0);
+                assertTrue(read.cfg0()._outputs.find(read)<st.cfg0()._outputs.find(st));
+                assertNull(((MachNode)st).regmap(st._inputs.find(read)));
+                writes++;
+            }
+        assertEquals(1,writes); // The next Store follows this first clobber through memory.
     }
 }

@@ -22,17 +22,6 @@ Splitting Chapter 25 is deferred, not an instruction to renumber.
 
 ## Pending corrections
 
-- **Forward Chapter 10b memory partitioning through 22-24.** Cliff reviewed
-  and committed the port through 20 in `f01ee052`. Chapter 21 is implemented
-  and tested; stop here for review of encoding and execution. Parameters, calls, and returns carry whole memory; aliases split
-  lazily within functions.
-  Keep private constructor memory, escape tracking, and incomplete-type
-  inference in 25. Carry generalized Phi factoring, its one-step Load guard,
-  and dependency fixes with the next ports; later snapshots already have parts
-  of that rewrite. Ideal Calls must keep their last input as the function pointer; direct machine
-  calls embed that target. Scheduling must not append anti-dependence edges to
-  either argument list.
-
 ### Chapter 15 allocation design (implemented)
 
 Chapters 12-14 retain explicit initialization Stores. Chapter 15 replaces them
@@ -132,7 +121,7 @@ other addend; the existing constant selector materializes it.
 Keep Chapter 20's inlining-safe Return typing and the dependency registrations
 on a rejected Phi factoring attempt. Those fixes predate this memory port.
 
-### Chapter 21 encoding (implemented, review checkpoint)
+### Chapter 21 encoding (reviewed)
 
 All three targets retain the memory Phi subclasses and New's pointer slot 0,
 memory slot 1, and size input 2. Chapter 21 caches New's register masks in the
@@ -194,6 +183,45 @@ and using 165 passes all 91 spill-cohort entries and their runtime checks:
 Logs: `build/load-search21-tests5.log`, `build/load-search21-seeds.log`,
 `build/load-search21-loop-seeds.log`, `build/brain-variants-search.log`, and
 `build/load-search21-spills-complete.log`.
+
+### Chapters 22-24 lazy memory (implemented, review checkpoint)
+
+The forward port now reaches Chapter 24. Parameters, calls, and returns carry
+whole memory; BulkMemPhi/MemPhi discover aliases within functions. New consumes
+partial memory for its instance fields and produces `{ptr, $mem}`. The Chapter
+21 loop Load search, one-step Load factoring guard, dependency fixes, and
+alias-aware scheduling/evaluation carry through all three snapshots.
+
+Chapter 22 preserves C calls and its default-main handling. Chapter 23 keeps
+cyclic field types, deep-final Loads, and symbolic field offsets; class-wide
+fields do not participate in an allocation's memory coverage. Phi factoring
+rejects operand Phis mixing pointers and integers, even for boolean operations.
+A precise Phi waits for its bulk input to split instead of hiding that request
+behind an upcast. Eval2 keeps unknown-caller pointer placeholders distinct from
+actual heap constants.
+
+Chapter 24 retains its optimistic solver: MemPhi ignores TOP/XCONTROL arms,
+New returns high results while its control is high, and alias contents register
+a dependency on that control. The existing integer widening and call-graph
+solver remain intact. Register checks run before encoding adds untyped branches.
+Private constructor memory, escape tracking, and incomplete-type SSA stay in 25.
+The separate pretty-printer consolidation remains pending.
+
+### Chapter 25 memory follow-through (implemented, same review batch)
+
+The memory representation was already present. The remaining port carries the
+pure loop Load search, generalized Phi factoring with the one-step Load guard,
+aggregate-aware scheduling, Call operand protection, and dependency wakeups.
+It also carries the x86 register-bank Load encoding and ARM MOVZ/MOVK emulator
+corrections. Bulk splitting queues new precise Phis instead of assuming an
+eager fold still returns a MemPhi.
+
+The search preserves private constructor memory and Escape publication. A Store
+whose alias is still 1 blocks the proof; external storage cannot be bypassed
+using allocation identity. Length reads can drop control, while indexed array
+reads retain it. Integer loop value Phis use Convert to preserve the declared
+load width, and every new nested value Phi is queued for optimization. The
+constructor, escape, serialization, and incomplete-type architecture stays intact.
 
 ### Adjacent-copy forwarding: Chapters 21-25
 
@@ -469,6 +497,38 @@ The top-level runner accepts explicit chapter lists, e.g.
 
 ## Validation record
 
+- **Chapter 25 memory follow-through.** Full Make validation passes **482 tests
+  plus the 17-seed fuzzer wrapper**, and the release jar and system library build.
+  The loop-search and read-before-write regressions fail against the original LoadNode and pass with the port. A
+  scratch run across **100 optimizer seeds / 3,100 evaluations** checks the
+  invariant length, a possibly aliasing arm, a changing loop pointer, differing
+  stored values at a multiway merge, and reads before writes. Seeds 0 and 9 are
+  retained in the regression for unresolved Store aliases and nested Phi queueing.
+  The historical spill replay retains exactly its **ten known String-constructor
+  parse failures**, with no spill-golden or native-check failures. The same 216
+  successful allocations total **2,488 moves / 5,379 weighted moves**, compared
+  with 2,494 / 5,399 before this port; this is not a complete-suite total.
+  Logs: `build/mem25-negative.log`, `build/mem25-seeds.log`,
+  `build/mem25-final2.log` (spill replay), and `build/mem25-final4.log`
+  (full tests and release).
+
+- **Chapters 22-24 lazy memory.** Full Make suites pass **454 / 476 / 506
+  tests**, respectively, plus each chapter's fuzzer wrapper. Release jars build
+  for all three chapters. Forwarded checks cover nested memory, constructors,
+  calls and recursion, allocation registers, native x86 and emulated RISC-V/ARM
+  execution, no-exit loop memory, and the loop Load search. Existing Chapter 23
+  null-guard tests cover the mixed pointer/integer factoring rejection; Chapter
+  24's BubbleSort workload covers the precise-Phi/bulk-input collapse guard.
+  Spill reports pass all **117 / 147 / 214** compilation entries, including
+  runtime and allocation checks, with no golden failures. Current raw/weighted
+  totals are **823 / 1,474**, **901 / 1,699**, and **1,307 / 3,008**; prior
+  totals were 826 / 1,470, 913 / 1,711, and 1,310 / 2,969. These include graph
+  changes outside allocation, so they are not allocator-only comparisons.
+  The chapter README tables contain the current cohort breakdowns.
+  Logs: `build/mem22-final.log`, `build/mem22-release.log`,
+  `build/mem23-final2.log`, `build/mem23-release.log`, and
+  `build/mem24-final3.log`.
+
 - **Chapter 21 lazy memory and encoding.** Baseline: **412 tests plus the
   fuzzer wrapper**. Final: **431 tests plus the fuzzer wrapper**. Make release
   and spill-stats pass. The 16 forwarded memory checks retain scheduling and
@@ -486,7 +546,7 @@ The top-level runner accepts explicit chapter lists, e.g.
   Logs: `build/memory21-baseline.log`, `build/memory21-final.log`,
   `build/memory21-seeds.log`, `build/memory21-spills-baseline.log`,
   `build/memory21-spills-final.log`, `build/memory21-spills-ablation.log`,
-  and `build/memory21-release.log`. Chapters 22+ are unchanged for review.
+  and `build/memory21-release.log`. The later 22-24 port is recorded above.
 
 - **Chapter 20 lazy memory and register allocation.** Baseline: 380 tests plus
   the fuzzer wrapper. Final: **396 tests plus the fuzzer wrapper**, with the

@@ -367,11 +367,11 @@ public class Chapter21Test {
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run("sieve",sprimes, 178);
+        TestC.run("sieve",sprimes, 185);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 89, false);
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 92, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)
@@ -383,7 +383,7 @@ public class Chapter21Test {
 
         // Evaluate on ARM5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalArm64 A5 = TestArm64.build("sieve", 100, 93, false);
+        EvalArm64 A5 = TestArm64.build("sieve", 100, 91, false);
         int trap_arm = A5.step(10000);
         assertEquals(0, trap_arm);
         int ary_arm = (int)A5.regs[arm.X0];

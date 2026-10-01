@@ -9,15 +9,7 @@ import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
 import java.util.BitSet;
 
-/**
- * The Return node has two inputs.  The first input is a control node and the
- * second is the data node that supplies the return value.
- * <p>
- * In this presentation, Return functions as a Stop node, since multiple <code>return</code> statements are not possible.
- * The Stop node will be introduced in Chapter 6 when we implement <code>if</code> statements.
- * <p>
- * The Return's output is the value from the data node.
- */
+/** Keeps all preceding memory effects and the return value alive: {ctrl, $mem, value, rpc}. */
 public class ReturnNode extends CFGNode {
 
     public FunNode _fun;
@@ -51,7 +43,8 @@ public class ReturnNode extends CFGNode {
     @Override
     public Type compute() {
         if( inProgress () ) return TypeTuple.RET; // In progress
-        return TypeTuple.make(ctrl()._type,mem()._type,expr()._type);
+        // Inlining can delete the entry while callers still use this return.
+        return TypeTuple.make(ctrl()._type,TypeMem.BOT,expr()._type);
     }
 
     @Override public Node idealize() {

@@ -439,4 +439,70 @@ return p.coffee_count;
         assertEquals("1", Eval2.eval(code,  2));
     }
 
+    static final String CALL_MEMORY = """
+        struct S { int x; int y; };
+        val bump = { S s, int d -> int old=s.x; s.x=old+d; return old; };
+        S !a = new S { x=10; y=7; };
+        S !b = new S { x=20; y=9; };
+        S !p=a; if (arg) p=b;
+        int before=p.x;
+        int old=bump(p,3);
+        int after=p.x;
+        bump(a,5);
+        return before*1000000+old*10000+after*100+a.x+a.y;
+        """;
+
+    @Test public void testCallMemory() {
+        var code = new CodeGen(CALL_MEMORY).parse().opto();
+        int[] calls={0};
+        code._stop.walk(n -> { if(n instanceof CallNode) calls[0]++; return null; });
+        assertEquals(2,calls[0]); // Keep real calls so this checks scheduling across them.
+        assertEquals("10101325",Eval2.eval(code,0));
+        assertEquals("20202322",Eval2.eval(code,1));
+        code._stop.walk(n -> {
+            if(n instanceof CallNode call) {
+                assertEquals(5,call.nIns()); // No scheduling edges may become extra arguments.
+                assertTrue(call.fptr()._type instanceof TypeFunPtr);
+            }
+            return null;
+        });
+    }
+
+    static final String RECURSIVE_MEMORY = """
+        struct S { int x; };
+        val rec = { S s, int n ->
+            if (n==0) return s.x;
+            int before=s.x;
+            s.x=before+1;
+            return before+rec(s,n-1);
+        };
+        S !s=new S { x=10; };
+        int value=rec(s,arg);
+        return value*100+s.x;
+        """;
+
+    @Test public void testRecursiveMemory() {
+        var code = new CodeGen(RECURSIVE_MEMORY).parse().opto();
+        for(int n=0; n<7; n++)
+            assertEquals(Long.toString((10L*(n+1)+n*(n+1)/2)*100+10+n),Eval2.eval(code,n));
+    }
+
+    static final String INLINE_MEMORY = """
+        struct S { int x; int y; };
+        val make = { S s ->
+            S t = new S { x=s.x+1; y=3; };
+            s.y=9;
+            return t;
+        };
+        S !a = new S { x=arg+40; y=7; };
+        S t=make(a);
+        return a.x*10000+a.y*100+t.x+t.y;
+        """;
+
+    @Test public void testInlineAllocationMemory() {
+        var code = new CodeGen(INLINE_MEMORY).parse().opto();
+        assertNull(code._stop.walk(n -> n instanceof CallNode ? n : null));
+        assertEquals("400944",Eval2.eval(code,0));
+        assertEquals("420946",Eval2.eval(code,2));
+    }
 }
