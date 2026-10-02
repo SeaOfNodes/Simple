@@ -31,25 +31,13 @@ Here is the [complete language grammar](docs/03-grammar.md) for this chapter.
 
 ## Extensions to Intermediate Representation
 
-To recap, our list of Nodes is:
-
-| Node Name | Type    | Description                        | Inputs                                                           | Value                                                 |
-|-----------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
-| Start     | Control | Start of function                  | None                                                             | None for now as we do not have function arguments yet |
-| Return    | Control | End of function                    | Predecessor control node, Data node value                        | Return value of the function                          |
-| Constant  | Data    | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant                                 |
-| Add       | Data    | Add two values                     | Two data nodes, values are added, order not important            | Result of the add operation                           |
-| Sub       | Data    | Subtract a value from another      | Two data nodes, values are subtracted, order matters             | Result of the subtract                                |
-| Mul       | Data    | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply                                |
-| Div       | Data    | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division                                |
-| Minus     | Data    | Negate a value                     | One data node, value is negated                                  | Result of the unary minus                             |
-
 In this chapter we introduce:
 
 | Node Name | Type         | Description                    | Inputs                          | Value |
 |-----------|--------------|--------------------------------|---------------------------------|-------|
 | Scope     | Symbol Table | Represents scopes in the graph | All nodes that define variables | None  |
 
+and keep all nodes from prior chapters.
 
 ## Symbol Tables
 
@@ -69,10 +57,13 @@ the stack of symbol tables, in lexical order.
 
 A ScopeNode encapsulates the stack of symbol tables that are used to implement lexical scopes.
 
-* The nodes referenced by the names in a lexical scope become inputs to the ScopeNode; this makes ScopeNode a user of these values, thus keeping them alive while a particular lexical scope is alive.
-  When the lexical scope ends, those inputs are removed. This is crucial because peepholes will remove dead Nodes and every new Node is effectively dead at the instant of creation without such a reference.
+* The nodes referenced by the names in a lexical scope become inputs to the
+  ScopeNode; this makes ScopeNode a user of these values, thus keeping them
+  alive while a particular lexical scope is alive.  When the lexical scope
+  ends, those inputs are removed. This is crucial because peepholes will remove
+  dead Nodes and every new Node is effectively dead at the instant of creation.
 * In [Chapter 5](../chapter05/README.md) when we implement branches, the ScopeNode gets duplicated at a branch point and then gets merged when the branch joins. This allows
-  the names to evolve in each branch independently. At the merge point names that have diverged require a Phi node.
+  the names to evolve in each branch independently. At the merge point, names that have diverged require a Phi node.
 * In [Chapter 7](../chapter07/README.md) additional logic is deployed for handling Phis from back edges.
 * The ScopeNode is used to track some other values such as the Control token starting from [Chapter 4](../chapter04/README.md), and whole memory starting from [Chapter 10a](../chapter10a/README.md). Special name bindings are used
   for these, and each name is tracked across branches and then merged at merge points.
@@ -90,7 +81,7 @@ that uses the variable) this is when the expression dies:
   int a=1;
   {
       int b=a*a*a;
-  }  // When this scope closes & ends, b (and the cube of a) dies
+  }  // When this scope closes and ends, b (and the cube of a) dies
   return a;
 ```
 

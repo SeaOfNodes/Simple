@@ -31,6 +31,9 @@ different fields are independent. Chapter 10b will remove it.
 
 ![One chain orders stores and loads](docs/example1.svg)
 
+The graphs show dependencies before local folding. Definitions appear above
+their uses, except for loop backedges; arrows point from use to definition.
+
 | Node     | Inputs | Result |
 |----------|---|---|
 | `New`    | Control and a struct type | A fresh, non-null object pointer |
@@ -85,41 +88,6 @@ return p.x;
 Every Return consumes the current whole-memory value. This keeps stores alive
 even when the returned scalar does not depend on them, or when the program
 returns the modified object itself.
-
-## Local memory optimizations
-
-A load immediately following a store to the **same pointer and field** can use
-the stored value. A store immediately following another store to the same
-address can discard the earlier store when no other user needs it. Both the
-pointer and field checks matter: two different fields of one object are
-different addresses, as are the same fields of two different objects.
-
-A load can also move through a memory Phi when doing so exposes a useful
-load-after-store fold. On a loop, the backedge must fold, preventing this rewrite
-from repeatedly moving the load around the cycle.
-
-The reverse direction can save an operation: a Phi of matching Loads or Stores
-can become one operation after the join. For example, these two writes:
-
-```java
-if (arg) s.x = arg+1;
-else     s.x = arg+2;
-```
-
-can become `s.x = Phi(arg+1,arg+2)`. The general rewrite creates a separate,
-correctly typed Phi for each differing operand, including memory and pointers;
-identical operands need no Phi. An exact-class copy preserves the operation's
-attributes. The proposed result must not widen the original Phi's type.
-
-Every arm must match the operation and field and have no control input. A Store
-must have no other users, so moving it removes the original effect. A Load must
-have no possible conflicting write or memory merge among its memory's users;
-otherwise delaying the read could change its value. The check happens during
-optimization, before any scheduler can supply explicit anti-dependency edges.
-
-The single chain is conservative. A store to `y` can prevent forwarding an
-earlier store to `x`, even when the objects are identical. This is a missed
-optimization, not a correctness problem; it motivates the next chapter.
 
 ## Enhanced Type Lattice
 
@@ -182,8 +150,9 @@ Within the type lattice, we now have the following domains:
   Memory top and memory bottom are `TypeMem.TOP` and `TypeMem.BOT`. Neither
   records the values stored in individual fields.
 * ![Tuple](docs/type-tuple.svg) represents a collection of results from one node,
-  such as Start's control, memory, and argument. The displayed shapes abbreviate
-  tuples of different lengths and their element-type lattices.
+  such as Start's control, memory, and argument. The pink headers identify tuples
+  of different lengths; each vertically stacked black `type` cell stands for
+  the full type lattice again, including the possibility of another tuple.
 
 We use the following operations on the lattice:
 
@@ -299,12 +268,70 @@ To enable this behaviour, we make the following enhancements.
   ptr value, we convert to `0`.  See `NotNode.compute()`.
 
 
+## Local memory optimizations
+
+A load immediately following a store to the **same pointer and field** can use
+the stored value. A store immediately following another store to the same
+address can discard the earlier store when no other user needs it. Both the
+pointer and field checks matter: two different fields of one object are
+different addresses, as are the same fields of two different objects.
+
+A load can also move up through a memory Phi. This extends
+[Chapter 5's push-through-Phi optimization](../chapter05/README.md#pushing-addition-up-through-a-phi):
+there, arithmetic folds on the incoming paths; here, a load can fold against
+a matching store. In graph notation, keeping the same pointer and field:
+
+```text
+Load(Phi(r, m0, m1), p.x)
+    -> Phi(r, Load(m0, p.x), Load(m1, p.x))
+```
+
+The Phi of memory becomes a Phi of loaded values.  This chapter handles two
+incoming paths and requires a load-after-store fold on at least one of them.
+On a loop, that path must be the **backedge**: folding only on entry would
+leave a load that could be pushed around the cycle indefinitely.  As with the
+arithmetic rewrite, exposing a fold is part of deciding to transform the
+graph, not just a hoped-for cleanup afterward. See
+[`LoadNode.idealize()`](src/main/java/com/seaofnodes/simple/node/LoadNode.java).
+
+The reverse direction extends
+[Chapter 5's common-operation pull-down](../chapter05/README.md#example-3):
+a Phi of matching Loads or Stores can become one operation after the join.
+For example, these two writes:
+
+```java
+if (arg) s.x = arg+1;
+else     s.x = arg+2;
+```
+
+can become `s.x = Phi(arg+1,arg+2)`. The general rewrite creates a separate,
+correctly typed Phi for each differing operand, including memory and pointers.
+We must be more careful here with memory ops; it is possible to lose some
+type precision, so we check for that as part of the profitability.
+
+Also, a Store must have no other users, so moving it removes the original
+effect.  A Load must have no possible conflicting writes or memory merges among
+its memory's users; otherwise delaying the read could change its value.  Much 
+later, we will be adding anti-dependences, but for now we do a conservative
+check.
+
+### Missing an easy one
+
+The single memory chain is correct but conservative.  A store to `y` can
+prevent forwarding an earlier store to `x`, even when the objects are
+identical.  This is a missed optimization and it motivates the next chapter.
+
 ## Executing the graph
 
 The evaluator includes a small late scheduler. A load must execute before a
 later store that consumes the same memory definition, even though there is no
 ordinary data edge from the load to that store. These load/store
 anti-dependencies supplement the explicit graph edges.
+
+For example, after allocating `p`, `int old = p.x; p.x = arg; return old;`
+reads the value before the final store. In the graph below, Load and Store
+consume the same memory state. The scheduler must execute the Load first;
+there is no ordinary data edge between them.
 
 ![A load must precede a clobbering store](docs/example2c.svg)
 

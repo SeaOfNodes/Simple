@@ -22,7 +22,8 @@
 15. [Finally](#finally)
 16. [Example 2](#example-2)
 17. [Example 3](#example-3)
-18. [More Examples](#more-examples)
+18. [Pushing addition up through a Phi](#pushing-addition-up-through-a-phi)
+19. [More Examples](#more-examples)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter05) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter04...linear-chapter05) it to the previous chapter.
 
@@ -34,30 +35,6 @@ In this chapter we extend the language grammar with the following features:
 
 Here is the [complete language grammar](docs/05-grammar.md) for this chapter.
 
-## Recap
-
-Here is a recap of the nodes introduced in previous chapters:
-
-| Node Name | Type           | Chapter | Description                                    | Inputs                                                                        | Value                                                                      |
-|-----------|----------------|---------|------------------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------|
-| Multi     | Abstract class | 4       | A node that has a tuple result                 |                                                                               | A tuple                                                                    |
-| Start     | Control        | 1       | Start of function, now a MultiNode             |                                                                               | A tuple with a ctrl token and an `arg` data node                           |
-| Proj      | Data / Control | 4       | Projection nodes extract values from MultiNode | A MultiNode and index                                                         | Result is the extracted value from the input MultiNode at offset index     |
-| Bool      | Data           | 4       | Represents results of a comparison operator    | Two data nodes                                                                | Result is a comparison, represented as integer value where 1=true, 0=false |
-| Not       | Data           | 4       | Logical not                                    | One data node                                                                 | Result converts 0 to 1 and vice versa                                      |
-| Return    | Control        | 1       | End of function                                | Predecessor control node and a data node for the return value of the function | Return value of the function                                               |
-| Constant  | Data           | 1       | Represents constants such as integer literals  | None, however Start node is set as input to enable graph walking              | Value of the constant                                                      |
-| Add       | Data           | 2       | Add two values                                 | Two data nodes without restrictions on the order                              | Result of the add operation                                                |
-| Sub       | Data           | 2       | Subtract a value from another                  | Two data nodes, the first one is subtracted by the second one                 | Result of the subtraction                                                  |
-| Mul       | Data           | 2       | Multiply two values                            | Two data nodes without restrictions on the order                              | Result of the multiplication                                               |
-| Div       | Data           | 2       | Divide a value by another                      | Two data nodes, the first one is divided by the second one                    | Result of the division                                                     |
-| Minus     | Data           | 2       | Negate a value                                 | One data node that value is negated                                          | Result of the negation                                                     |
-| Scope     | Symbol Table   | 3       | Represents scopes in the graph                 | Nodes that represent the current value of variables                           | None                                                                       |
-
-> A `Proj` is a control node when it projects a control slot: `Proj#0` off `Start`,
-> and both projections off an `If`.  Every other projection is a data node.
-> See `ProjNode.isCFG()`.
-
 ## New Nodes
 
 The following new nodes are introduced in this chapter:
@@ -68,6 +45,8 @@ The following new nodes are introduced in this chapter:
 | Region    | Control | 5       | A merge point for multiple control flows           | An input for each control flow that is merging | Merged control                                     |
 | Phi       | Data    | 5       | A phi function picks a value based on control flow | A Region, and data nodes for each control path | Depends on control flow path taken                 |
 | Stop      | Control | 5       | Termination of the program                         | All return nodes of the function               | None                                               |
+
+and keep all nodes from prior chapters.
 
 #### `IfNode`
 
@@ -113,7 +92,7 @@ exists in a “sea” of Nodes, with little control structure.
 The “sea” of Nodes is useful for optimization, but does not represent any
 traditional intermediate representation such as a CFG.  We need a way to
 serialize the graph and get back the control dependences. We do this with a
-simple global code motion algorithm.[^3]
+simple Global Code Motion [^3] algorithm in [Chapter 11](../chapter11/README.md).
 
 #### `Stop` Nodes
 `StopNode`s only have `ReturnNode` inputs. They mark the program termination.
@@ -174,7 +153,7 @@ At the merge point we merge two ScopeNodes. The goals are:
 
 1) Merge names whose bindings have changed between the two nodes. For each such name, a Phi node is created, referencing the two original data nodes.
 2) A new Region node is created representing the merged control flow. The phis have this region node as the first input.
-3) After the merge is completed, the duplicate is discarded, and its use of each of the nodes is also deleted.
+3) After the merge is completed, the duplicate `ScopeNode` is discarded along with its edges.
 
 The merging logic takes advantage of the fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode.
 Although only the innermost occurrence of a name can have its binding changed, we scan all the nodes in our input list, and simply ignore ones where the binding has not changed.
@@ -212,8 +191,11 @@ Below is the graph after we created a `Region` node and merged the two definitio
 ![Graph2](./docs/05-graph2.svg)
 
 The duplicate `ScopeNode` has been discarded and was merged into the other one.
-Since `a` had two different definitions in both scopes a `Phi` node was created and is now referenced from `a`.
-The `Phi` node's inputs are the `Region` node and the `Add` node from the `True` branch, and `Sub` node from the `False` branch.
+Since `a` had two different definitions in both scopes a `Phi` node was created
+and is now referenced from `a`.  The `Phi` node's inputs are the `Region` node
+and the `Add` node from the `True` branch, and `Sub` node from the `False`
+branch.  The `arg` variable did not get assigned; both scopes agree on the
+value so `arg` does not get a `Phi`.
 
 ### Finally
 
@@ -326,7 +308,54 @@ Post-peephole:
 The common operator was pulled out and the Phi node only got applied to the
 operands.  Notice how only the second operand of the `==` changes, the first
 one stays the same (`arg`).  The implementation is in
-[`PhiNode.idealize()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/PhiNode.java#L31-L71)
+[`PhiNode.idealize()`](src/main/java/com/seaofnodes/simple/node/PhiNode.java).
+
+In graph notation, with `r` denoting the same Region throughout:
+
+```text
+Phi(r, a+b, c+d)  ->  Phi(r, a, c) + Phi(r, b, d)
+```
+
+We call this **pulling the operation down** through the Phi: the common
+operation moves from the incoming paths to after their merge. Each new Phi
+selects the corresponding operand from the same path. If an operand is shared,
+as `arg` is above, its Phi collapses to that operand.
+
+
+## Pushing addition up through a Phi
+
+The opposite direction can expose constant folding. For example:
+
+```java
+int x = 1;
+if( arg ) x = 2;
+return (arg+x)+3;
+```
+
+The merge gives `x` a Phi of constants. Although `x` itself is not constant,
+adding 3 to each possible value is a compile-time calculation. The addition
+peephole reassociates the expression and **pushes the addition up** onto the
+incoming paths:
+
+```text
+(arg + Phi(r, 2, 1)) + 3
+    -> arg + Phi(r, 2+3, 1+3)
+    -> arg + Phi(r, 5, 4)
+```
+
+The implementation first appears here in
+[`AddNode.idealize()`](src/main/java/com/seaofnodes/simple/node/AddNode.java),
+for the shape `(x + Phi(constants)) + constant`. The final operand can also
+be another Phi of constants, but both Phis must use the **same Region** so
+their corresponding arms describe the same path.
+
+Why not push every operation through a Phi? That would duplicate work across
+the incoming paths, and the pull-down peephole could immediately undo it.
+Repeatedly applying the two rewrites would never finish. Here every new
+addition folds to a constant **before** we build the result Phi. There are no
+new additions left for that Phi to pull back down, and one runtime addition
+has disappeared. The folding requirement supplies both the benefit and the
+reason this pair of opposing rewrites terminates.
 
 
 ## More examples

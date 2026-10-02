@@ -143,7 +143,7 @@ The chapter `docs/Makefile` rules select JSON before a same-named legacy DOT
 file. They accept `PYTHON` and `DOC_BROWSER` overrides, for example
 `make -C chapter01/docs PYTHON=python DOC_BROWSER=msedge` from the repository root.
 
-The compact memory-dependency schematics in 10a/10b retain `.gv` sources to
+The compact memory-dependency schematics in 10b retain `.gv` sources to
 preserve their deliberate horizontal layouts. They use the viewer palette and
 node shapes; definitions are left of uses horizontally and above uses vertically,
 with arrows from use to definition. Type lattices use their own domain colors

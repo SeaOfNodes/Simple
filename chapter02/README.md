@@ -27,15 +27,7 @@ Here is the [complete language grammar](docs/02-grammar.md) for this chapter.
 
 ## Extensions to Intermediate Representation
 
-In [Chapter 1](../chapter01/README.md) we introduced the following nodes.
-
-| Node Name | Type    | Description                        | Inputs                                                           | Value                                                 |
-|-----------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
-| Start     | Control | Start of function                  | None                                                             | None for now as we do not have function arguments yet |
-| Return    | Control | End of function                    | Predecessor control node, Data node value                        | Return value of the function                          |
-| Constant  | Data    | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant                                 |
-
-We extend the set of nodes by adding the following additional node types.
+We extend the set of nodes by adding the following additional node types:
 
 | Node Name | Type | Description                   | Inputs                                                     | Value                       |
 |-----------|------|-------------------------------|------------------------------------------------------------|-----------------------------|
@@ -46,15 +38,7 @@ We extend the set of nodes by adding the following additional node types.
 | Minus     | Data | Negate a value                | One data node, value is negated                            | Result of the unary minus   |
 
 
-## *Value* equality vs *Reference* equality
-
-In much of Simple, Nodes are looked up (`find()` calls) via *reference*
-equality.  This is by far the most common case.  In [Chapter
-9](../chapter09/README.md) we introduce *value* equality for the first time.
-In both cases the choice of value-vs-reference equality is intentional: it is
-*never* correct to "just pick one or the other kind of equality".  When in
-doubt check the context: only *Global Value Numbering* uses value equality;
-everywhere else we mean reference equality.
+We keep from [Chapter 1](../chapter01/README.md) the following nodes: Start, Return, Constant.
 
 
 ## Peephole Optimizations
@@ -65,7 +49,7 @@ locally rewrite the graph.
 
 During parsing, these peephole optimizations are particularly easy to check and
 apply: there are no uses (yet) of a just-created Node from a just-parsed piece
-of syntax, so there's no effort to the "rewrite" part of the problem. We just
+of syntax, so there's no effort to the "rewrite" part of the program. We just
 replace in-place before installing Nodes into the graph.
 
 This replacement might allow us to *kill* the unused inputs from the replaced
@@ -135,14 +119,14 @@ Our lattice elements can be one of three types:
 An invariant of peephole optimizations is that the type of a Node always moves
 *up* the lattice (towards "top"); peepholes are *pessimistic* assuming the worst
 until they can prove better.  A later *optimistic* optimization will start all
-Nodes at *top* and move Types *down* the lattice as eager assumptions are
+Nodes at top and move Types down the lattice as eager assumptions are
 proven wrong.
 
 In later chapters we will explore extending this lattice, as it frequently
 forms the heart of core optimizations we want our compiler to do.
 
 We add a `_type` field to every Node, to store its current computed best
-`Type`.  We need a field to keep the optimizer runtime linear, and later when
+`Type`.  We need the field to keep the optimizer runtime linear, and later when
 doing an optimistic version of constant propagation (called [Sparse Conditional
 Constant Propagation](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)).
 
@@ -162,10 +146,14 @@ There are other important properties of the Lattice that we discuss in [Chapter
 The following schematic shows the operations before peephole folding. The parser
 optimizes each node as it is built; it does not retain this entire intermediate graph:
 
+```java
+return 1 + 2 * 3 + -5;
+```
+
 ![Example Visual](./docs/02-pre-peephole-ex1.svg)
 
 * Control nodes appear as rectangular boxes with pale yellow backgrounds
-* Control edges are red and thicker than data edges
+* Control edges are in red
 * The edges from Constants to Start are shown as dashed gray lines as these are not true control edges
 * We label each edge with its position in the node's list of inputs.
 
@@ -226,6 +214,7 @@ This can be captured by:
 ```java
 // Replace constant computations from non-constants with a constant node
 if (!(this instanceof ConstantNode) && type.isConstant()) {
+    ....
 }
 ```
 Note how we return a constant type when doing constant folding
@@ -284,3 +273,16 @@ _type=null;
 We finally end up with this:
 
 ![Example Visual](./docs/02-demonstration-peephole.svg)
+
+
+## Implementation Notes
+
+### *Value* equality vs *Reference* equality
+
+In much of Simple, Nodes are looked up (`find()` calls) via *reference*
+equality.  This is by far the most common case.  In [Chapter
+9](../chapter09/README.md) we introduce *value* equality for the first time.
+In both cases the choice of value-vs-reference equality is intentional: it is
+*never* correct to "just pick one or the other kind of equality".  When in
+doubt check the context: only *Global Value Numbering* uses value equality;
+everywhere else we mean reference equality.

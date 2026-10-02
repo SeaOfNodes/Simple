@@ -4,12 +4,13 @@ Dead Code Elimination is the process or removing nodes that are dead(unused).
 
 There are two kinds of dead code eliminations present in this chapter.
 - Delete unused nodes when popping the scope.
-- Delete old nodes after finding a better replacement(after idealize call).
+- Delete old nodes after finding a better replacement (after calling `idealize()`).
 
-Both of the methods mentioned above delete the nodes recursively. However, the first case happens
-regardless of whether `peephole` is called or not.
+Both of the methods mentioned above delete the nodes recursively.  However, the
+first case happens regardless of whether `peephole` is called or not.
 
 ### Delete unused nodes when popping the scope
+
 A node is unused if it has no outputs(users).
 
 ### Example 1:
@@ -109,11 +110,10 @@ return 1;
 - We move onto`a = 12`, since "a" has only one user left(the scope) and `this = scope` it can get killed easily.
 - Same as before, we go through the inputs of "a" and will delete them from the outputs of the control node.
 
-*A constant node pointing to "Start"(ignored by the graph visualizer) but still maintains a connection:*
-
 ![Graph3](../docs/04-dce2.svg)
 
 ## Delete old nodes after finding a better replacement
+
 Consider the following code:
 ```
 return (2+1)+3; 

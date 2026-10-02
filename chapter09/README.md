@@ -182,54 +182,6 @@ Changes:
   dependents onto the worklist.
 
 
-## Other Concerns
-
-There are more issues we will want to deal with in a later Chapter:
-
-* Blindly running peepholes in any order has some drawbacks:
-
-  - Dead and dying stuff might get peepholes done... and then die.  Wasted work.
-  - Dead infinite loops often lead to infinite peephole cycles... if only we
-    would get around to working on the "base" of the dead loop it would fold
-    up.
-  - Some peepholes naturally reduce the graph directly; while some keep its
-    size the same but reduce other things (e.g. swapping a Mul-by-2 with a
-    Shift), and we might end up with a few which try to grow the graph briefly
-    before collapsing.
-
-* All this means is there's some benefit to running peepholes that reduce the
-  graph directly (e.g. Dead Code Eliminate), before running peeps that reduce
-  other things, before running all other peeps.  This implies a sorted
-  worklist, but the count of unique orders is really limited - a radix sort is
-  all that is needed.  We'll have to break up the peepholes into some
-  categories like
-  - "strictly reducing" vs
-  - "same Nodes but swapping e.g. `Mul` for `Shift`, vs
-  - getting more freedom (edge bypass), vs
-  - "grow now because shrink later" (inlining lands in this camp).
-
-* Also there's a benefit to not always grabbing from either end of the list -
-  many peep patterns might go quadratic if approached from one end or another,
-  because they modify something then push it back onto the list where it
-  immediately gets pulled again.  I.e., you end up spinning in a loop repeating
-  the same peeps while slowly migrating e.g. left-spine add-tree into a
-  right-spine add-tree.  A pseudo-random pull uses randomization to defeat bad
-  peep patterns.
-
-* Why isn't `IterPeeps` just passing over all of the Nodes once or twice,
-  instead of using a worklist with the `addDeps` mechanism?  We could even
-  visit them in a defs-before-uses order (e.g. Reverse Post Order).
-
-  In the absence of loops exactly one such pass will find all local peepholes,
-  and indeed the Parser already does this.  However, this will fail to find
-  opportunities at loops and farther remote cases - and to get those peepholes
-  around loops will require another visit.  It is easy to construct a case
-  requiring O(N) passes, each of cost O(N) and the algorithm quickly goes
-  quadratic.
-
-  The `addDeps` solution avoids this quadratic cost, in exchange for some more
-  costs in writing peepholes.
-
 
 # Examples
 
@@ -299,3 +251,52 @@ Enabling the post parse worklist based optimization yields below. Notice that no
 loop body:
 
 ![Graph6](./docs/09-graph6.svg)
+
+
+## Future Work
+
+There are more issues we will want to deal with in a later Chapter:
+
+* Blindly running peepholes in any order has some drawbacks:
+
+  - Dead and dying stuff might get peepholes done... and then die.  Wasted work.
+  - Dead infinite loops often lead to infinite peephole cycles... if only we
+    would get around to working on the "base" of the dead loop it would fold
+    up.
+  - Some peepholes naturally reduce the graph directly; while some keep its
+    size the same but reduce other things (e.g. swapping a Mul-by-2 with a
+    Shift), and we might end up with a few which try to grow the graph briefly
+    before collapsing.
+
+* All this means is there's some benefit to running peepholes that reduce the
+  graph directly (e.g. Dead Code Eliminate), before running peeps that reduce
+  other things, before running all other peeps.  This implies a sorted
+  worklist, but the count of unique orders is really limited - a radix sort is
+  all that is needed.  We'll have to break up the peepholes into some
+  categories like
+  - "strictly reducing" vs
+  - "same Nodes but swapping e.g. `Mul` for `Shift`, vs
+  - getting more freedom (edge bypass), vs
+  - "grow now because shrink later" (inlining lands in this camp).
+
+* Also there's a benefit to not always grabbing from either end of the list -
+  many peep patterns might go quadratic if approached from one end or another,
+  because they modify something then push it back onto the list where it
+  immediately gets pulled again.  I.e., you end up spinning in a loop repeating
+  the same peeps while slowly migrating e.g. left-spine add-tree into a
+  right-spine add-tree.  A pseudo-random pull uses randomization to defeat bad
+  peep patterns.
+
+* Why isn't `IterPeeps` just passing over all of the Nodes once or twice,
+  instead of using a worklist with the `addDeps` mechanism?  We could even
+  visit them in a defs-before-uses order (e.g. Reverse Post Order).
+
+  In the absence of loops exactly one such pass will find all local peepholes,
+  and indeed the Parser already does this.  However, this will fail to find
+  opportunities at loops and farther remote cases - and to get those peepholes
+  around loops will require another visit.  It is easy to construct a case
+  requiring O(N) passes, each of cost O(N) and the algorithm quickly goes
+  quadratic.
+
+  The `addDeps` solution avoids this quadratic cost, in exchange for some more
+  costs in writing peepholes.

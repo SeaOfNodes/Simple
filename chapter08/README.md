@@ -131,12 +131,10 @@ We have several ways of implementing these backedges.
    Phis that are stacked.
 
 In this chapter we adopt option 3 as it is the simplest implementation on top
-of our basic `while` loop architecture.  We also experimented with
-option 2.  For readers who would like to see this alternative solution, we
-provide a separate branch with such an implementation.
+of our basic `while` loop architecture.[^1]
 
 The implementation requires some careful handling of scopes.  This is because
-we would like to only generate `PhiNode/RegionNode`s for continues if necessary.
+we would like to only generate `PhiNode/RegionNode`s for `continues` if necessary.
 
 In our [basic loop architecture](../chapter07/README.md), by the time we get to
 the loop backedge, we have already exited all nested blocks/scopes, we just
@@ -299,9 +297,16 @@ while(arg < 10) {
 return t;
 ```
 
-In this code, the two statements within the loop may be evaluated in either order by the graph, so we must ensure that the new value `arg` is not cached before the value of `t` can be set to the previous value of `arg`.
+In this code, the two statements within the loop may be evaluated in either
+order by the graph, so we must ensure that the new value `arg` is not cached
+before the value of `t` can be set to the previous value of `arg`.
 
-This approach to evaluation is useful for testing because it allows a program to be executed without worrying about instruction selection, register allocation or code generation. It executes the graph produced with normal peephole optimization. In later chapters, the evaluator can compare graphs optimized with different worklist orders to detect inconsistent results. This chapter's fuzzer checks generated programs for compiler and evaluator failures.
+This approach to evaluation is useful for testing because it allows a program
+to be executed without worrying about instruction selection, register
+allocation or code generation. It executes the graph produced with normal
+peephole optimization. In later chapters, the evaluator can compare graphs
+optimized with different worklist orders to detect inconsistent results. This
+chapter's fuzzer checks generated programs for compiler and evaluator failures.
 
 ``` java
 arg=arg+arg;
@@ -311,4 +316,10 @@ arg=arg+arg;
 return arg;
 ```
 
-On the other hand, this engine is not designed to be particularly fast! Because not all expressions are cached, it's possible to construct programs like the preceding one which have exponential runtime.
+On the other hand, this engine is not designed to be particularly fast! Because
+not all expressions are cached, it's possible to construct programs like the
+preceding one which have exponential runtime.
+
+
+[^1]: We also experimented with option 2.  For readers who would like to see this
+alternative solution, we provide a separate branch with such an implementation.

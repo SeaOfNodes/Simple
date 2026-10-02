@@ -49,18 +49,8 @@ Following are revised or new nodes
 > A `Proj` is a control node when it projects the control slot: `Proj#0` off `Start`.
 > Every other projection is a data node.  See `ProjNode.isCFG()`.
 
-Below is our list of Nodes from [Chapter 3](../chapter03/README.md):
+We keep all other nodes from prior chapters.
 
-| Node Name | Type         | Description                        | Inputs                                                           | Value                        |
-|-----------|--------------|------------------------------------|------------------------------------------------------------------|------------------------------|
-| Return    | Control      | End of function                    | Predecessor control node, Data node value                        | Return value of the function |
-| Constant  | Data         | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant        |
-| Add       | Data         | Add two values                     | Two data nodes, values are added, order not important            | Result of the add operation  |
-| Sub       | Data         | Subtract a value from another      | Two data nodes, values are subtracted, order matters             | Result of the subtract       |
-| Mul       | Data         | Multiply two values                | Two data nodes, values are multiplied, order not important       | Result of the multiply       |
-| Div       | Data         | Divide a value by another          | Two data nodes, values are divided, order matters                | Result of the division       |
-| Minus     | Data         | Negate a value                     | One data node, value is negated                                  | Result of the unary minus    |
-| Scope     | Symbol Table | Represents scopes in the graph     | All nodes that define variables                                  | None                         |
 
 ## Projection Nodes
 
@@ -267,11 +257,6 @@ track the current in-scope control node via the name `$ctrl`.  This means that
 when we need to create an edge to the predecessor control node, we simply look
 up this name in the current scope.
 
-This introduces the idea that the control flow subgraph is a Petri net model.[^1]
-The control token moves virtually from node to node as execution proceeds.  The
-initial control token is in Start, it then moves via the Proj node to Return.
-In later chapters we will see how the token moves across branches.
-
 
 ## More Peephole Optimizations
 
@@ -327,7 +312,7 @@ Here is a list of peepholes introduced in this Chapter, more will be introduced 
 
 ## Peephole Walkthrough
 
-The peephole optimizations introduced in this chapter are local. They are triggered during parsing
+The peephole optimizations introduced in this chapter are all local. They are triggered during parsing
 as new nodes are created, before the newly created node has any uses.
 
 For example, when we parse a unary expression, and create a Node for the parsed expression,
@@ -432,6 +417,3 @@ Note the temporary add of a bogus user to the Node `m`.  The reason this is
 done is that we know `m` is the new replacement and is alive, but since it is
 not yet hooked into the graph, it has no users yet.  By adding a bogus user we
 prevent it being mistaken for dead and being killed.
-
-[^1]: Click, C. (1995).
-   Combining Analyses, Combining Optimizations, 131.

@@ -47,44 +47,39 @@ If necessary the reader can consult a standard compiler textbook.
 
 ## Architecture
 
-We construct the intermediate Sea of Nodes (SoN) representation directly as we parse the language. There is no Abstract Syntax Tree representation. The reason for this is to demonstrate a key benefit of the SoN IR:
-a number of pessimistic peephole optimizations can be performed while parsing a language. This aspect is more fully explored from [Chapter 2](../chapter02/README.md) onwards.
-
-## Data Structures
-
-Our data structures are based upon the descriptions provided in the following papers:
-
-* [From Quads to Graphs: An Intermediate Representation's Journey](http://softlib.rice.edu/pub/CRPC-TRs/reports/CRPC-TR93366-S.pdf)
-* [Combining Analyses, Combining Optimizations](https://dl.acm.org/doi/pdf/10.1145/201059.201061)
-* [A Simple Graph-Based Intermediate Representation](https://www.oracle.com/technetwork/java/javase/tech/c2-ir95-150110.pdf)
-* [Global Code Motion Global Value Numbering](https://courses.cs.washington.edu/courses/cse501/06wi/reading/click-pldi95.pdf)
-* [EasySSA](https://www.dropbox.com/scl/fi/0ww4sgl3ynep9hhe3i4xn/EasySSA.pdf?rlkey=2cp78hzxke62flkmyneiebzoz&dl=0)
-* [SeaOfNodes](https://www.dropbox.com/scl/fi/cxykfvlzsmlcatyg6rlbt/SeaOfNodes.pdf?rlkey=z6o7y3rwr6atrejilcze6r8x0&e=1&dl=0)
-
-Following the lead from above, we represent our intermediate representation using an object oriented data model. Details of the
-representation follow.
+We construct the intermediate Sea of Nodes (SoN) representation directly as we
+parse the language. There is no Abstract Syntax Tree representation. The reason
+for this is to demonstrate a key benefit of the SoN IR: a number of pessimistic
+peephole optimizations can be performed while parsing a language. This aspect
+is more fully explored from [Chapter 2](../chapter02/README.md) onwards, and
+eventually leads to a full-fledged program typing without needing any
+type-analysis passes.
 
 ### Intermediate Representation as a Graph of Nodes
 
 The intermediate representation is a graph of Node objects. The `Node` class is the base type for objects in the IR graph.
 The `Node` class provides common capabilities that are inherited by all subtypes.
-Each subtype implements semantics relevant to that subtype.
+Subtypes implements semantics relevant to that subtype, e.g. AddNodes add and MulNodes multiply.
 
 Each `Node` represents an "instruction" as it may appear in traditional IRs.
 
 ### Nodes are in a Graph
 
-The key idea of the Sea of Nodes IR is that each Node is linked to other Nodes by def-use dependencies.
-As this is such an important and fundamental aspect of the IR, it is important to understand how we implement this, and depict this in graph visuals.
+The key idea of the Sea of Nodes IR is that each Node is linked to other Nodes
+by def-use dependencies.  As this is such an important and fundamental aspect
+of the IR, it is important to understand how we implement this, and depict this
+in graph visuals.
 
-The base `Node` class maintains a list of Nodes that are inputs to it. An input is an edge from a "def" to a "use". What this means is that if `B` is a definition, and `A` uses `B`,
-then there is a def-use edge from `B` to `A`.
+The base `Node` class maintains a list of Nodes that are inputs to it.  An
+input is an edge from a "use" to a "def".  What this means is that if `B` is a
+definition, and `A` uses `B`, then `B` has a def->use edge from `B` to `A` and
+correspondingly A has an input use->def edge from `A` to `B`.
 
 Visually we show an arrow from the "use" to the "def". Here is an example:
 
 ![Use Def](./docs/01-use-def.svg)
 
-From an implementation point of view, our `Node` type also maintains a reverse link.
+From an implementation point of view, our `Node` type also maintains a both links.
 This means that in the above scenario:
 
 * Since `A` is a "use" of `B`, then `B` will appear in `A`'s list of inputs.
@@ -122,7 +117,7 @@ public abstract class Node {
 
 There are two categories of Nodes in the intermediate representation.
 
-* **Control Nodes** - these represent the control flow subgraph (CFG) of the compiled program
+* **Control Nodes** - these represent the Control Flow Graph (CFG) of the compiled program
 * **Data Nodes** - these capture the data semantics
 
 The following control and data nodes appear in this chapter.
@@ -133,9 +128,12 @@ The following control and data nodes appear in this chapter.
 | Return    | Control | Represents the termination of a function      | Predecessor control node, Data node value                        | Return value of the function                          |
 | Constant  | Data    | Represents constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant                                 |
 
-Within a traditional basic block, instructions are executed in sequence. In the Sea of Nodes model, the correct sequence of instructions is determined by a scheduling
-algorithm that depends only on dependencies between nodes (including control dependencies) that are explicit as edges in the graph. This enables a number of optimizations
-at very little cost (nearly always small constant time) because all dependencies are always available.
+Within a traditional basic block, instructions are executed in sequence. In the
+Sea of Nodes model, the correct sequence of instructions is determined by a
+scheduling algorithm that depends only on dependencies between nodes (including
+control dependencies) that are explicit as edges in the graph. This enables a
+number of optimizations at very little cost (nearly always small constant time)
+because all dependencies are always available.
 
 ### Unique Node ID
 
@@ -168,7 +166,7 @@ The Constant's value is the value stored in it.
 The Return node has two inputs.  The first input is a control node and the
 second is the data node that supplies the return value.
 
-In this presentation, Return functions as a Stop node, since multiple `return` statements are not possible.
+In this presentation, Return ends the program, since multiple `return` statements are not possible.
 The Stop node will be introduced in [Chapter 5](../chapter05/README.md) when we implement `if` statements.
 
 The Return's output is the value from the data node.
@@ -187,3 +185,20 @@ return 1;
 * Control edges are red and thicker than data edges
 * The edges from Constants to Start are shown as dashed gray lines as these are not true control edges
 * We label each edge with its position in the `_inputs` array, thus `0` means the edge is `_inputs[0]`.
+
+
+
+## Reading Material
+
+Our data structures are based upon the descriptions provided in the following papers:
+
+* [From Quads to Graphs: An Intermediate Representation's Journey](http://softlib.rice.edu/pub/CRPC-TRs/reports/CRPC-TR93366-S.pdf)
+* [Combining Analyses, Combining Optimizations](https://dl.acm.org/doi/pdf/10.1145/201059.201061)
+* [A Simple Graph-Based Intermediate Representation](https://www.oracle.com/technetwork/java/javase/tech/c2-ir95-150110.pdf)
+* [Global Code Motion Global Value Numbering](https://courses.cs.washington.edu/courses/cse501/06wi/reading/click-pldi95.pdf)
+* [EasySSA](https://www.dropbox.com/scl/fi/0ww4sgl3ynep9hhe3i4xn/EasySSA.pdf?rlkey=2cp78hzxke62flkmyneiebzoz&dl=0)
+* [SeaOfNodes](https://www.dropbox.com/scl/fi/cxykfvlzsmlcatyg6rlbt/SeaOfNodes.pdf?rlkey=z6o7y3rwr6atrejilcze6r8x0&e=1&dl=0)
+
+Following the lead from above, we represent our intermediate representation using an object oriented data model. Details of the
+representation follow.
+
