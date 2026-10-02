@@ -282,10 +282,11 @@ pass complete spill reports after refreshing reduced-move expectations:
 
 Cohort 22 includes the two zero-move C return ABI checks added since the older
 24-entry audit. Chapter 25's frozen 212-entry manifest remains unchanged.
-Its reporter currently fails on ten pre-existing String-constructor parse errors;
+At that audit, its reporter failed on ten pre-existing String-constructor parse errors;
 the unmodified allocator reproduces all ten. The same 216 successful allocations
 (including 14 current cohort-25 allocations) improve from 2,563 / 5,496 to
-2,494 / 5,399, but these are partial totals. Fresh system-library encoding and
+2,494 / 5,399, but these are partial totals. The subsequent historical String
+fixture repair below restores complete reporting. Fresh system-library encoding and
 native cohort-25 checks pass. Logs: `build/copy-forward21-spills-final.log`
 through `build/copy-forward24-spills-final.log`, `build/copy-forward25-spills.log`,
 `build/copy-forward25-baseline.log`, and `build/copy-forward*-tests*.log`.
@@ -348,18 +349,6 @@ on print. This cleanup removes about 2,800 node-source lines and 550 viewer-adap
 lines beyond the original extraction.
 
 ### Other pending corrections
-
-- **Chapter 25 historical String fixtures.** Ten replay entries fail before RA
-  because `Test.String.cs` is not fully initialized. They come from
-  `Chapter21Test-testStringExport.smp` (four entries),
-  `Chapter21AllocTest-testString.smp` (three), and
-  `Chapter23AllocTest-testString.smp` (three), under
-  `chapter25/src/test/java/com/seaofnodes/simple/spill/`. Both original and
-  adjacent-copy-forwarding allocators reproduce them. Adapt these constructor
-  fixtures separately and document the comparability change; do not omit the
-  failed entries from a claimed complete spill total. The ordinary Chapter 25
-  suite passes, including its current String programs.
-
 
 - **Existing Chapter 18 floating-array assertion.** The unchanged
   `TypeStruct.makeAry` assertion accepts integers and nullable references but
@@ -492,7 +481,7 @@ reports actual retained moves, per target and cohort, with assertions enabled.
 | 22 | Stronger copy-chain/backedge bias and cheap-spill ordering | 39, 52, 26 |
 | 23 | Group popular single-def uses by compatible register classes | 39, 52, 26, 30 |
 | 24 | One cold-only attempt for loop-Phi self-conflicts, then mandatory fallback | 39, 52, 26, 30, 67 |
-| 25 | Existing area/cost ranking and later conflict strategies | 39, 52, 24, 30, 67, 14 (ten historical entries currently fail) |
+| 25 | Existing area/cost ranking and later conflict strategies | 39, 52, 24, 30, 67, 14 |
 
 Shared corrections include RegMask/LRG bookkeeping, null use masks, kills without
 an output LRG, self-conflict splitting, compatible rematerialization, clobber-aware
@@ -521,7 +510,9 @@ Chapter 25 freezes the 212 earlier compilation entries in
 Constructor/library adaptations change IR, so this is a program-cohort comparison,
 not identical machine graphs. Those rows replay allocation and legality checks;
 current Chapter25Test native checks and a fresh system-library encoding contribute
-ten more allocations. Earlier audit total, before adjacent-copy forwarding: **2,597 moves / 5,579 loop-weighted moves** over 222
+14 more recorded allocations. The complete 2026-10-02 replay totals **2,568 moves /
+5,459 loop-weighted moves** over 226 compilations after the fixture repair below.
+Earlier audit total, before adjacent-copy forwarding: **2,597 moves / 5,579 loop-weighted moves** over 222
 compilations. Chapter 25's area/cost implementation is retained. Substituting the
 earlier ranking saves five moves on the clients but fails a fresh `sys` allocation
 at the eight-round limit; a failed library cannot be omitted from the comparison.
@@ -555,6 +546,18 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **Chapter 25 historical String fixtures (2026-10-02).** Added an explicit
+  constructor initializing the required non-null `cs` field in
+  `Chapter21Test-testStringExport.smp`, `Chapter21AllocTest-testString.smp`, and
+  `Chapter23AllocTest-testString.smp`. Equality/hash bodies and the frozen
+  212-entry manifest are unchanged; all ten formerly failing entries now pass.
+  These source adaptations establish a new comparison baseline, rather than
+  demonstrating an allocator-only improvement. `make -C chapter25 spill-stats`
+  passes all 212 historical entries, fresh system-library encoding, and all 23
+  Chapter25Test tests, with zero spill-golden failures. The complete 226 recorded
+  allocations total **2,568 retained moves / 5,459 weighted moves**; the README
+  contains the cohort breakdown. Log: `build/string-fixtures-spill.log`.
 
 - **Function loop-tree boundaries, Chapters 18-25.** Stop the post-order loop
   walk at Return, seed each function's outer tree before visiting its body, and
@@ -617,10 +620,11 @@ The top-level runner accepts explicit chapter lists, e.g.
   invariant length, a possibly aliasing arm, a changing loop pointer, differing
   stored values at a multiway merge, and reads before writes. Seeds 0 and 9 are
   retained in the regression for unresolved Store aliases and nested Phi queueing.
-  The historical spill replay retains exactly its **ten known String-constructor
+  At that audit, the historical spill replay retained exactly its **ten known String-constructor
   parse failures**, with no spill-golden or native-check failures. The same 216
   successful allocations total **2,488 moves / 5,379 weighted moves**, compared
   with 2,494 / 5,399 before this port; this is not a complete-suite total.
+  The subsequent historical String fixture repair above restores a complete replay.
   Logs: `build/mem25-negative.log`, `build/mem25-seeds.log`,
   `build/mem25-final2.log` (spill replay), and `build/mem25-final4.log`
   (full tests and release).

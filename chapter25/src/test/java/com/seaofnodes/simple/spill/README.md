@@ -17,6 +17,13 @@ Chapter 25 cannot parse all earlier sources unchanged. Adaptations are explicit:
 - String, Scan, and linked S constructors replace `new S { field=...; }` with
   declared constructors and arguments. The explicit-receiver scanner functions
   become instance methods, preserving their operations.
+- The saved `Chapter21Test-testStringExport`, `Chapter21AllocTest-testString`,
+  and `Chapter23AllocTest-testString` sources declare
+  `new String = { u8[] data -> cs=data; };` to initialize the required non-null
+  `cs` field. This repairs ten replay entries (four, three, and three), without
+  changing their equality/hash bodies or manifest membership. These adapted
+  sources are a new comparison baseline; their totals cannot be compared as
+  identical inputs with the earlier constructor-free fixtures.
 - The two short-circuit RHS initializer loops become equivalent guarded blocks,
   preserving allocation, side effects, and the final result.
 - Simple I/O cases include the old `write` binding and print helper directly.

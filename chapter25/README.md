@@ -177,23 +177,18 @@ Chapter 21's adjacent-copy forwarding carries forward here as well: a copy
 used only by the next instruction is removed when the operand accepts its
 source register and is not tied to the instruction's result.
 
-The table below is the **earlier audit**, before adjacent-copy forwarding.
-The replay has ten String-constructor parse failures, also reproduced
-with the original allocator. On the identical 216 successful allocations,
-adjacent-copy forwarding reduced 2,563 / 5,496 moves / weighted moves to
-2,494 / 5,399. The subsequent memory corrections produce 2,488 / 5,379 on
-those same 216 successful allocations. These are partial comparisons, not
-replacement complete-suite totals. The
-current cohort 25 has 14 allocations, including later C return ABI checks;
-the historical table has ten. Native cohort-25 checks and fresh system-library
-encoding pass in both runs. See the [backport record](../docs/chapter-backports.md)
-for the pending fixture failures.
+The table below is the complete 2026-10-02 replay, after repairing three saved
+String sources with explicit constructors for their required `cs` field.
+All 212 historical entries now pass. This establishes a new baseline after the
+fixture adaptations and recent compiler corrections; it is not an allocator-only
+comparison with the earlier audit. The [backport record](../docs/chapter-backports.md)
+retains the older partial comparisons.
 
 Run `make spill-stats`. Each row uses **Chapter 25's compiler**. The first five
 rows preserve the earlier 212 program/target entries, adapted to this chapter's
 syntax and library organization; the [fixture notes](src/test/java/com/seaofnodes/simple/spill/README.md)
 list those adaptations and the measurement limits. They use optimizer seed 123.
-The last row includes nine allocations from `Chapter25Test` at its existing
+The last row includes thirteen recorded allocations from `Chapter25Test` at its existing
 seeds plus a fresh system-library compilation at the driver's seed 456. Reusing
 `sys.o` must not make that substantial workload disappear from the measurements.
 These results are from Windows x86-64; earlier cohorts also include RISC-V/ARM
@@ -201,36 +196,39 @@ SystemV and x86 SystemV. The reporter prints per-target totals as well.
 
 | Program cohort | Compilations | Split/move count | Loop-weighted count |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 381 | 612 |
-| Chapter 21 | 52 | 464 | 1,185 |
-| Chapter 22 | 24 | 103 | 131 |
-| Chapter 23 | 30 | 122 | 346 |
-| Chapter 24 | 67 | 744 | 1,479 |
-| Chapter 25 | 10 | 783 | 1,826 |
-| **Total** | **222** | **2,597** | **5,579** |
+| Chapter 20 | 39 | 375 | 606 |
+| Chapter 21 | 52 | 479 | 1,172 |
+| Chapter 22 | 24 | 103 | 103 |
+| Chapter 23 | 30 | 129 | 353 |
+| Chapter 24 | 67 | 696 | 1,410 |
+| Chapter 25 | 14 | 786 | 1,815 |
+| **Total** | **226** | **2,568** | **5,459** |
 
 `_spills` counts retained SplitNodes, including register-to-register moves;
 `_spillScaled` applies the loop weight. Neither measures just memory traffic.
 The old cohorts are allocation replays with register-legality checks, not reruns
-of their native harnesses. `Chapter25Test` still runs its native/result checks.
+of their native harnesses. All 23 `Chapter25Test` tests pass, including their
+native/result checks, with no spill-golden failures.
 Use `make -j 4 tests` for the full chapter, including inherited emulator tests.
 
 ### Comments on the measurements
 
-There is no uniform improvement to claim. Substituting Chapter 24's ranking
-while keeping the rest of this compiler unchanged saves five moves on the 221
-client compilations (2,206 / 4,719 versus 2,211 / 4,724), but fails to allocate
+The earlier allocator audit found no uniform improvement. Substituting Chapter
+24's ranking while keeping the rest of that compiler unchanged saved five moves on the 221
+client compilations (2,206 / 4,719 versus 2,211 / 4,724), but failed to allocate
 the system library within eight rounds. It is therefore an incomplete comparison,
 not a lower valid whole-suite total. The existing area/cost ranking is retained;
 the round limit and correctness checks are unchanged. The system library itself
-contributes 386 moves / 855 weighted moves.
+contributed 386 moves / 855 weighted moves in that audit; the current replay
+measures 373 / 828.
 
 A trial that favored all multi-use cloneable constants saved one move against
 the earlier ranking on those clients, but also failed the fresh library build.
 It was rejected. This is why both aggregate statistics and complete compilation
 and execution checks matter; a favorable subtotal cannot justify a change.
 
-The earlier-cohort total rises from Chapter 24's 1,332 / 2,956 to 1,814 / 3,753.
+In that earlier audit, the historical-cohort total rose from Chapter 24's
+1,332 / 2,956 to Chapter 25's 1,814 / 3,753.
 Chapter 25 adds class initializers, module ownership, different escape analysis,
 and syntax/library adaptations. These are different machine graphs; the increase
 cannot be attributed to allocator quality alone. Compare a heuristic within one

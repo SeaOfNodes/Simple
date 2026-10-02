@@ -2,6 +2,7 @@
 struct String {
     u8[] cs;
     int _hashCode;
+    new String = { u8[] data -> cs=data; };
 };
 
 // Compare two Strings
