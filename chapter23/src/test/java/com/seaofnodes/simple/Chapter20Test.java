@@ -11,6 +11,38 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @Test public void testAllocatorTopPhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.topPhi(); }
+
+    @Test public void testNeverReturnAllocation() {
+        String[] sources = {
+            // A real integer return merged with a synthetic exit.
+            "if(arg) while(1) {} return arg+1;",
+            // TOP must not widen a non-null pointer or constrain a float register.
+            "struct S { int x; }; S !s=new S; if(arg) while(1) {} return s;",
+            "if(arg) while(1) {} return 1.5;",
+            // Several synthetic exits into the same return.
+            "if(arg==1) while(1) {} if(arg==2) while(1) {} return arg+3;",
+            // No real return, including a merge of only synthetic exits.
+            "while(1) { arg+=1; }",
+            "if(arg) while(1) {} while(1) {}",
+            // Loop-carried memory and scalar self-conflicts exercise spilling.
+            "struct S { int x; int y; }; S !a=new S; if(arg) while(1) { a.x+=arg; a.y+=a.x; } return a.x+a.y;"
+        };
+        for( String target : new String[]{"x86_64_v2","riscv","arm"} )
+            for( String src : sources ) {
+                CodeGen code = new CodeGen(src).driver(CodeGen.Phase.RegAlloc,target,"SystemV");
+                com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+                assertNotNull(code._stop.walk(n -> {
+                    if( n._type!=com.seaofnodes.simple.type.Type.TOP ) return null;
+                    assertEquals(-1,code._regAlloc.regnum(n));
+                    for( var use : n.outs() )
+                        assertFalse(use instanceof com.seaofnodes.simple.node.SplitNode);
+                    return n;
+                }));
+                code.encode();
+            }
+    }
+
     @Test public void testAllocatorFixedNeighbor() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.uncoloredFixedNeighbor(); }
 
     @Test public void testNarrowStoreMasks() {

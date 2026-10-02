@@ -25,6 +25,15 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter25Test {
+    @Test public void testNeverReturnPointerRiscV() {
+        new CodeGen("""
+            struct _S { int x; };
+            _S !s = new _S;
+            if(arg) while(1) { s.x += arg; }
+            return s;
+            """).driver(CodeGen.Phase.Encoding,"riscv","SystemV");
+    }
+
     @Test
     public void testExternData() throws IOException {
         String src = """

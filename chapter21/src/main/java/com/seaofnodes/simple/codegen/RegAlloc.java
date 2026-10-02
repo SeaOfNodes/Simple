@@ -3,6 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.Type;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.IdentityHashMap;
@@ -336,7 +337,8 @@ public class RegAlloc {
             // PhiNodes check all CFG inputs
             if( n instanceof PhiNode phi ) {
                 for( int i=1; i<n.nIns(); i++ )
-                    ld = ldepth(ld, phi.in(i), phi.region().cfg(i));
+                    if( phi.in(i)._type!=Type.TOP )
+                        ld = ldepth(ld, phi.in(i), phi.region().cfg(i));
             } else {
                 // Others check uses
                 for( int i=1; i<n.nIns(); i++ )
@@ -453,6 +455,8 @@ public class RegAlloc {
 
     void insertBefore(Node n, int i, String kind, byte round, LRG lrg, boolean skip) {
         Node def = n.in(i);
+        // Phi splitting may visit the synthetic never-exit arm.
+        if( def._type==Type.TOP ) return;
         // Effective block for use
         CFGNode cfg = n instanceof PhiNode phi ? phi.region().cfg(i) : n.cfg0();
         // Def is a split ?

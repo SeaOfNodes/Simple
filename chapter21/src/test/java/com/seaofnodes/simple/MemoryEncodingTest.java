@@ -142,8 +142,6 @@ public class MemoryEncodingTest {
 
     @Test public void testNeverMemory() {
         // A synthetic exit must retain both precise slices of a no-exit loop.
-        // Stop at scheduling: the existing allocator cannot coalesce TOP on
-        // the synthetic scalar return arm.
         for( String target : new String[]{"x86_64_v2","riscv","arm"} ) {
             CodeGen code = new CodeGen("""
                 struct S { int x; int y; };
@@ -160,7 +158,9 @@ public class MemoryEncodingTest {
                 }
                 return null;
             }));
-            code.instSelect(target,"SystemV").GCM().localSched();
+            code.instSelect(target,"SystemV").GCM().localSched().regAlloc();
+            RegAllocTestSupport.checkRegisters(code);
+            code.encode();
         }
     }
 

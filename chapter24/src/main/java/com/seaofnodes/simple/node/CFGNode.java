@@ -132,7 +132,7 @@ public abstract class CFGNode extends Node {
     // ------------------------------------------------------------------------
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
-    // Start is a LoopNode which contains all at depth 1.
+    // Start contains the function bodies at depth 0; real loops add depth.
     public void buildLoopTree(StartNode start, StopNode stop) {
         // Unlink all linked calls.  This can remove RPC constants which
         // shuffled the StartNode outputs so requires a while loop.
@@ -153,6 +153,14 @@ public abstract class CFGNode extends Node {
         // Pre-walked?
         if( _pre!=0 ) return pre;
         _pre = pre++;
+        // Seed the function's outer tree before walking its body.  Synthetic
+        // exits can be added before the post-order walk reaches the entry.
+        if( this instanceof FunNode ) _ltree = stop._ltree;
+        if( this instanceof ReturnNode ) {
+            _ltree = fun._ltree;
+            post.set(_nid);
+            return pre; // Stop/Start links describe the outside world, not a loop.
+        }
         // Pre-walk
         for( Node use : _outputs )
             if( use instanceof CFGNode usecfg && !skip( usecfg ) )

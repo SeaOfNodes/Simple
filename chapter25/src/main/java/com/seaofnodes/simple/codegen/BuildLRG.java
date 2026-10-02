@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
 
 abstract public class BuildLRG {
@@ -19,10 +20,12 @@ abstract public class BuildLRG {
             if( bb instanceof FunNode fun2 )
                 fun = fun2;
             for( Node n : bb.outs() ) {
+                // A synthetic never-exit value has no runtime definition.
+                if( n._type==Type.TOP ) continue;
                 if( n instanceof PhiNode phi && !(phi._type instanceof TypeMem) ) {
                     if( phi instanceof MachNode mach && mach.outregmap()==null )
                         continue;
-                    // All Phi inputs end up with the same LRG.
+                    // All real Phi inputs end up with the same LRG.
                     // Pass 1: find any pre-existing LRG, to avoid make-then-Union a LRG
                     LRG lrg = alloc.lrg(phi);
                     if( lrg == null )
@@ -35,7 +38,9 @@ abstract public class BuildLRG {
                     // Pass 2: everybody uses the same LRG
                     lrg=alloc.union(lrg,phi);
                     for( int i=phi instanceof ParmNode ? 2 : 1; i<n.nIns(); i++ )
-                        lrg=alloc.union(lrg,n.in(i));
+                        // TOP keeps the type merge neutral, but needs no register.
+                        if( n.in(i)._type!=Type.TOP )
+                            lrg=alloc.union(lrg,n.in(i));
                     if( lrg._mask!=null && lrg._mask.isEmpty() )
                         alloc.fail(lrg);
 

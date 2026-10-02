@@ -31,7 +31,7 @@ public class LoopNode extends RegionNode {
 
     // If this is an unreachable loop, it may not have an exit.  If it does not
     // (i.e., infinite loop), force an exit to make it reachable.
-    public StopNode forceExit( FunNode fun, StopNode stop ) {
+    public FunNode forceExit( FunNode fun, StopNode stop ) {
         // Walk the backedge, then immediate dominator tree util we hit this
         // Loop again.  If we ever hit a CProj from an If (as opposed to
         // directly on the If) we found our exit.
@@ -40,7 +40,7 @@ public class LoopNode extends RegionNode {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
                 CFGNode other = iff.cproj(1-exit._idx);
                 if( other!=null && other.loopDepth() < loopDepth() )
-                    return stop; // Found an exit, not an infinite loop
+                    return fun; // Found an exit, not an infinite loop
             }
             x = x.idom();
         }
@@ -57,6 +57,8 @@ public class LoopNode extends RegionNode {
         // XCtrl or a bunch of prior NeverNode exits.
         Node top = new ConstantNode(Type.TOP).peephole();
         ReturnNode ret = fun.ret();
+        iff._ltree = f._ltree = _ltree;
+        ret._ltree = t._ltree = fun._ltree;
         Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
         if( ctrl._type != Type.XCONTROL ) {
             // Perfect aligned exit?
@@ -77,10 +79,11 @@ public class LoopNode extends RegionNode {
             mem  = top;
             expr = top;
         }
+        ((CFGNode)ctrl)._ltree = fun._ltree;
         ret.setDef(0,ctrl);
         ret.setDef(1,mem );
         ret.setDef(2,expr);
 
-        return stop;
+        return fun;
     }
 }

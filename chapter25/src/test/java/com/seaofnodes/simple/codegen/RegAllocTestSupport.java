@@ -175,6 +175,28 @@ public class RegAllocTestSupport {
         }
     }
 
+    public static void topPhi() {
+        // Either arm can be the synthetic exit.  Both predecessors share a
+        // block here so making TOP live would conflict with the real value.
+        for( int slot=1; slot<=2; slot++ ) {
+            CodeGen code = graph();
+            RegAlloc alloc = new RegAlloc(code);
+            Op def = new Op(A,null,null,false,code._start);
+            Node top = new ConstantNode(com.seaofnodes.simple.type.Type.TOP);
+            RegionNode region = new RegionNode(null,code._start,code._start);
+            PhiNode phi = new PhiNode("value",region,slot==1 ? top : def,slot==2 ? top : def);
+            phi._type = TypeInteger.BOT;
+            new Op(null,A,null,false,region,phi);
+            code._cfg.add(region);
+            assertTrue(BuildLRG.run(0,alloc));
+            assertNull(alloc.lrg(top));
+            assertSame(alloc.lrg(def),alloc.lrg(phi));
+            assertTrue(IFG.build(0,alloc));
+            alloc.insertBefore(phi,slot,"test",(byte)0,alloc.lrg(phi));
+            assertSame(top,phi.in(slot));
+        }
+    }
+
     public static void checkRegisters(CodeGen code) {
         assertTrue(code._regAlloc.verifyFunctionLocalEdges());
         for( CFGNode bb : code._cfg )
@@ -190,7 +212,10 @@ public class RegAllocTestSupport {
                 }
                 if( n instanceof PhiNode && code._regAlloc.regnum(n)>=0 )
                     for( int i=n instanceof ParmNode ? 2 : 1; i<n.nIns(); i++ )
-                        assertEquals(code._regAlloc.regnum(n),code._regAlloc.regnum(n.in(i)));
+                        if( n.in(i)._type==com.seaofnodes.simple.type.Type.TOP )
+                            assertNull(code._regAlloc.lrg(n.in(i)));
+                        else
+                            assertEquals(code._regAlloc.regnum(n),code._regAlloc.regnum(n.in(i)));
             }
     }
 

@@ -10,6 +10,8 @@ import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @Test public void testAllocatorTopPhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.topPhi(); }
+
     @Test public void testAllocatorFixedNeighbor() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.uncoloredFixedNeighbor(); }
 
     @Test public void testNarrowStoreMasks() {

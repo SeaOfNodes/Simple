@@ -361,15 +361,6 @@ lines beyond the original extraction.
   suite passes, including its current String programs.
 
 
-- **Chapter 21 synthetic TOP return allocation.** The original compiler at
-  `f01ee052` and the memory port both fail in `Coalesce.coalesce`: a Split of
-  TOP has no input live range. Reproduction: `struct S { int x; int y; };
-  S !a=new S; if(arg) while(1) { a.x+=arg; a.y+=a.x; } return a.x+a.y;`
-  through Encoding on x86/SystemV. The new memory regression checks both
-  precise slices of the synthetic exit, then schedules all three targets;
-  allocation of its scalar TOP arm remains separate work. Do not hide the
-  missing live range with a null guard in coalescing.
-
 - **Existing Chapter 18 floating-array assertion.** The unchanged
   `TypeStruct.makeAry` assertion accepts integers and nullable references but
   excludes TypeFloat; `return new flt[1];` fails under `-ea`. The Chapter 18
@@ -564,6 +555,45 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **Function loop-tree boundaries, Chapters 18-25.** Stop the post-order loop
+  walk at Return, seed each function's outer tree before visiting its body, and
+  use that tree for synthetic exit projections, return Regions and the parent
+  of otherwise exitless loops. In Chapter 25, walking through Return/StopCU/Stop
+  into Start mistook the external-world cycle for another loop: the function
+  entry had depth 1 while its return Region retained depth 0. Function bodies
+  now consistently have depth 0, with real loops adding depth. Chapters 18-20
+  also assign the tree to the newly created Never and both projections.
+  `Chapter18Test.testNeverExitLoopDepth`, forwarded through 25, covers single,
+  multiple, unconditional and nested synthetic exits. The RISC-V pointer-store
+  reproducer `Chapter25Test.testNeverReturnPointerRiscV` now runs through
+  Encoding without changing the spill heuristic or eight-round limit; its
+  `@Ignore` is removed. Baseline failures are recorded in
+  `build/loop-tree18-baseline.log` and `build/loop-tree25-baseline.log`.
+  Full Make suites pass in `build/loop-tree-all.log`: 18 **333+1**, 19 **377+1**,
+  20 **399+1**, 21 **438+1**, 22 **459+1**, 23 **481+1**, 24 **511+1**, and
+  25 **403+39+9+23+1+14**, plus shared printer/ISA tests. Spill goldens remain
+  unchanged.
+
+- **Synthetic TOP returns, Chapters 20-25.** TOP remains neutral in the type
+  merge but has no runtime register value. BuildLRG excludes TOP definitions
+  and Phi inputs; IFG does not propagate TOP arms into predecessor liveness;
+  spilling ignores TOP for loop depth and inserts no copies for it. Chapter
+  20's register-bias walk also stops when a Phi arm has no LRG. Coalesce keeps
+  its normal requirement that both ends of a real copy have live ranges.
+  `Chapter20Test.testAllocatorTopPhi` checks either Phi slot in scheduled graphs
+  from Chapter 20 onward. Source regressions in 21-25 (where loop repair precedes
+  instruction selection) cover integer, non-null pointer and floating returns,
+  multiple synthetic exits, no real exit, and the original two-field memory
+  reproducer. Existing `testNeverMemory` tests now continue through Encoding.
+  Full Make suites pass: 20 **398+1**, 21 **437+1**, 22 **458+1**, 23 **480+1**,
+  24 **510+1**, and 25 **402+39+9+22+1+14**, plus shared printer/ISA tests.
+  Spill goldens were unchanged. The RISC-V pointer-store convergence test was
+  ignored in that run; the subsequent loop-tree correction above enables it.
+  Chapter 21 ARM/RISC-V execution
+  of the original reproducer returns 0 for `arg=0` and stays in the loop for
+  10,000 instructions for `arg=1`. Logs: `build/top-ra-all.log` (20-24 and
+  shared modules), `build/top-ra25-final.log`, `build/top-ra-execution.log`.
 
 - **GCM conditional-writer ordering, Chapters 21-25.** Restored the `idom()`
   walk from a writer's late block through its early bound, including matching

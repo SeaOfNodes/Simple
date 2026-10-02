@@ -3,6 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.Ary;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.Type;
 import java.util.BitSet;
 import java.util.IdentityHashMap;
 
@@ -241,6 +242,8 @@ abstract public class IFG {
                 assert i!=0;
                 def = phi.in( i );
             }
+            // The synthetic exit carries no value on this Phi arm.
+            if( def._type==Type.TOP ) continue;
             Node def_bb = lrgs.get(lrg);
             if( def_bb==null ) {
                 lrgs.put(lrg,def);

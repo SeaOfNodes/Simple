@@ -197,7 +197,7 @@ public abstract class CFGNode extends Node {
     // ------------------------------------------------------------------------
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
-    // Start is a LoopNode which contains all at depth 1.
+    // Start contains the function bodies at depth 0; real loops add depth.
     public void buildLoopTree( Ary<FunNode> funs, StopNode stop) {
         _ltree = stop._ltree = CodeGen.CODE.XCTRL._ltree = new LoopTree((StartNode)this);
         Ary<FunNode> work = new Ary<>(FunNode.class);
@@ -210,7 +210,7 @@ public abstract class CFGNode extends Node {
                 work.push(fun);
                 if(fun.in(1) instanceof StartCUNode start && start._pre==0 ) {
                     start._pre = pre++;
-                    start._ltree = _ltree;
+                    start._ltree = start.cfg(1)._ltree = _ltree;
                     post.set(start._nid);
                 }
             };
@@ -224,6 +224,14 @@ public abstract class CFGNode extends Node {
         // Pre-walked?
         if( _pre!=0 ) return pre;
         _pre = pre++;
+        // Seed the function's outer tree before walking its body.  Synthetic
+        // exits can be added before the post-order walk reaches the entry.
+        if( this instanceof FunNode ) _ltree = stop._ltree;
+        if( this instanceof ReturnNode ) {
+            _ltree = fun._ltree;
+            post.set(_nid);
+            return pre; // Stop/Start links describe the outside world, not a loop.
+        }
         // Pre-walk
         for( Node use : _outputs )
             if( use instanceof CFGNode usecfg ) {
@@ -233,46 +241,42 @@ public abstract class CFGNode extends Node {
                     pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post, work );
             }
 
-        if( this instanceof ReturnNode ret ) {
-            ret._ltree = stop._ltree;
-        } else {
-          // Post-order work: find innermost loop
-          LoopTree inner = null, ltree;
-          for( Node use : _outputs ) {
-              if( !(use instanceof CFGNode usecfg) ) continue;
-              if( skip(usecfg) ) continue;
-              if( usecfg._type == Type.XCONTROL ||       // Do not walk dead control
-                  usecfg._type == TypeTuple.IF_NEITHER ) // Nor dead IFs
-                  continue;
-              // Child visited but not post-visited?
-              if( !post.get(usecfg._nid) ) {
-                  // Must be a backedge to a LoopNode then
-                  ltree = usecfg._ltree = new LoopTree((LoopNode)usecfg);
-              } else {
-                  // Take child's loop choice, which must exist
-                  ltree = usecfg._ltree;
-                  // If falling into a loop, use the target loop's parent instead
-                  if( ltree._head == usecfg ) {
-                      if( ltree._par == null )
-                          // This loop never had an If test choose to take its
-                          // exit, i.e. it is a no-exit infinite loop.
-                          ltree._par = ltree._head.forceExit(fun,stop)._ltree;
-                      ltree = ltree._par;
-                  }
-              }
-              // Sort inner loops.  The decision point is some branch far removed
-              // from either loop head OR either backedge so requires pre-order
-              // numbers to figure out innermost.
-              if( inner == null ) { inner = ltree; continue; }
-              if( inner == ltree ) continue; // No change
-              LoopTree outer = ltree._head._pre > inner._head._pre ? inner : ltree;
-              inner =          ltree._head._pre > inner._head._pre ? ltree : inner;
-              inner._par = outer;
-          }
-          // Set selected loop
-          if( inner!=null )
-              _ltree = inner;
+        // Post-order work: find innermost loop
+        LoopTree inner = null, ltree;
+        for( Node use : _outputs ) {
+            if( !(use instanceof CFGNode usecfg) ) continue;
+            if( skip(usecfg) ) continue;
+            if( usecfg._type == Type.XCONTROL ||       // Do not walk dead control
+                usecfg._type == TypeTuple.IF_NEITHER ) // Nor dead IFs
+                continue;
+            // Child visited but not post-visited?
+            if( !post.get(usecfg._nid) ) {
+                // Must be a backedge to a LoopNode then
+                ltree = usecfg._ltree = new LoopTree((LoopNode)usecfg);
+            } else {
+                // Take child's loop choice, which must exist
+                ltree = usecfg._ltree;
+                // If falling into a loop, use the target loop's parent instead
+                if( ltree._head == usecfg ) {
+                    if( ltree._par == null )
+                        // This loop never had an If test choose to take its
+                        // exit, i.e. it is a no-exit infinite loop.
+                        ltree._par = ltree._head.forceExit(fun,stop)._ltree;
+                    ltree = ltree._par;
+                }
+            }
+            // Sort inner loops.  The decision point is some branch far removed
+            // from either loop head OR either backedge so requires pre-order
+            // numbers to figure out innermost.
+            if( inner == null ) { inner = ltree; continue; }
+            if( inner == ltree ) continue; // No change
+            LoopTree outer = ltree._head._pre > inner._head._pre ? inner : ltree;
+            inner =          ltree._head._pre > inner._head._pre ? ltree : inner;
+            inner._par = outer;
         }
+        // Set selected loop
+        if( inner!=null )
+            _ltree = inner;
         // Tag as post-walked
         post.set(_nid);
         return pre;

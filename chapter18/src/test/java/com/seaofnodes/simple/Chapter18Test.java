@@ -9,6 +9,42 @@ import static org.junit.Assert.fail;
 import org.junit.Ignore;
 
 public class Chapter18Test {
+    @Test public void testNeverExitLoopDepth() {
+        String[] sources = {
+            "if(arg) while(1) {} return 7;",
+            "if(arg==1) while(1) {} if(arg==2) while(1) {} return 7;",
+            "while(1) {}",
+            "int x=0; while(arg) { if(arg==2) while(1) { x++; } x++; arg--; } return x;"
+        };
+        for( String src : sources ) {
+            CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+            code._start.buildLoopTree(code._stop);
+            int[] nevers = {0};
+            code._stop.walk(n -> {
+                if( n instanceof FunNode fun )
+                    assertEquals("Function entry is outside its loops",0,fun.loopDepth());
+                if( n instanceof ReturnNode ret ) {
+                    assertEquals(ret.fun().loopDepth(),ret.loopDepth());
+                    assertEquals(ret.fun().loopDepth(),ret.cfg0().loopDepth());
+                }
+                if( n instanceof LoopNode loop && !(loop instanceof StartNode) &&
+                    loop.back() instanceof CProjNode back && back.in(0) instanceof NeverNode never ) {
+                    nevers[0]++;
+                    assertSame(loop,never.loop());
+                    assertSame(loop,back.loop());
+                    CProjNode exit = never.cproj(1-back._idx);
+                    CFGNode fun = loop;
+                    while( !(fun instanceof FunNode) ) fun=fun.idom();
+                    assertSame(fun.loop(),exit.loop());
+                    assertEquals(fun.loopDepth(),exit.loopDepth());
+                    assertTrue(loop.loopDepth()>fun.loopDepth());
+                }
+                return null;
+            });
+            assertTrue("Exercise a synthetic exit",nevers[0]>0);
+        }
+    }
+
     @Test public void testFunctionLocalConstantChains() {
         String src = "val f = { int x -> x ? f(x-1)*305420988+x/305420988 : 1; }; "+
                      "val g = { int x -> x ? g(x-1)/305420988+x*305420988 : 1; }; "+

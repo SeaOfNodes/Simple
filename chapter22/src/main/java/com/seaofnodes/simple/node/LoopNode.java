@@ -32,7 +32,7 @@ public class LoopNode extends RegionNode {
 
     // If this is an unreachable loop, it may not have an exit.  If it does not
     // (i.e., infinite loop), force an exit to make it reachable.
-    public StopNode forceExit( FunNode fun, StopNode stop ) {
+    public FunNode forceExit( FunNode fun, StopNode stop ) {
         // Walk the backedge, then immediate dominator tree util we hit this
         // Loop again.  If we ever hit a CProj from an If (as opposed to
         // directly on the If) we found our exit.
@@ -41,7 +41,7 @@ public class LoopNode extends RegionNode {
             if( x instanceof CProjNode exit && exit.in(0) instanceof IfNode iff ) {
                 CFGNode other = iff.cproj(1-exit._idx);
                 if( other!=null && other._ltree != _ltree && nested(_ltree,other._ltree) )
-                    return stop; // Found an exit, not an infinite loop
+                    return fun; // Found an exit, not an infinite loop
             }
             x = x.idom();
         }
@@ -52,7 +52,7 @@ public class LoopNode extends RegionNode {
         setDef(2,t);            // True continues loop, False (never) exits loop
         ReturnNode ret = fun.ret();
         iff._ltree = t._ltree = _ltree;
-        ret._ltree = f._ltree = stop._ltree;
+        ret._ltree = f._ltree = fun._ltree;
 
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
@@ -72,7 +72,7 @@ public class LoopNode extends RegionNode {
                   expr instanceof PhiNode prez && prez.region()==r ) ) {
                 // Nope, insert an aligned exit layer
                 RegionNode r = new RegionNode(_loc,null,ctrl).init();
-                ctrl = r;  r._ltree = stop._ltree;
+                ctrl = r;  r._ltree = fun._ltree;
                 mem  = new BulkMemPhiNode(ScopeNode.MEM0,r,mem).init();
                 expr = new PhiNode(r,expr).init();
             }
@@ -89,7 +89,7 @@ public class LoopNode extends RegionNode {
         ret.setDef(1,mem );
         ret.setDef(2,expr);
 
-        return stop;
+        return fun;
     }
 
     private static boolean nested(LoopTree inner, LoopTree outer) {

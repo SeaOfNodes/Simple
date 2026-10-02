@@ -126,8 +126,25 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   bank, preserving integer bits when allocated to XMM. ARM's emulator needs
   MOVK and full MOVZ immediate/shift support. The 91-entry spill cohort changes
   840 / 1,456 to 845 / 1,559; read-before-New ordering explains most of the
-  RISC-V BrainFuck increase. No allocator heuristics changed. Synthetic scalar
-  TOP exit allocation already failed before this port; see the pending queue.
+  RISC-V BrainFuck increase. No allocator heuristics changed in that port.
+
+- Synthetic never-exit TOP values remain in the graph for neutral type merges,
+  but have no runtime value to allocate. Chapters 20-25 exclude TOP definitions
+  and Phi arms from LRG construction, Phi-input liveness and spill copies; TOP
+  arms also do not contribute to spill loop-depth estimates. Register-bias walks
+  must stop at an input with no LRG. Do not give TOP a permissive register mask:
+  that still creates false liveness, interference and spills. Coalescing assumes
+  both ends of every actual copy have LRGs; fix the creation of bogus copies,
+  rather than adding a null guard there.
+
+- From Chapter 18, stop loop-tree discovery at each Return. Seed the function's
+  outer tree before the post-order body walk, since `forceExit` can add a return
+  Region and projections before the walk reaches the function entry. Those
+  exits inherit the function's outer tree; Never and the backedge projection
+  inherit the actual loop. Function bodies are depth 0, real loops add depth.
+  In Chapter 25, Stop/Start and StopCU/StartCU links describe external-world
+  type propagation, not executable loop backedges. Walking through them created
+  inconsistent depths and caused the RISC-V pointer-return spill-round failure.
 
 - Chapter 21's Load search is separate from the one-step factoring guard.
   It creates no nodes or rewiring, but records dependencies and returns folding
