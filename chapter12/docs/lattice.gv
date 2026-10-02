@@ -1,182 +1,135 @@
 digraph Lattice {
-    compound = true;
-    // Define nodes
-    splines=false;
-    node [shape=circle, style=filled];
-    nodesep=0.6;
+    rankdir=TB;
+    newrank=true;
+    // Preserve the same-rank ordering edges through cluster layout.
+    remincross=false;
+    nodesep=0.22;
+    ranksep=0.65;
+    node [shape=ellipse, style=filled, fontname="DejaVu Sans", fontsize=13];
+    edge [color="#555555", arrowsize=0.6];
 
-    TOP [label=<<B>⊤</B >>, fillcolor=black, fontcolor=white];
-    BOT [label=<<B>⊥</B>>, fillcolor=black, fontcolor=white];
+    // These arrows are lattice-order edges, not use/definition edges.
+    TOP [label="⊤", fillcolor=black, fontcolor=white];
+    BOT [label="⊥", fillcolor=black, fontcolor=white];
 
-    // ----------------------
-    // Control
-    XCTRL [label=<<B>⊤</B >:ctrl>, fillcolor=yellow, shape=oval];
-    CTRL  [label=<<B>⊥</B>:ctrl>, fillcolor=yellow, shape=oval];
+    subgraph cluster_control {
+        label="Control"; fontname="Arial"; color="#cccccc";
+        node [fillcolor="#ffff00"];
+        XCTRL [label="⊤:ctrl"];
+        CTRL [label="⊥:ctrl"];
+        XCTRL -> CTRL;
+    }
 
-    TOP   -> XCTRL;
-    XCTRL -> CTRL;
-    CTRL  -> BOT;
+    subgraph cluster_integer {
+        label="Integer"; fontname="Arial"; color="#cccccc";
+        node [fillcolor="#add8e6"];
+        INT_TOP [label="⊤:int"];
+        INT_BOT [label="⊥:int"];
+        INT_NEG [label="… −2, −1"];
+        INT_ZERO [label="0"];
+        INT_POS [label="1, 2, …"];
+        {rank=same; INT_NEG; INT_ZERO; INT_POS;}
+        INT_NEG -> INT_ZERO -> INT_POS [style=invis];
+        INT_TOP -> {INT_NEG INT_ZERO INT_POS};
+        {INT_NEG INT_ZERO INT_POS} -> INT_BOT;
+    }
 
-    // ----------------------
-    // Integers
-    INT_TOP [label=<<B>⊤</B >:int>, fillcolor=lightblue, shape=oval];
-    INT_BOT [label=<<B>⊥</B>:int>, fillcolor=lightblue, shape=oval];
+    subgraph cluster_float {
+        label="Float"; fontname="Arial"; color="#cccccc";
+        FLT_TOP [label=<<B>⊤</B >:flt>, fillcolor=aqua, shape=oval];
+        FLT_BOT [label=<<B>⊥</B>:flt>, fillcolor=aqua, shape=oval];
 
-    INT_MINDOTS [label="...", fillcolor=lightblue, shape=oval];
-    INT_ZERO    [label="0"  , fillcolor=lightblue];
-    INT_MAXDOTS [label="...", fillcolor=lightblue, shape=oval];
+        FLT_MINDOTS [label="… negative constants", fillcolor=aqua, shape=oval];
+        FLT_ZERO    [label="0.0"  , fillcolor=aqua];
+        FLT_MAXDOTS [label="positive constants …", fillcolor=aqua, shape=oval];
 
-    TOP         -> INT_TOP;
-    INT_TOP     -> INT_MINDOTS;
-    INT_TOP     -> INT_ZERO;
-    INT_TOP     -> INT_MAXDOTS;
-    INT_MINDOTS -> INT_BOT;
-    INT_ZERO    -> INT_BOT;
-    INT_MAXDOTS -> INT_BOT;
-    INT_BOT     -> BOT;
+        FLT_TOP     -> FLT_MINDOTS;
+        FLT_TOP     -> FLT_ZERO;
+        FLT_TOP     -> FLT_MAXDOTS;
+        FLT_MINDOTS -> FLT_BOT;
+        FLT_ZERO    -> FLT_BOT;
+        FLT_MAXDOTS -> FLT_BOT;
 
-    INT_MINDOTS -> INT_ZERO -> INT_MAXDOTS [style=invis];
+        FLT_MINDOTS -> FLT_ZERO -> FLT_MAXDOTS [style=invis];
 
-    // ----------------------
-    // Floats
-    FLT_TOP [label=<<B>⊤</B >:flt>, fillcolor=aqua, shape=oval];
-    FLT_BOT [label=<<B>⊥</B>:flt>, fillcolor=aqua, shape=oval];
+        {rank=same; FLT_MINDOTS; FLT_ZERO; FLT_MAXDOTS;}
+    }
 
-    FLT_MINDOTS [label="...", fillcolor=aqua, shape=oval];
-    FLT_ZERO    [label="0"  , fillcolor=aqua];
-    FLT_MAXDOTS [label="...", fillcolor=aqua, shape=oval];
+    subgraph cluster_pointer {
+        label="Pointer = nullability × struct type";
+        fontname="Arial"; color="#cccccc";
+        node [fillcolor="#008000", fontcolor=white];
+        PTR_TOP [label="⊤:ptr\n[*⊤:struct]"];
+        PTR_BOT [label="⊥:ptr\n[*⊥:struct?]"];
+        PTR_NULL [label="null"];
+        PTR_ANY [label="*⊥:struct\n[ptr any struct]"];
+        PTR_PERSON [label="*Person"];
+        PTR_S1 [label="*s1"];
+        PTR_MORE [label="*s2, …"];
+        PTR_PERSON_NIL [label="*Person?"];
+        PTR_S1_NIL [label="*s1?"];
+        PTR_MORE_NIL [label="*s2?, …"];
+        {rank=same; PTR_PERSON; PTR_S1; PTR_MORE; PTR_NULL;}
+        {rank=same; PTR_ANY; PTR_PERSON_NIL; PTR_S1_NIL; PTR_MORE_NIL;}
+        PTR_PERSON -> PTR_S1 -> PTR_MORE -> PTR_NULL [style=invis];
+        PTR_ANY -> PTR_PERSON_NIL -> PTR_S1_NIL -> PTR_MORE_NIL [style=invis];
+        PTR_TOP -> {PTR_PERSON PTR_S1 PTR_MORE PTR_NULL};
+        {PTR_PERSON PTR_S1 PTR_MORE} -> PTR_ANY;
+        PTR_PERSON -> PTR_PERSON_NIL;
+        PTR_S1 -> PTR_S1_NIL;
+        PTR_MORE -> PTR_MORE_NIL;
+        PTR_NULL -> {PTR_PERSON_NIL PTR_S1_NIL PTR_MORE_NIL};
+        {PTR_ANY PTR_PERSON_NIL PTR_S1_NIL PTR_MORE_NIL} -> PTR_BOT;
+    }
 
-    TOP         -> FLT_TOP;
-    FLT_TOP     -> FLT_MINDOTS;
-    FLT_TOP     -> FLT_ZERO;
-    FLT_TOP     -> FLT_MAXDOTS;
-    FLT_MINDOTS -> FLT_BOT;
-    FLT_ZERO    -> FLT_BOT;
-    FLT_MAXDOTS -> FLT_BOT;
-    FLT_BOT     -> BOT;
+    subgraph cluster_struct {
+        label="Struct\nnamed collection of named scalar types";
+        fontname="Arial"; color="#cccccc";
+        node [fillcolor="#90ee90"];
+        STRUCT_TOP [label="⊤:struct\n[struct top]"];
+        STRUCT_BOT [label="⊥:struct\n[struct bottom]"];
+        STRUCT_PERSON [label="Person\nage: int", shape=box];
+        STRUCT_S1 [label="s1\nx: int", shape=box];
+        STRUCT_S2 [label="s2\nx: int, y: flt", shape=box];
+        STRUCT_MORE [label="…", shape=box];
+        {rank=same; STRUCT_PERSON; STRUCT_S1; STRUCT_S2; STRUCT_MORE;}
+        STRUCT_PERSON -> STRUCT_S1 -> STRUCT_S2 -> STRUCT_MORE [style=invis];
+        STRUCT_TOP -> {STRUCT_PERSON STRUCT_S1 STRUCT_S2 STRUCT_MORE};
+        {STRUCT_PERSON STRUCT_S1 STRUCT_S2 STRUCT_MORE} -> STRUCT_BOT;
+    }
 
-    FLT_MINDOTS -> FLT_ZERO -> FLT_MAXDOTS [style=invis];
-    
-    // ----------------------
-    // Pointers, just a boolean nil/not and a struct
-    PTR  [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TR><TD BGCOLOR="green"><FONT color="white">*ptr</FONT></TD></TR>
-        <TR><TD BGCOLOR="lightgreen">struct</TD></TR>
-      </TABLE>
-    >];
-    PTR0  [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TR><TD BGCOLOR="green"><FONT color="white">*ptr?</FONT></TD></TR>
-        <TR><TD BGCOLOR="lightgreen">struct</TD></TR>
-      </TABLE>
-    >];
-    
-    TOP  -> PTR;
-    PTR  -> PTR0;
-    PTR0 -> BOT;
+    subgraph cluster_memory {
+        label="Memory\nprecise alias slices"; fontname="Arial"; color="#cccccc";
+        node [fillcolor="#00008b", fontcolor=white];
+        MEM_TOP [label="⊤:mem"];
+        MEM_BOT [label="⊥:mem"];
+        MEM_ALIAS2 [label="MEM#2"];
+        MEM_ALIAS3 [label="MEM#3"];
+        MEM_MORE [label="…"];
+        {rank=same; MEM_ALIAS2; MEM_ALIAS3; MEM_MORE;}
+        MEM_ALIAS2 -> MEM_ALIAS3 -> MEM_MORE [style=invis];
+        MEM_TOP -> {MEM_ALIAS2 MEM_ALIAS3 MEM_MORE};
+        {MEM_ALIAS2 MEM_ALIAS3 MEM_MORE} -> MEM_BOT;
+    }
 
-    // ----------------------
-    // Structs
-    STRUCT_TOP    [label=<<B>⊤</B >:struct>, fillcolor=lightgreen, shape=oval];
-    STRUCT_BOT    [label=<<B>⊥</B>:struct>, fillcolor=lightgreen, shape=oval];
+    subgraph cluster_tuple {
+        label="Tuple\ncollection of types";
+        fontname="Arial"; color="#cccccc";
+        node [fillcolor="#ffc0cb"];
+        TUPLE_TOP [label="⊤:tuple"];
+        TUPLE_BOT [label="⊥:tuple"];
+        TUPLE1 [label="(type)", shape=box];
+        TUPLE2 [label="(type, type)", shape=box];
+        TUPLEN [label="(type, …)", shape=box];
+        {rank=same; TUPLE1; TUPLE2; TUPLEN;}
+        TUPLE1 -> TUPLE2 -> TUPLEN [style=invis];
+        TUPLE_TOP -> {TUPLE1 TUPLE2 TUPLEN};
+        {TUPLE1 TUPLE2 TUPLEN} -> TUPLE_BOT;
+    }
 
-    STRUCT_S1  [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
-      </TABLE>
-    >];
-    STRUCT_S2  [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
-        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
-      </TABLE>
-    >];
-    STRUCT_SN  [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
-        <TR><TD BGCOLOR="lightgreen">...  </TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
-        <TR><TD BGCOLOR="lightgreen">field</TD><TD BGCOLOR="lightblue:green" gradientangle="315">int/ptr</TD></TR>
-      </TABLE>
-    >];
-
-
-    TOP          -> STRUCT_TOP;
-    STRUCT_TOP   -> STRUCT_S1;
-    STRUCT_TOP   -> STRUCT_S2;
-    STRUCT_TOP   -> STRUCT_SN;
-    STRUCT_S1    -> STRUCT_BOT;
-    STRUCT_S2    -> STRUCT_BOT;
-    STRUCT_SN    -> STRUCT_BOT;
-    STRUCT_BOT   -> BOT;
-
-    STRUCT_S1 -> STRUCT_S2 -> STRUCT_SN [style=invis];
-
-    // ----------------------
-    // Memory
-    MEM_TOP       [label=<<B>⊤</B >:mem>, fillcolor=blue, fontcolor=white, shape=oval];
-    MEM_BOT       [label=<<B>⊥</B>:mem>, fillcolor=blue, fontcolor=white, shape=oval];
-    MEM_ALIAS1    [label="#1"     , fillcolor=blue, fontcolor=white];
-    MEM_ALIASDOTS [label="..."    , fillcolor=blue, fontcolor=white, shape=oval];
-    MEM_ALIASN    [label="#n"     , fillcolor=blue, fontcolor=white];
-
-    TOP          -> MEM_TOP;
-    MEM_TOP      -> MEM_ALIAS1;
-    MEM_TOP      -> MEM_ALIASDOTS;
-    MEM_TOP      -> MEM_ALIASN;
-    MEM_ALIAS1   -> MEM_BOT;
-    MEM_ALIASDOTS -> MEM_BOT;
-    MEM_ALIASN    -> MEM_BOT;
-    MEM_BOT       -> BOT;
-
-    MEM_ALIAS1 -> MEM_ALIASDOTS -> MEM_ALIASN [style=invis];
-
-    // ----------------------
-    // Tuples
-
-    TUPLE_TOP [label=<<B>⊤</B >:tuple>, fillcolor=pink, shape=oval];
-    TUPLE_BOT [label=<<B>⊥</B>:tuple>, fillcolor=pink, shape=oval];
-
-    TUPLE1 [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-      </TABLE>
-    >];
-    TUPLE2 [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-      </TABLE>
-    >];
-    TUPLEN [shape=none, fillcolor=none, label=<
-      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
-        <TH><TD BGCOLOR="pink">Tuple</TD></TH>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-        <TR><TD BGCOLOR="black" ><FONT color="white">...</FONT></TD></TR>
-        <TR><TD BGCOLOR="black" ><FONT color="white">type</FONT></TD></TR>
-      </TABLE>
-    >];
-
-
-    TOP -> TUPLE_TOP;
-    TUPLE_TOP -> TUPLE1;
-    TUPLE_TOP -> TUPLE2;
-    TUPLE_TOP -> TUPLEN;
-    TUPLE1 -> TUPLE_BOT;
-    TUPLE2 -> TUPLE_BOT;
-    TUPLEN -> TUPLE_BOT;
-    TUPLE_BOT -> BOT;
-
-    // ----------------------
-    // Additional customization
-    {rank=same; TOP;}
-    {rank=same; INT_TOP; FLT_TOP; XCTRL; STRUCT_TOP; MEM_TOP; TUPLE_TOP}
-    {rank=same; INT_MINDOTS; INT_ZERO; INT_MAXDOTS; 
-                FLT_MINDOTS; FLT_ZERO; FLT_MAXDOTS;
-                STRUCT_S1; STRUCT_S2; STRUCT_SN;
-                MEM_ALIAS1;  MEM_ALIASDOTS; MEM_ALIASN;}
-    {rank=same; INT_BOT; FLT_BOT; CTRL; STRUCT_BOT; MEM_BOT; TUPLE_BOT}
-    {rank=same; BOT;}
+    TOP -> {XCTRL INT_TOP FLT_TOP PTR_TOP STRUCT_TOP MEM_TOP TUPLE_TOP};
+    {CTRL INT_BOT FLT_BOT PTR_BOT STRUCT_BOT MEM_BOT TUPLE_BOT} -> BOT;
+    {rank=same; XCTRL; INT_TOP; FLT_TOP; PTR_TOP; STRUCT_TOP; MEM_TOP; TUPLE_TOP;}
+    {rank=same; CTRL; INT_BOT; FLT_BOT; PTR_BOT; STRUCT_BOT; MEM_BOT; TUPLE_BOT;}
+    XCTRL -> INT_TOP -> FLT_TOP -> PTR_TOP -> STRUCT_TOP -> MEM_TOP -> TUPLE_TOP [style=invis];
 }

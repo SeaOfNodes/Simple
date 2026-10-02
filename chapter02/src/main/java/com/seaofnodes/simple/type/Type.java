@@ -36,5 +36,10 @@ public class Type {
 
     public boolean isConstant() { return _type == TTOP; }
 
+    @Override
+    public String toString() {
+      return print(new StringBuilder()).toString();
+    }
+
     public StringBuilder print(StringBuilder sb) {return is_simple() ? sb.append(STRS[_type]) : sb;}
 }

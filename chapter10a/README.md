@@ -45,7 +45,7 @@ are `{ctrl, $mem, result}`.
 
 The memory edge is a dependency, not a copy of the heap.  The graph determines
 the legal execution order.  In hardware, a Store updates physical memory
-directly.  In the evaluator, a Store updates an objects' attached memory array.
+directly.  In the evaluator, a Store updates an object's attached memory array.
 
 ## Memory is an SSA variable
 
@@ -269,7 +269,7 @@ If `bar` is `null` then we would like `!bar` to evaluate to `true`. In the else
 branch we know `bar` is not null, hence the assignment to `bar.a` should be
 allowed.
 
-To enable this behaviour, we make following enhancements.
+To enable this behaviour, we make the following enhancements.
 
 * We track the null-ness of a pointer in the Type system, and hence in every
   Node that ptr type flows through.
@@ -286,7 +286,7 @@ To enable this behaviour, we make following enhancements.
 
 * The up-cast is represented by the `CastNode` op, and if applicable, we
   replace all occurrences of the original predicate with the up-cast in the
-  current scope.  The change is local to each branch of the `If`; occuring
+  current scope.  The change is local to each branch of the `If`; occurring
   separately for the true and the false branches of the `If` (and the false
   branch inverts the predicate).
 
@@ -295,7 +295,7 @@ To enable this behaviour, we make following enhancements.
   and `CastNode`.
 
 * When computing a type for Not, we produce an Integer type when its input is a
-  ptr.  When the input is a `null` we convert to `1` and when is a not `null`
+  ptr.  When the input is a `null` we convert to `1` and when it is a non-null
   ptr value, we convert to `0`.  See `NotNode.compute()`.
 
 

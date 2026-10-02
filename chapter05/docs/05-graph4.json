@@ -1,0 +1,28 @@
+{
+  "ver": 1,
+  "comp": "chapter05/docs/05-graph4.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "$ctrl", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 2, "role": "CTRL", "label": null}], "proj": {"par": 2, "idx": 0}},
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 3, "label": "Stop", "type": null, "kind": "STOP", "edges": [{"idx": 0, "def": 18, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 4, "label": "arg", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "DATA", "label": null}], "proj": {"par": 2, "idx": 1}},
+    {"id": 5, "label": "True", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 10, "role": "CTRL", "label": null}], "proj": {"par": 10, "idx": 0}},
+    {"id": 6, "label": "#2", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 7, "label": "==", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 4, "role": "DATA", "label": null}, {"idx": 2, "def": 6, "role": "DATA", "label": null}], "proj": null},
+    {"id": 8, "label": "#1", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 9, "label": "==", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 4, "role": "DATA", "label": null}, {"idx": 2, "def": 8, "role": "DATA", "label": null}], "proj": null},
+    {"id": 10, "label": "If", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 1, "role": "CTRL", "label": null}, {"idx": 1, "def": 9, "role": "DATA", "label": null}], "proj": null},
+    {"id": 11, "label": "False", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 10, "role": "CTRL", "label": null}], "proj": {"par": 10, "idx": 1}},
+    {"id": 14, "label": "#3", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 15, "label": "==", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 4, "role": "DATA", "label": null}, {"idx": 2, "def": 14, "role": "DATA", "label": null}], "proj": null},
+    {"id": 16, "label": "Region", "type": null, "kind": "REGION", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 5, "role": "CTRL", "label": null}, {"idx": 2, "def": 11, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 17, "label": "φ_a", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 16, "role": "ASSOC", "label": null}, {"idx": 1, "def": 15, "role": "DATA", "label": null}, {"idx": 2, "def": 7, "role": "DATA", "label": null}], "proj": null},
+    {"id": 18, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 16, "role": "CTRL", "label": null}, {"idx": 1, "def": 17, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+    {"id": 10, "par": 0, "nodes": [5, 7, 9, 10, 11, 15, 16, 17]}
+  ]
+}

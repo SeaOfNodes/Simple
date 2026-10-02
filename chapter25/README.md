@@ -1,5 +1,8 @@
 # Chapter 25: Modules, Separate Compilation, and SSA Construction
 
+[Previous: Chapter 24](../chapter24/README.md) |
+[Chapter index](../README.md#chapters)
+
 This chapter compiles Simple source files into reusable object files, loads
 their types and ideal IR into later compilations, and links native programs
 against a separately built system library. It also contains a substantial

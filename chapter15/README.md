@@ -1,5 +1,8 @@
 # Chapter 15: Arrays
 
+[Previous: Chapter 14](../chapter14/README.md) |
+[Next: Chapter 16](../chapter16/README.md)
+
 # Table of Contents
 
 1. [Parser changes](#parser)
@@ -12,8 +15,8 @@
 
 
 At long last we introduce arrays!  These require more complex addressing math,
-which in turn means we need to change how Loads and Stores do addressing - 
-with true field *offsets* instead of field *names*.  This means we also 
+which in turn means we need to change how Loads and Stores do addressing -
+with true field *offsets* instead of field *names*.  This means we also
 will do a struct field *layout* in this chapter.
 
 Arrays are created with the standard `new int[len]` syntax, and can be any base
@@ -31,7 +34,8 @@ will panic the Evaluator.
 - `new int[-1];    // Negative length`
 - `new int[1<<63]; // Too large`
 - `new int[3.14];  // Not an integer`
- 
+
+
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter15) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter14...linear-chapter15) it to the previous chapter.
 
 
@@ -47,7 +51,7 @@ Arrays are always created with zero/null bodies, so implicitly always allow
 
 We make a new array with much the same syntax as making a new object: `new
 int[99]`.  The length is required and is any integer expression, so
-e.g. `int[arg]` is an integer array of length `arg`.  Multi-dimensional arrays
+e.g. `new int[arg]` is an integer array of length `arg`.  Multi-dimensional arrays
 only make the outer dimension; the elements themselves are all null and typed
 as the next lower dimension array.
 
@@ -57,10 +61,11 @@ post-fix `#` operator; e.g. `ary#`.  Example to sum an array:
 
 ```java
 int[] ary = new int[arg];
+int sum = 0;
 int i = 0;
-while( i < ary# ) { 
-    sum = sum + ary[i]; 
-    i = i + 1; 
+while( i < ary# ) {
+    sum = sum + ary[i];
+    i = i + 1;
 }
 ```
 
@@ -127,14 +132,14 @@ a read before allocation and a later write to an existing object.
 
 ## New Address Math
 
-Since arrays need adressing math to index into them, Loads and Stores need a
+Since arrays need addressing math to index into them, Loads and Stores need a
 way to compute an offset.  Previously Loads and Stores only worked on structs,
-and included the field name within them - thus the impicit addressing was field
+and included the field name within them - thus the implicit addressing was field
 name (e.g. a string lookup!).  New in this chapter we create a struct *layout*
 and compute field offsets to all structs.
 
 Loads and Stores now take an `off` instead of a field name, and the field
-name is included for debugging only.  
+name is included for debugging only.
 
 ```java
 public MemOpNode(String name, int alias, Type glb, Node mem, Node ptr, Node off) {
@@ -178,8 +183,8 @@ mod 8.  This means the actual field offset and the field declaration order are
 
 ```java
 struct s {
-  int8 b;        // log_size=0
-  uint16 char;   // log_size=1
+  i8 b;        // log_size=0
+  u16 char;   // log_size=1
   Person p;      // log_size=2
   flt pi;        // log_size=3
 }
@@ -187,9 +192,9 @@ struct s {
 struct s {
   flt pi;        // offset= 0, log_size=3
   Person p;      // offset= 8, log_size=2
-  uint16 char;   // offset=12, log_size=1
-  int8 b;        // offset=13, log_size=0
-  void pad;      // offset=14, size = 2
+  u16 char;   // offset=12, log_size=1
+  i8 b;          // offset=14, log_size=0
+  void pad;      // offset=15, size = 1
 }                // size  =16
 ```
 
@@ -200,7 +205,7 @@ this could be changed at a later date to support a larger range of pointers.
 integer ranges.  Other ranges are possible in Simple via `compute` calls, but
 these will never show up as base field types:
 
-   `struct S { int16 x; }`
+   `struct S { i16 x; }`
 
 Here `x` will have offset 0 and size 2 bytes, and `S` will be padded to size 8.
 
@@ -221,17 +226,17 @@ This means the IR for:
 
   `x[i]`  becomes  `16/*base*/ + (i << 3/*scale*/)`
   becomes `Load(mem,x,Add(Shl(i,3),16))`
-  
-  
+
+
   `x[i+1]` becomes `16/*base*/ + ((i+1) << 3/*scale*/)` becomes
   `Load(mem,x,Add(Shl(i,3),24))`
 
 Notice the `idx+1` folds the `+1` into the base math.
 
-  
+
 ## Discussion
 
-Included in the test cases in a simple rolling sum, and a Sieve of Eratosthenes.
+Included in the test cases is a simple rolling sum, and a Sieve of Eratosthenes.
 
 ```java
 int i=0;
@@ -241,7 +246,7 @@ while( i < ary# ) {
 }
 ```
 
-Here we really see the lack of a `i++` operator and a `for` loop.  You can 
+Here we really see the lack of an `i++` operator and a `for` loop.  You can
 imagine another syntax:
 
 ```java
@@ -249,6 +254,6 @@ for( int i=0; i < ary#; i++ )
     ary[i] = i;
 ```
 
-that would be entirely syntatic-sugar over the existing parser, but would
+that would be entirely syntactic-sugar over the existing parser, but would
 really help make array looping syntax clearer.  There are lots of options
 here, which should really be the focus of another chapter!

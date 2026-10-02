@@ -69,7 +69,7 @@ digraph Lattice {
         STRUCT_BOT [label="⊥:struct\n[struct bottom]"];
         STRUCT_PERSON [label="Person\nage: int", shape=box];
         STRUCT_S1 [label="s1\nx: int", shape=box];
-        STRUCT_S2 [label="s2\nx: int, y: *s1", shape=box];
+        STRUCT_S2 [label="s2\nx: int, y: int", shape=box];
         STRUCT_MORE [label="…", shape=box];
         {rank=same; STRUCT_PERSON; STRUCT_S1; STRUCT_S2; STRUCT_MORE;}
         STRUCT_PERSON -> STRUCT_S1 -> STRUCT_S2 -> STRUCT_MORE [style=invis];

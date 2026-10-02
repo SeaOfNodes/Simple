@@ -1,5 +1,8 @@
 # Chapter 7: While Statement
 
+[Previous: Chapter 6](../chapter06/README.md) |
+[Next: Chapter 8](../chapter08/README.md)
+
 # Table of Contents
 
 1. [Dealing With Back Edges](#dealing-with-back-edges)
@@ -7,7 +10,7 @@
 3. [Detailed Steps](#detailed-steps)
 4. [Visualization](#visualization)
 5. [Nested Loops](#nested-loops)
-5. [Loop With Nested If](#loop-with-nested-if)
+6. [Loop With Nested If](#loop-with-nested-if)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter07) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter06...linear-chapter07) it to the previous chapter.
 
@@ -94,7 +97,7 @@ until we complete parsing the loop body. Other nodes continue to optimize normal
    The newly created region becomes the current control.
 
 2. We duplicate the current Scope node. This involves duplicating all the symbols at
-   every level with the scope, and creating phis for every symbol except the `$ctrl` binding.
+   every level within the scope, and creating phis for every symbol except the `$ctrl` binding.
 
     ```java
     // Make a new Scope for the body.
@@ -196,7 +199,8 @@ The example quoted above is shown below at an intermediate state:
 
 ![Graph1](./docs/07-graph1.svg)
 
-* Three Scopes are shown, reading clockwise, the loop head, exit and the body.
+* Three Scopes are shown: the loop head, exit, and body. Their `$ctrl` bindings
+  point to Loop, False, and True, respectively.
 
 The final graph looks like this:
 

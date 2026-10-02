@@ -1,5 +1,8 @@
 # Chapter 11: Global Code Motion
 
+[Previous: Chapter 10b](../chapter10b/README.md) |
+[Next: Chapter 12](../chapter12/README.md)
+
 This chapter schedules the memory representation introduced in
 [10b](../chapter10b/README.md): one parser-visible `$mem`, with `MemMerge`,
 `MemPhi`, and `BulkMemPhi` recovering independent field chains. Start supplies
@@ -20,7 +23,7 @@ their Region, just like scalar Phis.
 1. [High Level Overview](#high-level-overview)
 2. [Scheduling Walk Through](#scheduling-walk-through)
 3. [Scheduling a Loop](#scheduling-a-loop)
-4. [Components of the Global Code Motion Algorithm ](#components-of-the-global-code-motion-algorithm)
+4. [Components of the Global Code Motion Algorithm](#components-of-the-global-code-motion-algorithm)
 5. [Identification of Basic Blocks in SoN graph](#identification-of-basic-blocks-in-son-graph)
 6. [Handling Infinite Loops](#handling-infinite-loops)
 7. [Dominators](#dominators)
@@ -30,13 +33,12 @@ their Region, just like scalar Phis.
 11. [Inserting Anti Dependencies](#inserting-anti-dependencies)
 12. [Video Walk Through](#video-walk-through)
 
-
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter11) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter10b...linear-chapter11) it to the previous chapter.
 
 
 The original input source program defines a sequence in which things happen. As we parse the program into Sea of Nodes representation
 and perform various optimizations, this sequence is not fully maintained. The optimized Sea of Nodes graph is driven more
-by dependencies between nodes rather that the sequence of instructions in the original source program.
+by dependencies between nodes rather than the sequence of instructions in the original source program.
 
 Our goal in this chapter is to look at how we can recover a schedule for executing instructions from an
 optimized Sea of Nodes graph. This schedule needs to preserve the semantics of the original source program,
@@ -85,7 +87,7 @@ if (arg) v.f=1;
 return i;
 ```
 
-First lets look at the graph before scheduling.
+First let's look at the graph before scheduling.
 
 These walkthrough diagrams show the precise `S.f` chain and the final
 MemMerge consumed by Return. The unchanged default memory comes from Start;
@@ -100,13 +102,13 @@ Observe that
 * Ditto for Phi nodes which are attached to the Region nodes.
 * So what remains are the "floating" Data nodes that do not have a control input at this stage. In this example, these are the load `.f` and store `.f=` nodes.
 
-Now, lets look at the graph after we run the early schedule.
+Now, let's look at the graph after we run the early schedule.
 
 ![Graph2](./docs/graph2.svg)
 
 
 * Observe that the load `.f` and the stores `.f=` now have control edges to the `$ctrl` projection from Start. Thus, the early schedule has put the Data nodes in the first basic block.
-* This is because the inputs to these nodes are have the `$ctrl` projection as the immediate dominator.
+* This is because the inputs to these nodes have the `$ctrl` projection as the immediate dominator.
 
 The graph below shows the schedule post late scheduling.
 
@@ -114,7 +116,7 @@ The graph below shows the schedule post late scheduling.
 
 The snip below shows the main changes in the graph:
 
-![Graph3-snip](./docs/graph3-snip.jpg)
+![Store ordered after the earlier load](./docs/graph3-snip.svg)
 
 * The store `.f=` now has an anti-dependency on the load `.f`; this ensures that the store is scheduled after the load, as required by program semantics. We discuss anti-dependencies in detail later.
 * Observe also that the store `.f=` is now bound to the True branch of the If node.
@@ -168,7 +170,7 @@ We have already alluded to several components of the GCM algorithm in passing ab
 
 ## Identification of Basic Blocks in SoN graph
 
-The Sea of Nodes graph already captures the programs control flow graph. This information is implicit in the control nodes and edges from control nodes to other types of nodes.
+The Sea of Nodes graph already captures the program's control flow graph. This information is implicit in the control nodes and edges from control nodes to other types of nodes.
 
 To recap, Control starts at the Start node, via a projection that is bound to the name `$ctrl`. As the control flows in the program, this name binding gets updated, and control is
 passed around, until it reaches the Stop node.
@@ -204,7 +206,7 @@ while (1) {}
 return 0;
 ```
 
-First lets look at the graph resulting from this:
+First let's look at the graph resulting from this:
 
 ![Graph7](./docs/graph7.svg)
 
@@ -218,7 +220,7 @@ The implementation is in the Loop node:
     // If this is an unreachable loop, it may not have an exit.  If it does not
     // (i.e., infinite loop), force an exit to make it reachable.
     public void forceExit( StopNode stop ) {
-        // Walk the backedge, then immediate dominator tree util we hit this
+        // Walk the backedge, then immediate dominator tree until we hit this
         // Loop again.  If we ever hit a CProj from an If (as opposed to
         // directly on the If) we found our exit.
         CFGNode x = back();
@@ -332,7 +334,7 @@ class StopNode extends CFGNode {
 Simple's Sea of Nodes graph identifies loops explicitly via Loop nodes. Since the language provides a single way to create a loop, using the `while` statement,
 it is not necessary to implement a generic loop discovery process.
 
-We do however need to compute a loop depth. This is done similar to how we compute the dominator depth.
+We do however need to compute a loop depth. This is done similarly to how we compute the dominator depth.
 
 ```java
 class CFGNode {
@@ -374,7 +376,7 @@ class StopNode extends CFGNode {
 
 ## Early Schedule
 
-The GCM algorithm proper starts with the computation of the early schedule, during which do an upward DFS walk on the "inputs" of each Node, starting from the bottom (Stop). We schedule each data node to the
+The GCM algorithm proper starts with the computation of the early schedule, during which we do an upward DFS walk on the "inputs" of each Node, starting from the bottom (Stop). We schedule each data node to the
 first control block where they are dominated by their inputs.
 
 A pre-condition of this is to ensure that infinite loops have been "fixed" as described earlier.

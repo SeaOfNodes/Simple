@@ -1,5 +1,8 @@
 # Chapter 24: Chaining Relationals and Sparse Conditional Constant Propagation
 
+[Previous: Chapter 23](../chapter23/README.md) |
+[Next: Chapter 25](../chapter25/README.md)
+
 In this Chapter we allow *chaining* conditionals, e.g. `(60 <= score < 90)`
 where `score` in the middle does not have to be repeated.
 
@@ -21,20 +24,20 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 Chaining relational tests offer a cleaner, more readable way to write chained
 comparisons without repeating the same variable.
 
-```java 
+```java
 if (min <= x && x < max)
 ```
 
 becomes
 
-```java 
+```java
 if (min <= x < max)
 ```
 
 This syntax saves space and makes the condition more intuitive, similar to how
 range checks are written in mathematics.  E.g.
 
-```java 
+```java
 int score = 75;
 if (60 <= score < 90) {
     sys.io.p("Pass");
@@ -42,7 +45,7 @@ if (60 <= score < 90) {
 ```
 This checks if score is between 60 (inclusive) and 90 (exclusive), without repeating `score`.
 
-Expressions that mix opposite directions of comparison, like using both 
+Expressions that mix opposite directions of comparison, like using both
 `<=` and `>=`, are not allowed by Simple's direction rule.
 
 ```java
@@ -62,7 +65,7 @@ Equality operators (`==` and `!=`) have their normal, lower precedence; they
 are not links in a relational chain.
 
 It is not allowed to mix directions in a single chain:
-```java 
+```java
 if (a <= b >= c) // Invalid
 ```
 
@@ -80,7 +83,7 @@ OR
 return 1 > 1;
 ```
 The equality operator is valid in this form, but since it has lower precedence than comparisons,
-```java 
+```java
 a < b == c
 ```
 is parsed as:
@@ -88,11 +91,11 @@ is parsed as:
 (a < b) == c
 ```
 This might not be the intended chained comparison.
-A more explicit alternative is: 
-```java 
+A more explicit alternative is:
+```java
 a < b && b == c
 ```
-Comparisons can be chained together in any length, and different comparison operators may be 
+Comparisons can be chained together in any length, and different comparison operators may be
 mixed freely as long as they point in the same direction.
 Each intermediate operand is evaluated once. Later operands are evaluated only
 if earlier comparisons succeed, so calls and updates in a chain short-circuit.
@@ -103,7 +106,7 @@ return 0 < arg < arg+1 < 4;
 ```
 
 ### Tricky edge cases
-```java 
+```java
 return 0 != arg != 1;
 ```
 
@@ -127,8 +130,8 @@ return ((a == b) == c);
 
 [SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)
 is the top-down version of the same peephole/constant-folding work we have
-been doing all along.  The rules for the algorithm are well known from the 
-literature and commonly taught at the college level; 
+been doing all along.  The rules for the algorithm are well known from the
+literature and commonly taught at the college level;
 [example slides](https://www.cse.psu.edu/~gxt29/teaching/cse522s23/slides/08monotoneFramework.pdf).
 
 - We have a lattice already
@@ -191,7 +194,7 @@ happen:
 
 
 
-### Conditional 
+### Conditional
 
 Since our control flow is in the same graph as our data flow (that's the major
 point of Sea-of-Nodes!), we need not do anything special and our algorithm is
@@ -241,7 +244,7 @@ while( rand ) {
 ```
 
 Here since `head` starts not-null, it can never be null and the
-`default_action` can never happen, and the loop can 
+`default_action` can never happen, and the loop can
 simplify:
 
 ```java
@@ -251,7 +254,7 @@ while( rand ) {
 }
 ```
 
-### Interprocedural 
+### Interprocedural
 
 In **Simple**, we let our SCCP run interprocedurally, again by (nearly) doing nothing:
 `CallNodes` call `FunNodes`, `ReturnNodes` return to `CallEndNodes` and they

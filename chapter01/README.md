@@ -1,20 +1,22 @@
 # Chapter 1: Introduction
 
+[Introduction](../README.md) |
+[Next: Chapter 2](../chapter02/README.md)
+
 # Table of Contents
 
-1.  [Implementation Language](#implementation-language)
-2.  [Assumptions](#assumptions)
-3.  [Architecture](#architecture)
-4.  [Data Structures](#data-structures)
-5.  [Intermediate Representation as a Graph of Nodes](#intermediate-representation-as-a-graph-of-nodes)
-6.  [Nodes are in a Graph](#nodes-are-in-a-graph)
-7.  [Types of Nodes](#types-of-nodes)
-8.  [Unique Node ID](#unique-node-id)
-9.  [Start Node](#start-node)
+1. [Implementation Language](#implementation-language)
+2. [Assumptions](#assumptions)
+3. [Architecture](#architecture)
+4. [Data Structures](#data-structures)
+5. [Intermediate Representation as a Graph of Nodes](#intermediate-representation-as-a-graph-of-nodes)
+6. [Nodes are in a Graph](#nodes-are-in-a-graph)
+7. [Types of Nodes](#types-of-nodes)
+8. [Unique Node ID](#unique-node-id)
+9. [Start Node](#start-node)
 10. [Constant Node](#constant-node)
 11. [Return Node](#return-node)
 12. [Representation](#representation)
-
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter01) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch.
 
@@ -41,7 +43,7 @@ Our implementation language is Java. We chose Java as it is widely available and
 ## Assumptions
 
 We assume that the reader is familiar with traditional linear intermediate representations, and is familiar with terms such as Basic Block, Control Flow Graph, etc. No attempt is made to explain these topics.
-If necessary the reader can consult a standard compiler text book.
+If necessary the reader can consult a standard compiler textbook.
 
 ## Architecture
 
@@ -50,7 +52,7 @@ a number of pessimistic peephole optimizations can be performed while parsing a 
 
 ## Data Structures
 
-Our data structures are based upon the descriptions provided in following papers:
+Our data structures are based upon the descriptions provided in the following papers:
 
 * [From Quads to Graphs: An Intermediate Representation's Journey](http://softlib.rice.edu/pub/CRPC-TRs/reports/CRPC-TR93366-S.pdf)
 * [Combining Analyses, Combining Optimizations](https://dl.acm.org/doi/pdf/10.1145/201059.201061)
@@ -73,9 +75,9 @@ Each `Node` represents an "instruction" as it may appear in traditional IRs.
 ### Nodes are in a Graph
 
 The key idea of the Sea of Nodes IR is that each Node is linked to other Nodes by def-use dependencies.
-As this is such an important and fundamental aspect of the IR, it is important to understand how we implement this, and depict in graph visuals.
+As this is such an important and fundamental aspect of the IR, it is important to understand how we implement this, and depict this in graph visuals.
 
-The base `Node` class maintains a list of Nodes that are inputs to it. An input is an edge from a "def" to a "use". What this means is that if `B` is definition, and `A` uses `B`,
+The base `Node` class maintains a list of Nodes that are inputs to it. An input is an edge from a "def" to a "use". What this means is that if `B` is a definition, and `A` uses `B`,
 then there is a def-use edge from `B` to `A`.
 
 Visually we show an arrow from the "use" to the "def". Here is an example:
@@ -110,7 +112,7 @@ public abstract class Node {
      * <p>
      * Outputs directly match inputs, making a directed graph that can be
      * walked in either direction.  These outputs are typically used for
-     * efficient optimizations but otherwise have no semantics meaning.
+     * efficient optimizations but otherwise have no semantic meaning.
      */
     public final ArrayList<Node> _outputs;
 }
@@ -173,7 +175,7 @@ The Return's output is the value from the data node.
 
 ### Representation
 
-Here is visualization of the program:
+Here is a visualization of the program:
 
 ```
 return 1;
@@ -181,7 +183,7 @@ return 1;
 
 ![Sea of Nodes Visual](./docs/01-graph.svg)
 
-* Control nodes appear as square boxes with yellow background
-* Control edges are in bold red
-* The edges from Constants to Start are shown in dotted lines as these are not true control edges
+* Control nodes appear as rectangular boxes with pale yellow backgrounds
+* Control edges are red and thicker than data edges
+* The edges from Constants to Start are shown as dashed gray lines as these are not true control edges
 * We label each edge with its position in the `_inputs` array, thus `0` means the edge is `_inputs[0]`.

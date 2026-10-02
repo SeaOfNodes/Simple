@@ -1,0 +1,21 @@
+{
+  "ver": 1,
+  "comp": "chapter11/docs/graph8.svg",
+  "step": 1,
+  "roots": [],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "True", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 18, "role": "CTRL", "label": null}], "proj": {"par": 18, "idx": 0}},
+    {"id": 2, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 3, "label": "Stop", "type": null, "kind": "STOP", "edges": [{"idx": 0, "def": 21, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 4, "label": "#0", "type": null, "kind": "DATA", "edges": [], "proj": null},
+    {"id": 5, "label": "False", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 18, "role": "CTRL", "label": null}], "proj": {"par": 18, "idx": 1}},
+    {"id": 6, "label": "$ctrl", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 2, "role": "CTRL", "label": null}], "proj": {"par": 2, "idx": 0}},
+    {"id": 8, "label": "Loop", "type": null, "kind": "LOOP", "edges": [{"idx": 0, "def": 0, "role": "DATA", "label": null}, {"idx": 1, "def": 6, "role": "CTRL", "label": null}, {"idx": 2, "def": 5, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 18, "label": "Never", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 8, "role": "CTRL", "label": null}, {"idx": 1, "def": 4, "role": "DATA", "label": null}], "proj": null},
+    {"id": 21, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 1, "role": "CTRL", "label": null}, {"idx": 1, "def": 0, "role": "DATA", "label": null}, {"idx": 2, "def": 4, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+    {"id": 8, "par": 0, "nodes": [1, 5, 8, 18]}
+  ]
+}

@@ -1,26 +1,29 @@
 # Chapter 4: External Argument and Comparisons
 
+[Previous: Chapter 3](../chapter03/README.md) |
+[Next: Chapter 5](../chapter05/README.md)
+
 # Table of Contents
 
 1. [Extensions to Intermediate Representation](#extensions-to-intermediate-representation)
 2. [Projection Nodes](#projection-nodes)
 3. [Visualisation](#visualisation)
-5. [Initial values](#initial-values)
-6. [When Is Control Not-Null?](#when-is-control-not-null)
-5. [Note Regarding Visualizations](#note-regarding-visualizations)
-6. [Changes to Type System](#changes-to-type-system)
-7. [Tuple Types](#tuple-types)
-8. [$ctrl name binding](#ctrl-name-binding)
-9. [More Peephole Optimizations](#more-peephole-optimizations)
-10. [Peephole Walkthrough](#peephole-walkthrough)
-11. [Dead Code Elimination(DCE)](#dead-code-eliminationdce)
+4. [Initial values](#initial-values)
+5. [When Is Control Not-Null?](#when-is-control-not-null)
+6. [Note Regarding Visualizations](#note-regarding-visualizations)
+7. [Changes to Type System](#changes-to-type-system)
+8. [Tuple Types](#tuple-types)
+9. [$ctrl name binding](#ctrl-name-binding)
+10. [More Peephole Optimizations](#more-peephole-optimizations)
+11. [Peephole Walkthrough](#peephole-walkthrough)
+12. [Dead Code Elimination(DCE)](#dead-code-eliminationdce)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter04) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter03...linear-chapter04) it to the previous chapter.
 
 
-In this chapter we extend the language grammar with following features:
+In this chapter we extend the language grammar with the following features:
 
-* The program receives a single argument named `arg` of integer type from external environment.
+* The program receives a single argument named `arg` of integer type from the external environment.
 * Expressions support comparison operators.
 * We introduce a scope sensitive name binding `$ctrl` for the current incoming
   control node.  Thus, our Return is no longer hard-wired to Start, instead it
@@ -69,15 +72,15 @@ In the visuals, projection nodes are shown as rectangular boxes inside the node 
 
 ### Visualisation
 
-![ProjNode](./docs/projnode.png)
+![Start and its control and argument projections](./docs/projnode.svg)
 
 In the visual above, the projection nodes have been tagged by the names
-associated with the outputs of the Start node. Both MultiNode that contain
-Control and Control nodes are yellow.  `$ctrl` and `arg` are outputs(users) of
+associated with the outputs of the Start node. Both MultiNodes that contain
+Control and Control nodes are yellow.  `$ctrl` and `arg` are outputs (users) of
 StartNode(`START`) and have their MultiNode as their only input in slot 0.  The
 `label` has no semantics and is used during debug printing.
 
-```java 
+```java
 public ProjNode(MultiNode ctrl, int idx, String label) {
     super(ctrl);
 ```
@@ -130,37 +133,37 @@ The graph:
   constant.  The `arg` was originally defined by a ProjNode; but when peephole
   is called the computed type is a constant, and the ProjNode gets replaced
   with a ConstantNode:
-    
+
 ```java
 public final Node peephole( ) {
-    Type type = _type = compute(); 
+    Type type = _type = compute();
     /*   type = {TypeInteger@1527} "2"  */
 
     // ProjNode is not a constant unlike its type.
     if (!(this instanceof ConstantNode) && type.isConstant())
         /* Create Constant(2) */
         return deadCodeElim(new ConstantNode(type).peephole());
-    
+
     /* won't get called */
     ...
 ```
 
 If you don't pass an argument you get `TypeInteger.BOT`
 
-```java 
+```java
     Parser parser = new Parser("return arg; ");
     ...
-    
+
 public Parser(String source) {
     this(source, TypeInteger.BOT);
 }
-    
+
 ```
 
 We clearly see this is not a constant:
 
 ```java
-public final static TypeInteger BOT = new TypeInteger(false, 1); 
+public final static TypeInteger BOT = new TypeInteger(false, 1);
    /* _is_con = false */
 ```
 
@@ -177,7 +180,7 @@ In later chapters, `$ctrl`  will point to other control nodes, such as
 #### Note Regarding Visualizations
 
 From this chapter onwards we omit the edges from Constants to Start node, mainly to reduce
-clutter and help draw reader's attention to the more important aspects of the graph.
+clutter and help draw the reader's attention to the more important aspects of the graph.
 
 
 
@@ -195,7 +198,7 @@ associated with a Type at a specific Node can be conveniently represented as a
 [lattice](https://en.wikipedia.org/wiki/Lattice_(order)).
 
 The type itself is identified by the Java class `Type` and subtypes.  The type
-implementation uses Java classes as convenient to deal with a Types' internal
+implementation uses Java classes as a convenient way to deal with a Type's internal
 structure - but the Java classes have no relation to a Type's place in the
 lattice.
 
@@ -239,20 +242,20 @@ In the table above `Con1` and `Con2` represent two distinct integer values, and 
 * The `meet` of any integer with itself is that integer.
 * The `meet` of two unrelated integer constants is `IntBot`.
 
-Currently, all our integer valued nodes are either a constant or a `IntBot` integer type.
+Currently, all our integer valued nodes are either a constant or an `IntBot` integer type.
 When we start optimizing loops, we will start seeing `IntTop` values.
 
 
 ### Tuple Types
 
-Tuple types need a little more explaination: they are a fixed-size grouping of
+Tuple types need a little more explanation: they are a fixed-size grouping of
 types; literally a `Type[]`.  Tuples represent a collection of otherwise
 unrelated types, and come from `MultiNode`s.  `ProjNode`s will take the
 appropriate `Type` array element out of a Tuple.  The `StartNode` now produces
 a 2-element `TypeTuple` with control and the type of `arg`: `[ctrl, TypeInteger.INTBOT]`
 
 The lattice `meet` operator on Tuples is done element by element; each array
-element recursively calls `meet`.  Tuples of mixed sizes are a internal
+element recursively calls `meet`.  Tuples of mixed sizes are an internal
 compiler error, and the `meet` uses Bottom for them.
 
 
@@ -284,7 +287,7 @@ We would expect the compiler to output `arg+3` here, but as it stands what we ge
 
 ![Graph1](./docs/04-pre-peephole.svg)
 
-We need to perform some algebraic simplifications to enable better outcome. For
+We need to perform some algebraic simplifications to enable a better outcome. For
 example, we need to rearrange the expression as follows:
 
 ```
@@ -303,7 +306,7 @@ Here is a list of peepholes introduced in this Chapter, more will be introduced 
 |-----------------------|-----------------------|------------------------------------------------|
 | (arg + 0 )            |  arg                  | Add of zero identity                           |
 | (arg - 0 )            |  arg                  | Sub of zero identity                           |
-| (arg * 1 )            |  arg                  | Multiple of one identity                       |
+| (arg * 1 )            |  arg                  | Multiply by one identity                       |
 | (con + arg)           | (arg + con)           | Move constants to right, to encourage folding  |
 | (con * arg)           | (arg * con)           | Move constants to right, to encourage folding  |
 | (con1 + (arg + con2)) | (arg + (con1 + con2)) | Move constants to right, to encourage folding  |
@@ -374,18 +377,18 @@ public final Node peephole( ) {
 }
 ```
 
-The peephole method does following:
+The peephole method does the following:
 
 - Compute a Type for the node.
 - If the Type is a Constant and the node is not a ConstantNode, replace with a
   ConstantNode, recursively invoking peephole on the new constant.
 - Otherwise, ask the Node for a better replacement via a call to `idealize()`.
-  The "better replacement" is things like `(1+2)` becomes `3` and `1+(x+2))`
+  The "better replacement" is things like `(1+2)` becomes `3` and `1+(x+2)`
   becomes `(x+(1+2))`.
-- - Each Node subtype is responsible for deciding what the `idealize()` step
+- Each Node subtype is responsible for deciding what the `idealize()` step
   should do. If there is a better replacement then the node returns a non
   `null` value.
-- - If we see a non `null` value, something changed, so we invoke `peephole()`
+- If we see a non `null` value, something changed, so we invoke `peephole()`
   again and then also run dead code elimination on the (now dead and replaced)
   `this` node.
 

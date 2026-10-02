@@ -1,5 +1,8 @@
 # Chapter 2: Arithmetic
 
+[Previous: Chapter 1](../chapter01/README.md) |
+[Next: Chapter 3](../chapter03/README.md)
+
 
 # Table of Contents
 
@@ -24,7 +27,7 @@ Here is the [complete language grammar](docs/02-grammar.md) for this chapter.
 
 ## Extensions to Intermediate Representation
 
-In [Chapter 1](../chapter01/README.md) we introduced following nodes.
+In [Chapter 1](../chapter01/README.md) we introduced the following nodes.
 
 | Node Name | Type    | Description                        | Inputs                                                           | Value                                                 |
 |-----------|---------|------------------------------------|------------------------------------------------------------------|-------------------------------------------------------|
@@ -32,7 +35,7 @@ In [Chapter 1](../chapter01/README.md) we introduced following nodes.
 | Return    | Control | End of function                    | Predecessor control node, Data node value                        | Return value of the function                          |
 | Constant  | Data    | Constants such as integer literals | None, however Start node is set as input to enable graph walking | Value of the constant                                 |
 
-We extend the set of nodes by adding following additional node types.
+We extend the set of nodes by adding the following additional node types.
 
 | Node Name | Type | Description                   | Inputs                                                     | Value                       |
 |-----------|------|-------------------------------|------------------------------------------------------------|-----------------------------|
@@ -51,7 +54,7 @@ equality.  This is by far the most common case.  In [Chapter
 In both cases the choice of value-vs-reference equality is intentional: it is
 *never* correct to "just pick one or the other kind of equality".  When in
 doubt check the context: only *Global Value Numbering* uses value equality;
-everywhere we mean reference equality.
+everywhere else we mean reference equality.
 
 
 ## Peephole Optimizations
@@ -77,7 +80,7 @@ may *kill* the unused constants `1` and `2`.
 
 ## Constant Folding and Constant Propagation
 
-In this chapter and next we focus on a particular peephole optimization:
+In this chapter and the next we focus on a particular peephole optimization:
 constant folding and constant propagation.  Since we do not have non-constant values
 until [Chapter 4](../chapter04/README.md), the main feature we demonstrate now is constant folding.
 However, we introduce some additional ideas into the compiler at this stage, to
@@ -91,14 +94,14 @@ optimizations such as:
   constant.  This idea can be extended in a number of ways and is called
   [Partial Evaluation](https://en.wikipedia.org/wiki/Partial_evaluation).
 * The compiler may be able to identify regions of code that are dead and no
-  longer needed, such as when a conditional branch always take one of the
+  longer needed, such as when a conditional branch always takes one of the
   branches ([Chapter 6](../chapter06/README.md)).
 * Pointers may be known to be not-null, and a null check can be skipped ([Chapter 10a](../chapter10a/README.md)).
 * Array indices may be known to be in-range, and a range check can be skipped.
 * Many additional optimizations are possible when the compiler learns more
   about the possible set of Node values.
 
-In order to achieve above, we need a way to talk about what kinds of values a Node can take
+In order to achieve this, we need a way to talk about what kinds of values a Node can take
 on at runtime - we call these Types, and we annotate Nodes with Types.
 
 The Type annotation serves two purposes:
@@ -106,8 +109,8 @@ The Type annotation serves two purposes:
 * it defines the set of operations allowed on the Node
 * it defines the set of values the Node takes on
 
-The Type itself is represented as a Java class; the Java classes are used as
-convenient to represent the Type's structure; all types are subtypes of the
+The Type itself is represented as a Java class; the Java classes provide a
+convenient way to represent the Type's structure; all types are subtypes of the
 class `Type`.  For now, we only have the following hierarchy of types:
 
 ```
@@ -116,7 +119,7 @@ Type
 ```
 
 It turns out that the set of values associated with a Type at a specific Node
-can be conveniently represented as a *lattice* 
+can be conveniently represented as a *lattice*
 [wiki/Lattice_(order)](https://en.wikipedia.org/wiki/Lattice_(order)).  Our lattice has the following structure:
 
 ![Lattice](./docs/lattice.svg)
@@ -130,7 +133,7 @@ Our lattice elements can be one of three types:
   Node's value is **not** a compile time constant.
 
 An invariant of peephole optimizations is that the type of a Node always moves
-*up* the lattice (towards "top"); peepholes are *pessmistic* assuming the worst
+*up* the lattice (towards "top"); peepholes are *pessimistic* assuming the worst
 until they can prove better.  A later *optimistic* optimization will start all
 Nodes at *top* and move Types *down* the lattice as eager assumptions are
 proven wrong.
@@ -161,9 +164,9 @@ optimizes each node as it is built; it does not retain this entire intermediate 
 
 ![Example Visual](./docs/02-pre-peephole-ex1.svg)
 
-* Control nodes appear as square boxes with yellow background
-* Control edges are in bold red
-* The edges from Constants to Start are shown in dotted lines as these are not true control edges
+* Control nodes appear as rectangular boxes with pale yellow backgrounds
+* Control edges are red and thicker than data edges
+* The edges from Constants to Start are shown as dashed gray lines as these are not true control edges
 * We label each edge with its position in the node's list of inputs.
 
 
@@ -177,7 +180,7 @@ To demonstrate how the optimisation works, let's consider the following code:
 ```
 return 1+2;
 ```
-This is parsed as: 
+This is parsed as:
 ```java
         var lhs = parseMultiplication();
         if (match("+")) return new AddNode(lhs, parseAddition()).peephole();
@@ -198,22 +201,22 @@ When the peephole is called on the AddNode node it first calls the compute funct
         return Type.BOTTOM;
     }
 ```
-In our case both of the operands(`1`, `2`) are constants, and instance of 
+In our case both of the operands(`1`, `2`) are constants, and instances of
 `TypeInteger`.
 Since `compute` returns a type, and we know that both of our operands are constants, we can do
-constant propagation/folding where we compute the result of the expression so that instead of having `1+2` we can 
+constant propagation/folding where we compute the result of the expression so that instead of having `1+2` we can
 have `3`.
 
-The 'TypeInteger' interface inherits from type but also has a field that stores the value observed for that type.
+The `TypeInteger` class inherits from `Type` but also has a field that stores the value observed for that type.
 ```java
-    private final long _con
+    private final long _con;
 ```
 
 AddNode has the layout:
 
 ![Example Visual](./docs/02-demonstration-pre-peephole.svg)
 
-Since, we already know the value of both of the operands, we can just add them together and replace the
+Since we already know the value of both of the operands, we can just add them together and replace the
 old node with a constant node that just holds the result of the expression.
 
 To do this - we have to recognize this happens when the type computed for the node is already a constant, but the node
@@ -229,19 +232,19 @@ Note how we return a constant type when doing constant folding
 ```java
 return TypeInteger.constant(i0.value()+i1.value());
 ```
-We can create a constant node in the following way: 
+We can create a constant node in the following way:
 ```java
 return new ConstantNode(type).peephole();
 ```
-This recursively calls the peephole algorithm. 
+This recursively calls the peephole algorithm.
 Now, we end up with this:
 
 ![Example Visual](./docs/02-demonstration-pre-peephole-nokill.svg)
 
-Notice, how we added the constant node holding a constant value of `3`.
+Notice how we added the constant node holding a constant value of `3`.
 The remaining add node is unused and can be killed.
 
-We can call the kill function before this way:
+We can call the kill function first:
 ```java
 // Replace constant computations from non-constants with a constant node
 if (!(this instanceof ConstantNode) && type.isConstant()) {
@@ -263,19 +266,19 @@ public void kill( ) {
 ```
 
 `isUnused` - This makes sure the current node has no outputs.
-Ideally, in our case there would be one output as the return statement is 
+Ideally, in our case there would be one output as the return statement is
 using the add expression.
 However, the optimisation happens before even creating the return node, which means that at this point
 there are no users of the add node.
 
-We can now freely go ahead and delete the node. 
+We can now freely go ahead and delete the node.
 
 ```java
 for(int i=0; i<nIns(); i++ )
     setDef(i,null);  // Set all inputs to null, recursively killing unused Nodes
 
 _inputs.clear();
-_type=null;        
+_type=null;
 ```
 
 We finally end up with this:

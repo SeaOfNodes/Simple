@@ -1,5 +1,8 @@
 # Chapter 13: References
 
+[Previous: Chapter 12](../chapter12/README.md) |
+[Next: Chapter 14](../chapter14/README.md)
+
 Memory retains one `$mem` binding and lazy partitions. Typed initialization
 stores now include each field's declared type and initialization flag, while
 `MemMerge` preserves the other fields. Start and Return keep control in slot 0
@@ -8,9 +11,9 @@ and memory in slot 1.
 # Table of Contents
 
 1. [References](#references)
-    - [Forward References](#forward-references)
-    - [Self-referential references](#self-referential-references)
-    - [Auto deepen forward ref types](#auto-deepen-forward-ref-types)
+   - [Forward References](#forward-references)
+   - [Self-referential references](#self-referential-references)
+   - [Auto deepen forward ref types](#auto-deepen-forward-ref-types)
 2. [Global Code Motion Example](#global-code-motion-walkthrough)
 
 In this chapter, we add references and structs.
@@ -39,7 +42,7 @@ FamilyTree? tree;  // A family tree, or not
 ...
 ```
 At the time of the `Person` struct definition, the `FamilyTree` struct is not yet defined. This is a forward reference. To handle this, we assume the struct will be defined later.
-```java 
+```java
 Type t = TYPES.get(tname);
    // Assume a forward-reference type
    if( t == null ) {
@@ -55,7 +58,7 @@ Type t = TYPES.get(tname);
 ```
 Reference fields start out as null, doing anything with them will result in a compile time error.
 
-```java 
+```java
 struct Person {
   String name;
   int age;
@@ -63,11 +66,11 @@ struct Person {
 }
 Person p = new Person;
 p.tree.la = null; // Accessing unknown field 'la' from 'null'
-                         
+
 ```
 
 It turns out `p.tree` is `null`, so we can't access the field `la` from it.
-```java 
+```java
 // name  = "tree"
 // mem() is the current aggregate; its tree alias selects the initializing Store.
 // in(3) = {ConstantNode@1651} "null"
@@ -76,7 +79,7 @@ return parsePostfix(new LoadNode(name, alias, declaredType.glb(), mem(), expr).p
 `LoadNode::idealize`
 LoadNode first selects its alias through any MemMerge, then returns `st.val()`
 when it finds a matching Store to the same object.
-```java 
+```java
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
             ptr() == st.ptr() && _alias == st._alias ) { // Same object and field
@@ -115,8 +118,8 @@ private Node newStruct(TypeStruct obj) {
 ```
 Zooming in....
 
-```java 
-// parsing =  FamilyTree? tree;  
+```java
+// parsing =  FamilyTree? tree;
 for( Field field : obj._fields ) {
     // field._type = *FamilyTree?
     // REMEMBER:
@@ -128,7 +131,7 @@ for( Field field : obj._fields ) {
 In a case of a reference `field._type.makeInit()` will return  a `NULLPTR`, later this is what the peephole turns into when loading
 the field. `p.tree`
 
---- 
+---
 
 ```java
 struct N { N next; int i; }
@@ -137,16 +140,16 @@ return n.next;  // Value reports as null, despite field typed as not-null
 ```
 
 As shown above, we explicitly allow not-null fields to be null initialized (as
-of chapter13).  We can't allow null to be stored into a not-null field, but we
+of Chapter 13).  We can't allow null to be stored into a not-null field, but we
 can allow a not-null field to be null (initially).  This will be corrected in a
 later chapter.
 
 
 ### Self-referential references
-Self-cyclic or self-referential types are types that include a reference to themsleves as part of their defintion.
+Self-cyclic or self-referential types are types that include a reference to themselves as part of their definition.
 
 Consider the following code:
-```java 
+```java
 struct N { N next; int i; }
 N n = new N;
 n.next = null; // <<-- Compile error, cannot store null into not-null field
@@ -163,13 +166,13 @@ When `a.next` is encountered, we auto deepen the type so its fields are going to
 
 This is needed to resolve the stale type that the loop brings around.
 
-```java 
+```java
 if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null ) {
   e = tmp.make_from((TypeStruct) TYPES.get(tmp._obj._name));
 }
-``` 
+```
 
-```java 
+```java
 struct LLI { LLI? next; int i; }
 LLI? head = null;
 while( arg ) {
@@ -187,7 +190,7 @@ return next.i;
 
 ---
 
-Normal field syntax works:  
+Normal field syntax works:
 e.g. `person.tree.father = new Person;` or
 `person.tree.father.name = "Dad";`.
 
@@ -218,7 +221,7 @@ Now that we have all these new features covered consider the following example:
 struct Person {
   String name;
   int age;
-  FamilyTree? tree;  
+  FamilyTree? tree;
 }
 Person p  = new Person;
 p.age =1;
@@ -244,7 +247,7 @@ From: $ctrl to: $ctrl|.age=(19)
 From: $ctrl to: $ctrl|.tree=(17)
 ```
 The control nodes are already set so the early schedule is useless.
-All the nodes involed: Return, Constant, NewNode specific their control input explicitly so there is nothing to do.
+All the nodes involved: Return, Constant, NewNode specify their control input explicitly so there is nothing to do.
 
 #### Late schedule:
 ```
@@ -253,7 +256,7 @@ From: Start to: $ctrl(18)
 ```
 We see that the late schedule actually changes the control input of the StartNode to the $ctrl node in 2 cases.
 The algo that does this is:
-```java 
+```java
  // Walk up from the LCA to the early, looking for best place.  This is
 // the lowest execution frequency, approximated by least loop depth and
 // deepest control flow.

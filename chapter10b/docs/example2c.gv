@@ -1,10 +1,15 @@
 digraph Memory {
+  // IR styles match graph/web/render.js; arrows are use -> definition.
+  graph [bgcolor="#fafbfc" fontname="Helvetica" nodesep=0.35 ranksep=0.55 splines=ortho];
+  node [fontname="Helvetica" fontsize=12 color="#758191" fontcolor="#152330" shape=box style="rounded,filled" fillcolor="#edf3f7"];
+  edge [fontname="Helvetica" fontsize=9 color="#536477" fontcolor="#364352" arrowsize=0.7 penwidth=1.5];
+
   rankdir=RL;
-  node [shape=box];
-  M [label="Prior x memory"];
-  L [label="Load p.x"];
-  S [label="Store p.x"];
-  L -> M [color=blue]; S -> M [color=blue];
-  S -> L [style=dashed,label="execute load first"];
-  Y [label="Store p.y: independent"];
+
+  M [label="Prior x memory" shape=octagon style="filled" fillcolor="#dcecff"];
+  L [label="Load p.x" shape=box style="rounded,filled" fillcolor="#edf3f7"];
+  S [label="Store p.x" shape=octagon style="filled" fillcolor="#dcecff"];
+  L -> M [color="#2867b2"]; S -> M [color="#2867b2"];
+  S -> L [style=dashed,xlabel="execute load first"];
+  Y [label="Store p.y: independent" shape=octagon style="filled" fillcolor="#dcecff"];
 }

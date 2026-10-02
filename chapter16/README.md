@@ -1,5 +1,8 @@
 # Chapter 16: Constructors and Final fields
 
+[Previous: Chapter 15](../chapter15/README.md) |
+[Next: Chapter 17](../chapter17/README.md)
+
 # Table of Contents
 
 1. [Constructors](#constructors)
@@ -24,12 +27,12 @@ Fields are initialized in three ways:
    syntax is required.
 ```
 int x;                    // x is initialized to 0
-struct Ref { Ref ptr?; }; // Instances of Ref will have ptr initialized to null
+struct Ref { Ref? ptr; }; // Instances of Ref will have ptr initialized to null
 return new Ref.ptr;       // Returns a null
 ```
 
 2. The type declaration can specify an initial value.  Later allocations will
-   start with this value. 
+   start with this value.
 ```
 int x = 5;                // x is initialized to 5
 struct Point { int x=1; int y=1; }; // Point x and y will start as 1, not 0
@@ -37,7 +40,7 @@ return new Point.x;       // Returns a 1
 ```
 
 3. The allocation can specify an initial value.
-   
+
 ```
 struct Point { int x=1; int y=1; }; // Point x and y will start as 1, not 0
 return new Point { x=3; }.x;        // Returns a 3
@@ -63,12 +66,12 @@ declaration or the allocation.  Any amount of code is legal, including
 ```
 struct Square {
     flt side = arg;
-    flt diag = arg*arg/2;    
-    // Newtons approximation to the square root, computed in a constructor.
+    flt diag = arg*arg/2;
+    // Newton's approximation to the square root, computed in a constructor.
     // The actual allocation will copy in this result as the initial
     // value for 'diag'.
     while( 1 ) {
-        // The next-guess variable "next" is not a field in Square, 
+        // The next-guess variable "next" is not a field in Square,
         // because it does not appear at the top level
         flt next = (side/diag + diag)/2;
         if( next == diag ) break;

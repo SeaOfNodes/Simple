@@ -1,5 +1,8 @@
 # Chapter 21: Instruction Encoding and ELF
 
+[Previous: Chapter 20](../chapter20/README.md) |
+[Next: Chapter 22](../chapter22/README.md)
+
 This chapter turns the scheduled, register-allocated graph into executable
 instructions. Each machine node writes its bytes; the compiler places blocks,
 resolves local references, and exports an ELF object for the linker. We can now

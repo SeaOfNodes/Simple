@@ -1,5 +1,8 @@
 # Chapter 19: Instruction Selection and Portable Compilation
 
+[Previous: Chapter 18](../chapter18/README.md) |
+[Next: Chapter 20](../chapter20/README.md)
+
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter19) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter18...linear-chapter19) it to the previous chapter.
 
 
@@ -7,11 +10,11 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 
 The output of Instruction Selection - the mapping from idealized Simple Nodes
 to machine-specific ones - is difficult to test in bulk without an execution
-strategy.  We won't have an execution stratgy until all three of Instruction
+strategy.  We won't have an execution strategy until all three of Instruction
 Selection, Register Allocation and Encodings are done.  Hence in and around the
 completion of Encoding we expect to find lots of bugs in Instruction Selection
 and Register Allocation.  We certainly hand-inspect the output and fix obvious
-problems, but still lots bugs linger until we can actually run the code.
+problems, but still lots of bugs linger until we can actually run the code.
 
 This means that other chapters have updates and bug-fixes to the work being
 described here.
@@ -84,9 +87,9 @@ memory, and argument inputs.
 
 `Machines` define registers as small dense integers.  The Register Allocator
 will use these numbers when allocating.  The mappings from small integers to
-machine registers is up to the porter, but there's usally an obvious
+machine registers is up to the porter, but there's usually an obvious
 one-to-one.  For the X86, RAX will be register 0, RCX register 1 and so on up
-to the 16 GPRs.  The XMM registers at 16 and go up to 32.  Register numbers
+to the 16 GPRs. The XMM register numbers start at 16 and go through 31. Register numbers
 must be unique; this is how the register allocator tracks them.
 
 A `RegMask` Register Mask class holds onto bitsets of allowed registers.  Most
@@ -102,7 +105,7 @@ really "bind up" the set of allowed registers.
 ## An X86_64_V2 port, with SystemV or Win64 calling conventions
 
 In the `node/cpus/x86_64_v2` directory is a `x86_64_v2.java` port to an X86 64
-V2.  This port supports 16 64-bit GPRs, 32 XMM registers and the X86 flags.
+V2. This port supports 16 64-bit GPRs, 16 XMM registers and the X86 flags.
 There is a pattern matcher for matching X86 ops from idealized Simple
 Sea-of-Nodes.  Except for the addressing modes pattern matcher matches nearly
 one-for-one X86 ops from ideal nodes.
@@ -141,7 +144,7 @@ Sea-of-Nodes. Currently, we are targeting `RVA23U64`.
 
 ### Normal instruction selection
 
-Works the same way as **X86_64_V2**, since riscv doesn't have *complex* addressing modes, greedy 
+Works the same way as **X86_64_V2**, since riscv doesn't have *complex* addressing modes, greedy
 pattern matching doesn't apply to most of the cases. Ops without any special behavior simply do the lookup.
 
 ### Restricted ISA
@@ -158,14 +161,14 @@ eliminating the need for a separate comparison step.
 
 E.g
 ```
-beq x10, x11, some_label 
+beq x10, x11, some_label
 ```
 
 `CBranchRISC` implements this behavior.
 
 ### No R-Flags
 
-No R-flags exist in RiSC-V. To obtain similar functionality:
+No R-flags exist in RISC-V. To obtain similar functionality:
 We can set the value of registers based on the result of the comparison this way explicitly.
 ```
 xor     a0, a0, a1
@@ -189,10 +192,10 @@ fadd.s fa0, fa5, fa4
 (No load is needed prior to `flw`)
 
 ### ABI names(registers)
-In `RISC-V`, general-purpose registers (`GPRs`) range from `x0` to `x31`, and floating-point registers range 
+In `RISC-V`, general-purpose registers (`GPRs`) range from `x0` to `x31`, and floating-point registers range
 from `f0` to `f31`.
 
-To enhance readability and align with calling conventions, RISC-V defines ABI names for registers, providing more intuitive aliases 
+To enhance readability and align with calling conventions, RISC-V defines ABI names for registers, providing more intuitive aliases
 instead of raw register numbers.
 
 
@@ -211,7 +214,7 @@ instead of raw register numbers.
 When passing in arguments to a function, the first 8 arguments from the caller are passed in registers `a0` to `a7`.
 
 ### Load floats
-Currently, floating-point constants are first loaded into an `integer GPR` before being converted into a floating-point register. 
+Currently, floating-point constants are first loaded into an `integer GPR` before being converted into a floating-point register.
 This process is rewritten in the RA stage as:
 
 
@@ -219,10 +222,9 @@ This process is rewritten in the RA stage as:
 lui a0, 262144
 fmv.w.x fa0, a0
 ````
-For non-constant values, we use a broader register mask that 
+For non-constant values, we use a broader register mask that
 supports both GPRs and FPRs. This implementation can be found in:
 `nodes/cpus/riscv/LoadRISC`.
-
 
 
 

@@ -1,5 +1,8 @@
 # Chapter 23: Methods and Revisiting Types
 
+[Previous: Chapter 22](../chapter22/README.md) |
+[Next: Chapter 24](../chapter24/README.md)
+
 In this chapter we add *methods*, functions defined in structs which take a
 hidden `self` argument and can access the struct fields.  Here is an
 `indexOf` method in a String-like class:
@@ -8,7 +11,7 @@ hidden `self` argument and can access the struct fields.  Here is an
 // A String-like class, with methods
 struct String {
     u8[~] buf; // Buffer of read-only characters
-    
+
     // Return the index of the first character 'c' or -1
     val indexOf = { u8 c ->           // Hidden 'self' argument
         for( int i=0; i<buf#; i++ )   // Direct access to `buf` field
@@ -62,7 +65,7 @@ used for type-checking, so sharper types means we allow more valid programs.
 function definition inside of a struct which takes the struct as an argument,
 i.e. *methods* taking a *self* argument.
 
-Lets look at our `String.indexOf` example above.  Here we define a `String`
+Let's look at our `String.indexOf` example above.  Here we define a `String`
 with an `indexOf` method; a hidden argument string `self` is passed in
 and searched.  What is the type of `struct String`?
 
@@ -76,11 +79,11 @@ i.e., the type of `String` has a reference to itself, nested inside the type of
 
 ## Less Cyclic Types
 
-This problem of cyclic types has been around for a long time, and there a
+This problem of cyclic types has been around for a long time, and there are a
 number of tried and true methods for dealing with them.  One easy one is to
 have a type *definition* and a separate type *reference*.  The reference refers
 to the type by doing some kind of lookup; an easy one is via the type name and
-the parsers' symbol table i.e., some kind of hash table lookup.
+the parser's symbol table i.e., some kind of hash table lookup.
 
 In this model the cycle is effectively avoided; all "back edges" in the type
 cycle are really done by the reference edge (itself possibly a hash table
@@ -90,24 +93,24 @@ So why not go down this route?
 
 Because all type references lead back to the same type definition - which
 means any specialization of type information is lost, because *all* type
-references lead back to the same definition and you end up taking the MEET 
+references lead back to the same definition and you end up taking the MEET
 over *all* paths.
 
-Here's example, a Linked List with a Java `Object` or a C `void*` payload:
+Here's an example, a Linked List with a Java `Object` or a C `void*` payload:
 
 ```java
 struct List {
   List next;
-  Object payload;  // equivalently for C: void* 
+  Object payload;  // equivalently for C: void*
 }
 // Then walk a collection of ints and build a List:
 List nums = null;
-for( int x : ary_ints ) 
+for( int x : ary_ints )
     nums = new List{next=nums; payload=x; }
-    
+
 // Again for strings:
 List strs = null;
-for( String x : ary_strs ) 
+for( String x : ary_strs )
     strs = new List{next=strs; payload=x; }
 ```
 
@@ -130,8 +133,8 @@ language nor type-variables per-se, but it goes a long way towards them.
 
 In this Chapter Simple handles cyclic types directly.  This means we have
 `Type` objects whose child types can point back to the original - and that
-means 
-[*recursive descent*](https://en.wikipedia.org/wiki/Recursive_descent_parser) 
+means
+[*recursive descent*](https://en.wikipedia.org/wiki/Recursive_descent_parser)
 no longer works on Types.
 
 Up till now we've used recursive descent when building up Types: child types
@@ -151,9 +154,9 @@ from a unique type ID; "visited" just means your unique ID is a key in the
 table.  Every Type thus picks up a unique ID from a global counter.  Since we
 will be interning Types we only need as many unique IDs as we have unique Types
 (plus a few spare to build and intern cycles).  From prior history I know this
-number is typically maxes out in the low thousands so a small integer will do.
+number typically maxes out in the low thousands so a small integer will do.
 
-Another thing - we want to keep as much of the our existing infrastructure as
+Another thing - we want to keep as much of our existing infrastructure as
 we can, so we are going to keep all our existing recursive descent visitations
 with some small modifications.
 
@@ -169,14 +172,14 @@ cycling.
 
 Time for an example!
 
-Lets go with a linked list, where we might have cycles of unrelated payloads
-(but here only strings).  Might you, linked-list is almost always the wrong
-structure for any given job (being wildly inefficent compared to easy
+Let's go with a linked list, where we might have cycles of unrelated payloads
+(but here only strings).  Mind you, a linked list is almost always the wrong
+structure for any given job (being wildly inefficient compared to easy
 alternatives) but it is a great tutorial data structure.
 
 
 ```java
-struct List { 
+struct List {
     List? !next; // Next pointer or null
     str !name;   // Payload
 };
@@ -203,7 +206,7 @@ print(hello);     // Pass along the read-only version
 ```
 
 What is the type of `hello`?  It is the read-only type of `List`... and `List` is
-a cyclic type.  Lets look at `Type.makeRO`:
+a cyclic type.  Let's look at `Type.makeRO`:
 
 ```java
 public final Type makeRO() {
@@ -231,10 +234,10 @@ until we hit `TypeStruct`:
 
 ```java
 @Override boolean _isFinal() {
-    if( _open ) return false;     // May have more more non-final fields
+    if( _open ) return false;     // May have more non-final fields
     if( VISIT.containsKey(_uid) ) // Test: been here before?
         return true;              // Cycles assume final
-    VISIT.put(_uid,this);         // Set: dont do this again
+    VISIT.put(_uid,this);         // Set: don't do this again
     for( Field fld : _fields )
         if( !fld._isFinal() )
             return false;
@@ -256,7 +259,7 @@ fields asking the same question recursively.
 For our example, we open the recursion (set a sentinel in `VISIT`), call
 `makeRO` on `struct List`, which then calls `_isFinal` which then checks
 the `_open` flag (not open), checks the `VISIT` (not visited), sets the
-UID in `VISIT`and starts walking the fields.  Fields check:
+UID in `VISIT` and starts walking the fields.  Fields check:
 
 `@Override boolean _isFinal() { return _final && _t._isFinal(); }`
 
@@ -267,7 +270,7 @@ The first field is `List*? !next`, which is not-final, so immediately returns
 
 ### Making a cyclic type for Read-Only / Final
 
-To make the build-then-intern more obvious, lets put unique IDs on all our
+To make the build-then-intern more obvious, let's put unique IDs on all our
 Types.  Here is the Type of `List` with sample UIDs following each unique type.
 Fields are also just types so also get UIDs.
 
@@ -287,7 +290,7 @@ into the next line:
 `return recurOpen()._makeRO().recurClose();`.
 
 Once again `recurOpen` starts/opens our recursive walk, and then we call
-`_makeRO()` which is overridden in every child Type class.  Lets look at
+`_makeRO()` which is overridden in every child Type class.  Let's look at
 `TypeStruct`s version:
 
 ```java
@@ -319,7 +322,7 @@ of simplicity we choose to approximate our types to only a single instance of
 In this example on first visit of `List` we will miss in `VISIT`.  The next call
 to `ts = recurPre(_name,_open)` does common shared pre-recursive work: we make
 a new `TypeStruct` and **set** it in the `VISIT` table.  The new `TypeStruct`
-is a blank version of `List` will all fields attached; we force these fields to
+is a blank version of `List` with all fields attached; we force these fields to
 be final right away but they are missing their types:
 
 ```
@@ -339,7 +342,7 @@ This recursion comes right back to `TypeStruct._makeRO()`, and hits in the
 
 ```
 struct List#12 {
-  List#12 *? #13 next#14, // Recursve next field makes a cycle
+  List#12 *? #13 next#14, // Recursive next field makes a cycle
   ____  name#15
 }
 ```
@@ -350,8 +353,8 @@ exist, so we end up with:
 
 ```
 struct List#12 {
-  List#12 *? #13 next#14, // Recursve next field makes a cycle
-  str#2 name#15           // Reuse the interned type strt#2
+  List#12 *? #13 next#14, // Recursive next field makes a cycle
+  str#2 name#15           // Reuse the interned type str#2
 }
 ```
 
@@ -389,7 +392,7 @@ pointing back to the same R/O `List#12`.
 
 ### Cyclic HashCode and Equals
 
-Cyclic `hashCodes` and `equals` deserve more discussion.  When compare two
+Cyclic `hashCodes` and `equals` deserve more discussion.  When comparing two
 cycles for equivalence we want to be equivalent regardless of where the
 comparison starts.  i.e. cycle `A<->B` should be equal to cycle `B<->A`.  This
 means they both need the same hashcode, and this means we cannot use
@@ -402,13 +405,13 @@ hash as `A.hash * 7 + B.hash` we get `1 * 7 + 3 == 10`, and then later we start
 from B we get: `B.hash * 7 + A.hash` and which then becomes `3 * 7 + 1 ==
 22`... and their hashes differ so the hash table might miss the equivalence.
 Also, if we simply use recursive descent in the cycle we'll
-recurse until stack overflow and crash.  
+recurse until stack overflow and crash.
 
 We fix this by having `TypeStruct.hash()` *not* recurse - thus its hash
 function is somewhat weak, depending only on the field names and aliases.
 
 *Cyclic-equals* is triggered by the `VISIT` table being not-empty, and uses
-another unrelated *visit* table, the `CEQUALS` table, to seperate concerns from
+another unrelated *visit* table, the `CEQUALS` table, to separate concerns from
 `VISIT`.  The cycle-equals check proceeds like the normal `eq` with recursive
 descent on the parts, and some up-front hard-and-fast static checks - and the
 ubiquitous **test-and-set** pattern before the recursion.

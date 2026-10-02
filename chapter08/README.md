@@ -1,18 +1,20 @@
 # Chapter 8: Lazy Phis, Break, Continue, and Evaluator
 
+[Previous: Chapter 7](../chapter07/README.md) |
+[Next: Chapter 9](../chapter09/README.md)
+
 # Table of Contents
 
 1. [Lazy Phi Creation](#lazy-phi-creation)
 2. [Continue statement](#continue-statement)
 3. [Break statement](#break-statement)
-4. [Parser Considerations ](#parser-considerations)
-5. [Identification of Basic Blocks in SoN graph](#identification-of-basic-blocks-in-son-graph)
-6. [Examples](#examples)
-   -[Example 1](#example-1)
-   -[Example 2](#example-2)
-   -[Example 3](#example-3)
+4. [Parser Considerations](#parser-considerations)
+5. [Examples](#examples)
+   - [Example 1](#example-1)
+   - [Example 2](#example-2)
+   - [Example 3](#example-3)
 
-7. [Sea of Nodes Graph Evaluator](#sea-of-nodes-graph-evaluator)
+6. [Sea of Nodes Graph Evaluator](#sea-of-nodes-graph-evaluator)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter08) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter07...linear-chapter08) it to the previous chapter.
 
@@ -68,7 +70,7 @@ We do this as follows:
                 ? loop.in(idx)
                 // Set real Phi in the loop head
                 // The phi takes its one input (no backedge yet) from a recursive
-                // lookup, which might have insert a Phi in every loop nest.
+                // lookup, which might have inserted a Phi in every loop nest.
                 : loop.setDef(idx,new PhiNode(name,loop.ctrl(),loop.update(name,null,nestingLevel),null).peephole());
             setDef(idx,old);
         }
@@ -80,7 +82,7 @@ We do this as follows:
 
     ```java
            if( in(i) != that.in(i) ) // No need for redundant Phis
-                // If we are in lazy phi mode we need to a lookup
+                // If we are in lazy phi mode we need to do a lookup
                 // by name as it will trigger a phi creation
                 setDef(i, new PhiNode(ns[i], r, this.lookup(ns[i]), that.lookup(ns[i])).peephole());
     ```
@@ -105,7 +107,7 @@ We do this as follows:
 
 ## `continue` Statement
 
-In chapter7, we had a single backedge from the loop's end flowing back to the
+In Chapter 7, we had a single backedge from the loop's end flowing back to the
 loop head.
 
 With the addition of a `continue` statement, we can have multiple backedges
@@ -115,10 +117,10 @@ We have several ways of implementing these backedges.
 
 1. The traditional way would be to let each backedge from `continue` merge into
    the loop head.  Phis would require as many inputs as there are edges.  The
-   downside is now are Loops are not simply nested.  This makes it difficult to
+   downside is now our Loops are not simply nested.  This makes it difficult to
    do many kinds of peephole-based loop optimizations, such as "partially
    rolling" the loop to allow more loop invariants to get hoisted.
-2. An alternative is collect all `continue`s at a single merge point (`Region`)
+2. An alternative is to collect all `continue`s at a single merge point (`Region`)
    and then create a single backedge flowing from the continue `Region` to the
    loop head.
 3. A third approach is to create a stack of continue `Region`s rather than a
@@ -148,7 +150,7 @@ scope into it to generate a continue Scope and `Region`.  Subsequently, when we
 see another `continue`, we need to construct a new `Region` and merge the
 previous continue Scope with the current Scope.
 
-The implementation is a variation of above.
+The implementation is a variation of the above.
 
 * The first `continue` triggers a dupe of the current scope; we prune any
   nested lexical scopes deeper than the head scope, removing any name bindings
@@ -274,11 +276,11 @@ With that brief setup done, the control projection from the Start node is traver
 
 At this point, control flow is at the first region of the program, but it is treated just the same as any other region. There are two things that must be done at each region. First, resolve all phis to a specific value; and second to determine where control flow will continue to.
 
-It may seem like more than that should be done, but by resolving phi nodes, any logic that is specific to the control flow path for the given will be resolved. Any other work will eventually be resolved later on as-needed. This is sufficient for the program to run!
+It may seem like more than that should be done, but by resolving phi nodes, any logic that is specific to the control flow path for the given region will be resolved. Any other work will eventually be resolved later on as-needed. This is sufficient for the program to run!
 
 Finding the next place control flow will move to after a region is straightforward because any region only has a single control node that uses it. So we search for that node in the Region's users.
 
-Once we have that node, our behavior depends on what type of control flow node we've landed on. There are only 3 options: `RegionNode`, `IfNode`, and `ReturnNode`. If it is another `RegionNode`, we do the same again. If it's a `ReturnNode`, we can resolve the returned expression and return the program's value. Finally, for an `IfNode`, we must first resolve the test expression so that we can choose the false (projection 0) or true (projection 1) branch. Whichever projection from the `IfNode` is chosen, we step through that projection on to the control node (a `RegionNode`) that uses it.
+Once we have that node, our behavior depends on what type of control flow node we've landed on. There are only 3 options: `RegionNode`, `IfNode`, and `ReturnNode`. If it is another `RegionNode`, we do the same again. If it's a `ReturnNode`, we can resolve the returned expression and return the program's value. Finally, for an `IfNode`, we must first resolve the test expression so that we can choose the true (projection 0) or false (projection 1) branch. Whichever projection from the `IfNode` is chosen, we step through that projection on to the control node (a `RegionNode`) that uses it.
 
 We talk about resolving nodes above, but what does that mean? A node will either have a value (for instance a constant), will already be resolved with the resolved value cached, or it will operate on nodes that it uses, which must be resolved. Once a node's inputs are resolved, its operation may be performed on them. For instance, an `AddNode`'s value will be the sum of its two inputs. Once the value is resolved, the resolved value is returned.
 
@@ -289,7 +291,7 @@ Looping is almost functional with that, too, with only a couple of small extra d
 Finally, while calculating the value of `PhiNode`s in the loop region, we must be careful to compute all of their new values before we update any of their cached values. That's because as a loop iterates, we must ensure that all `PhiNode` values are consistently the value from the same point in time. Once all of the new values are calculated, we can update the cache for all of them at once. To illustrate this, consider the following code:
 
 ```java
-t = 0;
+int t = 0;
 while(arg < 10) {
     t = arg;
     arg = arg + 1;
@@ -309,4 +311,4 @@ arg=arg+arg;
 return arg;
 ```
 
-On the other hand, this engine is not designed to be particularly fast! Because not all expressions are cached, it's possible to construct programs like the preceeding one which have exponential runtime.
+On the other hand, this engine is not designed to be particularly fast! Because not all expressions are cached, it's possible to construct programs like the preceding one which have exponential runtime.

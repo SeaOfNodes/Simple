@@ -1,11 +1,19 @@
 digraph Memory {
+  // IR styles match graph/web/render.js; arrows are use -> definition.
+  graph [bgcolor="#fafbfc" fontname="Helvetica" nodesep=0.35 ranksep=0.55 splines=ortho];
+  node [fontname="Helvetica" fontsize=12 color="#758191" fontcolor="#152330" shape=box style="rounded,filled" fillcolor="#edf3f7"];
+  edge [fontname="Helvetica" fontsize=9 color="#536477" fontcolor="#364352" arrowsize=0.7 penwidth=1.5];
+
   rankdir=RL;
-  node [shape=box];
-  P [label="Phi(memory)"];
-  S [label="Loop-body Store"];
-  P -> Entry [color=blue];
-  P -> S [color=blue,constraint=false]; // Backedge must not place Store before Phi.
-  S -> P [color=blue];
-  P -> Loop [style=dashed]; Return -> P [color=blue];
+
+  P [label="Phi(memory)" shape=hexagon style="filled" fillcolor="#f5e4fa"];
+  S [label="Loop-body Store" shape=octagon style="filled" fillcolor="#dcecff"];
+  P -> Entry [color="#2867b2"];
+  P -> S [color="#2867b2",constraint=false]; // Backedge must not place Store before Phi.
+  S -> P [color="#2867b2"];
+  P -> Loop [style=dashed,color="#9396a3"]; Return -> P [color="#2867b2"];
   Return -> S [style=invis]; // Layout only: Phi, Store, Return from left to right.
+  Return [shape=box style="filled" fillcolor="#fff1c4"];
+  Entry [shape=octagon style="filled" fillcolor="#dcecff"];
+  Loop [shape=box style="rounded,filled" fillcolor="#ffe0ab"];
 }

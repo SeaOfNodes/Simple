@@ -1,10 +1,17 @@
 digraph Memory {
+  // IR styles match graph/web/render.js; arrows are use -> definition.
+  graph [bgcolor="#fafbfc" fontname="Helvetica" nodesep=0.35 ranksep=0.55 splines=ortho];
+  node [fontname="Helvetica" fontsize=12 color="#758191" fontcolor="#152330" shape=box style="rounded,filled" fillcolor="#edf3f7"];
+  edge [fontname="Helvetica" fontsize=9 color="#536477" fontcolor="#364352" arrowsize=0.7 penwidth=1.5];
+
   rankdir=RL;
-  node [shape=box];
-  M [label="Default memory"];
-  X [label="Store x"];
-  Y [label="Store y"];
-  X -> M [color=blue]; Y -> M [color=green];
-  MemMerge -> M [label="default"]; MemMerge -> X [label="x",color=blue];
-  MemMerge -> Y [label="y",color=green]; Return -> MemMerge;
+
+  M [label="Default memory" shape=octagon style="filled" fillcolor="#dcecff"];
+  X [label="Store x" shape=octagon style="filled" fillcolor="#dcecff"];
+  Y [label="Store y" shape=octagon style="filled" fillcolor="#dcecff"];
+  X -> M [color="#2867b2"]; Y -> M [color="#2867b2"];
+  MemMerge -> M [xlabel="default",color="#2867b2"]; MemMerge -> X [xlabel="x",color="#2867b2"];
+  MemMerge -> Y [xlabel="y",color="#2867b2"]; Return -> MemMerge [color="#2867b2"];
+  Return [shape=box style="filled" fillcolor="#fff1c4"];
+  MemMerge [shape=octagon style="filled" fillcolor="#dcecff"];
 }

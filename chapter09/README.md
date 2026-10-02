@@ -1,17 +1,19 @@
 # Chapter 9: Global Value Numbering and Iterative Peepholes
 
+[Previous: Chapter 8](../chapter08/README.md) |
+[Next: Chapter 10a](../chapter10a/README.md)
+
 # Table of Contents
 
 1. [Engineering Peepholes](#engineering-peepholes)
 2. [Global Value Numbering](#global-value-numbering)
 3. [Post-Parse Iterative Peepholes](#post-parse-iterative-peepholes)
 4. [Distant Neighbors](#distant-neighbors)
-5. [Identification of Basic Blocks in SoN graph](#identification-of-basic-blocks-in-son-graph)
-6. [Other Concerns](#other-concerns)
-7. [Common SubExpressions via GVN](#common-subexpressions-via-gvn)
-    - [Example 1](#example-1)
-    - [Example 2](#example-2)
-8. [Post Parse Iterative Optimizations](#post-parse-iterative-optimizations)
+5. [Other Concerns](#other-concerns)
+6. [Common SubExpressions via GVN](#common-subexpressions-via-gvn)
+   - [Example 1](#example-1)
+   - [Example 2](#example-2)
+7. [Post Parse Iterative Optimizations](#post-parse-iterative-optimizations)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter09) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter08...linear-chapter09) it to the previous chapter.
 
@@ -41,7 +43,7 @@ opcode and inputs.  If two Nodes do the same function on the same inputs, they
 get the same result - and can be shared.
 
 * We add a global static hash table `GVN` in Node.
-* We add a `Node.equals` call.  Two Nodes are equals if they have the same
+* We add a `Node.equals` call.  Two Nodes are equal if they have the same
   opcode - same Java class - on the same inputs.
 * We add a `hashCode` on the Node opcode (proxy: Node string name) and inputs.
 * `ConstantNode` and a few others need some extra custom bits here: the
@@ -50,8 +52,7 @@ get the same result - and can be shared.
 
 Note the intentional *value* equality here.  In many places in Simple we use
 *reference* equality - e.g. node/edge maintenance is via reference equality, not
-value equality, so e.g. the `Utils.find()` call finds via reference.  Through
-out the Simple project whenever a Node lookup is happening, beware if its via
+value equality, so e.g. the `Utils.find()` call finds via reference.  Throughout the Simple project whenever a Node lookup is happening, beware if it's via
 *value* or *reference* equality; this is not always explicitly called out but
 should be obvious from context.
 
@@ -72,7 +73,7 @@ remove the Node from `GVN` first, before modifying the edges.
   "edge-locked" and IS in `GVN`.
 * The `hashCode` function uses the cached hash if available and disallows an
   accidental zero hash.
-* We add a `unlock()` call to remove a Node from `GVN` before any edge is
+* We add an `unlock()` call to remove a Node from `GVN` before any edge is
   changed.  This is inserted in front of all calls which hack Node edges.  All
   edge modify code paths already ensure the Node is re-peepholed, and during
   this revisit the Node will get re-inserted in the `GVN` table.
@@ -112,19 +113,19 @@ Rinse, Repeat until the worklist runs dry.
 The main issues we have to deal with:
 
 * Nodes have uses; replacing some set of Nodes with another requires more graph
-  reworking.  Not rocket science, but it can be fiddly.  Its helpful to have a
+  reworking.  Not rocket science, but it can be fiddly.  It's helpful to have a
   small set of graph munging utilities, and the strong invariant that the graph
   is stable and correct between peepholes.  In our case `Node.subsume` does
   most of the munging, building on our prior stable Node utilities.
 
-* Changing a Node also changes the graph "neighborhood".  The neigbors need to
+* Changing a Node also changes the graph "neighborhood".  The neighbors need to
   be checked to see if THEY can also peephole, and so on.  After any peephole
-  or graph update we put a Nodes uses and defs on the worklist.
+  or graph update we put a Node's uses and defs on the worklist.
 
 * Our strong invariant is that for all Nodes, either they are on the worklist
   OR no peephole applies.  This invariant is easy to check, although expensive.
   Basically the normal "iterate peepholes to a fixed point" is linear, and this
-  check is linear at each peephole step... so quadratic overall.  Its a useful
+  check is linear at each peephole step... so quadratic overall.  It's a useful
   assert, but one we can disable once the overall algorithm is stable - and
   then turn it back on again when some new set of peepholes is misbehaving.
   The code for this is turned on in `IterPeeps.iterate` as `assert
@@ -143,11 +144,11 @@ Updating "B" throws the dependent list ("this") onto the "todo" list.
 An example of a distant neighbor check is in `AddNode`, where we check for
 stacked constants: `(Add (Add x 2) 1)` and we'd like `(Add x 3)` instead.
 Suppose we're doing this check and we find instead `(Add (Phi (Add x 2) self)
-1)` The check naturally bails out at the `Phi` since its not an `Add`, but the
+1)` The check naturally bails out at the `Phi` since it's not an `Add`, but the
 `(Phi y self)` only has one unique input, and will itself peephole to `y`
 eventually.  When it does, our stacked `Add` peephole can apply.  So the
 failing Add peephole calls `phi.addDep(Add)` and registers a dependency on the
-`Phi`.  If the `Phi` indeed later optimizes, we add its depencencies (e.g. the
+`Phi`.  If the `Phi` indeed later optimizes, we add its dependencies (e.g. the
 `Add`) back on our `IterPeeps` worklist and retry the stacked Add peephole.
 
 The general rule is:
@@ -173,7 +174,7 @@ In this chapter we trigger on following patterns
 
 Changes:
 
-* We add a `ArrayList<Node> _deps` field to Node; initially null.
+* We add an `ArrayList<Node> _deps` field to Node; initially null.
 * Some peepholes (see above) add dependencies if they fail a remote check, by calling
   `distant.addDep(this)`.  The `addDep` call creates `_deps` and
   filters for various kinds of duplicate adds.
@@ -191,7 +192,7 @@ There are more issues we will want to deal with in a later Chapter:
   - Dead infinite loops often lead to infinite peephole cycles... if only we
     would get around to working on the "base" of the dead loop it would fold
     up.
-  - Some peepholes naturally reduce the graph directly; while some keeps its
+  - Some peepholes naturally reduce the graph directly; while some keep its
     size the same but reduce other things (e.g. swapping a Mul-by-2 with a
     Shift), and we might end up with a few which try to grow the graph briefly
     before collapsing.
@@ -211,15 +212,15 @@ There are more issues we will want to deal with in a later Chapter:
   many peep patterns might go quadratic if approached from one end or another,
   because they modify something then push it back onto the list where it
   immediately gets pulled again.  I.e., you end up spinning in a loop repeating
-  the same peeps while slowly migrating a e.g. left-spine add-tree into a
-  right-spine add-tree.  A psuedo-random pull uses randomization to defeat bad
+  the same peeps while slowly migrating e.g. left-spine add-tree into a
+  right-spine add-tree.  A pseudo-random pull uses randomization to defeat bad
   peep patterns.
 
 * Why isn't `IterPeeps` just passing over all of the Nodes once or twice,
   instead of using a worklist with the `addDeps` mechanism?  We could even
   visit them in a defs-before-uses order (e.g. Reverse Post Order).
 
-  In the absense of loops exactly one such pass will find all local peepholes,
+  In the absence of loops exactly one such pass will find all local peepholes,
   and indeed the Parser already does this.  However, this will fail to find
   opportunities at loops and farther remote cases - and to get those peepholes
   around loops will require another visit.  It is easy to construct a case
@@ -249,7 +250,7 @@ else {
 return x;
 ```
 
-Prior to GVN, this would result in following graph. Note that the `arg+arg` is translated to `arg*2`.
+Prior to GVN, this would result in the following graph. Note that the `arg+arg` is translated to `arg*2`.
 
 ![Graph1](./docs/09-graph1.svg)
 
@@ -269,8 +270,8 @@ Without GVN the peepholes cannot see that both sides of the subtraction have the
 
 ![Graph3](./docs/09-graph3.svg)
 
-- Each multiplication(*) node has two edges going to `arg`. 
-- In the example above, we fused them to make the graph more readable.
+- Each multiplication(*) node has two edges going to `arg`.
+- The input-slot labels distinguish these two uses of the same definition.
 
 With GVN, the peepholes can do a better job:
 
@@ -290,7 +291,7 @@ return arg;
 ```
 
 While parsing the `while` loop it is not yet known that `step` is a constant and will not change. Therefore,
-without the post parse optimization we get following:
+without the post parse optimization we get the following:
 
 ![Graph5](./docs/09-graph5.svg)
 

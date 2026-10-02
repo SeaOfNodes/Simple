@@ -1,7 +1,11 @@
 # Chapter 18: Functions
 
+[Previous: Chapter 17](../chapter17/README.md) |
+[Next: Chapter 19](../chapter19/README.md)
+
 
 # Table of Contents
+
 1. [FunctionTypes](#function-and-rpc-types)
 2. [Return Program Counters](#return-program-counters)
 3. [Functions](#functions)
@@ -24,7 +28,7 @@ Highlights of the changes:
 - The top-level is now a call to function `main`, and this changed most tests.
 - A top-level compile driver, which enforces optimization steps.
 - A local scheduler.
-- A new evaluator which relies on at code motion, both global and local.
+- A new evaluator which relies on code motion, both global and local.
 - A graphic animated viewer for peepholes.
 
 Functions are *not* closures in this chapter; that brings about far more
@@ -43,7 +47,7 @@ constant.  This generally includes e.g. recursive function pointers.
 A leading `{` character denotes the start of a function or function type, then
 a list of argument types, and an arrow `->` and the return type.
 
-Functions variables are normal variables and assigned the same way:
+Function variables are normal variables and assigned the same way:
 
 `functiontype fcn = function-typed-expr;`
 
@@ -84,7 +88,7 @@ scope, so for now these are only used in the evaluator.
 
 ## Functions
 
-Functions themselves using the same syntax with as function types, but filled in:
+Functions themselves use the same syntax as function types, but filled in:
 
 ```
 { flt x, flt y ->  // Signature
@@ -102,13 +106,13 @@ Used in a declaration statement:
 
 With `var`:
 ```
-var dist = { flt x, flt y -> sqrt(x*x*,y*y); }
+var dist = { flt x, flt y -> sqrt(x*x+y*y); }
 ```
 
 Functions are called in the usual way:
 `dist( 1.2, 2.3 ) // yields 2.59422435`
 
-Functions can have zero arguments, in which case the `->` argument seperator is
+Functions can have zero arguments, in which case the `->` argument separator is
 optional.  This allows any section of code to be "thunked" by wrapping it in
 `{}`.
 
@@ -121,7 +125,7 @@ Called:
 
 Functions are always anonymous.  When finally assigned to a variable, they will
 pick up the variable name for debugging and display purposes, but this has no
-semantics meaning.  Here is a function variable referring to more than one
+semantic meaning.  Here is a function variable referring to more than one
 anonymous function; the resulting function either doubles or squares:
 
 `val fcn = arg ? { int x -> x+x; } : { int x -> x*x; };`
@@ -130,9 +134,9 @@ anonymous function; the resulting function either doubles or squares:
 
 Functions can be recursive:
 ```
-val fact = { int n -> 
-  n <=1 ? n : n*fact(n-1); 
-}; 
+val fact = { int n ->
+  n <=1 ? n : n*fact(n-1);
+};
 return fact(4); // Returns 4! or 24
 ```
 
@@ -179,7 +183,7 @@ After a `Call` is a `CallEndNode`, internally abbreviated as `cend`.  The
 `CallEnd` will take the `Call` as an input, and also every *linked* function:
 functions the call-site *knows* it will call.  This will be expanded later to
 be a conservative approximation to the *Call Graph*, with each `CallEnd`
-*linked* to ever function it *may* call; if a function is not linked it can not
+*linked* to every function it *may* call; if a function is not linked it can not
 be called from here.  This requires a global analysis (fast, cheap,
 incremental, and global), not in this chapter.  So for the moment we only
 link exact constant functions.
@@ -204,8 +208,8 @@ programs.  The phases (for now) are:
   reports on failed null checks.
 - *Schedule* - Global Code Motion scheduler.  After this phase, all nodes belong
   in some basic block, with the normal suspect CFGNodes being basic blocks.
-- *LocalSched* - a local scheduler.  Its completely naive, except it enforces
-  some required rules: Phis appear at block heads, branchs at block exits.
+- *LocalSched* - a local scheduler.  It's completely naive, except it enforces
+  some required rules: Phis appear at block heads, branches at block exits.
   There's room in the algorithm for a much more sophisticated list scheduler.
   The `Eval2` evaluator requires this information.
 - *RegAlloc* - Not implemented (yet).
@@ -214,7 +218,7 @@ Several globals moved from the Parser to CodeGen, and probably several others
 ought to move here.
 
 There is a very nice `toString()` here; hovering over the `code` variable in
-the debug winow will pretty-print the IR "as if" globally scheduled, and the
+the debug window will pretty-print the IR "as if" globally scheduled, and the
 code becomes very readable.
 
 
@@ -229,12 +233,13 @@ recursive calls).
 
 ## Graph Visualizer
 
-Run as `make view`, type your program in the text box, click
-outside the box and then use the arrow keys to view IR generator both forwards
-and backwards.
+Run `make view`, type your program in the text box, and click **Compile**
+(or press **Ctrl+Enter**). Use the Left/Right arrow keys to step through graph
+construction and optimization. See the [shared viewer guide](../graph/README.md).
 
-Nodes are color coded according to type, same as the lattice diagrams.  Nodes
-are shaped according to node function as well.  At the bottom are `ScopeNode`s,
+Nodes use colors and shapes for their graph roles: control, data, memory, Phis,
+and scopes. This palette is distinct from the type-lattice diagrams. The viewer
+also displays `ScopeNode`s,
 which only exist for the Parser but are actual Nodes and have `use->def` edges
 into the IR.
 

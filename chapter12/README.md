@@ -1,5 +1,8 @@
 # Chapter 12: Floats
 
+[Previous: Chapter 11](../chapter11/README.md) |
+[Next: Chapter 13](../chapter13/README.md)
+
 Memory keeps Chapter 11's single `$mem` binding and lazy `MemMerge`, `MemPhi`,
 and `BulkMemPhi` partitions. Start produces `{ctrl, $mem, arg}` and Return
 consumes `{ctrl, $mem, result}`; floating-point arithmetic needs no new memory
@@ -30,7 +33,7 @@ There is no corresponding way right now to round a `flt` back to an `int`:
 int x = 3.14; // error
 ```
 
-Here is Newton's method to a square root:
+Here is Newton's method for computing a square root:
 ```java
 flt guess = arg;  // Initial guess is just argument
 while( true ) {
@@ -52,11 +55,12 @@ Floating point operations have their own Nodes:
 | MinusF                 | Unary negate         |
 | EQF, LTF, LEF          | FP compare operators |
 
-And their own section in the Type lattice:
+Within the Type lattice, we add the following domain:
 
-Within the Type Lattice, we now add the following domain:
+* ![Float](../docs/type-float.svg) - Float values. The same shape as the Integer values, but floats
+  with a top (`TOP`, ⊤), bottom (`BOT`, ⊥), and constants.
 
-* <font style="background-color:aqua">Float type</font> - Float values.  The same shape as the Integer values, but floats
-  with a TOP, BOT and constants
+The other domains retain Chapter 10b's named structs, nullable pointers, and
+precise memory aliases.
 
 ![Graph1](./docs/lattice.svg)

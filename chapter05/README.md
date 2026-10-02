@@ -1,11 +1,14 @@
 # Chapter 5: If Statement, Phi, and Region
 
+[Previous: Chapter 4](../chapter04/README.md) |
+[Next: Chapter 6](../chapter06/README.md)
+
 # Table of Contents
 
 1. [Recap](#recap)
 2. [New Nodes](#new-nodes)
 3. [`IfNode`](#ifnode)
-4. [`PhiNode` ](#phinode)
+4. [`PhiNode`](#phinode)
 5. [`RegionNode`](#regionnode)
 6. [Pinned data nodes](#we-do-not-associate-a-control-edge-on-every-data-node-in-the-graph)
 7. [`Stop` Nodes](#stop-nodes)
@@ -19,9 +22,7 @@
 15. [Finally](#finally)
 16. [Example 2](#example-2)
 17. [Example 3](#example-3)
-18. [Example 3](#example-3)
-19. [More Examples](#more-examples)
-
+18. [More Examples](#more-examples)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter05) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter04...linear-chapter05) it to the previous chapter.
 
@@ -50,7 +51,7 @@ Here is a recap of the nodes introduced in previous chapters:
 | Sub       | Data           | 2       | Subtract a value from another                  | Two data nodes, the first one is subtracted by the second one                 | Result of the subtraction                                                  |
 | Mul       | Data           | 2       | Multiply two values                            | Two data nodes without restrictions on the order                              | Result of the multiplication                                               |
 | Div       | Data           | 2       | Divide a value by another                      | Two data nodes, the first one is divided by the second one                    | Result of the division                                                     |
-| Minus     | Data           | 2       | Negate a value                                 | One data node which value is negated                                          | Result of the negation                                                     |
+| Minus     | Data           | 2       | Negate a value                                 | One data node that value is negated                                          | Result of the negation                                                     |
 | Scope     | Symbol Table   | 3       | Represents scopes in the graph                 | Nodes that represent the current value of variables                           | None                                                                       |
 
 > A `Proj` is a control node when it projects a control slot: `Proj#0` off `Start`,
@@ -92,7 +93,7 @@ Integer arithmetic likewise retains an integer result type when it cannot fold.
 In this Sea of Nodes, there is an embedded Control Flow Graph - and like a
 normal CFG there are merge points where two basic blocks flow into one.  The
 `Region` node takes control from each predecessor control (block) as input and
-produces a merged control as an output.[^2]  
+produces a merged control as an output.[^2]
 
 Both `Return` and `If` take control in slot 0.  `PhiNode`s need their
 corresponding `RegionNode` to know when to merge data values, so again slot 0
@@ -125,7 +126,7 @@ When we parse an `if` statement, the control flow splits at that point.  We
 must track the names being updated in each part of the `if` statement, and then
 merge them at the end.  The implementation follows the description in *Combining Analyses, Combining Optimizations*[^4].
 
-This involves following:
+This involves the following:
 
 1. We create an `IfNode` with the current control token, i.e. the node mapped to
   `$ctrl`, and the `if` predicate expression as inputs.
@@ -154,7 +155,7 @@ Implementation is in [`parseIf` method in `Parser`](https://github.com/SeaOfNode
 ## Operations on ScopeNodes
 
 As explained above, we duplicate ScopeNodes and merge them at a later point. There are some
-subtleties in how this is implemented that is worth going over.
+subtleties in how this is implemented that are worth going over.
 
 ### Duplicating a ScopeNode
 
@@ -175,7 +176,7 @@ At the merge point we merge two ScopeNodes. The goals are:
 2) A new Region node is created representing the merged control flow. The phis have this region node as the first input.
 3) After the merge is completed, the duplicate is discarded, and its use of each of the nodes is also deleted.
 
-The merging logic takes advantage of that fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode.
+The merging logic takes advantage of the fact that the two ScopeNodes have the bound nodes in the same order in the list of inputs. This was ensured during duplicating the ScopeNode.
 Although only the innermost occurrence of a name can have its binding changed, we scan all the nodes in our input list, and simply ignore ones where the binding has not changed.
 
 For implementation [see `ScopeNode.mergeScopes()`](https://github.com/SeaOfNodes/Simple/blob/main/chapter05/src/main/java/com/seaofnodes/simple/node/ScopeNode.java#L164-L173)
@@ -195,7 +196,7 @@ return a;
 
 ### Before Merging
 
-Following shows the graph just before we merge the two branches of the `if` statement in a `Region` node.
+The following shows the graph just before we merge the two branches of the `if` statement in a `Region` node.
 
 ![Graph1](./docs/05-graph1.svg)
 
@@ -225,7 +226,7 @@ Here is the graph after the `return` statement was parsed and processed.
 ## Example #2
 
 Consider the following code snippet:
-```java 
+```java
 int b = 0;
 int c = 0;
 if (arg == 1) {
@@ -241,16 +242,16 @@ return b;
 The value of `b` depends on which path the control flow took.
 To resolve this, a Φ (Phi) function is inserted.
 
-``` 
+```
 b = Phi(Region,2, 1); // values vary
-c = Phi(Region,1, 0); // valuse vary, but dead
+c = Phi(Region,1, 0); // values vary, but dead
 ```
 
 The `Phi` for `c` will die when the scope where `c` is defined dies.  This does
 not happen when merging but after the `return`.  `return` is using `b` so `b`
 stays alive.
 
-Before, we go ahead and parse down the if statement we duplicate the scope:
+Before we go ahead and parse down the if statement we duplicate the scope:
 ```java
 ScopeNode fScope = _scope.dup();
 /* Scope[$ctrl:$ctrl, arg:arg][b:0, c:0]*/
@@ -270,7 +271,7 @@ Notice, this branch modified and set a new value for both symbols currently exis
 Now, we set the scope back to where we started (without the modifications that `ifT` made)
 
 ```java
-_scope = fScope; 
+_scope = fScope;
 ```
 
 We then will proceed and parse down the second branch of the if statement:
@@ -278,12 +279,12 @@ We then will proceed and parse down the second branch of the if statement:
 if (matchx("else")) {
     parseStatement();
     fScope = _scope;
-    
+
     /* Scope[$ctrl:False, arg:arg][b:1, c:0]*/
 }
 ```
 
-This branch modified the values of `b` and `c`.  Since the branch arms are also
+The two branches modified `b`; only the true branch modified `c`.  Since the branch arms are also
 lexical scopes, they cannot introduce new symbols in the current (outer) scope.
 This means that the order of the name bindings stayed the same.  Excluding the
 first control node, we loop through and compare the nodes corresponding to the
@@ -303,7 +304,7 @@ representing this conflict:
 
 ## Example #3
 
-Phi's implement a peephole illustrated in the example:
+Phis implement a peephole illustrated in the example:
 
 ```java
 int a=arg==2;

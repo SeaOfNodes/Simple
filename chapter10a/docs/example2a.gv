@@ -1,10 +1,17 @@
 digraph Memory {
+  // IR styles match graph/web/render.js; arrows are use -> definition.
+  graph [bgcolor="#fafbfc" fontname="Helvetica" nodesep=0.35 ranksep=0.55 splines=ortho];
+  node [fontname="Helvetica" fontsize=12 color="#758191" fontcolor="#152330" shape=box style="rounded,filled" fillcolor="#edf3f7"];
+  edge [fontname="Helvetica" fontsize=9 color="#536477" fontcolor="#364352" arrowsize=0.7 penwidth=1.5];
+
   rankdir=RL;
-  node [shape=box];
-  M [label="Incoming memory"];
-  A [label="True: Store x"];
-  B [label="False: Store y"];
-  P [label="Phi(memory)"];
-  P -> A -> M [color=blue]; P -> B -> M [color=blue];
-  P -> Region [style=dashed]; Return -> P [color=blue];
+
+  M [label="Incoming memory" shape=octagon style="filled" fillcolor="#dcecff"];
+  A [label="True: Store x" shape=octagon style="filled" fillcolor="#dcecff"];
+  B [label="False: Store x" shape=octagon style="filled" fillcolor="#dcecff"];
+  P [label="Phi(memory)" shape=hexagon style="filled" fillcolor="#f5e4fa"];
+  P -> A -> M [color="#2867b2"]; P -> B -> M [color="#2867b2"];
+  P -> Region [style=dashed,color="#9396a3"]; Return -> P [color="#2867b2"];
+  Return [shape=box style="filled" fillcolor="#fff1c4"];
+  Region [shape=trapezium style="filled" fillcolor="#fff1c4"];
 }

@@ -1,15 +1,19 @@
 # Chapter 17: Syntax Sugar
 
+[Previous: Chapter 16](../chapter16/README.md) |
+[Next: Chapter 18](../chapter18/README.md)
+
+
+## Table of Contents
 
 1. [Pre/Post-increment](#prepost-increment)
 2. [Operator assignment](#operator-assignment)
 3. [var/val](#var--val)
-    - [Example(1)](#example1)
-    - [Example(2)](#example2)
 4. [Mutability](#mutability)
 5. [Reference immutability](#reference-variables-with-an-initializer-are-deeply-immutable)
 6. [Trinary](#trinary)
 7. [For Loops](#for-loops)
+8. [Memory effects](#memory-effects)
 
 ## Pre/Post-increment
 
@@ -38,7 +42,7 @@ Assignments associate right-to-left, as in `x |= y <<= 2`.
 ## var & val
 
 `var` can be used in the `type` position to indicate a "variable" (mutable
-value), whose type will be inferred from the required initalizing expression.
+value), whose type will be inferred from the required initializing expression.
 
 `val` is the same as `var`, except it is a "value" (not mutable).
 
@@ -51,7 +55,7 @@ nullable, so e.g.
 
 infers as
 
-`S s? = new S;`
+`S? s = new S;`
 
 
 ## Mutability
@@ -59,7 +63,7 @@ infers as
 Typed primitive fields are always mutable.  Typed reference fields without an
 initializer must be mutable to get a value.  Initialized reference variables
 are immutable by default and can be made mutable with a leading `!`.  Contrast
-this with what [chapter16](https://github.com/SeaOfNodes/Simple/tree/chapter16)
+this with what [Chapter 16](../chapter16/README.md)
 did with `!`.  `var` and `val` keep their current sense and can be used to make
 any field mutable or immutable.  Fields are always mutable during construction,
 but will become immutable at the end of either constructor.

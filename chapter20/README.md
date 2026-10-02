@@ -1,6 +1,9 @@
 # Chapter 20: Graph Coloring Register Allocation
 
-## Some Reading Material 
+[Previous: Chapter 19](../chapter19/README.md) |
+[Next: Chapter 21](../chapter21/README.md)
+
+## Some Reading Material
 
 This is a Briggs-Chaitin-Click allocator, and is very similar to the one used
 in HotSpot's C2 allocator for the past 25 years with great success.
@@ -18,17 +21,17 @@ or Chaitin in combination.  Basically there was a spate of register allocation
 improvements in this era that made it into many high-end mainstream compilers.
 
 I've included a very old unpublished paper on speeding up graph coloring
-allocators: [Interference Graph Triming](docs/ifg_trim.pdf).
+allocators: [Interference Graph Trimming](docs/ifg_trim.pdf).
 
 
 ## Meta-Issues / Code-Dev Issues of Instruction Selection, Register Allocation and Encodings
 
 The output of Register Allocation - an allocation of registers to ops - is
 difficult to test in bulk without an execution strategy.  We won't have an
-execution stratgy until all three of Instruction Selection, Register Allocation
+execution strategy until all three of Instruction Selection, Register Allocation
 and Encodings are done.  Hence in and around the completion of Encoding we
 expect to find lots of bugs in Instruction Selection and Register Allocation.
-We certainly hand-inspect the output and fix obvious problems, but still lots
+We certainly hand-inspect the output and fix obvious problems, but still lots of
 bugs linger until we can actually run the code.
 
 This means that other chapters have updates and bug-fixes to the work being
@@ -43,7 +46,7 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 
 ## The Basic Theory
 
-The reading material includes several explainations of the basic concepts, but
+The reading material includes several explanations of the basic concepts, but
 at the risk of being redundant I'll present a short version again here.
 
 I assume you (the reader) know *why* register allocation is required: machine
@@ -53,7 +56,7 @@ they need to be allocated well.
 Graph Coloring is one such allocation method; machine registers are treated as
 colors; a *live range interference graph* is built, with each *live range*
 requiring its own register/color.  Coloring the graph ensures every live range
-gets a unique register, specificially when it overlaps or *interferes* with
+gets a unique register, specifically when it overlaps or *interferes* with
 another live range.
 
 A successful coloring ends the allocation and after some bookkeeping the
@@ -82,14 +85,14 @@ Coloring proceeds in rounds until we get a coloring:
   which also makes fewer larger live ranges.  We'll be using the disjoint
   Union-Find algorithm to rapidly build up live ranges in one forward pass over
   the program.
-  
-- Build the Inteference Graph: every live range which is alive at the same time
+
+- Build the Interference Graph: every live range which is alive at the same time
   as any other, now *interferes* or conflicts.  This is built using a LIVE-ness
   pass, which is a backwards pass over the CFG, and can require more than one
   pass according to loop nesting depth.  The data structure here is generally a
   2-D bitset, triangulated to cut its size in half.  As part of LIVE, we'll
   also have a set of reaching defs per-block.
-  
+
 - Color the interference graph.  Nodes (live ranges) in the graph which are
   strictly low degree (more available registers than neighbors) are guaranteed
   to get a color.  These can be removed from the graph - since they will
@@ -117,8 +120,8 @@ Coloring proceeds in rounds until we get a coloring:
 Registers are the thing that Register Allocation is all about!  They are
 represented as a small dense integer, starting up from 0, and the numbering
 generally follows from the hardware encodings.  So for an X86_64, RAX will be
-register 0, RCX register 1 and so on up to the 16 GPRs.  The XMM registers at
-16 and go up to 32.  Register numbers must be unique; this is how the register
+register 0, RCX register 1 and so on up to the 16 GPRs. The XMM register numbers start at
+16 and go through 31. Register numbers must be unique; this is how the register
 allocator tracks them.
 
 #### Why a RegMask class and not a simple `long`?
@@ -137,7 +140,7 @@ bit value directly in Java, Simple will pick up a `RegMask` class object.
 
 #### Stack Slots
 
-One of the Click extensions is this notion of treating "stack slots" are Just
+One of the Click extensions is this notion of treating "stack slots" as Just
 Another Register.  They get colored like other registers, which in turn leads
 to very efficient use of the stack; C2 is known for having very small stack
 frames.  Another benefit is callee save registers will get split preferentially
@@ -208,9 +211,9 @@ allocation the `LRG._mask` field holds the set of available registers,
 typically all the defaults, minus various conflicts.
 
 The `LRG._adj` holds a list of adjacent neighbors as part of the larger
-Interference Graph, and is only used during the Coloring phase.  
+Interference Graph, and is only used during the Coloring phase.
 [See more about graphs here.](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))
-This is a "adjacency list" form of a Graph description, and is built from the
+This is an "adjacency list" form of a Graph description, and is built from the
 IFG's 2-D collection of bits (itself a 1-D list of `BitSet`s).  Graph coloring
 register allocation is one of the few places where changing the layout of a
 data structure mid-algorithm pays out.
@@ -239,7 +242,7 @@ them).
 
 ### Hard-Conflicts
 
-A live range can have a *hard confict*: conflicting register requirements,
+A live range can have a *hard conflict*: conflicting register requirements,
 leading to no valid register choices.  The obvious case is an incoming
 parameter fixed in e.g. `rdx` but also required as an exit value in `rax`.  You
 can't pick both registers at once, so a split is required.  During the build
@@ -247,14 +250,14 @@ live ranges phase, every register constraint from every def and use are AND'd
 together; the `RegMask` might lose all valid registers, or remain with just a
 handful of register choices.
 
-Hard-conflicts are usually found while build live ranges, and will trigger a
+Hard-conflicts are usually found while building live ranges, and will trigger a
 round of splitting before building the interference graph or coloring.  They
 can also be found during interference graph building, generally caused by a
 1-register kill.
 
 ### Avoiding interferences
 
-Once of the Click extensions to the Briggs-Chaitin allocator is to take
+One of the Click extensions to the Briggs-Chaitin allocator is to take
 advantage of register constraints to lower the interference graph degree (which
 otherwise becomes an O(n^2) edge collection).  If a live range LR1 is reduced
 to a single register (such as a call argument requiring `rdx`) and would
@@ -279,7 +282,7 @@ e.g. a simple `fib` program:
    y = x;
    x = tmp;
  };
- 
+
 ```
 
 In SoN SSA form:
@@ -328,7 +331,7 @@ arbitrarily (lowest numbered register), and then we go looking for a better
 color.  Biased coloring inspects first a sample def (if there is only one, then
 the One Def is inspected), and then a sample use.  Inspection looks to see if
 "the other side" of a split is already colored; if so, and that color is
-available it is choosen.  If there is a split, but it is not colored - we
+available it is chosen.  If there is a split, but it is not colored - we
 recursively repeat the process on that split's other side.  This is also done
 for the other input of two-address ops and one of a Phi node inputs.
 
@@ -346,7 +349,7 @@ guaranteed a color.  There is a conflicting tension here:
 Picking a live range with a large "area" (i.e. covering much of the program),
 and low "cost" to spill (i.e. fewer defs and uses, and outside of loops) will
 give a large win.  A register will become free over a large part of the program
-and allow coloring to success elsewhere.  The normal ABI callee-save registers
+and allow coloring to succeed elsewhere.  The normal ABI callee-save registers
 are ideal in this case, defined on entry and used only on exit they cover the
 entire program.  Also, spilling means only a single split on entry and another
 at exit.  Spilling such live ranges basically builds a classic function
@@ -362,7 +365,7 @@ outside a fast-path exit.
 BIG_AND_SLOW:
   add  rsp,#12
   mov  [rsp+0],rbx // begin spilling callee-save registers
-  mov  [rsp+4],r12 // 
+  mov  [rsp+4],r12 //
   // lots of code needing callee-save registers
 ```
 
@@ -389,7 +392,7 @@ and deciding on a splitting strategy.
 ### Split Self Conflict
 
 Self-conflict live ranges are discovered during the "Build the Interference
-Graph" stage.  If this happens we don't attempt a coloring (its nonsensical
+Graph" stage.  If this happens we don't attempt a coloring (it's nonsensical
 with self conflicts), but go straight to splitting.  During the IFG building we
 gathered a subset of the conflicting definitions for this live range.  Now
 we visit all those definition points and insert spills:
@@ -401,8 +404,8 @@ we visit all those definition points and insert spills:
 - Before any use that extends a live range.
 
 This set of splits is fairly aggressive... but test cases requiring a split in
-each of the listed locations are including in Chapter 20's test cases.  We
-cannot even attempt a color while we have self conflicts, so its important to
+each of the listed locations are included in Chapter 20's test cases.  We
+cannot even attempt a color while we have self conflicts, so it's important to
 break up these live ranges quickly.  This tends to over-split and the allocator
 leans on Biased Coloring and the final copy cleanup to remove some of the
 extras. Conservative coalescing will be introduced in a later chapter.
@@ -443,7 +446,7 @@ into successively deeper loop nests in progressive rounds of splitting, and in
 the final case will split once after each def and before each use, even in the
 innermost loop.
 
-The heurstic starts by discovering the min and max loop depth for all defs and
+The heuristic starts by discovering the min and max loop depth for all defs and
 uses.  If these vary, we will split *around* the outermost loop, putting in
 splits at the loop border and keeping an inner untouched live range that has no
 constraints from outside.  If this fails to color, on the next round of
@@ -462,7 +465,7 @@ RA uses a series of helper functions, each is fairly self-contained.
   after a def.  Includes the work to put the split in its proper ordering in
   a Basic Block and do all edge maintenance.
 - **makeSplit** - Make a split (either clone a clonable constant, or ask the
-  `Machine` for a port-specific `SplitNode`.
+  `Machine` for a port-specific `SplitNode`).
 - **ldepth** - Given a min&max loop depth (compacted in a `long`), expand the
   loop depth range for a given node `n`.  Used to decide when a def or use is
   "inside" a loop, which in turn is used to split around loops.
@@ -475,7 +478,7 @@ A quick pass over the splits and after checking registers, we pull out the
 useless splits (and track the rest for "scoring" our allocation).  We'll also
 bypass some split-after-splits, which can remove some redundant copying.
 
-The registers remain available in the `RegAlloc` object via `alloc.regnum( Node n )` 
+The registers remain available in the `RegAlloc` object via `alloc.regnum( Node n )`
 and will be used by a following instruction encoding pass.
 
 

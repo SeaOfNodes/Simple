@@ -1,5 +1,8 @@
 # Chapter 14: Narrow types
 
+[Previous: Chapter 13](../chapter13/README.md) |
+[Next: Chapter 15](../chapter15/README.md)
+
 Memory retains the single `$mem` binding and lazy partitions from Chapter 10b.
 Narrow-field stores perform this chapter's truncation before updating their
 alias in MemMerge. Start and Return keep control in slot 0 and memory in slot 1.
@@ -7,9 +10,9 @@ alias in MemMerge. Start and Return keep control in slot 0 and memory in slot 1.
 # Table of Contents
 
 1. [Narrow Word Types](#narrow-or-sub-word-types)
-2. [OverFlow handling](#overflow-handling)
+2. [Overflow handling](#overflow-handling)
 3. [Integer ranges](#integer-ranges)
-4. [Bitwise operations](#examples)
+4. [Bitwise operations](#bitwise-operations)
 5. [Precedence](#precedence)
 6. [Type lattice](#type-implementation)
 7. [Nodes](#nodes)
@@ -21,7 +24,7 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 
 ## Narrow or sub-word types
 
-Narrow or sub-worded integer types refer to integer data types that occupy less memory (fewer bits) than the standard or "full-width"(Typically 32, or 64 bits) integer types provided by a system or programming language.
+Narrow or sub-word integer types refer to integer data types that occupy less memory (fewer bits) than the standard or "full-width" (typically 32 or 64 bits) integer types provided by a system or programming language.
 
 
 As a prelude to arrays, especially arrays of bytes common in all networking
@@ -32,34 +35,34 @@ extended on a load.
 
 ```java
 i8 x = 123456789;
-if( x != 21 ) 
+if( x != 21 )
   return false;
 return true;
 ```
 
-The variable `x` is limited to 8 bits signed.  Assigning the vary large value
+The variable `x` is limited to 8 bits signed.  Assigning the very large value
 `123456789` (hex `0x75BCD15`) simply truncates to 8 bits yielding `21 (0x15)`.
 The value is sign-extended on a load.
 
 ```java
 i16 x = 123456789;
-if( x != -13035 ) 
+if( x != -13035 )
   return false;
 return true;
 ```
 
-The variable `x` is limited to 16 bits signed.  Assigning the vary large value
+The variable `x` is limited to 16 bits signed.  Assigning the very large value
 `0x75BCD15` simply truncates to 16 bits yielding `0xCD15`.  The value is
 sign-extended on a load yielding `-13035 (0xFFFF FFFF FFFF CD15)`.
 
 ```java
 u16 x = 123456789;
-if( x != 52501 ) 
+if( x != 52501 )
   return false;
 return true;
 ```
 
-The variable `x` is limited to 16 bits unsigned.  Assigning the vary large value
+The variable `x` is limited to 16 bits unsigned.  Assigning the very large value
 `0x75BCD15` simply truncates to 16 bits yielding `0xCD15`.  The value is
 zero-extended on a load yielding `52501 (0x0000 0000 0000 CD15)`.
 
@@ -91,10 +94,10 @@ There are several cases of overflow:
 
 #### Unsigned(fixed-width) integer overflow:
 
-```java 
-u8 a = 255; 
+```java
+u8 a = 255;
 u8 b = a + 1; // match u8 type against expr.type
-// a = 256 
+// a = 256
 // u8 = [0...255]
 return b;
 ```
@@ -113,7 +116,7 @@ The operands to the "bitwise AND" are the values(256) and the mask(255, max boun
 This is called truncating.
 
 `ZsMask:`
-```java 
+```java
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
     // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
 private Node zsMask(Node val, Type t ) {
@@ -140,29 +143,29 @@ The truncation is done by the `AndNode`:
 if( t0._min==0 )       // Unsigned
         return new AndNode(val,con(t0._max)).peephole();
 ```
-Since they are constants, after calling peephole it truns into`256 & 255` = 0;
+Since they are constants, after calling peephole it turns into `256 & 255` = 0;
 Output:
 ```
-return 0; 
+return 0;
 ```
 
 #### Maximum integer overflow
-```java 
-i64 a = 9223372036854775807; 
+```java
+i64 a = 9223372036854775807;
 i64 b = a + 1;
 return b;
 ```
 When we are computing the addition, we make sure they don't overflow:
 
 `AddNode.overflow:`
-```java 
+```java
 private static boolean overflow( long x, long y ) {
     if(    (x ^      y ) < 0 ) return false; // unequal signs, never overflow
     return (x ^ (x + y)) < 0; // sum has unequal signs, so overflow
 }
 ```
 `AddNode.compute`
-```java 
+```java
 ...
 // Fold ranges like {0-1} + {2-3} into {2-4}.
 if( !overflow(i1._min,i2._min) &&
@@ -183,8 +186,8 @@ return TypeInteger.constant(i1.value()+i2.value()); // -9223372036854775808;
 ```
 
 #### Adding constant ranges
-```java 
-u8 a = 12; 
+```java
+u8 a = 12;
 u8 b = 13;
 u8 c = 124;
 u8 d = a + b + c;
@@ -197,30 +200,30 @@ public static TypeInteger make(boolean is_con, long con) {
     return make(is_con ? con : (con==0 ? Long.MAX_VALUE : Long.MIN_VALUE),
                 is_con ? con : (con==0 ? Long.MIN_VALUE : Long.MAX_VALUE));
 ```
-- This results in: 
+- This results in:
 ```java
 return make(con, con);
 ```
 
-`value()` is only called in constants, e.g  `_min == _max;` invariants holds, then since
+`value()` is only called in constants, e.g  `_min == _max;` invariant holds, then since
 both `min_` and `max_` are equal, we can return either one.
 
 This is the same as regular additions:
-```java 
-public long value() { assert isConstant(); return _min; } 
+```java
+public long value() { assert isConstant(); return _min; }
 ```
 
 #### Truncate(2)
 
-```java 
+```java
 u8 a = arg;  // arg & 255
 u8 b = arg;  // arg & 255(same as a)
 u8 c = a + b; // (arg&255)*2, type = TypeInteger.BOT
-return c; // (((arg&255)*2)&255), type = TypeInteger.U8 
+return c; // (((arg&255)*2)&255), type = TypeInteger.U8
 ```
 
 Same as before, **arg** turns into **(arg&255)**, this node is then inserted into the **GVN** table and  **b** retrieves this value.
-The AddNode peephole will change them into `((arg&255)*2`, and put on extra mask 
+The AddNode peephole will change them into `((arg&255)*2)`, and put on extra mask
 on the expression to keep it in the valid boundaries.
 
 
@@ -238,15 +241,15 @@ And `&`, Or `|`, Xor `^`, Shift left `<<`, Shift right `>>`, Shift right zero `>
 | **Or**                   | `\|`        | Performs a bitwise OR (inclusive OR) operation.                                                         |
 | **Xor**                  | `^`     | Performs a bitwise XOR (exclusive OR) operation.                                                        |
 | **Shift Left**           | `<<`    | Shifts bits to the left, filling with zeros.                                                            |
-| **Shift Right**          | `>>`    | Shifts bits to the right, any vacated bit postions are filled by replicating the value of the sign bit. |
-| **Unsigned Right Shift** | `>>>`   | Shifts bits to the right, any vacated bit postions are always filled with zero                          |
+| **Shift Right**          | `>>`    | Shifts bits to the right, any vacated bit positions are filled by replicating the value of the sign bit. |
+| **Unsigned Right Shift** | `>>>`   | Shifts bits to the right, any vacated bit positions are always filled with zero                          |
 
 Note `>>>` is a logical shift and not an arithmetic shift.
 
 ####  AndNode:
 
 ##### lhs & -1 = lhs;
-```java 
+```java
 // And of -1.  We do not check for (-1&x) because this will already
 // canonicalize to (x&-1)
 if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==-1 )
@@ -306,7 +309,7 @@ arg + 123 & 3 = (arg + 123) & 3
 
 ## Type Implementation
 
-The <font style="background-color:lightblue">TypeInteger type</font> class is
+The ![Integer](../chapter10a/docs/type-integer.svg) `TypeInteger` class is
 reworked to support a full range of min/max values.  At this time, only some
 power-of-2 sized ranges are exposed to the programmer but the optimizer
 internally supports all ranges.  The MEET operation takes the min-of-mins and
@@ -322,7 +325,11 @@ Example: the `i8` type has the range `[-128...127]`.
 
 Example: the `dual` of `bool` is `[1...0]` (just swap min and max).
 
-The <font style="background-color:aqua">TypeFloat</font> class is also reworked to support 32-bit and 64-bit sizes.
+The ![Float](../docs/type-float.svg) `TypeFloat` class is also reworked to support 32-bit and 64-bit sizes.
+
+The integer range diagram is schematic: it shows the boolean range and its
+dual as examples among the possible ranges. The other domains retain the
+named structs, nullable pointers, and precise memory aliases from earlier chapters.
 
 ![Graph1](./docs/lattice.svg)
 
@@ -350,4 +357,4 @@ slightly different `idealize()` calls.
 
 
 [^1]:  Hacker's delight.
-    4-2 Propagating Bounds through Add's and Subtract's
+    4-2 Propagating Bounds through Adds and Subtracts

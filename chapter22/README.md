@@ -1,5 +1,8 @@
 # Chapter 22: A Hello, World!
 
+[Previous: Chapter 21](../chapter21/README.md) |
+[Next: Chapter 23](../chapter23/README.md)
+
 It's high time for strings and printing!  In this chapter we look at what it
 takes to make a basic string - not really a full fledged String class, that
 will wait for another chapter.
@@ -16,7 +19,7 @@ Let's break it down.
 
 - `sys`: is Just A Variable Name.  Like other variables, it is looked up in the
   current scope... which looks completely empty.  Every Simple program now starts
-  with the `sys` variable in-scope.  `sys` itself a normal `struct`
+  with the `sys` variable in-scope.  `sys` itself is a normal `struct`
   and is defined in `src/main/smp/sys.smp`.
 - `sys.io.p`: lookup the `io` field in `sys` struct, which yields the `sys.io`
   struct; then a lookup of `p` (short for "print") in the `sys.io` struct.
@@ -44,7 +47,7 @@ Simple now supports nested types - this is a name-space only change, so no new
 semantics - just the ability to nest type definitions.
 
 ```java
-struct Outer { 
+struct Outer {
     struct Inner {
         int in;
         flt pi = 3.14;
@@ -55,14 +58,14 @@ struct Outer {
 
 Any final field set in the declaration (as opposed to the constructor) is
 automatically a "static" field - it is final for all instances, and does not
-need to be stored in each instances.  Instead one copy is kept in a global
+need to be stored in each instance.  Instead one copy is kept in a global
 space (not really a *class* object yet) and loaded from there.
 
 In this example:
 
 - Instances of the `Outer` struct have a single `int` field `out`.
 - Instances of the `Inner` struct have a single `int` field `in`.
-- There exists a `Outer.Inner.pi` field in a global space with value `3.14`.
+- There exists an `Outer.Inner.pi` field in a global space with value `3.14`.
 
 The `sys` struct is another example, with nested `libc` and `io` structs at
 least.  All the fields in these structs are all final, hence static.
@@ -78,7 +81,7 @@ call:
 `{ i32 fd, i64 buf, u32 len -> u32 } write = "C";`
 
 Any final variable assigned as "C" will be considered defined externally.  The
-syntax of this might change slightly to avoid ambiguity with assign the same
+syntax of this might change slightly to avoid ambiguity with assigning the same
 "C" string.
 
 There is no linker support for getting the correct signature or namespace; the
@@ -241,9 +244,6 @@ shuffling optimizer worklists should normalize to essentially the same graph,
 so repeating allocation on those graphs adds little coverage. Use seed variation
 when investigating optimizer normalization or worklist-order failures.
 
-Two pre-existing failures found during the review remain in the
-[backport queue](../docs/chapter-backports.md): String fails during loop
-analysis/scheduling at other optimizer seeds, and returning a function pointer
-fails during relocation after Opto incorrectly deletes the referenced function.
-Their reproductions and validation history are retained
-there as separate correctness work.
+The [backport record](../docs/chapter-backports.md) documents the resolved
+String fall-through and returned-function retention/relocation failures,
+including their reproductions and validation history.

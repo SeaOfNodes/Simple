@@ -171,11 +171,10 @@ alias to become known later, using the same representation. Its private
 constructor memory, escape tracking, incomplete types, and module alias
 remapping are separate extensions and are not needed here.
 
-Chapters 11-15 use this representation, including alias-specific load/store
+Chapters 11-24 use this representation, including alias-specific load/store
 anti-dependencies. Chapter 15 adds allocation with partial memory and typed
-alias contents. Chapters 16-24 currently retain their older parser-managed
-memory chains; forwarding through those snapshots is tracked in the
-[backport queue](../docs/chapter-backports.md).
+alias contents. Chapter 16 extends initialization to constructor values, and
+Chapter 18 carries whole memory across function calls.
 
 ## Build and test
 

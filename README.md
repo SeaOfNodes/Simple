@@ -6,7 +6,7 @@ This repo is intended to demonstrate the Sea-of-Nodes compiler IR.
 The Sea-of-Nodes is the core IR inside of HotSpot's C2 compiler
 and Google's V8 compiler and Sun/Oracle's Graal compiler.
 
-Since we are show casing the SoN IR, the *language* being implemented is less
+Since we are showcasing the SoN IR, the *language* being implemented is less
 important.  We're using a very simple language similar to C or Java, but with
 far fewer features.  Simple is strongly typed, object-oriented, with first-class
 *functions* not *closures*.  Object references are pointers, and null
@@ -16,12 +16,12 @@ has a minimal syntax that can be parsed with a recursive descent parser.
 
 The Sea-of-Nodes is used for machine code generation in these industrial
 strength systems - but for this demonstration the backend is both difficult and
-less important.  This repo targets X86, RISC5 and ARM64 at least with
+less important.  This repo targets x86-64, RISC-V and ARM64 with
 ahead-of-time compilation - but with an eye towards JIT compilation.
 
 This repo also is not intended to be a complete language in any sense, and so
-the backend starts with levering Java: the Evaluator (first appears in Chapter
-10a) directly slowly interprets the SoN IR.  Code-gen first appears in Chapter
+the backend starts with a Java evaluator (first introduced in Chapter
+8) that directly interprets the SoN IR. Code generation first appears in Chapter
 19.
 
 
@@ -74,7 +74,7 @@ The Simple language is styled after a subset of C or Java.
 ## Building across chapters
 
 The optional [interactive graph viewer](graph/README.md) is shared in `graph/`.
-Chapters 10a, 10b, and 18–25 launch it with `make view` from the chapter directory.
+Chapters 1–25, including 10a and 10b, launch it with `make view` from the chapter directory.
 
 The [debug printers](print/README.md) are shared in `print/`; Chapter 2 needs only
 a one-line expression format. A shared `BaseNode` supplies identity and edge

@@ -1,10 +1,13 @@
 # Chapter 6: Peepholes for If
 
+[Previous: Chapter 5](../chapter05/README.md) |
+[Next: Chapter 7](../chapter07/README.md)
+
 # Table of Contents
 
 1. [Type System Revision](#type-system-revision)
 2. [Peephole of `if`](#peephole-of-if)
-3. [`Region` and `Phi`](#Region-and-Phi)
+3. [`Region` and `Phi`](#region-and-phi)
 4. [Discussion](#discussion)
 5. [Expanding Peephole Beyond Constant Expressions](#expanding-peephole-beyond-constant-expressions)
 6. [Dominators](#dominators)
@@ -48,7 +51,7 @@ The entire revised Lattice is shown below:
   parsing, the normal graph building machinery takes care of cleaning up dead
   nodes.
 * When we peephole an `If` node we test if the predicate is a constant.  If so,
-  then one branch or the other dead, depending on if the constant is `0` or not.
+  then one branch or the other is dead, depending on if the constant is `0` or not.
 * When we add the `Proj` nodes, in this scenario, we already know one of the projections is dead.  The peephole of the
   relevant `Proj` node replaces the `Proj` with a `Constant` of type "~Ctrl" indicating dead control.
 * At this point our dead code elimination would kill the `If` node since it has no uses
@@ -62,7 +65,7 @@ The entire revised Lattice is shown below:
 * The parsing then continues as normal.
 * The other changes are when we reach the merge point with a dead control.
 * Again keeping with our strategy we merge as normal, including creating `Phi` nodes.
-* The `Region` may have have one of its inputs as "~Ctrl".  This will be seen
+* The `Region` may have one of its inputs as "~Ctrl".  This will be seen
   by the `Phi` which then optimizes itself.  If the `Phi` has just one live
   input, the `Phi` peephole replaces itself with the remaining input.
 * Finally, at the end, when the `Region` node is peepholed, we see that it has only one live input and no Phi uses
@@ -70,7 +73,7 @@ The entire revised Lattice is shown below:
 
 ## `Region` and `Phi`
 
-One of the invariants we maintain is that the for each control input to a
+One of the invariants we maintain is that for each control input to a
 `Region` every `Phi` has a 1-to-1 relationship with a data input.  Thus, if a
 `Region` loses a control input, every `Phi`'s corresponding data input must be
 deleted.  Conversely, we cannot collapse a Region until it has no dependent
@@ -122,7 +125,7 @@ After peephole:
 ## Expanding Peephole Beyond Constant Expressions
 
 While our peephole of the `CFG` collapses dead code when the expression is
-a compile time constant. it does not do as well as it could with following example:
+a compile-time constant, it does not do as well as it could with the following example:
 
 ```java
 int a = 0;
@@ -188,7 +191,7 @@ the outcome of the present `if` is fully determined.
 The code that does this check is in the [`compute` method of the `if`](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/IfNode.java#L38-L45).
 
 The `idom` method in `Node` provides a default implementation of the depth based immediate dominator calculation.
-`Region`'s [override this](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/RegionNode.java#L57-L74) to implement the more complex search described above.
+`Region` [overrides this](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/RegionNode.java#L57-L74) to implement the more complex search described above.
 
 It turns out that to simplify the example above, we need a [further peephole in our `Add` node](https://github.com/SeaOfNodes/Simple/blob/main/chapter06/src/main/java/com/seaofnodes/simple/node/AddNode.java#L64-L67).
 

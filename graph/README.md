@@ -120,8 +120,34 @@ visibility, neighborhood highlighting and selection. Clear selection with
 Escape and uncheck **Peep neighborhood** for an unmarked diagram. The SVG
 includes its styles and arrow markers and needs no JavaScript or viewer assets;
 check it into the chapter's docs and embed it like the existing static figures.
-Existing `.gv` sources and their generated SVGs remain another way to maintain
-documentation figures.
+The chapter IR figures also have detached `.json` snapshots. These preserve the
+illustrated topology, including schematic pre-optimization states that the
+parser does not retain. Node IDs in these illustrations are illustrative;
+omitted type annotations are not inferred. Their SVGs use this viewer's actual
+layout, node shapes, colors, projection boxes, Region/Phi rows, and group routing.
+The old `.gv` files beside these snapshots retain the original figure topology;
+when both exist, the JSON is the maintained source for the SVG.
+
+To regenerate a snapshot, install Python Playwright and its Chromium browser,
+then run from the repository root:
+
+```sh
+python graph/render_docs.py chapter01/docs/01-graph.json
+```
+
+Use `--browser msedge` or `--browser chrome` for an installed Chromium browser,
+or `--browser firefox`. The command serves viewer assets on an ephemeral local
+port and renders headlessly, without connecting to a compiler or a live viewer.
+This optional documentation tool is not needed to build or test the chapters.
+The chapter `docs/Makefile` rules select JSON before a same-named legacy DOT
+file. They accept `PYTHON` and `DOC_BROWSER` overrides, for example
+`make -C chapter01/docs PYTHON=python DOC_BROWSER=msedge` from the repository root.
+
+The compact memory-dependency schematics in 10a/10b retain `.gv` sources to
+preserve their deliberate horizontal layouts. They use the viewer palette and
+node shapes; definitions are left of uses horizontally and above uses vertically,
+with arrows from use to definition. Type lattices use their own domain colors
+and top-to-bottom lattice order, rather than IR edge conventions.
 
 The launcher prints the viewer URL before opening the browser. If the desktop
 only raises an existing browser window, paste that URL into a new tab. Use
@@ -509,8 +535,8 @@ defs/uses for its neighborhoods and no worklist or dependency lists. It retains 
 
 The compiler DOT dump flag, parser graph directive, Java DOT generators and old
 viewer/transport classes have been removed from all chapters. Use **Save SVG**
-for new documentation figures. Existing `.gv` sources, their checked-in SVGs
-and the documentation Make rules for regenerating those SVGs remain.
+for new documentation figures. The documentation Make rules render maintained
+JSON snapshots with the shared viewer and the remaining `.gv` figures with DOT.
 
 Chapter 1 has no peepholes and supplies one completed parse snapshot. Chapter 2
 shows constant folding; chapters 3 and 4 add variables and algebraic rewrites.
