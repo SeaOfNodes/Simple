@@ -3,20 +3,11 @@
 [Previous: Chapter 10b](../chapter10b/README.md) |
 [Next: Chapter 12](../chapter12/README.md)
 
-This chapter schedules the memory representation introduced in
-[10b](../chapter10b/README.md): one parser-visible `$mem`, with `MemMerge`,
-`MemPhi`, and `BulkMemPhi` recovering independent field chains. Start supplies
-`{ctrl, $mem, arg}`. Return consumes `{ctrl, $mem, result}`, with the complete
-memory aggregate in slot 1. Nodes consuming or producing both control and
-memory consistently use slot 0 for control and slot 1 for memory.
+This chapter schedules the programs from [10b](../chapter10b/README.md),
+picking a slot#0 CFG input for all nodes lacking one.
 
-The new scheduling rule is to distinguish a memory aggregate from a memory
-write. `MemMerge` gets a placement from its inputs and uses, but emits no heap
-operation and creates no load/store anti-dependency. A Store or MemPhi can
-constrain a Load only for the same alias; a BulkMemPhi can constrain it only
-while it still covers that alias. Both kinds of memory Phi remain attached to
-their Region, just like scalar Phis.
-
+Also in this chapter, we'll be presenting several fairly detailed graph
+algorithms.  You might want to brush up on your graph theory!
 
 # Table of Contents
 
@@ -36,9 +27,11 @@ their Region, just like scalar Phis.
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter11) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter10b...linear-chapter11) it to the previous chapter.
 
 
-The original input source program defines a sequence in which things happen. As we parse the program into Sea of Nodes representation
-and perform various optimizations, this sequence is not fully maintained. The optimized Sea of Nodes graph is driven more
-by dependencies between nodes rather than the sequence of instructions in the original source program.
+The original input source program defines a sequence in which things happen. As
+we parse the program into Sea of Nodes representation and perform various
+optimizations, this sequence is not fully maintained. The optimized Sea of
+Nodes graph is driven by the dependencies between nodes rather than the
+sequence of instructions in the original source program.
 
 Our goal in this chapter is to look at how we can recover a schedule for executing instructions from an
 optimized Sea of Nodes graph. This schedule needs to preserve the semantics of the original source program,
@@ -91,26 +84,35 @@ First let's look at the graph before scheduling.
 
 These walkthrough diagrams show the precise `S.f` chain and the final
 MemMerge consumed by Return. The unchanged default memory comes from Start;
-any redundant bulk Phis have folded away. Arrows point from uses to definitions.
+any redundant bulk Phis have folded away. As in 10a and 10b, the diagrams omit
+control-flow context, including Regions and their Phi bindings. Small,
+detached True/False projections remain where they gate a Load or Store.
+Unlike Chapter 10's schematic source gates, these figures show the actual
+scheduling inputs at each stage. Entry-block and Loop bindings are omitted.
 
 ![Graph1](./docs/graph1.svg)
 
 Observe that
 
-* Control nodes are colored in yellow; these are immovable.
-* New nodes have control input and therefore these are already scheduled.
-* Ditto for Phi nodes which are attached to the Region nodes.
-* So what remains are the "floating" Data nodes that do not have a control input at this stage. In this example, these are the load `.f` and store `.f=` nodes.
+* Control nodes are immovable. Most are omitted here.
+* New nodes already have control inputs, and Phis are bound to Regions;
+  these bindings remain fixed even though they are not drawn.
+* The load `.f` and store `.f=` nodes are still "floating": they have no
+  control input at this stage, so scheduling must choose their blocks.
 
 Now, let's look at the graph after we run the early schedule.
 
 ![Graph2](./docs/graph2.svg)
 
 
-* Observe that the load `.f` and the stores `.f=` now have control edges to the `$ctrl` projection from Start. Thus, the early schedule has put the Data nodes in the first basic block.
-* This is because the inputs to these nodes have the `$ctrl` projection as the immediate dominator.
+The early schedule puts the load `.f` and stores `.f=` in the first basic
+block, since their inputs are available there. These entry-block control
+bindings are omitted, so the memory view looks unchanged.
 
-The graph below shows the schedule post late scheduling.
+The graph below focuses on memory and data dependencies after late scheduling.
+The control-flow scaffold, including the Region, is omitted. Store #22's
+control input remains visible as the red edge to the standalone True
+projection #8; the Store-to-Load anti-dependency and memory Phis are retained.
 
 ![Graph3](./docs/graph3.svg)
 
@@ -146,8 +148,9 @@ Following early schedule generation, we get:
 
 ![Graph5](./docs/graph5.svg)
 
-Note that the `arg == 5` comparison at this stage is not in the correct place.
-This is rectified after we complete late scheduling.
+The early schedule places Store #31 at the loop header (its control binding
+is omitted). Late scheduling moves it to the True branch #15 of
+`if (arg == 5)`, shown by the red control edge:
 
 ![Graph6](./docs/graph6.svg)
 
@@ -214,32 +217,11 @@ Now, look at the modified graph after we insert an edge from the infinite loop t
 
 ![Graph8](./docs/graph8.svg)
 
-The implementation is in the Loop node:
-
-```java
-    // If this is an unreachable loop, it may not have an exit.  If it does not
-    // (i.e., infinite loop), force an exit to make it reachable.
-    public void forceExit( StopNode stop ) {
-        // Walk the backedge, then immediate dominator tree until we hit this
-        // Loop again.  If we ever hit a CProj from an If (as opposed to
-        // directly on the If) we found our exit.
-        CFGNode x = back();
-        while( x != this ) {
-            if( x instanceof CProjNode exit )
-                return;         // Found an exit, not an infinite loop
-            x = x.idom();
-        }
-        // Found a no-exit loop.  Insert an exit
-        NeverNode iff = new NeverNode(back());
-        for( Node use : _outputs )
-            if( use instanceof PhiNode phi )
-                iff.addDef(use);
-        CProjNode t = new CProjNode(iff,0,"True" );
-        CProjNode f = new CProjNode(iff,1,"False");
-        setDef(2,f);
-        stop.addDef(new ReturnNode(t,Parser.ZERO,null));
-    }
-```
+The implementation is in
+[`LoopNode.forceExit()`](src/main/java/com/seaofnodes/simple/node/LoopNode.java#L57).
+It walks the backedge's dominator chain to look for an exit. If none exists,
+it inserts a Never node and a never-taken return path, making the loop
+reachable to the scheduler's backward walk.
 
 ## Dominators
 
@@ -247,87 +229,28 @@ In Simple, we compute Dominators incrementally. Our approach relies on the fact 
 but we never introduce new control structure via peepholes. This allows us to use a simple approach described below.
 
 The CFG node is the base class for all control nodes. It maintains a conservative approximation of dominator depth via `_idepth`. This field is a cached value representing
-the immediate dominator depth. Its initial value is `0`, which signifies that it has not yet been computed. On request, we compute this as shown below.
+the immediate dominator depth. Its initial value is `0`, which signifies that it has not yet been computed. The depth is computed on request.
 
-```java
-class CFGNode {
-  public int _idepth;
-  public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
-}
-class RegionNode extends CFGNode {
-  // Immediate dominator of Region is a little more complicated.
-  @Override public int idepth() {
-    if( _idepth!=0 ) return _idepth;
-    int d=0;
-    for( Node n : _inputs )
-      if( n!=null )
-        d = Math.max(d,((CFGNode)n).idepth()+1);
-    return _idepth=d;
-  }
-}
-class LoopNode extends RegionNode {
-  // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
-  @Override public int idepth() { return _idepth==0 ? (_idepth=idom().idepth()+1) : _idepth; }
-}
-class StartNode extends CFGNode {
-  @Override public int idepth() { return 0; }
-}
-class StopNode extends CFGNode {
-  @Override public int idepth() {
-    if( _idepth!=0 ) return _idepth;
-    int d=0;
-    for( Node n : _inputs )
-      if( n!=null )
-        d = Math.max(d,((CFGNode)n).idepth()+1);
-    return _idepth=d;
-  }
-}
-```
+See [`CFGNode.idepth()`](src/main/java/com/seaofnodes/simple/node/CFGNode.java#L51)
+for the default computation and cache. The overrides in
+[`RegionNode`](src/main/java/com/seaofnodes/simple/node/RegionNode.java#L94),
+[`LoopNode`](src/main/java/com/seaofnodes/simple/node/LoopNode.java#L31),
+[`StartNode`](src/main/java/com/seaofnodes/simple/node/StartNode.java#L36), and
+[`StopNode`](src/main/java/com/seaofnodes/simple/node/StopNode.java#L57)
+handle merges, loop entries, and the graph's endpoints.
+
 If portions of the control flow graph are deleted, then there will be gaps in the `_idepth`, but it still correctly reflects the
 invariant that the value of `_idepth` increases as we go down the dominator tree.
 
 Alongside the dominator depth, which is cached on first compute, a method is provided to get the immediate Dominator node. This
 value is not cached as it is only valid at a point in time, and is invalidated as the graph changes.
 
-We show the code that computes this value:
-
-```java
-class CFGNode {
-  // Return the immediate dominator of this Node and compute dom tree depth.
-  public CFGNode idom() { return cfg(0); }
-  // Return the LCA of two idoms
-  public CFGNode idom(CFGNode rhs) {
-    if( rhs==null ) return this;
-    CFGNode lhs = this;
-    while( lhs != rhs ) {
-      var comp = lhs.idepth() - rhs.idepth();
-      if( comp >= 0 ) lhs = lhs.idom();
-      if( comp <= 0 ) rhs = rhs.idom();
-    }
-    return lhs;
-  }
-}
-class RegionNode extends CFGNode {
-  @Override public CFGNode idom() {
-    CFGNode lca = null;
-    // Walk the LHS & RHS idom trees in parallel until they match, or either fails.
-    // Because this does not cache, it can be linear in the size of the program.
-    for( int i=1; i<nIns(); i++ )
-      lca = cfg(i).idom(lca);
-    return lca;
-  }
-}
-class LoopNode extends RegionNode {
-  // Bypass Region idom, same as the default idom() using use in(1) instead of in(0)
-  @Override public CFGNode idom() { return entry(); }
-}
-class StartNode extends CFGNode {
-  @Override public CFGNode idom() { return null; }
-}
-class StopNode extends CFGNode {
-  @Override public CFGNode idom() { return null; }
-}
-```
+[`CFGNode.idom()` and `domLCA()`](src/main/java/com/seaofnodes/simple/node/CFGNode.java#L60)
+provide the default immediate dominator and the walk that finds the least
+common ancestor of two dominators.
+[`RegionNode.idom()`](src/main/java/com/seaofnodes/simple/node/RegionNode.java#L103)
+combines the incoming paths; [`LoopNode.idom()`](src/main/java/com/seaofnodes/simple/node/LoopNode.java#L33)
+uses the loop entry. Start and Stop have no immediate dominator.
 
 ## Loop Depth
 
@@ -336,105 +259,30 @@ it is not necessary to implement a generic loop discovery process.
 
 We do however need to compute a loop depth. This is done similarly to how we compute the dominator depth.
 
-```java
-class CFGNode {
-  // Loop nesting depth
-  public int _loopDepth;
-  public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(0).loopDepth()) : _loopDepth; }
-}
-class RegionNode extends CFGNode {
-  @Override public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
-}
-class LoopNode extends RegionNode {
-  @Override public int loopDepth() {
-    if( _loopDepth!=0 ) return _loopDepth; // Was already set
-    _loopDepth = entry()._loopDepth+1;     // Entry depth plus one
-    // One-time tag loop exits
-    for( CFGNode idom = back(); idom!=this; idom = idom.idom() ) {
-      // Walk idom in loop, setting depth
-      idom._loopDepth = _loopDepth;
-      // Loop exit hits the CProj before the If, instead of jumping from
-      // Region directly to If.
-      if( idom instanceof CProjNode proj ) {
-        assert proj.in(0) instanceof IfNode; // Loop exit test
-        // Find the loop exit CProj, and set loop_depth
-        for( Node use : proj.in(0)._outputs )
-          if( use instanceof CProjNode proj2 && proj2 != idom )
-            proj2._loopDepth = _loopDepth-1;
-      }
-    }
-    return _loopDepth;
-  }
-}
-class StartNode extends CFGNode {
-  @Override public int loopDepth() { return (_loopDepth=1); }
-}
-class StopNode extends CFGNode {
-  @Override public int loopDepth() { return (_loopDepth=1); }
-}
-```
+[`CFGNode.loopDepth()`](src/main/java/com/seaofnodes/simple/node/CFGNode.java#L77)
+inherits depth from its control input, while
+[`RegionNode.loopDepth()`](src/main/java/com/seaofnodes/simple/node/RegionNode.java#L116)
+uses an incoming path.
+[`LoopNode.loopDepth()`](src/main/java/com/seaofnodes/simple/node/LoopNode.java#L35)
+adds a nesting level and walks the backedge's dominator chain to mark loop exits.
+[`StartNode`](src/main/java/com/seaofnodes/simple/node/StartNode.java#L41) and
+[`StopNode`](src/main/java/com/seaofnodes/simple/node/StopNode.java#L67)
+establish the outermost depth of 1.
 
 ## Early Schedule
 
 The GCM algorithm proper starts with the computation of the early schedule, during which we do an upward DFS walk on the "inputs" of each Node, starting from the bottom (Stop). We schedule each data node to the
 first control block where they are dominated by their inputs.
 
-A pre-condition of this is to ensure that infinite loops have been "fixed" as described earlier.
+A pre-condition of this is to ensure that infinite loops have been fixed as described earlier.
 
-The implementation of early schedule is shown below:
-
-```java
-    private static void schedEarly() {
-        ArrayList<CFGNode> rpo = new ArrayList<>();
-        BitSet visit = new BitSet();
-        _rpo_cfg(Parser.START, visit, rpo);
-        // Reverse Post-Order on CFG
-        for( int j=rpo.size()-1; j>=0; j-- ) {
-            CFGNode cfg = rpo.get(j);
-            cfg.loopDepth();
-            for( Node n : cfg._inputs )
-                _schedEarly(n,visit);
-            // In dead infinite loops, entire code blocks may be unreachable
-            // from below.  Reach down from the CFG to their Phis so their
-            // inputs are scheduled too.
-            if( cfg instanceof RegionNode ) {
-                int len = cfg.nOuts();
-                for( int i=0; i<len; i++ )
-                    if( cfg.out(i) instanceof PhiNode phi )
-                        _schedEarly(phi,visit);
-            }
-        }
-    }
-
-    // Post-Order of CFG
-    private static void _rpo_cfg(Node n, BitSet visit, ArrayList<CFGNode> rpo) {
-        if( !(n instanceof CFGNode cfg) || visit.get(cfg._nid) )
-            return;             // Been there, done that
-        visit.set(cfg._nid);
-        for( Node use : cfg._outputs )
-            _rpo_cfg(use,visit,rpo);
-        rpo.add(cfg);
-    }
-
-    private static void _schedEarly(Node n, BitSet visit) {
-        if( n==null || visit.get(n._nid) ) return; // Been there, done that
-        visit.set(n._nid);
-        // Schedule inputs first, except Phis: following their backedges would
-        // enter a data cycle before its control has been scheduled.
-        for( Node def : n._inputs )
-            if( def!=null && !(def instanceof PhiNode) )
-                _schedEarly(def,visit);
-        // An existing edge 0 already supplies control (or a Phi/Proj binding).
-        if( n.in(0)==null ) {
-            // Schedule at deepest input
-            CFGNode early = Parser.START; // Maximally early, lowest idepth
-            for( int i=1; i<n.nIns(); i++ )
-                if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
-                    early = n.in(i).cfg0(); // Latest/deepest input
-            n.setDef(0,early);              // First place this can go
-        }
-    }
-```
+The implementation starts in
+[`GlobalCodeMotion.schedEarly()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L59).
+[`_rpo_cfg()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L82)
+builds the CFG traversal order, and
+[`_schedEarly()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L91)
+recursively schedules data inputs. It skips recursion through Phi inputs to
+avoid entering a data cycle before its control has been scheduled.
 
 Existing control and Phi/Proj bindings are preserved. Floating nodes receive
 the deepest input block as their earliest placement. MemMerge follows this
@@ -449,121 +297,28 @@ waits for memory users that can overwrite or merge its alias. The chosen block
 lies between the early placement and the common dominator of all uses, favoring
 shallower loops and then deeper control flow.
 
-```java
-    private static void schedLate( StopNode stop) {
-        CFGNode[] late = new CFGNode[Node.UID()];
-        Node[] ns = new Node[Node.UID()];
-        // Record Load NIDs at all their CFG block choices, then check against
-        // Store block choices to force a Load above an anti-dependent Store.
-        int[] anti = new int[Node.UID()];
-        // Breadth-first scheduling
-        breadth(stop,ns,late,anti);
+The implementation is divided into these steps:
 
-        // Copy the best placement choice into the control slot
-        for( int i=0; i<late.length; i++ )
-            if( ns[i] != null && !(ns[i] instanceof ProjNode) )
-                ns[i].setDef(0,late[i]);
-    }
-
-    private static void breadth(Node stop, Node[] ns, CFGNode[] late, int[] anti) {
-        // Things on the worklist have some (but perhaps not all) uses done.
-        WorkList<Node> work = new WorkList<>();
-        work.push(stop);
-        Node n;
-        outer:
-        while( (n = work.pop()) != null ) {
-            assert late[n._nid]==null; // No double visit
-            // These I know the late schedule of, and need to set early for loops
-            if( n instanceof CFGNode cfg ) late[n._nid] = cfg.blockHead() ? cfg : cfg.cfg(0);
-            else if( n instanceof PhiNode phi ) late[n._nid] = phi.region();
-            // These nodes have a fixed late placement at their original control.
-            else if( n instanceof ProjNode || n instanceof NewNode || n==Parser.ZERO ) late[n._nid] = n.cfg0();
-            else {
-
-                // All uses done?
-                for( Node use : n._outputs )
-                    if( use!=null && late[use._nid]==null )
-                        continue outer; // Nope, await all uses done
-
-                // Loads need their memory inputs' uses also done
-                if( n instanceof LoadNode ld )
-                    for( Node memuse : ld.mem()._outputs )
-                        if( antiUse(ld,memuse) && late[memuse._nid]==null )
-                            continue outer;
-
-                // All uses done, schedule
-                _doSchedLate(n,ns,late,anti);
-            }
-
-            // A use just finished; reconsider its inputs and waiting loads,
-            // even when the shared memory input was already scheduled.
-            for( Node def : n._inputs ) {
-                if( def==null ) continue;
-                if( late[def._nid]==null ) work.push(def);
-                for( Node out : def._outputs )
-                    if( out instanceof LoadNode ld && late[ld._nid]==null )
-                        work.push(ld);
-            }
-            if( n instanceof LoopNode loop )
-                for( Node phi : loop._outputs )
-                    if( phi instanceof PhiNode && late[phi._nid]==null )
-                        work.push(phi);
-        }
-    }
-
-    private static void _doSchedLate(Node n, Node[] ns, CFGNode[] late, int[] anti) {
-        // Walk uses, gathering the LCA (Least Common Ancestor) of uses
-        CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
-        assert early != null;
-        CFGNode lca = null;
-        for( Node use : n._outputs )
-            if( use != null )
-              lca = use_block(n,use, late).domLCA(lca);
-
-        // Loads may need anti-dependencies, raising their LCA
-        if( n instanceof LoadNode load )
-            lca = find_anti_dep(lca,load,early,late,anti);
-
-        // Walk up from the LCA to the early, looking for best place.  This is
-        // the lowest execution frequency, approximated by least loop depth and
-        // deepest control flow.
-        CFGNode best = lca;
-        lca = lca.idom();       // Already found best for starting LCA
-        for( ; lca != early.idom(); lca = lca.idom() )
-            if( better(lca,best) )
-                best = lca;
-        assert !(best instanceof IfNode);
-        ns  [n._nid] = n;
-        late[n._nid] = best;
-    }
-
-    // Block of use.  Normally from late[] schedule, except for Phis, which go
-    // to the matching Region input.
-    private static CFGNode use_block(Node n, Node use, CFGNode[] late) {
-        if( !(use instanceof PhiNode phi) )
-            return late[use._nid];
-        CFGNode found=null;
-        for( int i=1; i<phi.nIns(); i++ )
-            if( phi.in(i)==n )
-                found = phi.region().cfg(i).domLCA(found); // Can be more than one matching input.
-        assert found!=null;
-        return found;
-    }
-
-
-    // Least loop depth first, then largest idepth
-    private static boolean better( CFGNode lca, CFGNode best ) {
-        return lca.loopDepth() < best.loopDepth() ||
-            lca instanceof NeverNode ||
-            lca.idepth() > best.idepth() ||
-            best instanceof IfNode;
-    }
-```
+* [`schedLate()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L111)
+  manages the placement tables and installs the final control inputs;
+  [`breadth()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L126)
+  drives the worklist and wakes definitions and waiting loads as uses finish.
+* [`_doSchedLate()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L172)
+  finds the common dominator of uses, accounts for load anti-dependencies, and
+  walks toward the early placement. It calls
+  [`better()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L213)
+  to compare candidate blocks.
+* [`use_block()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L200)
+  handles Phi uses at their matching incoming control paths, rather than at
+  the merge itself.
 
 ## Inserting Anti Dependencies
 
-To ensure that Loads and Stores to the same memory location are correctly ordered, we insert an edge from the Store to the Load as described below: the Store must wait for the earlier Load.
-We call these edges anti-dependencies because they do not represent the Def-Use dependency that we normally capture in SoN, and are purely present as scheduling constraints.
+To ensure that Loads and Stores to the same memory location are correctly
+ordered, we insert an edge from the Store to the Load as described below: the
+Store must wait for the earlier Load.  We call these edges anti-dependencies
+because they do not represent the Def-Use dependency that we normally capture
+in SoN, and are purely present as scheduling constraints.
 
 We compute anti-dependencies DURING running schedule late. This is because we rely on the early-schedule, and the late-schedule of the Load's uses (before scheduling the Load).
 
@@ -581,66 +336,24 @@ is ready to schedule and when computing its anti-dependencies. A completed
 memory user wakes waiting loads even if their shared memory definition has
 already been scheduled.
 
-Since we're in the middle of "schedule late", we have already computed all the late schedules of a Load's users, and we have the Loads "Least Common Ancestor" of uses, the LCA or late position.
-We inspect the set of mem-defs that might impact the Load, and either add an anti-dependency from Store to Load, or raise the Loads effective LCA.
-For Phi mem-defs, we look at the Phi inputs and place an effective use on that block; this will be used to raise the Load's LCA.
-For stores, we do the same - until/unless we find stores with the SAME block as the Load's LCA. Then we add the anti-dependency edge to force ordering within the same block.
+Since we're in the middle of `schedLate`, we have already computed all the late
+schedules of a Load's users, and we have the Loads *Least Common Ancestor* of
+uses, the LCA or late position.  We inspect the set of mem-defs that might
+impact the Load, and either add an anti-dependency from Store to Load, or raise
+the Loads effective LCA.  For Phi mem-defs, we look at the Phi inputs and place
+an effective use on that block; this will be used to raise the Load's LCA.  For
+stores, we do the same - until/unless we find stores with the SAME block as the
+Load's LCA. Then we add the anti-dependency edge to force ordering within the
+same block.
 
-The implementation is shown below.
-
-```java
-    // Only a store or memory Phi covering this alias can constrain a load.
-    // MemMerge packages slices without overwriting them.
-    private static boolean antiUse(LoadNode load, Node use) {
-        return switch( use ) {
-        case StoreNode st -> st._alias==load._alias;
-        case MemPhiNode phi -> phi._alias==load._alias;
-        case BulkMemPhiNode phi -> !phi.isSplit(load._alias);
-        default -> false;
-        };
-    }
-
-    private static CFGNode find_anti_dep(CFGNode lca, LoadNode load, CFGNode early, CFGNode[] late, int[] anti) {
-        // We could skip final-field loads here.
-        // Walk LCA->early, flagging Load's block location choices
-        for( CFGNode cfg=lca; early!=null && cfg!=early.idom(); cfg = cfg.idom() )
-            anti[cfg._nid] = load._nid;
-        // Walk load->mem uses, looking for Stores causing an anti-dep
-        for( Node mem : load.mem()._outputs ) {
-            if( !antiUse(load,mem) ) continue;
-            switch( mem ) {
-            case StoreNode st:
-                lca = anti_dep(load,late[st._nid],st.cfg0(),lca,st,anti);
-                break;
-            case PhiNode phi:
-                // Repeat anti-dep for matching Phi inputs.
-                // No anti-dep edges but may raise the LCA.
-                for( int i=1; i<phi.nIns(); i++ )
-                    if( phi.in(i)==load.mem() )
-                        lca = anti_dep(load,phi.region().cfg(i),load.mem().cfg0(),lca,null,anti);
-                break;
-            default: throw Utils.TODO();
-            }
-        }
-        return lca;
-    }
-
-    //
-    private static CFGNode anti_dep( LoadNode load, CFGNode stblk, CFGNode defblk, CFGNode lca, Node st, int[] anti ) {
-        // Preserve the full store range for the earlier evaluator scheduler.
-        // It places nodes independently of GCM and may hoist this store.
-        for( ; stblk != defblk.idom(); stblk = stblk.idom() ) {
-            // Store and Load overlap, need anti-dependence
-            if( anti[stblk._nid]==load._nid ) {
-                lca = stblk.domLCA(lca); // Raise Loads LCA
-                if( lca == stblk && st != null && Utils.find(st._inputs,load) == -1 ) // And if something moved,
-                    st.addDef(load);   // Add anti-dep as well
-                return lca;            // Cap this stores' anti-dep to here
-            }
-        }
-        return lca;
-    }
-```
+See [`antiUse()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L222)
+for the alias filter, and
+[`find_anti_dep()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L231)
+for marking the Load's candidate blocks and inspecting competing memory users.
+[`anti_dep()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L257)
+walks the competing operation's dominator interval, raises the Load's LCA,
+and adds a Store-to-Load edge when required. It checks the Store's full interval
+because the evaluator's scheduler may place that Store independently of GCM.
 
 ## Video Walk Through
 

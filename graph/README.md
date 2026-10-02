@@ -156,11 +156,21 @@ This keeps both graphs side by side in the chapter README. Chapter 10a's
 [load-after-store example](../chapter10a/README.md#local-memory-optimizations)
 uses this format to isolate a single rewrite.
 
-The compact memory-dependency schematics in 10b retain `.gv` sources to
-preserve their deliberate horizontal layouts. They use the viewer palette and
-node shapes; definitions are left of uses horizontally and above uses vertically,
-with arrows from use to definition. Type lattices use their own domain colors
-and top-to-bottom lattice order, rather than IR edge conventions.
+The memory diagrams in 10a, 10b, and 11 also use viewer snapshots, with definitions
+above uses (apart from loop backedges) and arrows from use to definition.
+They omit control-flow context, including Regions and their Phi bindings,
+while retaining data and memory dependencies. Small, detached True/False
+projections show branch gates for Loads and Stores. Chapter 10 shows schematic
+source gates; Chapter 11 shows actual bindings at each scheduling stage, with
+entry-block and Loop bindings omitted. Its infinite-loop figures retain the
+CFG because that is their subject. Empty control slots in focused snapshots
+can denote omitted context rather than null inputs in the compiler.
+Type lattices retain DOT sources, their own
+domain colors, and top-to-bottom lattice order, rather than IR edge conventions.
+
+Routed edges keep their horizontal and vertical segments, with rounded corners
+in both the live viewer and SVG exports. The bend radius shrinks on short
+segments so adjacent corners do not overlap.
 
 The launcher prints the viewer URL before opening the browser. If the desktop
 only raises an existing browser window, paste that URL into a new tab. Use

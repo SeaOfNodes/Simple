@@ -6,16 +6,15 @@
   "scope": 0,
   "nodes": [
     {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
-    {"id": 2, "label": "$ctrl", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 1, "role": "CTRL", "label": null}], "proj": {"par": 1, "idx": 0}},
     {"id": 3, "label": "$mem", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 1, "role": "MEM", "label": null}], "proj": {"par": 1, "idx": 1}},
     {"id": 4, "label": "arg", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "DATA", "label": null}], "proj": {"par": 1, "idx": 2}},
-    {"id": 5, "label": "new Point", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 2, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 5, "label": "new Point", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}], "proj": null},
     {"id": 6, "label": "#0", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
     {"id": 7, "label": "Store p.x", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 3, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}, {"idx": 3, "def": 6, "role": "DATA", "label": null}], "proj": null},
     {"id": 8, "label": "Store p.y", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 7, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}, {"idx": 3, "def": 6, "role": "DATA", "label": null}], "proj": null},
     {"id": 9, "label": "Load p.x", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 8, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}, {"idx": 3, "def": 0, "role": "DATA", "label": null}], "proj": null},
     {"id": 10, "label": "Store p.x", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 8, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}, {"idx": 3, "def": 4, "role": "DATA", "label": null}], "proj": null},
-    {"id": 11, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 2, "role": "CTRL", "label": null}, {"idx": 1, "def": 10, "role": "MEM", "label": null}, {"idx": 2, "def": 9, "role": "DATA", "label": null}], "proj": null}
+    {"id": 11, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 10, "role": "MEM", "label": null}, {"idx": 2, "def": 9, "role": "DATA", "label": null}], "proj": null}
   ],
   "groups": [
   ]

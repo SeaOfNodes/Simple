@@ -1,0 +1,30 @@
+{
+  "ver": 1,
+  "comp": "chapter10b/docs/example2b.svg",
+  "step": 1,
+  "roots": [23],
+  "scope": 0,
+  "nodes": [
+    {"id": 1, "label": "Start", "type": null, "kind": "CTRL", "edges": [], "proj": null},
+    {"id": 3, "label": "$mem", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 1, "role": "MEM", "label": null}], "proj": {"par": 1, "idx": 1}},
+    {"id": 5, "label": "new Point", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}], "proj": null},
+    {"id": 6, "label": "#0", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 7, "label": "Store p.x", "type": "MEM#2", "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 3, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}, {"idx": 3, "def": 6, "role": "DATA", "label": null}], "proj": null},
+    {"id": 8, "label": "Store p.y", "type": "MEM#3", "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 3, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}, {"idx": 3, "def": 6, "role": "DATA", "label": null}], "proj": null},
+    {"id": 9, "label": "MemMerge", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 3, "role": "MEM", "label": null}, {"idx": 2, "def": 7, "role": "MEM", "label": null}, {"idx": 3, "def": 8, "role": "MEM", "label": null}], "proj": null},
+    {"id": 11, "label": "True", "type": null, "kind": "CTRL", "edges": [], "proj": {"par": 0, "idx": 0}},
+    {"id": 12, "label": "False", "type": null, "kind": "CTRL", "edges": [], "proj": {"par": 0, "idx": 1}},
+    {"id": 13, "label": "#3", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 14, "label": "Store p.x", "type": "MEM#2", "kind": "MEM", "edges": [{"idx": 0, "def": 11, "role": "CTRL", "label": null}, {"idx": 1, "def": 7, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}, {"idx": 3, "def": 13, "role": "DATA", "label": null}], "proj": null},
+    {"id": 15, "label": "#4", "type": null, "kind": "DATA", "edges": [{"idx": 0, "def": 1, "role": "ASSOC", "label": null}], "proj": null},
+    {"id": 16, "label": "Store p.x", "type": "MEM#2", "kind": "MEM", "edges": [{"idx": 0, "def": 12, "role": "CTRL", "label": null}, {"idx": 1, "def": 7, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}, {"idx": 3, "def": 15, "role": "DATA", "label": null}], "proj": null},
+    {"id": 17, "label": "MemMerge", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 9, "role": "MEM", "label": null}, {"idx": 2, "def": 14, "role": "MEM", "label": null}], "proj": null},
+    {"id": 18, "label": "MemMerge", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 9, "role": "MEM", "label": null}, {"idx": 2, "def": 16, "role": "MEM", "label": null}], "proj": null},
+    {"id": 20, "label": "MemPhi x", "type": "MEM#2", "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 14, "role": "MEM", "label": null}, {"idx": 2, "def": 16, "role": "MEM", "label": null}], "proj": null},
+    {"id": 21, "label": "BulkMemPhi except x", "type": null, "kind": "PHI", "edges": [{"idx": 0, "def": 0, "role": "ASSOC", "label": null}, {"idx": 1, "def": 17, "role": "MEM", "label": null}, {"idx": 2, "def": 18, "role": "MEM", "label": null}], "proj": null},
+    {"id": 22, "label": "MemMerge", "type": null, "kind": "MEM", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 21, "role": "MEM", "label": null}, {"idx": 2, "def": 20, "role": "MEM", "label": null}], "proj": null},
+    {"id": 23, "label": "Return", "type": null, "kind": "CTRL", "edges": [{"idx": 0, "def": 0, "role": "CTRL", "label": null}, {"idx": 1, "def": 22, "role": "MEM", "label": null}, {"idx": 2, "def": 5, "role": "DATA", "label": null}], "proj": null}
+  ],
+  "groups": [
+  ]
+}

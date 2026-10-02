@@ -118,9 +118,28 @@ digraph Lattice {
         node [fillcolor="#ffc0cb"];
         TUPLE_TOP [label="⊤:tuple"];
         TUPLE_BOT [label="⊥:tuple"];
-        TUPLE1 [label="(type)", shape=box];
-        TUPLE2 [label="(type, type)", shape=box];
-        TUPLEN [label="(type, …)", shape=box];
+        // Each black element stands for a recursively nested type lattice.
+        TUPLE1 [shape=plain, label=<
+            <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#ffc0cb">tuple</TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+            </TABLE>
+        >];
+        TUPLE2 [shape=plain, label=<
+            <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#ffc0cb">tuple</TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+            </TABLE>
+        >];
+        TUPLEN [shape=plain, label=<
+            <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#ffc0cb">tuple</TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">…</FONT></TD></TR>
+                <TR><TD BGCOLOR="black"><FONT COLOR="white">type</FONT></TD></TR>
+            </TABLE>
+        >];
         {rank=same; TUPLE1; TUPLE2; TUPLEN;}
         TUPLE1 -> TUPLE2 -> TUPLEN [style=invis];
         TUPLE_TOP -> {TUPLE1 TUPLE2 TUPLEN};

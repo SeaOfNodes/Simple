@@ -33,6 +33,11 @@ different fields are independent. Chapter 10b will remove it.
 
 The graphs show dependencies before local folding. Definitions appear above
 their uses, except for loop backedges; arrows point from use to definition.
+To focus on memory, these illustrations show only small, detached True/False
+control projections gating Loads and Stores. These schematic gates indicate
+the source branches; Chapter 11 chooses the actual scheduling inputs. Other
+control-flow context, including the Regions that bind Phis, is omitted.
+The layout shows dependencies, not an execution schedule.
 
 | Node     | Inputs | Result |
 |----------|---|---|

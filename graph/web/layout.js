@@ -24,7 +24,9 @@ class GraphLayout {
     const hidden = (n, e) => ["START", "UNIT"].includes(n.kind) && raw.get(e.def)?.kind === "STOP";
     const nodes = snap.nodes.map(n => {
       const label = `${this.clip(n.label)} #${n.id}${n.proj ? "/" + n.proj.idx : ""}`, type = this.clip(n.type);
-      const compact = ["START", "UNIT", "STOP"].includes(n.kind);
+      // Detached control projections need only a small, single-line anchor.
+      const compact = ["START", "UNIT", "STOP"].includes(n.kind) ||
+        (n.kind === "CTRL" && n.proj && !raw.has(n.proj.par) && !n.type);
       let w = Math.ceil(Math.max(120, this.ctx.measureText(label).width + 24 + (n.folding ? 60 : 0),
         this.ctx.measureText(type).width + 24, (n.edges.length + 1) * 18));
       const scope = n.kind === "SCOPE";
@@ -335,9 +337,9 @@ class GraphLayout {
         e.path = `M${x},${y} C${x},${y + 24} ${u},${v - 24} ${u},${v}`;
       } else {
         const route = routes.get(e.id), origin = boxes.get(route.e.container) || route.box;
-        e.path = route.e.sections.map(s =>
+        e.path = route.e.sections.map(s => this.roundedPath(
           [s.startPoint, ...(s.bendPoints || []), s.endPoint]
-            .map((p, i) => `${i ? "L" : "M"}${p.x + origin.x},${p.y + origin.y}`).join(" ")).join(" ");
+            .map(p => ({x: p.x + origin.x, y: p.y + origin.y})))).join(" ");
       }
       if (e.wrap) {
         const box = boxes.get("g" + e.wrap), i = lanes.get(e.wrap) || 0;
@@ -352,7 +354,7 @@ class GraphLayout {
         const right = box.x + box.width - 12 - i * 10;
         const head = this.toRight(from, right, obstacles), tail = this.toRight(to, right, obstacles);
         const pts = [start, ...head, ...tail.reverse(), end];
-        e.path = pts.map((p, i) => `${i ? "L" : "M"}${p.x},${p.y}`).join(" ");
+        e.path = this.roundedPath(pts);
         e.lane = right;
       }
     }
@@ -361,12 +363,34 @@ class GraphLayout {
       j.x += box.x; j.y += box.y;
       const p = use.ports.find(p => p.id === use.id + "i" + j.slot);
       const x = use.x + p.x + 3, y = use.y + p.y + 3;
-      j.path = `M${j.x},${j.y + j.height / 2}H${j.x - 12}V${box.y - 18}H${x}V${y}`;
+      j.path = this.roundedPath([{x: j.x, y: j.y + j.height / 2},
+        {x: j.x - 12, y: j.y + j.height / 2}, {x: j.x - 12, y: box.y - 18},
+        {x, y: box.y - 18}, {x, y}]);
     }
     return {width: graph.width, height: graph.height, nodes, edges, jumps, raw: view.raw, cover: view.cover,
       groups: view.open.map(g => ({...g, ...boxes.get("g" + g.id), gid: g.id, n: view.raw.get(g.id)})),
       parser, scope: active?.n.id || 0, scopes: new Set(owned.filter(n => n.scope).map(n => n.n.id)),
       held: new Set(held.map(n => n.n.id))};
+  }
+
+  // Keep the orthogonal route, easing each bend without moving its endpoints.
+  // Half-segment limits prevent neighboring corners from overlapping on short
+  // routes. The radius fits inside the routing gutters' eight-pixel clearance.
+  roundedPath(points, radius = 8) {
+    const ps = points.filter((p, i) => !i || p.x !== points[i-1].x || p.y !== points[i-1].y);
+    if (!ps.length) return "";
+    let path = `M${ps[0].x},${ps[0].y}`;
+    for (let i = 1; i < ps.length - 1; i++) {
+      const a = ps[i-1], b = ps[i], c = ps[i+1];
+      const ux = b.x-a.x, uy = b.y-a.y, vx = c.x-b.x, vy = c.y-b.y;
+      if (ux*vy === uy*vx) { path += ` L${b.x},${b.y}`; continue; }
+      const before = Math.hypot(ux,uy), after = Math.hypot(vx,vy);
+      const r = Math.min(radius, before/2, after/2);
+      path += ` L${b.x-ux*r/before},${b.y-uy*r/before}` +
+        ` Q${b.x},${b.y} ${b.x+vx*r/after},${b.y+vy*r/after}`;
+    }
+    if (ps.length > 1) path += ` L${ps.at(-1).x},${ps.at(-1).y}`;
+    return path;
   }
 
   // An orthogonal lead to a right-side gutter. Search only the channels

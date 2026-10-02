@@ -5,7 +5,7 @@
 
 Chapter 10a made memory effects explicit with one SSA memory value. This
 chapter keeps exactly that parser model and recovers independent memory chains
-through graph rewrites. There is no new language syntax; the
+through graph rewrites.  There is no new language syntax; the
 [grammar](docs/10-grammar.md), pointer types, and null checks are unchanged.
 
 ## Why split memory?
@@ -26,6 +26,15 @@ of `x` follows the loop's stores. Splitting the fields lets ordinary
 load-after-store forwarding turn the return value into 42.
 
 ![Independent field dependencies](docs/example1.svg)
+
+The graph shows the split chains before the final Load folds. Its memory input
+goes straight to the Store of 42, bypassing the loop's `y` chain. As in 10a,
+definitions appear above uses, apart from loop backedges, and arrows point
+from use to definition. As in 10a, small, detached True/False projections
+show the source branches gating Loads and Stores. Other control-flow context,
+including Regions and their Phi bindings, is omitted. Chapter 11 chooses
+the actual scheduling inputs; the vertical placement of independent chains
+does not specify their execution order.
 
 ## Equivalence-class aliasing
 
@@ -71,14 +80,21 @@ and their union covers all memory. Flattening stacked aggregates preserves
 entries that the outer aggregate has not replaced. This allows an `x` store
 and a later `y` store to remain visible together at Return.
 
+The graph below shows `p.x = arg; p.y = 42; return p;` after redundant
+initialization stores have been removed. MemMerge takes the default memory
+in slot 1 and the `x` and `y` overrides in slots 2 and 3.
+
 ![An aggregate preserves both updates](docs/example2a.svg)
+
 
 ## Splitting a memory Phi
 
 Scope initially creates a BulkMemPhi wherever the ordinary SSA algorithm needs
-to merge memory. Its empty exclusion set means that it covers every alias.
-After the Region is complete, the Phi inspects its memory inputs and users.
-When they require a precise alias, it splits out that alias:
+to merge memory.  It starts by covering all aliases and an empty exclusion set
+while the merge point is finalized.  Later, peeps will split out precise memory
+slices from the bulk memory, lazily on demand.
+
+Precise single aliases can be split out from the bulk by this transformation:
 
 ```text
 BulkPhi(R, left, right)
@@ -88,19 +104,47 @@ MemMerge(
     x       = MemPhi_x(R, slice(left,x), slice(right,x)))
 ```
 
-The new precise Phi and the remaining bulk Phi share a Region and matching
-control-path indices. A loop uses the same transformation, with the backedge
-among those inputs. Each further split preserves all previously extracted
-slices; replacing a bulk Phi must never drop their parallel precise Phis.
+The new precise Phi and the remaining bulk Phi share a Region (omitted from
+the illustrations) and matching control-path indices. A loop uses the same
+transformation, with the backedge among those inputs. Each further split preserves all previously extracted
+slices (and peephole optimizations tidy up the stacked splits).
+
+Here the two branches store 3 or 4 into `p.x`, then return `p`. The graph shows
+the partition immediately after extracting `x`, before further simplification
+of the bulk Phi and its incoming aggregates.
 
 ![Precise and bulk Phis share a control merge](docs/example2b.svg)
 
-A bulk Phi can bypass an incoming aggregate only when all of that aggregate's
-explicit slices are already excluded from the Phi. A precise consumer can
-select one entry. A whole-memory consumer cannot just select the default:
-that would lose the explicit updates.
+This transform is invasive, and is disallowed from being called recursively;
+you can end up splitting around a loop (which is good) but then visiting a
+1/2-split loop head (which is bad).  The new nodes from the split are put
+on the worklist and visited after the current split completes.
 
-## Types and the worklist
+Since bulk Phis merge a bunch of aliases, they have to take care when
+peepholing vs MemMerges: there cannot be any overlap between the MemMerge
+precise merges and the bulk Phi.
+
+Phi refactoring can combine matching Loads or Stores as in Chapter 10a (pushing
+up or pulling down).  The Phi new memory operands can use precise MemPhis for
+the alias.  This peep requires precise aliases, and is otherwise blocked by
+BulkMems - and thus is a trigger for splitting a BulkMem.
+
+This also extends the worklist lesson from Chapter 9.  A bulk Phi inspects its
+users, so changes to a user's partition must wake the producer - job for
+`addDep()`.  Selecting a slice from an aggregate can expose a new bulk-Phi
+user; that selected definition must be queued too.  In short, any time we're
+working with MemMerge, MemPhi or BulkMemPhi we can expect some non-local
+dependencies.
+
+Memory splitting can increase node count - but Phis (Mem, Bulk or otherwise)
+make no code. Progress comes from extracting an alias from a bulk Phi and
+removing some Loads & Stores, rather than from requiring every rewrite
+to shrink the graph.  In other words, the total Load/Store count is going down
+even if the MemPhi count is going up.
+
+
+
+## Types
 
 The type lattice retains Chapter 10a's six domains, colors, and notation:
 `⊤` means top, `⊥` means bottom, and a suffix names the domain. The other five
@@ -110,45 +154,18 @@ alias between memory top (`TypeMem.TOP`) and memory bottom (`TypeMem.BOT`).
 ![The type domains, including precise memory aliases](docs/lattice.svg)
 
 The parallel `MEM#2`, `MEM#3`, and further alias elements describe independent
-field slices. For the first `Point` declaration above, these two aliases identify
-`Point.x` and `Point.y`. Meeting different aliases gives memory bottom; joining
-them gives memory top. Each precise alias is its own dual. The ellipsis stands
-for more parallel aliases, not a type representing a set of aliases.
+field slices.  For the first `Point` declaration above, these two aliases identify
+`Point.x` and `Point.y`.  Meeting different aliases gives memory bottom; joining
+them gives memory top.  Each precise alias is its own dual.  (And the ellipsis stands
+for more parallel aliases, not a type representing a set of aliases).
 
-Memory bottom covers all memory. The default aggregate slot numbered 1 is a
-graph input position, not a precise field alias in this diagram. Types do not
-track field values, private objects, or escape information. Bulk exclusion sets
+Memory bottom covers all memory.  The default aggregate slot numbered 1 is a
+graph input position, not a precise field alias in this diagram.  Types do not
+track field values, private objects, or escape information.  Bulk exclusion sets
 and the default-plus-overrides structure of MemMerge belong to graph nodes,
-not to an expanded type lattice. As in Chapter 10a, diagram edges show lattice
+not to an expanded type lattice.  As in Chapter 10a, diagram edges show lattice
 order, with top above bottom; field and tuple-element type lattices are elided.
 
-Scalar Phis remain ordinary PhiNodes. The scope's Phi factory chooses a
-BulkMemPhi for whole memory; splitting constructs MemPhis explicitly. Phi
-factoring can combine matching Loads or Stores as in Chapter 10a, but cannot
-factor MemMerge or BulkMemPhi. Its new memory operands use precise MemPhis for
-the operation's alias. Load safety checks only immediate memory users, rejecting
-Stores, Phis, and MemMerges. A Phi or aggregate might lead to a later write;
-we conservatively skip the rewrite instead of searching farther to save one Load.
-
-Factoring waits while a BulkMemPhi remains at the same Region. Bulk splitting
-identifies parallel slices by Region and alias, whereas factoring a Store can
-introduce a memory Phi *before* the Store at that same Region. Waiting avoids
-mistaking that earlier memory for the aggregate's completed slice.
-
-Memory splitting can increase node count. Progress comes from extracting an
-alias from a bulk Phi and simplifying its precise chain, rather than from
-requiring every rewrite to shrink the graph. Nodes must have conservative
-initial types before introducing cyclic inputs. New bulk and precise Phis are
-queued, so a recursive peephole cannot start another split halfway through the
-first one.
-
-This also extends the worklist lesson from Chapter 9. A bulk Phi inspects its
-users, so changes to a user's partition must wake the producer. Selecting a
-slice from an aggregate can expose a new bulk-Phi user; that selected definition
-must be queued too. The optimizer's worklist completeness assertion remains
-enabled and checks these dependencies. Factoring also depends on user counts:
-removing a use wakes recorded dependents even when the definition's type stays
-unchanged.
 
 ## Evaluation and ordering
 
@@ -156,6 +173,10 @@ MemMerge is a dependency node; it emits no heap operation. Its evaluator result
 is a memory token, while Store mutates the object's fields. The scheduler must
 distinguish aggregation from overwriting memory. A MemMerge is not a clobber,
 and stores in different alias classes do not impose load/store anti-dependencies.
+
+In `int old = p.x; p.x = arg; p.y = arg; return old;`, the Load must precede
+the later `x` Store; the `y` Store has an independent memory chain. The graph
+retains the Load to show this scheduling requirement before local folding.
 
 ![Ordering applies within the affected alias](docs/example2c.svg)
 
