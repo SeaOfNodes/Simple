@@ -143,6 +143,19 @@ The chapter `docs/Makefile` rules select JSON before a same-named legacy DOT
 file. They accept `PYTHON` and `DOC_BROWSER` overrides, for example
 `make -C chapter01/docs PYTHON=python DOC_BROWSER=msedge` from the repository root.
 
+For a before/after comparison, keep node IDs stable across the two snapshots
+and place their SVGs in a two-column Markdown table:
+
+```markdown
+| Before | After |
+|---|---|
+| ![Before the rewrite](docs/before.svg) | ![After the rewrite](docs/after.svg) |
+```
+
+This keeps both graphs side by side in the chapter README. Chapter 10a's
+[load-after-store example](../chapter10a/README.md#local-memory-optimizations)
+uses this format to isolate a single rewrite.
+
 The compact memory-dependency schematics in 10b retain `.gv` sources to
 preserve their deliberate horizontal layouts. They use the viewer palette and
 node shapes; definitions are left of uses horizontally and above uses vertically,

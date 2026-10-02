@@ -271,10 +271,28 @@ To enable this behaviour, we make the following enhancements.
 ## Local memory optimizations
 
 A load immediately following a store to the **same pointer and field** can use
-the stored value. A store immediately following another store to the same
-address can discard the earlier store when no other user needs it. Both the
-pointer and field checks matter: two different fields of one object are
-different addresses, as are the same fields of two different objects.
+the stored value. We just wrote `arg` into `p.x`, so reading it back needs no
+memory access:
+
+```java
+struct Box { int x; }
+Box p = new Box;
+p.x = arg;
+return p.x;  // Can return arg directly.
+```
+
+| Before: read back the stored value | After: use the value directly |
+|---|---|
+| ![Before: Return reads Load p.x after Store p.x](docs/load-after-store-before.svg) | ![After: Return uses arg and still consumes the Store's memory](docs/load-after-store-after.svg) |
+
+Return's result input changes from the Load to `arg`, and the unused Load
+disappears.  Return still consumes the Store's memory, so the write is retained.
+
+A store immediately following another store to the same address can also
+discard the earlier store when no other user needs it. That separate rewrite
+can remove the zero-initialization store still shown above. Both the pointer
+and field checks matter: two different fields of one object are different
+addresses, as are the same fields of two different objects.
 
 A load can also move up through a memory Phi. This extends
 [Chapter 5's push-through-Phi optimization](../chapter05/README.md#pushing-addition-up-through-a-phi):
