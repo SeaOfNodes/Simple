@@ -173,8 +173,18 @@ When looking at the returned IR, the `StopNode` now reports one return for each
 function, including `main`:
 `Stop[ return find; return Phi(Region,int,-1); ]`
 
+### Functions and Memory
 
-### Calls
+Functions start with all of memory on a `Parm` (which extends `Phi`) and having
+an argument `_idx` of 1, and return all of memory on the `Return` whioh takes
+as inputs `{Control, Memory, Expr, RPC}` - except for the new `RPC`, unchanged
+from before.  In the middle of the function, the normal alias slicing proceeds,
+sharpening memory information locally.  A later chapter will introduce the
+notion of *escaped* aliases, and allow simple functions to not take in and
+clobber all of memory.
+
+
+## Calls
 
 Calls have the usual syntax: `fcn(3)`.  Internally a `CallNode` takes in
 Control, Memory, all the normal arguments, and a hidden last argument which is
@@ -191,7 +201,7 @@ functions the call-site *knows* it will call.  This will be expanded later to
 be a conservative approximation to the *Call Graph*, with each `CallEnd`
 *linked* to every function it *may* call; if a function is not linked it can
 not be called from here.  This requires a global analysis (fast, cheap,
-incremental, and global) which shows up in [Chapter24](../chapter19/README.md),
+incremental, and global) which shows up in [Chapter24](../chapter24/README.md),
 [SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation).
 So for the moment we only link exact constant functions.
 
@@ -203,6 +213,57 @@ from GVN) then the function inlines in the IR.
 
 Like `Start`, `CallEnd`s are followed by projections for Control, Memory and the return value.
 
+
+### Calls and Linking
+
+When Simple starts parsing code, the target of a call is generally unknown;
+likewise a function has to assume any call can reach it.  This is a very weak
+knowledge about a Call Graph, and this knowledge usually gets sharper very
+quick: most calls are to known fixed functions... but not always.  And for
+functions, its generally harder to know that a function pointer is never called.
+
+So taking these contrainsts together, we can imagine building a call graph by
+linking all call sites to all functions.  Here *linking* means the actual call
+arguments are fed into the `Parm`s for the functions; the function `Return`
+feeds into the `CallEnd`, and we can imagine flowing type information across
+the caller/callee border.  But this immediately requires `O(n^2)` edges - 
+every call is linked to every function, and there are `O(n)` of each.  
+
+To avoid this `O(n^2)` graph growth, Simple assumes that all calls *start*
+linked to all functions, we just don't include the edges (yet).  `FunNode`
+includes a `hasUnknownCallers` call just for this situation, and this
+means all `Parms` on all functions assume the worst possible callers will
+be calling... so their arguments all default to their known types.
+
+Similarly, all `Calls` assume they call all functions, and take return
+values from all functions... so their return type is computed from 
+their function signature instead of from some actual `Return`.
+
+If we later discover a sharp target for a call (i.e., any call to a named
+function, such as `fcn(3)`), we can refine the returned value to what the
+function actually returns - maybe e.g. the function ends in `return null;` and
+the CallEnd can use that information!  Similar for functions, if the function
+is private, and never escapes, we might discover that its called from a limited
+set of places - and so its arguments might be more precisely known.
+
+In the same SCCP mentioned above we will refine the set of function pointers
+flowing around the graph, and thus **who** calls **what**.  At that point we
+generally do NOT have an `O(n^2)` Call Graph, so we will make the prior assumed
+call edges "all-calls-all", into concrete and precise edges, building a real
+Call Graph (which we will promptly use to optimize across function/call
+borders).  This all comes in [Chapter24](../chapter24/README.md).  For now,
+we assume all-calls-all unless we can locally prove otherwise, and our
+calling situation remains very conservative.
+
+
+### Calls and Memory
+
+Calls take in all of memory, and return all of memory - a very conservative
+approach.  Inlining can sharpen the alias information (at the cost of code
+growth), via the normal memory peepholes applying to a larger and less
+constrained graph (no Call after inlining!).  Like the functions above, a later
+chapter will explore the notion of escaping aliases, and can allow call sites
+to be less conservative about memory.
 
 
 ## CodeGen - The Compile Driver
@@ -238,45 +299,3 @@ evaluate in a very straightforward way.  Essentially the normal IR nodes are
 treated like a special "machine instruction set" with infinite registers, and a
 globally correct schedule.  This evaluator supports functions and calls (and
 recursive calls).
-
-
-## Graph Visualizer
-
-Run `make view`, type your program in the text box, and click **Compile**
-(or press **Ctrl+Enter**). Use the Left/Right arrow keys to step through graph
-construction and optimization. See the [shared viewer guide](../graph/README.md).
-
-Nodes use colors and shapes for their graph roles: control, data, memory, Phis,
-and scopes. This palette is distinct from the type-lattice diagrams. The viewer
-also displays `ScopeNode`s,
-which only exist for the Parser but are actual Nodes and have `use->def` edges
-into the IR.
-
-## Memory across functions
-
-Each function has one `$mem` parameter and the parser keeps one memory binding.
-Branches, loops, and multiple returns merge whole memory with BulkMemPhi. Field
-uses discover precise MemPhis, while MemMerge packages a default memory state
-and its alias overrides. MemMerge is an ordinary graph node; it no longer doubles
-as a mutable parser alias table.
-
-| Boundary | Memory convention |
-|---|---|
-| Function entry | Parm 1 carries whole memory; heap contents are unknown |
-| Call inputs | `{ctrl, $mem, arguments..., function pointer}` |
-| CallEnd outputs | `{ctrl, $mem, value}` |
-| Return inputs | `{ctrl, $mem, value, rpc}` |
-| New inputs | `{ctrl, $mem, size, field values...}` |
-| New outputs | `{ptr, $mem}`, covering only the allocated struct's aliases |
-
-A function may receive an existing object, so its entry memory cannot be treated
-as an empty heap. Calls conservatively affect every alias. The returned memory
-becomes the caller's new whole-memory state; there is no per-function alias
-summary. Trivial inlining removes this boundary and lets the ordinary memory
-rewrites see through the function body.
-
-Scheduling follows the relevant alias through MemMerge when looking for writes
-or calls that must follow a Load. Calls end their basic block, so moving the Load
-before that terminator supplies the required order without appending scheduling
-edges to the argument list. Phi factoring keeps the simple one-step Load guard;
-a direct Call user blocks that rewrite.
