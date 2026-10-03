@@ -13,13 +13,12 @@ introduces floats and narrow numeric types. Keep the
 rest of SSA construction with incomplete types in Chapter 25 for now. Cliff wants to revisit splitting Chapter 25
 into smaller chapters; escape analysis remains in 25 until that larger review.
 
-Reset checkpoint (2026-09-28): Cliff committed the completed FunPtr work as
-`75390f47` (`Backport FunPtr`), following `586c8f65` (direct C data bindings) and
-`8212a66f` (constructor checks). The working tree was clean before this notes
-update. No FunPtr implementation or validation remains outstanding; the full
-21-25 results are recorded below. The subsequent narrow C integer-return ABI
-correction starts in 22 and is forwarded through 25; see the validation record.
-Splitting Chapter 25 is deferred, not an instruction to renumber.
+Reset checkpoint (2026-10-03): Cliff committed the chapter reorganization and
+mutability split as `22df8918` (`Chapter renumber, and split ch 17`). The compiler
+work and validation below are complete; review is ongoing. Chapter 18 README
+review and backup-file deletion followed in `3c13b271` (`Update README.md`).
+The tree was clean before this notes refresh. No build/test process is hung;
+check Git for subsequent changes. Splitting Chapter 25 remains deferred.
 
 ## Chapter numbering after the memory reorganization
 
@@ -105,9 +104,12 @@ unsupported Java test patterns are skipped per method rather than per class.
 Existing spill expectations changed in the String fixture:
 22's RISC-V count is 1 instead of 3; 24's x86 count is 0 instead of 9.
 
-## Pending corrections
+## Completed integration notes
 
-### Shared ISA encoders and evaluators: Chapters 21-25 (review checkpoint)
+These records describe completed work, not outstanding implementation tasks.
+Historical chapter numbers and measurements below refer to their original runs.
+
+### Shared ISA encoders and evaluators: Chapters 21-25
 
 Issue #257's extraction is implemented in [`isa/`](../isa/README.md). `X86`
 accepts concrete registers, widths, immediates and addresses; `Arm64` and `RiscV`
@@ -140,7 +142,7 @@ the existing allocator checks (`build/isa-final-tests.log`). The independent
 shared ISA tests pass; a fresh linear Chapter 21 release contains all three
 encoders and shared evaluators (`build/isa-linear21-complete-release.log`).
 Maven/IDE XML parses; the standalone POM gains main and test ISA source roots
-at Chapter 21 only. Shell syntax and LF checks pass. Nothing has been pushed.
+at Chapter 21 only. Shell syntax and LF checks pass.
 
 ### Chapter 15 allocation design (implemented)
 
@@ -433,7 +435,7 @@ viewer classes (`build/base-linear{02,21}.log`). The graph IDEA module now depen
 on print. This cleanup removes about 2,800 node-source lines and 550 viewer-adapter
 lines beyond the original extraction.
 
-### Other pending corrections
+## Pending corrections
 
 - **Float-to-integer conversion (new feature).** Missing from Chapters 14-25;
   Chapter 14's `RoundF32Node` only narrows floats to `f32`. Add an explicit
@@ -441,7 +443,7 @@ lines beyond the original extraction.
   through the later chapters. Decide syntax, rounding versus truncation,
   and behavior for NaN, infinities, and out-of-range values before implementing.
   Cover constant folding, evaluation, and machine lowering on all three targets;
-  update the Chapter 12 explanation and add boundary-case regressions.
+  update the Chapter 14 explanation and add boundary-case regressions.
 
 - **Existing Chapter 18 floating-array assertion.** The unchanged
   `TypeStruct.makeAry` assertion accepts integers and nullable references but

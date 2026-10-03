@@ -2,13 +2,30 @@
 
 This file is intentionally AI-facing. It records durable invariants, debugging
 habits, and project-owner preferences that are easy to miss when reading only
-the implementation. `WIP-HANDOFF.md` and `parser-simplification-plan.md` retain
-the detailed history; portions of their old branch/status reports are stale
-after the Chapter 25 squash.
+the implementation. Use the current checkpoint below rather than old session
+handoffs or historical branch/status reports.
 For cross-chapter work, read [the backport queue and validation record](../docs/chapter-backports.md).
 It owns pending reproductions and a condensed completion record; these notes
 capture reusable lessons. Detailed superseded validation history remains in Git.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
+
+## Reset checkpoint (2026-10-03)
+
+- Cliff committed the chapter reorganization and mutability split as `22df8918`
+  (`Chapter renumber, and split ch 17`). Implementation and validation are done;
+  there is no unfinished compiler port or hung validation process to resume.
+  Check current Git state before treating this checkpoint as live status.
+- Cliff subsequently committed the Chapter 18 README review and backup-file
+  deletion as `3c13b271` (`Update README.md`). The tree was clean before this
+  memory refresh; only these two notes files are left modified by the refresh.
+  Do not commit or push without a new instruction.
+- Read the mutability section and validation record in
+  [chapter-backports.md](../docs/chapter-backports.md) for scope and results.
+  Full affected chapter suites, Chapter 25 native tests, standalone 17a/17b
+  builds, and exporter checks passed. Logs are disposable under
+  `build/mutability/`; no need to repeat suites without a new change or concern.
+- Next work is Cliff's review, not another inferred cleanup task. The separate
+  pending queue still includes float-to-int syntax and deferred BOTTOM contracts.
 
 ## Collaboration preferences
 
@@ -52,6 +69,13 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   load may observe writes through another alias; its memory edge is essential.
   Writable array slots are invariant in element permissions. Allocation and
   declaration spelling must agree on that element view.
+- Constructor initialization privileges apply only to allocation fields, even
+  inside nested blocks; they do not authorize writes to surrounding fixed locals.
+  In 23/24, a class-wide field needs an explicit initializer: implicit nullable
+  null alone must not turn an instance field into static storage.
+- Resolving a forward struct reference must preserve pointer access/nullability.
+  Phi idealization should report progress only when the referenced struct changes,
+  not merely because the canonical declaration has different pointer permissions.
 - Construct cyclic pointers with their access bit already set before interning;
   creating a provisional pointer and then changing access can orphan temporary
   cyclic types. Serialized objects use the `C0D2` header and require a rebuild.
@@ -129,9 +153,6 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   excludes TypeMem. Preserve its inlining-safe Return compute and rejected-Phi
   operand dependencies. Folded x86 Add requires a register value in slot 4 even
   for a constant addend, because that value is also its two-address result.
-  Spill counts use the same fixed 39-entry cohort and seed 123: the lazy-memory
-  port changes 238 / 357 moves / weighted moves to 234 / 360 without changing
-  allocator heuristics. Selected-read ordering explains the extra hot array move.
 
 - Chapter 21 reverses addDep's direction: use `consumer.addDep(producer)`,
   including explicit forward dependencies. New's register masks are cached in
@@ -142,9 +163,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   execution tests must find main's encoded offset, rather than assuming PC 0.
   Full-width x86 loads choose their instruction from the allocated register
   bank, preserving integer bits when allocated to XMM. ARM's emulator needs
-  MOVK and full MOVZ immediate/shift support. The 91-entry spill cohort changes
-  840 / 1,456 to 845 / 1,559; read-before-New ordering explains most of the
-  RISC-V BrainFuck increase. No allocator heuristics changed in that port.
+  MOVK and full MOVZ immediate/shift support. Use current README measurements
+  for spill totals rather than historical memory-port baselines.
 
 - Synthetic never-exit TOP values remain in the graph for neutral type merges,
   but have no runtime value to allocate. Chapters 20-25 exclude TOP definitions
@@ -175,7 +195,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   its RISC-V run loses 907 heap loads and all hot stack spills. Static move
   counts initially rose from repeated initialization-store pointer copies;
   adjacent-copy forwarding removes them. Measure executed memory traffic too.
-  Carry this search with subsequent memory ports.
+  This search is forwarded through 25.
 
 - Chapters 23-24 exclude class-wide (`Field._one`) fields from New's alias
   coverage and keep symbolic field offsets until layout. Alias contents must
@@ -197,23 +217,23 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   instead of eagerly folding them while bulk splitting is still in progress.
   User-count dependencies must wake from Node.delUse, including unkeep.
 
-- Generalized Phi factoring now starts in 10a and is forwarded through 25.
+- Generalized Phi factoring now starts in 10 and is forwarded through 25.
   Memory-specific eligibility lives in `MemOpNode.canDrop`, with virtual Load
   and Store checks. Load owns `clobbered`: all these chapters check only
   immediate memory users, without recursion or a visited set. Stop at Stores,
-  Phis, MemMerges (10b+), New (15+), and Calls (18+); do not chase aliases or aggregates just
+  Phis, MemMerges (11+), New (15+), and Calls (18+); do not chase aliases or aggregates just
   to save one Load. Keep this teaching optimization simple and conservative.
   Preserve exact operation attributes with clone-based `copyEmpty`, type each
   operand Phi separately, reuse identical inputs, and reject type widening.
   Stores require sole use by the Phi; Loads inspect memory users for clobbers
-  before GCM has made anti-dependence edges. From 10b, create precise memory
+  before GCM has made anti-dependence edges. From 11, create precise memory
   Phis for the factored operands. Do not factor aggregates or bulk Phis;
   wait for other BulkMemPhis at the Region to disappear, since their slice
   lookup assumes Region/alias identifies the completed memory point. Existing
-  control-bound Stores in 11-14 remain ineligible. `delUse` wakes recorded
+  control-bound Stores in 13-14 remain ineligible. `delUse` wakes recorded
   dependents for user-count queries; Region's empty-diamond fold depends on
-  projection rewiring as well as projection types. Carry these with the 21+
-  memory port; do not duplicate the later chapters' existing `copyEmpty`.
+  projection rewiring as well as projection types. These guards are already
+  forwarded through 25; preserve the later chapters' existing `copyEmpty`.
   `subsume` must wake each rewired user's recorded dependents, just as `setDef`
   does: operand identity changes can enable a Phi fold without changing the
   intervening operation's type (`Chapter14Test.testCloneAnd` in 16).
@@ -223,7 +243,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   port it into the same test class in every later affected chapter directory.
 - Every directory contains its own compiler snapshot. Testing Chapter 25's
   inherited `Chapter10Test` does not validate the Chapter 10 compiler. Use the
-  top-level runner, e.g. `make -k tests CHAPTERS="chapter10a chapter10b chapter11"`, with all
+  top-level runner, e.g. `make -k tests CHAPTERS="chapter10 chapter11 chapter12"`, with all
   affected directories explicitly listed. Establish the destination baseline
   before changing it; older Makefiles may need a forced rebuild after API changes.
 - Keep unrelated discoveries separate in `docs/chapter-backports.md`. Completed
@@ -238,10 +258,10 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 ## Dominator caches and searches
 
 - Real dominator searches start in Chapter 6 (If and Region), before CFGNode
-  appears in 11. Regions recompute their dominator from current predecessors
+  appears in 13. Regions recompute their dominator from current predecessors
   using the shared `domLCA` walk; do not cache a dominator pointer just because
   the old node is still alive. Rewiring a merge can change its dominator.
-- Chapters 6-17 cache a `char` depth with zero meaning unset. From 18, inlining
+- Chapters 6-17b cache a `char` depth with zero meaning unset. From 18, inlining
   requires a separate `char` cache version and a checked global version bump.
   Keep depth/version as separate fields rather than packing arithmetic into an
   int. Assert before narrowing a depth or incrementing the version: 65535 is
@@ -264,7 +284,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Global code motion and constant ownership
 
-- GCM starts in 11; function-local constant graphs start with functions in 18.
+- GCM starts in 13; function-local constant graphs start with functions in 18.
   Use an early definitions-first walk and a late uses-first worklist. Visit
   Region/Loop Phis during early scheduling, and wake loop Phis and waiting loads
   during late scheduling. The two walks must agree: otherwise late scheduling
@@ -274,9 +294,9 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   and computes a block only for nodes with a null input 0, after walking their
   inputs. Proj input 0 names its producer, so it must not be replaced by control.
   For ordinary values, existing control is an earliest-placement bound; late
-  scheduling can still move them downward. Chapters 11-14 retain their fixed
-  late-placement cases explicitly in GCM (Proj, New, Parser.ZERO, and Cast from
-  13). Later GCM already handles fixed CFG/Phi/Proj placement structurally.
+  scheduling can still move them downward. Chapters 13-14 retain their fixed
+  late-placement cases explicitly in GCM (Proj, New, Parser.ZERO, and Cast).
+  Later GCM already handles fixed CFG/Phi/Proj placement structurally.
 - After early scheduling, global constant-building operations have Start in
   input 0. Snapshot and keep those originals, then clone their input graphs with
   one identity map per function. Reuse each copy throughout its function; keep
@@ -292,7 +312,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 - Let early scheduling place machine constant expansions. Pinning them during
   instruction selection can attach them to the old ideal Start rather than the
   selected Start, forcing later code to recover from the wrong root.
-- Keep anti-dependence marks in a pass-local array, not CFGNode. In 11-20 the
+- Keep anti-dependence marks in a pass-local array, not CFGNode. In 13-20 the
   evaluator independently reschedules nodes, so retain the full store placement
   range when constraining loads; using only GCM's final store block breaks
   `SchedulerTest.testStoreInIf2`. Retain the dominator walk from 21 onward too:
@@ -347,7 +367,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   all 13 original programs; Chapter21AllocTest retains the four revised cases,
   counted with the native variants as cohort 21. On Windows the cohorts are
   39 and 52 compilations. Preserve source/target membership when moving forward.
-- Chapter 21 adds adjacent-copy forwarding after coloring; carry it through 25.
+- Chapter 21 adds adjacent-copy forwarding after coloring, retained through 25.
   A Split with exactly one use, in the next scheduled instruction, can be removed
   if the operand accepts the source register and is not two-address tied. Exclude
   Phi/CFG users. Adjacency supplies the no-clobber proof; do not expand this into
@@ -743,7 +763,7 @@ Consequences:
 - Test cold caches, unresolved declarations, lazy memory, stale linker entries,
   uncompressed register chains, and forbidden layout queries. Do not assert that
   printing leaves the type intern table unchanged. B09 regressions start in
-  Chapter11Test/18Test/19Test/20Test/23Test/24Test and propagate to later snapshots;
+  Chapter13Test/18Test/19Test/20Test/23Test/24Test and propagate to later snapshots;
   Chapter25Test also covers constant-pool display.
 
 ## Debugging workflow
