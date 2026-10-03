@@ -3,16 +3,15 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.*;
-import java.util.BitSet;
 import java.util.HashSet;
 import static com.seaofnodes.simple.Utils.TODO;
 
 /** Start supplies control, whole memory, and the argument, in that order. */
-public class StartNode extends CFGNode implements MultiNode {
+public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
 
-    public StartNode(Type arg) { super(); _arg = arg; _type = compute(); }
+    public StartNode(Type arg) { super(null); _arg = arg; _type = compute(); }
 
     @Override public String label() { return "Start"; }
 
@@ -34,9 +33,4 @@ public class StartNode extends CFGNode implements MultiNode {
     @Override public int idepth() { return 0; }
     @Override public CFGNode idom(Node dep) { return null; }
 
-    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) { }
-
-    @Override public int loopDepth() { return (_loopDepth=1); }
-
-    @Override public Node getBlockStart() { return this; }
 }

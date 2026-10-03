@@ -21,7 +21,7 @@ public class TypeMem extends Type {
     private TypeMem(int alias, Type t) { super(TMEM); _alias = alias; _t = t; }
 
     public static TypeMem make(int alias, Type t) { return new TypeMem(alias,t).intern(); }
-    public static final TypeMem TOP = make( 0, Type.TOP);
+    public static final TypeMem TOP = make(-1, Type.TOP   );
     public static final TypeMem BOT = make(-1, Type.BOTTOM);
 
     public static void gather(ArrayList<Type> ts) { ts.add(make(1,TypeInteger.ZERO)); ts.add(BOT); }
@@ -40,13 +40,11 @@ public class TypeMem extends Type {
 
     @Override
     public Type dual() {
-        if( _alias== 0 ) return BOT;
-        if( _alias==-1 ) return TOP;
         return make(_alias,_t.dual());
     }
 
-    @Override
-    public Type glb() { return make(_alias,_t.glb()); }
+    @Override public Type glb() { return make(_alias,_t.glb()); }
+    @Override public Type lub() { return make(_alias,_t.lub()); }
 
     @Override
     int hash() { return 9876543 + _alias + _t.hashCode(); }
