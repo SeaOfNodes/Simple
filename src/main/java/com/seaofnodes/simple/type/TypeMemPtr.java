@@ -23,17 +23,41 @@ public class TypeMemPtr extends Type {
     // (TOP   ,true ) - a nil
 
     public final TypeStruct _obj;
+    // Deep read-only access through this pointer; independent of slot finality.
+    public boolean _ro;
+
     public final boolean _nil;
 
     private TypeMemPtr(TypeStruct obj, boolean nil) {
         super(TMEMPTR);
         assert obj!=null;
         _obj = obj;
+        _ro = obj==TypeStruct.BOT;
         _nil = nil;
     }
     public static TypeMemPtr make(TypeStruct obj, boolean nil) { return new TypeMemPtr(obj, nil).intern(); }
     public static TypeMemPtr make(TypeStruct obj) { return make(obj, false); }
-    public TypeMemPtr makeFrom(TypeStruct obj) { return make(obj, _nil); }
+    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(obj, _nil).withAccess(_ro); }
+    public TypeMemPtr makeFrom(boolean nil) { return nil==_nil ? this : make(_obj, nil).withAccess(_ro); }
+    @Override public TypeMemPtr makeRO() { return withAccess(true); }
+    @Override public boolean isFinal() { return _ro; }
+
+    public TypeMemPtr withAccess(boolean ro) {
+        if( _ro==ro || (_obj==TypeStruct.TOP && _nil) ) return this;
+        TypeMemPtr ptr = new TypeMemPtr(_obj, _nil);
+        ptr._ro = ro;
+        return ptr.intern();
+    }
+
+    // Writable slots can load and store references, so their element access
+    // must agree in both directions. A read-only outer view can weaken access.
+    @Override public boolean accessISA(Type dst) {
+        if( !(dst instanceof TypeMemPtr ptr) ) return true;
+        if( _ro && !ptr._ro ) return false;
+        if( ptr._ro || _obj._fields==null || ptr._obj._fields==null || !_obj.isAry() || !ptr._obj.isAry() ) return true;
+        Type a = _obj._fields[1]._type, b = ptr._obj._fields[1]._type;
+        return a.accessISA(b) && b.accessISA(a);
+    }
 
     // An abstract pointer, pointing to either a Struct or an Array.
     // Can also be null or not.
@@ -44,20 +68,23 @@ public class TypeMemPtr extends Type {
     public static final TypeMemPtr VOIDPTR = NULLPTR.dual(); // A bottom mix of not-null ptrs, like C's void* but not null
 
     public static final TypeMemPtr TEST= make(TypeStruct.TEST,false);
-    public static void gather(ArrayList<Type> ts) { ts.add(NULLPTR); ts.add(BOT); ts.add(TEST); }
+    public static void gather(ArrayList<Type> ts) { ts.add(NULLPTR); ts.add(BOT); ts.add(TEST); ts.add(TEST.makeRO()); }
 
     @Override
     Type xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
-        return TypeMemPtr.make((TypeStruct)_obj.meet(that._obj), _nil | that._nil);
+        return TypeMemPtr.make((TypeStruct)_obj.meet(that._obj), _nil | that._nil).withAccess(_ro | that._ro);
     }
 
     @Override
-    public TypeMemPtr dual() { return TypeMemPtr.make(_obj.dual(), !_nil); }
+    public TypeMemPtr dual() { return TypeMemPtr.make(_obj.dual(), !_nil).withAccess(!_ro); }
 
-    @Override
-    public TypeMemPtr glb() { return make(_obj.glb(),true); }
-    @Override public TypeMemPtr makeInit() { return NULLPTR; }
+    @Override public TypeMemPtr glb() { return make(_obj.glb(),true ).withAccess(true); }
+    @Override public TypeMemPtr lub() { return make(_obj.lub(),false); }
+    // Is forward-reference
+    @Override public boolean isFRef() { return _obj.isFRef(); }
+    @Override public Type makeInit() { return _nil ? NULLPTR : Type.TOP; }
+    @Override public Type makeZero() { return NULLPTR; }
     @Override public Type nonZero() { return VOIDPTR; }
 
     @Override public boolean isHigh() { return this==TOP; }
@@ -67,12 +94,12 @@ public class TypeMemPtr extends Type {
     @Override public int log_size() { return 2; } // (1<<2)==4-byte pointers
 
     @Override
-    int hash() { return _obj.hashCode() ^ (_nil ? 1024 : 0); }
+    int hash() { return (_ro ? 8192 : 0) ^ _obj.hashCode() ^ (_nil ? 1024 : 0); }
 
     @Override
     boolean eq(Type t) {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return _obj == ptr._obj  && _nil == ptr._nil;
+        return _ro==ptr._ro && _obj == ptr._obj  && _nil == ptr._nil;
     }
 
     // [void,name,MANY]*[,?]
