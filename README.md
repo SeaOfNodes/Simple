@@ -61,7 +61,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 15](docs/chapter15/README.md): One dimensional static length array type, with array loads and stores.
 * [Chapter 16](docs/chapter16/README.md): Constructors
 * [Chapter 17a](docs/chapter17a/README.md): Binding mutability, reference permissions, and deep read-only views.
-* Chapter 17b: Syntax sugar: `var`, `val`, `x+=y`, `for(init; test; next) body`
+* [Chapter 17b](docs/chapter17b/README.md): Syntax sugar: `var`, `val`, `x+=y`, `for(init; test; next) body`
 * Chapter 18: Functions and calls.
 * Chapter 19: Instruction selection and portable compilation
 * Chapter 20: Graph Coloring Register Allocation
