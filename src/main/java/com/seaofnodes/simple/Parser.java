@@ -149,6 +149,8 @@ public class Parser {
             put("u16" ,TypeInteger.U16);
             put("u32" ,TypeInteger.U32);
             put("u8"  ,TypeInteger.U8 );
+            put("val" ,Type.TOP);    // Marker type, indicates type inference
+            put("var" ,Type.BOTTOM); // Marker type, indicates type inference
         }};
     }
 
@@ -214,6 +216,7 @@ public class Parser {
         else if (match ("{")       ) return require(parseBlock(false),"}");
         else if (matchx("if")      ) return parseIf();
         else if (matchx("while")   ) return parseWhile();
+        else if (matchx("for")     ) return parseFor();
         else if (matchx("break")   ) return parseBreak();
         else if (matchx("continue")) return parseContinue();
         else if (matchx("struct")  ) return parseStruct();
@@ -230,9 +233,38 @@ public class Parser {
      * </pre>
      * @return a {@link Node}, never {@code null}
      */
-
     private Node parseWhile() {
         require("(");
+        return parseLooping(false);
+    }
+
+
+    /**
+     * Parses a for statement
+     *
+     * <pre>
+     *     for( var x=init; test; incr ) body
+     * </pre>
+     * @return a {@link Node}, never {@code null}
+     */
+    private Node parseFor() {
+        // {   var x=init,y=init,...;
+        //     while( pred ) {
+        //         body;
+        //         next;
+        //     }
+        // }
+        require("(");
+        _scope.push();          // Scope for the index variables
+        if( !match(";") )       // Can be empty init "for(;test;next) body"
+            parseDeclarationStatement(); // Non-empty init
+        Node rez = parseLooping(true);
+        _scope.pop();           // Exit index variable scope
+        return rez;
+    }
+
+    // Shared by `for` and `while`
+    private Node parseLooping( boolean doFor ) {
 
         var savedContinueScope = _continueScope;
         var savedBreakScope    = _breakScope;
@@ -256,14 +288,24 @@ public class Parser {
         _xScopes.push(_scope = _scope.dup(true)); // The true argument triggers creating phis
 
         // Parse predicate
-        var pred = parseAsgn();
-        require(")");
+        var pred = peek(';') ? con(1) : parseAsgn();
+        require( doFor ? ";" : ")" );
 
         // IfNode takes current control and predicate
         Node ifNode = new IfNode(ctrl(), pred.keep()).peephole();
         // Setup projection nodes
         Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
         Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+
+        // for( ;;next ) body
+        int nextPos = -1, nextEnd = -1;
+        if( doFor ) {
+            // Skip the next expression and parse it later
+            nextPos = pos();
+            skipAsgn();
+            nextEnd = pos();
+            require(")");
+        }
 
         // Clone the body Scope to create the break/exit Scope which accounts for any
         // side effects in the predicate.  The break/exit Scope will be the final
@@ -288,6 +330,16 @@ public class Parser {
             _continueScope = jumpTo(_continueScope);
             _scope.kill();
             _scope = _continueScope;
+        }
+
+        // Now append the next code onto the body code
+        if( doFor ) {
+            int old = pos(nextPos);
+            if( !peek(')') )
+              parseAsgn();
+            if( pos() != nextEnd )
+                throw errorSyntax( "Unexpected code after expression" );
+            pos(old);
         }
 
         // The true branch loops back, so whatever is current _scope.ctrl gets
@@ -345,6 +397,24 @@ public class Parser {
         return _breakScope;
     }
 
+    // Look for an unbalanced `)`, skipping balanced
+    private Type skipAsgn() {
+        int paren=0;
+        while( true )
+            // Next X char handles skipping complex comments
+            switch( _lexer.nextXChar() ) {
+            case Character.MAX_VALUE:
+                throw Utils.TODO();
+            case ')':
+                if( --paren<0 )
+                    return posT(pos()-1); // Leave the `)` behind
+                break;
+            case '(': paren ++; break;
+            default: break;
+            }
+    }
+
+
     /**
      * Parses a statement
      *
@@ -357,7 +427,11 @@ public class Parser {
         // Parse predicate
         require("(");
         var pred = require(parseAsgn(), ")");
+        return parseTrinary(pred,true,"else");
+    }
 
+    // Parse a conditional expression, merging results.
+    private Node parseTrinary( Node pred, boolean stmt, String fside ) {
         pred.keep();
 
         // IfNode takes current control and predicate
@@ -375,7 +449,7 @@ public class Parser {
         // Parse the true side
         ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         _scope.addGuards(ifT,pred,false); // Up-cast predicate
-        parseStatement(); // Parse true-side
+        Node lhs = stmt ? parseStatement() : parseAsgn().keep(); // Parse true-side
         _scope.removeGuards(ifT);
 
         ScopeNode tScope = _scope;
@@ -386,8 +460,10 @@ public class Parser {
         // Up-cast predicate, even if not else clause, because predicate can
         // remain true if the true clause exits: `if( !ptr ) return 0; return ptr.fld;`
         _scope.addGuards(ifF,pred,true);
-        boolean doRHS = matchx("else");
-        if( doRHS ) parseStatement();
+        boolean doRHS = match(fside);
+        Node rhs = doRHS
+            ? (stmt ? parseStatement() : parseAsgn())
+            : (stmt ? null             : con(lhs._type.makeZero()));
         _scope.removeGuards(ifF);
         if( doRHS )
             fScope = _scope;
@@ -397,12 +473,19 @@ public class Parser {
         if( tScope.nIns() != ndefs || fScope.nIns() != ndefs )
             throw error("Cannot define a new name on one arm of an if");
 
+        // Check the trinary widening int/flt
+        if( !stmt ) {
+            rhs = widenInt( rhs, lhs._type ).keep();
+            lhs = widenInt( lhs.unkeep(), rhs._type ).keep();
+            rhs.unkeep();
+        }
+
         // Merge results
         _scope = tScope;
         _xScopes.pop();       // Discard pushed from graph display
 
         RegionNode r = ctrl(tScope.mergeScopes(fScope));
-        Node ret = r;
+        Node ret = stmt ? r : peep(new PhiNode("",lhs._type.meet(rhs._type),r,lhs.unkeep(),rhs));
         r.peephole();
         return ret;
     }
@@ -503,13 +586,15 @@ public class Parser {
     private boolean bindingFinal(Type t) {
         if( match("!") ) return false;
         if( match("~") ) return true;
-        return t instanceof TypeMemPtr;
+        return t==Type.TOP || t instanceof TypeMemPtr;
     }
 
     /** Parse final: [!|~]var['=' asgn]
      */
     private Node parseDeclaration(Type t) {
         assert t!=null;
+        // Has var/val instead of a user-declared type
+        boolean inferType = t==Type.TOP || t==Type.BOTTOM;
         boolean xfinal = bindingFinal(t);
         String name = requireId();
 
@@ -517,8 +602,13 @@ public class Parser {
         Node expr;
         if( match("=") ) {
             expr = parseAsgn();
+            // var/val, then type comes from expression
+            if( inferType )
+                t = expr._type instanceof TypeMemPtr ptr ? ptr.makeFrom(true) : expr._type.glb();
 
         } else {
+            if( inferType && !_scope.inCon() )
+                throw errorSyntax("=expression");
             expr = con(xfinal && !(t instanceof TypeMemPtr) ? Type.TOP : t.makeInit());
         }
 
@@ -581,7 +671,7 @@ public class Parser {
     // types (which ARE valid here) from local vars in an (optional) forward
     // ref type position.
 
-    // t = int|i8|i16|i32|i64|u8|u16|u32|u64|byte|bool | flt|f32|f64 | struct[?]
+    // t = int|i8|i16|i32|i64|u8|u16|u32|u64|byte|bool | flt|f32|f64 | val | var | struct[?]
     private Type type() {
         int old1 = pos();
         boolean writable = match("!");
@@ -661,11 +751,14 @@ public class Parser {
      * Parse an expression of the form:
      *
      * <pre>
-     *     expr : bitwise
+     *     expr : bitwise [? expr [: expr]]
      * </pre>
      * @return an expression {@link Node}, never {@code null}
      */
-    private Node parseExpression() { return parseBitwise(); }
+    private Node parseExpression() {
+        Node expr = parseBitwise();
+        return match("?") ? parseTrinary(expr,false,":") : expr;
+    }
 
     /**
      * Parse an bitwise expression
@@ -792,8 +885,26 @@ public class Parser {
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
-        if( match("-") ) return peep(new MinusNode(parseUnary()).widen());
-        if( match("!") ) return peep(new NotNode(parseUnary()));
+        // Pre-dec/pre-inc
+        int old = pos();
+        if( match("--") || match("++") ) {
+            int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
+            String name = _lexer.matchId();
+            if( name!=null ) {
+                ScopeNode.Var n = _scope.lookup(name);
+                if( n != null ) {
+                    if( n._final )
+                        throw error("Cannot reassign final '"+n._name+"'");
+                    Node expr = zsMask(peep(new AddNode(_scope.in(n),con(delta))),n.type());
+                    _scope.update(n,expr);
+                    return expr;
+                }
+            }
+            // Reset, try again
+            pos(old);
+        }
+        if (match("-")) return peep(new MinusNode(parseUnary()).widen());
+        if (match("!")) return peep(new   NotNode(parseUnary()));
         return parsePostfix(parsePrimary());
     }
 
@@ -817,7 +928,35 @@ public class Parser {
         Node rvalue = _scope.in(n);
         if( rvalue._type == Type.BOTTOM )
             throw error("Cannot read uninitialized field '"+n._name+"'");
-        return rvalue;
+        // Check for assign-update, x += e0;
+        char ch = _lexer.matchOperAssign();
+        if( ch==0  ) return rvalue;
+        if( n._final )
+            throw error("Cannot reassign final '"+n._name+"'");
+        Node op = switch(ch) {
+        case '+'        -> new AddNode(rvalue,null);
+        case '-'        -> new SubNode(rvalue,null);
+        case '*'        -> new MulNode(rvalue,null);
+        case '/'        -> new DivNode(rvalue,null);
+        case '&'        -> new AndNode(rvalue,null);
+        case '|'        -> new  OrNode(rvalue,null);
+        case '^'        -> new XorNode(rvalue,null);
+        case Lexer.SHL  -> new ShlNode(rvalue,null);
+        case Lexer.SAR  -> new SarNode(rvalue,null);
+        case Lexer.SHR  -> new ShrNode(rvalue,null);
+        case        1   -> new AddNode(rvalue,con( 1));
+        case (char)-1   -> new AddNode(rvalue,con(-1));
+        default         -> throw Utils.TODO();
+        };
+        // Return pre-value (x+=1) or post-value (x++)
+        boolean pre = op.in(2)==null;
+        // Parse RHS argument as needed
+        if( pre )
+            { op.keep().setDef(2,parseAsgn());  op.unkeep(); }
+        else rvalue.keep();     // Keep post-value across peeps
+        op = zsMask(peep(op),n.type());
+        _scope.update(n,op);
+        return pre ? op : rvalue.unkeep();
     }
 
     ScopeNode.Var requireLookupId(String msg) {
@@ -999,7 +1138,15 @@ public class Parser {
         if( base.isAry() ) load.setDef(0,ctrl());
         load = peep(load);
 
-        expr.unkill();
+        // ary[idx]++ or ptr.fld++
+        if( matchx("++") || matchx("--") ) {
+            if( f._final && !f._fname.equals("[]") )
+                throw error("Cannot reassign final '"+f._fname+"'");
+            Node inc = peep(new AddNode(load,con( _lexer.peek(-1)=='+' ? 1 : -1)));
+            Node val = zsMask(inc,tf);
+            store(name,f._alias,tf,expr.unkeep(),off,val,false,base.isAry() ? ctrl() : null);
+            // And use the original loaded value as the result
+        } else expr.unkill();
         off.unkill();
 
         return parsePostfix(load);
@@ -1280,5 +1427,26 @@ public class Parser {
             return new String(_input, start, 1);
         }
 
+        // Next oper= character, or 0.
+        // As a convenience, mark "++" as a char 1 and "--" as char -1 (65535)
+        // Disallow e.g. "arg--1" which should parse as "arg - -1"
+        // Distinct tags for the multi-character compound operators.
+        static final char SHL = 2, SAR = 3, SHR = 4;
+
+        public char matchOperAssign() {
+            skipWhiteSpace();
+            if( match("<<=" ) ) return SHL;
+            if( match(">>>=") ) return SHR;
+            if( match(">>=" ) ) return SAR;
+            if( _position+2 >= _input.length ) return 0;
+            char ch0 = (char)_input[_position];
+            if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;
+            char ch1 = (char)_input[_position+1];
+            if(               ch1 == '=' ) { _position += 2; return ch0; }
+            if( isIdLetter((char)_input[_position+2]) ) return 0;
+            if( ch0 == '+' && ch1 == '+' ) { _position += 2; return (char) 1; }
+            if( ch0 == '-' && ch1 == '-' ) { _position += 2; return (char)-1; }
+            return 0;
+        }
     }
 }

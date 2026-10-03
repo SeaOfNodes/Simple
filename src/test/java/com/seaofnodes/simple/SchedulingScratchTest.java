@@ -8,7 +8,7 @@ import static org.junit.Assert.assertEquals;
 public class SchedulingScratchTest {
     @Test public void testScratchAcrossCompilations() {
         String src = """
-            int[] xs = new int[2];
+            int[] !xs = new int[2];
             xs[0] = arg;
             int sum = 0;
             int i = 0;

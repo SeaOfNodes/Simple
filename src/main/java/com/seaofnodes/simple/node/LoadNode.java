@@ -52,6 +52,7 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
+        if( ptr()._type==Type.TOP ) return Type.TOP; // Dead pointer, not a type error.
         Type t = MemMergeNode.contents(mem(),_alias,this);
         // Update declared forward ref to the actual.
         if( _declaredType.isFRef() && t instanceof TypeMemPtr tmp && !tmp.isFRef() )
