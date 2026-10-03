@@ -8,7 +8,6 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.HashSet;
 
 public class RegionNode extends CFGNode {
@@ -19,7 +18,7 @@ public class RegionNode extends CFGNode {
     public String label() { return "Region"; }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
-        return p.p(label()).p(_nid);
+        return p.p(label());
     }
 
     @Override public boolean isMultiHead() { return true; }
@@ -73,64 +72,8 @@ public class RegionNode extends CFGNode {
             p1.in(0) instanceof IfNode iff )
             return iff.ctrl();
 
-
-        // Look for direct uses of a guarded expression, and replace with the guard result.
-        if( !(idom() instanceof StartNode) && // Dead or dying
-            !(this instanceof LoopNode) ) {
-            VISIT.clear();
-            boolean progress = false;
-            outer:
-            for( int i=1; i<nIns(); i++ ) {
-                CFGNode idom = cfg(i);
-                while( !(idom instanceof CProjNode cproj) ) {
-                    idom = idom.idom();
-                    if( idom==null || idom.idepth() < idom().idepth() )
-                        continue outer;
-                }
-                if( cproj.cfg0() instanceof IfNode iff && cproj.compute()==Type.CONTROL ) {
-                    VISIT.set(iff.pred()._nid);
-                    for( Node out : _outputs )
-                        if( out instanceof PhiNode phi )
-                            progress |= walk(iff,cproj,phi.in(i));
-                }
-            }
-            if( progress )
-                return this;
-        }
-
         return null;
     }
-
-    // A walk that can be cutoff early
-    private static final BitSet VISIT = new BitSet();
-    private boolean walk( IfNode iff, CProjNode cproj, Node n ) {
-        if( VISIT.get(n._nid) ) return false;
-        VISIT.set(n._nid);
-        if( n instanceof CFGNode ) return false;
-        if( n.in(0)!=null && n.cfg0().idepth() < iff.idepth() )
-            return false;
-        boolean progress = false;
-        Node pred = iff.pred();
-        if( pred._type.isHighOrConst() ) return false; // This will collapse the IF already
-        for( int i=1; i<n.nIns(); i++ ) {
-            // Using a tested value
-            if( n.in(i) == pred && !(n instanceof CastNode) ) {
-                // Checking pred for T/F
-                Type t = pred._type;
-                Type tcast = cproj._idx==0 ? t.nonZero() : t.makeInit();
-                if( t!=tcast ) { // Progress to cast
-                    Node cast = new CastNode( tcast, cproj, pred ).peephole();
-                    n.setDef( i, cast );
-                    IterPeeps.add(n);
-                    progress = true;
-                } else pred.addDep( this );
-            }
-            if( n.in(i)!=null )
-                progress |= walk(iff,cproj,n.in(i));
-        }
-        return progress;
-    }
-
 
     private int findDeadInput() {
         for( int i=1; i<nIns(); i++ )
@@ -164,13 +107,6 @@ public class RegionNode extends CFGNode {
         return lca;
     }
 
-    @Override void _walkUnreach( BitSet visit, HashSet<CFGNode> unreach ) {
-        for( int i=1; i<nIns(); i++ )
-            cfg(i).walkUnreach(visit,unreach);
-    }
-
-    @Override public int loopDepth() { return _loopDepth==0 ? (_loopDepth = cfg(1).loopDepth()) : _loopDepth; }
-
     // True if last input is null
     public final boolean inProgress() {
         return nIns()>1 && in(nIns()-1) == null;
@@ -180,6 +116,4 @@ public class RegionNode extends CFGNode {
     @Override boolean eq( Node n ) {
         return !inProgress();
     }
-
-    @Override public Node getBlockStart() { return this; }
 }
