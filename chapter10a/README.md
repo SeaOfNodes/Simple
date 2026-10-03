@@ -8,6 +8,49 @@ stores, and null checking. It also introduces an evaluator that executes the
 graph, including its memory effects. The [grammar](docs/10-grammar.md) is the
 same in 10a and 10b; the next chapter improves the memory representation.
 
+## References
+
+Structs are a collection of named and typed fields; very classically similar to
+C or Java.  New structs are made with the `new` keyword; this allocates memory
+and produces a reference.  Freeing memory awaits a later chapter.  Fields are
+accessed with the `.` notation.  The fields can hold any scalar value,
+including reference other structs and be mutually recursive.  Any reference
+field can allow null or not, same as a normal variable.
+
+```java
+struct Person {
+   String last;    // Last name, must exist
+   String? middle; // Optional middle name
+   int age;
+};
+```
+
+Here we have fields `last`, a not-null final String, and `middle` a nullable
+and final String, and an `int age`.  Like all `int` declared fields, it is
+mutable.  Later chapters will allow both mutable reference fields and immutable
+integer fields; for now this choice covers most of the common ground.
+
+You have to have a reference to get at the fields, static fields are added in a later chapter.
+
+All field references have to be against not-null pointers, and this is directly
+checked in the type system.  I.e., Simple disallows null-pointer-exceptions by
+design.  Some examples of null checking before using:
+
+```java
+print(ptr.age); // ERROR!  ptr might be null
+
+if( ptr ) print(ptr.age); // Test before use
+
+// Field use can be far removed, as long as the check dominates
+if( ptr ) { 
+    S1;   // Other statements
+    while( other ) { ...ptr.age... } 
+}; 
+```
+
+Allocation, as well as Stores, means we now have memory effects to deal with.
+
+
 ## One memory value
 
 Arithmetic nodes depend on the values they use, similarly a load also depends

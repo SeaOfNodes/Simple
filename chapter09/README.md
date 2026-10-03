@@ -187,6 +187,10 @@ Changes:
 
 ## Common SubExpressions via GVN
 
+These diagrams focus on value dependencies. Routine control flow is omitted;
+small True/False projections distinguish the two Returns in the first example.
+Empty control slots can stand for omitted context, not missing compiler inputs.
+
 ### Example 1
 
 Here is a small example that illustrates how GVN enables finding common sub-expressions.
@@ -244,6 +248,10 @@ return arg;
 
 While parsing the `while` loop it is not yet known that `step` is a constant and will not change. Therefore,
 without the post parse optimization we get the following:
+
+The loop test and control backedge are omitted in both diagrams. The Phi's
+data backedge remains, making the repeated additions and their replacement
+easy to compare; its input 1 is the entry value and input 2 the next iteration.
 
 ![Graph5](./docs/09-graph5.svg)
 

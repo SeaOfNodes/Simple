@@ -350,6 +350,14 @@ lines beyond the original extraction.
 
 ### Other pending corrections
 
+- **Float-to-integer conversion (new feature).** Missing from Chapters 12-25;
+  Chapter 14's `RoundF32Node` only narrows floats to `f32`. Add an explicit
+  conversion, with Chapter 12 as the proposed introduction, and carry it
+  through the later chapters. Decide syntax, rounding versus truncation,
+  and behavior for NaN, infinities, and out-of-range values before implementing.
+  Cover constant folding, evaluation, and machine lowering on all three targets;
+  update the Chapter 12 explanation and add boundary-case regressions.
+
 - **Existing Chapter 18 floating-array assertion.** The unchanged
   `TypeStruct.makeAry` assertion accepts integers and nullable references but
   excludes TypeFloat; `return new flt[1];` fails under `-ea`. The Chapter 18

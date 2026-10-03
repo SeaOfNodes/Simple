@@ -155,9 +155,10 @@ class GraphLayout {
         const bundle = e.refs.length > 1;
         const id = bundle ? `b${use.id}d${e.def}` : "e" + e.orig.use + "i" + e.orig.idx;
         const reg = byId.get(use.edges[0]?.def)?.n;
-        const back = !use.fold && e.idx === 2 && (use.kind === "LOOP" ||
-          (use.kind === "PHI" && reg?.kind === "LOOP"));
-        const loop = back ? (use.kind === "LOOP" ? use.id : reg.id) : 0;
+        // Focused documentation can omit the Loop but retain its backedge cue.
+        const back = !use.fold && (e.backedge === true || (e.idx === 2 &&
+          (use.kind === "LOOP" || (use.kind === "PHI" && reg?.kind === "LOOP"))));
+        const loop = back ? (use.kind === "LOOP" ? use.id : (reg?.kind === "LOOP" ? reg.id : 0)) : 0;
         const wrap = loop && view.groups.has(loop) && !raw.get(loop).fold ? loop : 0;
         if (wrap) backs.set(wrap, (backs.get(wrap) || 0) + 1);
         edges.push({id, use: use.id, def: e.def, idx: e.orig.idx, orig: e.orig, refs: e.refs, bundle, role: e.role, label: e.label,

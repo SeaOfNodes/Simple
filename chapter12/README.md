@@ -3,11 +3,6 @@
 [Previous: Chapter 11](../chapter11/README.md) |
 [Next: Chapter 13](../chapter13/README.md)
 
-Memory keeps Chapter 11's single `$mem` binding and lazy `MemMerge`, `MemPhi`,
-and `BulkMemPhi` partitions. Start produces `{ctrl, $mem, arg}` and Return
-consumes `{ctrl, $mem, result}`; floating-point arithmetic needs no new memory
-representation.
-
 # Table of Contents
 
 1. [Float](#floats)

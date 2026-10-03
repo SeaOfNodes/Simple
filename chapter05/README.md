@@ -297,6 +297,10 @@ if( arg==1 )
 return a;
 ```
 
+The next two diagrams focus on the value rewrite. The unchanged `if` and
+Region are omitted; Phi input 1 is the true arm and input 2 the false arm.
+The Phis still use the same Region in the compiler's graph.
+
 Pre-peephole we have:
 
 ![Graph4](./docs/05-graph4.svg)
@@ -359,6 +363,10 @@ reason this pair of opposing rewrites terminates.
 
 
 ## More examples
+
+The next two simple `if` examples also omit control flow to highlight the
+resulting values. Their Phi inputs retain the true/false order above.
+
 ```java
 int c = 3;
 int b = 2;
@@ -382,6 +390,9 @@ return a+b;
 ```
 
 ![Graph7](./docs/05-graph7.svg)
+
+For nested branches, the control paths and Regions are shown so each Phi's
+incoming paths remain clear:
 
 ```java
 int a=1;

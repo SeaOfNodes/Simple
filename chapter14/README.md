@@ -3,10 +3,6 @@
 [Previous: Chapter 13](../chapter13/README.md) |
 [Next: Chapter 15](../chapter15/README.md)
 
-Memory retains the single `$mem` binding and lazy partitions from Chapter 10b.
-Narrow-field stores perform this chapter's truncation before updating their
-alias in MemMerge. Start and Return keep control in slot 0 and memory in slot 1.
-
 # Table of Contents
 
 1. [Narrow Word Types](#narrow-or-sub-word-types)
