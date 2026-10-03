@@ -22,10 +22,10 @@ return 3.14;
     public void testLinkedList0() {
         Parser parser = new Parser(
 """
-struct LLI { LLI? next; int i; };
-LLI? head = null;
+struct LLI { !LLI? !next; int i; };
+!LLI? !head = null;
 while( arg ) {
-    LLI x = new LLI;
+    !LLI !x = new LLI;
     x.next = head;
     x.i = arg;
     head = x;
@@ -41,10 +41,10 @@ return head.next.i;
     public void testLinkedList1() {
         Parser parser = new Parser(
 """
-struct LLI { LLI? next; int i; };
-LLI? head = null;
+struct LLI { !LLI? !next; int i; };
+!LLI? !head = null;
 while( arg ) {
-    LLI x = new LLI;
+    !LLI !x = new LLI;
     x.next = head;
     x.i = arg;
     head = x;
@@ -64,11 +64,11 @@ return next.i;
     public void testCoRecur() {
         Parser parser = new Parser(
 """
-struct int0 { int i; flt0? f; };
-struct flt0 { flt f; int0? i; };
-int0 i0 = new int0;
+struct int0 { int i; !flt0? !f; };
+struct flt0 { flt f; !int0? !i; };
+!int0 !i0 = new int0;
 i0.i = 17;
-flt0 f0 = new flt0;
+!flt0 !f0 = new flt0;
 f0.f = 3.14;
 i0.f = f0;
 f0.i = i0;
@@ -82,7 +82,7 @@ return f0.i.f.i.i;
     public void testNullRef0() {
         Parser parser = new Parser(
 """
-struct N { N? next; int i; };
+struct N { !N? !next; int i; };
 N n = new N;
 return n.next;
 """);
@@ -95,12 +95,12 @@ return n.next;
         Parser parser = new Parser(
 """
 struct M { int m; };
-struct N { M next; int i; };
+struct N { !M !next; int i; };
 N n = new N { next = new M; };
 return n.next;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return M;", stop.toString());
+        assertEquals("return (const)M;", stop.toString());
     }
 
     @Test
@@ -108,7 +108,7 @@ return n.next;
         Parser parser = new Parser(
 """
 struct M { int m; };
-struct N { M next; int i; };
+struct N { !M !next; int i; };
 N n = new N { next = null; }
 return n.next;
 """);
@@ -120,20 +120,20 @@ return n.next;
     public void testNullRef3() {
         Parser parser = new Parser(
 """
-struct N { N? next; int i; };
-N n = new N;
+struct N { !N? !next; int i; };
+!N !n = new N;
 n.i = 3.14;
 return n.i;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot store 3.14 into field int i",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
     }
 
     @Test
     public void testNullRef4() {
-        Parser parser = new Parser("-null-5/null-5");
+        Parser parser = new Parser("-null-5/null-5;");
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Expected an identifier, found 'null'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot 'Add' null",e.getMessage()); }
     }
 
     @Test public void testNullRef5() {
@@ -157,7 +157,7 @@ struct S{};
     public void testForwardRef0() {
         Parser parser = new Parser(
 """
-struct S1 { S2 s; };
+struct S1 { !S2? !s; };
 return new S2;
 """);
         try { parser.parse().iterate(); fail(); }
@@ -168,7 +168,7 @@ return new S2;
     public void testForwardRef1() {
         Parser parser = new Parser(
 """
-struct S1 { S2? s; };
+struct S1 { !S2? !s; };
 struct S2 { int x; };
 return new S1.s=new S2;
 """);
@@ -181,9 +181,9 @@ return new S1.s=new S2;
         Parser parser = new Parser(
 """
 struct I {int i;};
-struct P { I? pi; };
-P p1 = new P;
-P p2 = new P;
+struct P { !I? !pi; };
+!P !p1 = new P;
+!P !p2 = new P;
 p2.pi = new I;
 p2.pi.i = 2;
 if (arg) p1 = new P;

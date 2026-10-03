@@ -9,15 +9,6 @@ import static org.junit.Assert.fail;
 public class Chapter16Test {
 
     @Test
-    public void testRequiredReference() {
-        for( String fields : new String[] { "int[] x;" } ) {
-            String src = "struct Point { "+fields+" }; Point p = new Point; p.x=p.x+1; return p;";
-            try { new Parser(src).parse().iterate(); fail(fields); }
-            catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
-        }
-    }
-
-    @Test
     public void testJig() {
         Parser parser = new Parser(
 """
@@ -53,9 +44,6 @@ return x+y;
     }
 
 
-
-
-
     @Test
     public void testConstruct0() {
         Parser parser = new Parser("""
@@ -67,8 +55,6 @@ return z.x;
         assertEquals("return 3;", stop.toString());
         assertEquals(3L, Evaluator.evaluate(stop,  0));
     }
-
-
 
     @Test
     public void testConstruct2() {
@@ -83,16 +69,12 @@ return z.x;
     }
 
 
-
-
-    // Same as the Chapter13 test with the same name, but using the new
-    // constructor syntax
     @Test
     public void testLinkedList1() {
         Parser parser = new Parser(
 """
-struct LLI { LLI? next; int i; };
-LLI? head = null;
+struct LLI { !LLI? !next; int i; };
+!LLI? !head = null;
 while( arg ) {
     head = new LLI { next=head; i=arg; };
     arg = arg-1;
@@ -113,13 +95,13 @@ return next.i;
     public void testLinkedList2() {
         Parser parser = new Parser(
 """
-struct LLI { LLI? next; int i; };
-LLI? head = null;
+struct LLI { !LLI? !next; int i; };
+!LLI? !head = null;
 while( arg ) {
     head = new LLI {
         next=head;
         // Any old code in the constructor
-        int tmp=arg;
+        int !tmp=arg;
         while( arg > 10 ) {
             tmp = tmp + arg;
             arg = arg - 1;
@@ -145,11 +127,11 @@ return next.i;
         Parser parser = new Parser(
 """
 struct Square {
-    flt side = arg;
+    flt !side = arg;
     // Newtons approximation to the square root, computed in a constructor.
     // The actual allocation will copy in this result as the initial
     // value for 'diag'.
-    flt diag = arg*arg/2;
+    flt !diag = arg*arg/2;
     while( 1 ) {
         flt next = (side/diag + diag)/2;
         if( next == diag ) break;
@@ -166,13 +148,13 @@ return new Square;
     static final String CONSTRUCTOR_MEMORY = """
         struct S { int x; int y; };
         struct T { int z=arg+40; };
-        T t = new T;
-        S a = new S { x=11; y=7; };
-        S b = new S { x=22; y=9; };
-        S p=a;
+        !T !t = new T;
+        !S !a = new S { x=11; y=7; };
+        !S !b = new S { x=22; y=9; };
+        !S !p=a;
         if (arg) p=b;
         int before=p.x;
-        S c = new S {
+        !S !c = new S {
             x=p.x+1;
             { int i=0; while (i<2) { p.y=p.y+1; i=i+1; } }
             y=p.y;

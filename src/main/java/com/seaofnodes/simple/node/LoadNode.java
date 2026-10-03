@@ -53,8 +53,11 @@ public class LoadNode extends MemOpNode {
     @Override
     public Type compute() {
         Type t = MemMergeNode.contents(mem(),_alias,this);
-        // No constant folding if the pointer still needs a null check.
-        return err()==null ? _declaredType.join(t) : _declaredType;
+        // Update declared forward ref to the actual.
+        if( _declaredType.isFRef() && t instanceof TypeMemPtr tmp && !tmp.isFRef() )
+            _declaredType = tmp.withAccess(((TypeMemPtr)_declaredType)._ro);
+        Type rez = err()==null ? _declaredType.join(t) : _declaredType;
+        return ptr()._type.isFinal() || _declaredType.isFinal() ? rez.makeRO() : rez;
     }
 
     @Override
@@ -69,17 +72,19 @@ public class LoadNode extends MemOpNode {
         if( mem() instanceof StoreNode st &&
             _alias==st._alias && ptr == st.ptr() && off() == st.off() ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
-            return st.val();
+            return castRO(st.val());
         }
 
         // Simple Load-after-New on same address.
         if( mem() instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
             ptr == nnn.proj(0) ) // Must check same object
-            return nnn.in(nnn.findAlias(_alias)); // Load from New init
+            return castRO(nnn.in(nnn.findAlias(_alias))); // Load from New init
 
         // Load-after-Store on same address, but bypassing provably unrelated
         // stores.  This is a more complex superset of the above two peeps.
         // "Provably unrelated" is really weak.
+        if( ptr instanceof ReadOnlyNode ro )
+            ptr = ro.in(1);
         Node mem = mem();
         outer:
         while( true ) {
@@ -90,7 +95,7 @@ public class LoadNode extends MemOpNode {
                 break;
             case StoreNode st:
                 if( _alias==st._alias && ptr == st.ptr() && off() == st.off() )
-                    return st.val(); // Proved equal
+                    return castRO(st.val()); // Proved equal
                 // Can we prove unequal?  Offsets do not overlap?
                 if( _alias==st._alias && !off()._type.join(st.off()._type).isHigh() && // Offsets overlap
                     !neverAlias(ptr,st.ptr()) )                   // And might alias
@@ -103,7 +108,7 @@ public class LoadNode extends MemOpNode {
             case ProjNode mproj:
                 if( mproj.in(0) instanceof NewNode nnn1 ) {
                     if( ptr instanceof ProjNode pproj && pproj.in(0) == mproj.in(0) )
-                        return nnn1.in(nnn1.findAlias(_alias)); // Load from New init
+                        return castRO(nnn1.in(nnn1.findAlias(_alias))); // Load from New init
                     if( !(ptr instanceof ProjNode pproj && pproj.in(0) instanceof NewNode nnn2) )
                         break outer; // Cannot tell, ptr not related to New
                     mem = nnn1.mem();// Bypass unrelated New
@@ -122,7 +127,11 @@ public class LoadNode extends MemOpNode {
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
         if( mem() instanceof MemPhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
-            off() instanceof ConstantNode ) {
+            // Offset can be hoisted
+            off() instanceof ConstantNode &&
+            // Pointer can be hoisted
+            hoistPtr(ptr,memphi)  ) {
+
             // Profit on RHS/Loop backedge
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
@@ -135,17 +144,38 @@ public class LoadNode extends MemOpNode {
 
         return null;
     }
+
     private Node ld( int idx ) {
         Node mem = mem(), ptr = ptr();
         LoadNode ld = new LoadNode(_name,_alias,_declaredType,mem.in(idx),ptr instanceof PhiNode && ptr.in(0)==mem.in(0) ? ptr.in(idx) : ptr,off());
         ld.setDef(0,in(0));
         return ld.peephole();
     }
+
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {
         return ptr1.in(0) != ptr2.in(0) &&
             // Unrelated allocations
             ptr1 instanceof ProjNode && ptr1.in(0) instanceof NewNode &&
             ptr2 instanceof ProjNode && ptr2.in(0) instanceof NewNode;
+    }
+
+    private static boolean hoistPtr(Node ptr, PhiNode memphi ) {
+        // Can I hoist ptr above the Region?
+        if( !(memphi.region() instanceof RegionNode r) )
+            return false;       // Dead or dying Region/Phi
+        // If ptr from same Region, then yes, just use hoisted split pointers
+        if( ptr instanceof PhiNode pphi && pphi.region() == r )
+            return true;
+
+        // No, so can we lift this ptr?
+        CFGNode cptr = ptr.cfg0();
+        if( cptr != null )
+            // Pointer is controlled high
+            // TODO: Really needs to be the LCA of all inputs is high
+            return cptr.idepth() <= r.idepth();
+
+        // Dunno without a longer walk
+        return false;
     }
 
     // Profitable if we find a matching Store on this Phi arm.
@@ -156,6 +186,13 @@ public class LoadNode extends MemOpNode {
         if( px._type instanceof TypeMem mem && mem._t.isHighOrConst() ) return true;
         if( px instanceof StoreNode st1 && _alias==st1._alias && ptr()==st1.ptr() && off()==st1.off() ) return true;
         return false;
+    }
+
+    // Read-Only is a deep property, and cannot be cast-away
+    private Node castRO(Node rez) {
+        if( (ptr()._type.isFinal() || _declaredType.isFinal()) && !rez._type.isFinal() )
+            return new ReadOnlyNode(rez).peephole();
+        return rez;
     }
 
     // Memory writers which must follow this read. A packaging node is not a
