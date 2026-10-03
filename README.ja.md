@@ -54,7 +54,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第15章](docs/chapter15/README.ja.md)：静的な長さを持つ一次元配列型。配列のロードとストア。
 * [第16章](docs/chapter16/README.ja.md)：コンストラクタ。
 * [第17a章](docs/chapter17a/README.ja.md)：束縛の可変性、参照の権限、深い読み取り専用ビュー。
-* 第17b章：糖衣構文。`var`、`val`、`x+=y`、`for(init; test; next) body`。
+* [第17b章](docs/chapter17b/README.ja.md)：糖衣構文。`var`、`val`、`x+=y`、`for(init; test; next) body`。
 * 第18章：関数と呼び出し。
 * 第19章：命令選択と移植可能なコンパイル。
 * 第20章：グラフ彩色によるレジスタ割り当て。
