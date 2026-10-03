@@ -1,301 +1,359 @@
-# Chapter 18: Functions
+# Chapter 18: Functions and Calls
 
 [Previous: Chapter 17b](../chapter17b/README.md) |
 [Next: Chapter 19](../chapter19/README.md)
 
+Through Chapter 17b, a program has one body, with an input `arg` and a result.
+We can branch, loop, allocate objects, and update memory, but cannot yet break
+up the program into functions.  This chapter adds function values and calls,
+including recursive calls.
 
-# Table of Contents
+The graph representation builds on familiar pieces.  A function entry is a
+Region, its parameters are Phis, and its exits merge into one Return. Calls
+connect these pieces across function boundaries.  When a function has just one
+caller, removing that boundary lets ordinary peepholes simplify the combined
+graph: this is our first form of inlining.
 
-1. [FunctionTypes](#function-and-rpc-types)
-2. [Return Program Counters](#return-program-counters)
-3. [Functions](#functions)
-4. [CodeGen - The Compile Driver](#codegen---the-compile-driver)
-5. [Graph Visualizer](#graph-visualizer)
-6. [Memory across functions](#memory-across-functions)
+## Table of Contents
+
+1. [Writing functions](#writing-functions)
+2. [Functions in the graph](#functions-in-the-graph)
+3. [Memory across calls](#memory-across-calls)
+4. [Function types and call targets](#function-types-and-call-targets)
+5. [Inlining](#inlining)
+6. [Scheduling and execution](#scheduling-and-execution)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter18) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter17b...linear-chapter18) it to the previous chapter.
 
-I hardly know where to begin!  So many things changed here, mostly as indirect
-consequences of supporting functions.
+## Writing functions
 
-Highlights of the changes:
+A function expression lists typed parameters, followed by `->` and a body:
 
-- Function types, and a rework of the type lattice diagrams.
-- Return Program Counter types, or Return PC or RPC for short.
-- A distinguished `null` which can be used for functions, RPCs and struct pointers.
-- Functions themselves can be parsed and evaluated; recursive functions are supported.
-- Function calls work, call sites can link, and functions can be inlined.
-- The top-level is now a call to function `main`, and this changed most tests.
-- A top-level compile driver, which enforces optimization steps.
-- A local scheduler.
-- A new evaluator which relies on code motion, both global and local.
-- A graphic animated viewer for peepholes.
-
-Functions are *not* closures in this chapter; that brings about far more
-changes and subtle complexities than sensible for such a large chapter.
-
-Functions can only refer to out of scope variables if they are some final
-constant.  This generally includes e.g. recursive function pointers.
-
-
-## Function and RPC Types
-
-```
-{ argtype, argtype, ... -> rettype }
+```simple
+val sq = { int x -> x*x; };
+return sq(arg);
 ```
 
-A leading `{` character denotes the start of a function or function type, then
-a list of argument types, and an arrow `->` and the return type.
+The initializer creates a function value; the declaration binds it to `sq`.
+The call `sq(arg)` evaluates its argument, executes the body with that value
+bound to `x`, and yields the result.  The final expression supplies the result
+when execution reaches the end of the body. An explicit `return` can exit
+earlier.
 
-Function variables are normal variables and assigned the same way:
+A function type lists the parameter types and result type, without parameter
+names.  The same square function can be declared with an explicit type:
 
-`functiontype fcn = function-typed-expr;`
+```simple
+{int -> int} sq = { int x -> x*x; };
+return sq(4); // 16
+```
 
-and function typed variables can be inferred, so `val` and `var` on the left
-hand side is fine:
-
-`val sq = { int x -> x*x; };`
-
-Internally, functions have a `TypeTuple` for the arguments, a return `Type`,
-and a *function index* spelled as a `fidx` in the code.  Function indices are
-unique small dense integers, one per unique function.  They are mapped
-1-to-1 to the final code address of the generated function code.
-
-Function pointers can refer to more than one function with the same signature,
-and the `TypeFunPtr` tracks this as a bit set with the same tuple for signature
-and return.
-
-Function types can be `null` just like references.
-
-Functions cannot return `void`, but they can return `null` and have their
-return value ignored.  A syntactic sugar for void returns may be added in the
-future.
-
-
-### Return Program Counters
-
-Just like functions have a unique "function index" mapped one to one with
-function start addresses, call sites generate a unique "return program
-counter", one per unique call site.  These are required for the evaluator to return
-from functions without itself relying on the implementing language's
-(e.g. Java) stack.  This is the type for such values and `TypeRPC` is very
-similar to a `TypeFunPtr` except that the signature doesn't matter.
-
-In spirit, this is part of a `continuation` and would be required to do IR
-analysis of a hypothetical `call/cc` operation.  That is outside our current
-scope, so for now these are only used in the evaluator.
-
+Functions are anonymous values.  Assigning one to a variable can give it a name
+for diagnostics, but the binding follows the same rules as other variables.
+`val` infers a fixed binding; `var` infers a reassignable one.  Functions can
+be passed as arguments, returned as results, and selected by expressions.
 
 Parameters use the explicit declaration syntax from
 [Chapter 17a](../chapter17a/README.md): `!Point p` allows writes through a fixed
 parameter binding, `Point !p` allows reassignment of a read-only reference,
-and `int ~limit` fixes a primitive parameter. Inferred `var`/`val` parameters
-are not supported.
+and `int ~limit` fixes a primitive parameter.  Parameter types are required;
+`var` and `val` apply to the variable holding a function, not its parameters.
 
-## Functions
+### Returns and scope
 
-Functions themselves use the same syntax as function types, but filled in:
+The body has the same statements as the surrounding language. Here an early
+return finds the first matching array element:
 
-```
-{ flt x, flt y ->  // Signature
-  sqrt(x*x+y*y);   // Body
-}
-```
-
-Used in a declaration statement:
-```
-// TYPE        VAR  =   EXPR
-{flt,flt->flt} dist = { flt x, flt y ->
-  sqrt(x*x+y*y);
-}
-```
-
-With `var`:
-```
-var dist = { flt x, flt y -> sqrt(x*x+y*y); }
-```
-
-Functions are called in the usual way:
-`dist( 1.2, 2.3 ) // yields 2.59422435`
-
-Functions can have zero arguments, in which case the `->` argument separator is
-optional.  This allows any section of code to be "thunked" by wrapping it in
-`{}`.
-
-`just5 = { -> 5 } // With    arrow`
-
-`just5 = {    5 } // Without arrow`
-
-Called:
-`just5() // Returns 5`
-
-Functions are always anonymous.  When finally assigned to a variable, they will
-pick up the variable name for debugging and display purposes, but this has no
-semantic meaning.  Here is a function variable referring to more than one
-anonymous function; the resulting function either doubles or squares:
-
-`val fcn = arg ? { int x -> x+x; } : { int x -> x*x; };`
-
-`fcn(3) // Prints either 6 or 9, depending on arg`
-
-Functions can be recursive:
-```
-val fact = { int n ->
-  n <=1 ? n : n*fact(n-1);
-};
-return fact(4); // Returns 4! or 24
-```
-
-You can early return as normal out of functions:
-```
+```simple
 val find = { int[] es, int e ->
-  for( int i=0; i<es#; i++ )
-    if( es[i] == e )
-      return i;  // Found matching element, return the index
-  return -1;     // Return -1 for not-found
+    for( int i=0; i<es#; i++ )
+        if( es[i] == e )
+            return i;
+    return -1;
 };
-return find;
+val es = new int[3];
+es[0] = 7;
+es[1] = 9;
+return find(es,9); // 1
 ```
 
-`FunNodes` define functions, have a pointer to the one `ReturnNode` (which
-itself has a back pointer to the `Fun`), extend a `RegionNode` and are followed
-by `ParmNodes` which themselves extend `PhiNodes`.  All `Calls` which reach a
-`Fun` merge all their arguments into the `Parms`; there is an extra `Parm` for
-memory and for the return point back to the `CallEnd`: a RPC.  So a `Fun` is
-basically a fancy merge point, merging all calls that reach here.
+All reachable results of one function must have a common type. This is checked
+after optimization, so an unreachable return does not cause a type error.
+There is no `void` type although a function can return `null` with no syntax,
+and callers can ignore a result by using the call as a statement.
 
-Unlike prior chapters, all the `returns` from a single function are gathered
-together into a single `ReturnNode` point, and they must all be of the same
-general type.  `Returns` take in a Control, a Memory, a return value, and the
-`RPC` that was handed to the function when called.
+Functions do not capture an enclosing function's local variables.  An outer
+binding is accessible only when it is fixed and its value is a compile-time
+constant.  For example:
 
-When looking at the returned IR, the `StopNode` now reports one return for each
-function, including `main`:
-`Stop[ return find; return Phi(Region,int,-1); ]`
+```simple
+val offset = 2;
+val addOffset = { int x -> x+offset; };
+return addOffset(arg);
+```
 
-### Functions and Memory
+Changing `val offset` to `int offset` makes the binding mutable and the function
+definition is rejected.  Likewise, `val offset = arg` is fixed but not constant,
+so it cannot be used from the nested function.  Fixed function constants satisfy
+this rule, allowing one function to refer to another without capturing a frame.
 
-Functions start with all of memory on a `Parm` (which extends `Phi`) and having
-an argument `_idx` of 1, and return all of memory on the `Return` whioh takes
-as inputs `{Control, Memory, Expr, RPC}` - except for the new `RPC`, unchanged
-from before.  In the middle of the function, the normal alias slicing proceeds,
-sharpening memory information locally.  A later chapter will introduce the
-notion of *escaped* aliases, and allow simple functions to not take in and
-clobber all of memory.
+### Recursion
 
+A function can refer to its own binding:
 
-## Calls
+```simple
+val fact = { int n ->
+    n <= 1 ? 1 : n*fact(n-1);
+};
+return fact(arg);
+```
 
-Calls have the usual syntax: `fcn(3)`.  Internally a `CallNode` takes in
-Control, Memory, all the normal arguments, and a hidden last argument which is
-the function pointer.  For calls to named functions this last argument will be
-a `ConstantNode` of the named function type, but in general it can be the
-result of any function-typed expression.
+The parser registers the function entry before parsing its body. A forward
+reference to `fact` is resolved when the declaration receives its function
+value.  Recursive calls can then find the same entry as calls from outside.
+Return-type inference is still pessimistic in this chapter; mutually recursive
+definitions can require the stronger analysis introduced with SCCP in
+[Chapter 24](../chapter24/README.md).
 
-The call arguments passed to the matching `ParmNode`s in the function,
-with the `Call`s constant `RPC` being passed to the matching RPC `Parm`.
+## Functions in the graph
 
-After a `Call` is a `CallEndNode`, internally abbreviated as `cend`.  The
-`CallEnd` will take the `Call` as an input, and also every *linked* function:
-functions the call-site *knows* it will call.  This will be expanded later to
-be a conservative approximation to the *Call Graph*, with each `CallEnd`
-*linked* to every function it *may* call; if a function is not linked it can
-not be called from here.  This requires a global analysis (fast, cheap,
-incremental, and global) which shows up in [Chapter24](../chapter24/README.md),
-[SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation).
-So for the moment we only link exact constant functions.
+Until now, `Start` supplied the input to one program body. We now parse that
+body as an implicit `main` with an integer parameter `arg`.  The evaluator
+enters `main` from `Start` and delivers its result to the outside world.
+Existing programs therefore keep their source syntax while acquiring the same
+function representation as explicitly declared functions.
 
-If a call site is linked to a single function, and that single function is only
-called by this one call site (its function pointer is only used here, obvious
-from GVN) then the function inlines in the IR.
+### Entries, parameters, and exits
 
-[edit note: needs before/after graph of trivial inlining]
+[FunNode](src/main/java/com/seaofnodes/simple/node/FunNode.java) extends
+`RegionNode`. Where a Region merges control from different branches, a Fun
+merges control from different callers.  A linked call supplies one incoming
+control edge.
 
-Like `Start`, `CallEnd`s are followed by projections for Control, Memory and the return value.
+[ParmNode](src/main/java/com/seaofnodes/simple/node/ParmNode.java) extends
+`PhiNode`.  Each parameter selects the argument belonging to the incoming call,
+just as a Phi selects the value belonging to an incoming branch.  The parameter
+index identifies what the caller supplies:
 
+| Parameter index | Value |
+|---|---|
+| 0 | Return point: where execution resumes in the caller |
+| 1 | Whole memory |
+| 2 onward | Source-language arguments |
 
-### Calls and Linking
+Each function also has an implicit unknown caller, represented by `Start`.
+It supplies the declared parameter types and unknown memory.  This keeps the
+entry conservative while calls are still being discovered.
 
-When Simple starts parsing code, the target of a call is generally unknown;
-likewise a function has to assume any call can reach it.  This is a very weak
-knowledge about a Call Graph, and this knowledge usually gets sharper very
-quick: most calls are to known fixed functions... but not always.  And for
-functions, its generally harder to know that a function pointer is never called.
+Every source-level `return` contributes to one exit Region. A value Phi merges
+the results, and a BulkMemPhi merges their memory states. The resulting
+[ReturnNode](src/main/java/com/seaofnodes/simple/node/ReturnNode.java) has inputs
+`{control, memory, value, return point}`.  A single exit often folds away the
+Region and Phis. `Stop` retains the functions' Returns, including `main`'s.
 
-So taking these contrainsts together, we can imagine building a call graph by
-linking all call sites to all functions.  Here *linking* means the actual call
-arguments are fed into the `Parm`s for the functions; the function `Return`
-feeds into the `CallEnd`, and we can imagine flowing type information across
-the caller/callee border.  But this immediately requires `O(n^2)` edges - 
-every call is linked to every function, and there are `O(n)` of each.  
+This gives each function a single entry and a single merged exit even when its
+body contains branches, loops, and several return statements.
 
-To avoid this `O(n^2)` graph growth, Simple assumes that all calls *start*
-linked to all functions, we just don't include the edges (yet).  `FunNode`
-includes a `hasUnknownCallers` call just for this situation, and this
-means all `Parms` on all functions assume the worst possible callers will
-be calling... so their arguments all default to their known types.
+### Calls and return points
 
-Similarly, all `Calls` assume they call all functions, and take return
-values from all functions... so their return type is computed from 
-their function signature instead of from some actual `Return`.
+[CallNode](src/main/java/com/seaofnodes/simple/node/CallNode.java) takes inputs
+`{control, memory, arguments..., function pointer}`. The final input determines
+the target; it can be a constant function or the result of a function-valued
+expression.  Argument expressions are evaluated before the Call takes its
+control and memory inputs.
 
-If we later discover a sharp target for a call (i.e., any call to a named
-function, such as `fcn(3)`), we can refine the returned value to what the
-function actually returns - maybe e.g. the function ends in `return null;` and
-the CallEnd can use that information!  Similar for functions, if the function
-is private, and never escapes, we might discover that its called from a limited
-set of places - and so its arguments might be more precisely known.
+Each Call has a [CallEndNode](src/main/java/com/seaofnodes/simple/node/CallEndNode.java),
+the point where its caller continues.  CallEnd takes the Call and the Returns
+of linked targets as inputs.  Its projections provide control, memory, and the
+result, in slots 0, 1, and 2 respectively.
 
-In the same SCCP mentioned above we will refine the set of function pointers
-flowing around the graph, and thus **who** calls **what**.  At that point we
-generally do NOT have an `O(n^2)` Call Graph, so we will make the prior assumed
-call edges "all-calls-all", into concrete and precise edges, building a real
-Call Graph (which we will promptly use to optimize across function/call
-borders).  This all comes in [Chapter24](../chapter24/README.md).  For now,
-we assume all-calls-all unless we can locally prove otherwise, and our
-calling situation remains very conservative.
+The callee needs to know which CallEnd to return to.  Its hidden parameter 0
+carries that return point through the body to the Return. `TypeRPC`, short for
+*return program counter*, describes sets of possible return points, much as
+function-pointer types describe sets of possible entries.  These are internal
+values; a source program does not declare RPC variables.
 
+Call-graph edges describe which functions a call may reach.  They are distinct
+from the control flow within one function: walking the graph typically requires
+taking care around calls and functions, as most walks are only valid from within
+a single function.
 
-### Calls and Memory
+## Memory across calls
 
-Calls take in all of memory, and return all of memory - a very conservative
-approach.  Inlining can sharpen the alias information (at the cost of code
-growth), via the normal memory peepholes applying to a larger and less
-constrained graph (no Call after inlining!).  Like the functions above, a later
-chapter will explore the notion of escaping aliases, and can allow call sites
-to be less conservative about memory.
+Earlier chapters split memory lazily by field alias.  That still happens within
+a function, but a function's entry memory is unknown: an argument may refer to
+an object allocated and modified by its caller.  We can no longer assume that
+the incoming heap is empty.
 
+A Call receives the complete memory state, including any slices packaged in a
+MemMerge.  Its CallEnd produces a new whole-memory value.  This chapter treats
+every call as potentially modifying every alias; knowing which function is
+called does not yet provide a summary of which fields it writes.
 
-## CodeGen - The Compile Driver
+```simple
+struct Counter { int n; };
+val bump = { !Counter p -> p.n++; return null; };
+val p = new Counter;
+int before = p.n;
+bump(p);
+bump(p);
+return before*10+p.n; // 2
+```
 
-There is now a top-level compile driver that enforces a phase ordering, and
-allows multiple compilations; the Fuzzer uses this to compare various generated
-programs.  The phases (for now) are:
+The first read of `p.n` observes its initialized value. The final read must use
+memory after both calls; it cannot reuse the first read.  The two calls also
+remain ordered by their memory inputs and outputs.  The writable parameter
+permission allows the updates, while the memory edges record when they occur.
 
-- *Parse* - Convert program text to Simple IR
-- *Opto* - General optimizations; for now iterate peepholes.
-- *TypeCheck* - Error checking after all types have propagated.  This mostly
-  reports on failed null checks.
-- *Schedule* - Global Code Motion scheduler.  After this phase, all nodes belong
-  in some basic block, with the normal suspect CFGNodes being basic blocks.
-- *LocalSched* - a local scheduler.  It's completely naive, except it enforces
-  some required rules: Phis appear at block heads, branches at block exits.
-  There's room in the algorithm for a much more sophisticated list scheduler.
-  The `Eval2` evaluator requires this information.
-- *RegAlloc* - Not implemented (yet).
+Inside a function, MemMerge, MemPhi, and BulkMemPhi continue to expose precise
+slices and merge branch or loop states.  At the boundary, memory Parm 1 and the
+CallEnd memory result stay opaque.  Global code motion respects a call as a
+possible writer when placing Loads.  Calls end their blocks, so a Load that
+must precede a Call is scheduled before that terminator.
 
-Several globals moved from the Parser to CodeGen, and probably several others
-ought to move here.
+Inlining removes the call boundary and exposes its actual Loads and Stores
+to the existing alias optimizations.  More precise effects for calls that remain
+in the graph require later escape analysis.
 
-There is a very nice `toString()` here; hovering over the `code` variable in
-the debug window will pretty-print the IR "as if" globally scheduled, and the
-code becomes very readable.
+## Function types and call targets
 
+[TypeFunPtr](src/main/java/com/seaofnodes/simple/type/TypeFunPtr.java) records
+an argument tuple, a result type, nullability, and a set of function indices
+(`fidxs`). Within an argument signature, each function gets a small integer
+index. A bit set can then describe one known function or several possible
+functions with that signature. `CodeGen` maps a concrete function identity to
+its FunNode; no machine code address is needed to execute this chapter's IR.
 
-## Eval2 - A new Evaluator
+For example, both arms below have type `{int -> int}`, but different function
+indices:
 
-There is now a second evaluator that uses the scheduling information to
-evaluate in a very straightforward way.  Essentially the normal IR nodes are
-treated like a special "machine instruction set" with infinite registers, and a
-globally correct schedule.  This evaluator supports functions and calls (and
-recursive calls).
+```simple
+val f = arg ? { int x -> x+x; } : { int x -> x*x; };
+return f(3); // 6 when arg is nonzero, otherwise 9
+```
+
+The Phi for `f` combines the two function-pointer types.  Its set of targets
+contains both functions; choosing a function does not execute its body.
+
+Function pointers can also be nullable, using the familiar `?` suffix:
+
+```simple
+{int -> int}? f = arg ? { int x -> x*x; } : null;
+if( f ) return f(3);
+return 0;
+```
+
+The guard proves the pointer non-null at the call. A call also checks its
+argument count, types, and access permissions. Struct pointers and function
+pointers share the distinguished `null` value, represented by `Type.NIL`;
+`TypeNil` supplies their common nullability machinery.
+
+### Linking known targets
+
+Here *linking* means adding IR edges between a call and a function. It is not
+object-file linking. For each known target, the compiler adds the Call as an
+input to the Fun, adds arguments to its Parms, and adds its Return as an input
+to the CallEnd. Corresponding input positions preserve the relationship
+between a caller and its arguments.
+
+This chapter already links finite sets of known targets, including both
+functions in the conditional example above.  The infinite set that still
+includes unknown functions cannot be enumerated.  We avoid representing that
+uncertainty with edges from every call to every function, which would grow
+quadratically.
+
+Instead, a Fun retains its *unknown-caller* input.  Its parameters must accept
+their declared types even when the calls found so far pass constants.  Finding
+one caller is not proof that no other callers exist!  Similarly, CallEnd obtains
+its result type from the function-pointer type and keeps its memory result
+unknown.  Linked Return edges alone do not remove these conservative assumptions.
+
+Inlining relies on a local proof that a function has only one caller.  The later
+SCCP chapter develops stronger analysis of which functions and calls are
+reachable, allowing more information to flow across boundaries that remain.
+
+## Inlining
+
+Consider a function whose value is used by exactly one call:
+
+```simple
+val inc = { int x -> x+1; };
+return inc(arg);
+```
+
+Once this call links to `inc`, CallEnd can prove that it has one target and
+that the target has no other uses of its function pointer. With valid
+arguments and no self-recursive call, the function body can become part of
+the caller.
+
+| Before inlining | After inlining |
+|---|---|
+| ![The call supplies arg to inc's parameter and receives its sum.](docs/inline-before.svg) | ![The same Add uses arg directly and supplies main's return.](docs/inline-after.svg) |
+
+These are schematic slices of the graph, with stable node IDs across the
+rewrite.  They show the argument, result, and linking edges; the surrounding
+control flow, memory, and RPC plumbing are omitted.  The `int` input to `Parm_x`
+represents the unknown caller's argument before inlining.
+
+The rewrite removes the unknown-caller path and connects the function entry to
+the call's incoming control.  Ordinary Region and Phi simplifications then
+replace the parameter with the actual argument.  CallEnd's projections become
+the callee's returned control, memory, and value.  The Call, function boundary,
+and return-point machinery disappear as their uses disappear.
+
+The Add remains, but now consumes `arg` directly. If the argument had instead
+been `3`, the same constant-folding rules used since Chapter 2 would produce
+`4`.  Loads and Stores exposed by inlining can similarly simplify using the
+existing memory rules.
+
+This form of inlining moves a body with one caller into that caller; it does
+not clone the body for several call sites.  A recursive function such as
+`fact` retains its calls and is handled by the evaluator.
+
+## Scheduling and execution
+
+New in this chapter is
+[CodeGen](src/main/java/com/seaofnodes/simple/CodeGen.java) which owns the
+compilation process and its function lookup table. It enforces the phase order:
+
+| Phase | Purpose |
+|---|---|
+| Parse | Build the functions and calls directly in the IR. |
+| Opto | Iterate peepholes, including call linking and trivial inlining. |
+| TypeCheck | Check the surviving graph after types and dead control have settled. |
+| Schedule | Use global code motion to place operations in basic blocks. |
+| LocalSched | Order operations within each block for execution. |
+
+For example:
+
+```java
+CodeGen code = new CodeGen("val sq = { int x -> x*x; }; return sq(arg);");
+code.parse().opto().typeCheck().GCM().localSched();
+```
+
+Global code motion extends the work of [Chapter 13](../chapter13/README.md) to
+multiple functions.  It keeps their bodies separate, gives shared constant
+expressions a local copy in each function that uses them, and respects memory
+effects across calls.
+
+[ListScheduler](src/main/java/com/seaofnodes/simple/ListScheduler.java) then
+orders each block.  It counts unscheduled local dependencies, chooses a ready
+operation, and makes its users ready as their dependencies are satisfied.  Phis
+belong at entry and control transfers at exit.  There is room for all sorts of
+improvements - there is no machine timing model here, but this is out of scope
+for this chapter.  The goal remains a legal execution order.
+
+[Eval2](src/test/java/com/seaofnodes/simple/Eval2.java) executes that schedule,
+treating IR operations as instructions with an unlimited supply of value
+slots. Each invocation has its own frame, so recursive invocations of the same
+nodes keep distinct values. At a call it saves the caller's frame and return
+point, creates a callee frame, and transfers to the selected function. At a
+return it restores the caller and delivers the value to its CallEnd. At a
+Region, it reads all selected Phi inputs before assigning any results, so
+parallel assignments remain correct.
+
+We now have an executable program made of scheduled functions, still expressed
+in machine-independent operations. [Chapter 19](../chapter19/README.md) inserts
+instruction selection before scheduling: those ideal operations become
+instructions for a chosen CPU, with its register constraints and calling
+convention.
