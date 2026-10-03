@@ -110,7 +110,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
      * @param new_def the new definition
      * @return new_def for flow coding
      */
-    public Node setDef(int idx, Node new_def ) {
+    public <N extends Node> N setDef(int idx, N new_def ) {
         unlock();
         Node old_def = in(idx);
         if( old_def == new_def ) return new_def; // No change
@@ -221,6 +221,10 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     public <N extends Node> N unkeep() { delUse(null); return (N)this; }
     // Test "keep" status
     public boolean iskeep() { return _outputs.find(null) != -1; }
+    public void unkill() {
+        if( unkeep().isUnused() )
+            kill();
+    }
 
     // Replace self with nnn in the graph, making 'this' go dead
     public void subsume( Node nnn ) {
@@ -232,6 +236,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
             n._inputs.set(idx,nnn);
             n.moveDepsToWorklist(); // Rewiring can change a dependent query without changing type.
             nnn.addUse(n);
+            IterPeeps.addAll(n._outputs);
         }
         kill();
     }
@@ -366,7 +371,7 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
      * And more folding:
      * <pre>   ary + ((idx<<2) + 16)</pre>
      * And during code-gen:
-     * <pre>   MOV4 Rary,Ridx,16 // or some such hardware-specific notation </pre>
+     * <pre>   MOV4 Rary,[Ridx<<2 +16] // or some such hardware-specific notation </pre>
      * <p>
      * {@link #idealize} has a very specific calling convention:
      * <ul>
@@ -497,9 +502,6 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     /** Is this Node Memory related */
     public boolean isMem() { return false; }
 
-    /** Return block start from a isCFG() */
-    public Node getBlockStart() { return null; }
-
     // Semantic change to the graph (so NOT a peephole), used by the Parser.
     // If any input is a float, flip to a float-flavored opcode and widen any
     // non-float input.
@@ -585,9 +587,8 @@ public abstract class Node extends BaseNode<Node> implements OutNode, Cloneable 
     private static final BitSet WVISIT = new BitSet();
     final public <E> E walk( Function<Node,E> pred ) {
         assert WVISIT.isEmpty();
-        E rez = _walk(pred);
-        WVISIT.clear();
-        return rez;
+        try { return _walk(pred); }
+        finally { WVISIT.clear(); }
     }
 
     private <E> E _walk( Function<Node,E> pred ) {
