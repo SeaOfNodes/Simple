@@ -20,8 +20,8 @@ public class Chapter21Test {
 
     @Test public void testReadBeforeConditionalStore() {
         var code = new CodeGen("""
-            struct S { int x; }; S !a=new S; S !b=new S;
-            a.x=10; b.x=20; S !p=a; if(arg&1) p=b;
+            struct S { int x; }; !S !a=new S; !S !b=new S;
+            a.x=10; b.x=20; !S !p=a; if(arg&1) p=b;
             int sum=0;
             for(int i=0; i<6; i++) {
                 sum+=a.x;
@@ -222,7 +222,7 @@ public class Chapter21Test {
 
     @Test public void testNarrowStores() throws IOException {
         for( String type : new String[]{"i8","u8","i16","u16"} ) {
-            String src = "struct S { "+type+" x; }; S !s = new S; s.x = arg; return 0;";
+            String src = "struct S { "+type+" x; }; !S !s = new S; s.x = arg; return 0;";
             CodeGen code = new CodeGen(src).driver("riscv","SystemV",null);
             int stores=0;
             for( var bb : code._cfg )
@@ -335,7 +335,7 @@ public class Chapter21Test {
     }
 
     @Test public void testInfinite() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++;";
+        String src = "struct S { int i; }; !S !s = new S; while(1) s.i++;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");
@@ -365,7 +365,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """
 struct S { int f; };
 var v0 = new S;
-S? v1;
+!S? !v1;
 if (arg) v1 = new S;
 if (v1) {
     v0.f = v1.f;
@@ -384,12 +384,12 @@ return v0;
         String src =
 """
 struct String {
-    u8[] cs;
+    u8[] !cs;
     int _hashCode;
 };
 
 // Compare two Strings
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -399,13 +399,13 @@ val equals = { String self, String s ->
 };
 
 // Return the String hashCode (cached, and never 0)
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     for( int i=0; i< self.cs#; i++ )
         hash = hash*31 + self.cs[i];
@@ -422,12 +422,12 @@ val _hashCodeString = { String self ->
         String src =
 """
 struct String {
-    u8[] cs;
+    u8[] !cs;
     int _hashCode;
 };
 
 // Compare two Strings
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -437,13 +437,13 @@ val equals = { String self, String s ->
 };
 
 // Return the String hashCode (cached, and never 0)
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     for( int i=0; i< self.cs#; i++ )
         hash = hash*31 + self.cs[i];

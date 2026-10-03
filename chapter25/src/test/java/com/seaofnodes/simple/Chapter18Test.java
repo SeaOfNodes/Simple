@@ -318,7 +318,7 @@ return 2;
     public void testFcn8() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? _i2i = null;
+{int -> int}? !_i2i = null;
 var _id = {{int->int} f-> return f;};
 for(;;) {
     if (_i2i) return _i2i(arg);
@@ -336,7 +336,7 @@ for(;;) {
     public void testFcn9() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? i2i = null;
+{int -> int}? !i2i = null;
 for(;;) {
     if (i2i) return i2i(arg);
     var x = {int i-> return i;};
@@ -357,13 +357,13 @@ struct _Person {
   int age;
 };
 
-val _fcn = { _Person?[] ps, int x ->
+val _fcn = { !_Person?[] !ps, int x ->
   val tmp = ps[x];
   if( ps[x] )
     ps[x].age++;
 };
 
-var ps = new _Person?[2];
+var ps = new !_Person?[2];
 ps[0] = new _Person;
 ps[1] = new _Person;
 return _fcn(ps,1);
@@ -475,7 +475,7 @@ struct S {
     { int } f = { -> return x(); };
 };
 val x = { -> return 1; };
-S? s = null;
+!S? !s = null;
 for(;;) {
     if (s) return s.f;
 }
@@ -509,7 +509,7 @@ return _f2f(_o)(1);
 struct _Person {
     int coffee_count;
 };
-_Person !p = new _Person;
+!_Person !p = new _Person;
 p.coffee_count += 1;
 return p.coffee_count;
 """);

@@ -35,7 +35,7 @@ public class ConvertNode extends Node {
         Type src = val()._type;
         if( CodeGen.CODE._phase == CodeGen.Phase.Opto ) {
             if( src.isHigh() ) return Type.TOP;
-            if( src.isa(_dst) ) return src;
+            if( (src.isa(_dst) && src.accessISA(_dst)) ) return src;
         }
         return _dst;
     }
@@ -43,7 +43,7 @@ public class ConvertNode extends Node {
     @Override public Node idealize() {
         Type src = val()._type;
         if( src==Type.BOTTOM || src==Type.TOP ) return null;
-        if( src.isa(_dst) ) return val();
+        if( (src.isa(_dst) && src.accessISA(_dst)) ) return val();
 
         // Managed arrays are represented by an object pointer, while C wants
         // the address of the first element.  The representation cast itself is

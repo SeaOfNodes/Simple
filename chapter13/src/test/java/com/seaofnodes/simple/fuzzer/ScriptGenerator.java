@@ -87,21 +87,7 @@ public class ScriptGenerator {
 
     }
 
-    private static final Type TYPE_FLT = new Type("flt");
-
-    private static class TypeInt extends Type {
-
-        TypeInt() {
-            super("int");
-        }
-
-        @Override
-        boolean isa(Type other) {
-            return super.isa(other) || other == TYPE_FLT;
-        }
-    }
-
-    private static final Type TYPE_INT = new TypeInt();
+    private static final Type TYPE_INT = new Type("int");
 
 
     private static class Variable {
@@ -368,7 +354,6 @@ public class ScriptGenerator {
     private Type getType(boolean allowForward) {
         int t = random.nextInt(10);
         if( t<5 || structs.isEmpty() ) return TYPE_INT;
-        if( t<7 ) return TYPE_FLT;
         if (allowForward && random.nextInt(10)==0) {
             int i=random.nextInt(forwardStructs.size()+1);
             if (i>0) return forwardStructs.get(i-1).nullable;
@@ -725,7 +710,7 @@ public class ScriptGenerator {
      */
     public void genExpression(Type type, boolean change) {
         if (change && generateInvalid()) type = getType();
-        if (type != TYPE_INT && type != TYPE_FLT) {
+        if (type != TYPE_INT) {
             genUnary(type, false);
             return;
         }
@@ -742,7 +727,7 @@ public class ScriptGenerator {
      */
     public void genUnary(Type type, boolean change) {
         if (change && generateInvalid()) type = getType();
-        if (type != TYPE_INT && type != TYPE_FLT) {
+        if (type != TYPE_INT) {
             genSuffix(type, false);
             return;
         }
@@ -822,15 +807,14 @@ public class ScriptGenerator {
      */
     public void genConst(Type type) {
         if (generateInvalid()) type = getType();
-        if (type == TYPE_INT || (type == TYPE_FLT && random.nextBoolean())) {
+        if (type == TYPE_INT) {
             var rand = random.nextInt(10);
             switch (rand) {
                 case 0 -> sb.append("true");
                 case 1 -> sb.append("false");
                 default -> sb.append(random.nextInt(1<<(rand-2)));
             }
-        } else if (type == TYPE_FLT) {
-            sb.append(random.nextFloat());
+
         } else if (type instanceof TypeNullable n) {
             if ((n.base instanceof TypeStruct s && s.fields == null) || random.nextBoolean()) {
                 sb.append("null");

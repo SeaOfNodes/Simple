@@ -2,7 +2,7 @@
 // An implementation of
 // https://sampleprograms.io/projects/dijkstra/
 
-val shortestPath = { sys.aryi64 matrix, int nodes, int src, int dst ->
+val shortestPath = { !sys.aryi64 matrix, int nodes, int src, int dst ->
     i64 infinity = (1 << 63)-1;
     var dist = new i64[nodes];
     var visited = new sys.adt.bitset();

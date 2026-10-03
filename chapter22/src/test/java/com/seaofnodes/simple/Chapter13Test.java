@@ -1,262 +1,553 @@
 package com.seaofnodes.simple;
-
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.print.IRPrinter;
+
+
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 public class Chapter13Test {
+
+    // A placeholder test used to rapidly rotate through fuzzer produced issues
     @Test
-    public void testJig() {
+    public void testFuzzer() {
         CodeGen code = new CodeGen(
 """
-return 3.14;
+while(---- -arg) {
+    while(-arg) {
+        while(-----arg*---0) {
+                int N=--false==false<--arg;
+                while(N<-4==N) {
+                    N=N+N;
+                }
+            }
+        {
+            int kzEl_r7EYz=3*----0!=-arg<(37*--97!=0/arg==arg)<=-(--arg!=0);
+            while(kzEl_r7EYz<---1) {
+                kzEl_r7EYz=kzEl_r7EYz+kzEl_r7EYz*arg>=24;
+                if(7) continue;
+                kzEl_r7EYz=false;
+                if(-kzEl_r7EYz+arg<-3) continue;
+                else {
+                    while(kzEl_r7EYz) continue;
+                    arg=----3;
+                    kzEl_r7EYz=-(-----arg*1>-kzEl_r7EYz);
+                    int v2uF_4ba=9;
+                }
+            }
+        }
+        int pjcp7rv=arg;
+        {
+            int m2ya3=--arg-pjcp7rv;
+            while(m2ya3<-----pjcp7rv>=pjcp7rv+--pjcp7rv!=---pjcp7rv!=-arg<---(-m2ya3)>m2ya3<=-----true>14!=--m2ya3) {
+                m2ya3=m2ya3+-(--0<=false<pjcp7rv/arg<=-true);
+                while((--m2ya3)<--arg<-----arg*false!=arg<pjcp7rv*arg) {
+                    pjcp7rv=-3+-arg;
+                    break;
+                }
+                while(-3) {
+                    while(67+0-61) m2ya3=m2ya3;
+                    if(----pjcp7rv==---(---arg)) pjcp7rv=0!=-23;
+                    else pjcp7rv=----89;
+                    while(m2ya3!=m2ya3<pjcp7rv) m2ya3=1;
+                    while(--arg<=pjcp7rv) pjcp7rv=-32<=-m2ya3+62;
+                }
+                break;
+            }
+        }
+        {
+            int arg=-1<-9!=(-arg>=-pjcp7rv>=arg<=arg);
+            while(arg<-arg) {
+                arg=arg+--arg;
+                {
+                    while((--93)--pjcp7rv*-pjcp7rv+arg) arg=0-(6>=(--(---41/(0))!=--pjcp7rv)>=---2*33);
+                    pjcp7rv=11;
+                    int c=pjcp7rv;
+                    if(--107) break;
+                    else break;
+                }
+            }
+        }
+        pjcp7rv=pjcp7rv;
+        int aR0Wkua=-pjcp7rv==pjcp7rv;
+        {
+            if(-0!=-0) while(-true) break;
+            else {
+                while(aR0Wkua) pjcp7rv=-0/pjcp7rv;
+                pjcp7rv=pjcp7rv;
+            }
+        }
+    }
+    if(-arg) {
+        {
+            int Isdlt0fr91=0!=arg;
+            while(Isdlt0fr91<-Isdlt0fr91==-Isdlt0fr91+true) {
+                Isdlt0fr91=Isdlt0fr91+-1!=true;
+                if(-arg) if(--arg<=Isdlt0fr91) Isdlt0fr91=-Isdlt0fr91;
+                int i=---arg<---arg!=--40;
+                {
+                    int jVX43Ln4Dm=-(6)==-Isdlt0fr91/----0;
+                    while(jVX43Ln4Dm<--(3-3)) {
+                        jVX43Ln4Dm=jVX43Ln4Dm+-0<25;
+                        i=24<--(jVX43Ln4Dm);
+                    }
+                }
+                i=(arg!=----false>=7);
+                int Te=5>-arg;
+                break;
+            }
+        }
+        arg=arg!=--true/arg;
+        {
+            int UX=arg;
+            while(UX<-3*arg) {
+                UX=UX+arg/-1;
+                arg=-3--(-UX- -47<arg==--arg==arg)/arg- -UX>=-arg;
+                if(---12) while(-UX) break;
+                break;
+            }
+        }
+        continue;
+    }
+    if(arg) arg=--0;
+    else if(1) continue;
+    int DtTlhjYq=19==arg;
+    {
+        arg=--DtTlhjYq<=(DtTlhjYq/---DtTlhjYq<=-DtTlhjYq);
+        if(---arg) continue;
+        else {
+                int Zsl=40;
+                while(Zsl<--Zsl--false>((Zsl))==Zsl!=--DtTlhjYq-DtTlhjYq-DtTlhjYq) {
+                    Zsl=Zsl+arg;
+                }
+            }
+        if((arg)) if(-DtTlhjYq) {
+            }
+            else while(((2)==3*arg/DtTlhjYq)<=0==---arg) return false;
+        else {
+                int lwbF=arg>=0;
+                while(lwbF<57) {
+                    lwbF=lwbF+--(-arg+lwbF)>=-2>=arg!=arg;
+                    arg=----0+0;
+                    while(49) break;
+                    if(true) DtTlhjYq=-----arg;
+                    DtTlhjYq=0!=-----(0);
+                }
+            }
+        arg=---arg!=DtTlhjYq/--0;
+        DtTlhjYq=-DtTlhjYq/(--arg<arg);
+        if(32) {
+                int q=-DtTlhjYq;
+                while(q<arg*(0*q)/0) {
+                    q=q+DtTlhjYq;
+                    DtTlhjYq=arg;
+                }
+            }
+        else if(--arg) if(15) break;
+                else arg=0==arg<=-55>DtTlhjYq;
+            else {
+            }
+        DtTlhjYq=-0;
+        {
+            while((0)<-arg) DtTlhjYq=-DtTlhjYq;
+        }
+        if(30/--(arg)>=0) DtTlhjYq=-0>=arg;
+        else {
+            int Y2wcIQJ=--DtTlhjYq*---11;
+            if(arg==arg) {
+                Y2wcIQJ=-----Y2wcIQJ;
+                Y2wcIQJ=Y2wcIQJ<7;
+                if(DtTlhjYq) arg=arg;
+                else break;
+                while(-arg!=-31==(false<=-15>=-DtTlhjYq+--6*-----Y2wcIQJ<=---arg!=-Y2wcIQJ<=---0<-arg*--Y2wcIQJ)) DtTlhjYq=arg!=3;
+            }
+            continue;
+        }
+        arg=DtTlhjYq;
+        arg=--3/(---arg)>=80>=-DtTlhjYq<=DtTlhjYq;
+        arg=51+---(-true)!=arg!=----1==-DtTlhjYq;
+        if(11<=arg) if((arg)+79<32+(-arg)) continue;
+            else if(true==DtTlhjYq) break;
+        break;
+    }
+}
+if(arg!=62==arg) {
+    while(---arg) {
+        {
+            int bhmDacPM=arg/arg;
+            while(bhmDacPM<arg) {
+                bhmDacPM=bhmDacPM+80*((-bhmDacPM)/---bhmDacPM>1)<bhmDacPM-2!=7;
+                arg=-0;
+                arg=bhmDacPM>=-arg+-arg;
+                break;
+            }
+        }
+        int arg=true;
+        arg=arg<=arg;
+        {
+            int KlC=30;
+            while(KlC<-2) {
+                KlC=KlC+-1!=25<=-KlC>KlC>----0;
+                int Ij=arg>=-arg<=---10;
+                {
+                    int LAbgurVa2R=-arg!=Ij;
+                    while(LAbgurVa2R<-true) {
+                        LAbgurVa2R=LAbgurVa2R+Ij;
+                        KlC=-LAbgurVa2R;
+                        Ij=42*(-Ij>true);
+                        while(Ij) arg=KlC;
+                        KlC=-----7>-(--KlC<--7)==-LAbgurVa2R;
+                    }
+                }
+                int a=Ij<=-KlC;
+                if(Ij) {
+                    int r1W=a!=-false;
+                }
+                else {
+                    arg=56>=Ij;
+                    while(54) break;
+                    arg=8>=-(a<--Ij)/a>=-a-KlC;
+                }
+                int Yt_T=KlC;
+                arg=KlC;
+            }
+        }
+        if(----false/--arg/12+-----0) if(-9+-arg) while(arg!=(arg)) arg=--1>=-71-arg!=---(--arg*11+102)/--arg;
+            else if(----arg) continue;
+        if(-arg-arg) {
+            arg=-(-arg)*--(-3)<(-7==-arg----arg);
+            {
+                int arg=arg;
+                while(arg<-0>arg==-arg-(-arg>1+11)) {
+                    arg=arg+6-arg!=--0>---30>=---arg<=arg/(3)+---arg;
+                }
+            }
+            arg=-arg+arg;
+            arg=--47+-arg<1>arg*(-arg==-arg- -0>3);
+            arg=(----arg)!=arg+--59;
+            arg=- -4+arg==-(arg)-arg;
+        }
+        else {
+            while(--true-----true*-25+-18>arg>=-----(-arg)---13) {
+                arg=-0+--true<false;
+                continue;
+            }
+            arg=true<=arg;
+            break;
+        }
+        arg=arg*22<--(0+-arg);
+        {
+            continue;
+        }
+    }
+    arg=1*---((3<=true)==---2);
+    arg=7+-(-1);
+    return arg+--true;
+}
+else {
+    int o3ypEsewxM=-(---arg);
+    int vzXB=(-(---11<=--o3ypEsewxM>=--0))<=-0/-arg;
+    int L=-arg;
+    int B4mHcrf=---vzXB;
+    int oZWGdzZl=-o3ypEsewxM;
+    int K6tQqa1=11;
+    while(0!=--L) {
+            int sdZfTM=vzXB*true+K6tQqa1;
+            while(sdZfTM<false) {
+                sdZfTM=sdZfTM+arg;
+                sdZfTM=oZWGdzZl;
+                K6tQqa1=-K6tQqa1;
+                arg=---K6tQqa1;
+                while((3+-K6tQqa1)<oZWGdzZl) {
+                    if(-----(-1)) sdZfTM=-false;
+                    {}
+                }
+                K6tQqa1=vzXB!=-(B4mHcrf+-7>false);
+                sdZfTM=vzXB;
+            }
+        }
+    L=false;
+    while(31) B4mHcrf=arg;
+    oZWGdzZl=-0<--oZWGdzZl<=--2;
+    if(K6tQqa1>=20<=46) {
+        if(-1+-L) if(oZWGdzZl) {
+                int wmhv=-----0;
+            }
+        int arg=0;
+        o3ypEsewxM=---(oZWGdzZl);
+        return -oZWGdzZl/0;
+    }
+    else if(arg) {
+            int yKk5=B4mHcrf>=4>K6tQqa1<-B4mHcrf/o3ypEsewxM;
+            return -K6tQqa1;
+        }
+        else {
+            if(---0) {
+                {}
+                {}
+            }
+            return o3ypEsewxM;
+        }
+}
+""");
+        code.parse().opto().typeCheck().GCM();
+        assertEquals("return 9;", code.print());
+    }
+
+
+    @Test
+    public void testPrimes() {
+        CodeGen code = new CodeGen(
+"""
+if( arg < 2 ) return 0;
+int primeCount = 1;
+int prime = 3;
+while( prime <= arg ) {
+    int isPrime = 1;
+    // Check for even case, so the next loop need only check odds
+    if( (prime/2)*2 == prime )
+        continue;
+    // Check odds up to sqrt of prime
+    int j = 3;
+    while( j*j <= prime ) {
+        if( (prime/j)*j == prime ) {
+            isPrime = 0;
+            break;
+        }
+        j = j + 2;
+    }
+    if( isPrime )
+        primeCount = primeCount + 1;
+    prime = prime + 2;
+}
+return primeCount;
 """);
         code.parse().opto();
-        assertEquals("return 3.14;", code.print());
-        assertEquals("3.14", Eval2.eval(code,  0));
+        assertEquals("return Phi(Region,0,Phi(Loop,1,Phi(Region,Phi_primeCount,Phi_primeCount,(Phi_primeCount+1))));", code.print());
+        assertEquals("0", Eval2.eval(code,  1)); // No primes 1 or below
+        assertEquals("1", Eval2.eval(code,  2)); // 2
+        assertEquals("2", Eval2.eval(code,  3)); // 2, 3
+        assertEquals("2", Eval2.eval(code,  4)); // 2, 3
+        assertEquals("3", Eval2.eval(code,  5)); // 2, 3, 5
+        assertEquals("4", Eval2.eval(code, 10)); // 2, 3, 5, 7
     }
 
     @Test
-    public void testLinkedList0() {
+    public void testAntiDeps1() {
         CodeGen code = new CodeGen(
 """
-struct LLI { LLI? next; int i; };
-LLI? !head = null;
-while( arg ) {
-    LLI !x = new LLI;
-    x.next = head;
-    x.i = arg;
-    head = x;
+struct S { int f; };
+!S !v=new S;
+v.f = 2;
+int i=new S.f;
+i=v.f;
+if (arg) v.f=1;
+return i;
+""");
+        code.parse().opto();
+        assertEquals("return 2;", code.print());
+        assertEquals("2", Eval2.eval(code, 0));
+        assertEquals("2", Eval2.eval(code, 1));
+    }
+
+    @Test
+    public void testAntiDeps2() {
+        CodeGen code = new CodeGen(
+"""
+struct S { int f; };
+!S !v = new S;
+v.f = arg;
+!S !t = new S;
+int i = 0;
+if (arg) {
+    if (arg+1) v = t;
+    i = v.f;
+} else {
+    v.f = 2;
+}
+return i;
+""");
+        code.parse().opto();
+        assertEquals("return Phi(Region,.f,0);", code.print());
+    }
+
+    @Test
+    public void testAntiDeps3() {
+        CodeGen code = new CodeGen(
+"""
+struct S { int f; };
+!S !v0 = new S;
+!S? !v1;
+if (arg) v1 = new S;
+if (v1) {
+    v0.f = v1.f;
+} else {
+    v0.f = 2;
+}
+return v0;
+""");
+        code.parse().opto();
+        assertEquals("return S;", code.print());
+    }
+
+
+    @Test
+    public void testAntiDeps4() {
+        CodeGen code = new CodeGen(
+"""
+struct S { int f; };
+!S !v = new S;
+v.f = arg;
+S t = new S;
+int i = v.f;
+if (arg+1) arg= 0;
+while (arg) v.f = 2;
+return i;
+""");
+        code.parse().opto();
+        assertEquals("return arg;", code.print());
+    }
+
+    @Test
+    public void testAntiDeps5() {
+        CodeGen code = new CodeGen(
+"""
+struct S { int f; };
+!S !v = new S;
+while(1) {
+    while(arg+1) { arg=arg-1; }
+    if (arg) break;
+    v.f = 2;
+}
+return v;
+""");
+        code.parse().opto();
+        assertEquals("return S;", code.print());
+    }
+
+    @Test
+    public void testAntiDeps6() {
+        CodeGen code = new CodeGen(
+"""
+struct s { int v; };
+!s !ptr=new s;
+while( -arg )
+  ptr = new s;
+while(1)
+  arg = arg+ptr.v;
+""");
+        code.parse().opto();
+        assertEquals("return Top;", code.print());
+    }
+
+    @Test
+    public void testAntiDeps7() {
+        CodeGen code = new CodeGen(
+"""
+struct S { int f; };
+!S !v = new S;
+S t = new S;
+int i = v.f;
+while (arg) {
+    v.f = arg;
     arg = arg-1;
 }
-return head.next.i;
-""");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
-    }
-
-    @Test
-    public void testLinkedList1() {
-        CodeGen code = new CodeGen(
-"""
-struct LLI { LLI? next; int i; };
-LLI? !head = null;
-while( arg ) {
-    LLI !x = new LLI;
-    x.next = head;
-    x.i = arg;
-    head = x;
-    arg = arg-1;
-}
-if( !head ) return 0;
-LLI? next = head.next;
-if( next==null ) return 1;
-return next.i;
-""");
-        code.parse().opto();
-        assertEquals("return Phi(Region,0,1,.i);", code.print());
-        assertEquals("2", Eval2.eval(code,  3));
-    }
-
-    @Test
-    public void testCoRecur() {
-        CodeGen code = new CodeGen(
-"""
-struct int0 { int i; flt0? f; };
-struct flt0 { flt f; int0? i; };
-int0 !i0 = new int0;
-i0.i = 17;
-flt0 !f0 = new flt0;
-f0.f = 3.14;
-i0.f = f0;
-f0.i = i0;
-return f0.i.f.i.i;
-""");
-        code.parse().opto();
-        assertEquals("return 17;", code.print());
-    }
-
-    @Test
-    public void testNullRef0() {
-        CodeGen code = new CodeGen(
-"""
-struct N { N? next; int i; };
-N n = new N;
-return n.next;
-""");
-        code.parse().opto();
-        assertEquals("return null;", code.print());
-    }
-
-    @Test
-    public void testNullRef1() {
-        CodeGen code = new CodeGen(
-"""
-struct M { int m; };
-struct N { M next; int i; };
-N n = new N { next = new M; };
-return n.next;
-""");
-        code.parse().opto();
-        assertEquals("return (const)M;", code.print());
-    }
-
-    @Test
-    public void testNullRef2() {
-        CodeGen code = new CodeGen(
-"""
-struct M { int m; };
-struct N { M next; int i; };
-N n = new N { next = null; }
-return n.next;
-""");
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
-    }
-
-    @Test
-    public void testNullRef3() {
-        CodeGen code = new CodeGen(
-"""
-struct N { N? next; int i; };
-N !n = new N;
-n.i = 3.14;
-return n.i;
-""");
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
-    }
-
-    @Test
-    public void testNullRef4() {
-        CodeGen code = new CodeGen("return -null-5/null-5;");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot '+' null",e.getMessage()); }
-    }
-
-    @Test public void testNullRef5() {
-        CodeGen code = new CodeGen("return null+42;");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot '+' null",e.getMessage()); }
-    }
-
-    @Test
-    public void testEmpty() {
-        CodeGen code = new CodeGen(
-"""
-struct S{};
-return 0;
+return i;
 """);
         code.parse().opto();
         assertEquals("return 0;", code.print());
-        assertEquals("0", Eval2.eval(code,  0));
     }
 
     @Test
-    public void testForwardRef0() {
+    public void testAntiDeps8() {
         CodeGen code = new CodeGen(
 """
-struct S1 { S2? s; };
-return new S2;
-""");
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
-    }
-
-    @Test
-    public void testForwardRef1() {
-        CodeGen code = new CodeGen(
-"""
-struct S1 { S2? s; };
-struct S2 { int x; };
-return new S1.s=new S2;
+struct S { int f; };
+!S !v = new S;
+S t = new S;
+while(arg) {
+    arg=arg-1;
+    int f = v.f;
+    v.f = 2;
+    if (arg) arg = f;
+    else v.f = 3;
+}
+return arg;
 """);
         code.parse().opto();
-        assertEquals("return S2;", code.print());
+        assertEquals("return 0;", code.print());
     }
 
     @Test
-    public void testcheckNull() {
+    public void testAntiDeps9() {
         CodeGen code = new CodeGen(
 """
-struct I {int i;};
-struct P { I? pi; };
-P !p1 = new P;
-P !p2 = new P;
-p2.pi = new I;
-p2.pi.i = 2;
-if (arg) p1 = new P;
-return p1.pi.i + 1;
+struct S { int f; };
+!S !v = new S;
+S t = new S;
+if (arg) {
+    v.f=2;
+    int i=t.f;
+    v.f=i;
+}
+return v;
 """);
-        try { code.parse().opto().typeCheck();  fail(); }
-        catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
+        code.parse().opto();
+        assertEquals("return S;", code.print());
     }
 
     @Test
-    public void testCoRecur2() {
+    public void testExample2() {
         CodeGen code = new CodeGen(
 """
-struct A { L? a; T? b; F? c; };  A? !a = new A;
-struct B { M? a; U? b; G? c; };  B? !b = new B;
-struct C { N? a; V? b; H? c; };  C? !c = new C;
-struct D { O? a; W? b; I? c; };  D? !d = new D;
-struct E { P? a; X? b; J? c; };  E? !e = new E;
-struct F { Q? a; Y? b; K? c; };  F? !f = new F;
-struct G { R? a; Z? b; L? c; };  G? !g = new G;
-struct H { S? a; A? b; M? c; };  H? !h = new H;
-struct I { T? a; B? b; N? c; };  I? !i = new I;
-struct J { U? a; C? b; O? c; };  J? !j = new J;
-struct K { V? a; D? b; P? c; };  K? !k = new K;
-struct L { W? a; E? b; Q? c; };  L? !l = new L;
-struct M { X? a; F? b; R? c; };  M? !m = new M;
-struct N { Y? a; G? b; S? c; };  N? !n = new N;
-struct O { Z? a; H? b; T? c; };  O? !o = new O;
-struct P { A? a; I? b; U? c; };  P? !p = new P;
-struct Q { B? a; J? b; V? c; };  Q? !q = new Q;
-struct R { C? a; K? b; W? c; };  R? !r = new R;
-struct S { D? a; L? b; X? c; };  S? !s = new S;
-struct T { E? a; M? b; Y? c; };  T? !t = new T;
-struct U { F? a; N? b; Z? c; };  U? !u = new U;
-struct V { G? a; O? b; A? c; };  V? !v = new V;
-struct W { H? a; P? b; B? c; };  W? !w = new W;
-struct X { I? a; Q? b; C? c; };  X? !x = new X;
-struct Y { J? a; R? b; D? c; };  Y? !y = new Y;
-struct Z { K? a; S? b; E? c; };  Z? !z = new Z;
+struct S { int f; };
+!S !v = new S;
+int i = arg;
+while (arg > 0) {
+    int j = i/3;
+    if (arg == 5)
+        v.f = j;
+    arg = arg - 1;
+}
+return v;
+                """);
+        code.parse().opto();
+        //assertEquals("return new S;", code.print());
+    }
 
-a.a=l;  a.b=t; a.c=f;
-b.a=m;  b.b=u; b.c=g;
-c.a=n;  c.b=v; c.c=h;
-d.a=o;  d.b=w; d.c=i;
-e.a=p;  e.b=x; e.c=j;
-f.a=q;  f.b=y; f.c=k;
-g.a=r;  g.b=z; g.c=l;
-h.a=s;  h.b=a; h.c=m;
-i.a=t;  i.b=b; i.c=n;
-j.a=u;  j.b=c; j.c=o;
-k.a=v;  k.b=d; k.c=p;
-l.a=w;  l.b=e; l.c=q;
-m.a=x;  m.b=f; m.c=r;
-n.a=y;  n.b=g; n.c=s;
-o.a=z;  o.b=h; o.c=t;
-p.a=a;  p.b=i; p.c=u;
-q.a=b;  q.b=j; q.c=v;
-r.a=c;  r.b=k; r.c=w;
-s.a=d;  s.b=l; s.c=x;
-t.a=e;  t.b=m; t.c=y;
-u.a=f;  u.b=n; u.c=z;
-v.a=g;  v.b=o; v.c=a;
-w.a=h;  w.b=p; w.c=b;
-x.a=i;  x.b=q; x.c=c;
-y.a=j;  y.b=r; y.c=d;
-z.a=k;  z.b=s; z.c=e;
-
-return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
-
+    @Test
+    public void testScheduleUse() {
+        CodeGen code = new CodeGen(
+"""
+int v0=0;
+while(0>=0) {
+    u1 v1=0;
+    v1=v0;
+    if(v1*0)
+        v0=-v1;
+}
+return 0;
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("return R;", code._stop.toString());
-        assertEquals("R{a=C{a=N{a=Y{a=J{a=U{a=F{a=Q{a=B{a=M{a=X{a=I{a=T{a=E{a=P{a=A{a=L{a=W{a=H{a=S{a=D{a=O{a=Z{a=K{a=V{a=G{a=$cyclic,b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic}", Eval2.eval(code,  0));
+        code.parse().opto();
+        assertEquals("return Top;", code.print());
+    }
+
+    @Test
+    public void testLoopCarriedDep() {
+        CodeGen code = new CodeGen(
+"""
+u32 v0=0;
+{
+    int v1=0;
+    while(v1) {
+        v1=1>>>v0!=0;
+        v0=v1/0;
+    }
+    return v1;
+}
+""");
+        code.parse().opto();
+        assertEquals("return 0;", code.print());
     }
 
 }

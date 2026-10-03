@@ -156,6 +156,10 @@ regressions. `make release` builds the compiler jar and native library artifacts
 `make tags` builds editor tags. Native tools and the selected CPU/ABI must match
 the environment; the Makefile currently defaults to x86-64/win64.
 
+Serialized IR now uses the `C0D2` header: pointer types include an independent
+read-only access bit. Older object files must be rebuilt; the reader rejects
+their old header rather than interpreting their types with the new layout.
+
 Compiler changes can invalidate both serialized IR and native code in `sys.o`.
 Rebuild it before interpreting linked-program test results. A source-only subset
 is not equivalent to this chapter's full `make tests`.

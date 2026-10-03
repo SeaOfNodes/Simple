@@ -58,7 +58,8 @@ public class TypeTuple extends Type {
         for( Type t : _types )
             t.typeName(sb).append(",");
         sb.setLength(sb.length()-1);
-        return sb.append("]");
+        sb.append("]");
+        return sb;
     }
 
     public static final TypeTuple IF_BOTH    = make(new Type[]{Type. CONTROL,Type. CONTROL});

@@ -188,6 +188,10 @@ public class Parser {
      *  Parses a function body, assuming the header is parsed.
      */
     private ReturnNode parseFunctionBody(TypeFunPtr sig, Lexer loc, String... ids) {
+        return parseFunctionBody(sig, loc, null, ids);
+    }
+
+    private ReturnNode parseFunctionBody(TypeFunPtr sig, Lexer loc, java.util.BitSet finals, String... ids) {
         // Stack parser state on the local Java stack, and unstack it later
         Node oldctrl = ctrl().keep();
         Node oldmem  = _scope.mem().keep();
@@ -224,7 +228,7 @@ public class Parser {
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
-            _scope.define(ids[i], t, false, new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
+            _scope.define(ids[i], t, finals==null ? t instanceof TypeNil : finals.get(i), new ParmNode(ids[i],i+2,t,fun,con(t)).peephole(), loc);
         }
 
         // Parse the body
@@ -632,25 +636,24 @@ public class Parser {
         // outside the constructor need to check the final bit.
         if( _scope.in(def._idx)._type!=Type.TOP && def._final &&
             // Inside a constructor, final assign is OK, outside nope
-            !(_scope.inConstructor() && def._idx >= _scope._lexSize.last()) )
+            !_scope.canInit(def) )
             throw error("Cannot reassign final '"+name+"'");
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr.keep(), def.type(), def._final, true);
+        Node lift = liftExpr(expr.keep(), def.type(), true);
         // Update
         _scope.update(name,lift);
         // Return un-lifted expr
         return expr.unkeep();
     }
 
-    // Make finals deep; widen ints to floats; narrow wide int types.
+    // Apply declared access permissions; widen floats and narrow integers.
     // Early error if types do not match variable.
-    private Node liftExpr( Node expr, Type t, boolean xfinal, boolean isLoad ) {
+    private Node liftExpr( Node expr, Type t, boolean isLoad ) {
         if( expr._type instanceof TypeMemPtr tmp && tmp.isFRef() )
             throw error("Must define forward ref "+tmp._obj._name);
-        // Final is deep on ptrs
-        if( xfinal && t instanceof TypeMemPtr tmp ) {
-            t = tmp.makeRO();
+        // Read-only access is deep; a fixed binding alone does not remove access.
+        if( t instanceof TypeMemPtr tmp && tmp.isFinal() ) {
             expr = peep(new ReadOnlyNode(expr));
         }
         // Auto-widen array to i64 (cast ptr to raw int bits)
@@ -666,7 +669,7 @@ public class Parser {
         else if( et instanceof TypeInteger && t instanceof TypeInteger ) et=t;
 
         // Type is sane
-        if( et!=Type.BOTTOM && !et.shallowISA(t) )
+        if( et!=Type.BOTTOM && (!et.shallowISA(t) || !et.accessISA(t)) )
             throw error("Type " + et.str() + " is not of declared type " + t.str());
         return expr;
     }
@@ -697,38 +700,46 @@ public class Parser {
         return require(n,";");
     }
 
-    /** Parse final: [!]var['=' asgn]
+    // Widen a reassignable binding without discarding the initializer's
+    // permissions. Lattice glb includes readonly memory and is too broad here.
+    private Type inferredType(Type t) {
+        if( t instanceof TypeMemPtr tmp ) {
+            Type base = TYPES.get(tmp._obj._name);
+            TypeMemPtr ptr = (TypeMemPtr)base;
+            return ptr.withAccess(tmp._ro).makeNullable();
+        }
+        return t.glb(false);
+    }
+
+    // The binding modifier sits immediately before the name. It never
+    // changes permissions on the referenced object.
+    private boolean bindingFinal(Type t) {
+        if( match("!") ) return false;
+        if( match("~") ) return true;
+        return t==Type.TOP || t instanceof TypeNil;
+    }
+
+    /** Parse final: [!|~]var['=' asgn]
      */
     private Node parseDeclaration(Type t) {
         assert t!=null;
         // Has var/val instead of a user-declared type
         boolean inferType = t==Type.TOP || t==Type.BOTTOM;
-        boolean hasBang = match("!");
+        boolean xfinal = bindingFinal(t);
         Lexer loc = loc();
         String name = requireId();
         // Optional initializing expression follows
-        boolean xfinal = false;
         Node expr;
         if( match("=") ) {
             expr = isExternDecl()
                 ? externDecl(name,t)
                 : parseAsgn();
-            // TOP means val and val is always final
-            xfinal = (t==Type.TOP) ||
-                // BOTTOM is var and var is always not-final
-                (t!=Type.BOTTOM &&
-                 // no Bang AND
-                 !hasBang &&
-                 // not-null (expecting null to be set to not-null)
-                 expr._type != Type.NIL &&
-                 // Pointers are final by default; int/flt are not-final by default.
-                 (t instanceof TypeNil));
             // var/val, then type comes from expression
             if( inferType ) {
                 if( expr._type==Type.NIL )
                     throw error("a not-null/non-zero expression");
                 t = expr._type;
-                if( !xfinal ) t = t.glb(false);  // Widen if not final
+                if( !xfinal ) t = inferredType(t);  // Widen if not final
             }
             // expr is a constant function
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
@@ -747,8 +758,8 @@ public class Parser {
                 // Nullable pointers get a NIL; not-null get a TOP which
                 // signals that they *must* be initialized in the constructor.
             case TypeNil tn -> tn.nullable() ? NIL : con(Type.TOP);
-            case TypeInteger ti -> ZERO;
-            case TypeFloat tf -> con(TypeFloat.FZERO);
+            case TypeInteger ti -> xfinal ? con(Type.TOP) : ZERO;
+            case TypeFloat tf -> con(xfinal ? Type.TOP : TypeFloat.FZERO);
             // Bottom signals type inference: they must be initialized in
             // the constructor and that's when we'll discover the type.
             case Type tt -> { assert tt==Type.BOTTOM; yield con(tt); }
@@ -756,10 +767,7 @@ public class Parser {
         }
 
         // Lift expression, based on type
-        Node lift = liftExpr(expr, t, xfinal, true);
-
-        if( xfinal && t instanceof TypeMemPtr tmp )
-            t = tmp.makeRO();
+        Node lift = liftExpr(expr, t, true);
 
         // Lift type to the declaration.  This will report as an error later if
         // we cannot lift the type.
@@ -827,12 +835,14 @@ public class Parser {
     // t = int|i8|i16|i32|i64|u8|u16|u32|u64|byte|bool | flt|f32|f64 | val | var | struct[?]
     private Type type() {
         int old1 = pos();
+        boolean writable = match("!");
+        boolean readonly = !writable && match("~");
         // Only type with a leading `{` is a function pointer...
         if( peek('{') ) return typeFunPtr();
 
         // Otherwise you get a type name
         String tname = _lexer.matchId();
-        if( tname==null ) return null;
+        if( tname==null ) return posT(old1);
 
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname);
@@ -855,6 +865,13 @@ public class Parser {
 
         // Still no type found?  Assume forward reference
         Type t1 = t0 == null ? TypeMemPtr.make(TypeStruct.makeFRef(tname)) :t0; // Null: assume a forward ref type
+        // A qualifier before the name applies to the struct reference, not
+        // to an enclosing array. Arrays have their own [] / [~] qualifier.
+        if( t1 instanceof TypeMemPtr tmp ) {
+            if( readonly || !writable ) t1 = tmp.makeRO();
+        } else if( writable || readonly )
+            return posT(old1);
+
         // Nest arrays and '?' as needed
         Type t2 = t1;
         while( true ) {
@@ -864,8 +881,8 @@ public class Parser {
                 if( tmp.nullable() ) throw error("Type "+t2+" already allows null");
                 t2 = tmp.makeNullable();
             } else if( match("[~]") ) {
-                TypeMemPtr tmp = typeAry(t2);
-                t2 = tmp.makeFrom(tmp._obj.makeRO());
+                TypeMemPtr ary = typeAry(t2);
+                t2 = ary.makeFrom(ary._obj.makeRO()).makeRO();
             } else if( match("[]") ) {
                 t2 = typeAry(t2);
             } else
@@ -877,13 +894,13 @@ public class Parser {
         // Check valid forward ref, after parsing all the type extra bits.
         // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
         int old2 = pos();
-        match("!");
+        if( !match("!") ) match("~");
         String id = _lexer.matchId();
         if( !(peek(',') || peek(';') || match("->")) || id==null )
             return posT(old1);  // Reset lexer to reparse
         pos(old2);              // Reset lexer to reparse
         // Yes a forward ref, so declare it
-        TYPES.put(tname,t1);
+        TYPES.put(tname,((TypeMemPtr)t1).withAccess(false));
         // Return the (array, final) type
         return t2;
     }
@@ -894,7 +911,15 @@ public class Parser {
             throw error("Arrays of reference types must always be nullable");
         String tname = "["+t.str()+"]";
         Type ta = TYPES.get(tname);
-        if( ta != null ) return (TypeMemPtr)ta;
+        if( ta != null ) {
+            TypeStruct ary = ((TypeMemPtr)ta)._obj;
+            // Keep the original shallow struct reference.  Resolving a recursive
+            // struct must not expand its array element type on each lookup.
+            if( t instanceof TypeMemPtr ptr && (ptr._obj._fields==null || !ptr._obj.isAry()) &&
+                ary._fields[1]._type instanceof TypeMemPtr old )
+                t = old.withAccess(ptr._ro);
+            return TypeMemPtr.make(TypeStruct.makeAry(tname,TypeInteger.U32,ary._fields[0]._alias,t,ary._fields[1]._alias));
+        }
         TypeStruct ts = TypeStruct.makeAry(tname,TypeInteger.U32,_code.getALIAS(),t,_code.getALIAS());
         assert ts.str().equals(tname);
         TypeMemPtr tary = TypeMemPtr.make(ts);
@@ -1179,7 +1204,7 @@ public class Parser {
         };
         // Convert to float ops, or narrow int types; error if not declared type.
         // Also, if postfix LHS is still keep()
-        return liftExpr(peep(op.widen()),t,false,true);
+        return liftExpr(peep(op.widen()),t,true);
     }
 
 
@@ -1314,7 +1339,7 @@ public class Parser {
         // strings are hash-interned), with a TypeStruct having a constant
         // array body.
         TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[u8]", TypeInteger.U32, lenAlias, elem, elemAlias, true, con),true);
-        return con(str);
+        return con(str.makeRO());
     }
 
     // Memory is one hidden SSA variable, including across branches and loops.
@@ -1322,6 +1347,8 @@ public class Parser {
     private void mem(Node n) { _scope.mem(n); }
 
     private void store(String name, int alias, Type glb, Node ptr, Node off, Node val, boolean init, Node ctrl) {
+        if( !init && ptr._type instanceof TypeMemPtr view && view._ro && ctrl()._type!=Type.XCONTROL )
+            throw error("Cannot modify final field '"+name+"'");
         Node prior = mem().keep();
         Node st = new StoreNode(loc(),name,alias,glb,prior,ptr,off,val,init);
         st.setDef(0,ctrl);
@@ -1380,7 +1407,7 @@ public class Parser {
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( matchOpx('=','=') ) {
             Node val = parseAsgn().keep();
-            Node lift = liftExpr( val, tf, f._final, false );
+            Node lift = liftExpr( val, tf, false );
 
             store(name,f._alias,tf,expr.unkeep(),off.unkeep(),lift,false,base.isAry() ? ctrl() : null);
             return val.unkeep();        // "obj.a = expr" returns the expression while updating memory
@@ -1437,11 +1464,13 @@ public class Parser {
     private Node func() {
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
+        java.util.BitSet finals = new java.util.BitSet();
         _lexer.skipWhiteSpace();
         Lexer loc = loc();      // First argument location
         while( true ) {
             Type t = type();    // Arg type
             if( t==null ) break;
+            finals.set(ids.size(),bindingFinal(t));
             String id = requireId();
             ts .push(t );       // Push type/arg pairs
             ids.push(id);
@@ -1450,7 +1479,7 @@ public class Parser {
         require("->");
         // Make a concrete function type, with a fidx
         TypeFunPtr tfp = _code.makeFun(TypeTuple.make(ts.asAry()),Type.BOTTOM);
-        ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
+        ReturnNode ret = parseFunctionBody(tfp,loc,finals,ids.asAry());
         return new FunPtrNode(ret._fun.sig(),ret).peephole();
     }
 

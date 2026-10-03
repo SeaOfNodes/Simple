@@ -24,7 +24,7 @@ public class MergeSortTest {
             split_merge(a, 0, a#, b);
         };
         
-        val split_merge = { int[] b, int begin, int end, int[] a ->
+        val split_merge = { int[] !b, int begin, int end, int[] a ->
             if (end - begin <= 1)
                 return 0;
             int middle = (end + begin) / 2;
@@ -34,7 +34,7 @@ public class MergeSortTest {
             return 0;
         };
         
-        val merge = { int[] b, int begin, int middle, int end, int[] a ->
+        val merge = { int[] !b, int begin, int middle, int end, int[] a ->
             int i = begin, j = middle;
         
             for (int k = begin; k < end; k++) {
@@ -49,7 +49,7 @@ public class MergeSortTest {
             }
         };
         
-        val copy_array = { int[] a, int begin, int end, int[] b ->
+        val copy_array = { int[] !a, int begin, int end, int[] b ->
             for (int k = begin; k < end; k++)
                 b[k] = a[k];
         };

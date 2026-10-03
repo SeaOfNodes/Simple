@@ -56,12 +56,12 @@ public class TypeTest {
 
         Assert.assertNotEquals(ptr1, ptr2);
         Assert.assertNotEquals(ptr1, ptr1.glb());
-        Assert.assertEquals(ptr1nil.makeRO(), ptr1.glb());
+        Assert.assertEquals(ptr1nil.makeFrom(s1.glb()).makeRO(), ptr1.glb());
 
         Assert.assertEquals(ptr1, ptr1.dual().dual());
-        Assert.assertEquals(ptr1.glb().makeRO(), ptr1.dual().glb());
-        Assert.assertEquals(TypeMemPtr.makeNullable(TypeStruct.BOT), ptr1.meet(ptr2nil));
-        Assert.assertEquals(ptr1.glb(), ptr1.meet(TypeNil.NIL).makeRO());
+        Assert.assertEquals(ptr1.glb().makeFrom(s1.dual().glb()), ptr1.dual().glb());
+        Assert.assertEquals(TypeMemPtr.makeNullable(TypeStruct.BOT).withAccess(false), ptr1.meet(ptr2nil));
+        Assert.assertEquals(ptr1nil, ptr1.meet(TypeNil.NIL));
 
         TypeMemPtr TOP = TypeMemPtr.TOP;
         TypeMemPtr BOT = TypeMemPtr.makeNullable(TypeStruct.BOT);
@@ -70,7 +70,7 @@ public class TypeTest {
         Type PTR_meet_NULL = NULL.meet(PTR);
         Assert.assertEquals(BOT, PTR_meet_NULL);
         Type ptr1_meet_ptr2 = ptr1.meet(ptr2);
-        Assert.assertEquals(PTR, ptr1_meet_ptr2);
+        Assert.assertEquals(PTR.withAccess(false), ptr1_meet_ptr2);
         Type NULL_join_ptr1 = NULL.join(ptr1);
         Assert.assertEquals(TypePtr.XNPTR, NULL_join_ptr1);
         Type NULL_join_PTR = PTR.join(NULL);

@@ -125,6 +125,15 @@ public class ScopeNode extends Node {
     }
 
 
+    // Allocation fields live in the scope immediately outside the constructor
+    // block. Nested blocks retain that permission; surrounding bindings do not.
+    public boolean canInit(Var v) {
+        for( int i=_kinds._len-1; i>0; i-- )
+            if( _kinds.at(i)==Kind.Constructor )
+                return v._idx >= _lexSize.at(i-1) && v._idx < _lexSize.at(i);
+        return false;
+    }
+
     public boolean inCon() { return _kinds.last() == Kind.Constructor; }
 
     // Is v outside any current function scope?
@@ -209,7 +218,7 @@ public class ScopeNode extends Node {
                 : loop.setDef(v._idx,PhiNode.make(v._name, v.lazyGLB(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).peephole());
             setDef(v._idx,old);
         }
-        assert !v._final || st==null;
+        assert !v._final || st==null || canInit(v);
         if( st!=null ) setDef(v._idx,st); // Set new value
         return v;
     }

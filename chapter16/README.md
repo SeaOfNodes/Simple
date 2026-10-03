@@ -1,25 +1,25 @@
-# Chapter 16: Constructors and Final fields
+# Chapter 16: Constructors
 
 [Previous: Chapter 15](../chapter15/README.md) |
-[Next: Chapter 17](../chapter17/README.md)
+[Next: Chapter 17a](../chapter17a/README.md)
 
 # Table of Contents
 
 1. [Constructors](#constructors)
 2. [Initialization code](#initialization-code)
-3. [Final fields](#final-fields)
-4. [Multiple Decls](#multiple-declarations-of-the-same-type)
-5. [Memory through constructors](#memory-through-constructors)
+3. [Multiple Decls](#multiple-declarations-of-the-same-type)
+4. [Memory through constructors](#memory-through-constructors)
 
-In this chapter, we add constructors and final fields.
+This chapter adds field defaults and constructor blocks. Chapter 17a will add
+fixed bindings and read-only access, using these constructors to initialize them.
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter16) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter15...linear-chapter16) it to the previous chapter.
 
 ## Constructors
 
-A big problem with the [Chapter 13](../chapter13/README.md) refs is that
+A big problem with the [Chapter 12](../chapter12/README.md) refs is that
 not-null fields always start out `null`.  This is fixed in this chapter, where
-a *constructor* syntax is required to initialize `final` and not-null fields.
+a *constructor* syntax is required to initialize not-null fields.
 
 Fields are initialized in three ways:
 
@@ -46,7 +46,7 @@ struct Point { int x=1; int y=1; }; // Point x and y will start as 1, not 0
 return new Point { x=3; }.x;        // Returns a 3
 ```
 
-Not-null and final fields *must* be initialized before first use and before the
+Not-null fields *must* be initialized before first use and before the
 end of the allocation.  They can be initialized in either the declaration or
 allocation.  They do not start with the default value, although the
 initialization can be to the default.
@@ -81,6 +81,8 @@ struct Square {
 return new Square;
 ```
 
+Another example:
+
 ```
 struct Buffer {
     if( arg < 0 || arg > 1000000 )
@@ -88,32 +90,6 @@ struct Buffer {
     u8[] buffer = new u8[arg];
 };
 return new Buffer;
-```
-
-
-## Final fields
-
-Final fields are declared with a `!` before the name.
-This decision is revisited in the next chapter.
-
-```
-int !x = 17; // Final field x
-x = 3;       // ERROR: cannot re-assign a final field
-```
-
-```
-struct Person { u8[]? !name; };
-return new Person { name = null; }; // OK: final name is assigned
-```
-
-```
-struct Point { int !x; int !y; int !z; };
-return new Point { x=arg; y=z; z=x; }; // ERROR:  'Point' is not fully initialized, field 'y' needs to be set in a constructor
-```
-
-```
-struct Point { int x; int y; int z; }; // Fields not-final, default to 0
-return new Point { x=arg; y=z; z=x; }; // Ok: x=arg, y=0, z=arg
 ```
 
 
@@ -127,16 +103,12 @@ int x,y; // Two int variables declared
 struct Point { int x,y,z; }; // Three fields declared
 ```
 
-```
-int !x=3,!y=5; // Two int variables declared, both are final and initialized
-```
 ## Memory through constructors
 
-The lazy memory partitioning from [Chapter 10b](../chapter10b/README.md) continues
+The lazy memory partitioning from [Chapter 11](../chapter11/README.md) continues
 through constructors. The parser tracks one `$mem` variable alongside its scalar
 variables. Branches and loops merge that binding with BulkMemPhi; field access
-splits out precise MemPhis when needed. The variable records for types and final
-fields live in ScopeNode. There is no separate parser table of memory aliases.
+splits out precise MemPhis when needed. The variable records for declared types live in ScopeNode. There is no separate parser table of memory aliases.
 
 A constructor computes its field values before the allocation. Reads, writes,
 and loops in its body update the same `$mem` binding as ordinary code. New then

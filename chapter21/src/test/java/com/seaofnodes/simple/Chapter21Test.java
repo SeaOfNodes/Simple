@@ -18,8 +18,8 @@ public class Chapter21Test {
 
     @Test public void testReadBeforeConditionalStore() {
         var code = new CodeGen("""
-            struct S { int x; }; S !a=new S; S !b=new S;
-            a.x=10; b.x=20; S !p=a; if(arg&1) p=b;
+            struct S { int x; }; !S !a=new S; !S !b=new S;
+            a.x=10; b.x=20; !S !p=a; if(arg&1) p=b;
             int sum=0;
             for(int i=0; i<6; i++) {
                 sum+=a.x;
@@ -105,7 +105,7 @@ public class Chapter21Test {
 
     @Test public void testNarrowStores() throws IOException {
         for( String type : new String[]{"i8","u8","i16","u16"} ) {
-            String src = "struct S { "+type+" x; }; S !s = new S; s.x = arg; return 0;";
+            String src = "struct S { "+type+" x; }; !S !s = new S; s.x = arg; return 0;";
             CodeGen code = new CodeGen(src).driver("riscv","SystemV",null);
             int stores=0;
             for( var bb : code._cfg )
@@ -295,7 +295,7 @@ public class Chapter21Test {
     }
 
     @Test public void testInfinite() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++;";
+        String src = "struct S { int i; }; !S !s = new S; while(1) s.i++;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");

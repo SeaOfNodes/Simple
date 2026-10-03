@@ -73,7 +73,7 @@ public class CompoundAssignmentTest {
     @Test public void testFields() {
         for (String op : OPS) {
             long expected = apply(op, -8, 3);
-            check("struct S { int x; }; S !s=new S; s.x=arg; int r=(s.x " +
+            check("struct S { int x; }; !S !s=new S; s.x=arg; int r=(s.x " +
                   op + " 3); return s.x*10+r;", -8, expected*11);
         }
     }

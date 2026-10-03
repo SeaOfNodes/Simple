@@ -46,13 +46,13 @@ return 0;
         String src =
 """
 struct String {
-    u8[~] cs;
+    u8[~] !cs;
     int _hashCode;
     new String = { u8[~] s -> cs=s; };
 };
 
 // Compare two Strings
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -62,7 +62,7 @@ val equals = { String self, String s ->
 };
 
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     for( int i=0; i< self.cs#; i++ )
         hash = hash*31 + self.cs[i];
@@ -71,7 +71,7 @@ val _hashCodeString = { String self ->
 };
 
 // Return the String hashCode (cached, and never 0)
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
@@ -89,14 +89,14 @@ hashCode(new String("Hello, World!"));
         String src =
 """
 struct String {
-    u8[~] cs;
+    u8[~] !cs;
     int _hashCode;
     new String = { u8[~] s -> cs=s; };
 };
 
-val f = { String self -> 7; };
+val f = { !String self -> 7; };
 
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ? 3
     : (self._hashCode = f(self));
@@ -283,7 +283,7 @@ return sum;""");
     public void testAlloc1() {
         CodeGen code = new CodeGen(
 """
-struct _S { int a; _S? c; };
+struct _S { int a; !_S? !c; };
 return new _S;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return Test._S;", code.print());

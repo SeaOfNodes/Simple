@@ -1,27 +1,79 @@
-# Chapter 14: Narrow types
+# Chapter 14: Numeric Types
 
 [Previous: Chapter 13](../chapter13/README.md) |
 [Next: Chapter 15](../chapter15/README.md)
 
 # Table of Contents
 
-1. [Narrow Word Types](#narrow-or-sub-word-types)
-2. [Overflow handling](#overflow-handling)
-3. [Integer ranges](#integer-ranges)
-4. [Bitwise operations](#bitwise-operations)
-5. [Precedence](#precedence)
-6. [Type lattice](#type-implementation)
-7. [Nodes](#nodes)
+1. [Floating-point arithmetic](#floating-point-arithmetic)
+2. [Narrow Word Types](#narrow-or-sub-word-types)
+3. [Overflow handling](#overflow-handling)
+4. [Integer ranges](#integer-ranges)
+5. [Bitwise operations](#bitwise-operations)
+6. [Precedence](#precedence)
+7. [Type lattice](#type-implementation)
+8. [Nodes](#nodes)
 
 
-In this chapter, we add sub-word integer types.
+With structs, reference fields, and scheduling in place, this chapter extends
+the numeric values they carry. We add floating-point arithmetic, narrow
+integer and float types, and integer ranges.
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter14) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter13...linear-chapter14) it to the previous chapter.
 
+## Floating-point arithmetic
+
+Floating point values start with the `flt` type and compute IEEE754 64-bit arithmetic.
+Integer expressions auto-widen to floats when involved in a float expression.
+
+```java
+flt f = 0.5;
+int x = 2;
+f = f+x;     // Auto-widen x to 2.0, result is 2.5
+f = f+true;  // Since bools are just synonyms for integers 0,1 they auto-widen also
+```
+
+There is no corresponding way right now to round a `flt` back to an `int`:
+```java
+int x = 3.14; // error
+```
+
+Here is Newton's method for computing a square root:
+```java
+flt guess = arg;  // Initial guess is just argument
+while( true ) {
+    // Next guess from Newton's method
+    flt next = (arg/guess + guess)/2;
+    // Break if hit fixed point
+    if( next == guess ) break;
+    guess = next;
+}
+return guess;
+```
+When run with argument 2, produces 1.414213562373095.
+
+Floating point operations have their own Nodes:
+
+| Node                   | Op                   |
+|------------------------|----------------------|
+| AddF, SubF, MulF, DivF | Basic binary FP ops  |
+| MinusF                 | Unary negate         |
+| EQF, LTF, LEF          | FP compare operators |
+
+The parser uses [`Node.widen()`](src/main/java/com/seaofnodes/simple/node/Node.java)
+to choose the floating-point operation and insert `ToFloatNode` conversions.
+The float lattice has constants between `TOP` and `BOT`, like the integer
+lattice before ranges. [`TypeFloat`](src/main/java/com/seaofnodes/simple/type/TypeFloat.java)
+also records whether a value fits `f32`; assigning to `f32` rounds it to that
+precision. Conversion from float back to integer remains a separate, pending
+language feature.
+
+
 ## Narrow or sub-word types
 
-Narrow or sub-word integer types refer to integer data types that occupy less memory (fewer bits) than the standard or "full-width" (typically 32 or 64 bits) integer types provided by a system or programming language.
-
+Narrow or sub-word integer types refer to integer data types that occupy less
+memory (fewer bits) than the standard or "full-width" (typically 32 or 64 bits)
+integer types provided by a system or programming language.
 
 As a prelude to arrays, especially arrays of bytes common in all networking
 codes, Simple needs some way to manipulate sub-word integer types.
@@ -209,11 +261,11 @@ This is the same as regular additions:
 public long value() { assert isConstant(); return _min; }
 ```
 
-#### Truncate(2)
+#### More Truncate
 
 ```java
 u8 a = arg;  // arg & 255
-u8 b = arg;  // arg & 255(same as a)
+u8 b = arg;  // arg & 255 (same as a)
 u8 c = a + b; // (arg&255)*2, type = TypeInteger.BOT
 return c; // (((arg&255)*2)&255), type = TypeInteger.U8
 ```
@@ -224,9 +276,9 @@ on the expression to keep it in the valid boundaries.
 
 
 ## Integer ranges
-Link hacker's delight here.
 
-For range math, visit:[^1]
+For general range math, visit Hackers Delight:[^1]
+
 ## Bitwise operations
 We support the following bitwise operators:
 And `&`, Or `|`, Xor `^`, Shift left `<<`, Shift right `>>`, Shift right zero `>>>`
@@ -241,6 +293,8 @@ And `&`, Or `|`, Xor `^`, Shift left `<<`, Shift right `>>`, Shift right zero `>
 | **Unsigned Right Shift** | `>>>`   | Shifts bits to the right, any vacated bit positions are always filled with zero                          |
 
 Note `>>>` is a logical shift and not an arithmetic shift.
+
+Here is a sample of peephole opts on these logical operations:
 
 ####  AndNode:
 
@@ -305,7 +359,7 @@ arg + 123 & 3 = (arg + 123) & 3
 
 ## Type Implementation
 
-The ![Integer](../chapter10a/docs/type-integer.svg) `TypeInteger` class is
+The ![Integer](../chapter10/docs/type-integer.svg) `TypeInteger` class is
 reworked to support a full range of min/max values.  At this time, only some
 power-of-2 sized ranges are exposed to the programmer but the optimizer
 internally supports all ranges.  The MEET operation takes the min-of-mins and
@@ -321,17 +375,18 @@ Example: the `i8` type has the range `[-128...127]`.
 
 Example: the `dual` of `bool` is `[1...0]` (just swap min and max).
 
-The ![Float](../docs/type-float.svg) `TypeFloat` class is also reworked to support 32-bit and 64-bit sizes.
+The ![Float](../docs/type-float.svg) `TypeFloat` class introduced here supports
+both 32-bit and 64-bit sizes.
 
 The integer range diagram is schematic: it shows the boolean range and its
-dual as examples among the possible ranges. The other domains retain the
+dual as examples among the possible ranges.  The other domains retain the
 named structs, nullable pointers, and precise memory aliases from earlier chapters.
 
 ![Graph1](./docs/lattice.svg)
 
 ### meet:
 
-Meet of two ranges:
+The Meet of two ranges:
 ```java
 @Override
 public Type xmeet(Type other) {
@@ -340,17 +395,14 @@ TypeInteger i = (TypeInteger)other; // Contract
 return make(Math.min(_min,i._min), Math.max(_max,i._max));
 }
 ```
-Combine all values that could possibly occur within either range.
 
-## Nodes
-
-Added this Chapter are some bit-manipulation Nodes representing common hardware
-ops to mask, shift, sign-extend and round bits.  The truncation and extension
-logic uses these.  They are otherwise very similar to the previous
-`Add/Sub/Mul/Div` Nodes but with slightly different constant math and
-slightly different `idealize()` calls.
+This combines all values that could possibly occur within either range.
+Also, the implementation is trivial.
 
 
 
 [^1]:  Hacker's delight.
     4-2 Propagating Bounds through Adds and Subtracts
+
+The next chapter uses these numeric types for array lengths, indexing, and
+element storage, including byte arrays.

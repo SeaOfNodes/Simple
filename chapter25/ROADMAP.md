@@ -120,11 +120,11 @@ Any number of named fields are allowed:
 
 ```java
 struct Class {
-    str     className;
-    str     professor;
+    !str     !className;
+    !str     !professor;
     int     time;
     int     credits;
-    Class   prerequisite;
+    !Class   !prerequisite;
     u16     #; // Limit of 65535 students per class
     Student [];
 };
@@ -195,7 +195,7 @@ new object, only growing as needed.
 
 ```java
 val vec1 = new vecInt[0].add(2); // len=1, capacity=1
-val vec2 = vec1.add(3); // NEW vecInt returned, only is deleted; len=2; capacity=2;
+val vec2 = vec1.add(3); // NEW !vecInt !returned, only is deleted; len=2; capacity=2;
 vec1[0]; // ERROR, vec1 has been freed by call to `vec1.add(3)`
 vec2[0]; // OK
 vec2[1]; // OK
@@ -284,7 +284,7 @@ extra indirection with each usage.
 
 ```java
 struct xstr {
-    str !_str; // The extra indirection is here
+    !str !_str; // The extra indirection is here
     val add = { str str -> _str = str.add2(str); };
     val write = { int fd -> _str.write(fd); };
 };
@@ -355,7 +355,7 @@ struct Complex { f64 x,y; val len = { ->Math.sqrt(x*x+y*y); }; };
 
 // Current Simple rules: always by-reference
 struct ByRef {
-    Complex c;          // 4-byte pointer to a Complex
+    !Complex !c;          // 4-byte pointer to a Complex
 };
 print(new ByRef.c.y);   // Lookup requires 1 extra memory load from ref to c
 
@@ -363,7 +363,7 @@ print(new ByRef.c.y);   // Lookup requires 1 extra memory load from ref to c
 // The '*' syntax indicator can be something else, e.g. a keyword "inline"
 // I am pronouncing '*' as "contents of"
 struct ByValue {
-    *Complex c;         // c is inlined, full 16 bytes into ByValue
+    *!Complex !c;         // c is inlined, full 16 bytes into ByValue
 };
 print(new ByValue.c.y); // x,y inlined into ByValue, no extra memory load
 
@@ -382,7 +382,7 @@ val *c =  val.c; // Error, cannot take "contents of" a value
 ref.c = val.*c; // Assign into ref.c the "contents of" val.c
 
 // Arrays of inlined structures
-var ary = new *Complex[99]; // Array of 99 Complex objects, inlined
+var ary = new *Complex[99]; // Array of 99 !Complex !objects, inlined
 
 // Calling methods has the same syntax
 ref.c.len();

@@ -48,12 +48,12 @@ return 0;
         String src =
 """
 struct String {
-    u8[] cs;
+    u8[] !cs;
     int _hashCode;
 };
 
 // Compare two Strings
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -63,13 +63,13 @@ val equals = { String self, String s ->
 };
 
 // Return the String hashCode (cached, and never 0)
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     for( int i=0; i< self.cs#; i++ )
         hash = hash*31 + self.cs[i];
@@ -256,7 +256,7 @@ return sum;""");
     public void testAlloc1() {
         CodeGen code = new CodeGen(
 """
-struct S { int a; S? c; };
+struct S { int a; !S? !c; };
 return new S;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return S;", code.print());
@@ -474,8 +474,8 @@ return sq(arg) + sq(3);
     @Test public void testFoldedReadBeforeWrites() {
         var code = new CodeGen("""
             struct S { int x; };
-            S !a = new S { x=11; }; S !b = new S { x=22; };
-            S !p = a; if( arg ) p = b;
+            !S !a = new S { x=11; }; !S !b = new S { x=22; };
+            !S !p = a; if( arg ) p = b;
             int before = p.x + arg;
             a.x=33; b.x=44;
             return before;

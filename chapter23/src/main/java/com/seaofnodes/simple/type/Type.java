@@ -326,6 +326,10 @@ public class Type /*implements Cloneable*/ {
     // Make a zero version of this type, 0 for integers and null for pointers.
     public Type makeZero() { return Type.NIL; }
 
+    // Writable array slots are invariant in their element access permissions.
+    // Otherwise an alias could insert a readonly pointer into a writable slot.
+    public boolean accessISA(Type dst) { return true; }
+
     // Is forward-reference
     public boolean isFRef() { return false; }
 

@@ -14,7 +14,6 @@ import com.seaofnodes.simple.type.Field;
  */
 public class LoadNode extends MemOpNode {
 
-    Type _declaredType;
     /**
      * Load a value from a ptr.field.
      *
@@ -23,12 +22,11 @@ public class LoadNode extends MemOpNode {
      * @param memPtr The ptr to the struct from where we load a field
      */
     public LoadNode(String name, int alias, Type glb, Node memSlice, Node memPtr) {
-        super(name, alias, null, memSlice, memPtr);
-        _declaredType = glb;
+        super(name, alias, glb, null, memSlice, memPtr);
     }
 
     @Override boolean canDrop(MemOpNode other, Node dep) {
-        return super.canDrop(other,dep) && _declaredType==((LoadNode)other)._declaredType && !clobbered(dep);
+        return super.canDrop(other,dep) && !clobbered(dep);
     }
 
     // Check only immediate memory users. Stores clobber memory; Phis and
@@ -67,7 +65,7 @@ public class LoadNode extends MemOpNode {
         // Simple Load-after-Store on same address.
         if( mem() instanceof StoreNode st &&
             ptr() == st.ptr() && _alias==st._alias ) { // Must check same object
-            assert _name.equals(st._name); // Equiv class aliasing is perfect
+            assert Utils.eq(_name,st._name); // Equiv class aliasing is perfect
             return st.val();
         }
 
@@ -83,13 +81,9 @@ public class LoadNode extends MemOpNode {
             if( profit(memphi,2) ||
                 // Else must not be a loop to count profit on LHS.
                 (!(memphi.region() instanceof LoopNode) && profit(memphi,1)) ) {
-                if( ptr() instanceof NewNode || !(ptr() instanceof CastNode) ) {
-                    if( !(ptr() instanceof NewNode) ) throw Utils.TODO(); // Validate
-
-                    Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr()).peephole();
-                    Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr()).peephole();
-                    return new PhiNode(_name,_type,memphi.region(),ld1,ld2);
-                }
+                Node ld1 = new LoadNode(_name,_alias,_declaredType,memphi.in(1),ptr()).peephole();
+                Node ld2 = new LoadNode(_name,_alias,_declaredType,memphi.in(2),ptr()).peephole();
+                return new PhiNode(_name,_type,memphi.region(),ld1,ld2);
             }
         }
 

@@ -80,7 +80,7 @@ optimizations such as:
 * The compiler may be able to identify regions of code that are dead and no
   longer needed, such as when a conditional branch always takes one of the
   branches ([Chapter 6](../chapter06/README.md)).
-* Pointers may be known to be not-null, and a null check can be skipped ([Chapter 10a](../chapter10a/README.md)).
+* Pointers may be known to be not-null, and a null check can be skipped ([Chapter 10](../chapter10/README.md)).
 * Array indices may be known to be in-range, and a range check can be skipped.
 * Many additional optimizations are possible when the compiler learns more
   about the possible set of Node values.
@@ -138,7 +138,7 @@ starting in [Chapter 4](../chapter04/README.md) and [Chapter
 
 
 There are other important properties of the Lattice that we discuss in [Chapter
-4](../chapter04/README.md) and [Chapter 10a](../chapter10a/README.md), such as the "meet" and "join" operators and their rules.
+4](../chapter04/README.md) and [Chapter 10](../chapter10/README.md), such as the "meet" and "join" operators and their rules.
 
 
 ## Nodes Pre Peephole Optimization

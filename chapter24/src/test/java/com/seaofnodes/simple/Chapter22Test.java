@@ -180,7 +180,7 @@ public class Chapter22Test {
     }
 
     @Test public void testInfiniteReturn() {
-        String src = "struct S { int i; }; S !s = new S; while(1) s.i++; return s.i;";
+        String src = "struct S { int i; }; !S !s = new S; while(1) s.i++; return s.i;";
         testCPU(src,"x86_64_v2","SystemV",0,"return Top;");
         testCPU(src,"riscv","SystemV",2,"return Top;");
         testCPU(src,"arm","SystemV",2,"return Top;");
@@ -215,7 +215,7 @@ public class Chapter22Test {
     @Test public void testSextFail() throws IOException {
         String src = """
 struct Person { i32 age;};
-Person !p = new Person;
+!Person !p = new Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
@@ -239,7 +239,7 @@ return 0;
         String src = """
 
                 struct Person { i32 age;};
-                Person !p = new Person;
+                !Person !p = new Person;
                 p.age = (arg<<48)>>48;
                 return 0;
         """;
@@ -263,7 +263,7 @@ return 0;
         String src = """
 // Should fold away sign extend
 struct Person { i8 age;};
-Person !p = new Person;
+!Person !p = new Person;
 p.age = (arg<<48)>>48;
 return 0;
        """;
@@ -291,7 +291,7 @@ struct Person {
     i32 age;
 };
 
-val fcn = { Person?[] ps, int x ->
+val fcn = { !Person?[] !ps, int x ->
     if( ps[x] )
         ps[x].age++;
 };
@@ -344,12 +344,12 @@ val fcn = { Person?[] ps, int x ->
     @Test
     public void testCoRecur() {
         String src = """
-struct A { B? b; C? c; i64 ax; val az = x*2; };
-struct B { A? a; C? c; f32 bx; val bz = x*3; };
-struct C { A? a; B? b; f64 cx; val cz = x*x; };
-A !aa = new A{ ax=17; };
-B !bb = new B{ bx=3.14; a = aa; };
-C !cc = new C{ cx=2.73; a = aa; b = bb; };
+struct A { !B? !b; !C? !c; i64 ax; val az = x*2; };
+struct B { !A? !a; !C? !c; f32 bx; val bz = x*3; };
+struct C { !A? !a; !B? !b; f64 cx; val cz = x*x; };
+!A !aa = new A{ ax=17; };
+!B !bb = new B{ bx=3.14; a = aa; };
+!C !cc = new C{ cx=2.73; a = aa; b = bb; };
 aa.b = bb;
 aa.c = cc;
 bb.c = cc;

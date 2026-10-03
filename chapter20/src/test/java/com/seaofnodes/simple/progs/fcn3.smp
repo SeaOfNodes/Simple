@@ -1,6 +1,6 @@
 
 //val fact = { int n -> n <= 1 ? 1 : fact(n-1)*n; }
-struct LL { LL? next; int payload; };
+struct LL { !LL? !next; int payload; };
 
 
 struct String {
@@ -13,7 +13,7 @@ struct String {
         return hash;
     };
 
-    val equals = { String s ->
+    val equals = { !String s ->
         if( self == s ) return true;
         if( cs# != s.cs# ) return false;
         for( int i=0; i< #; i++ )
@@ -28,7 +28,7 @@ struct String {
 
 
 
-val hashCode= { String self ->
+val hashCode= { !String self ->
     int hash = self._hashCode
     ? self._hashCode
     : self._hashCode = _hashCodeString(self);

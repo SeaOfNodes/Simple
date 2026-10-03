@@ -6,13 +6,13 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 
-/** Chapter 12's view of the IR; browser, transport and layout are shared. */
+/** Chapter 10's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
 
     @Override protected String[] edgeNames(Node n) {
         return n instanceof ScopeNode scope && n.nIns()!=0 ? scope.reverseNames() : null;
     }
-    @Override protected int projectionIndex(Node n) { return n instanceof ProjNode p ? p._idx : n instanceof CProjNode p ? p._idx : -1; }
+    @Override protected int projectionIndex(Node n) { return n instanceof ProjNode p ? p._idx : -1; }
 
     @Override protected Kind kind(Node n) {
         if( n instanceof StopNode ) return Kind.STOP;
@@ -25,9 +25,9 @@ public class SimpleGraphAdapter extends GraphAdapter<Node> {
     }
 
     @Override protected Role role(Node n, int i) {
-        if( n instanceof ScopeNode || n instanceof ConstantNode || n instanceof XCtrlNode ) return Role.ASSOC;
+        if( n instanceof ScopeNode || n instanceof ConstantNode ) return Role.ASSOC;
         if( n instanceof PhiNode ) return i == 0 ? Role.ASSOC : isMem(n) ? Role.MEM : Role.DATA;
-        if( n instanceof ProjNode || n instanceof CProjNode ) return n.isCFG() ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
+        if( n instanceof ProjNode ) return n.isCFG() ? Role.CTRL : isMem(n) ? Role.MEM : Role.DATA;
         if( n instanceof RegionNode && i == 0 ) return Role.ASSOC;
         if( i == 0 || n instanceof RegionNode || n instanceof StopNode ) return Role.CTRL;
         if( i == 1 && (n instanceof MemOpNode || n instanceof ReturnNode) ) return Role.MEM;

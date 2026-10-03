@@ -140,8 +140,7 @@ public class Evaluator {
             case StoreNode    store -> store(store);
             case MemMergeNode merge -> MEMORY;
             case NewNode      alloc -> alloc(alloc);
-            case CProjNode    cproj -> ((Object[])val(cproj.ctrl()))[cproj._idx];
-            case ProjNode     proj  -> ((Object[])val( proj.in(0) ))[ proj._idx];
+            case ProjNode     proj  -> ((Object[])val(proj.ctrl()))[proj._idx];
             default                 -> throw new AssertionError("Unexpected node " + node);
         };
     }

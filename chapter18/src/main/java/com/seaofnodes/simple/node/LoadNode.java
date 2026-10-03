@@ -56,8 +56,9 @@ public class LoadNode extends MemOpNode {
         Type t = MemMergeNode.contents(mem(),_alias,this);
         // Update declared forward ref to the actual.
         if( _declaredType.isFRef() && t instanceof TypeMemPtr tmp && !tmp.isFRef() )
-            _declaredType = tmp;
-        return err()==null ? _declaredType.join(t) : _declaredType;
+            _declaredType = tmp.withAccess(((TypeMemPtr)_declaredType)._ro);
+        Type rez = err()==null ? _declaredType.join(t) : _declaredType;
+        return ptr()._type.isFinal() || _declaredType.isFinal() ? rez.makeRO() : rez;
     }
 
     @Override
@@ -72,13 +73,13 @@ public class LoadNode extends MemOpNode {
         if( mem() instanceof StoreNode st &&
             _alias==st._alias && ptr == st.ptr() && off() == st.off() ) { // Must check same object
             assert _name.equals(st._name); // Equiv class aliasing is perfect
-            return st.val();
+            return castRO(st.val());
         }
 
         // Simple Load-after-New on same address.
         if( mem() instanceof ProjNode p && p.in(0) instanceof NewNode nnn &&
             ptr == nnn.proj(0) ) // Must check same object
-            return nnn.in(nnn.findAlias(_alias)); // Load from New init
+            return castRO(nnn.in(nnn.findAlias(_alias))); // Load from New init
 
         // Load-after-Store on same address, but bypassing provably unrelated
         // stores.  This is a more complex superset of the above two peeps.
@@ -199,7 +200,7 @@ public class LoadNode extends MemOpNode {
 
     // Read-Only is a deep property, and cannot be cast-away
     private Node castRO(Node rez) {
-        if( ptr()._type.isFinal() && !rez._type.isFinal() )
+        if( (ptr()._type.isFinal() || _declaredType.isFinal()) && !rez._type.isFinal() )
             return new ReadOnlyNode(rez).peephole();
         return rez;
     }

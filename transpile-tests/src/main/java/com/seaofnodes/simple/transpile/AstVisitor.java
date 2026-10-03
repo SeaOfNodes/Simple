@@ -16,7 +16,7 @@ class AstVisitor extends TreeScanner<Void, Void> {
     @Override
     public Void visitClass(ClassTree node, Void unused) {
         var name = node.getSimpleName().toString();
-        if (name.matches("Chapter\\d+Test")) {
+        if (name.matches("Chapter\\d+[a-z]?Test")) {
             var backup = className;
             className = name;
             super.visitClass(node, unused);
@@ -30,7 +30,16 @@ class AstVisitor extends TreeScanner<Void, Void> {
         if (className != null) {
             current = new TestMethod();
             current.name = node.getName().toString();
-            super.visitMethod(node, unused);
+            try {
+                super.visitMethod(node, unused);
+            } catch (IllegalArgumentException unsupported) {
+                // Only export the common literal-based patterns we understand.
+                // A computed input must not discard the rest of its test class.
+                current = null;
+                return null;
+            } finally {
+                inCatch = false;
+            }
             results.compute(className, (k, v) -> {
                 if (v == null)
                     v = new TestClass(className, new ArrayList<>());
@@ -54,13 +63,13 @@ class AstVisitor extends TreeScanner<Void, Void> {
             if (methodSelect.endsWith("assertEquals")) {
                 if (inCatch) {
                     if (args.size() != 2)
-                        throw new RuntimeException("Unexpected number of arguments " + node);
+                        throw new IllegalArgumentException("Unexpected number of arguments " + node);
                     if (args.get(1).toString().contains("e.getMessage()")) {
                         current.parseErrorMessage = (String) literal(args.get(0));
                     }
                 } else {
                     if (args.size() != 2)
-                        throw new RuntimeException("Unexpected number of arguments " + node);
+                        throw new IllegalArgumentException("Unexpected number of arguments " + node);
                     if (args.get(1).toString().contains("evaluate(")) {
                         // visit evaluate(..) or evaluate(..).toString()
                         var eval = args.get(1).accept(new TreeScanner<MethodInvocationTree, Void>() {
@@ -100,7 +109,7 @@ class AstVisitor extends TreeScanner<Void, Void> {
             }
             if (methodSelect.endsWith("prettyPrint")) {
                 if (args.size() < 2 || args.size() > 3 || !args.get(0).toString().equals("stop") || !args.get(1).toString().equals("99"))
-                    throw new RuntimeException("unexpected prettyPrint args " + node);
+                    throw new IllegalArgumentException("unexpected prettyPrint args " + node);
                 current.irPrinter = true;
                 current.irPrinterLLVM = args.size() == 3 && (Boolean) literal(args.get(2));
             }
@@ -122,11 +131,11 @@ class AstVisitor extends TreeScanner<Void, Void> {
                         case String s -> {
                             var parts = s.split("[()]");
                             if (parts.length != 2 | !parts[0].equals("TypeInteger.constant"))
-                                throw new RuntimeException("Unexpected Argument " + s);
+                                throw new IllegalArgumentException("Unexpected Argument " + s);
                             yield new TestMethod.Arg.IntConstant(Long.parseLong(parts[1]));
                         }
                     };
-                    default -> throw new RuntimeException("Parser constructor with unexpected arguments: " + node);
+                    default -> throw new IllegalArgumentException("Parser constructor with unexpected arguments: " + node);
                 }
                 current.parserInput = (String) literal(args.get(0));
             }
@@ -143,6 +152,8 @@ class AstVisitor extends TreeScanner<Void, Void> {
     }
 
     private Object literal(ExpressionTree t) {
-        return ((LiteralTree) t).getValue();
+        if (t instanceof LiteralTree literal)
+            return literal.getValue();
+        throw new IllegalArgumentException("Expected a literal: " + t);
     }
 }

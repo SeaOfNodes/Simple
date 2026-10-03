@@ -8,7 +8,7 @@ where `score` in the middle does not have to be repeated.
 
 The main compiler change is Interprocedural Sparse Conditional Constant
 Propagation (SCCP): an optimistic type solve which also discovers call-graph
-edges. Memory follows Chapter 10b's lazy partitioning: BulkMemPhi represents
+edges. Memory follows Chapter 11's lazy partitioning: BulkMemPhi represents
 whole memory, MemPhi merges precise aliases, and allocations consume and produce
 partial memory for their instance fields. During SCCP, memory Phis ignore
 unreachable inputs and allocation results stay high until control reaches them.

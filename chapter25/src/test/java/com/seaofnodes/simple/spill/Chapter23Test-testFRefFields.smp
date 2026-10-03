@@ -16,5 +16,5 @@ struct Scan {
         return true;
     };
 };
-Scan !s = new Scan("  q");
+!Scan !s = new Scan("  q");
 return s.peek('q');

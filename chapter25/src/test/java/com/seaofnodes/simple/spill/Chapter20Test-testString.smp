@@ -4,7 +4,7 @@ struct String {
     int _hashCode;
 };
 
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -13,13 +13,13 @@ val equals = { String self, String s ->
     return true;
 };
 
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     if( self.cs ) {
         for( int i=0; i< self.cs#; i++ )
@@ -29,7 +29,7 @@ val _hashCodeString = { String self ->
     return hash;
 };
 
-String !s = new String(new u8[17]);
+!String !s = new String(new u8[17]);
 s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);

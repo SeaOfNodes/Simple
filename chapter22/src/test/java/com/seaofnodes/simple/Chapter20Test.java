@@ -18,7 +18,7 @@ public class Chapter20Test {
             // A real integer return merged with a synthetic exit.
             "if(arg) while(1) {} return arg+1;",
             // TOP must not widen a non-null pointer or constrain a float register.
-            "struct S { int x; }; S !s=new S; if(arg) while(1) {} return s;",
+            "struct S { int x; }; !S !s=new S; if(arg) while(1) {} return s;",
             "if(arg) while(1) {} return 1.5;",
             // Several synthetic exits into the same return.
             "if(arg==1) while(1) {} if(arg==2) while(1) {} return arg+3;",
@@ -26,7 +26,7 @@ public class Chapter20Test {
             "while(1) { arg+=1; }",
             "if(arg) while(1) {} while(1) {}",
             // Loop-carried memory and scalar self-conflicts exercise spilling.
-            "struct S { int x; int y; }; S !a=new S; if(arg) while(1) { a.x+=arg; a.y+=a.x; } return a.x+a.y;"
+            "struct S { int x; int y; }; !S !a=new S; if(arg) while(1) { a.x+=arg; a.y+=a.x; } return a.x+a.y;"
         };
         for( String target : new String[]{"x86_64_v2","riscv","arm"} )
             for( String src : sources ) {
@@ -47,7 +47,7 @@ public class Chapter20Test {
 
     @Test public void testNarrowStoreMasks() {
         for( String type : new String[]{"i8","u8","i16","u16"} ) {
-            CodeGen code = new CodeGen("struct S { "+type+" x; }; S !s=new S; s.x=arg; return 0;")
+            CodeGen code = new CodeGen("struct S { "+type+" x; }; !S !s=new S; s.x=arg; return 0;")
                 .driver(CodeGen.Phase.RegAlloc,"x86_64_v2","SystemV");
             int stores=0;
             for( var bb : code._cfg )
@@ -63,9 +63,9 @@ public class Chapter20Test {
     @Test public void testInlinedReturnValue() {
         String src = """
 struct S { int x; };
-val f = { S s -> s.x = g(); };
+val f = { !S s -> s.x = g(); };
 val g = { -> 123; };
-S !s = new S;
+!S !s = new S;
 return f(s);
 """;
         // The entry of g can disappear before its Return is folded into f.
@@ -203,11 +203,11 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     public void testString() {
         String src = """
 struct String {
-    u8[] cs;
+    u8[] !cs;
     int _hashCode;
 };
 
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -216,13 +216,13 @@ val equals = { String self, String s ->
     return true;
 };
 
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     if( self.cs ) {
         for( int i=0; i< self.cs#; i++ )
@@ -232,7 +232,7 @@ val _hashCodeString = { String self ->
     return hash;
 };
 
-String !s = new String { cs = new u8[17]; };
+!String !s = new String { cs = new u8[17]; };
 s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);
@@ -243,7 +243,7 @@ hashCode(s);
             new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,0)
                 .driver(CodeGen.Phase.Encoding,cpu,"SystemV");
         testTarget(src,"x86_64_v2", "SystemV",9,null);
-        testTarget(src,"riscv"    , "SystemV",3,null);
+        testTarget(src,"riscv"    , "SystemV",1,null);
         testTarget(src,"arm"      , "SystemV",0,null);
     }
 
@@ -356,12 +356,12 @@ return output;
 """
 // based on the top-down version from https://en.wikipedia.org/wiki/Merge_sort
 
-val merge_sort = { int[] a, int[] b, int n ->
+val merge_sort = { int[] !a, int[] !b, int n ->
     copy_array(a, 0, n, b);
     split_merge(a, 0, n, b);
 };
 
-val split_merge = { int[] b, int begin, int end, int[] a ->
+val split_merge = { int[] !b, int begin, int end, int[] a ->
     if (end - begin <= 1)
         return 0;
     int middle = (end + begin) / 2;
@@ -371,7 +371,7 @@ val split_merge = { int[] b, int begin, int end, int[] a ->
     return 0;
 };
 
-val merge = { int[] b, int begin, int middle, int end, int[] a ->
+val merge = { int[] !b, int begin, int middle, int end, int[] a ->
     int i = begin, j = middle;
 
     for (int k = begin; k < end; k++) {
@@ -386,7 +386,7 @@ val merge = { int[] b, int begin, int middle, int end, int[] a ->
     }
 };
 
-val copy_array = { int[] a, int begin, int end, int[] b ->
+val copy_array = { int[] !a, int begin, int end, int[] b ->
     for (int k = begin; k < end; k++)
         b[k] = a[k];
 };

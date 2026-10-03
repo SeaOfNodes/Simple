@@ -8,6 +8,7 @@ public final class IRPrinter extends IRAdapter<Node> {
     private static final com.seaofnodes.print.IRPrinter<Node> PRINT =
         new com.seaofnodes.print.IRPrinter<>(new IRPrinter());
     @Override public String type(Node n) { return n._type==null ? "" : n._type.str(); }
+    @Override public int inputColumns() { return 3; }
     @Override public String inputMark(Node n, Node def) { return n instanceof MemMergeNode && def instanceof MemMergeNode ? "^" : " "; }
     @Override public Kind kind(Node n) {
         if( n instanceof StartNode ) return Kind.START;
@@ -17,15 +18,13 @@ public final class IRPrinter extends IRAdapter<Node> {
         if( n instanceof PhiNode ) return Kind.PHI;
         if( n instanceof ReturnNode ) return Kind.RETURN;
         if( n instanceof ConstantNode ) return Kind.CONSTANT;
-        if( n instanceof CProjNode ) return Kind.CPROJ;
-        if( n instanceof ProjNode ) return n instanceof CFGNode ? Kind.CPROJ : Kind.PROJ;
-        if( n instanceof CFGNode ) return Kind.CTRL;
+        if( n instanceof ProjNode ) return n.isCFG() ? Kind.CPROJ : Kind.PROJ;
+        if( n.isCFG() ) return Kind.CTRL;
         if( n instanceof MultiNode ) return Kind.MULTI;
         return Kind.DATA;
     }
     @Override public int index(Node n) {
         if( n instanceof ProjNode p ) return p._idx;
-        if( n instanceof CProjNode p ) return p._idx;
         return n._nid;
     }
 

@@ -92,7 +92,7 @@ exists in a “sea” of Nodes, with little control structure.
 The “sea” of Nodes is useful for optimization, but does not represent any
 traditional intermediate representation such as a CFG.  We need a way to
 serialize the graph and get back the control dependences. We do this with a
-simple Global Code Motion [^3] algorithm in [Chapter 11](../chapter11/README.md).
+simple Global Code Motion [^3] algorithm in [Chapter 13](../chapter13/README.md).
 
 #### `Stop` Nodes
 `StopNode`s only have `ReturnNode` inputs. They mark the program termination.

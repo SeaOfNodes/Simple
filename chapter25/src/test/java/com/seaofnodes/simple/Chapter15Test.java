@@ -25,8 +25,8 @@ return 3.14;
     public void testCyclic() {
         CodeGen code = new CodeGen(
 """
-struct _C { _C? l; };
-_C !c = new _C;
+struct _C { !_C? !l; };
+!_C !c = new _C;
 c.l = c;
 return c;
 """);
@@ -98,7 +98,7 @@ return a[0];
         CodeGen code = new CodeGen(
 """
 struct _A { int i; };
-_A?[] !a = new _A?[2];
+!_A?[] !a = new !_A?[2];
 return a;
 """);
         code.parse().opto();
@@ -112,16 +112,16 @@ return a;
 """
 struct _S { int x; flt y; };
 // A new _S
-_S !s = new _S; s.x=99; s.y = 3.14;
+!_S !s = new _S; s.x=99; s.y = 3.14;
 
 // Double-d array of _Ss.  Fill in one row.
-_S?[]?[] !iss = new _S?[]?[2];
-iss[0] = new _S?[7];
+!_S?[]?[] !iss = new !_S?[]?[2];
+iss[0] = new !_S?[7];
 iss[0][2] = s;
 
 // Now pull out the filled-in value, with null checks
 flt rez;
-_S?[]? is = iss[arg];
+!_S?[]? is = iss[arg];
 if( !is ) rez = 1.2;
 else {
     _S? i = is[2];
@@ -142,11 +142,11 @@ return rez;
 """
 struct _S { int x; flt y; };
 // A new _S
-_S !s = new _S; s.x=99; s.y = 3.14;
+!_S !s = new _S; s.x=99; s.y = 3.14;
 
 // Double-d array of _Ss.  Fill in one row.
-_S?[]?[] !iss = new _S?[]?[2];
-iss[0] = new _S?[7];
+!_S?[]?[] !iss = new !_S?[]?[2];
+iss[0] = new !_S?[7];
 iss[0][2] = s;
 
 // Now pull out the filled-in value, with null checks
@@ -167,9 +167,9 @@ return rez;""");
         CodeGen code = new CodeGen(
 """
 // Can we define a forward-reference array?
-struct _Tree { _Tree?[]? _kids; };
-_Tree !root = new _Tree;
-root._kids = new _Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
+struct _Tree { !_Tree?[]? !_kids; };
+!_Tree !root = new _Tree;
+root._kids = new !_Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
 root._kids[0] = new _Tree;
 return root;
 """);
@@ -182,7 +182,7 @@ return root;
     public void testNestedStructAddMemProj() {
         CodeGen code = new CodeGen(
 """
-struct _S { int a; int[] b; new _S = { int[] ary -> b=ary; }; };
+struct _S { int a; int[] !b; new _S = { int[] ary -> b=ary; }; };
 return 0;
 """);
         code.parse().opto();
@@ -227,8 +227,8 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
         CodeGen code = new CodeGen(
 """
 struct _S {int i; flt f;};
-_S !s1 = new _S;
-_S !s2 = new _S;
+!_S !s1 = new _S;
+!_S !s2 = new _S;
 s2.i = 3;
 s2.f = 2.0;
 if (arg) s1 = new _S;

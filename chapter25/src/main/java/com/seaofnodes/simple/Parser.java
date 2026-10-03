@@ -217,13 +217,17 @@ public class Parser {
      *  Parses a function body, assuming the header is parsed.
      */
     private ReturnNode parseFunctionBody( TypeFunPtr sig, Lexer loc, String[] ids) {
+        return parseFunctionBody(sig, loc, null, ids);
+    }
+
+    private ReturnNode parseFunctionBody( TypeFunPtr sig, Lexer loc, java.util.BitSet finals, String[] ids) {
         // Record & restore the existing scope vars.  The function parse might
         // update fields, so when the parse is done reset back to the pre-parse
         // state.
         Node[] preParse = _scope.save();
 
         // Parse function body normally
-        ReturnNode ret = _parseFunctionBody(null, sig,loc,ids);
+        ReturnNode ret = _parseFunctionBody(null, sig,loc,finals,ids);
 
         // Reset all fields to pre-parse days
         _scope.restore(preParse);
@@ -246,6 +250,10 @@ public class Parser {
     // Unstack the {break,continue,return} scopes.
 
     private ReturnNode _parseFunctionBody( String funName, TypeFunPtr sig, Lexer loc, String[] ids) {
+        return _parseFunctionBody(funName, sig, loc, null, ids);
+    }
+
+    private ReturnNode _parseFunctionBody( String funName, TypeFunPtr sig, Lexer loc, java.util.BitSet finals, String[] ids) {
         boolean isInit = FunNode.isInit(funName);
         boolean isCtor = isInit || isExplicitConstructorName(funName);
         String typeName = isCtor ? ((TypeMemPtr)sig._sig[0])._obj._name : null;
@@ -278,7 +286,7 @@ public class Parser {
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
             // Args take a default input if called from Start/external-world
-            _scope.define(ids[i], t, i==0 && ids[0]=="self", new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole(), loc);
+            _scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole(), loc);
         }
 
         // Parse the function body.
@@ -434,7 +442,7 @@ public class Parser {
             // value; otherwise a user constructor must initialize it.
             Node val = _returnScope.in(vidx);
             if( upgrade && v._uninit &&
-                !(val._type instanceof TypeNil tn && tn.notNull() && !val._type.isHigh()) ) continue;
+                !initialized(val._type) ) continue;
             // Store value into extended struct
             Node prior = mmm.keep();
             Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, prior, self, off(tself,fld._fname), val, fld._final));
@@ -455,6 +463,10 @@ public class Parser {
 
     // Validate each user constructor, or an implicit empty one, before the
     // declaration scope goes away. Later fields use their declaration defaults.
+    private static boolean initialized(Type t) {
+        return t!=Type.BOTTOM && !t.isHigh() && (!(t instanceof TypeNil tn) || tn.notNull());
+    }
+
     private void checkInitFields(TypeStruct ts, int base) {
         if( _returnScope==null || _returnScope.ctrl()._type.isHigh() ) return;
         boolean implicit = _ctorExits.isEmpty();
@@ -467,7 +479,7 @@ public class Parser {
                 Var v = _scope.var(idx);
                 if( !v._uninit || v._fref ) continue;
                 Type t = exit.getOrDefault(v,_returnScope.in(idx)._type);
-                if( !(t instanceof TypeNil tn && tn.notNull() && !t.isHigh()) )
+                if( !initialized(t) )
                     throw error("'"+ts._name+"' is not fully initialized, field '"+fld._fname+
                                 (implicit ? "' needs to be set in a constructor" :
                                             "' is only partially set in the constructor"),v._loc);
@@ -1025,6 +1037,10 @@ public class Parser {
     // Widen ints to floats; narrow wide int types.
     // Early error if types do not match variable.
     private Node convertExpr( Node expr, Type t ) {
+        if( !expr._type.accessISA(t) )
+            throw error("Type "+expr._type.str()+" is not of declared type "+t.str());
+        if( t instanceof TypeMemPtr tmp && tmp.isFinal() )
+            expr = peep(new ReadOnlyNode(expr));
         // A FunPtr carries the semantic edge to its function's Return.  Do not
         // hide that edge behind a Convert which can fold to a plain constant.
         if( expr instanceof FunPtrNode && t instanceof TypeFunPtr )
@@ -1090,17 +1106,24 @@ public class Parser {
         return require(n,";");
     }
 
-    /** Parse final: [!]var['=' asgn]
+    // The binding modifier sits immediately before the name. It never
+    // changes permissions on the referenced object.
+    private boolean bindingFinal(Type t) {
+        if( match("!") ) return false;
+        if( match("~") ) return true;
+        return t==Type.TOP || t instanceof TypeNil;
+    }
+
+    /** Parse final: [!|~]var['=' asgn]
      */
     private Node parseDeclaration(Type t) {
         assert t!=null;
         // Has var/val instead of a user-declared type
         boolean inferType = t==Type.TOP || t==Type.BOTTOM;
-        boolean hasBang = match("!");
+        boolean xfinal = bindingFinal(t);
         Lexer loc = loc();
         String name = requireId();
         // Optional initializing expression follows
-        boolean xfinal = false;
         boolean fld_final = false; // Field is final, but not deeply final
         boolean uninit = false;    // Required non-null constructor field
         Node expr;
@@ -1121,30 +1144,12 @@ public class Parser {
             } else {
                 expr = parseAsgn();
             }
-            // TOP means val and val is always final
-            xfinal = (t==Type.TOP) ||
-                expr instanceof ExternNode ||
-                // BOTTOM is var and var is always not-final
-                (t!=Type.BOTTOM &&
-                 // no Bang AND
-                 !hasBang &&
-                 // not-null (expecting null to be set to not-null)
-                 expr._type != Type.NIL &&
-                 // Pointers are final by default; int/flt are not-final by default.
-                 (t instanceof TypeNil));
-
             // var/val, then type comes from expression
             if( inferType ) {
                 if( expr._type==Type.NIL )
                     throw error("a not-null/non-zero expression");
                 t = expr._type;
                 if( !xfinal ) t = mutableInferredType(t);
-            }
-
-            // Final is deep on ptrs
-            if( xfinal && t instanceof TypeMemPtr tmp ) {
-                t = tmp.makeRO();
-                expr = peep(new ReadOnlyNode(expr));
             }
 
             // expr is a constant function
@@ -1168,8 +1173,8 @@ public class Parser {
                 // Required pointers retain their declared shape, but include
                 // null until every constructor path assigns them.
             case TypeNil tn -> tn.nullable() ? con(Type.NIL) : con(t.meet(Type.NIL));
-            case TypeInteger ti -> _code.ZERO;
-            case TypeFloat tf -> con(TypeFloat.FZERO);
+            case TypeInteger ti -> xfinal ? con(Type.BOTTOM) : _code.ZERO;
+            case TypeFloat tf -> con(xfinal ? Type.BOTTOM : TypeFloat.FZERO);
             // Bottom signals type inference: they must be initialized in
             // the constructor and that's when we'll discover the type.
             case Type tt -> { assert tt==Type.BOTTOM; yield con(tt); }
@@ -1177,9 +1182,9 @@ public class Parser {
             // Every non-null pointer without a default is constructor-required.
             // Without `!` it is also shallow-final; mutability and definite
             // initialization are independent properties.
-            if( t instanceof TypeNil tn && !tn.nullable() ) {
+            if( (xfinal && !(t instanceof TypeNil)) || (t instanceof TypeNil tn && !tn.nullable()) ) {
                 uninit = true;
-                if( !hasBang ) fld_final = true;
+                if( xfinal ) fld_final = true;
             }
         }
 
@@ -1430,8 +1435,10 @@ public class Parser {
 
         // Otherwise you get a type name
         int old1 = pos();
+        boolean writable = match("!");
+        boolean readonly = !writable && match("~");
         String tname = _lexer.matchId();
-        if( tname==null ) return null;
+        if( tname==null ) return posT(old1);
 
         // Convert the type name to a type.
         Type t0 = TYPES.get(tname), t1 = t0;
@@ -1544,6 +1551,13 @@ public class Parser {
         if( t1 instanceof TypeStruct ts1 )
             t1 = TypeMemPtr.make(ts1);
 
+        // A qualifier before the name applies to the struct reference, not
+        // to an enclosing array. Arrays have their own [] / [~] qualifier.
+        if( t1 instanceof TypeMemPtr tmp ) {
+            if( readonly || !writable ) t1 = tmp.makeRO();
+        } else if( writable || readonly )
+            return posT(old1);
+
         // Nest arrays and '?' as needed
         Type t2 = t1;
         while( true ) {
@@ -1554,7 +1568,7 @@ public class Parser {
                 } else
                     throw error("Type "+t0+" cannot be null");
             } else if( match("[~]") ) {
-                t2 = TypeMemPtr.make(typeAry(t2,true));
+                t2 = TypeMemPtr.make(typeAry(t2,true)).makeRO();
             } else if( match("[]") ) {
                 t2 = TypeMemPtr.make(typeAry(t2,false));
             } else
@@ -1566,7 +1580,7 @@ public class Parser {
         // Check valid forward ref, after parsing all the type extra bits.
         // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
         int old2 = pos();
-        match("!");
+        if( !match("!") ) match("~");
         String id = _lexer.matchId();
         if( !(peek(',') || peek(';') || peek('=') || match("->")) || id==null )
             return posT(old1);  // Reset lexer to reparse
@@ -1616,9 +1630,8 @@ public class Parser {
             ta = TypeStruct.makeAry(tname,TypeInteger.U32,_code.alias(rcname),t,_code.alias(rcname), false );
             TYPES.put(tname,ta);
         }
-        if( !efinal ) return ta;
         // Already have the aliases, just efinal is wrong
-        return TypeStruct.makeAry(tname,TypeInteger.U32,ta._fields[0]._alias,t,ta._fields[1]._alias,true );
+        return TypeStruct.makeAry(tname,TypeInteger.U32,ta._fields[0]._alias,t,ta._fields[1]._alias,efinal );
     }
 
     private Type implicitSelfType() {
@@ -2187,7 +2200,7 @@ public class Parser {
         // array body.
         TypeMemPtr str = TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8", slen, lenAlias, body, elemAlias, true),true);
         assert str.isConstant();
-        return con(str);
+        return con(str.makeRO());
     }
 
     /**
@@ -2305,6 +2318,8 @@ public class Parser {
             Node mem = mem();
             // Store to field
             mem.keep();
+            if( expr._type instanceof TypeMemPtr view && view._ro && ctrl()._type!=Type.XCONTROL )
+                throw error("Cannot modify final field '"+name+"'");
             Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), lift, false).peephole().keep();
             storeMem(st,alias,mem);
             st.unkeep();
@@ -2330,6 +2345,8 @@ public class Parser {
                 throw error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
             Node op = opAssign(ch,load, decl ).keep();
             mem.keep();
+            if( expr._type instanceof TypeMemPtr view && view._ro && ctrl()._type!=Type.XCONTROL )
+                throw error("Cannot modify final field '"+name+"'");
             Node st = new StoreNode(loc(), name, alias, decl, ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
             storeMem(st,alias,mem);
             st.unkeep();
@@ -2375,6 +2392,7 @@ public class Parser {
     private Node func() {
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
+        java.util.BitSet finals = new java.util.BitSet();
         Type self = implicitSelfType();
         ts.push(self);
         ids.push(self == TypePtr.PTR ? "#self" : "self");
@@ -2385,6 +2403,7 @@ public class Parser {
         while( true ) {
             Type t = type();    // Arg type
             if( t==null ) break;
+            finals.set(ids.size(),bindingFinal(t));
             String id = requireId();
             ts .push(t );       // Push type/arg pairs
             ids.push(id);
@@ -2393,7 +2412,7 @@ public class Parser {
         require("->");
         // Make a concrete function type, with a fidx
         TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),Type.BOTTOM,_code.fidx(_ref._cname));
-        ReturnNode ret = parseFunctionBody(tfp,loc,ids.asAry());
+        ReturnNode ret = parseFunctionBody(tfp,loc,finals,ids.asAry());
         return new FunPtrNode(tfp,_code._start,ret).peephole();
     }
 
@@ -2401,6 +2420,7 @@ public class Parser {
         require("{");
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
+        java.util.BitSet finals = new java.util.BitSet();
         TypeStruct self = _scope.constructorSelf();
         assert self != null;
         ts.push(TypeMemPtr.make(constructorRecv(self)));
@@ -2416,6 +2436,7 @@ public class Parser {
         while( true ) {
             Type t = type();
             if( t==null ) break;
+            finals.set(ids.size(),bindingFinal(t));
             String id = requireId();
             ts .push(t );
             ids.push(id);
@@ -2424,7 +2445,7 @@ public class Parser {
         require("->");
         TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),TypeMem.makePrivate(self),_code.fidx(_ref._cname));
         Node[] preParse = _scope.save();
-        ReturnNode ret = _parseFunctionBody((self._name+"."+name).intern(),tfp,loc,ids.asAry());
+        ReturnNode ret = _parseFunctionBody((self._name+"."+name).intern(),tfp,loc,finals,ids.asAry());
         _scope.restore(preParse);
         require("}");
         return new FunPtrNode(tfp,_code._start,ret).peephole();

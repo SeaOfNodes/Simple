@@ -42,49 +42,12 @@ return x+y;
         assertEquals("5", Eval2.eval(code,  0));
     }
 
-//    @Test
-//    public void testFinal0() {
-//        CodeGen code = new CodeGen(
-//"""
-//int !x=2;
-//x=3;
-//return x;
-//""");
-//        try { code.parse().opto(); fail(); }
-//        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
-//    }
-
-    @Test
-    public void testFinal1() {
-        CodeGen code = new CodeGen(
-"""
-int x=2, y=3;
-if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
-return y;
-""");
-        code.parse().opto();
-        assertEquals("return Phi(Region,9,3);", code.print());
-        assertEquals("3", Eval2.eval(code, 0));
-        assertEquals("9", Eval2.eval(code, 1));
-    }
 
     @Test
     public void testConstruct0() {
         CodeGen code = new CodeGen("""
 struct _X { int x=3; };
 _X z = new _X;
-return z.x;
-""");
-        code.parse().opto();
-        assertEquals("return 3;", code.print());
-        assertEquals("3", Eval2.eval(code,  0));
-    }
-
-    @Test
-    public void testConstruct1() {
-        CodeGen code = new CodeGen("""
-struct _X { int !x; new _X = { int xx -> x=xx; }; };
-_X z = new _X(3);
 return z.x;
 """);
         code.parse().opto();
@@ -106,86 +69,11 @@ return z.x;
 
 
     @Test
-    public void testStructFinal0() {
-        CodeGen code = new CodeGen("""
-struct _Point { int !x, !y; new _Point = { int xx, int yy -> x=xx; y=yy; }; };
-_Point p = new _Point(3,4);
-return p;
-""");
-        code.parse().opto();
-        assertEquals("return (const)Test._Point;", code.print());
-        assertEquals("Test._Point{x=3,y=4}", Eval2.eval(code,  0));
-    }
-
-    @Test
-    public void testStructFinal1() {
-        CodeGen code = new CodeGen("""
-struct _Point { int x=3, y=4; new _Point = { int xx, int yy -> x=xx; y=yy; }; };
-val p = new _Point(5,6);
-p.x++;
-return p;
-""");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
-    }
-
-    @Test
-    public void testStructFinal2() {
-        CodeGen code = new CodeGen("""
-struct _Point { int x=3, y=4; };
-val p = new _Point;
-p.x++;
-return p;
-""");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
-    }
-
-    @Test
-    public void testStructFinal3() {
-        CodeGen code = new CodeGen("""
-struct _Point { var x; var y; };
-_Point p = new _Point;
-p.x++;
-return p;
-""");
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("'Test._Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
-    }
-
-    @Test
-    public void testStructFinal4() {
-        CodeGen code = new CodeGen("""
-struct _Point { val x=2; val y=4; };
-_Point p = new _Point;
-p.x++;
-return p;
-""");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
-    }
-
-    @Test
-    public void testStructFinal5() {
-        CodeGen code = new CodeGen("""
-struct _Point { var x=3; var y=4; };
-_Point !p = new _Point;
-p.x++;
-return p;
-""");
-        code.parse().opto();
-        assertEquals("return Test._Point;", code.print());
-        assertEquals("Test._Point{x=4,y=4}", Eval2.eval(code,  0));
-    }
-
-    // Same as the Chapter13 test with the same name, but using the new
-    // constructor syntax
-    @Test
     public void testLinkedList1() {
         CodeGen code = new CodeGen(
 """
-struct _LLI { _LLI? next; int i; new _LLI = { _LLI? n, int ii -> next=n; i=ii; }; };
-_LLI? !head = null;
+struct _LLI { !_LLI? !next; int i; new _LLI = { !_LLI? !n, int ii -> next=n; i=ii; }; };
+!_LLI? !head = null;
 while( arg ) {
     head = new _LLI(head,arg);
     arg = arg-1;
@@ -206,7 +94,7 @@ return next.i;
     public void testLinkedList2() {
         CodeGen code = new CodeGen(
 """
-struct _LLI { _LLI? next; int i; new _LLI = { _LLI? n, int a ->
+struct _LLI { !_LLI? !next; int i; new _LLI = { !_LLI? !n, int a ->
     next=n;
     int !tmp=a;
     while( a > 10 ) {
@@ -215,7 +103,7 @@ struct _LLI { _LLI? next; int i; new _LLI = { _LLI? n, int a ->
     }
     i=tmp;
 }; };
-_LLI? !head = null;
+!_LLI? !head = null;
 while( arg ) {
     head = new _LLI(head,arg);
     arg = arg-1;

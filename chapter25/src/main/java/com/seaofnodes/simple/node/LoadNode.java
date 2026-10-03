@@ -85,6 +85,7 @@ public class LoadNode extends MemOpNode {
             return tmp.isHigh() || tmp._obj.isHigh() ? TypeScalar.TOP : TypeScalar.BOT;
 
         Type t = pfld._t;
+        boolean readonly = t instanceof TypeMemPtr view && view._ro;
         // Load member of constant array
         if( t instanceof TypeConAry ary )
             t = ary.elem();     // TODO: if offset is known, can peek the constant
@@ -93,7 +94,7 @@ public class LoadNode extends MemOpNode {
 
         // A deeply read-only base produces a deeply read-only value.  The
         // generic declared field type must not cast this information away.
-        if( ptr0.isFinal() )
+        if( ptr0.isFinal() || readonly )
             t = t.makeRO();
         return scalar(t);
     }
@@ -306,7 +307,7 @@ public class LoadNode extends MemOpNode {
 
     // Read-Only is a deep property, and cannot be cast-away
     private Node castRO(Node rez) {
-        if( ptr()._type.isFinal() && !rez._type.isFinal() )
+        if( (ptr()._type.isFinal() || declaredType().isFinal()) && !rez._type.isFinal() )
             return new ReadOnlyNode(rez).peephole();
         return rez;
     }

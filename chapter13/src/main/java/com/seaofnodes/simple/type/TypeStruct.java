@@ -8,14 +8,12 @@ import java.util.ArrayList;
  */
 public class TypeStruct extends Type {
 
-    // A Struct has a name and a set of fields; the fields themselves have
-    // names and types.  Briefly during parsing its allowed to have a
-    // forward-ref to a Struct; in this case the _fields array is null.
-    // Its illegal to attempt to load a field from a forward-ref struct.
-    //
-    // During the normal optimization run, struct types "bottom out" at further
-    // struct references, so we don't have to handle e.g.  cyclic types.  The
-    // "bottom out" is again the forward-ref struct.
+    // Immutable shallow references, resolved by name in Parser.TYPES when needed.
+    // A name-only struct has _fields == null, even after its definition is known.
+    // For LLI { LLI? next; int i; }, L0 is name-only and L1.next points to L0;
+    // TYPES["LLI"] holds L1. We deliberately stop recursive type expansion here,
+    // keeping interning and lattice operations finite and acyclic. Never patch
+    // L0 into L1: field access looks up the complete declaration by name instead.
     public final String _name;
     public final Field[] _fields;
 
@@ -40,7 +38,7 @@ public class TypeStruct extends Type {
     private static final TypeStruct S1F = make("S1");
     private static final TypeStruct S2F = make("S2");
     public  static final TypeStruct S1  = make("S1", new Field[]{ Field.make("a", TypeInteger.BOT), Field.make("s2",TypeMemPtr.make(S2F,false)) });
-    private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", TypeFloat  .BOT), Field.make("s1",TypeMemPtr.make(S1F,false)) });
+    private static final TypeStruct S2  = make("S2", new Field[]{ Field.make("b", TypeInteger.BOT), Field.make("s1",TypeMemPtr.make(S1F,false)) });
     public static void gather(ArrayList<Type> ts) { ts.add(TEST); ts.add(BOT); ts.add(S1); ts.add(S2); }
 
     public int find(String fname) {

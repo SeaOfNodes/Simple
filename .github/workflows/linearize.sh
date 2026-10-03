@@ -83,6 +83,9 @@ while read -r chapter; do
     # This is the first commit; setup shared files.
     cp "$repo"/{README.md,pom.xml} .
     mkdir docs
+    # Shared type-domain illustrations are referenced from chapter READMEs.
+    cp "$repo"/docs/type-*.svg docs/
+    git add docs/type-*.svg
     # Remove links to chapters.
     sed -Ei 's,\[Chapter ([0-9]+[a-z]?)\]\(chapter0?\1/README\.md\),Chapter \1,' README.md
     # Change to a JAR and delete the modules, for a single-project structure.
@@ -107,6 +110,9 @@ while read -r chapter; do
   # Repair links for this chapter.
   sed -Ei 's,\bdocs/,,' "docs/$chapter/README.md"
   sed -Ei 's,\(\.\./isa/,(../../isa/,g' "docs/$chapter/README.md"
+  # Source links are chapter-relative in the main tree; sources live at the
+  # repository root in a standalone chapter checkout.
+  sed -Ei 's,\((\./)?src/,(../../src/,g' "docs/$chapter/README.md"
   git add README.md "docs/$chapter/README.md" pom.xml
 
   # Create a commit for the chapter, using the metadata.

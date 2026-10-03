@@ -20,27 +20,27 @@ struct Scan {
 };
 
 // Skip whitespace
-val skip = { Scan s ->
+val skip = { !Scan s ->
     while( s.buf[s.x] <= ' ' )
         s.x++;
 };
 
 
 // Require specific syntax or usage
-val require = { Scan s, u8 c ->
+val require = { !Scan !s, u8 c ->
     skip(s);
     if( s.buf[s.x++] != c )
         usage();
 };
 
-val peek = { Scan s, u8 c ->
+val peek = { !Scan !s, u8 c ->
     skip(s);
     if( s.buf[s.x] != c ) return false;
     s.x++;
     return true;
 };
 
-val number = { Scan s ->
+val number = { !Scan s ->
     skip(s);
     i32 n = 0;
     while( '0' <= s.buf[s.x] & s.buf[s.x] <= '9' )
@@ -64,7 +64,7 @@ val sort = { int[] ns, int len ->
 
 // Read from stdin a line of the form "[ 4, 3, 2, 1]" and print it sorted.
 val main = { ->
-    Scan !s = new Scan{ buf = sys.io.stdin(); };
+    !Scan !s = new Scan{ buf = sys.io.stdin(); };
     require(s,'[');
     // Array of parsed results
     int[] !ns = new int[16];

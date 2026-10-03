@@ -187,7 +187,7 @@ public class CallNode extends CFGNode {
 
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
-            if( !arg(i+2)._type.isa(tfp.arg(i)) ) {
+            if( !arg(i+2)._type.isa(tfp.arg(i)) || !arg(i+2)._type.accessISA(tfp.arg(i)) ) {
                 // Constructors return private memory and carry hidden self and
                 // selfMem arguments ahead of the source-level arguments.
                 int argno = i - (tfp.ret() instanceof TypeMem ? 2 : 0);

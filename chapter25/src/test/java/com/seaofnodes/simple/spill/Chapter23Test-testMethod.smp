@@ -13,5 +13,5 @@ struct Scan {
         buf[x++]==ch;
     };
 };
-Scan !s = new Scan("  [1,2]");
+!Scan !s = new Scan("  [1,2]");
 return s.require('[');

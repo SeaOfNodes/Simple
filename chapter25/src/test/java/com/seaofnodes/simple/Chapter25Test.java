@@ -25,10 +25,20 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter25Test {
+
+    @Ignore
+    @Test
+    public void testJig() {
+        String src = "int x = arg/17; if( arg == 0 ) return arg + x; return arg + x;";
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return (arg+3);", code.print());
+        assertEquals("3",Eval2.eval(code,0));
+    }
+
     @Test public void testNeverReturnPointerRiscV() {
         new CodeGen("""
             struct _S { int x; };
-            _S !s = new _S;
+            !_S !s = new _S;
             if(arg) while(1) { s.x += arg; }
             return s;
             """).driver(CodeGen.Phase.Encoding,"riscv","SystemV");
@@ -118,17 +128,6 @@ public class Chapter25Test {
     @Test public void testPrintingConstantPool() throws Exception {
         com.seaofnodes.simple.codegen.PrintRegTestSupport.checkConstantPool();
     }
-
-
-    @Ignore
-    @Test
-    public void testJig() {
-        String src = "struct I { int x; };  struct F { I p; };  return new F.p.x;";
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
-        assertEquals("2",Eval2.eval(code,0));
-    }
-
-
 
     private static final String SYS_BLDDIR = "build/objs/lib_"+TestC.CPU_ABI;
     private static final File SYS_FILE = new File(SYS_BLDDIR+"/sys.o");

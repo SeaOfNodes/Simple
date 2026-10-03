@@ -24,7 +24,7 @@ public class Chapter10Test {
     // Issue #246: null-check guards start in Chapter 10; arrays arrive in Chapter 15.
     private static final String NULLABLE_POINT_SOURCE = """
         struct Point { int x; };
-        Point?[] !points = new Point?[2];
+        !Point?[] !points = new !Point?[2];
         points[arg] = new Point { x = 42; };
         Point? p = points[1];
         """;
@@ -100,7 +100,7 @@ struct Foo {
     int x;
 };
 Foo? foo = null;
-Bar !bar = new Bar;
+!Bar !bar = new Bar;
 bar.a = 1;
 bar.a = 2;
 return bar.a;
@@ -113,7 +113,7 @@ return bar.a;
     public void testExample() {
         CodeGen code = new CodeGen("""
 struct Vector2D { int x; int y; };
-Vector2D !v = new Vector2D;
+!Vector2D !v = new Vector2D;
 v.x = 1;
 if (arg)
     v.y = 2;
@@ -152,7 +152,7 @@ arg=0+new s0.0;
     public void testLoop() {
         CodeGen code = new CodeGen("""
 struct Bar { int a; };
-Bar !bar = new Bar;
+!Bar !bar = new Bar;
 while (arg) {
     bar.a = bar.a + 2;
     arg = arg + 1;
@@ -167,7 +167,7 @@ return bar.a;
     public void testIf() {
         CodeGen code = new CodeGen("""
 struct Bar { int a; };
-Bar !bar = new Bar;
+!Bar !bar = new Bar;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
@@ -180,7 +180,7 @@ return bar.a;
     public void testIf2() {
         CodeGen code = new CodeGen("""
 struct Bar { int a; };
-Bar? !bar = null;
+!Bar? !bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
@@ -206,7 +206,7 @@ return bar.a;
     public void testIfOrNull() {
         CodeGen code = new CodeGen("""
 struct Bar { int a; };
-Bar? !bar = new Bar;
+!Bar? !bar = new Bar;
 if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar;
@@ -220,7 +220,7 @@ return bar;
         CodeGen code = new CodeGen(
 """
 struct Bar { int a; };
-Bar? !bar = new Bar;
+!Bar? !bar = new Bar;
 if (arg) bar = null;
 int rez = 3;
 if( !bar ) rez=4;
@@ -235,7 +235,7 @@ return rez;
     public void testWhileWithNullInside() {
         CodeGen code = new CodeGen("""
 struct s0 {int v0;};
-s0? !v0 = new s0;
+!s0? !v0 = new s0;
 int ret = 0;
 while(arg) {
     ret = v0.v0;
@@ -256,7 +256,7 @@ struct s0 {
     int v0;
 };
 s0? v1=new s0;
-s0? v1;
+!s0? !v1;
 v1=new s0;
 """);
         try { code.parse(); fail(); }
@@ -272,7 +272,7 @@ struct Iter {
     int x;
     int len;
 };
-Iter !i = new Iter;
+!Iter !i = new Iter;
 i.len = arg;
 int sum=0;
 while( i.x < i.len ) {
@@ -290,9 +290,9 @@ return sum;
     public void test1() {
         CodeGen code = new CodeGen("""
 struct s0 {int v0;};
-s0 !ret = new s0;
+!s0 !ret = new s0;
 while(arg) {
-    s0 !v0 = new s0;
+    !s0 !v0 = new s0;
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
@@ -308,8 +308,8 @@ return ret;
     public void test2() {
         CodeGen code = new CodeGen("""
 struct s0 {int v0;};
-s0 !ret = new s0;
-s0 !v0 = new s0;
+!s0 !ret = new s0;
+!s0 !v0 = new s0;
 while(arg) {
     v0.v0 = arg;
     arg = arg-1;
@@ -327,9 +327,9 @@ return ret;
     public void test3() {
         CodeGen code = new CodeGen("""
 struct s0 {int v0;};
-s0 !ret = new s0;
+!s0 !ret = new s0;
 while(arg < 10) {
-    s0 !v0 = new s0;
+    !s0 !v0 = new s0;
     if (arg == 5) ret=v0;
     arg = arg + 1;
 }
@@ -454,9 +454,9 @@ return 0;
     @Test public void testReadBeforeStores() {
         var code = new CodeGen("""
             struct S { int x; int y; };
-            S !a = new S; S !b = new S;
+            !S !a = new S; !S !b = new S;
             a.x = 11; b.x = 22;
-            S !p = a; if (arg) p = b;
+            !S !p = a; if (arg) p = b;
             int before = p.x;
             a.y = 55; b.y = 66;
             a.x = 33; b.x = 44;
@@ -469,7 +469,7 @@ return 0;
 
     static final String NESTED_MEMORY = """
             struct S { int x; int y; int z; };
-            S !s = new S;
+            !S !s = new S;
             s.x = 5; s.y = 7; s.z = 11;
             while (arg > 0) {
                 s.x = s.x + 1;
@@ -498,7 +498,7 @@ return 0;
     @Test public void testMemoryAtEarlyReturns() {
         var code = new CodeGen("""
             struct S { int x; int y; int z; };
-            S !s = new S;
+            !S !s = new S;
             s.x = 3; s.y = 5; s.z = 7;
             if (arg) { s.x = 11; s.z = 13; return s; }
             s.y = 17;
@@ -513,9 +513,9 @@ return 0;
     @Test public void testKeepLoadsAtMerge() {
         var code = new CodeGen("""
             struct S { int x; };
-            S !a = new S; S !b = new S;
+            !S !a = new S; !S !b = new S;
             a.x = arg; b.x = arg+1;
-            S !p = a; S !q = b;
+            !S !p = a; !S !q = b;
             if (arg<0) { p=b; q=a; }
             int v;
             if (arg>1) v=p.x; else v=q.x;
@@ -532,7 +532,7 @@ return 0;
     @Test public void testDropStores() {
         var code = new CodeGen("""
             struct S { int x; };
-            S !s = new S;
+            !S !s = new S;
             if (arg) s.x=arg+1; else s.x=arg+2;
             return s;
             """).parse().opto();
@@ -545,9 +545,9 @@ return 0;
     @Test public void testKeepReadsBeforeWrites() {
         var code = new CodeGen("""
             struct S { int x; int y; };
-            S !a = new S; S !b = new S;
+            !S !a = new S; !S !b = new S;
             a.x=arg; b.x=arg+1;
-            S !p=a; S !q=b;
+            !S !p=a; !S !q=b;
             if (arg<0) { p=b; q=a; }
             int v;
             if (arg>1) { v=p.x; p.x=41; p.y=5; }

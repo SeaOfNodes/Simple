@@ -15,6 +15,8 @@ public class TranspilerTest {
         assertEquals("transpile-tests", cwd.getFileName().toString());
         var all = JUnitParser.parseRepository(cwd.getParent());
         assertTrue(all.size() >= 14);
+        assertTrue(all.get("chapter17a").stream().anyMatch(c -> c.name().equals("Chapter17aTest")));
+        assertTrue(all.get("chapter17b").stream().anyMatch(c -> c.name().equals("Chapter17bTest")));
 
         var chapter09 = all.get("chapter09");
         assertEquals(9, chapter09.size());

@@ -89,7 +89,7 @@ These `TypeStruct` arrays otherwise behave exactly as a `TypeStruct`.
 
 ## Allocation and partial memory
 
-This chapter keeps Chapter 10b's single hidden `$mem` variable and lazy
+This chapter keeps Chapter 11's single hidden `$mem` variable and lazy
 `BulkMemPhi`/`MemPhi` partitioning. Start produces `{ctrl, $mem, arg}` and
 Return consumes `{ctrl, $mem, value}`. Array initialization changes New:
 instead of separate initializing Stores, New allocates and zeros the object.
@@ -233,6 +233,7 @@ This means the IR for:
 
 Notice the `idx+1` folds the `+1` into the base math.
 
+Also notice this form is perfect for the X86 addressing modes.
 
 ## Discussion
 

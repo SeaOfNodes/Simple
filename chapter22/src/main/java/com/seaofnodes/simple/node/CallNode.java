@@ -162,7 +162,7 @@ public class CallNode extends CFGNode {
 
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
-            if( !arg(i+2)._type.isa(tfp.arg(i)) )
+            if( !arg(i+2)._type.isa(tfp.arg(i)) || !arg(i+2)._type.accessISA(tfp.arg(i)) )
                 return Parser.error( "Argument #"+i+" isa "+arg(i+2)._type+", but must be a "+tfp.arg(i), _loc);
 
         if( tfp.fidxs() < 0 )

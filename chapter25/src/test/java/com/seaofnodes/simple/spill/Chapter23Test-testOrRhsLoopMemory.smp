@@ -1,8 +1,8 @@
 struct S { int f; };
-S !s=new S;
+!S !s=new S;
 int result=arg&1;
 if(!result) {
-    S !t=new S;
+    !S !t=new S;
     while(s.f<3) s.f++;
     s.f++;
     t.f=s.f;

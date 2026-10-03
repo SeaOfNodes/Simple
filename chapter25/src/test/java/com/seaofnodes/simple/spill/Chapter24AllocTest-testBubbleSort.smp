@@ -137,7 +137,7 @@ struct aryi64 {
         };
     };
     val parseAryI64 = { u8[~] str ->
-        Scan !s = new Scan(str);
+        !Scan !s = new Scan(str);
         if( !s.match('[') ) return null;
         // Array of parsed results
         var nums = new aryi64(new i64[1]);
@@ -185,7 +185,7 @@ struct aryi64 {
 //
 // Bubble sort, with reading (parsing) and writing (formatting) the data.
 
-val sort = { aryi64 nums ->
+val sort = { !aryi64 nums ->
     var done = false;
     while( !done ) {
         done = true;

@@ -40,7 +40,7 @@ Frame numbers start at 1. Jumps lay out only their destination. When the slider
 moves during layout, the viewer finishes that calculation and then handles the
 latest request, skipping intermediate requests. Already visited layouts stay cached.
 
-Chapters 10a, 10b, and 11–25 run their existing TypeCheck pass after optimization. A successful
+Chapters 10-25 run their existing TypeCheck pass after optimization. A successful
 check adds a TypeCheck phase-complete frame. An error adds a final graph frame
 with the compiler's diagnostic; stepping or jumping to it centers the error node
 at a readable scale, outlines it in red, and shows the message on the phase line
@@ -152,8 +152,8 @@ and place their SVGs in a two-column Markdown table:
 | ![Before the rewrite](docs/before.svg) | ![After the rewrite](docs/after.svg) |
 ```
 
-This keeps both graphs side by side in the chapter README. Chapter 10a's
-[load-after-store example](../chapter10a/README.md#local-memory-optimizations)
+This keeps both graphs side by side in the chapter README. Chapter 10's
+[load-after-store example](../chapter10/README.md#local-memory-optimizations)
 uses this format to isolate a single rewrite.
 
 Choose how much control to show according to the lesson. Keep it when teaching
@@ -168,12 +168,12 @@ If a snapshot omits a Loop, retain `"backedge": true` on its Phis' backedge
 inputs so layout still puts the loop header values above their updates. This
 is a documentation layout hint; live snapshots derive it from the Loop node.
 
-The memory diagrams in 10a, 10b, and 11 also use viewer snapshots, with definitions
+The memory diagrams in Chapters 10, 11, and 13 also use viewer snapshots, with definitions
 above uses (apart from loop backedges) and arrows from use to definition.
 They omit control-flow context, including Regions and their Phi bindings,
 while retaining data and memory dependencies. Small, detached True/False
 projections show branch gates for Loads and Stores. Chapter 10 shows schematic
-source gates; Chapter 11 shows actual bindings at each scheduling stage, with
+source gates; Chapter 13 shows actual bindings at each scheduling stage, with
 entry-block and Loop bindings omitted. Its infinite-loop figures retain the
 CFG because that is their subject. Empty control slots in focused snapshots
 can denote omitted context rather than null inputs in the compiler.

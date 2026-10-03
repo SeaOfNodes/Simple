@@ -1,0 +1,64 @@
+package com.seaofnodes.simple.node;
+
+
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeInteger;
+
+
+public class SubNode extends Node {
+    public SubNode(Node lhs, Node rhs) { super(null, lhs, rhs); }
+
+    @Override public String label() { return "Sub"; }
+
+    @Override protected String format() { return "(%1-%2)"; }
+
+    @Override
+    public Type compute() {
+        Type t1 = in(1)._type, t2 = in(2)._type;
+        if( t1.isHigh() || t2.isHigh() )
+            return TypeInteger.TOP;
+        if( t1 instanceof TypeInteger i1 &&
+            t2 instanceof TypeInteger i2 ) {
+            if (i1.isConstant() && i2.isConstant())
+                return TypeInteger.constant(i1.value()-i2.value());
+            // Fold ranges like {2-3} - {0-1} into {1-3}.
+            if( !AddNode.overflow(i1._min,-i2._max) &&
+                !AddNode.overflow(i1._max,-i2._min) &&
+                i2._min != Long.MIN_VALUE  )
+                return TypeInteger.make(i1._min-i2._max,i1._max-i2._min);
+        }
+        // Sub of same is 0
+        if( in(1)==in(2) )
+            return TypeInteger.ZERO;
+
+        return TypeInteger.BOT;
+    }
+
+    @Override
+    public Node idealize() {
+        Node lhs = in(1);
+        Node rhs = in(2);
+        Type t1 = lhs._type;
+        Type t2 = rhs._type;
+
+        // Keep invalid operands for type checking.
+        if( t1 instanceof TypeInteger x && t2 instanceof TypeInteger y ) {
+            if( y.isConstant() && y.value()==0 ) return lhs;
+            if( x.isConstant() && x.value()==0 ) return new MinusNode(rhs);
+        }
+
+        // x - (-y) is x+y
+        if( rhs instanceof MinusNode minus )
+            return new AddNode(lhs,minus.in(1));
+
+        // (-x) - y is -(x+y)
+        if( lhs instanceof MinusNode minus )
+            return new MinusNode(new AddNode(minus.in(1),rhs).peephole());
+
+        return null;
+    }
+
+    @Override Node copy(Node lhs, Node rhs) { return new SubNode(lhs,rhs); }
+    @Override Node copyF() { return new SubFNode(null,null); }
+}

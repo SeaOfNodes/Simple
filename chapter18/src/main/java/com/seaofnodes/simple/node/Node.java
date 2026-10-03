@@ -588,9 +588,8 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
     private static final BitSet WVISIT = new BitSet();
     final public <E> E walk( Function<Node,E> pred ) {
         assert WVISIT.isEmpty();
-        E rez = _walk(pred);
-        WVISIT.clear();
-        return rez;
+        try { return _walk(pred); }
+        finally { WVISIT.clear(); }
     }
 
     private <E> E _walk( Function<Node,E> pred ) {

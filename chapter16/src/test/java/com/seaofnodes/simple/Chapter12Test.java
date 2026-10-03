@@ -2,33 +2,11 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Chapter12Test {
-    @Test public void testSubZeroFloat() {
-        var stop = new Parser("flt x = arg; return 0-x;").parse().iterate();
-        // Compare strings so +0.0 and -0.0 remain distinct.
-        assertEquals("0.0", Evaluator.evaluate(stop,0).toString());
-        assertEquals("-1.0", Evaluator.evaluate(stop,1).toString());
-    }
-
-    @Test public void testDeadNumericReturns() {
-        for( String[] test : new String[][] {
-            {"if(1) return 7; else return 2.5;", "7"},
-            {"if(0) return 7; else return 2.5;", "2.5"},
-            {"return 7; return 2.5;", "7"},
-            {"return 2.5; return 7;", "2.5"}
-        } ) {
-            String src = test[0];
-            var stop = new Parser(src).parse().iterate();
-            assertEquals(src,test[1],com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,0).toString());
-        }
-    }
-
-
     @Test
     public void testJig() {
         Parser parser = new Parser(
@@ -41,43 +19,178 @@ return 3.14;
     }
 
     @Test
-    public void testFloat() {
+    public void testLinkedList0() {
         Parser parser = new Parser(
 """
-return 3.14;
-""");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3.14;", stop.toString());
-        assertEquals(3.14, Evaluator.evaluate(stop,  0));
-    }
-
-    @Test
-    public void testSquareRoot() {
-        Parser parser = new Parser(
-"""
-flt guess = arg;
-while( 1 ) {
-    flt next = (arg/guess + guess)/2;
-    if( next == guess ) break;
-    guess = next;
+struct LLI { LLI? next; int i; };
+LLI? head = null;
+while( arg ) {
+    LLI x = new LLI;
+    x.next = head;
+    x.i = arg;
+    head = x;
+    arg = arg-1;
 }
-return guess;
+return head.next.i;
 """);
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop10,(flt)arg,(((ToFloat/Phi_guess)+Phi_guess)/2.0));", stop.toString());
-        assertEquals(3.0, Evaluator.evaluate(stop,  9));
-        assertEquals(1.414213562373095, Evaluator.evaluate(stop,  2));
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'i'",e.getMessage()); }
     }
 
     @Test
-    public void testFPOps() {
+    public void testLinkedList1() {
         Parser parser = new Parser(
 """
-flt x = arg;
-return x+1==x;
+struct LLI { LLI? next; int i; };
+LLI? head = null;
+while( arg ) {
+    LLI x = new LLI;
+    x.next = head;
+    x.i = arg;
+    head = x;
+    arg = arg-1;
+}
+if( !head ) return 0;
+LLI? next = head.next;
+if( next==null ) return 1;
+return next.i;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return ((flt)arg==(ToFloat+1.0));", stop.toString());
-        assertEquals(0L, Evaluator.evaluate(stop, 1));
+        assertEquals("Stop[ return 0; return 1; return .i; ]", stop.toString());
+        assertEquals(2L, Evaluator.evaluate(stop,  3));
     }
+
+    @Test
+    public void testCoRecur() {
+        Parser parser = new Parser(
+"""
+struct int0 { int i; flt0? f; };
+struct flt0 { flt f; int0? i; };
+int0 i0 = new int0;
+i0.i = 17;
+flt0 f0 = new flt0;
+f0.f = 3.14;
+i0.f = f0;
+f0.i = i0;
+return f0.i.f.i.i;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 17;", stop.toString());
+    }
+
+    @Test
+    public void testNullRef0() {
+        Parser parser = new Parser(
+"""
+struct N { N? next; int i; };
+N n = new N;
+return n.next;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return null;", stop.toString());
+    }
+
+    @Test
+    public void testNullRef1() {
+        Parser parser = new Parser(
+"""
+struct M { int m; };
+struct N { M next; int i; };
+N n = new N { next = new M; };
+return n.next;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return M;", stop.toString());
+    }
+
+    @Test
+    public void testNullRef2() {
+        Parser parser = new Parser(
+"""
+struct M { int m; };
+struct N { M next; int i; };
+N n = new N { next = null; }
+return n.next;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
+    }
+
+    @Test
+    public void testNullRef3() {
+        Parser parser = new Parser(
+"""
+struct N { N? next; int i; };
+N n = new N;
+n.i = 3.14;
+return n.i;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot store 3.14 into field int i",e.getMessage()); }
+    }
+
+    @Test
+    public void testNullRef4() {
+        Parser parser = new Parser("-null-5/null-5");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Expected an identifier, found 'null'",e.getMessage()); }
+    }
+
+    @Test public void testNullRef5() {
+        Parser parser = new Parser("return null+42;");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Cannot 'Add' null",e.getMessage()); }
+    }
+
+    @Test
+    public void testEmpty() {
+        Parser parser = new Parser(
+"""
+struct S{};
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return 0;", stop.toString());
+        assertEquals(0L, Evaluator.evaluate(stop,  0));
+    }
+
+    @Test
+    public void testForwardRef0() {
+        Parser parser = new Parser(
+"""
+struct S1 { S2 s; };
+return new S2;
+""");
+        try { parser.parse().iterate(); fail(); }
+        catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
+    }
+
+    @Test
+    public void testForwardRef1() {
+        Parser parser = new Parser(
+"""
+struct S1 { S2? s; };
+struct S2 { int x; };
+return new S1.s=new S2;
+""");
+        StopNode stop = parser.parse().iterate();
+        assertEquals("return S2;", stop.toString());
+    }
+
+    @Test
+    public void testcheckNull() {
+        Parser parser = new Parser(
+"""
+struct I {int i;};
+struct P { I? pi; };
+P p1 = new P;
+P p2 = new P;
+p2.pi = new I;
+p2.pi.i = 2;
+if (arg) p1 = new P;
+return p1.pi.i + 1;
+""");
+        try { parser.parse().iterate();  fail(); }
+        catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
+    }
+
 }

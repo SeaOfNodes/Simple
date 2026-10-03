@@ -11,22 +11,21 @@ statement
     : returnStatement
     | structDeclaration
     | declStatement
-    | blockStatment
+    | blockStatement
     | expressionStatement
     | ifStatement
     | whileStatement
     | breakStatement
-    | continueStatment
+    | continueStatement
     ;
 
 PRIMTYPE
     : 'int'
-    | 'flt'
     ;
 
 field
     : PRIMTYPE IDENTIFIER ';'
-    | structName IDENTIFIER ('?')? ';'
+    | structName ('?')? IDENTIFIER ';'
     ;
 
 fields
@@ -103,7 +102,7 @@ newExpression
     ;
 
 fieldExpression
-    : primaryExpresson '.' IDENTIFIER
+    : primaryExpression '.' IDENTIFIER
     ;
 
 primaryExpression
@@ -123,7 +122,7 @@ INTEGER_LITERAL
     ;
 
 IDENTIFIER
-    : NON_DIGIT (NON_DIGIT | DIGIT)*
+    : NON_DIGIT (NON_DIGIT | DEC_DIGIT)*
     ;
 
 NON_DIGIT: [a-zA-Z_];

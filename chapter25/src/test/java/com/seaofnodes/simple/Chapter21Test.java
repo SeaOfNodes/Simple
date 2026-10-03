@@ -17,8 +17,8 @@ public class Chapter21Test {
 
     @Test public void testReadBeforeConditionalStore() {
         var code = new CodeGen("""
-            struct S { int x; }; S !a=new S; S !b=new S;
-            a.x=10; b.x=20; S !p=a; if(arg&1) p=b;
+            struct S { int x; }; !S !a=new S; !S !b=new S;
+            a.x=10; b.x=20; !S !p=a; if(arg&1) p=b;
             int sum=0;
             for(int i=0; i<6; i++) {
                 sum+=a.x;
@@ -281,7 +281,7 @@ return new _s0.v1;
     }
 
     @Test public void testInfinite() {
-        String src = "struct _S { int i; }; _S !s = new _S; while(1) s.i++; return s.i;";
+        String src = "struct _S { int i; }; !_S !s = new _S; while(1) s.i++; return s.i;";
         testCPU(src,"x86_64_v2", "SystemV",0,"return Top;");
         testCPU(src,"riscv"    , "SystemV",2,"return Top;");
         testCPU(src,"arm"      , "SystemV",2,"return Top;");
@@ -311,7 +311,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """
 struct _S { int f; };
 var v0 = new _S;
-_S? v1;
+!_S? !v1;
 if (arg) v1 = new _S;
 if (v1) {
     v0.f = v1.f;
@@ -330,13 +330,13 @@ return v0;
         String src =
 """
 struct String {
-    u8[] cs;
+    u8[] !cs;
     int _hashCode;
     new String = { u8[] data -> cs=data; };
 };
 
 // Compare two Strings
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -346,13 +346,13 @@ val equals = { String self, String s ->
 };
 
 // Return the String hashCode (cached, and never 0)
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     for( int i=0; i< self.cs#; i++ )
         hash = hash*31 + self.cs[i];
@@ -369,13 +369,13 @@ val _hashCodeString = { String self ->
         String src =
 """
 struct String {
-    u8[] cs;
+    u8[] !cs;
     int _hashCode;
     new String = { u8[] data -> cs=data; };
 };
 
 // Compare two Strings
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -385,13 +385,13 @@ val equals = { String self, String s ->
 };
 
 // Return the String hashCode (cached, and never 0)
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     for( int i=0; i< self.cs#; i++ )
         hash = hash*31 + self.cs[i];
@@ -570,7 +570,7 @@ val fib = { int n ->
                     i32 age;
                 };
 
-                val fcn = { Person?[] ps, int x ->
+                val fcn = { !Person?[] !ps, int x ->
                     if( ps[x] )
                         ps[x].age++;
                 };

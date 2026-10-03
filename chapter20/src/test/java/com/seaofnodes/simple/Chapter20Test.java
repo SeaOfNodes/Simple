@@ -16,7 +16,7 @@ public class Chapter20Test {
 
     @Test public void testNarrowStoreMasks() {
         for( String type : new String[]{"i8","u8","i16","u16"} ) {
-            CodeGen code = new CodeGen("struct S { "+type+" x; }; S !s=new S; s.x=arg; return 0;")
+            CodeGen code = new CodeGen("struct S { "+type+" x; }; !S !s=new S; s.x=arg; return 0;")
                 .parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2","SystemV").GCM().localSched().regAlloc();
             int stores=0;
             for( var bb : code._cfg )
@@ -32,9 +32,9 @@ public class Chapter20Test {
     @Test public void testInlinedReturnValue() {
         String src = """
 struct S { int x; };
-val f = { S s -> s.x = g(); };
+val f = { !S s -> s.x = g(); };
 val g = { -> 123; };
-S !s = new S;
+!S !s = new S;
 return f(s);
 """;
         // The entry of g can disappear before its Return is folded into f.
@@ -168,11 +168,11 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
     public void testString() {
         String src = """
 struct String {
-    u8[] cs;
+    u8[] !cs;
     int _hashCode;
 };
 
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -181,13 +181,13 @@ val equals = { String self, String s ->
     return true;
 };
 
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     if( self.cs ) {
         for( int i=0; i< self.cs#; i++ )
@@ -197,7 +197,7 @@ val _hashCodeString = { String self ->
     return hash;
 };
 
-String !s = new String { cs = new u8[17]; };
+!String !s = new String { cs = new u8[17]; };
 s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);

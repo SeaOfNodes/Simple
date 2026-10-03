@@ -71,7 +71,7 @@ include $(firstword $(wildcard ../isa/isa.mk isa/isa.mk))
 test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 # These tests do not rely on the stdlib
 test_alone := com.seaofnodes.simple.BrainFuckTest com.seaofnodes.simple.MergeSortTest com.seaofnodes.simple.TypeTest
-test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21
+test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 12 13 14Float 14 15 16 17a 17b 18 19 20 21
 test_raw_nums1 := 22 23 24
 # These tests DO rely on the stdlib
 test_raw_sys   := 25

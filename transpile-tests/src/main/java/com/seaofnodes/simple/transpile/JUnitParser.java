@@ -28,7 +28,7 @@ public class JUnitParser {
         Arrays.sort(inputs);
         for (File file : inputs) {
             var chapter = file.getName();
-            if (chapter.matches("chapter\\d+")) {
+            if (chapter.matches("chapter\\d+[a-z]?") && Files.isRegularFile(file.toPath().resolve("pom.xml"))) {
                 chapters.put(chapter, parseChapter(file.toPath()));
             }
         }
@@ -44,7 +44,7 @@ public class JUnitParser {
         Files.walkFileTree(input, Set.of(), 20, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                if (file.getFileName().toString().matches("Chapter\\d+Test\\.java")) {
+                if (file.getFileName().toString().matches("Chapter\\d+[a-z]?Test\\.java")) {
                     tests.add(file);
                 }
                 return FileVisitResult.CONTINUE;
@@ -59,10 +59,8 @@ public class JUnitParser {
         var task = (JavacTask) compiler.getTask(null, null, null, null, null, compilationUnits);
 
         var visitor = new AstVisitor();
-        for (var tree : task.parse()) {
-            try { tree.accept(visitor, null); }
-            catch( IllegalArgumentException iae ) {}
-        }
+        for (var tree : task.parse())
+            tree.accept(visitor, null);
 
         var testClasses = new ArrayList<>(visitor.results.values());
         testClasses.sort(comparing(TestClass::name));

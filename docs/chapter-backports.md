@@ -7,8 +7,9 @@ are disposable build artifacts. Reusable rules live in
 
 Introduce independent fixes in the earliest applicable chapter and propagate
 them through every affected snapshot. Testing Chapter 25's inherited tests does
-not validate the compilers in the earlier chapter directories. Chapter 10 is
-now split into 10a (bulk memory) and 10b (lazy memory partitioning). Keep the
+not validate the compilers in the earlier chapter directories. Chapters 10 and 11 introduce bulk memory and lazy memory partitioning;
+Chapter 12 adds references, Chapter 13 schedules the graph, and Chapter 14
+introduces floats and narrow numeric types. Keep the
 rest of SSA construction with incomplete types in Chapter 25 for now. Cliff wants to revisit splitting Chapter 25
 into smaller chapters; escape analysis remains in 25 until that larger review.
 
@@ -19,6 +20,90 @@ update. No FunPtr implementation or validation remains outstanding; the full
 21-25 results are recorded below. The subsequent narrow C integer-return ABI
 correction starts in 22 and is forwarded through 25; see the validation record.
 Splitting Chapter 25 is deferred, not an instruction to renumber.
+
+## Chapter numbering after the memory reorganization
+
+| Previous chapter | Current chapter |
+|---|---|
+| 10a: whole memory | 10 |
+| 10b: lazy memory splitting | 11 |
+| 13: references, plus typed fields from 12 | 12 |
+| 11: GCM, retaining reference support | 13 |
+| 12: floats, and 14: narrow types | 14 |
+
+Chapters 15-16 and 18-25 retain their numbering; the subsequent mutability split
+replaces 17 with 17a and 17b. New Chapter 12 has no GCM or floating
+point nodes; Chapter 13 introduces GCM without floats. Chapter 14 adds both
+floating point and narrow numeric types. The inherited float test suite is
+now `Chapter14FloatTest`; reference and GCM suites are `Chapter12Test` and
+`Chapter13Test`. The README in Chapter 12 records the intentional `L0`/`L1`
+shallow-reference boundary and resolving field definitions by name.
+
+Historical validation entries below use the chapter numbers and test names
+in effect when the work was done. In particular, old 10a/10b records refer to
+current 10/11, and old `Chapter12Test` float regressions now live in
+`Chapter14FloatTest`. The pending float-to-int conversion belongs with the
+numeric material in Chapter 14; it is not implemented by this reorganization.
+
+Validation of the reorganization (2026-10-03): Make suites pass in every
+chapter 10-25, including the shared printer/ISA tests and Chapter 25's native
+runtime tests. Chapters 10-14 produce release jars. Fresh standalone checkouts
+of 12, 13, and 14 pass their suites and package without parent chapter sources.
+Browser playback checks pass in 12 and 13. POM module order, portable IDEA
+XML, chapter navigation, local links, SVG XML, shell syntax, and UTF-8/LF checks
+pass. Logs are in `build/chapter-reorg/`.
+
+The new main-Java increments (added + removed lines) are 529 for 10 to 11,
+280 for 11 to 12, 867 for 12 to 13, and 1,185 for 13 to 14. These exclude tests,
+prose, assets, and generated files. The references chapter is now a small,
+separate language extension; the larger increments introduce scheduling and
+numeric types respectively.
+
+## Mutability syntax and chapter split (2026-10-03)
+
+Chapter 16 introduces constructors. Chapter 17a introduces independent binding
+and reference permissions; Chapter 17b adds inference, updates, conditional
+expressions, and `for`. POMs, portable IDEA descriptors, Make discovery, README
+navigation, and inherited test names follow the split. `Chapter17aTest` owns
+the former final-field constructor tests; `Chapter17bTest` owns syntax sugar.
+
+From 17a through 25, `!Point`/`~Point` control pointee access and `!p`/`~p`
+control reassignment. Primitive bindings default mutable; references default
+fixed and struct access defaults read-only. Arrays default writable, with
+`[~]` specifying a read-only layer. `var` and `val` preserve initializer access.
+Read-only views are deep but do not freeze other aliases or remove memory
+dependencies. Writable array slots require matching element permissions.
+
+`TypeMemPtr` carries the access bit independently of fields and preserves it
+through forward-reference resolution, cyclic interning, inference, loads,
+calls, and Chapter 25 serialization. Cyclic factories build the complete type
+before interning to avoid orphaning temporary types. Array aliases are shared
+across access views, while their element permissions remain distinct. The
+23/24 static-field distinction now requires an explicit initializer; a fixed
+nullable field's implicit null is still an instance field.
+
+Constructor permissions cover only allocation fields, including assignments in
+nested blocks. They do not permit rebinding surrounding or constructor-local
+fixed variables. Chapter 25's constructor-exit check also handles required
+primitive fields. The object format changes to `C0D2`; rebuilding `sys.o` is
+required and exercised by its native tests.
+
+The changed graphs exposed two small existing assumptions: Chapter 24 must
+recognize a Phi whose own backedge is still under construction, and a memory
+query through New must record a dependency even when the queried loop MemPhi
+is a user of the Store. The memory-query dependency is propagated across the
+applicable bulk-memory implementations.
+
+Validation: Make suites pass in 16 (244), 17a (255), 17b (304), 18 (339),
+19 (383), 20 (405), 21 (444), 22 (465), 23 (487), and 24 (517); applicable
+chapter-local fuzz regression wrappers and the shared printer/ISA suites pass.
+Chapter 25's complete Make suite passes, including native/library execution and
+rebuilt serialized objects. Fresh standalone 17a/17b copies pass their tests
+and produce release jars; 16 also packages. POMs, IDEA XML, and navigation
+links are checked. Test-export tooling recognizes 17a/17b and its suite passes;
+unsupported Java test patterns are skipped per method rather than per class.
+Existing spill expectations changed in the String fixture:
+22's RISC-V count is 1 instead of 3; 24's x86 count is 0 instead of 9.
 
 ## Pending corrections
 
@@ -350,9 +435,9 @@ lines beyond the original extraction.
 
 ### Other pending corrections
 
-- **Float-to-integer conversion (new feature).** Missing from Chapters 12-25;
+- **Float-to-integer conversion (new feature).** Missing from Chapters 14-25;
   Chapter 14's `RoundF32Node` only narrows floats to `f32`. Add an explicit
-  conversion, with Chapter 12 as the proposed introduction, and carry it
+  conversion, with Chapter 14 as the proposed introduction, and carry it
   through the later chapters. Decide syntax, rounding versus truncation,
   and behavior for NaN, infinities, and out-of-range values before implementing.
   Cover constant folding, evaluation, and machine lowering on all three targets;

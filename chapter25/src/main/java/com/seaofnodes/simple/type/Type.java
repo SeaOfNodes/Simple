@@ -468,6 +468,10 @@ public class Type /*implements Cloneable*/ {
     boolean _isConstant() { return _type==TNIL; }
 
     // Are all reachable struct Fields are final?
+    // Writable array slots are invariant in their element access permissions.
+    // Otherwise an alias could insert a readonly pointer into a writable slot.
+    public boolean accessISA(Type dst) { return true; }
+
     public final boolean isFinal() { return recurClose(recurOpen()._isFinal()); }
     boolean _isFinal() { assert is_nokids(); return true; }
 

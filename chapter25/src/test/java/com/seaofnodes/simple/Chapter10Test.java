@@ -24,7 +24,7 @@ public class Chapter10Test {
 
     private static final String NULLABLE_POINT_SOURCE = """
         struct Point { int x; new Point = { int v -> x = v; }; };
-        Point?[] !points = new Point?[2];
+        !Point?[] !points = new !Point?[2];
         points[arg] = new Point(42);
         Point? p = points[1];
         """;
@@ -117,7 +117,7 @@ struct _Foo {
     int x;
 };
 _Foo? foo = null;
-_Bar !bar = new _Bar;
+!_Bar !bar = new _Bar;
 bar.a = 1;
 bar.a = 2;
 return bar.a;
@@ -130,7 +130,7 @@ return bar.a;
     public void testExample() {
         CodeGen code = new CodeGen("""
 struct Vector2D { int x; int y; };
-Vector2D !v = new Vector2D;
+!Vector2D !v = new Vector2D;
 v.x = 1;
 if (arg)
     v.y = 2;
@@ -169,7 +169,7 @@ arg=0+new s0.0;
     public void testLoop() {
         CodeGen code = new CodeGen("""
 struct Bar { int a; };
-Bar !bar = new Bar;
+!Bar !bar = new Bar;
 while (arg) {
     bar.a = bar.a + 2;
     arg = arg + 1;
@@ -184,7 +184,7 @@ return bar.a;
     public void testIf() {
         CodeGen code = new CodeGen("""
 struct Bar { int a; };
-Bar !bar = new Bar;
+!Bar !bar = new Bar;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
@@ -197,7 +197,7 @@ return bar.a;
     public void testIf2() {
         CodeGen code = new CodeGen("""
 struct Bar { int a; };
-Bar? !bar = null;
+!Bar? !bar = null;
 if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
@@ -210,7 +210,7 @@ return bar.a;
     public void testIf3() {
         CodeGen code = new CodeGen("""
 struct Bar { int a; };
-Bar bar = null;
+!Bar !bar = null;
 if (arg) bar = null;
 bar.a = 1;
 return bar.a;
@@ -223,7 +223,7 @@ return bar.a;
     public void testIfOrNull() {
         CodeGen code = new CodeGen("""
 struct _Bar { int a; };
-_Bar? !bar = new _Bar;
+!_Bar? !bar = new _Bar;
 if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar.a;
@@ -237,7 +237,7 @@ return bar.a;
         CodeGen code = new CodeGen(
 """
 struct _Bar { int a; };
-_Bar? !bar = new _Bar;
+!_Bar? !bar = new _Bar;
 if (arg) bar = null;
 int rez = 3;
 if( !bar ) rez=4;
@@ -252,7 +252,7 @@ return rez;
     public void testWhileWithNullInside() {
         CodeGen code = new CodeGen("""
 struct s0 {int v0;};
-s0? !v0 = new s0;
+!s0? !v0 = new s0;
 int ret = 0;
 while(arg) {
     ret = v0.v0;
@@ -273,7 +273,7 @@ struct s0 {
     int v0;
 };
 s0? v1=new s0;
-s0? v1;
+!s0? !v1;
 v1=new s0;
 """);
         try { code.parse(); fail(); }
@@ -289,7 +289,7 @@ struct Iter {
     int x;
     int len;
 };
-Iter !i = new Iter;
+!Iter !i = new Iter;
 i.len = arg;
 int sum=0;
 while( i.x < i.len ) {
@@ -307,9 +307,9 @@ return sum;
     public void test1() {
         CodeGen code = new CodeGen("""
 struct s0 {int v0;};
-s0 !ret = new s0;
+!s0 !ret = new s0;
 while(arg) {
-    s0 !v0 = new s0;
+    !s0 !v0 = new s0;
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
@@ -325,8 +325,8 @@ return ret;
     public void test2() {
         CodeGen code = new CodeGen("""
 struct _s0 {int v0;};
-_s0 !ret = new _s0;
-_s0 !v0  = new _s0;
+!_s0 !ret = new _s0;
+!_s0 !v0  = new _s0;
 while(arg) {
     v0.v0 = arg;
     arg = arg-1;
@@ -343,9 +343,9 @@ return ret.v0;
     public void test3() {
         CodeGen code = new CodeGen("""
 struct _s0 {int v0;};
-_s0 !ret = new _s0;
+!_s0 !ret = new _s0;
 while(arg < 10) {
-    _s0 !v1 = new _s0;
+    !_s0 !v1 = new _s0;
     if (arg == 5) ret=v1;
     arg = arg + 1;
 }

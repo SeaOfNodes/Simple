@@ -25,7 +25,7 @@ public class Chapter10Test {
     // Issue #246: null-check guards start in Chapter 10; arrays arrive in Chapter 15.
     private static final String NULLABLE_POINT_SOURCE = """
         struct Point { int x; };
-        Point?[] !points = new Point?[2];
+        Point?[] points = new Point?[2];
         points[arg] = new Point { x = 42; };
         Point? p = points[1];
         """;

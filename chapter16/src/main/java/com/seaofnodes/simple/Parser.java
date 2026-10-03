@@ -402,7 +402,7 @@ public class Parser {
 
     /** Parse: name [=expr]
      */
-    private Node parseAsgn(Type t, boolean xfinal) {
+    private Node parseAsgn(Type t) {
         boolean isDecl = t!=null; // Having a type is a declaration, missing one is updating a prior name
         int old = _lexer._position;
         String name = requireId();
@@ -411,7 +411,7 @@ public class Parser {
             // Bare "name" is not allowed
             if( t==null ) throw errorSyntax("expression");
             // Does this declaration need an initializer and not getting one?
-            Type init = xfinal || t instanceof TypeMemPtr tmp && !tmp._nil
+            Type init = t instanceof TypeMemPtr tmp && !tmp._nil
                 // Must be initialized in the "new" constructor
                 ? Type.TOP
                 // Else takes the default
@@ -430,11 +430,6 @@ public class Parser {
             ScopeNode.Var def = _scope.lookup(name);
             if( def==null )
                 throw error("Undefined name '" + name + "'");
-            // TOP fields are for late-initialized fields; these have never
-            // been written to, and this must be the final write.  Other writes
-            // need to check the final bit.
-            if( _scope.in(def._idx)._type!=Type.TOP && def._final )
-                throw error("Cannot reassign final '"+name+"'");
             t = def._type; // Declared field type
         }
 
@@ -452,18 +447,11 @@ public class Parser {
             throw error("Type " + e.str() + " is not of declared type " + t.str());
 
         if( isDecl ) {
-            if( !_scope.define(name,t,xfinal,expr) )
+            if( !_scope.define(name,t,false,expr) )
                 throw error("Redefining name '" + name + "'");
         } else
             _scope.update(name,expr);
         return expr;
-    }
-
-    /** Parse final: [!]asgn
-     */
-    private Node parseFinal(Type t) {
-        boolean xfinal = t!=null && match("!");
-        return parseAsgn(t,xfinal);
     }
 
     /**
@@ -482,13 +470,13 @@ public class Parser {
         Node n;
         Type t = type();
         if( t != null ) {
-            // now parse final [, final]*
-            n = parseFinal(t);
+            // Parse comma-separated declarations
+            n = parseAsgn(t);
             while( match(",") )
-                n = parseFinal(t);
+                n = parseAsgn(t);
 
             // Parse "asgn;" which is just "name = expr;"
-        } else if( ( n = parseAsgn(null,false)) == null ) {
+        } else if( ( n = parseAsgn(null)) == null ) {
             // Something else
             n = parseExpression();
         }

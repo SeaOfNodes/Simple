@@ -47,11 +47,11 @@ return 0;
         CodeGen code = new CodeGen(
 """
 struct String {
-    u8[] cs;
+    u8[] !cs;
     int _hashCode;
 };
 
-val equals = { String self, String s ->
+val equals = { !String !self, !String s ->
     if( self == s ) return true;
     if( self.cs# != s.cs# ) return false;
     for( int i=0; i< self.cs#; i++ )
@@ -60,13 +60,13 @@ val equals = { String self, String s ->
     return true;
 };
 
-val hashCode = { String self ->
+val hashCode = { !String self ->
     self._hashCode
     ?  self._hashCode
     : (self._hashCode = _hashCodeString(self));
 };
 
-val _hashCodeString = { String self ->
+val _hashCodeString = { !String self ->
     int hash=0;
     if( self.cs ) {
         for( int i=0; i< self.cs#; i++ )
@@ -76,7 +76,7 @@ val _hashCodeString = { String self ->
     return hash;
 };
 
-String !s = new String { cs = new u8[17]; };
+!String !s = new String { cs = new u8[17]; };
 s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s)+hashCode(s);""");
@@ -259,7 +259,7 @@ return sum;""");
     public void testAlloc1() {
         CodeGen code = new CodeGen(
 """
-struct S { int a; S? c; };
+struct S { int a; !S? !c; };
 return new S;""");
         code.parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2", "SystemV").GCM().localSched();
         assertEquals("return S;", code.print());
@@ -466,8 +466,8 @@ return sq(arg) + sq(3);
     @Test public void testFoldedReadBeforeWrites() {
         var code = new CodeGen("""
             struct S { int x; };
-            S !a = new S { x=11; }; S !b = new S { x=22; };
-            S !p = a; if( arg ) p = b;
+            !S !a = new S { x=11; }; !S !b = new S { x=22; };
+            !S !p = a; if( arg ) p = b;
             int before = p.x + arg;
             a.x=33; b.x=44;
             return before;

@@ -8,14 +8,12 @@ import java.util.ArrayList;
  */
 public class TypeStruct extends Type {
 
-    // A Struct has a name and a set of fields; the fields themselves have
-    // names and types.  Briefly during parsing its allowed to have a
-    // forward-ref to a Struct; in this case the _fields array is null.
-    // Its illegal to attempt to load a field from a forward-ref struct.
-    //
-    // During the normal optimization run, struct types "bottom out" at further
-    // struct references, so we don't have to handle e.g.  cyclic types.  The
-    // "bottom out" is again the forward-ref struct.
+    // Immutable shallow references, resolved by name in Parser.TYPES when needed.
+    // A name-only struct has _fields == null, even after its definition is known.
+    // For LLI { LLI? next; int i; }, L0 is name-only and L1.next points to L0;
+    // TYPES["LLI"] holds L1. We deliberately stop recursive type expansion here,
+    // keeping interning and lattice operations finite and acyclic. Never patch
+    // L0 into L1: field access looks up the complete declaration by name instead.
     public final String _name;
     public final Field[] _fields;
 

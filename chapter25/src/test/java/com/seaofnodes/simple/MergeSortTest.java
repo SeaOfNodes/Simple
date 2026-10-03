@@ -22,7 +22,7 @@ val merge_sort = { int[] a ->
     _split_merge(a, 0, a#, b);
 };
 
-val _split_merge = { int[] b, int begin, int end, int[] a ->
+val _split_merge = { int[] !b, int begin, int end, int[] a ->
     if (end - begin <= 1)
         return 0;
     int middle = (end + begin) / 2;
@@ -32,7 +32,7 @@ val _split_merge = { int[] b, int begin, int end, int[] a ->
     return 0;
 };
 
-val _merge = { int[] b, int begin, int middle, int end, int[] a ->
+val _merge = { int[] !b, int begin, int middle, int end, int[] a ->
     int i = begin, j = middle;
 
     for (int k = begin; k < end; k++) {
@@ -47,7 +47,7 @@ val _merge = { int[] b, int begin, int middle, int end, int[] a ->
     }
 };
 
-val _copy_array = { int[] a, int begin, int end, int[] b ->
+val _copy_array = { int[] !a, int begin, int end, int[] b ->
     for (int k = begin; k < end; k++)
         b[k] = a[k];
 };

@@ -269,7 +269,7 @@ public class StoreNode extends MemOpNode {
             return null;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
         Field f = tmp._obj.field(_name);
-        if( f!=null && f._final && !_init )
+        if( f!=null && (tmp._ro || f._final) && !_init )
             return Parser.error("Cannot modify final field '"+_name+"'",_loc);
         return null;
     }

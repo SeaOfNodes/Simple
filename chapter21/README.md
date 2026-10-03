@@ -99,7 +99,7 @@ relocation are two stages of the same obligation to make references correct.
 
 ## Execute the result
 
-Chapter 10b's lazy memory partitioning now carries through encoding. Parameters,
+Chapter 11's lazy memory partitioning now carries through encoding. Parameters,
 calls, and returns carry whole memory; `BulkMemPhi`, `MemPhi`, and `MemMerge`
 discover precise aliases inside each function. New consumes `{ctrl, $mem, size}`
 and produces `{ptr, $mem}`. Its memory covers the allocated struct's aliases;

@@ -60,7 +60,7 @@ public class PhiNode extends Node {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() )
+        if( r.inProgress() || in(nIns()-1)==null )
             // Loop-Phis must lift to the declared type, because that is how
             // the Parser keeps precise types until the loop finishes parsing.
             // Similar, ParmNodes use precise minType until all calls are
@@ -100,8 +100,8 @@ public class PhiNode extends Node {
         // Can upgrade minType even while in-progress
         if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
             TypeMemPtr tmp2 = (TypeMemPtr) Parser.TYPES.get(tmp._obj._name);
-            if( tmp2!=null && tmp2 != _minType ) {
-                _minType = tmp2;
+            if( tmp2!=null && tmp2._obj != tmp._obj ) {
+                _minType = tmp.makeFrom(tmp2._obj);
                 return this;
             }
         }

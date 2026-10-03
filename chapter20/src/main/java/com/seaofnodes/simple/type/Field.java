@@ -34,7 +34,7 @@ public class Field extends Type {
     public Field makeFrom( Type type ) {
         return type == _type ? this : new Field(_fname,type,_alias,_final).intern();
     }
-    @Override public Field makeRO() { return _final ? this : make(_fname,_type.makeRO(),_alias,true);  }
+    @Override public Field makeRO() { return isFinal() ? this : make(_fname,_type.makeRO(),_alias,true);  }
     @Override public boolean isFinal() { return _final && _type.isFinal(); }
 
     public static final Field TEST = make("test",Type.NIL,-2,false);

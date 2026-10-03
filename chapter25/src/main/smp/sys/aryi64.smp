@@ -53,7 +53,7 @@ struct aryi64 {
 // parseAryI64 & aryi64.str are bijections modulo whitespace.
 // Returns null if the parse failed, without giving a clue as to why.
 val parseAryI64 = { u8[~] str ->
-    scan !s = new scan(str);
+    !scan !s = new scan(str);
     if( !s.match('[') ) return null;
     // Array of parsed results
     var nums = new aryi64(new i64[1]);

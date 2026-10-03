@@ -12,12 +12,12 @@ public class MergeSortTest {
 """
 // based on the top-down version from https://en.wikipedia.org/wiki/Merge_sort
 
-val merge_sort = { int[] a, int[] b, int n ->
+val merge_sort = { int[] !a, int[] !b, int n ->
     copy_array(a, 0, n, b);
     split_merge(a, 0, n, b);
 };
 
-val split_merge = { int[] b, int begin, int end, int[] a ->
+val split_merge = { int[] !b, int begin, int end, int[] a ->
     if (end - begin <= 1)
         return 0;
     int middle = (end + begin) / 2;
@@ -27,7 +27,7 @@ val split_merge = { int[] b, int begin, int end, int[] a ->
     return 0;
 };
 
-val merge = { int[] b, int begin, int middle, int end, int[] a ->
+val merge = { int[] !b, int begin, int middle, int end, int[] a ->
     int i = begin, j = middle;
 
     for (int k = begin; k < end; k++) {
@@ -42,7 +42,7 @@ val merge = { int[] b, int begin, int middle, int end, int[] a ->
     }
 };
 
-val copy_array = { int[] a, int begin, int end, int[] b ->
+val copy_array = { int[] !a, int begin, int end, int[] b ->
     for (int k = begin; k < end; k++)
         b[k] = a[k];
 };

@@ -6,7 +6,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.type.TypeMem;
 
-/** Chapter 13's view of the IR; browser, transport and layout are shared. */
+/** Chapter 12's view of the IR; browser, transport and layout are shared. */
 public class SimpleGraphAdapter extends GraphAdapter<Node> {
 
     @Override protected String[] edgeNames(Node n) {

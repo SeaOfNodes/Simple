@@ -1,4 +1,4 @@
-struct S { S? fld; };
+struct S { !S? !fld; };
 
 val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
 if( ptr && ptr.fld ) {

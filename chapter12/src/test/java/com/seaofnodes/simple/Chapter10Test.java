@@ -169,7 +169,7 @@ while (arg) {
 return bar.a;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop12,0,(Phi_a+2));", stop.toString());
+        assertEquals("return Phi(Loop11,0,(Phi_a+2));", stop.toString());
     }
 
     @Test
@@ -221,7 +221,7 @@ if( bar ) bar.a = 1;
 return bar;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region17,null,new Bar);", stop.toString());
+        assertEquals("return Phi(Region31,(*void)Phi(Region18,null,new Bar),null);", stop.toString());
     }
 
     @Test
@@ -237,7 +237,7 @@ else bar.a = 1;
 return rez;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region35,4,3);", stop.toString());
+        assertEquals("return Phi(Region37,4,3);", stop.toString());
     }
 
     @Test
@@ -254,8 +254,7 @@ while(arg) {
 return ret;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) {
-            assertEquals("Might be null accessing 'v0'", e.getMessage()); }
+        catch( Exception e ) { assertEquals("Might be null accessing 'v0'", e.getMessage()); }
     }
 
     @Test
@@ -307,12 +306,11 @@ while(arg) {
     v0.v0 = arg;
     arg = arg-1;
     if (arg==5) ret=v0;
-
 }
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop12,new s0,Phi(Region34,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop11,new s0,Phi(Region35,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -329,7 +327,7 @@ while(arg) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop15,new s0,Phi(Region35,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop15,new s0,Phi(Region36,new s0,Phi_ret));", stop.toString());
     }
 
 
@@ -346,7 +344,7 @@ while(arg < 10) {
 return ret;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop12,new s0,Phi(Region32,new s0,Phi_ret));", stop.toString());
+        assertEquals("return Phi(Loop11,new s0,Phi(Region33,new s0,Phi_ret));", stop.toString());
     }
 
     @Test
@@ -464,6 +462,7 @@ return 0;
         assertEquals("return 0;", stop.toString());
     }
 
+
     @Test public void testReadBeforeStores() {
         var stop = new Parser("""
             struct S { int x; int y; }
@@ -550,8 +549,8 @@ return 0;
             if (arg) s.x=arg+1; else s.x=arg+2;
             return s;
             """).parse().iterate();
-        // These chapters still bind struct Stores to branch control.
-        assertEquals(3,countMemoryNodes(stop,StoreNode.class,new BitSet()));
+        // The initializing slice also remains live as the aggregate default.
+        assertEquals(2,countMemoryNodes(stop,StoreNode.class,new BitSet()));
         assertEquals(2L,((Evaluator.Obj)Evaluator.evaluate(stop,0)).fields()[0]);
         assertEquals(4L,((Evaluator.Obj)Evaluator.evaluate(stop,3)).fields()[0]);
     }

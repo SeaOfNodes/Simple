@@ -222,7 +222,7 @@ var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
         code.parse().opto();
-        assertEquals("Stop[ return (Parm_x($fun2,int,3)<<1); return #2; return (Parm_x($fun1,int,3)*x); ]", code._stop.toString());
+        assertEquals("Stop[ return (Parm_x($fun2,int,3)<<1); return (Parm_x($fun1,int,3)*x); return #2; ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
     }
@@ -272,7 +272,7 @@ return 2;
     public void testFcn8() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? i2i = null;
+{int -> int}? !i2i = null;
 var id = {{int->int} f-> return f;};
 for(;;) {
     if (i2i) return i2i(arg);
@@ -290,7 +290,7 @@ for(;;) {
     public void testFcn9() {
         CodeGen code = new CodeGen(
 """
-{int -> int}? i2i = null;
+{int -> int}? !i2i = null;
 for(;;) {
     if (i2i) return i2i(arg);
     var x = {int i-> return i;};
@@ -311,13 +311,13 @@ struct Person {
   int age;
 };
 
-val fcn = { Person?[] ps, int x ->
+val fcn = { !Person?[] !ps, int x ->
   val tmp = ps[x];
   if( ps[x] )
     ps[x].age++;
 };
 
-var ps = new Person?[2];
+var ps = new !Person?[2];
 ps[0] = new Person;
 ps[1] = new Person;
 return fcn(ps,1);
@@ -382,7 +382,7 @@ struct S {
     {int} f = { -> x(); return 0; }; // Do not let fref x be a field
 };
 val x = { -> return 1; };
-S? s = null;
+!S? !s = null;
 for(;;) {
     if (s) return s.x;
 }
@@ -431,7 +431,7 @@ struct S {
     { int } f = { -> return x(); };
 };
 val x = { -> return 1; };
-S? s = null;
+!S? !s = null;
 for(;;) {
     if (s) return s.f;
 }
@@ -465,7 +465,7 @@ return f2f(o)(1);
 struct Person {
     int coffee_count;
 };
-Person !p = new Person;
+!Person !p = new Person;
 p.coffee_count += 1;
 return p.coffee_count;
 """);
@@ -476,10 +476,10 @@ return p.coffee_count;
 
     static final String CALL_MEMORY = """
         struct S { int x; int y; };
-        val bump = { S s, int d -> int old=s.x; s.x=old+d; return old; };
-        S !a = new S { x=10; y=7; };
-        S !b = new S { x=20; y=9; };
-        S !p=a; if (arg) p=b;
+        val bump = { !S !s, int d -> int old=s.x; s.x=old+d; return old; };
+        !S !a = new S { x=10; y=7; };
+        !S !b = new S { x=20; y=9; };
+        !S !p=a; if (arg) p=b;
         int before=p.x;
         int old=bump(p,3);
         int after=p.x;
@@ -505,13 +505,13 @@ return p.coffee_count;
 
     static final String RECURSIVE_MEMORY = """
         struct S { int x; };
-        val rec = { S s, int n ->
+        val rec = { !S !s, int n ->
             if (n==0) return s.x;
             int before=s.x;
             s.x=before+1;
             return before+rec(s,n-1);
         };
-        S !s=new S { x=10; };
+        !S !s=new S { x=10; };
         int value=rec(s,arg);
         return value*100+s.x;
         """;
@@ -524,12 +524,12 @@ return p.coffee_count;
 
     static final String INLINE_MEMORY = """
         struct S { int x; int y; };
-        val make = { S s ->
+        val make = { !S s ->
             S t = new S { x=s.x+1; y=3; };
             s.y=9;
             return t;
         };
-        S !a = new S { x=arg+40; y=7; };
+        !S !a = new S { x=arg+40; y=7; };
         S t=make(a);
         return a.x*10000+a.y*100+t.x+t.y;
         """;

@@ -98,7 +98,6 @@ public abstract class IterPeeps {
             if( obs != null ) obs.after(n, x, true);
         }
 
-        GlobalCodeMotion.buildCFG(stop);
         return stop;
     }
 

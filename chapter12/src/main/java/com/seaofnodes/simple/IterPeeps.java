@@ -98,10 +98,6 @@ public abstract class IterPeeps {
             if( obs != null ) obs.after(n, x, true);
         }
 
-        // Break infinite loops, forcing a Never-branch to exit
-        GlobalCodeMotion.fixLoops(stop);
-
-        GlobalCodeMotion.buildCFG(stop);
         return stop;
     }
 

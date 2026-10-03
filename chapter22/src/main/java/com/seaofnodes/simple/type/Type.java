@@ -207,6 +207,10 @@ public class Type {
      *  ints and floats cannot widen. */
     public Type glb(boolean mem) { return Type.BOTTOM; }
 
+    // Writable array slots are invariant in their element access permissions.
+    // Otherwise an alias could insert a readonly pointer into a writable slot.
+    public boolean accessISA(Type dst) { return true; }
+
     // Is forward-reference
     public boolean isFRef() { return false; }
 

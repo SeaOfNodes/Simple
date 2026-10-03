@@ -452,7 +452,7 @@ public class ScriptGenerator {
         for (int i=0; i<fields.length; i++) {
             var fieldName = getRandomName();
             var type = getType(true);
-            printIndentation().append(type.name).append(" ").append(fieldName).append(";\n");
+            printIndentation().append(declType(type)).append(" !").append(fieldName).append(";\n");
             fields[i] = new TypeStruct.Field(fieldName.toString(), type, struct);
         }
         indentation -= INDENTATION;
@@ -649,15 +649,17 @@ public class ScriptGenerator {
         return 0;
     }
 
-    /**
-     * Generate a declaration statement.
-     * @return 0
-     */
+    // This generator mutates references and fields; request both permissions.
+    private static String declType(Type type) {
+        return (type instanceof TypeStruct || type instanceof TypeNullable ? "!" : "") + type.name;
+    }
+
+    /** Generate a declaration statement. */
     public int genDecl() {
         var type = getType();
         var name = getVarName();
         // Always make them mutable
-        sb.append(generateInvalid() ? getRandomName() : type.name).append(" !").append(name);
+        sb.append(generateInvalid() ? getRandomName() : declType(type)).append(" !").append(name);
         if (!(type instanceof TypeNullable) || random.nextBoolean()) {
             sb.append("=");
             genExpression(type, true, type==TYPE_BOOL);

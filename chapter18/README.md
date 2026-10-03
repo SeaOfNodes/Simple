@@ -1,6 +1,6 @@
 # Chapter 18: Functions
 
-[Previous: Chapter 17](../chapter17/README.md) |
+[Previous: Chapter 17b](../chapter17b/README.md) |
 [Next: Chapter 19](../chapter19/README.md)
 
 
@@ -13,7 +13,7 @@
 5. [Graph Visualizer](#graph-visualizer)
 6. [Memory across functions](#memory-across-functions)
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter18) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter17...linear-chapter18) it to the previous chapter.
+You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter18) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter17b...linear-chapter18) it to the previous chapter.
 
 I hardly know where to begin!  So many things changed here, mostly as indirect
 consequences of supporting functions.
@@ -85,6 +85,12 @@ In spirit, this is part of a `continuation` and would be required to do IR
 analysis of a hypothetical `call/cc` operation.  That is outside our current
 scope, so for now these are only used in the evaluator.
 
+
+Parameters use the explicit declaration syntax from
+[Chapter 17a](../chapter17a/README.md): `!Point p` allows writes through a fixed
+parameter binding, `Point !p` allows reassignment of a read-only reference,
+and `int ~limit` fixes a primitive parameter. Inferred `var`/`val` parameters
+are not supported.
 
 ## Functions
 
@@ -183,16 +189,19 @@ After a `Call` is a `CallEndNode`, internally abbreviated as `cend`.  The
 `CallEnd` will take the `Call` as an input, and also every *linked* function:
 functions the call-site *knows* it will call.  This will be expanded later to
 be a conservative approximation to the *Call Graph*, with each `CallEnd`
-*linked* to every function it *may* call; if a function is not linked it can not
-be called from here.  This requires a global analysis (fast, cheap,
-incremental, and global), not in this chapter.  So for the moment we only
-link exact constant functions.
+*linked* to every function it *may* call; if a function is not linked it can
+not be called from here.  This requires a global analysis (fast, cheap,
+incremental, and global) which shows up in [Chapter24](../chapter19/README.md),
+[SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation).
+So for the moment we only link exact constant functions.
 
 If a call site is linked to a single function, and that single function is only
 called by this one call site (its function pointer is only used here, obvious
 from GVN) then the function inlines in the IR.
 
-`CallEnd`s are followed by projections for Control, Memory and the return value.
+[edit note: needs before/after graph of trivial inlining]
+
+Like `Start`, `CallEnd`s are followed by projections for Control, Memory and the return value.
 
 
 

@@ -24,8 +24,8 @@ return 3.14;
     public void testCyclic() {
         CodeGen code = new CodeGen(
 """
-struct C { C? l; };
-C !c = new C;
+struct C { !C? !l; };
+!C !c = new C;
 c.l = c;
 return c;
 """);
@@ -97,7 +97,7 @@ return a[0];
         CodeGen code = new CodeGen(
 """
 struct A { int i; };
-A?[] !a = new A?[2];
+!A?[] !a = new !A?[2];
 return a;
 """);
         code.parse().opto();
@@ -111,16 +111,16 @@ return a;
 """
 struct S { int x; flt y; };
 // A new S
-S !s = new S; s.x=99; s.y = 3.14;
+!S !s = new S; s.x=99; s.y = 3.14;
 
 // Double-d array of Ss.  Fill in one row.
-S?[]?[] !iss = new S?[]?[2];
-iss[0] = new S?[7];
+!S?[]?[] !iss = new !S?[]?[2];
+iss[0] = new !S?[7];
 iss[0][2] = s;
 
 // Now pull out the filled-in value, with null checks
 flt rez;
-S?[]? is = iss[arg];
+!S?[]? is = iss[arg];
 if( !is ) rez = 1.2;
 else {
     S? i = is[2];
@@ -141,11 +141,11 @@ return rez;
 """
 struct S { int x; flt y; };
 // A new S
-S !s = new S; s.x=99; s.y = 3.14;
+!S !s = new S; s.x=99; s.y = 3.14;
 
 // Double-d array of Ss.  Fill in one row.
-S?[]?[] !iss = new S?[]?[2];
-iss[0] = new S?[7];
+!S?[]?[] !iss = new !S?[]?[2];
+iss[0] = new !S?[7];
 iss[0][2] = s;
 
 // Now pull out the filled-in value, with null checks
@@ -166,9 +166,9 @@ return rez;""");
         CodeGen code = new CodeGen(
 """
 // Can we define a forward-reference array?
-struct Tree { Tree?[]? _kids; };
-Tree !root = new Tree;
-root._kids = new Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
+struct Tree { !Tree?[]? !_kids; };
+!Tree !root = new Tree;
+root._kids = new !Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
 root._kids[0] = new Tree;
 return root;
 """);
@@ -181,7 +181,7 @@ return root;
     public void testNestedStructAddMemProj() {
         CodeGen code = new CodeGen(
 """
-struct S { int a; int[] b; };
+struct S { int a; int[] !b; };
 return 0;
 """);
         code.parse().opto();
@@ -226,8 +226,8 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
         CodeGen code = new CodeGen(
 """
 struct S {int i; flt f;};
-S !s1 = new S;
-S !s2 = new S;
+!S !s1 = new S;
+!S !s2 = new S;
 s2.i = 3;
 s2.f = 2.0;
 if (arg) s1 = new S;

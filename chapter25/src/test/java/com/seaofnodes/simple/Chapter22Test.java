@@ -141,7 +141,7 @@ return new s0.v1;
     @Test public void testSextFail() throws IOException {
         String src = """
 struct _Person { i32 age;};
-_Person !p = new _Person;
+!_Person !p = new _Person;
 p.age = (arg<<17)>>17;
 return 0;
 """;
@@ -164,7 +164,7 @@ return 0;
     @Test public void testSextFail2() throws IOException {
         String src = """
                 struct _Person { i32 age;};
-                _Person !p = new _Person;
+                !_Person !p = new _Person;
                 p.age = (arg<<48)>>48;
                 return 0;
         """;
@@ -188,7 +188,7 @@ return 0;
         String src = """
 // Should fold away sign extend
 struct _Person { i8 age;};
-_Person !p = new _Person;
+!_Person !p = new _Person;
 p.age = (arg<<48)>>48;
 return 0;
 """;
@@ -216,7 +216,7 @@ struct Person { // Exports a field typed singleton+final *class:Person{age:i32}
     i32 age;
 };
 
-val fcn = { Person?[] ps, int x -> // exports a field with a constant fcn ptr; exports the fcn also
+val fcn = { !Person?[] !ps, int x -> // exports a field with a constant fcn ptr; exports the fcn also
     if( ps[x] )
         ps[x].age++;
 };
@@ -270,12 +270,12 @@ val fcn = { Person?[] ps, int x -> // exports a field with a constant fcn ptr; e
     public void testCoRecur() {
         String src = """
 val x = 5; // aa.az; // Error to self-define forward ref
-struct _A { Test._B? b; Test._C? c; i64 ax; val az = x*2; new _A = { i64 x -> ax=x; }; };
-struct _B { Test._A? a; Test._C? c; f32 bx; val bz = x*3; new _B = { f32 x, Test._A? aa -> bx=x; a=aa; }; };
-struct _C { Test._A? a; Test._B? b; f64 cx; val cz = x*x; new _C = { f64 x, Test._A? aa, Test._B? bb -> cx=x; a=aa; b=bb; }; };
-_A !aa = new _A(17);
-_B !bb = new _B(3.14f, aa);
-_C !cc = new _C(2.73, aa, bb);
+struct _A { !Test._B? !b; !Test._C? !c; i64 ax; val az = x*2; new _A = { i64 x -> ax=x; }; };
+struct _B { !Test._A? !a; !Test._C? !c; f32 bx; val bz = x*3; new _B = { f32 x, !Test._A? aa -> bx=x; a=aa; }; };
+struct _C { !Test._A? !a; !Test._B? !b; f64 cx; val cz = x*x; new _C = { f64 x, !Test._A? aa, !Test._B? bb -> cx=x; a=aa; b=bb; }; };
+!_A !aa = new _A(17);
+!_B !bb = new _B(3.14f, aa);
+!_C !cc = new _C(2.73, aa, bb);
 aa.b = bb;
 aa.c = cc;
 bb.c = cc;

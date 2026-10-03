@@ -47,7 +47,7 @@ return 0;
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
         CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); return Phi(Region,1,0,0,1); ]", code._stop.toString());
         //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
     }
 
@@ -225,7 +225,7 @@ return sum;""");
     public void testAlloc1() {
         CodeGen code = new CodeGen(
 """
-struct S { int a; S? c; };
+struct S { int a; !S? !c; };
 return new S;""");
         code.driver(Phase.LocalSched,"x86_64_v2", "SystemV");
         assertEquals("return S;", code.print());
@@ -399,8 +399,8 @@ return sq(arg) + sq(3);
     @Test public void testFoldedReadBeforeWrites() {
         var code = new CodeGen("""
             struct S { int x; };
-            S !a = new S { x=11; }; S !b = new S { x=22; };
-            S !p = a; if( arg ) p = b;
+            !S !a = new S { x=11; }; !S !b = new S { x=22; };
+            !S !p = a; if( arg ) p = b;
             int before = p.x + arg;
             a.x=33; b.x=44;
             return before;

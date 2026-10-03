@@ -22,7 +22,6 @@ public class NewNode extends Node {
         return p.p("new ").p(_ptr._obj.str());
     }
 
-
     @Override
     public Type compute() { return _ptr; }
 

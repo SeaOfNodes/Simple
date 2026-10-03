@@ -46,7 +46,7 @@ Also in this chapter we revisit our Types and make some major changes:
   etc; only the implementation details change.
 
 
-The lazy memory model from Chapter 10b continues through the new type system.
+The lazy memory model from Chapter 11 continues through the new type system.
 BulkMemPhi/MemPhi discover aliases during optimization. Each New covers only
 instance fields; class-wide (`_one`) fields are excluded from its partial memory.
 Field offsets stay symbolic until layout, and Loads retain cyclic field types
@@ -69,10 +69,10 @@ Let's look at our `String.indexOf` example above.  Here we define a `String`
 with an `indexOf` method; a hidden argument string `self` is passed in
 and searched.  What is the type of `struct String`?
 
-`struct String { u8[~] buf; { String self, u8 c -> int } indexOf; }`
+`struct String { u8[~] buf; { !String !self, u8 c -> int } indexOf; }`
 
 It is the type named `String` with a field `u8[~] buf` and a final assigned
-constant field `indexOf`, itself with type `{ String self, u8 c -> int }`.
+constant field `indexOf`, itself with type `{ !String !self, u8 c -> int }`.
 i.e., the type of `String` has a reference to itself, nested inside the type of
 `indexOf`.... i.e. `String`'s type is *cyclic*.
 
@@ -100,7 +100,7 @@ Here's an example, a Linked List with a Java `Object` or a C `void*` payload:
 
 ```java
 struct List {
-  List next;
+  !List !next;
   Object payload;  // equivalently for C: void*
 }
 // Then walk a collection of ints and build a List:
@@ -180,7 +180,7 @@ alternatives) but it is a great tutorial data structure.
 
 ```java
 struct List {
-    List? !next; // Next pointer or null
+    !List? !next; // Next pointer or null
     str !name;   // Payload
 };
 ```
@@ -322,7 +322,7 @@ of simplicity we choose to approximate our types to only a single instance of
 In this example on first visit of `List` we will miss in `VISIT`.  The next call
 to `ts = recurPre(_name,_open)` does common shared pre-recursive work: we make
 a new `TypeStruct` and **set** it in the `VISIT` table.  The new `TypeStruct`
-is a blank version of `List` with all fields attached; we force these fields to
+is a blank version of `List` with all !fields !attached; we force these fields to
 be final right away but they are missing their types:
 
 ```

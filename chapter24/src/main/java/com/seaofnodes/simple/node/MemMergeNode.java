@@ -36,7 +36,9 @@ public class MemMergeNode extends Node {
     // join it with the incoming contents for all previously allocated objects.
     // Phis use their cached types, so this query does not recurse around loops.
     static Type contents(Node mem, int alias, Node dep) {
-        dep.addDep(mem);
+        // A loop memory Phi can also be a user of the querying Store.
+        // Its type changing still needs to revisit this query.
+        dep.addDepForwards(mem);
         if( mem instanceof CastNode cast ) return contents(cast.in(1),alias,dep);
         if( mem instanceof MemMergeNode merge )
             return contents(merge.alias(alias),alias,dep);

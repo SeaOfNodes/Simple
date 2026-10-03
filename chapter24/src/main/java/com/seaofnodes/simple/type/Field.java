@@ -99,7 +99,7 @@ public class Field extends Type {
 
     @Override boolean _isConstant() { return _t._isConstant(); }
     @Override boolean _isFinal() { return _final && _t._isFinal(); }
-    @Override Field _makeRO() { return _final ? this : make(_fname, _t._makeRO(),_alias,true,_one);  }
+    @Override Field _makeRO() { return make(_fname, _t._makeRO(),_alias,true,_one);  }
     boolean isGLB2() { return _final && _t._isGLB(true); }
     Field glb2() {
         Type glb = _t._glb(true);

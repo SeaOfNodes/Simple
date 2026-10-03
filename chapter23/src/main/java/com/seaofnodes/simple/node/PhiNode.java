@@ -80,8 +80,8 @@ public class PhiNode extends Node {
         // Can upgrade minType even while in-progress
         if( _minType instanceof TypeMemPtr tmp && _minType.isFRef() ) {
             TypeMemPtr tmp2 = (TypeMemPtr)CodeGen.CODE.P.TYPES.get(tmp._obj._name);
-            if( tmp2!=null && tmp2 != _minType ) {
-                _minType = tmp2;
+            if( tmp2!=null && tmp2._obj != tmp._obj ) {
+                _minType = tmp.makeFrom(tmp2._obj);
                 return this;
             }
         }

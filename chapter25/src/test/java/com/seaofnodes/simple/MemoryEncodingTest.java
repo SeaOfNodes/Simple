@@ -22,8 +22,8 @@ public class MemoryEncodingTest {
             """,
             // One possibly aliasing arm must reject the unchanged-memory proof.
             """
-            struct S { int x; }; S !a=new S; S !b=new S;
-            a.x=10; b.x=20; S !p=a; if(arg&1) p=b;
+            struct S { int x; }; !S !a=new S; !S !b=new S;
+            a.x=10; b.x=20; !S !p=a; if(arg&1) p=b;
             int sum=0;
             for(int i=0; i<6; i++) {
                 if(i==2) p.x=30;
@@ -34,8 +34,8 @@ public class MemoryEncodingTest {
             """,
             // Unchanged memory does not imply an unchanged loop-carried pointer.
             """
-            struct S { int x; }; S !a=new S; S !b=new S;
-            a.x=10; b.x=20; S !p=a; int sum=0;
+            struct S { int x; }; !S !a=new S; !S !b=new S;
+            a.x=10; b.x=20; !S !p=a; int sum=0;
             for(int i=0; i<6; i++) {
                 if(i==2) a.x=30;
                 sum+=p.x;
@@ -45,7 +45,7 @@ public class MemoryEncodingTest {
             """,
             // All arms fold, but their values differ: build a value Phi.
             """
-            struct S { int x; }; S !a=new S; a.x=1; int sum=0;
+            struct S { int x; }; !S !a=new S; a.x=1; int sum=0;
             for(int i=0; i<6; i++) {
                 sum+=a.x;
                 if(i&1) a.x=2;
@@ -78,9 +78,9 @@ public class MemoryEncodingTest {
     @Test public void testKeepReadsBeforeWrites() {
         var code = new CodeGen("""
             struct S { int x; int y; };
-            S !a = new S; S !b = new S;
+            !S !a = new S; !S !b = new S;
             a.x=arg; b.x=arg+1;
-            S !p=a; S !q=b;
+            !S !p=a; !S !q=b;
             if (arg<0) { p=b; q=a; }
             int v;
             if (arg>1) { v=p.x; p.x=41; p.y=5; }

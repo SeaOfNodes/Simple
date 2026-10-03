@@ -49,7 +49,7 @@ public class CastNode extends Node {
 
     @Override
     public Node idealize() {
-        return in(1)._type.isa(_t) ? in(1) : null;
+        return in(1)._type.isa(_t) && in(1)._type.accessISA(_t) ? in(1) : null;
     }
 
     @Override

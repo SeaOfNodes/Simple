@@ -54,8 +54,9 @@ public class LoadNode extends MemOpNode {
         Type t = MemMergeNode.contents(mem(),_alias,this);
         // Update declared forward ref to the actual.
         if( _declaredType.isFRef() && t instanceof TypeMemPtr tmp && !tmp.isFRef() )
-            _declaredType = tmp;
-        return err()==null ? _declaredType.join(t) : _declaredType;
+            _declaredType = tmp.withAccess(((TypeMemPtr)_declaredType)._ro);
+        Type rez = err()==null ? _declaredType.join(t) : _declaredType;
+        return ptr()._type.isFinal() || _declaredType.isFinal() ? rez.makeRO() : rez;
     }
 
     @Override
@@ -211,7 +212,7 @@ public class LoadNode extends MemOpNode {
 
     // Read-Only is a deep property, and cannot be cast-away
     private Node castRO(Node rez) {
-        if( ptr()._type.isFinal() && !rez._type.isFinal() )
+        if( (ptr()._type.isFinal() || _declaredType.isFinal()) && !rez._type.isFinal() )
             return new ReadOnlyNode(rez).peephole();
         return rez;
     }

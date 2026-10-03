@@ -9,9 +9,9 @@ import static org.junit.Assert.fail;
 public class Chapter16Test {
 
     @Test
-    public void testStructFinal3() {
-        for( String fields : new String[] { "int[] x;", "int[] !x;" } ) {
-            String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
+    public void testRequiredReference() {
+        for( String fields : new String[] { "int[] x;" } ) {
+            String src = "struct Point { "+fields+" }; Point p = new Point; p.x=p.x+1; return p;";
             try { new Parser(src).parse().iterate(); fail(fields); }
             catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
         }
@@ -52,31 +52,9 @@ return x+y;
         assertEquals(5L, Evaluator.evaluate(stop,  0));
     }
 
-    @Test
-    public void testFinal0() {
-        Parser parser = new Parser(
-"""
-int !x=2;
-x=3;
-return x;
-""");
-        try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
-    }
 
-    @Test
-    public void testFinal1() {
-        Parser parser = new Parser(
-"""
-int !x=2, y=3;
-if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
-return y;
-""");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Region19,9,3);", stop.toString());
-        assertEquals(3L, Evaluator.evaluate(stop, 0));
-        assertEquals(9L, Evaluator.evaluate(stop, 1));
-    }
+
+
 
     @Test
     public void testConstruct0() {
@@ -90,17 +68,7 @@ return z.x;
         assertEquals(3L, Evaluator.evaluate(stop,  0));
     }
 
-    @Test
-    public void testConstruct1() {
-        Parser parser = new Parser("""
-struct X { int !x; };
-X z = new X { x=3; };
-return z.x;
-""");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return 3;", stop.toString());
-        assertEquals(3L, Evaluator.evaluate(stop,  0));
-    }
+
 
     @Test
     public void testConstruct2() {
@@ -115,17 +83,7 @@ return z.x;
     }
 
 
-    @Test
-    public void testStructFinal() {
-        Parser parser = new Parser("""
-struct Point { int !x, !y; };
-Point p = new Point { x=3; y=4; };
-return p;
-""");
-        StopNode stop = parser.parse().iterate();
-        assertEquals("return Point;", stop.toString());
-        assertEquals("Obj<Point>{x=3,y=4}", Evaluator.evaluate(stop,  0).toString());
-    }
+
 
     // Same as the Chapter13 test with the same name, but using the new
     // constructor syntax
@@ -187,7 +145,7 @@ return next.i;
         Parser parser = new Parser(
 """
 struct Square {
-    flt !side = arg;
+    flt side = arg;
     // Newtons approximation to the square root, computed in a constructor.
     // The actual allocation will copy in this result as the initial
     // value for 'diag'.

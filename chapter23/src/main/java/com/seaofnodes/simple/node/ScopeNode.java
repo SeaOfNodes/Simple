@@ -137,6 +137,15 @@ public class ScopeNode extends Node {
     }
 
 
+    // Allocation fields live in the scope immediately outside the constructor
+    // block. Nested blocks retain that permission; surrounding bindings do not.
+    public boolean canInit(Var v) {
+        for( int i=_kinds._len-1; i>0; i-- )
+            if( _kinds.at(i) instanceof Kind.Alloc )
+                return v._idx >= _kinds.at(i-1)._lexSize && v._idx < _kinds.at(i)._lexSize;
+        return false;
+    }
+
     public boolean inConstructor() { return _kinds.last() instanceof Kind.Define; }
     public boolean inAllocation () { return _kinds.last() instanceof Kind.Alloc ; }
     public boolean inFunction   () { return _kinds.last() instanceof Kind.Func  ; }

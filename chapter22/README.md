@@ -32,7 +32,7 @@ Let's break it down.
   pool*, and from there in an ELF file's RODATA section.
 
 
-Chapter 10b's lazy memory partitioning continues here: the parser carries one
+Chapter 11's lazy memory partitioning continues here: the parser carries one
 `$mem`, and BulkMemPhi/MemPhi discover field aliases during optimization.
 Allocations consume a partial MemMerge and produce `{ptr, $mem}`; calls carry
 whole memory. The loop Load search follows every arm of a memory merge, so

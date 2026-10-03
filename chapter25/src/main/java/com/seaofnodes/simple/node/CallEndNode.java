@@ -227,7 +227,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
             // references here.  Compare against its recursively upgraded form,
             // so deep mutability requirements participate before inlining.
             Type formal = tfp.arg(i).upgradeType(Parser.TYPES);
-            if( !arg._type.isa(formal) )
+            if( !arg._type.isa(formal) || !arg._type.accessISA(formal) )
                 { addDep(arg); return  false; }
         }
         return true;

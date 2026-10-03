@@ -40,6 +40,22 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   PowerShell UI can appear blank while Codex is thinking; report concrete
   findings, the current check, and any blocker.
 
+## Mutability and chapter boundaries
+
+- Constructors start in 16, independent binding/access permissions in 17a,
+  syntax sugar and inference in 17b. Historical Chapter 17 references mean 17b.
+- `!Point` is writable access, `~Point` deep read-only access; `!p` allows
+  rebinding, `~p` fixes a binding. Primitives default mutable; struct refs default
+  fixed/read-only. Arrays default writable and use `[~]` per layer. `var`/`val`
+  change only binding mutability, preserving initializer access.
+- Keep access in TypeMemPtr through named/cyclic type resolution. A read-only
+  load may observe writes through another alias; its memory edge is essential.
+  Writable array slots are invariant in element permissions. Allocation and
+  declaration spelling must agree on that element view.
+- Construct cyclic pointers with their access bit already set before interning;
+  creating a provisional pointer and then changing access can orphan temporary
+  cyclic types. Serialized objects use the `C0D2` header and require a rebuild.
+
 ## Tutorial backports
 
 - Shared ISA encoding lives in `isa/` for Chapters 21-25: x86 bytes behind
@@ -51,11 +67,13 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   the linearized Maven build adds them at 21. Make's release jars still bundle
   tests and their evaluators; Maven treats the evaluators as test sources.
 
-- Chapter 10 is split into `chapter10a` (one bulk memory chain) and `chapter10b`
-  (lazy graph partitioning). Both are standalone snapshots. Cliff reviewed and
-  committed the forward port through Chapter 21. Chapters 22-24 now carry lazy
-  memory through cyclic types and SCCP; related corrections now reach 25.
-  The 22-25 batch is ready for review.
+- Chapters 10-14 now introduce whole memory (10), lazy memory splitting (11),
+  references (12), GCM (13), and numeric types including floats (14).
+  Earlier notes using 10a/10b refer to today's 10/11. Float regressions are
+  named Chapter14FloatTest; reference tests are Chapter12Test and GCM tests
+  Chapter13Test. Every directory is a standalone compiler snapshot. Chapter 12
+  deliberately retains immutable shallow struct references resolved by name;
+  see its README's L0/L1 notes before trying to expand recursive types.
   Keep Chapter 25's separate constructor-memory and incomplete-type design.
   See the concrete boundary notes
   in `docs/chapter-backports.md`. GCM readiness and anti-dependency checks must both

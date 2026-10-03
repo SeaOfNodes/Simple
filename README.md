@@ -51,17 +51,17 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 7](chapter07/README.md): `while` statement; looping constructs - eager phi approach.
 * [Chapter 8](chapter08/README.md): Looping constructs continued, lazy phi creation, `break` and `continue` statements.
 * [Chapter 9](chapter09/README.md): Global Value Numbering. Iterative peepholes to fixpoint. Worklists.
-* [Chapter 10a](chapter10a/README.md): User defined structs, pointers and null
+* [Chapter 10](chapter10/README.md): User defined structs, pointers and null
   analysis. One memory value in SSA. Loads, stores, and an executable evaluator.
-* [Chapter 10b](chapter10b/README.md): Equivalence class aliasing. Lazy memory
+* [Chapter 11](chapter11/README.md): Equivalence class aliasing. Lazy memory
   partitioning with `MemMerge`, `MemPhi`, and `BulkMemPhi`.
-* [Chapter 11](chapter11/README.md): Global Code Motion - Scheduling.
-* [Chapter 12](chapter12/README.md): Float type.
-* [Chapter 13](chapter13/README.md): Nested references in Structs.
-* [Chapter 14](chapter14/README.md): Narrow primitive types (e.g. bytes)
+* [Chapter 12](chapter12/README.md): Reference fields, forward references and recursive structs.
+* [Chapter 13](chapter13/README.md): Global Code Motion - Scheduling.
+* [Chapter 14](chapter14/README.md): Numeric types: floats, narrow integers, ranges and rounding to `f32`.
 * [Chapter 15](chapter15/README.md): One dimensional static length array type, with array loads and stores.
 * [Chapter 16](chapter16/README.md): Constructors
-* [Chapter 17](chapter17/README.md): Mutability & Syntax Sugar: `var`, `val`, `x+=y`, `for(init; test; next) body`
+* [Chapter 17a](chapter17a/README.md): Binding mutability, reference permissions, and deep read-only views.
+* [Chapter 17b](chapter17b/README.md): Syntax sugar: `var`, `val`, `x+=y`, `for(init; test; next) body`
 * [Chapter 18](chapter18/README.md): Functions and calls.
 * [Chapter 19](chapter19/README.md): Instruction selection and portable compilation
 * [Chapter 20](chapter20/README.md): Graph Coloring Register Allocation
@@ -74,7 +74,7 @@ The Simple language is styled after a subset of C or Java.
 ## Building across chapters
 
 The optional [interactive graph viewer](graph/README.md) is shared in `graph/`.
-Chapters 1–25, including 10a and 10b, launch it with `make view` from the chapter directory.
+Chapters 1–25 launch it with `make view` from the chapter directory.
 
 The [debug printers](print/README.md) are shared in `print/`; Chapter 2 needs only
 a one-line expression format. A shared `BaseNode` supplies identity and edge
@@ -96,20 +96,16 @@ them; Maven's Java build alone does not produce those prerequisites.
 
 The [chapter backport queue](docs/chapter-backports.md) records proposed small
 corrections and the per-chapter test/review workflow. Larger architectural moves
-are tracked separately there. The 10a/10b split is complete; forwarding 10b's
-memory representation now runs through Chapter 24, including constructors,
-mutability, whole-memory function calls, machine-code execution, cyclic field
-types, and SCCP. Chapters 22-25 are ready for review. Chapter 25 includes the
-related Load-search, Phi-factoring, and scheduling corrections while retaining
-its separate constructor-memory and incomplete-type SSA design.
+are tracked separately there. Chapters 10-14 now group whole memory,
+lazy alias splitting, references, GCM, and numeric types in that order.
+The memory representation is forwarded through Chapter 25.
 
 To build and test just the memory chapters:
 
 ```sh
-make lib tests release CHAPTERS="chapter10a chapter10b"
+make lib tests release CHAPTERS="chapter10 chapter11 chapter12"
 ```
 
-The root Maven reactor also includes both modules. Each chapter has its own
-IDEA module descriptor and depends on the shared `graph` module. Chapter
-directories with letter suffixes participate in the normal Make chapter discovery
-and in the linear-history workflow.
+The root Maven reactor includes every chapter. Chapters 10-14 have portable
+IDEA module descriptors depending on the shared `graph` and `print` modules.
+Make and the linear-history workflow discover the numbered chapter directories.

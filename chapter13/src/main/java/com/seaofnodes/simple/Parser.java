@@ -68,7 +68,6 @@ public class Parser {
             add("continue");
             add("else");
             add("false");
-            add("flt");
             add("if");
             add("int");
             add("new");
@@ -98,7 +97,6 @@ public class Parser {
         IterPeeps.reset();
         TYPES.clear();
         TYPES.put("int",TypeInteger.BOT);
-        TYPES.put("flt",TypeFloat  .BOT);
         SCHEDULED = false;
         _lexer = new Lexer(source);
         _scope = new ScopeNode();
@@ -437,9 +435,6 @@ public class Parser {
                 throw error("Undefined name '" + name + "'");
             t = _scope.lookupDeclaredType(name);
         }
-        // Auto-widen int to float
-        if( expr._type instanceof TypeInteger && t instanceof TypeFloat )
-            expr = new ToFloatNode(expr).peephole();
         // Auto-deepen forward ref types
         Type e = expr._type;
         if( e instanceof TypeMemPtr tmp && tmp._obj._fields==null )
@@ -506,7 +501,7 @@ public class Parser {
             else break;
             // Peepholes can fire, but lhs is already "hooked", kept alive
             lhs.setDef(idx,parseAddition());
-            lhs = lhs.widen().peephole();
+            lhs = lhs.peephole();
             if( negate )        // Extra negate for !=
                 lhs = new NotNode(lhs).peephole();
         }
@@ -529,7 +524,7 @@ public class Parser {
             else if( match("-") ) lhs = new SubNode(lhs,null);
             else break;
             lhs.setDef(2,parseMultiplication());
-            lhs = lhs.widen().peephole();
+            lhs = lhs.peephole();
         }
         return lhs;
     }
@@ -550,7 +545,7 @@ public class Parser {
             else if( match("/") ) lhs = new DivNode(lhs,null);
             else break;
             lhs.setDef(2,parseUnary());
-            lhs = lhs.widen().peephole();
+            lhs = lhs.peephole();
         }
         return lhs;
     }
@@ -564,7 +559,7 @@ public class Parser {
      * @return a unary expression {@link Node}, never {@code null}
      */
     private Node parseUnary() {
-        if (match("-")) return new MinusNode(parseUnary()).widen().peephole();
+        if (match("-")) return new MinusNode(parseUnary()).peephole();
         if (match("!")) return new   NotNode(parseUnary()).peephole();
         return parsePostfix(parsePrimary());
     }
@@ -663,7 +658,6 @@ public class Parser {
      *
      * <pre>
      *     integerLiteral: [1-9][0-9]* | [0]
-     *     floatLiteral: [digits].[digits]?[e [digits]]?
      * </pre>
      */
     private ConstantNode parseLiteral() {
@@ -821,37 +815,19 @@ public class Parser {
             return String.valueOf(peek());
         }
 
-
+        boolean isNumber() {return isNumber(peek());}
         boolean isNumber(char ch) {return Character.isDigit(ch);}
 
-        // Return a constant Type, either TypeInteger or TypeFloat
         private Type parseNumber() {
-            int old = _position;
-            int len = isLongOrDouble();
-            if( len > 0 ) {
-                if( len > 1 && _input[old]=='0' )
-                    throw error("Syntax error: integer values cannot start with '0'");
-                return TypeInteger.constant(Long.parseLong(new String(_input,old,len)));
-            }
-            return TypeFloat.constant(Double.parseDouble(new String(_input,old,-len)));
+            String snum = parseNumberString();
+            if (snum.length() > 1 && snum.charAt(0) == '0')
+                throw error("Syntax error: integer values cannot start with '0'");
+            return TypeInteger.constant(Long.parseLong(snum));
         }
         private String parseNumberString() {
-            int old = _position;
-            int len = Math.abs(isLongOrDouble());
-            _position += len;
-            return new String(_input,old,len);
-        }
-
-        // Return +len that ends a long
-        // Return -len that ends a double
-        private int isLongOrDouble() {
-            int old = _position;
-            char c;
-            while( Character.isDigit(c=nextChar()) ) ;
-            if( !(c=='e' || c=='.') )
-                return --_position - old;
-            while( Character.isDigit(c=nextChar()) || c=='e' || c=='.' ) ;
-            return -(--_position - old);
+            int start = _position;
+            while (isNumber(nextChar())) ;
+            return new String(_input, start, --_position - start);
         }
 
         // First letter of an identifier

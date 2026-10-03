@@ -9,7 +9,7 @@ struct stbi__context {
     u32 img_x, img_y;
     int img_n, img_out_n;
 
-    stbi_io_callbacks io;
+    !stbi_io_callbacks !io;
     u8[]io_user_data;
 
     int read_from_callbacks;
@@ -25,7 +25,7 @@ struct stbi__context {
 
 { stbi__context -> u8 } stbi__get8 = "C";
 
-val sample = { stbi__context s, int pal_len ->
+val sample = { !stbi__context !s, int pal_len ->
     var palette = new u8[1024];
     for (int i=0; i < pal_len; ++i) {
         palette[i*4+3] = 0;

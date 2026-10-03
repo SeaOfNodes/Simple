@@ -32,8 +32,8 @@ public class MemoryEncodingTest {
             """,
             // One possibly aliasing arm must reject the unchanged-memory proof.
             """
-            struct S { int x; }; S !a=new S; S !b=new S;
-            a.x=10; b.x=20; S !p=a; if(arg&1) p=b;
+            struct S { int x; }; !S !a=new S; !S !b=new S;
+            a.x=10; b.x=20; !S !p=a; if(arg&1) p=b;
             int sum=0;
             for(int i=0; i<6; i++) {
                 if(i==2) p.x=30;
@@ -44,8 +44,8 @@ public class MemoryEncodingTest {
             """,
             // Unchanged memory does not imply an unchanged loop-carried pointer.
             """
-            struct S { int x; }; S !a=new S; S !b=new S;
-            a.x=10; b.x=20; S !p=a; int sum=0;
+            struct S { int x; }; !S !a=new S; !S !b=new S;
+            a.x=10; b.x=20; !S !p=a; int sum=0;
             for(int i=0; i<6; i++) {
                 if(i==2) a.x=30;
                 sum+=p.x;
@@ -55,7 +55,7 @@ public class MemoryEncodingTest {
             """,
             // All arms fold, but their values differ: build a value Phi.
             """
-            struct S { int x; }; S !a=new S; a.x=1; int sum=0;
+            struct S { int x; }; !S !a=new S; a.x=1; int sum=0;
             for(int i=0; i<6; i++) {
                 sum+=a.x;
                 if(i&1) a.x=2;
@@ -145,7 +145,7 @@ public class MemoryEncodingTest {
         for( String target : new String[]{"x86_64_v2","riscv","arm"} ) {
             CodeGen code = new CodeGen("""
                 struct S { int x; int y; };
-                S !a=new S;
+                !S !a=new S;
                 if( arg ) while( 1 ) { a.x+=arg; a.y+=a.x; }
                 return a.x+a.y;
                 """).driver(CodeGen.Phase.LoopTree);

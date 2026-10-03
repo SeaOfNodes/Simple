@@ -64,7 +64,7 @@ public class LoadNode extends MemOpNode {
         }
         // Lift from declared type and memory input
         t = t.join(_declaredType).join(MemMergeNode.contents(mem(),_alias,this));
-        if( _declaredType.isFinal() )
+        if( ptr()._type.isFinal() || _declaredType.isFinal() )
             t = t.makeRO(); // Deep final applied
         return t;
     }
@@ -227,7 +227,7 @@ public class LoadNode extends MemOpNode {
 
     // Read-Only is a deep property, and cannot be cast-away
     private Node castRO(Node rez) {
-        if( ptr()._type.isFinal() && !rez._type.isFinal() )
+        if( (ptr()._type.isFinal() || _declaredType.isFinal()) && !rez._type.isFinal() )
             return new ReadOnlyNode(rez).peephole();
         return rez;
     }

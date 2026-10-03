@@ -93,9 +93,10 @@ public class TypeStruct extends Type {
         return (TypeStruct)recurOpen()._close().recurClose();
     }
     @Override TypeStruct _close() {
-        TypeStruct ts = (TypeStruct)VISIT.get(_name);
+        Object key = isAry() ? _uid : _name;
+        TypeStruct ts = (TypeStruct)VISIT.get(key);
         if( ts!=null ) return ts;
-        ts = recurPre(_name,false);
+        ts = recurPre(key,false);
         Field[] flds = ts._fields;
 
         // Now start the recursion

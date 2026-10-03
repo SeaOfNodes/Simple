@@ -93,7 +93,7 @@ return b;
         CodeGen code = new CodeGen(
 """
 struct _Foo { u1 b; };
-_Foo !f = new _Foo;
+!_Foo !f = new _Foo;
 f.b = 123;
 return f.b;
 """);

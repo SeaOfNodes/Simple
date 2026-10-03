@@ -6,11 +6,10 @@ import com.seaofnodes.simple.type.*;
 
 
 /** Keeps all preceding memory effects and the return value alive: {ctrl, $mem, value}. */
-public class ReturnNode extends CFGNode {
+public class ReturnNode extends Node {
 
     public ReturnNode(Node ctrl, Node data, ScopeNode scope) {
-        // A synthetic never-taken loop exit has no source scope.
-        super(ctrl, scope == null ? null : scope.lookup("$mem"), data);
+        super(ctrl, scope.lookup("$mem"), data);
     }
 
     public Node ctrl() { return in(0); }
@@ -27,6 +26,8 @@ public class ReturnNode extends CFGNode {
         return p.p(";");
     }
 
+    @Override public boolean isCFG() { return true; }
+
     @Override
     public Type compute() {
         // Return exposes the complete memory state.
@@ -39,6 +40,4 @@ public class ReturnNode extends CFGNode {
             return ctrl();
         return null;
     }
-
-    @Override public Node getBlockStart() { return ctrl().getBlockStart(); }
 }
