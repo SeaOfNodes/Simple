@@ -9,7 +9,7 @@ public class Chapter11Test {
     @Test public void testIndependentField() {
         var stop = new Parser("""
             struct S { int x; int y; };
-            S s = new S;
+            !S !s = new S;
             s.x = 42;
             while (arg > 0) { s.y = s.y + arg; arg = arg - 1; }
             return s.x;
@@ -22,8 +22,8 @@ public class Chapter11Test {
     @Test public void testParallelMemoryPhis() {
         var stop = new Parser("""
             struct S { int x; int y; int z; };
-            S a = new S; S b = new S;
-            S p = a; if (arg) p = b;
+            !S !a = new S; !S !b = new S;
+            !S !p = a; if (arg) p = b;
             while (arg > 0) {
                 a.x = p.x + arg;
                 a.y = p.y + 2;

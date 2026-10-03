@@ -36,7 +36,7 @@ public class Evaluator {
                 sb.append("obj@").append(cid);
                 return id;
             }
-            if (struct._name.equals("u8[]")) {
+            if (struct._name.equals("[u8]")) {
                 sb.append('"');
                 for (int i=struct._fields.length-1; i<fields.length; i++) {
                     var v = fields[i];
@@ -306,6 +306,7 @@ public class Evaluator {
             case NewNode      alloc -> alloc(alloc);
             case CProjNode    cproj -> ((Object[])val(cproj.ctrl()))[cproj._idx];
             case ProjNode     proj  -> ((Object[])val( proj.in(0) ))[ proj._idx];
+            case ReadOnlyNode ro    -> val(ro.in(1));
             default                 -> throw new AssertionError("Unexpected node " + node);
         };
     }
