@@ -34,7 +34,8 @@ public class Chapter11Test {
             """).parse().iterate();
         int[] phis = {0};
         stop.walk(n -> {
-            if (n instanceof MemPhiNode) phis[0]++;
+            // Store sinking can replace field memory Phis with value Phis.
+            if (n instanceof PhiNode) phis[0]++;
             if (n instanceof MemMergeNode m && m.in(1) instanceof BulkMemPhiNode b)
                 for(int a=b._aliases.nextSetBit(0); a>=0; a=b._aliases.nextSetBit(a+1))
                     assertTrue(a<m.nIns() && m.in(a)!=null);
@@ -42,7 +43,7 @@ public class Chapter11Test {
                 !(n instanceof MemPhiNode) && !(n instanceof BulkMemPhiNode));
             return null;
         });
-        assertTrue(phis[0]>=3);
+        assertTrue(phis[0]>=4); // Three fields and the loop counter.
         assertArrayEquals(new Object[]{1L,2L,3L},((Evaluator.Obj)Evaluator.evaluate(stop,4)).fields());
     }
 

@@ -51,7 +51,7 @@ return p;
         Parser parser = new Parser("""
 struct Point { int x=3, y=4; };
 Point p = new Point { x=5; y=6; };
-p.x=p.x+1;
+p.x++;
 return p;
 """);
         try { parser.parse().iterate(); fail(); }
@@ -63,7 +63,7 @@ return p;
         Parser parser = new Parser("""
 struct Point { int x=3, y=4; };
 Point p = new Point;
-p.x=p.x+1;
+p.x++;
 return p;
 """);
         try { parser.parse().iterate(); fail(); }
@@ -72,8 +72,8 @@ return p;
 
     @Test
     public void testStructFinal3() {
-        for( String fields : new String[] { "int ~x; int ~y;", "int[] !x;", "int[] !x;" } ) {
-            String src = "struct Point { "+fields+" }; Point p = new Point; p.x=p.x+1; return p;";
+        for( String fields : new String[] { "var x; var y;", "int[] !x;", "int[] !x;" } ) {
+            String src = "struct Point { "+fields+" }; Point p = new Point; p.x++; return p;";
             try { new Parser(src).parse().iterate(); fail(fields); }
             catch( Exception e ) { assertEquals("'Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
         }
@@ -82,21 +82,21 @@ return p;
     @Test
     public void testStructFinal4() {
         Parser parser = new Parser("""
-struct Point { int ~x=3; int ~y=4; };
+struct Point { val x=3; val y=4; };
 Point p = new Point;
-p.x=p.x+1;
+p.x++;
 return p;
 """);
         try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Cannot reassign final 'x'",e.getMessage()); }
     }
 
     @Test
     public void testStructFinal5() {
         Parser parser = new Parser("""
-struct Point { int x=3; int y=4; };
+struct Point { var x=3; var y=4; };
 !Point !p = new Point;
-p.x=p.x+1;
+p.x++;
 return p;
 """);
         StopNode stop = parser.parse().iterate();

@@ -37,6 +37,12 @@ public class MutabilityTest {
         bad("struct P { !P? next; int x; }; P p=new P{next=new P;}; p.next.x=7; return 0;");
     }
 
+    @Test public void testInferencePreservesAccess() {
+        ok("struct P { int x; }; val p=new P; p.x=7; return p.x;", "7");
+        bad("struct P { int x; }; val p=new P; p=new P; return 0;");
+        bad("struct P { int x; }; P p=new P; var q=p; q.x=7; return 0;");
+    }
+
     @Test public void testConstructorScope() {
         ok("struct P { int ~x; }; P p=new P{if(arg) x=3; else x=7;}; return p.x;", "7");
         bad("int ~outer=1; struct P { int x; }; P p=new P{outer=7;}; return outer;");
