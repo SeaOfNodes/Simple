@@ -1,0 +1,251 @@
+{
+  "ver": 1,
+  "comp": "rebase-inline",
+  "step": 160,
+  "roots": [
+    3
+  ],
+  "scope": 0,
+  "nodes": [
+    {
+      "id": 2,
+      "label": "Start",
+      "type": "[  Ctrl, MemBot, int]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 3,
+      "label": "Stop",
+      "type": "Bot",
+      "kind": "STOP",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 14,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 4,
+      "label": "Con",
+      "type": "0",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 5,
+      "label": "Con",
+      "type": "null",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 6,
+      "label": "Xctrl",
+      "type": "~Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 7,
+      "label": "Con",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 8,
+      "label": "main",
+      "type": "Ctrl",
+      "kind": "FUN",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 2,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 9,
+      "label": "Con",
+      "type": "$[ALL]",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 10,
+      "label": "$rpc",
+      "type": "$[ALL]",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 8,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 9,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 14,
+      "label": "Return",
+      "type": "[  Ctrl, MemBot, 11]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 8,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 16,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 66,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 10,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 16,
+      "label": "$mem",
+      "type": "MemBot",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 8,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 66,
+      "label": "Con",
+      "type": "11",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    }
+  ],
+  "groups": [
+    {
+      "id": 8,
+      "par": 0,
+      "nodes": [
+        8,
+        10,
+        14,
+        16
+      ]
+    }
+  ]
+}

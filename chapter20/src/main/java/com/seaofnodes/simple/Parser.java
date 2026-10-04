@@ -1223,7 +1223,7 @@ public class Parser {
         mem(after.peephole());
         out.unkeep();
         nnn.unkeep();
-        prior.unkeep();
+        prior.unkill();
         for( int i=0; i<fs.length; i++ ) {
             Node val = init.get(idx+i);
             if( val._type != val._type.makeZero() ) {
@@ -1256,7 +1256,7 @@ public class Parser {
         st.setDef(0,ctrl);
         st = st.peephole();
         mem(new MemMergeNode(prior,alias,st).peephole());
-        prior.unkeep();
+        prior.unkill();
     }
 
     /**

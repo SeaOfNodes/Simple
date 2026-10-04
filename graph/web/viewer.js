@@ -71,7 +71,7 @@ function updateUI() {
   status.textContent = failure || (connection !== "Connected" ? connection :
     !rendererReady ? "Connected; initializing graph renderer..." :
     busy ? busy : compiling ? "Compiling... " + frames.length + " frames received" :
-    done ? frames.length + " frames ready" : "Connected");
+    done ? frames.length + " frames ready" : "Ready. Enter a program and click Compile.");
   const at = wanted >= 0 ? wanted : current;
   if (document.activeElement !== frameNo) frameNo.value = String(at + 1);
   frameNo.max = scrub.max = String(Math.max(1, frames.length));
@@ -365,7 +365,7 @@ try {
   socket.onmessage = event => {
     const message = event.data;
     if (message === "!") {
-      get_program();
+      updateUI();
     } else if (message === "#") {
       done = true;
       compiling = false;

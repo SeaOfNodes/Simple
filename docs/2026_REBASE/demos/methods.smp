@@ -1,0 +1,11 @@
+struct Counter {
+    int n;
+    val add = { int delta ->
+        n += delta;
+        return self;
+    };
+    val get = { -> return n; };
+};
+!Counter c = new Counter { n = arg; };
+c.add(3).add(4);
+return c.get();

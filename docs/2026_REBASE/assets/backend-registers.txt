@@ -1,0 +1,22 @@
+
+---  { *Box {int !x; } int -> int #0}---------------------------
+                 arg   rsi
+                 box   rdi
+                   r15   // r15
+                   r14   // r14
+                   r13   // r13
+                   r12   // r12
+                   rbp   // rbp
+                   rbx   // rbx
+0000             mov   rax = rsi                      // def/empty1 #0
+0000             test  rax                           
+0000             j<    L4                             // L12
+L12:
+0000 ??          JMP   L3
+L4:
+0001             neg   rax                           
+L3:
+                       rax = phi( N20,N33 )
+0001             add8  [rdi] += rax                  
+0001             ret   rax  [stk#33]  rbx  rbp  r12  r13  r14  r15  
+--- ---------------------------

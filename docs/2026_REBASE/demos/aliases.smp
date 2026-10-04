@@ -1,0 +1,5 @@
+struct Pair { int x; int y; };
+val p = new Pair { x = arg; y = 10; };
+int before = p.x;
+p.y = 99;
+return p.x - before;

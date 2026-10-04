@@ -1045,7 +1045,7 @@ public class Parser {
         mem(after.peephole());
         out.unkeep();
         nnn.unkeep();
-        prior.unkeep();
+        prior.unkill();
         return ptr.unkeep();
     }
 
@@ -1070,7 +1070,7 @@ public class Parser {
         st.setDef(0,ctrl);
         st = st.peephole();
         mem(new MemMergeNode(prior,alias,st).peephole());
-        prior.unkeep();
+        prior.unkill();
     }
 
     /**

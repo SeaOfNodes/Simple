@@ -55,6 +55,9 @@ def check(chapter, browser_name):
                             return
                     raise AssertionError("Peephole did not reach a stable frame")
                 page.goto(url)
+                page.wait_for_function('connection === "Connected" && rendererReady')
+                assert page.evaluate('!compiling && !done && frames.length === 0')
+                page.locator("#compile").click()
                 page.wait_for_function("done && current === 0 && !rendering", timeout=15000)
                 assert page.locator("#graph svg g.node").count() > 0
                 assert page.locator("#doPrev").is_disabled()

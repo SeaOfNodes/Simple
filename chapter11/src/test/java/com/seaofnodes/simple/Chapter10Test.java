@@ -290,7 +290,8 @@ while( i.x < i.len ) {
 return sum;
 """);
         StopNode stop = parser.parse().iterate();
-        assertEquals("return Phi(Loop16,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum));", stop.toString());
+        assertEquals("return Phi(Loop16,0,(Phi(Loop,0,(Phi_$2+1))+Phi_sum));", stop.toString());
+        assertEquals(10L,Evaluator.evaluate(stop,5));
     }
 
 
@@ -549,8 +550,8 @@ return 0;
             if (arg) s.x=arg+1; else s.x=arg+2;
             return s;
             """).parse().iterate();
-        // The initializing slice also remains live as the aggregate default.
-        assertEquals(2,countMemoryNodes(stop,StoreNode.class,new BitSet()));
+        // Releasing the old aggregate exposes the overwritten initializing Store.
+        assertEquals(1,countMemoryNodes(stop,StoreNode.class,new BitSet()));
         assertEquals(2L,((Evaluator.Obj)Evaluator.evaluate(stop,0)).fields()[0]);
         assertEquals(4L,((Evaluator.Obj)Evaluator.evaluate(stop,3)).fields()[0]);
     }

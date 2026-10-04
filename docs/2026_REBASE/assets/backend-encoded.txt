@@ -1,0 +1,14 @@
+
+---  { *Box {int !x; } int -> int #0}---------------------------
+                 arg:rsi,box:rdi
+0000 488bc6      mov   rax = rsi                      // def/empty1 #0
+0003 4883f800    test  rax                           
+0007 7d03        j>=   L3                             // L4
+L4:
+0009 48f7d8      neg   rax                           
+L12:
+L3:
+                 :rax
+000c 480107      add8  [rdi] += rax                  
+000f c3          ret                                 
+--- ---------------------------

@@ -28,7 +28,7 @@ python -m http.server 8000 --bind 127.0.0.1 --directory graph/web
 Then launch Java with `-Dsimple.graph.url=http://127.0.0.1:8000/index.html`.
 The compiler WebSocket still uses port 12345; run one viewer session at a time.
 
-The initial program compiles on connection. For another program, click **Compile**
+The viewer starts idle. Enter a program and click **Compile**
 or press **Ctrl+Enter** (**Cmd+Enter** on macOS). Use the arrows to step through
 frames (Left/Right arrow keys perform the same steps, including animation stages),
 the first/last buttons to jump to either end, or enter a frame number

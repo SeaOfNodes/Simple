@@ -1,0 +1,10 @@
+struct Totals { int sum; int visits; };
+val t = new Totals;
+val data = new int[4];
+for( int i = 0; i < data#; i++ )
+    data[i] = arg + i;
+for( int i = 0; i < data#; i++ ) {
+    t.sum = t.sum + data[i];
+    t.visits++;
+}
+return t.sum + t.visits;

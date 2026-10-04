@@ -1,0 +1,6 @@
+struct Box { int x; };
+return { !Box box, int arg ->
+    int n = arg < 0 ? -arg : arg;
+    box.x += n;
+    return n;
+};

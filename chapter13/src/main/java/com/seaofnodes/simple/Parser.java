@@ -613,7 +613,7 @@ public class Parser {
         Node prior = mem().keep();
         Node st = new StoreNode(name,alias,glb,ctrl(),prior,ptr,val,init).peephole();
         mem(new MemMergeNode(prior,alias,st).peephole());
-        prior.unkeep();
+        if( prior.unkeep().isUnused() ) prior.kill();
     }
 
     /**

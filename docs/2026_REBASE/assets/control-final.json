@@ -1,0 +1,588 @@
+{
+  "ver": 1,
+  "comp": "rebase-control",
+  "step": 64,
+  "roots": [
+    2,
+    3
+  ],
+  "scope": 0,
+  "nodes": [
+    {
+      "id": 2,
+      "label": "Start",
+      "type": "[Ctrl,IntBot]",
+      "kind": "CTRL",
+      "edges": [],
+      "proj": null
+    },
+    {
+      "id": 3,
+      "label": "Stop",
+      "type": "Bot",
+      "kind": "STOP",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 32,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 4,
+      "label": "$ctrl",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 0
+      }
+    },
+    {
+      "id": 5,
+      "label": "arg",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 1
+      }
+    },
+    {
+      "id": 6,
+      "label": "Con",
+      "type": "0",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 7,
+      "label": "LT",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 5,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 6,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 8,
+      "label": "If",
+      "type": "[Ctrl,Ctrl]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 4,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 7,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 9,
+      "label": "True",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 8,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 8,
+        "idx": 0
+      }
+    },
+    {
+      "id": 10,
+      "label": "False",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 8,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 8,
+        "idx": 1
+      }
+    },
+    {
+      "id": 12,
+      "label": "Minus",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 5,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 13,
+      "label": "Region",
+      "type": "Ctrl",
+      "kind": "REGION",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 9,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 10,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 14,
+      "label": "Phi_n",
+      "type": "IntBot",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 13,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 12,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 5,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 15,
+      "label": "Con",
+      "type": "0",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 16,
+      "label": "Con",
+      "type": "0",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 17,
+      "label": "Loop",
+      "type": "Ctrl",
+      "kind": "LOOP",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 13,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 23,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 19,
+      "label": "Phi_i",
+      "type": "IntBot",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 17,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 16,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 27,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 21,
+      "label": "LT",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 19,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 14,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 22,
+      "label": "If",
+      "type": "[Ctrl,Ctrl]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 17,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 21,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 23,
+      "label": "True",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 22,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 22,
+        "idx": 0
+      }
+    },
+    {
+      "id": 24,
+      "label": "False",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 22,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 22,
+        "idx": 1
+      }
+    },
+    {
+      "id": 26,
+      "label": "Con",
+      "type": "1",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 27,
+      "label": "Add",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 19,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 26,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 28,
+      "label": "Phi_sum",
+      "type": "IntBot",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 17,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 15,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 31,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 30,
+      "label": "Add",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 28,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 19,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 31,
+      "label": "Add",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 30,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 26,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 32,
+      "label": "Return",
+      "type": "[Ctrl,IntBot]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 24,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 28,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    }
+  ],
+  "groups": [
+    {
+      "id": 8,
+      "par": 0,
+      "nodes": [
+        7,
+        8,
+        9,
+        10,
+        12,
+        13,
+        14
+      ]
+    },
+    {
+      "id": 17,
+      "par": 0,
+      "nodes": [
+        17,
+        19,
+        21,
+        22,
+        23,
+        24,
+        27,
+        28,
+        30,
+        31
+      ]
+    }
+  ]
+}

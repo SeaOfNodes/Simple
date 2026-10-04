@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A Simple Tutorial — Cliff Click at REBASE 2026. A 30-minute tour of an all-Java, open-source compiler modeled after Java's C2.">
+  <title>A Simple Tutorial · Cliff Click · REBASE 2026</title>
+  <link rel="stylesheet" href="slides.css">
+  <script defer src="deck.js"></script>
+  <script defer src="backend.js"></script>
+  <script defer src="stdlib.js"></script>
+  <script defer src="slides.js"></script>
+  <script defer src="language.js"></script>
+  <script defer src="lattices.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <main id="viewport" aria-label="Presentation">
+    <article id="slide" class="slide" aria-live="polite"></article>
+  </main>
+  <nav id="controls" aria-label="Presentation controls">
+    <button id="previous" title="Previous build (Left)">←</button>
+    <button id="overview" title="Slide overview (O)">Slides</button>
+    <span id="position"></span>
+    <button id="next" title="Next build (Right or Space)">→</button>
+    <span class="control-divider"></span>
+    <button id="notes-toggle" title="Speaker notes (N)" aria-pressed="false">Notes</button>
+    <button id="presenter" title="Open presenter window (P)">Presenter</button>
+    <button id="fullscreen" title="Fullscreen (F)">⛶</button>
+    <button id="help" title="Keyboard shortcuts (?)">?</button>
+  </nav>
+  <aside id="notes" hidden aria-label="Speaker notes">
+    <div class="notes-toolbar"><strong>Speaker notes</strong><button id="timer" title="Start / pause talk timer (T)">Start timer</button><button id="timer-reset">Reset</button></div>
+    <div id="pace"></div><div id="notes-content"></div>
+  </aside>
+  <dialog id="dialog"><button id="dialog-close" class="dialog-close" aria-label="Close dialog">×</button><div id="dialog-content"></div></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="blackout" hidden aria-label="Presentation blanked. Press B or Escape to return."></div>
+  <noscript><p>This presentation needs JavaScript. The examples are also available as plain .smp files in the demos directory.</p></noscript>
+</body>
+</html>

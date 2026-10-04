@@ -642,6 +642,22 @@ The top-level runner accepts explicit chapter lists, e.g.
 
 ## Validation record
 
+- **Unused parser memory aggregates, Chapters 11-24 (2026-10-03).** Release
+  temporary prior-memory keeps with dead-node cleanup after publishing the new
+  memory value. Flattening a MemMerge could remove its last real use while the
+  parser kept it alive; plain `unkeep()` then left it unused and off the worklist.
+  The Chapter 17b presentation alias example's MemMerge#18 now disappears.
+  Its partial allocation input (#14) remains: null default means uncovered
+  aliases, so it cannot be replaced with whole memory just because its covered
+  slices coincide. Chapter 25's different construction sites were not changed.
+  Make builds passed in all affected chapters; complete suites passed in 11
+  (163 tests) and 12 (177). Existing Chapter10/11 tests passed in 13-24, plus
+  Chapter15/16 tests where present and Chapter17a/17b tests in 17b. Updated
+  earlier graph-shape expectations for the newly eliminated initializing Store
+  and a different equivalent Phi name. Direct graph checks and evaluator runs
+  passed for both presentation memory examples; their JSON/SVG captures were
+  regenerated. Logs: `build/rebase-talk/memory-cleanup/`.
+
 - **Chapter 25 historical String fixtures (2026-10-02).** Added an explicit
   constructor initializing the required non-null `cs` field in
   `Chapter21Test-testStringExport.smp`, `Chapter21AllocTest-testString.smp`, and

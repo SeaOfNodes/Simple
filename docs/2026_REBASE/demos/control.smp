@@ -1,0 +1,9 @@
+int n = arg;
+if( n < 0 ) n = -n;
+int sum = 0;
+int i = 0;
+while( i < n ) {
+    i = i + 1;
+    sum = sum + i;
+}
+return sum;

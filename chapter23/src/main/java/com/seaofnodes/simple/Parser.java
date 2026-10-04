@@ -132,6 +132,8 @@ public class Parser {
     private <N extends Node> N ctrl(N n) { return _scope.ctrl(n); }
 
     public void parse() {
+        // Graph callbacks during scope setup need a source position.
+        _lexer = new Lexer(com.seaofnodes.simple.sys.SYS);
 
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
         _scope.define(ScopeNode.MEM0, TypeMem.BOT    , false, null, _lexer);
@@ -141,7 +143,6 @@ public class Parser {
         _scope.mem(con(TypeMem.BOT));
 
         // Parse the sys import
-        _lexer = new Lexer(com.seaofnodes.simple.sys.SYS);
         while( !_lexer.isEOF() ) {
             parseStatement();
             _lexer.skipWhiteSpace();
@@ -1415,7 +1416,7 @@ public class Parser {
         mem(after.peephole());
         out.unkeep();
         nnn.unkeep();
-        prior.unkeep();
+        prior.unkill();
         for( int i=0; i<fs.length; i++ ) {
             Node val = init.get(idx+i);
             if( !fs[i]._one && val._type != val._type.makeZero() ) {
@@ -1461,7 +1462,7 @@ public class Parser {
         st.setDef(0,ctrl);
         st = st.peephole();
         mem(new MemMergeNode(prior,alias,st).peephole());
-        prior.unkeep();
+        prior.unkill();
     }
 
     /**

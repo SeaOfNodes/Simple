@@ -1,0 +1,30 @@
+   7 Start   ____ ____ ____       [[     6   11   15   18   22  ]]  [  Ctrl, MemBot, int]
+  11 Con        7                 [[    10       ]]  int
+  15 Con        7                 [[    14       ]]  MemBot
+  18 Con        7                 [[    17       ]]  *Box
+  22 Con        7                 [[    21       ]]  $[ALL]
+
+---  { *Box {int !x; } int -> int #0}----------------------
+
+   6 $fun0   ____    7            [[     5   10   14   17   21  ]]  Ctrl
+  10 arg        6   11            [[     8   20   19  ]]  int
+  14 $mem       6   15            [[    13   16  ]]  MemBot
+  17 box        6   18            [[    16       ]]  *Box
+  21 $rpc       6   22            [[     2       ]]  $[ALL]
+   8 test    ____   10            [[     5       ]]  bool
+  20 neg     ____   10            [[    19       ]]  int
+
+   5 j<         6    8            [[     4   12  ]]  [  Ctrl, Ctrl]
+
+  12 False      5                 [[     3       ]]  Ctrl
+
+   4 True       5                 [[     3       ]]  Ctrl
+
+   3 Region  ____    4   12       [[     2   19  ]]  Ctrl
+  19 Phi_       3   20   10       [[    16    2  ]]  int
+  16 add8    ____   14   17 ____   19  [[    13  ]]  #2:Bot
+  13 MemMerg ____   14   16       [[     2       ]]  MemBot
+
+   2 Return     3   13   19   21  [[     1       ]]  [  Ctrl, MemBot, int]
+---  ----------------------
+   1 Stop       2                 [[             ]]  Bot

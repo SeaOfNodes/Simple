@@ -1,0 +1,406 @@
+{
+  "ver": 1,
+  "comp": "rebase-aliases",
+  "step": 50,
+  "roots": [
+    2,
+    3
+  ],
+  "scope": 0,
+  "nodes": [
+    {
+      "id": 2,
+      "label": "Start",
+      "type": "[  Ctrl, MemBot, int]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 3,
+      "label": "Stop",
+      "type": "Bot",
+      "kind": "STOP",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 29,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 4,
+      "label": "Con",
+      "type": "0",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 5,
+      "label": "Xctrl",
+      "type": "~Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 6,
+      "label": "$ctrl",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 0
+      }
+    },
+    {
+      "id": 7,
+      "label": "$mem",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 1
+      }
+    },
+    {
+      "id": 8,
+      "label": "arg",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 2
+      }
+    },
+    {
+      "id": 12,
+      "label": "Con",
+      "type": "10",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 13,
+      "label": "Con",
+      "type": "16",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 14,
+      "label": "MemMerge",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 0,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 15,
+      "label": "new_Pair",
+      "type": "[  *Pair {int !x; int !y; }, MemBot]",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 6,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 14,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 13,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 8,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 12,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 16,
+      "label": "Pair",
+      "type": "*Pair {int !x; int !y; }",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 15,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 15,
+        "idx": 0
+      }
+    },
+    {
+      "id": 17,
+      "label": "$mem",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 15,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 15,
+        "idx": 1
+      }
+    },
+    {
+      "id": 21,
+      "label": "Con",
+      "type": "8",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 22,
+      "label": "Con",
+      "type": "99",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 23,
+      "label": "st_y",
+      "type": "MEM#3:[10-99]",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 17,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 16,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 21,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 22,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 24,
+      "label": "MemMerge",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 17,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 23,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 29,
+      "label": "Return",
+      "type": "[  Ctrl, MemBot, 0]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 6,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 24,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    }
+  ],
+  "groups": []
+}

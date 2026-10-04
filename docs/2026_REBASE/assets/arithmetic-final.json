@@ -1,0 +1,162 @@
+{
+  "ver": 1,
+  "comp": "rebase-arithmetic",
+  "step": 50,
+  "roots": [
+    2,
+    26
+  ],
+  "scope": 0,
+  "nodes": [
+    {
+      "id": 2,
+      "label": "Start",
+      "type": "[ Ctrl,IntBot]",
+      "kind": "CTRL",
+      "edges": [],
+      "proj": null
+    },
+    {
+      "id": 3,
+      "label": "$ctrl",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 0
+      }
+    },
+    {
+      "id": 4,
+      "label": "arg",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 1
+      }
+    },
+    {
+      "id": 19,
+      "label": "Con",
+      "type": "2",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 20,
+      "label": "Mul",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 19,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 24,
+      "label": "Con",
+      "type": "6",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 25,
+      "label": "Add",
+      "type": "IntBot",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 20,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 24,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 26,
+      "label": "Return",
+      "type": "[ Ctrl,IntBot]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 3,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 25,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    }
+  ],
+  "groups": []
+}

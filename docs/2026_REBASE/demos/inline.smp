@@ -1,0 +1,3 @@
+val add1 = { int x -> x + 1; };
+val twice = { int x -> x * 2; };
+return twice(1 + add1(2)) + 3;

@@ -1,0 +1,1404 @@
+{
+  "ver": 1,
+  "comp": "rebase-memory",
+  "step": 318,
+  "roots": [
+    2,
+    3
+  ],
+  "scope": 0,
+  "nodes": [
+    {
+      "id": 2,
+      "label": "Start",
+      "type": "[  Ctrl, MemBot, int]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 3,
+      "label": "Stop",
+      "type": "Bot",
+      "kind": "STOP",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 115,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 4,
+      "label": "Con",
+      "type": "0",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 5,
+      "label": "Xctrl",
+      "type": "~Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 6,
+      "label": "$ctrl",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 0
+      }
+    },
+    {
+      "id": 7,
+      "label": "$mem",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 1
+      }
+    },
+    {
+      "id": 8,
+      "label": "arg",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 2,
+        "idx": 2
+      }
+    },
+    {
+      "id": 12,
+      "label": "Con",
+      "type": "16",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 13,
+      "label": "MemMerge",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 0,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 14,
+      "label": "new_Totals",
+      "type": "[  *Totals {int !sum; int !visits; }, MemBot]",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 6,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 13,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 12,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 15,
+      "label": "Totals",
+      "type": "*Totals {int !sum; int !visits; }",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 14,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 14,
+        "idx": 0
+      }
+    },
+    {
+      "id": 16,
+      "label": "$mem",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 14,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 14,
+        "idx": 1
+      }
+    },
+    {
+      "id": 18,
+      "label": "Con",
+      "type": "4",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 24,
+      "label": "Con",
+      "type": "40",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 26,
+      "label": "MemMerge",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 0,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 0,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 0,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 5,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 27,
+      "label": "new_ary_int",
+      "type": "[  *[int] {int #; int ![]; }, MemBot]",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 6,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 26,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 24,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 18,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 28,
+      "label": "[int]",
+      "type": "*[int] {int #; int ![]; }",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 27,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 27,
+        "idx": 0
+      }
+    },
+    {
+      "id": 29,
+      "label": "$mem",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 27,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 27,
+        "idx": 1
+      }
+    },
+    {
+      "id": 32,
+      "label": "Loop",
+      "type": "Ctrl",
+      "kind": "LOOP",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 6,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 41,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 34,
+      "label": "Phi_i",
+      "type": "int",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 32,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 60,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 35,
+      "label": "LT",
+      "type": "bool",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 34,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 18,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 40,
+      "label": "If",
+      "type": "[  Ctrl, Ctrl]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 32,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 35,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 41,
+      "label": "True",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 40,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 40,
+        "idx": 0
+      }
+    },
+    {
+      "id": 42,
+      "label": "False",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 40,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 40,
+        "idx": 1
+      }
+    },
+    {
+      "id": 46,
+      "label": "Con",
+      "type": "1",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 51,
+      "label": "Con",
+      "type": "8",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 52,
+      "label": "Con",
+      "type": "3",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 2,
+          "role": "ASSOC",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 53,
+      "label": "Shl",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 34,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 52,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 54,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 53,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 51,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 56,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 34,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 8,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 57,
+      "label": "st_ary",
+      "type": "MEM#5:Bot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 41,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 124,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 28,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 54,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 56,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 60,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 34,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 46,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 65,
+      "label": "Loop",
+      "type": "Ctrl",
+      "kind": "LOOP",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 42,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 74,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 67,
+      "label": "Phi_i",
+      "type": "int",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 65,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 103,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 68,
+      "label": "LT",
+      "type": "bool",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 67,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 18,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 73,
+      "label": "If",
+      "type": "[  Ctrl, Ctrl]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 65,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 68,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 74,
+      "label": "True",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 73,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 73,
+        "idx": 0
+      }
+    },
+    {
+      "id": 75,
+      "label": "False",
+      "type": "Ctrl",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 73,
+          "role": "CTRL",
+          "label": null
+        }
+      ],
+      "proj": {
+        "par": 73,
+        "idx": 1
+      }
+    },
+    {
+      "id": 88,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 131,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 93,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 91,
+      "label": "Shl",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 67,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 52,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 92,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 91,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 51,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 93,
+      "label": "ld_ary",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 74,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 124,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 28,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 92,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 94,
+      "label": "st_sum",
+      "type": "MEM#2:Bot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 104,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 15,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 88,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 99,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 138,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 46,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 100,
+      "label": "st_visits",
+      "type": "MEM#3:Bot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 132,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 15,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 51,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 99,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 103,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 67,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 46,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 104,
+      "label": "MemPhi_2",
+      "type": "MEM#2:Bot",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 65,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 16,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 94,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 106,
+      "label": "MemMerge",
+      "type": "MemBot",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 7,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 104,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 132,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 29,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 5,
+          "def": 124,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 112,
+      "label": "Add",
+      "type": "int",
+      "kind": "DATA",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 138,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 131,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 115,
+      "label": "Return",
+      "type": "[  Ctrl, MemBot, int]",
+      "kind": "CTRL",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 75,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 106,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 112,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 124,
+      "label": "MemPhi_5",
+      "type": "MEM#5:Bot",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 32,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 29,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 57,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 131,
+      "label": "Phi_sum",
+      "type": "int",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 65,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 88,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 132,
+      "label": "MemPhi_3",
+      "type": "MEM#3:Bot",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 65,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 16,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 100,
+          "role": "MEM",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 138,
+      "label": "Phi_visits",
+      "type": "int",
+      "kind": "PHI",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 65,
+          "role": "ASSOC",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 99,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    }
+  ],
+  "groups": [
+    {
+      "id": 32,
+      "par": 0,
+      "nodes": [
+        32,
+        34,
+        35,
+        40,
+        41,
+        42,
+        53,
+        54,
+        56,
+        57,
+        60,
+        124
+      ]
+    },
+    {
+      "id": 65,
+      "par": 0,
+      "nodes": [
+        65,
+        67,
+        68,
+        73,
+        74,
+        75,
+        88,
+        91,
+        92,
+        93,
+        94,
+        99,
+        100,
+        103,
+        104,
+        112,
+        131,
+        132,
+        138
+      ]
+    }
+  ]
+}
