@@ -29,7 +29,7 @@ public class PrinterTest {
     }
 
     public static void main(String[] args) {
-        expression(); loop(); functions(); assembly();
+        expression(); loop(); ordering(); functions(); assembly();
         System.out.println("Shared printer contracts passed");
     }
     static void expression() {
@@ -89,6 +89,49 @@ public class PrinterTest {
         assert printer.prettyPrint(null,2).isEmpty();
     }
     static int row(String text,String name) { return text.indexOf(" "+name+" "); }
+
+    static void ordering() {
+        var adapter=new Adapter() {
+            @Override public int index(N n) { return switch(n.name) {
+                case "Minus" -> -1; case "Zero", "Again" -> 0; case "Two" -> 2;
+                default -> n._nid;
+            }; }
+        };
+        IRPrinter<N> printer=new IRPrinter<>(adapter);
+        N multi=new N(1,"Multi",Kind.MULTI);
+        N two=new N(2,"Two",Kind.PROJ,multi);
+        N minus=new N(3,"Minus",Kind.PROJ,multi);
+        N zero=new N(4,"Zero",Kind.CPROJ,multi);
+        N again=new N(5,"Again",Kind.PROJ,multi);
+        String text=printer.prettyPrint(two,0);
+        int[] ids=text.lines().filter(s -> !s.isBlank()).mapToInt(s -> Integer.parseInt(s.trim().split("\\s+")[0])).toArray();
+        assert Arrays.equals(ids,new int[]{1,3,4,5,2}) : text;
+        assert multi.outs.equals(Arrays.asList(two,minus,zero,again));
+
+        N outer=new N(10,"Outer",Kind.LOOP,null,null);
+        N inner=new N(11,"Inner",Kind.LOOP,null,outer);
+        N op=new N(12,"OPhi",Kind.PHI,outer,null);
+        N ip=new N(13,"IPhi",Kind.PHI,inner,null);
+        N iv=new N(14,"IValue",Kind.DATA,null,ip);
+        N ov=new N(15,"OValue",Kind.DATA,null,ip,op);
+        ip.add(iv); op.add(ov);
+        N branch=new N(16,"Branch",Kind.CTRL,inner,ip);
+        N left=new N(17,"Left",Kind.CPROJ,branch), right=new N(18,"Right",Kind.CPROJ,branch);
+        N join=new N(19,"Join",Kind.REGION,null,left,right);
+        N il=new N(20,"ILatch",Kind.CTRL,join,ip);
+        N ib=new N(21,"IBack",Kind.CPROJ,il), ie=new N(22,"IExit",Kind.CPROJ,il);
+        inner.add(ib);
+        N ol=new N(23,"OLatch",Kind.CTRL,ie,op);
+        N ob=new N(24,"OBack",Kind.CPROJ,ol), oe=new N(25,"OExit",Kind.CPROJ,ol);
+        outer.add(ob);
+        N after=new N(26,"After",Kind.CTRL,oe,op);
+        text=printer.prettyPrint(after,99);
+        N[] order={outer,op,inner,ip,branch,join,il,ov,ol,after};
+        for( int i=1; i<order.length; i++ )
+            assert row(text,order[i-1].name)<row(text,order[i].name) : text;
+        assert row(text,iv.name)<row(text,ov.name) : text;
+        assert text.equals(printer.prettyPrint(after,99));
+    }
 
     static void functions() {
         N start=new N(1,"Start",Kind.START), stop=new N(2,"Stop",Kind.STOP);

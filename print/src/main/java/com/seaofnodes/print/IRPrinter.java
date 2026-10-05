@@ -36,7 +36,7 @@ public final class IRPrinter<N extends BaseNode<N>> {
                     N p=_a.out(unit.start(),i);
                     if( _a.projection(p) ) ps.add(p);
                 }
-                ps.sort(Comparator.comparingInt(_a::index));
+                ps.sort(projectionOrder());
                 for( N p : ps ) sb.append(line(p));
             }
             ArrayList<N> funs=new ArrayList<>(unit.functions());
@@ -107,6 +107,12 @@ public final class IRPrinter<N extends BaseNode<N>> {
                 N head=_a.input0(n);
                 if( head != null ) nodes.put(head,Boolean.TRUE);
             }
+        // Complete projection groups without extending ordinary dependencies.
+        for( N n : new ArrayList<>(nodes.keySet()) )
+            for( int i=0; i<_a.nOuts(n); i++ ) {
+                N p=_a.out(n,i);
+                if( _a.projection(p) && _a.input0(p)==n ) nodes.put(p,Boolean.TRUE);
+            }
         return render(nodes);
     }
 
@@ -169,16 +175,21 @@ public final class IRPrinter<N extends BaseNode<N>> {
         ArrayList<ArrayList<N>> body=new ArrayList<>();
         for( int i=0; i<post.size(); i++ ) { blocks.put(post.get(i),i); body.add(new ArrayList<>()); }
         if( body.isEmpty() ) body.add(new ArrayList<>());
+        for( N n : ns ) block(n,nodes,blocks);
+        IdentityHashMap<N,Integer> placed=new IdentityHashMap<>();
         for( N n : ns )
-            if( !_a.control(n) ) body.get(block(n,nodes,blocks)).add(n);
+            if( !_a.control(n) ) body.get(place(n,nodes,blocks,placed)).add(n);
         StringBuilder sb=new StringBuilder();
         IdentityHashMap<N,Boolean> emitted=new IdentityHashMap<>();
         for( int i=0; i<body.size(); i++ ) {
             if( i<post.size() ) {
                 N cfg=post.get(i);
-                sb.append('\n');
+                if( !emitted.containsKey(cfg) ) sb.append('\n');
+                for( N n : body.get(i) )
+                    if( !_a.phi(n) && !_a.projection(n) && _a.input0(n)==null ) emit(n,nodes,emitted,sb);
                 emitDefs(cfg,nodes,emitted,sb);
                 emitLine(cfg,emitted,sb);
+                projections(cfg,nodes,emitted,sb);
                 // A Phi's backedge belongs in the body, never ahead of the Phi.
                 for( N n : body.get(i) ) if( _a.phi(n) ) emitLine(n,emitted,sb);
             }
@@ -235,6 +246,35 @@ public final class IRPrinter<N extends BaseNode<N>> {
                           StringBuilder sb) {
         for( int i=0; i<_a.nIns(n); i++ ) emit(_a.in(n,i),nodes,emitted,sb);
     }
+
+    // Floating data follows its uses. A loop Phi consumes its backedge value
+    // at the latch, not at the header of that (possibly enclosing) loop.
+    private int place(N n, IdentityHashMap<N,Boolean> nodes, IdentityHashMap<N,Integer> blocks,
+                      IdentityHashMap<N,Integer> placed) {
+        Integer old=placed.get(n);
+        if( old!=null ) return old;
+        int early=blocks.get(n);
+        placed.put(n,early); // Close data cycles without changing compiler state.
+        if( _a.control(n) || _a.phi(n) || _a.projection(n) || _a.global(n) ||
+            _a.input0(n)!=null ) return early;
+        int late=Integer.MAX_VALUE;
+        for( int i=0; i<_a.nOuts(n); i++ ) {
+            N use=_a.out(n,i);
+            if( use==null || !nodes.containsKey(use) || _a.kind(use)==Kind.PARM ) continue;
+            if( _a.phi(use) && _a.input0(use)!=null && _a.kind(_a.input0(use))==Kind.LOOP ) {
+                N loop=_a.input0(use);
+                for( int j=1; j<_a.nIns(use); j++ )
+                    if( _a.in(use,j)==n && j<_a.nIns(loop) ) {
+                        N pred=_a.in(loop,j);
+                        if( _a.projection(pred) ) pred=_a.input0(pred);
+                        if( pred!=null && blocks.containsKey(pred) ) late=Math.min(late,blocks.get(pred));
+                    }
+            } else late=Math.min(late,place(use,nodes,blocks,placed));
+        }
+        int b=late==Integer.MAX_VALUE ? early : Math.max(early,late);
+        placed.put(n,b);
+        return b;
+    }
     private void emit(N n, IdentityHashMap<N,Boolean> nodes, IdentityHashMap<N,Boolean> emitted,
                       StringBuilder sb) {
         if( n==null || emitted.containsKey(n) || !nodes.containsKey(n) || _a.control(n) || _a.phi(n) ) return;
@@ -256,10 +296,14 @@ public final class IRPrinter<N extends BaseNode<N>> {
         ArrayList<N> ps=new ArrayList<>();
         for( int i=0; i<_a.nOuts(n); i++ ) {
             N p=_a.out(n,i);
-            if( p!=null && nodes.containsKey(p) && _a.kind(p)==Kind.PROJ && _a.input0(p)==n ) ps.add(p);
+            if( _a.projection(p) && nodes.containsKey(p) && _a.input0(p)==n ) ps.add(p);
         }
-        ps.sort(Comparator.comparingInt(_a::index));
+        ps.sort(projectionOrder());
         for( N p : ps ) emitLine(p,emitted,sb);
+    }
+
+    private Comparator<N> projectionOrder() {
+        return Comparator.comparingInt(_a::index).thenComparingInt(_a::id);
     }
 
     /** Scheduling already determines order; inspect it without sorting compiler arrays. */
@@ -283,7 +327,7 @@ public final class IRPrinter<N extends BaseNode<N>> {
                         N p=_a.out(use,j);
                         if( p!=null && _a.kind(p)==Kind.PROJ && _a.input0(p)==use ) ps.add(p);
                     }
-                    ps.sort(Comparator.comparingInt(_a::index));
+                    ps.sort(projectionOrder());
                     for( N p : ps ) emitLine(p,emitted,sb);
                 }
             }
