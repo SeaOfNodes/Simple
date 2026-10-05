@@ -14,11 +14,11 @@
   function early(control) {
     let s=edge(450,58,130,control?127:227)+edge(130,control?373:273,450,442)+
       edge(450,58,450,127)+edge(450,373,450,442)+edge(450,58,760,127)+edge(760,373,450,442);
-    for(const x of [295,450,605]) s+=edge(450,173,x,227)+edge(x,273,450,327);
+    for(const x of [285,385,485,585]) s+=edge(450,173,x,227)+edge(x,273,450,327);
     s+=edge(760,173,760,227)+edge(760,273,760,327);
     if(control) s+=edge(130,173,130,327);
     s+=node(450,35,'⊤','global',65)+node(450,465,'⊥','global',65)+
-      node(450,150,'⊤:int')+node(295,250,'−1', 'integer',80)+node(450,250,'0','integer',80)+node(605,250,'1','integer',80)+node(450,350,'⊥:int')+
+      node(450,150,'⊤:int')+node(285,250,'−1','integer',68)+node(385,250,'0','integer',68)+node(485,250,'1','integer',68)+node(585,250,'2','integer',68)+text(639,258,'…','hint')+node(450,350,'⊥:int')+
       node(760,150,'⊤:tuple','tuple')+node(760,250,'[T₀, …, Tₙ]','tuple',200)+node(760,350,'⊥:tuple','tuple');
     s+=control?node(130,150,'⊤:ctrl','control')+node(130,350,'⊥:ctrl','control')+text(130,207,'unreachable','hint')+text(130,405,'reachable','hint'):node(130,250,'ctrl','control');
     return svg(control?'Chapter 8: control, flat integers, and tuples':'Chapter 4: control, flat integers, and tuples',s);
@@ -71,8 +71,8 @@
         point('Constants are types.','<code>arg : ⊥:int</code><br><code>3 : 3</code>'),
         point('Meet combines alternatives.','<code>1 ∧ 1 = 1</code><br><code>1 ∧ 2 = ⊥:int</code>'),
         point('Every node computes a type.','A constant result can replace the node. Tuples meet element by element.')
-      ],'Other integer constants and tuple interiors are omitted.'),
-      notes:'<h3>Lattice · about 30 seconds of this demo slot</h3><p>These are abstract values, not the Java class hierarchy. Show global top/bottom versus domain top/bottom. Chapter 4 has one control element, flat integer constants, and tuples. AddNode.compute evaluates constant operands; meet is the operation for combining alternatives, not integer addition. Return to Example for the local rewrites.</p>'},
+      ],'Standard flat integer lattice (monotone analysis frameworks). Tuples recursively contain collections of types.'),
+      notes:'<h3>Lattice · about 30 seconds of this demo slot</h3><p>This is the textbook flat integer constant-propagation lattice taught in monotone analysis frameworks. The ellipsis stands for the other integer constants, each at the same level. These are abstract values, not the Java class hierarchy. Show global top/bottom versus domain top/bottom. Chapter 4 has one control element, flat integer constants, and tuples. AddNode.compute evaluates constant operands; meet is the operation for combining alternatives, not integer addition. Return to Example for the local rewrites.</p>'},
     control:{id:'lattice',label:'Lattice',steps:0,
       body:()=>page('Reachability is a type, too.','Chapter 8 · the Chapter 6 control lattice carries through loops',early(true),[
         point('Control gains a dual.','<code>⊤:ctrl = unreachable</code><br><code>⊥:ctrl = reachable</code>'),

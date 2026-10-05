@@ -76,7 +76,7 @@
   R.slides=[
     {
       id:'title',label:'A Simple Tutorial',section:'REBASE 2026',minutes:1,steps:0,still:true,
-      body:()=>'<div class="title-layout"><div class="title-copy"><div class="title-line"></div><h1>A <span class="accent">Simple</span><br>Tutorial.</h1><p class="subtitle">An open-source, all-Java compiler<br>modeled after Java’s C2.</p><div class="speaker"><strong>Cliff Click</strong><span>Sea of Nodes · from source to machine code</span></div></div><div><img class="portrait" src="assets/cliff-click-2020.jpeg" alt="Cliff Click seated on outdoor stone steps"><p class="photo-caption">REBASE / SPLASH · 2026</p></div></div>'+external(R.repo,'github.com/SeaOfNodes/Simple','title-repo'),
+      body:()=>'<div class="title-layout"><div class="title-copy"><div class="title-line"></div><h1>A <span class="accent">Simple</span><br>Tutorial.</h1><p class="subtitle">An open-source, all-Java compiler<br>modeled after Java’s C2.</p><div class="speaker"><strong>Cliff Click</strong><span>Sea of Nodes · from source to machine code</span></div></div><div class="portrait-block"><img class="portrait" src="assets/cliff-click-2020.jpeg" alt="Cliff Click seated on outdoor stone steps"><p class="photo-caption">REBASE / SPLASH · 2026</p></div></div>'+external(R.repo,'github.com/SeaOfNodes/Simple','title-repo'),
       notes:notes('An executable compiler tutorial',[
         'Assume SSA and compiler background. Simple is a small language used to explain a real optimizing compiler architecture.',
         'The compiler is written in Java, modeled on C2, and open source. The teaching unit is a complete compiler snapshot, with runnable tests and an explanation.',
@@ -84,8 +84,8 @@
       ])
     },
     {
-      id:'bio',label:'Who am I?',section:'Cliff Click',minutes:1,steps:0,
-      body:()=>'<h2>Who am I?</h2><div class="bio-grid"><div><p class="accent">Cliff Click</p><ul class="bio-list"><li>HotSpot’s original C2 compiler<small>Sea of Nodes, optimization, and the JVM</small></li><li>Azul, H2O, and half a dozen other startups<small>JVMs, low-pause GC, and distributed computing</small></li><li>Coffee Compiler Club<small>Founder and host · language implementation discussions</small></li></ul>'+links()+'</div><div><img class="club-image" src="assets/coffee-compiler-club-still.gif" alt="Coffee Compiler Club logo"><p class="club-caption">People who enjoy talking about compilers.</p></div></div>',
+      id:'bio',label:'Who am I?',section:'Cliff Click',minutes:1,steps:0,still:true,
+      body:()=>'<div class="bio-grid"><div><h2>Who am I?</h2><p class="accent bio-name">Cliff Click</p><ul class="bio-list"><li>HotSpot’s original C2 compiler<small>Sea of Nodes, optimization, and the JVM</small></li><li>Azul, H2O, and half a dozen other startups<small>JVMs, low-pause GC, and distributed computing</small></li><li>Coffee Compiler Club<small>Founder and host · language implementation discussions</small></li></ul>'+links()+'</div><div class="portrait-block bio-media"><img class="portrait" src="assets/cliff-click-2020.jpeg" alt="Cliff Click seated on outdoor stone steps"><img class="club-image" src="assets/coffee-compiler-club-still.gif" alt="Coffee Compiler Club logo"><p class="club-caption">People who enjoy talking about compilers.</p></div></div>',
       notes:notes('Keep the biography to a minute',[
         'Select two relevant facts: original C2 and Sea of Nodes; subsequent JVM and runtime work at Azul.',
         'Coffee Compiler Club is the community connection. Point to the YouTube channel and invite people to email for a Discord invite.',
