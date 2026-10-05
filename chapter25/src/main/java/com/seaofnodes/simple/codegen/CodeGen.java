@@ -49,7 +49,7 @@ public class CodeGen {
     //   -Dsimple.assert.expensive=0 disables these checks
     //   -Dsimple.assert.expensive=1 checks every step
     //   -Dsimple.assert.expensive=N checks once every 1<<N steps
-    private static final int EXPENSIVE_ASSERT_LOG = Integer.getInteger("simple.assert.expensive",8);
+    private static final int EXPENSIVE_ASSERT_LOG = Integer.getInteger("simple.assert.expensive",1);
     public static boolean expensiveAssert() { return EXPENSIVE_ASSERT_LOG > 0; }
     public static boolean expensiveAssert( int trip ) {
         if( EXPENSIVE_ASSERT_LOG <= 0 ) return false;

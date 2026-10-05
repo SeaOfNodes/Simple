@@ -26,14 +26,6 @@ public class ShrNode extends Node {
             in(2)._type instanceof TypeInteger i2) {
             if( i1.isConstant() && i2.isConstant() )
                 return TypeInteger.constant(i1.value()>>>i2.value());
-            if( i2._min < 0 || i2._max >= 64 )
-                return TypeInteger.BOT;
-            // Zero shifting a negative makes a larger positive
-            // so get the endpoints correct.
-            long s1 = i1._min>>>i2._min;
-            long s2 = i1._max>>>i2._min;
-            boolean wrap = i1._min < 0 && i1._max >=0;
-            return TypeInteger.make(wrap ? 0 : Math.min(s1,s2),Math.max(s1,s2));
         }
         return TypeInteger.BOT;
     }
@@ -45,7 +37,7 @@ public class ShrNode extends Node {
         Type t2 = rhs._type;
 
         // Shr of 0.
-        if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 && lhs._type instanceof TypeInteger )
             return lhs;
 
         // TODO: x >>> 3 >>> (y ? 1 : 2) ==> x >>> (y ? 4 : 5)

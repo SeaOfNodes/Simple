@@ -35,7 +35,7 @@ public class ShrNode extends LogicalNode {
         Type t2 = rhs._type;
 
         // Shr of 0.
-        if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && (i.value()&63)==0 && lhs._type instanceof TypeInteger )
             return lhs;
 
         // TODO: x >>> 3 >>> (y ? 1 : 2) ==> x >>> (y ? 4 : 5)

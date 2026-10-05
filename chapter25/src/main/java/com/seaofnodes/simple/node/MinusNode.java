@@ -65,7 +65,7 @@ public class MinusNode extends Node implements ModeNode {
     @Override
     public Node idealize() {
         // -(-x) is x
-        if( in(1) instanceof MinusNode minus )
+        if( in(1) instanceof MinusNode minus && minus.in(1)._type.isa(compute()) )
             return minus.in(1);
 
         // Can we decide int vs flt?

@@ -32,7 +32,7 @@ public class MulNode extends ArithNode {
             // Mul of 1.  We do not check for (1*x) because this will already
             // canonicalize to (x*1)
             long c = i.value();
-            if( c==1 )  return lhs;
+            if( c==1 )  return lhs._type instanceof TypeInteger ? lhs : null;
             if( c==0 )  return Parser.ZERO;
             // Mul by a power of 2, +/-1.  Bit patterns more complex than this
             // are unlikely to win on an X86 vs the normal "imul", and so

@@ -30,7 +30,7 @@ public class MinusNode extends Node {
     @Override
     public Node idealize() {
         // -(-x) is x
-        if( in(1) instanceof MinusNode minus )
+        if( in(1) instanceof MinusNode minus && minus.in(1)._type instanceof TypeInteger )
             return minus.in(1);
 
         return null;

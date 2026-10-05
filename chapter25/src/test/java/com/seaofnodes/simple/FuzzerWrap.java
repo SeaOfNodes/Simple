@@ -34,6 +34,7 @@ public class FuzzerWrap {
     };
 
     private static final long[] OPEN_FAILING_SEEDS = {
+            5948158604996761547L,
     };
 
 
