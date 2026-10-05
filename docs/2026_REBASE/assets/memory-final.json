@@ -1,7 +1,7 @@
 {
   "ver": 1,
   "comp": "rebase-memory",
-  "step": 318,
+  "step": 332,
   "roots": [
     2,
     3
@@ -990,45 +990,6 @@
       "proj": null
     },
     {
-      "id": 94,
-      "label": "st_sum",
-      "type": "MEM#2:Bot",
-      "kind": "MEM",
-      "edges": [
-        {
-          "idx": 0,
-          "def": 0,
-          "role": "CTRL",
-          "label": null
-        },
-        {
-          "idx": 1,
-          "def": 104,
-          "role": "MEM",
-          "label": null
-        },
-        {
-          "idx": 2,
-          "def": 15,
-          "role": "DATA",
-          "label": null
-        },
-        {
-          "idx": 3,
-          "def": 4,
-          "role": "DATA",
-          "label": null
-        },
-        {
-          "idx": 4,
-          "def": 88,
-          "role": "DATA",
-          "label": null
-        }
-      ],
-      "proj": null
-    },
-    {
       "id": 99,
       "label": "Add",
       "type": "int",
@@ -1042,52 +1003,13 @@
         },
         {
           "idx": 1,
-          "def": 138,
+          "def": 141,
           "role": "DATA",
           "label": null
         },
         {
           "idx": 2,
           "def": 46,
-          "role": "DATA",
-          "label": null
-        }
-      ],
-      "proj": null
-    },
-    {
-      "id": 100,
-      "label": "st_visits",
-      "type": "MEM#3:Bot",
-      "kind": "MEM",
-      "edges": [
-        {
-          "idx": 0,
-          "def": 0,
-          "role": "CTRL",
-          "label": null
-        },
-        {
-          "idx": 1,
-          "def": 132,
-          "role": "MEM",
-          "label": null
-        },
-        {
-          "idx": 2,
-          "def": 15,
-          "role": "DATA",
-          "label": null
-        },
-        {
-          "idx": 3,
-          "def": 51,
-          "role": "DATA",
-          "label": null
-        },
-        {
-          "idx": 4,
-          "def": 99,
           "role": "DATA",
           "label": null
         }
@@ -1122,33 +1044,6 @@
       "proj": null
     },
     {
-      "id": 104,
-      "label": "MemPhi_2",
-      "type": "MEM#2:Bot",
-      "kind": "PHI",
-      "edges": [
-        {
-          "idx": 0,
-          "def": 65,
-          "role": "ASSOC",
-          "label": null
-        },
-        {
-          "idx": 1,
-          "def": 16,
-          "role": "MEM",
-          "label": null
-        },
-        {
-          "idx": 2,
-          "def": 94,
-          "role": "MEM",
-          "label": null
-        }
-      ],
-      "proj": null
-    },
-    {
       "id": 106,
       "label": "MemMerge",
       "type": "MemBot",
@@ -1168,13 +1063,13 @@
         },
         {
           "idx": 2,
-          "def": 104,
+          "def": 146,
           "role": "MEM",
           "label": null
         },
         {
           "idx": 3,
-          "def": 132,
+          "def": 142,
           "role": "MEM",
           "label": null
         },
@@ -1207,7 +1102,7 @@
         },
         {
           "idx": 1,
-          "def": 138,
+          "def": 141,
           "role": "DATA",
           "label": null
         },
@@ -1302,34 +1197,7 @@
       "proj": null
     },
     {
-      "id": 132,
-      "label": "MemPhi_3",
-      "type": "MEM#3:Bot",
-      "kind": "PHI",
-      "edges": [
-        {
-          "idx": 0,
-          "def": 65,
-          "role": "ASSOC",
-          "label": null
-        },
-        {
-          "idx": 1,
-          "def": 16,
-          "role": "MEM",
-          "label": null
-        },
-        {
-          "idx": 2,
-          "def": 100,
-          "role": "MEM",
-          "label": null
-        }
-      ],
-      "proj": null
-    },
-    {
-      "id": 138,
+      "id": 141,
       "label": "Phi_visits",
       "type": "int",
       "kind": "PHI",
@@ -1349,6 +1217,84 @@
         {
           "idx": 2,
           "def": 99,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 142,
+      "label": "st_visits",
+      "type": "MEM#3:int",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 16,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 15,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 51,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 141,
+          "role": "DATA",
+          "label": null
+        }
+      ],
+      "proj": null
+    },
+    {
+      "id": 146,
+      "label": "st_sum",
+      "type": "MEM#2:int",
+      "kind": "MEM",
+      "edges": [
+        {
+          "idx": 0,
+          "def": 0,
+          "role": "CTRL",
+          "label": null
+        },
+        {
+          "idx": 1,
+          "def": 16,
+          "role": "MEM",
+          "label": null
+        },
+        {
+          "idx": 2,
+          "def": 15,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 3,
+          "def": 4,
+          "role": "DATA",
+          "label": null
+        },
+        {
+          "idx": 4,
+          "def": 131,
           "role": "DATA",
           "label": null
         }
@@ -1389,15 +1335,11 @@
         91,
         92,
         93,
-        94,
         99,
-        100,
         103,
-        104,
         112,
         131,
-        132,
-        138
+        141
       ]
     }
   ]

@@ -101,6 +101,46 @@ public class StoreNode extends MemOpNode {
         return null;
     }
 
+    // Phi(mem, Store(phi,ptr,off,val)) -> Store(mem,ptr,off,Phi(load(mem),val)).
+    // With no observers of the backedge store, only the last value matters.
+    // The entry load preserves the field even when the loop takes zero trips.
+    Node sink(MemPhiNode phi) {
+        addDepForwards(phi);
+        if( nOuts()!=1 ) return null;
+        ptr().addDep(phi);
+        // Start with a fixed field of an allocation dominating the loop.
+        // In particular, do not sink stores through a loop-varying address.
+        if( !(ptr() instanceof ProjNode p) || !(p.in(0) instanceof NewNode obj) ||
+            !(ptr()._type instanceof TypeMemPtr tmp) || tmp._obj.isAry() ||
+            !(off() instanceof ConstantNode) || err()!=null ) return null;
+        LoopNode loop = (LoopNode)phi.region();
+        // Bulk splitting identifies precise slices by Region/alias. Finish it
+        // before replacing this memory point with a Store.
+        for( Node use : loop._outputs )
+            if( use instanceof BulkMemPhiNode ) {
+                use.addDepForwards(phi);
+                return null;
+            }
+        obj.addDep(phi);
+        CFGNode ctrl = loop.entry();
+        while( ctrl!=null && ctrl!=obj.cfg0() ) {
+            ctrl.addDep(phi);
+            ctrl=ctrl.idom(phi);
+        }
+        if( ctrl==null ) return null;
+
+        Node mem = phi.in(1);
+        Node init = new LoadNode(_name,_alias,_declaredType,mem,ptr(),off()).peephole();
+        Node value = new PhiNode(_name,_declaredType,loop,init,val()).peephole();
+        Node sink = new StoreNode(_name,_alias,_declaredType,mem,ptr(),off(),value,_init);
+        // Break the memory cycle, killing the old store. Keep the Phi alive
+        // even if that store was its last use, until our caller replaces it.
+        phi.keep();
+        phi.setDef(2,mem);
+        phi.unkeep();
+        return sink;
+    }
+
     // Check that "mem" has no uses except "this"
     private boolean checkOnlyUse(Node mem) {
         if( mem.nOuts()==1 ) return true;

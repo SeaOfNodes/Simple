@@ -384,13 +384,21 @@ return sq(arg) + sq(3);
 
     private static java.util.ArrayList<String> memoryPhis(Node stop) {
         var phis = new java.util.ArrayList<String>();
-        stop.walk(n -> {
+        // Count only definitions reachable from Stop, as instruction selection does.
+        // A dead Phi cycle can still appear through the reverse use edges.
+        var seen = new java.util.BitSet();
+        var work = new java.util.ArrayList<Node>();
+        work.add(stop);
+        for( int i=0; i<work.size(); i++ ) {
+            Node n = work.get(i);
+            if( n==null || seen.get(n._nid) ) continue;
+            seen.set(n._nid);
+            for( Node def : n._inputs ) work.add(def);
             if( n instanceof MemPhiNode phi ) phis.add("alias:"+phi._alias);
             if( n instanceof BulkMemPhiNode phi ) phis.add("bulk:"+phi._aliases);
             assertFalse(n instanceof PhiNode && n.isMem() &&
                 !(n instanceof MemPhiNode) && !(n instanceof BulkMemPhiNode) && !(n instanceof ParmNode));
-            return null;
-        });
+        }
         java.util.Collections.sort(phis);
         return phis;
     }

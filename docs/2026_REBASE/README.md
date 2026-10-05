@@ -140,13 +140,16 @@ show the global scheduler moving instructions. Discuss GCM from the slide.
 |---|---|---|
 | [arithmetic.smp](demos/arithmetic.smp) | 04 | Final expression `2*arg+6`; 51 capture frames |
 | [control.smp](demos/control.smp) | 08 | Sum 1 through `abs(arg)`; 65 frames |
-| [memory.smp](demos/memory.smp) | 17b | Two loops, array/object memory; 319 frames, 54 final nodes |
+| [memory.smp](demos/memory.smp) | 17b | Two loops; final totals stored after the loop; 333 frames, 52 final nodes |
 | [aliases.smp](demos/aliases.smp) | 17b | Short follow-up: writing `p.y` leaves `p.x` unchanged; result 0 |
 | [inline.smp](demos/inline.smp) | 18 | Two single-caller functions disappear; `return 11;`; 161 frames |
 | [sccp.smp](demos/sccp.smp) | 24; viewer 25 | Return value 1 verified in the final graph; 76 frames, about 0.38 MB |
 
 The large memory example has runtime result `4*arg+10`. It retains loops and
 memory operations; that formula is not its claimed optimized graph.
+The `sum` and `visits` fields become scalar loop Phis, with one store each
+afterward. Their memory Phis disappear, and GCM can also place the `Totals`
+allocation after the loop. The array initialization still needs its memory Phi.
 For SCCP, proving a constant result alone does not license deleting effects
 or a possibly nonterminating loop.
 

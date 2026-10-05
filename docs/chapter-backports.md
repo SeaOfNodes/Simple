@@ -109,6 +109,34 @@ Existing spill expectations changed in the String fixture:
 These records describe completed work, not outstanding implementation tasks.
 Historical chapter numbers and measurements below refer to their original runs.
 
+### Loop store sinking: Chapters 17b-25 (2026-10-05)
+
+The Chapter 17b presentation peephole is forwarded through Chapter 25. A loop
+memory Phi whose backedge is a sole-use Store becomes a Store of a scalar Phi.
+An entry Load preserves zero-trip behavior. The address must be a constant
+field offset of an allocation dominating the loop; array elements are excluded.
+Wait for parallel bulk-memory splitting before replacing the precise Phi.
+Chapter 25 preserves the Store's frozen width and excludes unresolved aliases,
+undecided widths, and constructor initialization Stores.
+
+Existing suites exposed three small supporting fixes: Loads through a TOP
+pointer stay TOP in 17b-23; Chapter 25 keeps a MemMerge alive while flattening a
+dead memory cycle; the shared printer computes placement for constants even
+when they have no cached block. Existing graph assertions now count reachable
+definitions and allow scalar field Phis. The synthetic-exit fixture uses a
+varying pointer so it still exercises loop-carried memory after store sinking.
+No new test methods were added for the forward port. Spill expectations were
+updated for the changed graphs, including the infinite-loop, String, and Scan
+fixtures; runtime and register-correctness assertions remain enabled.
+
+Validation: full Make suites pass in 17b (306 including its fuzzer wrapper),
+18 (339), 19 (383), 20 (405), 21 (444), 22 (465), 23 (487), and 24 (517), plus
+the separate fuzzer wrappers in 18-24. Chapter 25 passes all six suite groups
+(403, 39, 9, 23, 1, and 19), including rebuilt sys.o, native execution, and
+the existing fuzzer seeds. Shared printer and ISA checks pass. Logs are in
+`build/rebase-talk/loop-store-*.log`. The presentation example still has 333
+capture frames and 52 final nodes, with both Totals stores outside the loop.
+
 ### Shared ISA encoders and evaluators: Chapters 21-25
 
 Issue #257's extraction is implemented in [`isa/`](../isa/README.md). `X86`

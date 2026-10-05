@@ -142,12 +142,12 @@ public class MemoryEncodingTest {
     }
 
     @Test public void testNeverMemory() {
-        // A synthetic exit must retain both precise slices of a no-exit loop.
+        // A varying pointer prevents store sinking: the synthetic exit needs both slices.
         for( String target : new String[]{"x86_64_v2","riscv","arm"} ) {
             CodeGen code = new CodeGen("""
                 struct S { int x; int y; };
-                !S !a=new S;
-                if( arg ) while( 1 ) { a.x+=arg; a.y+=a.x; }
+                !S !a=new S; !S !b=new S; !S !p=a;
+                if( arg ) while( 1 ) { p.x+=arg; p.y+=p.x; p=p==a ? b : a; }
                 return a.x+a.y;
                 """).driver(CodeGen.Phase.LoopTree);
             assertNotNull(code._stop.walk(n -> {

@@ -61,6 +61,11 @@ public class MemPhiNode extends PhiNode {
                 setDef(i,mem.alias(_alias));
                 return this;
             }
+        if( nIns()==3 && region() instanceof LoopNode loop && !loop.inProgress() &&
+            in(2) instanceof StoreNode st && st.mem()==this ) {
+            Node sink = st.sink(this);
+            if( sink!=null ) return sink;
+        }
         return super.idealize();
     }
 

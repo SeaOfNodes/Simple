@@ -104,6 +104,9 @@ public class MemMergeNode extends Node {
 
         // Collapse stacked merged-mem
         if( in(1) instanceof MemMergeNode mem ) {
+            // A dead memory cycle can lose its last use when we bypass mem.
+            // Keep the peephole's result alive until the worklist sees it.
+            keep();
             // Goal is to swap my default mem with mem's default mem
             for( int i=2; i<mem.nIns(); i++ ) {
                 if( mem.in(i) != null ) {
@@ -114,7 +117,7 @@ public class MemMergeNode extends Node {
             }
             CodeGen.CODE.add(mem.in(1));
             setDef(1,mem.in(1));
-            return this;
+            return unkeep();
         }
 
         return progress ? this : null;

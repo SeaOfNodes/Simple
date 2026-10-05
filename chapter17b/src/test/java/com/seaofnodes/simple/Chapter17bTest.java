@@ -2,12 +2,60 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
 import com.seaofnodes.simple.node.StopNode;
+import com.seaofnodes.simple.node.StoreNode;
 import org.junit.Test;
 import org.junit.Ignore;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Chapter17bTest {
+
+    @Test public void testSinkLoopStores() {
+        StopNode stop = new Parser("""
+            struct Totals { int sum; int visits; };
+            val t = new Totals { sum=7; visits=2; };
+            val data = new int[4];
+            for( int i=0; i<data#; i++ ) data[i]=arg+i;
+            for( int i=0; i<(arg<data# ? arg : data#); i++ ) {
+                t.sum = t.sum + data[i];
+                t.visits++;
+            }
+            return t;
+            """).parse().iterate();
+        stop.typeCheck();
+        int[] stores = {0};
+        stop.walk(n -> {
+            if( n instanceof StoreNode st && !st._name.equals("[]") ) {
+                assertEquals(stop.in(0).in(0),st.in(0)); // Both stores at the exit.
+                stores[0]++;
+            }
+            return null;
+        });
+        assertEquals(2,stores[0]);
+        for( int arg : new int[]{-1,0,1,3,4,5} ) {
+            long n = Math.max(0,Math.min(arg,4));
+            var obj = (Evaluator.Obj)Evaluator.evaluate(stop,arg);
+            org.junit.Assert.assertArrayEquals(new Object[]{7+n*arg+n*(n-1)/2,2+n},obj.fields());
+        }
+    }
+
+    @Test public void testKeepObservedLoopStore() {
+        StopNode stop = new Parser("""
+            struct S { int x; };
+            val a = new S;
+            val b = new S;
+            val p = arg ? a : b;
+            int sum=0;
+            for( int i=0; i<4; i++ ) {
+                a.x=i+1;
+                sum+=p.x;
+            }
+            return sum;
+            """).parse().iterate();
+        stop.typeCheck();
+        assertEquals(0L,Evaluator.evaluate(stop,0));
+        assertEquals(10L,Evaluator.evaluate(stop,1));
+    }
 
     @Test
     public void testJig() {

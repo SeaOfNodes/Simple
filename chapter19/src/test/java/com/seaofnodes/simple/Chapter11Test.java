@@ -35,7 +35,8 @@ public class Chapter11Test {
         var stop = code._stop;
         int[] phis = {0};
         stop.walk(n -> {
-            if (n instanceof MemPhiNode) phis[0]++;
+            // Store sinking can replace field memory Phis with value Phis.
+            if (n instanceof PhiNode) phis[0]++;
             if (n instanceof MemMergeNode m && m.in(1) instanceof BulkMemPhiNode b)
                 for(int a=b._aliases.nextSetBit(0); a>=0; a=b._aliases.nextSetBit(a+1))
                     assertTrue(a<m.nIns() && m.in(a)!=null);
@@ -43,7 +44,7 @@ public class Chapter11Test {
                 !(n instanceof MemPhiNode) && !(n instanceof BulkMemPhiNode) && !(n instanceof ParmNode));
             return null;
         });
-        assertTrue(phis[0]>=3);
+        assertTrue(phis[0]>=4); // Three fields and the loop counter.
         assertEquals("S{x=1,y=2,z=3}",Eval2.eval(code,4));
     }
 

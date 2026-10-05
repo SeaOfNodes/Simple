@@ -52,6 +52,7 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Type compute() {
+        if( ptr()._type==Type.TOP ) return Type.TOP; // Dead pointer, not a type error.
         if( !(mem()._type instanceof TypeMem mem) )
             return _declaredType; // No memory yet?  Declared type
         assert !_declaredType.isFRef();

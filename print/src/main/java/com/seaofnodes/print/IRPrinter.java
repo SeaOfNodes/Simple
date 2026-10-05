@@ -253,7 +253,7 @@ public final class IRPrinter<N extends BaseNode<N>> {
                       IdentityHashMap<N,Integer> placed) {
         Integer old=placed.get(n);
         if( old!=null ) return old;
-        int early=blocks.get(n);
+        int early=block(n,nodes,blocks);
         placed.put(n,early); // Close data cycles without changing compiler state.
         if( _a.control(n) || _a.phi(n) || _a.projection(n) || _a.global(n) ||
             _a.input0(n)!=null ) return early;

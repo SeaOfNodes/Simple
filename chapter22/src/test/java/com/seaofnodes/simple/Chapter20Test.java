@@ -242,7 +242,7 @@ hashCode(s);
         for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
             new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,0)
                 .driver(CodeGen.Phase.Encoding,cpu,"SystemV");
-        testTarget(src,"x86_64_v2", "SystemV",9,null);
+        testTarget(src,"x86_64_v2", "SystemV",0,null);
         testTarget(src,"riscv"    , "SystemV",1,null);
         testTarget(src,"arm"      , "SystemV",0,null);
     }

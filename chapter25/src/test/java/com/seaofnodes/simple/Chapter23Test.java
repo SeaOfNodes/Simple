@@ -279,7 +279,7 @@ return _s.peek('q');
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return Phi(Region,0,1);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "win64",1,null);
+        testCPU(src,"x86_64_v2", "win64",23,null);
     };
 
     @Test
@@ -334,7 +334,7 @@ return _s.require('[');
         CodeGen code = new CodeGen(src).parse().opto().typeCheck();
         assertEquals("return (.[]==91);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "win64", 0, null);
+        testCPU(src,"x86_64_v2", "win64",4, null);
     };
 
 
