@@ -35,7 +35,7 @@ public class AndNode extends Node {
 
         // And of -1.  We do not check for (-1&x) because this will already
         // canonicalize to (x&-1)
-        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==-1 )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==-1 && lhs._type instanceof TypeInteger )
             return lhs;
 
         // Move constants to RHS: con*arg becomes arg*con

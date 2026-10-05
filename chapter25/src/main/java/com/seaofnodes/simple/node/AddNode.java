@@ -37,7 +37,7 @@ public class AddNode extends ArithNode {
 
         // Add of 0.  We do not check for (0+x) because this will already
         // canonicalize to (x+0)
-        if( t2 == TypeInteger.ZERO )
+        if( t2 == TypeInteger.ZERO && lhs._type.isa(compute()) )
             return lhs;
 
         // Add of same to a multiply by 2

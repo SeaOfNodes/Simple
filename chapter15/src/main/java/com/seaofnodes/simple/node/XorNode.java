@@ -31,7 +31,7 @@ public class XorNode extends Node {
 
         // Xor of 0.  We do not check for (0^x) because this will already
         // canonicalize to (x^0)
-        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 )
+        if( t2.isConstant() && t2 instanceof TypeInteger i && i.value()==0 && lhs._type instanceof TypeInteger )
             return lhs;
 
         // Move constants to RHS: con*arg becomes arg*con

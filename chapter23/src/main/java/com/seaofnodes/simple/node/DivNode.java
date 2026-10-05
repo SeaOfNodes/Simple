@@ -18,7 +18,7 @@ public class DivNode extends ArithNode {
     @Override
     public Node idealize() {
         // Div of 1.
-        if( in(2)._type == TypeInteger.TRUE )
+        if( in(2)._type == TypeInteger.TRUE && in(1)._type instanceof TypeInteger )
             return in(1);
         return super.idealize();
     }

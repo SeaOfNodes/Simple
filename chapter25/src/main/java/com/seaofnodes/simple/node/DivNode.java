@@ -22,12 +22,12 @@ public class DivNode extends ArithNode {
     @Override
     public Node idealize() {
         // Div of 1.
-        if( in(2)._type == TypeInteger.TRUE )
+        if( in(2)._type == TypeInteger.TRUE && in(1)._type.isa(compute()) )
             return in(1);
 
         // Div of constant
         if( _mode==2 ) {
-            if( in(2)._type == TypeFloat.constant(1.) )
+            if( in(2)._type == TypeFloat.constant(1.) && in(1)._type.isa(compute()) )
                 return in(1);
             if( in(2)._type instanceof TypeFloat f && f.isConstant() )
                 return new MulNode(in(1),ConstantNode.make(TypeFloat.constant(1.0/f.value())).peephole(),_mode);

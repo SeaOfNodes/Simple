@@ -35,7 +35,7 @@ public class MulNode extends ArithNode {
             // Mul of 1.  We do not check for (1*x) because this will already
             // canonicalize to (x*1)
             long c = i.value();
-            if( c==1 )  return lhs;
+            if( c==1 )  return lhs._type.isa(compute()) ? lhs : super.idealize();
             if( c==0 )  return CodeGen.CODE.ZERO;
             // Mul by a power of 2, +/-1.  Bit patterns more complex than this
             // are unlikely to win on an X86 vs the normal "imul", and so
