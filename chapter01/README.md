@@ -1,5 +1,7 @@
 # Chapter 1: Introduction
 
+English | [日本語](README.ja.md)
+
 [Introduction](../README.md) |
 [Next: Chapter 2](../chapter02/README.md)
 

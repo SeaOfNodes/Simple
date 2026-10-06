@@ -1,5 +1,7 @@
 # Chapter 24: Chaining Relationals and Sparse Conditional Constant Propagation
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 23](../chapter23/README.md) |
 [Next: Chapter 25](../chapter25/README.md)
 

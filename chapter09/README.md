@@ -1,5 +1,7 @@
 # Chapter 9: Global Value Numbering and Iterative Peepholes
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 8](../chapter08/README.md) |
 [Next: Chapter 10](../chapter10/README.md)
 

@@ -1,5 +1,7 @@
 # Chapter 11: Splitting Memory
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 10](../chapter10/README.md) |
 [Next: Chapter 12](../chapter12/README.md)
 

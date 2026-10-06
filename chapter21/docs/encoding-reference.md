@@ -1,5 +1,7 @@
 # Instruction encoding reference
 
+English | [日本語](encoding-reference.ja.md)
+
 Detailed notes retained from the original Chapter 21 README.
 See the [chapter overview](../README.md) for the compiler pipeline and experiments.
 

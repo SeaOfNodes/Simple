@@ -1,5 +1,7 @@
 # Chapter 14: Numeric Types
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 13](../chapter13/README.md) |
 [Next: Chapter 15](../chapter15/README.md)
 

@@ -1,5 +1,7 @@
 # Grammar for Chapter 10
 
+English | [日本語](10-grammar.ja.md)
+
 ```antlrv4
 grammar SimpleLanguage;
 

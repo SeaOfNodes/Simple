@@ -1,5 +1,7 @@
 # Chapter 18: Functions and Calls
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 17b](../chapter17b/README.md) |
 [Next: Chapter 19](../chapter19/README.md)
 

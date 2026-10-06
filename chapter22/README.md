@@ -1,5 +1,7 @@
 # Chapter 22: A Hello, World!
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 21](../chapter21/README.md) |
 [Next: Chapter 23](../chapter23/README.md)
 

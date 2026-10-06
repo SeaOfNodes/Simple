@@ -1,4 +1,6 @@
 # Appendix
+
+English | [日本語](dce.ja.md)
 ## Dead Code Elimination(DCE)
 Dead Code Elimination is the process or removing nodes that are dead(unused).
 

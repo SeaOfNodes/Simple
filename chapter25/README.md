@@ -1,5 +1,7 @@
 # Chapter 25: Modules, Separate Compilation, and SSA Construction
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 24](../chapter24/README.md) |
 [Chapter index](../README.md#chapters)
 

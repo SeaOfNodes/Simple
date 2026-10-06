@@ -1,4 +1,6 @@
 # Simple
+English | [日本語](README.ja.md)
+
 A Simple showcase for the Sea-of-Nodes compiler IR
 
 This repo is intended to demonstrate the Sea-of-Nodes compiler IR.

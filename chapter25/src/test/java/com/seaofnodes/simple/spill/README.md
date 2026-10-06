@@ -1,5 +1,7 @@
 # Historical allocation cohorts
 
+English | [日本語](README.ja.md)
+
 `cohorts.tsv` freezes the 212 compilation entries measured by Chapter 24's
 `SpillStats`: 39, 52, 24, 30, and 67 entries for cohorts 20-24. The source files
 are deduplicated by contents and named for their first referring test. The

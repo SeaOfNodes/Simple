@@ -1,6 +1,8 @@
 
 # Modules for Simple
 
+English | [日本語](module.ja.md)
+
 Goals:
 - 1-liner valid program (for easy tutorial/newbie starts)
 - - Compile and run with minimal effort

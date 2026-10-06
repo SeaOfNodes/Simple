@@ -1,5 +1,7 @@
 # Chapter 13: Global Code Motion
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 12](../chapter12/README.md) |
 [Next: Chapter 14](../chapter14/README.md)
 

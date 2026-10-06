@@ -1,5 +1,7 @@
 # Chapter 17a grammar additions
 
+English | [日本語](17-grammar.ja.md)
+
 The expression and statement forms are those of Chapter 16. Declarations add
 independent access and binding modifiers:
 

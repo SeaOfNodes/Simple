@@ -1,5 +1,7 @@
 # Chapter 23: Methods and Revisiting Types
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 22](../chapter22/README.md) |
 [Next: Chapter 24](../chapter24/README.md)
 

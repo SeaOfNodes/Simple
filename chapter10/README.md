@@ -1,5 +1,7 @@
 # Chapter 10: Structs and Memory
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 9](../chapter09/README.md) |
 [Next: Chapter 11](../chapter11/README.md)
 

@@ -1,5 +1,7 @@
 # Grammar for Chapter 8
 
+English | [日本語](08-grammar.ja.md)
+
 ```antlrv4
 grammar SimpleLanguage;
 

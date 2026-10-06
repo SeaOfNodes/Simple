@@ -1,5 +1,7 @@
 # Grammar for Chapter 15
 
+English | [日本語](15-grammar.ja.md)
+
 ```antlrv4
 grammar SimpleLanguage;
 

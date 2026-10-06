@@ -1,5 +1,7 @@
 # Chapter 17b grammar additions
 
+English | [日本語](17-grammar.ja.md)
+
 Start with [Chapter 17a's declaration syntax](../../chapter17a/docs/17-grammar.md).
 This chapter adds inference, assignment shortcuts, conditional expressions, and
 `for` loops. Access and binding permissions keep the same meaning.

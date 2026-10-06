@@ -1,5 +1,7 @@
 # Chapter 5: If Statement, Phi, and Region
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 4](../chapter04/README.md) |
 [Next: Chapter 6](../chapter06/README.md)
 

@@ -1,5 +1,7 @@
 # Chapter 6: Peepholes for If
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 5](../chapter05/README.md) |
 [Next: Chapter 7](../chapter07/README.md)
 

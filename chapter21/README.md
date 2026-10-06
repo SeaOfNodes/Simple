@@ -1,5 +1,7 @@
 # Chapter 21: Instruction Encoding and ELF
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 20](../chapter20/README.md) |
 [Next: Chapter 22](../chapter22/README.md)
 

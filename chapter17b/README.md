@@ -1,5 +1,7 @@
 # Chapter 17b: Syntax Sugar
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 17a](../chapter17a/README.md) |
 [Next: Chapter 18](../chapter18/README.md)
 
