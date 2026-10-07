@@ -104,7 +104,7 @@ public abstract class TestC {
         String[] execArgs = new String[programArgs.length+1];
         execArgs[0] = exe;
         System.arraycopy(programArgs,0,execArgs,1,programArgs.length);
-        String result = execStdin(stdin, execArgs );
+        String result = execStdin(stdin, 0, execArgs );
         assertEquals(expected,result);
     }
 
@@ -138,7 +138,7 @@ public abstract class TestC {
         String exe = BLDDIR+main+(OS.startsWith("Windows") ? ".exe" : "");
         linkExe(objs[0],null,null,null,exe);
         // Module tests intentionally use the program exit code as their result.
-        ExecResult result = execute(null,exe);
+        ExecResult result = execute(null,0,exe);
         return result.exit==0 ? result.out : "exec exit code: "+result.exit;
     }
 
@@ -156,7 +156,7 @@ public abstract class TestC {
 
     public static String gcc( String obj, String c_conv, String cfile, String stdin, Ary<String> linkObjs, String... args ) throws IOException {
         linkExe(obj,c_conv,cfile,linkObjs,args[0]);
-        return execStdin(stdin,args);
+        return execStdin(stdin,0,args);
     }
 
     public static void linkExe( String obj, String c_conv, String cfile, Ary<String> linkObjs, String exe ) throws IOException {
@@ -187,30 +187,20 @@ public abstract class TestC {
         }
 
         // Run GCC to link (optionally compile C driver code)
-        Process gcc = new ProcessBuilder(params.asAry()).redirectErrorStream(true).start();
-        int exit;
-        try {
-            boolean normal = gcc.waitFor(10, TimeUnit.SECONDS);
-            exit = normal ? gcc.exitValue() : -1; // no exit???
-        }  catch( InterruptedException e ) {
-            throw new IOException("interrupted");
-        }
-        String result = new String(gcc.getInputStream().readAllBytes());
-        if( exit!=0 ) {
-            System.err.println("gcc error code: "+exit);
-            System.err.println(result);
-        }
-        assertEquals( 0, exit );
-        //assertTrue(result.isEmpty()); // No data in error stream
-
+        exec(10,params.asAry());
     }
 
     public static String exec( String... args ) throws IOException {
-        return execStdin(null,args);
+        return execStdin(null,0,args);
     }
 
-    private static String execStdin( String stdin, String... args ) throws IOException {
-        ExecResult result = execute(stdin,args);
+    // Tests can bound execution without imposing a deadline on the CLI driver.
+    public static String exec( int seconds, String... args ) throws IOException {
+        return execStdin(null,seconds,args);
+    }
+
+    private static String execStdin( String stdin, int seconds, String... args ) throws IOException {
+        ExecResult result = execute(stdin,seconds,args);
         if( result.exit!=0 )
             throw new IOException(String.join(" ",args)+"\nexec exit code: "+result.exit+
                                   "\nstdout:\n"+result.out+"\nstderr:\n"+result.err);
@@ -219,7 +209,7 @@ public abstract class TestC {
 
     private record ExecResult(int exit, String out, String err) {}
 
-    private static ExecResult execute( String stdin, String... args ) throws IOException {
+    private static ExecResult execute( String stdin, int seconds, String... args ) throws IOException {
         // Execute results
         ProcessBuilder smp = new ProcessBuilder(args);
         Path stdinFile = null;
@@ -238,8 +228,16 @@ public abstract class TestC {
             p = smp.start();
             if( stdin==null )
                 p.getOutputStream().close();
+            if( seconds>0 && !p.waitFor(seconds,TimeUnit.SECONDS) ) {
+                p.destroyForcibly();
+                boolean stopped = p.waitFor(5,TimeUnit.SECONDS);
+                throw new IOException(String.join(" ",args)+"\ntimed out after "+seconds+" seconds"+
+                                      (stopped ? "" : "; process did not terminate")+
+                                      "\nstdout:\n"+Files.readString(stdoutFile)+
+                                      "\nstderr:\n"+Files.readString(stderrFile));
+            }
             // Windows statuses have 32 bits; narrowing can turn a failure into 0.
-            int exit = p.waitFor();
+            int exit = seconds>0 ? p.exitValue() : p.waitFor();
             return new ExecResult(exit,Files.readString(stdoutFile),Files.readString(stderrFile));
         } catch( InterruptedException e ) {
             if( p!=null ) p.destroyForcibly();

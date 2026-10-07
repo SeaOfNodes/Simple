@@ -372,11 +372,11 @@ public class Chapter25Test {
 
         String obj = "build/objs/"+base+".o";
         String exe = "build/objs/"+base+(TestC.OS.startsWith("Windows") ? ".exe" : "");
-        String syms = TestC.exec("nm",obj);
+        String syms = TestC.exec(10,"nm",obj);
         assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
 
         TestC.linkExe(obj,null,null,new Ary<>(new String[]{SYS_FILE.toString()}),exe);
-        String rez = TestC.exec(exe);
+        String rez = TestC.exec(10,exe);
         assertEquals(expected,rez);
     }
 
