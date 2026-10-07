@@ -1,5 +1,7 @@
 # Chapter 4: External Argument and Comparisons
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 3](../chapter03/README.md) |
 [Next: Chapter 5](../chapter05/README.md)
 

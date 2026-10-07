@@ -1,5 +1,7 @@
 # Chapter 7: While Statement
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 6](../chapter06/README.md) |
 [Next: Chapter 8](../chapter08/README.md)
 

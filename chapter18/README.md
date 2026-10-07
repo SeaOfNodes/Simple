@@ -1,5 +1,7 @@
 # Chapter 18: Functions and Calls
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 17b](../chapter17b/README.md) |
 [Next: Chapter 19](../chapter19/README.md)
 
@@ -13,6 +15,8 @@ Region, its parameters are Phis, and its exits merge into one Return. Calls
 connect these pieces across function boundaries.  When a function has just one
 caller, removing that boundary lets ordinary peepholes simplify the combined
 graph: this is our first form of inlining.
+
+Here is the [complete language grammar](docs/18-grammar.md) for this chapter.
 
 ## Table of Contents
 

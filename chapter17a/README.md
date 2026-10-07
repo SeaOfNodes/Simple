@@ -1,5 +1,7 @@
 # Chapter 17a: Mutability and Read-Only Views
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 16](../chapter16/README.md) |
 [Next: Chapter 17b](../chapter17b/README.md)
 
@@ -7,6 +9,8 @@ Chapter 16 gives an object its initial field values. Now we distinguish which
 bindings may be reassigned and which references permit writes after construction.
 These are independent questions, including for fields and array elements.
 Chapter 17b will add inference and assignment shortcuts using these same rules.
+
+Here is the [complete language grammar](docs/17-grammar.md) for this chapter.
 
 ## Two permissions
 

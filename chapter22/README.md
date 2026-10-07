@@ -1,5 +1,7 @@
 # Chapter 22: A Hello, World!
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 21](../chapter21/README.md) |
 [Next: Chapter 23](../chapter23/README.md)
 
@@ -40,6 +42,8 @@ BrainFuck's invariant program length folds out of its main loop.
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter22) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter21...linear-chapter22) it to the previous chapter.
 
+
+Here is the [complete language grammar](docs/22-grammar.md) for this chapter.
 
 ## Nested Types and Static Fields
 

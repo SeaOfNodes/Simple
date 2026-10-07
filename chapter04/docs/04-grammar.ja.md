@@ -1,4 +1,11 @@
-# Grammar for Chapter 11
+# 第4章の文法
+
+[English](04-grammar.md) | 日本語
+
+この文書は [原文](04-grammar.md) の日本語訳です。
+
+
+[第4章に戻る](../README.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;
@@ -9,61 +16,22 @@ program
 
 statement
     : returnStatement
-    | structDeclaration
     | declStatement
     | blockStatment
     | expressionStatement
-    | ifStatement
-    | whileStatement
-    | breakStatement
-    | continueStatment
-    ;
-
-field
-    : 'int' IDENTIFIER ';'
-    ;
-
-fields
-    : field+
-    ;
-
-structDeclaration
-    : 'struct' IDENTIFIER '{' fields '}'
-    ;
-
-whileStatement
-    : 'while' '(' expression ')' statement
-    ;
-
-breakStatement
-    : 'break' ';'
-    ;
-
-continueStatement
-    : 'continue' ';'
-    ;
-
-ifStatement
-    : 'if' '(' expression ')' statement ('else' statement)?
     ;
 
 
 expressionStatement
     : IDENTIFIER '=' expression ';'
-    | fieldExpression '=' expression ';'
     ;
 
 blockStatement
     : '{' statement+ '}'
     ;
 
-structName
-    : IDENTIFIER
-    ;
-
 declStatement
     : 'int' IDENTIFIER '=' expression ';'
-    | structName ('?')? IDENTIFIER '=' expression ';'
     ;
 
 returnStatement
@@ -88,27 +56,13 @@ multiplicativeExpression
 
 unaryExpression
     : ('-') unaryExpression
-    | '!' unaryExpression
     | primaryExpression
-    ;
-
-newExpression
-    : 'new' IDENTIFIER
-    ;
-
-fieldExpression
-    : primaryExpresson '.' IDENTIFIER
     ;
 
 primaryExpression
     : IDENTIFIER
     | INTEGER_LITERAL
-    | 'true'
-    | 'false'
-    | 'null'
-    | newExpression
     | '(' expression ')'
-    | fieldExpression
     ;
 
 INTEGER_LITERAL

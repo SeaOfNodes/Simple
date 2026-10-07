@@ -1,5 +1,7 @@
 # Instruction encoding reference
 
+English | [日本語](encoding-reference.ja.md)
+
 Detailed notes retained from the original Chapter 21 README.
 See the [chapter overview](../README.md) for the compiler pipeline and experiments.
 
@@ -11,37 +13,39 @@ See the [chapter overview](../README.md) for the compiler pipeline and experimen
 4. [RISCV](#riscv)
    - [Instruction formats](#instruction-formats)
    - [Float](#float)
-   - [Indirect](#indirectmemop-2)
+   - [Indirect](#indirectmemop)
    - [Branch](#branch)
-   - [Function Constant](#function-constant)
-   - [LUI](#lui)
-   - [Large constants](#large-constants)
+   - [Immediates](#immediates)
+   - [Float Constants](#float-constants)
+   - [Int Constants](#int-constants)
+   - [Function Constants](#function-constants)
 5. [ARM](#arm)
    - [Reg-form](#reg-form)
    - [Shift immediates](#shift-immediates)
-        - [asri](#asrimmediate)
-        - [LSL(immediate)](#lslimmediate)
-        - [LSR(immediate)](#lsrimmediate)
-     
    - [Logical Immediates](#logical-immediates)
-   - [Float](#float)
+   - [Float](#float-1)
+   - [Large constants](#large-constants)
    - [Function constant](#function-constant)
-   - [Immediate](#immediate)
    - [Conditional flags](#conditional-flags)
    - [Indirect](#indirectmemop-1)
-   - [Branching](#branching-)
-   - [Rip relative](#rip-relative)
-   - [Compare](#compare)
-6. [AMD64](#amd64)
+   - [Branching](#branching)
+6. [AMD64 X86-64](#amd64-x86-64)
    - [REX PREFIX](#rex-prefix)
-   - [Large constants](#large-constants)
+   - [Opcode](#opcode)
    - [MODR/M](#modrm)
    - [SIB](#sib)
    - [Displacement](#displacement)
    - [Immediate](#immediate)
-   - [Float](#float)
-   - [Indirect](#indirectmemop)
-   - [Conditional flags](#conditional-flags)
+   - [Indirect](#indirectmemop-2)
+   - [Float](#float-2)
+   - [Large constants](#large-constants-1)
+   - [Function constant](#function-constant-1)
+   - [Conditional flags](#conditional-flags-1)
+7. [Relocation](#relocation)
+   - [Local Relocation](#local-relocation)
+   - [Global Relocation](#global-relocation)
+   - [Getting Relocations to All Agree](#getting-relocations-to-all-agree)
+   - [Large Constants](#large-constants-2)
 
 
 This chapter will add instruction encodings.  Instruction encoding refers to
@@ -431,7 +435,8 @@ Arm supports the following indirect forms:
 
 [Store](https://docsmirror.github.io/A64/2023-06/strb_imm.html): `str dst, [base + #offset]`
 
-If the offset is not a con
+For a register offset, use the register-offset form rather than the immediate-offset form.
+
 #### Branching
 `B.cond` - branch [conditionally](https://developer.arm.com/documentation/dui0802/b/A32-and-T32-Instructions/Condition-codes?lang=en) to a label at a PC-relative offset.
 
@@ -466,7 +471,7 @@ A *REX* prefix must not be encoded when:
 the `SSE` prefix.  In all other cases, it is ignored.
 
 In Simple, the REX prefix is just appended to the beginning of the bit stream
-(except SEE float instructions).  The layout is the following:
+(except SSE float instructions).  The layout is the following:
 
 | **Field** | **Length** | **Description**                                                                 |
 |:---------:|:----------:|---------------------------------------------------------------------------------|
@@ -530,11 +535,14 @@ public enum MOD {
 ```
 
 ##### reg
-The reg field is a 3 bit field capable of encoding 15 different registers.
+The reg field has 3 bits, selecting one of 8 registers. When it names a
+register, REX.R extends it to 4 bits, selecting one of 16 registers.
 
 ##### r/m
 
-The rm field specifies a direct or indirect register operand and is capable of encoding 15 different registers.
+The r/m field has 3 bits. In register-direct mode, REX.B extends it to
+select one of 16 registers. In memory modes, r/m selects the addressing form
+or base register; some values select a SIB byte or RIP-relative addressing.
 
 
 ```java
@@ -622,7 +630,7 @@ X86-64 support multiple indirect addressing modes:
 
 
 #### Float
-For float operations we use `SEE SIMD` instructions that operate on scalar single precision floating0-point values located in the
+For float operations we use `SSE SIMD` instructions that operate on scalar single precision floating-point values located in the
 XMM registers or memory.
 *Note*: When using XMM registers for ALU operations, the encoding is really similar with the exception that we need
 to subtract the `XMM_OFFSET` from the register number.

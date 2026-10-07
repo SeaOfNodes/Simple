@@ -1,4 +1,10 @@
-# Grammar for Chapter 16
+# 第15章の文法
+
+[English](15-grammar.md) | 日本語
+
+この文書は [原文](15-grammar.md) の日本語訳です。
+
+[第15章に戻る](../README.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;
@@ -31,7 +37,12 @@ breakStatement : 'break' ';' ;
 continueStatement : 'continue' ';' ;
 
 
-structDeclaration : 'struct' IDENTIFIER '{' block '}'  ;
+structDeclaration : 'struct' IDENTIFIER '{' fields '}'  ;
+
+fields : field+ ;
+
+field : type IDENTIFIER ';'  ;
+
 
 expressionStatement
     : type IDENTIFIER ';'
@@ -91,12 +102,11 @@ multiplicativeExpression
 unaryExpression
     : ('-') unaryExpression
     | '!' unaryExpression
-    | primaryExpression postAssign
+    | primaryExpression postFix*
     ;
 
 primaryExpression
     : INTEGER_LITERAL
-    | FLOAT_LITERAL
     | '(' expression ')'
     | 'true'
     | 'false'
@@ -105,25 +115,20 @@ primaryExpression
     | IDENTIFIER
     ;
 
-newExpression 
-    : 'new' IDENTIFIER [ '{' block '}' ]
-    | 'new' IDENTIFIER '[' expression ']'
-    ;
-
-postAssign : postFix [ '=' expression ] | [ '#' ];
+newExpression : 'new' IDENTIFIER [ '[' expression ']' ] ;
 
 postFix
-    : '.' IDENTIFIER      postFix
-    | '[' expression ']'  postFix
+    : '.' IDENTIFIER     [ '=' expression ]
+    | '[' expression ']' [ '=' expression ]
+    | '#'
     ;
-
-
-IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)*  ;
 
 INTEGER_LITERAL
     : [1-9]DIGIT*
     | [0]
     ;
+
+IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)*  ;
 
 NON_DIGIT: [a-zA-Z_];
 DIGIT: [0-9];

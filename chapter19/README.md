@@ -1,10 +1,14 @@
 # Chapter 19: Instruction Selection and Portable Compilation
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 18](../chapter18/README.md) |
 [Next: Chapter 20](../chapter20/README.md)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter19) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter18...linear-chapter19) it to the previous chapter.
 
+
+The grammar is unchanged from [Chapter 18](../chapter18/docs/18-grammar.md).
 
 ## Meta-Issues / Code-Dev Issues of Instruction Selection, Register Allocation and Encodings
 

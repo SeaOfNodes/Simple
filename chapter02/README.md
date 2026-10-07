@@ -1,5 +1,7 @@
 # Chapter 2: Arithmetic
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 1](../chapter01/README.md) |
 [Next: Chapter 3](../chapter03/README.md)
 

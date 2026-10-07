@@ -1,29 +1,30 @@
 # Chapter 5: If Statement, Phi, and Region
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 4](../chapter04/README.md) |
 [Next: Chapter 6](../chapter06/README.md)
 
 # Table of Contents
 
-1. [Recap](#recap)
-2. [New Nodes](#new-nodes)
-3. [`IfNode`](#ifnode)
-4. [`PhiNode`](#phinode)
-5. [`RegionNode`](#regionnode)
-6. [Pinned data nodes](#we-do-not-associate-a-control-edge-on-every-data-node-in-the-graph)
-7. [`Stop` Nodes](#stop-nodes)
-8. [Parsing an `if` Statement](#parsing-an-if-statement)
-9. [Operations on ScopeNodes](#operations-on-scopenodes)
-10. [Duplicating a ScopeNode](#duplicating-a-scopenode)
-11. [Merging two ScopeNodes](#merging-two-scopenodes)
-12. [Example 1](#example-1)
-13. [Before Merging](#before-merging)
-14. [After Merging](#after-merging)
-15. [Finally](#finally)
-16. [Example 2](#example-2)
-17. [Example 3](#example-3)
-18. [Pushing addition up through a Phi](#pushing-addition-up-through-a-phi)
-19. [More Examples](#more-examples)
+1. [New Nodes](#new-nodes)
+2. [`IfNode`](#ifnode)
+3. [`PhiNode`](#phinode)
+4. [`RegionNode`](#regionnode)
+5. [Pinned data nodes](#we-do-not-associate-a-control-edge-on-every-data-node-in-the-graph)
+6. [`Stop` Nodes](#stop-nodes)
+7. [Parsing an `if` Statement](#parsing-an-if-statement)
+8. [Operations on ScopeNodes](#operations-on-scopenodes)
+9. [Duplicating a ScopeNode](#duplicating-a-scopenode)
+10. [Merging two ScopeNodes](#merging-two-scopenodes)
+11. [Example 1](#example-1)
+12. [Before Merging](#before-merging)
+13. [After Merging](#after-merging)
+14. [Finally](#finally)
+15. [Example 2](#example-2)
+16. [Example 3](#example-3)
+17. [Pushing addition up through a Phi](#pushing-addition-up-through-a-phi)
+18. [More Examples](#more-examples)
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter05) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter04...linear-chapter05) it to the previous chapter.
 

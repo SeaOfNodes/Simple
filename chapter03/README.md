@@ -1,5 +1,7 @@
 # Chapter 3: Variable Declarations
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 2](../chapter02/README.md) |
 [Next: Chapter 4](../chapter04/README.md)
 

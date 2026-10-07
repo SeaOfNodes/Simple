@@ -1,7 +1,11 @@
 # Chapter 20: Graph Coloring Register Allocation
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 19](../chapter19/README.md) |
 [Next: Chapter 21](../chapter21/README.md)
+
+The grammar is unchanged from [Chapter 18](../chapter18/docs/18-grammar.md).
 
 ## Some Reading Material
 

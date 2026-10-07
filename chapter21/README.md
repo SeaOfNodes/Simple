@@ -1,5 +1,7 @@
 # Chapter 21: Instruction Encoding and ELF
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 20](../chapter20/README.md) |
 [Next: Chapter 22](../chapter22/README.md)
 
@@ -12,6 +14,8 @@ and calling conventions together.
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter21)
 in the linear revision history and
 [compare it to Chapter 20](https://github.com/SeaOfNodes/Simple/compare/linear-chapter20...linear-chapter21).
+
+Here is the [complete language grammar](docs/21-grammar.md) for this chapter.
 
 ## From machine nodes to bytes
 

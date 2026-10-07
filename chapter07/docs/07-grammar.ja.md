@@ -1,4 +1,11 @@
-# Grammar for Chapter 8
+# 第7章の文法
+
+[English](07-grammar.md) | 日本語
+
+この文書は [原文](07-grammar.md) の日本語訳です。
+
+
+[第7章に戻る](../README.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;
@@ -14,20 +21,10 @@ statement
     | expressionStatement
     | ifStatement
     | whileStatement
-    | breakStatement
-    | continueStatment
     ;
 
 whileStatement
     : 'while' '(' expression ')' statement
-    ;
-
-breakStatement
-    : 'break' ';'
-    ;
-
-continueStatement
-    : 'continue' ';'
     ;
 
 ifStatement

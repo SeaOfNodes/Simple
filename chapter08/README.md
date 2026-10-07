@@ -1,5 +1,7 @@
 # Chapter 8: Lazy Phis, Break, Continue, and Evaluator
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 7](../chapter07/README.md) |
 [Next: Chapter 9](../chapter09/README.md)
 

@@ -1,4 +1,10 @@
-# Grammar for Chapter 16
+# 第16章の文法
+
+[English](16-grammar.md) | 日本語
+
+この文書は [原文](16-grammar.md) の日本語訳です。
+
+[第16章に戻る](../README.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;

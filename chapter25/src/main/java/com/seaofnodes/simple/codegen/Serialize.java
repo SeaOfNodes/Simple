@@ -63,9 +63,8 @@ abstract public class Serialize {
         Type.TAGOFFS();
 
         BAOS baos = new BAOS();
-        // C0D2 adds independent pointer access permissions to serialized types.
-        // A - Print a header
-        baos.write('C').write('0').write('D').write('2');
+        // A - Print the C0DE header. The format is not versioned yet.
+        baos.write('C').write('0').write('D').write('E');
 
         // Count unique Types
         var types = new HashMap<Type,Integer>();
@@ -218,7 +217,7 @@ abstract public class Serialize {
         Type.TAGOFFS();
 
         // A - Read a header
-        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='2' )
+        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='E' )
             throw new IllegalArgumentException("Unsupported serialized IR format; rebuild the object file");
 
         // B - Packed read of #strings, then strings
@@ -247,7 +246,7 @@ abstract public class Serialize {
         String[] strs = elf._strs;
         if( strs == null ) {
             // A - Read a header
-            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != '2' )
+            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != 'E' )
                 throw new IllegalArgumentException( "Unsupported serialized IR format; rebuild the object file" );
 
             // B - Packed read of #strings, then strings

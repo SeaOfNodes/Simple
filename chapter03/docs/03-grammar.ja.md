@@ -1,4 +1,11 @@
-# Grammar for Chapter 6
+# 第3章の文法
+
+[English](03-grammar.md) | 日本語
+
+この文書は [原文](03-grammar.md) の日本語訳です。
+
+
+[第3章に戻る](../README.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;
@@ -12,11 +19,6 @@ statement
     | declStatement
     | blockStatment
     | expressionStatement
-    | ifStatement
-    ;
-
-ifStatement
-    : 'if' '(' expression ')' statement ('else' statement)?
     ;
 
 
@@ -37,11 +39,7 @@ returnStatement
     ;
 
 expression
-    : comparisonExpression
-    ;
-
-comparisonExpression
-    : additiveExpression (('==' | '!='| '>'| '<'| '>='| '<=') additiveExpression)*
+    : additiveExpression
     ;
 
 additiveExpression
@@ -60,8 +58,6 @@ unaryExpression
 primaryExpression
     : IDENTIFIER
     | INTEGER_LITERAL
-    | 'true'
-    | 'false'
     | '(' expression ')'
     ;
 

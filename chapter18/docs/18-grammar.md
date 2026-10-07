@@ -1,85 +1,85 @@
-# Grammar for Chapter 16
+# Grammar for Chapter 18
+
+English | [日本語](18-grammar.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;
 
-program : block EOF ;
+// Name lookup, assignable operands, type compatibility, and access permissions
+// are checked by the compiler in addition to these syntax rules.
+program : statement* EOF ;
 
-block : statement+ ;
-
+block : '{' statement* '}' ;
 
 statement
-    : '{' block '}'
+    : block
     | returnStatement
     | ifStatement
     | whileStatement
+    | forStatement
     | breakStatement
     | continueStatement
     | structDeclaration
-    | expressionStatement
+    | declaration ';'
+    | assignment ';'
+    | ';'
     ;
 
-
-returnStatement : 'return' expression ';' ;
-
-ifStatement : 'if' '(' expression ')' statement ('else' statement)? ;
-
-whileStatement : 'while' '(' expression ')' statement ;
-
-breakStatement : 'break' ';' ;
-
+returnStatement   : 'return' assignment ';' ;
+ifStatement       : 'if' '(' assignment ')' statement ('else' statement)? ;
+whileStatement    : 'while' '(' assignment ')' statement ;
+breakStatement    : 'break' ';' ;
 continueStatement : 'continue' ';' ;
 
-
-structDeclaration : 'struct' IDENTIFIER '{' block '}'  ;
-
-expressionStatement
-    : type IDENTIFIER ';'
-    | type IDENTIFIER '=' expression ';'
-    |      IDENTIFIER '=' expression ';'
-    |                     expression
+forStatement
+    : 'for' '(' (declaration | assignment)? ';' assignment? ';' assignment? ')' statement
     ;
 
-PRIMTYPE
-    : 'int'
-    | 'i8'
-    | 'i16'
-    | 'i32'
-    | 'i64'
-    | 'u8'
-    | 'u16'
-    | 'u32'
-    | 'flt'
-    | 'f32'
-    | 'f64'
-    | 'bool'
-    ;
+structDeclaration : 'struct' IDENTIFIER block ';' ;
 
+declaration : declarationType binding (',' binding)* ;
+declarationType : type | 'var' | 'val' ;
+binding : bindingModifier? IDENTIFIER ('=' initializer)? ;
+bindingModifier : '!' | '~' ;
+initializer : assignment ;
+
+// The prefix qualifies the named struct reference, not an enclosing array.
+// Each [] / [~] suffix qualifies its own array layer. ? requires a reference.
 type
-    : PRIMTYPE
-    | typeName '?'?
-    | typeName nestedArray+
+    : functionType
+    | primitiveType typeSuffix*
+    | accessModifier? typeName typeSuffix*
     ;
-
-nestedArray : '?'?  '[]'* ;
-
+accessModifier : '!' | '~' ;
+typeSuffix : '?' | '[]' | '[~]' ;
 typeName : IDENTIFIER ;
 
-
-expression : bitWiseExpression ;
-
-bitWiseExpression
-    : comparisonExpression ( '&' | '|' | '^' ) comparisonExpression)*
+primitiveType
+    : 'int' | 'i8' | 'i16' | 'i32' | 'i64'
+    | 'u1' | 'u8' | 'u16' | 'u32' | 'byte' | 'bool'
+    | 'flt' | 'f32' | 'f64'
     ;
-    
+
+assignment : expression (assignmentOperator assignment)? ;
+assignmentOperator
+    : '=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^='
+    | '<<=' | '>>=' | '>>>='
+    ;
+
+expression : bitwiseExpression ('?' assignment (':' assignment)?)? ;
+
+bitwiseExpression
+    : comparisonExpression (('&' | '|' | '^') comparisonExpression)*
+    ;
+
 comparisonExpression
-    : shiftExpression (('==' | '!='| '>'| '<'| '>='| '<=') shiftExpression)*
+    : shiftExpression (('==' | '!=' | '<' | '<=' | '>' | '>=') shiftExpression)*
     ;
 
 shiftExpression
-    : additiveExpression ( '<<' | '>>>' | '>>' ) additiveExpression)*
+    : additiveExpression (('<<' | '>>' | '>>>') additiveExpression)*
     ;
-    
+
 additiveExpression
     : multiplicativeExpression (('+' | '-') multiplicativeExpression)*
     ;
@@ -89,42 +89,53 @@ multiplicativeExpression
     ;
 
 unaryExpression
-    : ('-') unaryExpression
-    | '!' unaryExpression
-    | primaryExpression postAssign
+    : ('-' | '!') unaryExpression
+    | updateOperator IDENTIFIER
+    | postfixExpression
     ;
+
+// Prefix updates require a local name; postfix updates also allow fields
+// and array elements. All updates require an assignable operand.
+updateOperator : '++' | '--' ;
+postfixExpression : primaryExpression postfixSuffix* updateOperator? ;
+postfixSuffix : '.' IDENTIFIER | '[' assignment ']' | '#' | callSuffix ;
 
 primaryExpression
     : INTEGER_LITERAL
     | FLOAT_LITERAL
-    | '(' expression ')'
     | 'true'
     | 'false'
     | 'null'
-    | newExpression
     | IDENTIFIER
+    | '(' assignment ')'
+    | newExpression
+    | functionExpression
     ;
 
-newExpression 
-    : 'new' IDENTIFIER [ '{' block '}' ]
-    | 'new' IDENTIFIER '[' expression ']'
+// A function is an expression bound with an ordinary declaration.
+// Its last statement supplies the implicit result; return can exit earlier.
+functionExpression : '{' parameterList? '->' statement* '}' ;
+parameterList : (parameter ','?)+ ;
+parameter : type bindingModifier? IDENTIFIER ;
+
+// Function types have unnamed, space-separated argument types.
+// {int} is the zero-argument type; its function expression still uses ->.
+functionType
+    : '{' type+ '->' type '}' '?'?
+    | '{' type '}' '?'?
     ;
 
-postAssign : postFix [ '=' expression ] | [ '#' ];
+callSuffix : '(' argumentList? ')' ;
+argumentList : assignment (',' assignment)* ','? ;
 
-postFix
-    : '.' IDENTIFIER      postFix
-    | '[' expression ']'  postFix
-    ;
+// Struct initialization uses a block; array allocation supplies a length.
+newExpression : 'new' type ('[' assignment ']' | block)? ;
 
-
-IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)*  ;
-
-INTEGER_LITERAL
-    : [1-9]DIGIT*
-    | [0]
-    ;
-
-NON_DIGIT: [a-zA-Z_];
-DIGIT: [0-9];
+INTEGER_LITERAL : '0' | [1-9] DIGIT* ;
+FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' DIGIT+) ;
+IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)* ;
+fragment NON_DIGIT : [a-zA-Z_] ;
+fragment DIGIT : [0-9] ;
+WHITESPACE : [ \t\r\n]+ -> skip ;
+LINE_COMMENT : '//' ~[\r\n]* -> skip ;
 ```

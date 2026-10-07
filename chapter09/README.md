@@ -1,7 +1,11 @@
 # Chapter 9: Global Value Numbering and Iterative Peepholes
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 8](../chapter08/README.md) |
 [Next: Chapter 10](../chapter10/README.md)
+
+The grammar is unchanged from [Chapter 8](../chapter08/docs/08-grammar.md).
 
 # Table of Contents
 
@@ -9,7 +13,7 @@
 2. [Global Value Numbering](#global-value-numbering)
 3. [Post-Parse Iterative Peepholes](#post-parse-iterative-peepholes)
 4. [Distant Neighbors](#distant-neighbors)
-5. [Other Concerns](#other-concerns)
+5. [Future Work](#future-work)
 6. [Common SubExpressions via GVN](#common-subexpressions-via-gvn)
    - [Example 1](#example-1)
    - [Example 2](#example-2)

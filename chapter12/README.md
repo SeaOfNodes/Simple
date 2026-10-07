@@ -1,5 +1,7 @@
 # Chapter 12: References
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 11](../chapter11/README.md) |
 [Next: Chapter 13](../chapter13/README.md)
 

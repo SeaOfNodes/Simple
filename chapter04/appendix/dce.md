@@ -1,4 +1,6 @@
 # Appendix
+
+English | [日本語](dce.ja.md)
 ## Dead Code Elimination(DCE)
 Dead Code Elimination is the process or removing nodes that are dead(unused).
 
@@ -133,7 +135,7 @@ To fix this, we introduce an extra `deadCodeElim` call that is responsible for d
 public final Node peephole( ) {
     ...
     if (!(this instanceof ConstantNode) && type.isConstant())
-        return new deadCodeElim(ConstantNode(type).peephole());
+        return deadCodeElim(new ConstantNode(type).peephole());
 
     ...
   

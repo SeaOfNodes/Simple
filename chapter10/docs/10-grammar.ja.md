@@ -1,4 +1,10 @@
-# Grammar for Chapter 13
+# 第10章の文法
+
+[English](10-grammar.md) | 日本語
+
+この文書は [原文](10-grammar.md) の日本語訳です。
+
+[第10章に戻る](../README.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;
@@ -11,21 +17,16 @@ statement
     : returnStatement
     | structDeclaration
     | declStatement
-    | blockStatement
+    | blockStatment
     | expressionStatement
     | ifStatement
     | whileStatement
     | breakStatement
-    | continueStatement
-    ;
-
-PRIMTYPE
-    : 'int'
+    | continueStatment
     ;
 
 field
-    : PRIMTYPE IDENTIFIER ';'
-    | structName ('?')? IDENTIFIER ';'
+    : 'int' IDENTIFIER ';'
     ;
 
 fields
@@ -67,7 +68,7 @@ structName
     ;
 
 declStatement
-    : PRIMTYPE IDENTIFIER '=' expression ';'
+    : 'int' IDENTIFIER '=' expression ';'
     | structName ('?')? IDENTIFIER '=' expression ';'
     ;
 
@@ -102,7 +103,7 @@ newExpression
     ;
 
 fieldExpression
-    : primaryExpression '.' IDENTIFIER
+    : primaryExpresson '.' IDENTIFIER
     ;
 
 primaryExpression
@@ -122,7 +123,7 @@ INTEGER_LITERAL
     ;
 
 IDENTIFIER
-    : NON_DIGIT (NON_DIGIT | DEC_DIGIT)*
+    : NON_DIGIT (NON_DIGIT | DIGIT)*
     ;
 
 NON_DIGIT: [a-zA-Z_];

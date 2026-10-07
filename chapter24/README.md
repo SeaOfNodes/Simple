@@ -1,5 +1,7 @@
 # Chapter 24: Chaining Relationals and Sparse Conditional Constant Propagation
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 23](../chapter23/README.md) |
 [Next: Chapter 25](../chapter25/README.md)
 
@@ -18,6 +20,8 @@ memory, and separate compilation; see the [backport review queue](../docs/chapte
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter23...linear-chapter24) it to the previous chapter.
 
+
+Here is the [complete language grammar](docs/24-grammar.md) for this chapter.
 
 ## Chaining Relational Tests
 

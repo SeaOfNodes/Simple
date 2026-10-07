@@ -1,5 +1,7 @@
 # Chapter 16: Constructors
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 15](../chapter15/README.md) |
 [Next: Chapter 17a](../chapter17a/README.md)
 

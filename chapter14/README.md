@@ -1,5 +1,7 @@
 # Chapter 14: Numeric Types
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 13](../chapter13/README.md) |
 [Next: Chapter 15](../chapter15/README.md)
 
@@ -12,7 +14,6 @@
 5. [Bitwise operations](#bitwise-operations)
 6. [Precedence](#precedence)
 7. [Type lattice](#type-implementation)
-8. [Nodes](#nodes)
 
 
 With structs, reference fields, and scheduling in place, this chapter extends

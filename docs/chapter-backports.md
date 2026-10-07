@@ -84,8 +84,8 @@ nullable field's implicit null is still an instance field.
 Constructor permissions cover only allocation fields, including assignments in
 nested blocks. They do not permit rebinding surrounding or constructor-local
 fixed variables. Chapter 25's constructor-exit check also handles required
-primitive fields. The object format changes to `C0D2`; rebuilding `sys.o` is
-required and exercised by its native tests.
+primitive fields. The object layout changes under the unversioned `C0DE` header;
+rebuilding `sys.o` is required and exercised by its native tests.
 
 The changed graphs exposed two small existing assumptions: Chapter 24 must
 recognize a Phi whose own backedge is still under construction, and a memory

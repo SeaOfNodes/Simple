@@ -1,5 +1,7 @@
 # Chapter 13: Global Code Motion
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 12](../chapter12/README.md) |
 [Next: Chapter 14](../chapter14/README.md)
 
@@ -10,6 +12,8 @@ Loads and Stores.
 
 Also in this chapter, we'll be presenting several fairly detailed graph
 algorithms.  You might want to brush up on your graph theory!
+
+The grammar is unchanged from [Chapter 12](../chapter12/docs/12-grammar.md).
 
 # Table of Contents
 

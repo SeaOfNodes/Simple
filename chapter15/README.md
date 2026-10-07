@@ -1,5 +1,7 @@
 # Chapter 15: Arrays
 
+English | [日本語](README.ja.md)
+
 [Previous: Chapter 14](../chapter14/README.md) |
 [Next: Chapter 16](../chapter16/README.md)
 

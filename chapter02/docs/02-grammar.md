@@ -1,4 +1,6 @@
-# Grammar for Chapter 1
+# Grammar for Chapter 2
+
+English | [日本語](02-grammar.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;
