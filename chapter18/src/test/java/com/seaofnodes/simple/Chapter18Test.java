@@ -9,6 +9,33 @@ import static org.junit.Assert.fail;
 import org.junit.Ignore;
 
 public class Chapter18Test {
+    @Test public void testFloatArrays() {
+        for( String type : new String[]{"flt","f64","f32"} ) {
+            CodeGen zero = new CodeGen("var a = new "+type+"[arg]; return a[arg-1];")
+                .parse().opto().typeCheck();
+            assertEquals("0.0",Eval2.eval(zero,3));
+            // Eval2 does not execute RoundF32 yet; check nonconstant narrowing here.
+            new CodeGen(type+" x = arg; var a = new "+type+"[arg]; a[0] = x; return a[0];")
+                .parse().opto().typeCheck();
+        }
+        for( String type : new String[]{"flt","f64"} ) {
+            CodeGen loop = new CodeGen("var a = new "+type+"[arg]; "+
+                "for(int i=0; i<arg; i++) a[i] += i+0.25; return a[0]+a[arg-1];")
+                .parse().opto().typeCheck();
+            assertEquals("0.5",Eval2.eval(loop,1));
+            assertEquals("3.5",Eval2.eval(loop,4));
+
+            CodeGen rounded = new CodeGen("var a = new "+type+"[arg]; "+
+                "for(int i=0; i<arg; i++) a[i] = 16777216.0+i; return a[arg-1];")
+                .parse().opto().typeCheck();
+            assertEquals("1.6777217E7",Eval2.eval(rounded,2));
+        }
+        CodeGen rounded = new CodeGen("var a = new f32[arg]; "+
+            "for(int i=0; i<arg; i++) a[i] = 16777217.0; return a[arg-1];")
+            .parse().opto().typeCheck();
+        assertEquals("1.6777216E7",Eval2.eval(rounded,2));
+    }
+
     @Test public void testNeverExitLoopDepth() {
         String[] sources = {
             "if(arg) while(1) {} return 7;",

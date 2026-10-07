@@ -473,12 +473,6 @@ lines beyond the original extraction.
   Cover constant folding, evaluation, and machine lowering on all three targets;
   update the Chapter 14 explanation and add boundary-case regressions.
 
-- **Existing Chapter 18 floating-array assertion.** The unchanged
-  `TypeStruct.makeAry` assertion accepts integers and nullable references but
-  excludes TypeFloat; `return new flt[1];` fails under `-ea`. The Chapter 18
-  memory probe uses floating struct fields for initialization coverage instead.
-  Investigate separately; this port does not change the array type lattice.
-
 - **Chapter 24 Load BOTTOM-on-error backport, unwound/deferred (2026-09-28).**
   Cliff requested starting with 24 and analyzing failures before proceeding.
   Literal global BOTTOM memory/pointer inputs already propagate BOTTOM. The
@@ -669,6 +663,26 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **Floating arrays in Chapter 18 (2026-10-07).** Added TypeFloat to the
+  `TypeStruct.makeAry` assertion, matching Chapter 19 onward; earlier array
+  chapters already accept floating elements. The original `return new flt[1];`
+  reproduction passes with assertions enabled. One regression covers flt/f64/f32
+  zero initialization, flt/f64 looped loads and stores, and constant f32 rounding.
+  It fails at the original assertion before the correction. The complete
+  Chapter 18 suite passes (340 tests plus its fuzzer wrapper); no other compiler
+  snapshot needed this assertion change. Nonconstant scalar and array narrowing
+  now passes type checking with the RoundF32 correction below. Eval2 does not
+  execute RoundF32 yet, so runtime coverage uses constant f32 stores. Logs:
+  `build/float-arrays-18-before.log`, `build/float-arrays-18-after.log`.
+
+- **Nonconstant f32 narrowing (2026-10-07).** RoundF32Node now returns F32
+  for an F64 input in Chapters 18-25, and the equivalent B32 for BOT in
+  Chapters 14-17b. Constant rounding and other input types are unchanged.
+  Chapter 18's floating-array regression also checks nonconstant scalar and
+  array assignments. Complete Make suites pass in every affected chapter,
+  including Chapter 25's native tests; no expected graph or allocation results
+  changed. Logs: `build/round-f32-<chapter>.log`.
 
 - **Shared Phi inputs and deterministic inlining (2026-10-07).** Chapters
   20-25 split a self-conflicting Phi's inputs when another Phi shares them;
