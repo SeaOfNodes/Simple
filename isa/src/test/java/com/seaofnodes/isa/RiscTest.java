@@ -9,6 +9,28 @@ public class RiscTest {
         assert expected==actual : String.format("Expected %08x, got %08x",expected,actual);
     }
     public static void main(String[] args) {
+        word(0x9E780020,Arm64.floatToInteger(1,0)); // FCVTZS x0,d1
+        for( double value : new double[]{0.0,-0.0,6.92,-6.92,0.99,-0.99,
+                0x1p63,Math.nextDown(0x1p63),-0x1p63,Math.nextDown(-0x1p63),
+                Double.POSITIVE_INFINITY,Double.NEGATIVE_INFINITY,Double.NaN,
+                Double.longBitsToDouble(0xFFF0000000000001L)} ) {
+            var a=new EvalArm64(new byte[1024],512);
+            a.st4(4,0x9E780020);
+            a._pc=4;
+            a.fregs[1]=value;
+            a.step(1);
+            assert a.regs[0]==(long)value : "ARM conversion: "+value;
+
+            var bytes=new X86Test.Bytes();
+            RiscV.floatToInteger(bytes,10,1);
+            var r=new EvalRisc5(new byte[1024],512);
+            System.arraycopy(bytes.toByteArray(),0,r._buf,4,bytes.size());
+            r._pc=4;
+            r.fregs[1]=value;
+            // NaN takes four instructions; a finite value takes five.
+            r.step(Double.isNaN(value) ? 4 : 5);
+            assert r.regs[10]==(long)value : "RISC-V conversion: "+value;
+        }
         word(0x8B020020,Arm64.r_reg(Arm64.OP_ADD,0,2,0,1,0)); // add x0,x1,x2
         word(0x9100A420,Arm64.imm_inst(Arm64.OPI_ADD,41,1,0));
         word(0xD2800540,Arm64.mov(Arm64.OP_MOVZ,0,42,0));

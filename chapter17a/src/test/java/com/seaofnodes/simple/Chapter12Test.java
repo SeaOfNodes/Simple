@@ -125,8 +125,7 @@ struct N { !N? !next; int i; };
 n.i = 3.14;
 return n.i;
 """);
-        try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
+        assertEquals("3",com.seaofnodes.simple.evaluator.Evaluator.evaluate(parser.parse().iterate(),0).toString());
     }
 
     @Test

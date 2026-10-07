@@ -404,10 +404,13 @@ public class EvalArm64 {
                 break;
             }
             case 0x9E: {
-                // scvtf
-                is_f = true;
                 int rs1 = (ir >> 5) & 0x1F;
-                frval = (double)regs[rs1];
+                if( (ir & 0xFFFFFC00)==0x9E780000 ) { // FCVTZS Xd,Dn
+                    rval = (long)fregs[rs1];
+                } else { // SCVTF
+                    is_f = true;
+                    frval = (double)regs[rs1];
+                }
                 break;
             }
 

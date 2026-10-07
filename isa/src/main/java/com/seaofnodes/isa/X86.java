@@ -60,6 +60,22 @@ public final class X86 {
         out.add1(0x48).add1(0x99); // CQO: sign-extend rax into rdx:rax.
         unary(out,0xF7,7,src);
     }
+    /** Truncate f64 to i64, saturating overflow and mapping NaN to zero. */
+    public static void floatToInteger(CodeSink out, int dst, int src) {
+        sse(out,0xF2,0x0F2C,true,dst,src); // CVTTSD2SI
+        imm(out,0x81,7,dst,1);           // CMP dst,1: OF iff dst is MIN_VALUE
+        out.add1(0x71).add1((src>=8 ? 5 : 4)+24); // JNO done
+        sse(out,0x66,0x0F2E,false,src,src); // UCOMISD: unordered iff NaN
+        out.add1(0x7A).add1(19);         // JP nan
+        sse(out,0x66,0x0F7E,true,src,dst); // MOVQ: inspect the float's sign
+        shift(out,7,dst,63);             // SAR: 0 or -1
+        unary(out,0xF7,2,dst);           // NOT: -1 or 0
+        reg(out,0x0FBA,7,dst);           // BTC sign bit: MAX_VALUE or MIN_VALUE
+        out.add1(63);
+        out.add1(0xEB).add1(3);          // JMP done
+        reg(out,0x33,dst,dst);           // nan: XOR dst,dst
+    }
+
     public static void sse(CodeSink out, int prefix, int op, boolean wide, int dst, int src) {
         if( prefix!=0 ) out.add1(prefix);
         rexF(dst,src,-1,wide,out);

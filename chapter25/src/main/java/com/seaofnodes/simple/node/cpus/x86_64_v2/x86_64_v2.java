@@ -320,6 +320,7 @@ public class x86_64_v2 extends Machine {
         case StoreNode     st -> st(st);
         case SubNode      sub -> sub.mode()==2 ? new SubFX86(sub) : sub(sub);
         case ToFloatNode  tfn -> i2f8(tfn);
+        case ToIntegerNode cvt -> new F8ToIX86(cvt);
         case XCtrlNode      x -> ConstantNode.raw(Type.XCONTROL);
         case XorNode      xor -> xor(xor);
 

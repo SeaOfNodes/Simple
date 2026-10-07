@@ -733,6 +733,8 @@ public class Parser {
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or
     // classic signed (min=minus-power-of-2); max=power-of-2-minus-1.
     private Node zsMask(Node val, Type t ) {
+        if( val._type instanceof TypeFloat && t instanceof TypeInteger )
+            val = new ToIntegerNode(val).peephole();
         if( !(val._type instanceof TypeInteger tval && t instanceof TypeInteger t0 && !tval.isa(t0)) ) {
             if( !(val._type instanceof TypeFloat tval && t instanceof TypeFloat t0 && !tval.isa(t0)) )
                 return val;

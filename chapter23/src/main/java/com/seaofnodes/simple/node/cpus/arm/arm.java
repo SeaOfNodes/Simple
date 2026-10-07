@@ -316,6 +316,7 @@ public class arm extends Machine {
         case SubFNode subf   -> new SubFARM(subf);
         case SubNode sub     -> sub(sub);
         case ToFloatNode tfn -> new I2F8ARM(tfn);
+        case ToIntegerNode cvt -> new F8ToIARM(cvt);
         case XorNode xor     -> xor(xor);
 
         case LoopNode loop   -> new LoopNode(loop);

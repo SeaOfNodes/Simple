@@ -334,7 +334,25 @@ public class EvalRisc5 {
                     default -> throw new UnsupportedOperationException();
                     };
                     break;
-                case 26:  frval = (double)regs[rs1]; break; // fcvt.w.d
+                case 24: // FCVT.L.D, RTZ
+                    if( rs2!=2 || ((ir>>12)&7)!=1 ) throw new UnsupportedOperationException();
+                    is_f = false;
+                    rval = Double.isNaN(lhs) ? Long.MAX_VALUE : (long)lhs;
+                    break;
+                case 26:  frval = (double)regs[rs1]; break; // fcvt.d.l
+                case 28: { // FCLASS.D
+                    if( rs2!=0 || ((ir>>12)&7)!=1 ) throw new UnsupportedOperationException();
+                    is_f = false;
+                    long bits = Double.doubleToRawLongBits(lhs);
+                    boolean neg = bits<0;
+                    int kind = Double.isNaN(lhs) ? ((bits&(1L<<51))==0 ? 8 : 9)
+                        : Double.isInfinite(lhs) ? (neg ? 0 : 7)
+                        : lhs==0 ? (neg ? 3 : 4)
+                        : Math.abs(lhs)<Double.MIN_NORMAL ? (neg ? 2 : 5)
+                        : (neg ? 1 : 6);
+                    rval = 1L<<kind;
+                    break;
+                }
                 default:
                     trap  = (2+1); // Fault: Invalid opcode.
                     throw new UnsupportedOperationException();

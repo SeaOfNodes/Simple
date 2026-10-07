@@ -284,6 +284,7 @@ public class x86_64_v2 extends Machine {
         case SubFNode    subf -> new SubFX86(subf);
         case SubNode      sub -> sub(sub);
         case ToFloatNode  tfn -> i2f8(tfn);
+        case ToIntegerNode cvt -> new F8ToIX86(cvt);
         case XCtrlNode      x -> new ConstantNode(Type.XCONTROL);
         case XorNode      xor -> xor(xor);
 

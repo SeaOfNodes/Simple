@@ -124,8 +124,8 @@ struct N { !N? !next; int i; };
 n.i = 3.14;
 return n.i;
 """);
-        try { code.parse().opto(); fail(); }
-        catch( Exception e ) { assertEquals("Type 3.14 is not of declared type int",e.getMessage()); }
+        code.parse().opto();
+        assertEquals("3",Eval2.eval(code,0));
     }
 
     @Test

@@ -41,8 +41,8 @@ shallow-reference boundary and resolving field definitions by name.
 Historical validation entries below use the chapter numbers and test names
 in effect when the work was done. In particular, old 10a/10b records refer to
 current 10/11, and old `Chapter12Test` float regressions now live in
-`Chapter14FloatTest`. The pending float-to-int conversion belongs with the
-numeric material in Chapter 14; it is not implemented by this reorganization.
+`Chapter14FloatTest`. Float-to-int assignment conversion was subsequently
+added with the numeric material in Chapter 14 and propagated through 25.
 
 Validation of the reorganization (2026-10-03): Make suites pass in every
 chapter 10-25, including the shared printer/ISA tests and Chapter 25's native
@@ -465,14 +465,6 @@ lines beyond the original extraction.
 
 ## Pending corrections
 
-- **Float-to-integer conversion (new feature).** Missing from Chapters 14-25;
-  Chapter 14's `RoundF32Node` only narrows floats to `f32`. Add an explicit
-  conversion, with Chapter 14 as the proposed introduction, and carry it
-  through the later chapters. Decide syntax, rounding versus truncation,
-  and behavior for NaN, infinities, and out-of-range values before implementing.
-  Cover constant folding, evaluation, and machine lowering on all three targets;
-  update the Chapter 14 explanation and add boundary-case regressions.
-
 - **Chapter 24 Load BOTTOM-on-error backport, unwound/deferred (2026-09-28).**
   Cliff requested starting with 24 and analyzing failures before proceeding.
   Literal global BOTTOM memory/pointer inputs already propagate BOTTOM. The
@@ -664,6 +656,23 @@ The top-level runner accepts explicit chapter lists, e.g.
 
 ## Validation record
 
+- **Numeric assignment conversions and evaluators (2026-10-07).** Chapters
+  14-25 accept float-to-integer assignment using ToIntegerNode: truncate toward
+  zero, saturate to i64 on overflow, map NaN to zero, then apply the declared
+  integer width. Locals, fields, and arrays use the conversion; Chapters 22-24
+  also convert before their store-specific width handling. Chapter 25 lowers
+  authoritative Convert nodes and serializes ToInteger in exported graphs.
+  Both evaluators now execute ToInteger and RoundF32, including nonconstant
+  f32 array stores. The Chapter 14 README documents the assignment syntax.
+  Instruction selection starts in 19, ARM support in 20, and shared encoding
+  in 21. x86 and RISC-V sequences normalize hardware overflow/NaN differences;
+  ARM uses FCVTZS. Full Make suites pass in 14-25 and the shared ISA module.
+  Tests cover constant and dynamic conversions, signed values, narrow integer
+  results, limits, infinities, and NaN; Chapter 25 runs native x86 plus compiled
+  ARM/RISC-V emulation. Disposable probes also check 19-20 selection/allocation,
+  21-24 encoding/emulation, and 25 importing an exported conversion function.
+  Logs: `build/float-convert-<chapter>.log`, `build/float-convert-isa.log`.
+
 - **Floating arrays in Chapter 18 (2026-10-07).** Added TypeFloat to the
   `TypeStruct.makeAry` assertion, matching Chapter 19 onward; earlier array
   chapters already accept floating elements. The original `return new flt[1];`
@@ -672,8 +681,8 @@ The top-level runner accepts explicit chapter lists, e.g.
   It fails at the original assertion before the correction. The complete
   Chapter 18 suite passes (340 tests plus its fuzzer wrapper); no other compiler
   snapshot needed this assertion change. Nonconstant scalar and array narrowing
-  now passes type checking with the RoundF32 correction below. Eval2 does not
-  execute RoundF32 yet, so runtime coverage uses constant f32 stores. Logs:
+  passes type checking with the RoundF32 correction below. Subsequent evaluator
+  support also exercises nonconstant f32 stores at runtime. Original logs:
   `build/float-arrays-18-before.log`, `build/float-arrays-18-after.log`.
 
 - **Nonconstant f32 narrowing (2026-10-07).** RoundF32Node now returns F32

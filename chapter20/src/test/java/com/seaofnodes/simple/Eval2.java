@@ -281,6 +281,8 @@ public abstract class Eval2 {
         case StoreNode    st   -> store(st);
         case SubNode      sub  -> x(sub.in(1)) -  x(sub.in(2));
         case SubFNode     sbf  -> d(sbf.in(1)) -  d(sbf.in(2));
+        case RoundF32Node rnd  -> (double)(float)d(rnd.in(1));
+        case ToIntegerNode cvt -> (long)d(cvt.in(1));
         case ToFloatNode  toflt-> (double)x(toflt.in(1));
         case XorNode      xor  -> x(xor.in(1)) ^  x(xor.in(2));
         default -> throw Utils.TODO();

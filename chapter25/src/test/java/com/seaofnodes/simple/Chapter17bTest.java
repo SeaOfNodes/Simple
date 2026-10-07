@@ -123,8 +123,8 @@ return s.x;
 
     @Test public void testInt10() {
         CodeGen code = new CodeGen("flt x = 1.5; x++; int i = x; return i;");
-        try { code.parse().opto().typeCheck(); fail(); }
-        catch( Exception e ) { assertEquals("Type 2.5f is not of declared type i64",e.getMessage()); }
+        code.parse().opto().typeCheck();
+        assertEquals("2",Eval2.eval(code,0));
     }
 
 

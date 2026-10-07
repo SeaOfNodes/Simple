@@ -126,8 +126,7 @@ N n = new N;
 n.i = 3.14;
 return n.i;
 """);
-        try { parser.parse().iterate(); fail(); }
-        catch( Exception e ) { assertEquals("Cannot store 3.14 into field int i",e.getMessage()); }
+        assertEquals("3",com.seaofnodes.simple.evaluator.Evaluator.evaluate(parser.parse().iterate(),0).toString());
     }
 
     @Test

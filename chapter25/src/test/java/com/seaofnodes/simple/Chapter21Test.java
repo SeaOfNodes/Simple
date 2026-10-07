@@ -15,6 +15,27 @@ import static org.junit.Assert.*;
 
 public class Chapter21Test {
 
+    @Test public void testFloatToInteger() throws IOException {
+        String src = "val float_to_int={ flt x -> int i=x; return i; };"+
+                     "val float_to_u8={ flt x -> u8 i=x; return i; };";
+        TestC.runC(src,"floatToInteger","",-1);
+        for( double x : new double[]{0.0,-0.0,6.92,-6.92,255.75,-257.75,
+                0x1p63,Math.nextDown(0x1p63),-0x1p63,Math.nextDown(-0x1p63),
+                Double.POSITIVE_INFINITY,Double.NEGATIVE_INFINITY,Double.NaN} ) {
+            for( String name : new String[]{"float_to_int","float_to_u8"} ) {
+                long expected = name.equals("float_to_u8") ? ((long)x)&255 : (long)x;
+                EvalRisc5 r = TestRisc5.build(src,name,0,-1,false);
+                r.fregs[riscv.FA0-riscv.F_OFFSET]=x;
+                assertEquals(0,r.step(1000));
+                assertEquals(name+"("+x+")",expected,r.regs[riscv.A0]);
+                EvalArm64 a = TestArm64.build(name,src,0,-1,false);
+                a.fregs[arm.D0-arm.D_OFFSET]=x;
+                assertEquals(0,a.step(1000));
+                assertEquals(name+"("+x+")",expected,a.regs[arm.X0]);
+            }
+        }
+    }
+
     @Test public void testReadBeforeConditionalStore() {
         var code = new CodeGen("""
             struct S { int x; }; !S !a=new S; !S !b=new S;

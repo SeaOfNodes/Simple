@@ -16,6 +16,10 @@ public class X86Test {
         assert expected.equals(actual) : "Expected "+expected+", got "+actual;
     }
     public static void main(String[] args) {
+        check("f2480f2cc04883f801711c660f2ec07a1366480f7ec048c1f83f48f7d0480fbaf83feb034833c0",
+              b -> X86.floatToInteger(b,0,0));
+        check("f24d0f2cca4983f901711d66450f2ed27a13664d0f7ed149c1f93f49f7d1490fbaf93feb034d33c9",
+              b -> X86.floatToInteger(b,9,10));
         check("4d03ca", b -> X86.reg(b,0x03,9,10));
         check("4d0fafca", b -> X86.reg(b,0x0FAF,9,10));
         check("4981c17fffffff", b -> X86.imm(b,0x81,0,9,-129));

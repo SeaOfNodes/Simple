@@ -236,6 +236,12 @@ public final class Arm64 {
                 (vd << 12) | (0x01100010 << 4) | vm;
     }
 
+    /** FCVTZS Xd,Dn: truncate, saturate overflow, and convert NaN to zero. */
+    public static int floatToInteger(int rn, int rd) {
+        assert 0<=rn && rn<32 && 0<=rd && rd<32;
+        return 0x9E780000 | (rn<<5) | rd;
+    }
+
     public static int float_cast(int opcode, int ftype, int rn, int rd) {
         assert 0 <= rd &&  rd < 32;
         assert 0 <= rn &&  rn  < 32;

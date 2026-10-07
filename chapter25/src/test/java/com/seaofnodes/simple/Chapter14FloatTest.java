@@ -5,6 +5,25 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 public class Chapter14FloatTest {
+    @Test public void testNumericAssignments() {
+        String[][] tests = {
+            {"int rounded=17.3/2.5; return rounded;", "6", "6"},
+            {"int rounded=arg/2.5; return rounded;", "6", "-6"},
+            {"int rounded=0; rounded=arg/2.5; return rounded;", "6", "-6"},
+            {"i8 rounded=arg*16.0; return rounded;", "16", "-16"},
+            {"int rounded=1e100; return rounded;", "9223372036854775807", "9223372036854775807"},
+            {"int rounded=-1e100; return rounded;", "-9223372036854775808", "-9223372036854775808"},
+            {"int rounded=1e300*1e300-1e300*1e300; return rounded;", "0", "0"},
+            {"f32 rounded=arg+16777216.0; return rounded;", "1.6777232E7", "1.6777199E7"}
+        };
+        for( String[] test : tests ) {
+            var code = new CodeGen(test[0]).parse().opto().typeCheck();
+            assertEquals(test[0],test[1],Eval2.eval(code,17));
+            assertEquals(test[0],test[2],Eval2.eval(code,-17));
+        }
+    }
+
+
     @Test public void testSubZeroFloat() {
         var code = new CodeGen("flt x = arg; return 0-x;").parse().opto().typeCheck();
         // Compare strings so +0.0 and -0.0 remain distinct.

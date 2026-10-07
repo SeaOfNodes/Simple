@@ -55,6 +55,10 @@ public class ConvertNode extends Node {
         if( (src instanceof TypeInteger || src==Type.NIL) && _dst instanceof TypeFloat )
             return new ToFloatNode(val());
 
+        // Convert to i64 first, then apply the destination's integer width.
+        if( src instanceof TypeFloat && _dst instanceof TypeInteger )
+            return new ConvertNode(_dst,new ToIntegerNode(val()).peephole());
+
         // Narrow integers produce the declared sign/zero extension.
         if( src instanceof TypeInteger && _dst instanceof TypeInteger dst ) {
             if( dst._min==0 )

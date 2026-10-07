@@ -34,10 +34,16 @@ f = f+x;     // Auto-widen x to 2.0, result is 2.5
 f = f+true;  // Since bools are just synonyms for integers 0,1 they auto-widen also
 ```
 
-There is no corresponding way right now to round a `flt` back to an `int`:
+Assigning a float to an integer truncates toward zero:
 ```java
-int x = 3.14; // error
+int rounded = 17.3/2.5;  // 6
+rounded = -17.3/2.5;     // -6
 ```
+This applies to variable initialization, reassignment, and stores to integer
+fields or array elements. Conversion first produces a signed 64-bit integer:
+NaN becomes zero, and values outside the range (including infinities) clamp to
+the nearest limit. Narrow integer destinations then apply the same bit
+truncation and sign/zero extension as integer-to-integer assignments.
 
 Here is Newton's method for computing a square root:
 ```java
@@ -60,14 +66,17 @@ Floating point operations have their own Nodes:
 | AddF, SubF, MulF, DivF | Basic binary FP ops  |
 | MinusF                 | Unary negate         |
 | EQF, LTF, LEF          | FP compare operators |
+| ToFloat, ToInteger     | Numeric conversions  |
+| RoundF32               | Round to f32 precision |
 
 The parser uses [`Node.widen()`](src/main/java/com/seaofnodes/simple/node/Node.java)
 to choose the floating-point operation and insert `ToFloatNode` conversions.
 The float lattice has constants between `TOP` and `BOT`, like the integer
 lattice before ranges. [`TypeFloat`](src/main/java/com/seaofnodes/simple/type/TypeFloat.java)
 also records whether a value fits `f32`; assigning to `f32` rounds it to that
-precision. Conversion from float back to integer remains a separate, pending
-language feature.
+precision. `ToIntegerNode` performs the inverse numeric conversion on assignment
+to an integer destination, folding constants with the same rules as runtime
+conversion.
 
 
 ## Narrow or sub-word types

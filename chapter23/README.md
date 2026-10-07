@@ -48,12 +48,6 @@ Also in this chapter we revisit our Types and make some major changes:
   etc; only the implementation details change.
 
 
-The lazy memory model from Chapter 11 continues through the new type system.
-BulkMemPhi/MemPhi discover aliases during optimization. Each New covers only
-instance fields; class-wide (`_one`) fields are excluded from its partial memory.
-Field offsets stay symbolic until layout, and Loads retain cyclic field types
-and deep-final information while querying the contents of a precise alias.
-
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter23) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) it to the previous chapter.
 
 
@@ -185,7 +179,7 @@ alternatives) but it is a great tutorial data structure.
 ```java
 struct List {
     !List? !next; // Next pointer or null
-    str !name;   // Payload
+    str !name;    // Payload
 };
 ```
 

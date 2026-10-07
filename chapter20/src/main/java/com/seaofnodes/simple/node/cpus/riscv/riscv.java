@@ -221,6 +221,7 @@ public class riscv extends Machine {
         case SubFNode subf -> new SubFRISC(subf);
         case SubNode sub -> sub(sub);
         case ToFloatNode tfn -> i2f8(tfn);
+        case ToIntegerNode cvt -> new F8ToIRISC(cvt);
         case XorNode xor -> xor(xor);
 
         case LoopNode loop -> new LoopNode(loop);
