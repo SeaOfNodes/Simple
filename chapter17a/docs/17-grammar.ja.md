@@ -1,16 +1,111 @@
-# 第17a章の文法の追加
+# 第17a章の文法
 
 [English](17-grammar.md) | 日本語
 
-この文書は [原文](17-grammar.md) の日本語訳です。
+```antlrv4
+grammar SimpleLanguage;
 
-式と文の形式は第16章と同じです。宣言に、独立したアクセスと束縛の修飾子を追加します。
+// Name lookup, assignable operands, type compatibility, and access permissions
+// are checked by the compiler in addition to these syntax rules.
+program : statement* EOF ;
 
-```text
-declaration = type binding ("," binding)* ";"
-binding     = ("!" | "~")? identifier ("=" expression)?
-type        = ("!" | "~")? name suffix*
-suffix      = "?" | "[]" | "[~]"
+block : '{' statement* '}' ;
+
+statement
+    : block
+    | returnStatement
+    | ifStatement
+    | whileStatement
+    | breakStatement
+    | continueStatement
+    | structDeclaration
+    | declaration ';'
+    | assignment ';'
+    | ';'
+    ;
+
+returnStatement   : 'return' assignment ';' ;
+ifStatement       : 'if' '(' assignment ')' statement ('else' statement)? ;
+whileStatement    : 'while' '(' assignment ')' statement ;
+breakStatement    : 'break' ';' ;
+continueStatement : 'continue' ';' ;
+
+structDeclaration : 'struct' IDENTIFIER block ';' ;
+
+declaration : declarationType binding (',' binding)* ;
+declarationType : type ;
+binding : bindingModifier? IDENTIFIER ('=' initializer)? ;
+bindingModifier : '!' | '~' ;
+initializer : assignment ;
+
+// The prefix qualifies the named struct reference, not an enclosing array.
+// Each [] / [~] suffix qualifies its own array layer. ? requires a reference.
+type
+    : primitiveType typeSuffix*
+    | accessModifier? typeName typeSuffix*
+    ;
+accessModifier : '!' | '~' ;
+typeSuffix : '?' | '[]' | '[~]' ;
+typeName : IDENTIFIER ;
+
+primitiveType
+    : 'int' | 'i8' | 'i16' | 'i32' | 'i64'
+    | 'u1' | 'u8' | 'u16' | 'u32' | 'byte' | 'bool'
+    | 'flt' | 'f32' | 'f64'
+    ;
+
+assignment : expression (assignmentOperator assignment)? ;
+assignmentOperator : '=' ;
+
+expression : bitwiseExpression ;
+
+bitwiseExpression
+    : comparisonExpression (('&' | '|' | '^') comparisonExpression)*
+    ;
+
+comparisonExpression
+    : shiftExpression (('==' | '!=' | '<' | '<=' | '>' | '>=') shiftExpression)*
+    ;
+
+shiftExpression
+    : additiveExpression (('<<' | '>>' | '>>>') additiveExpression)*
+    ;
+
+additiveExpression
+    : multiplicativeExpression (('+' | '-') multiplicativeExpression)*
+    ;
+
+multiplicativeExpression
+    : unaryExpression (('*' | '/') unaryExpression)*
+    ;
+
+unaryExpression
+    : ('-' | '!') unaryExpression
+    | postfixExpression
+    ;
+
+postfixExpression : primaryExpression postfixSuffix* ;
+postfixSuffix : '.' IDENTIFIER | '[' assignment ']' | '#' ;
+
+primaryExpression
+    : INTEGER_LITERAL
+    | FLOAT_LITERAL
+    | 'true'
+    | 'false'
+    | 'null'
+    | IDENTIFIER
+    | '(' assignment ')'
+    | newExpression
+    ;
+
+// Struct initialization uses a block; array allocation supplies a length.
+newExpression : 'new' type ('[' assignment ']' | block)? ;
+
+INTEGER_LITERAL : '0' | [1-9] DIGIT* ;
+FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' DIGIT+) ;
+IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)* ;
+fragment NON_DIGIT : [a-zA-Z_] ;
+fragment DIGIT : [0-9] ;
+WHITESPACE : [ \t\r\n]+ -> skip ;
+LINE_COMMENT : '//' ~[\r\n]* -> skip ;
 ```
-
-前置の修飾子には構造体参照が必要です。それは名前付きの基本型を修飾し、囲む配列は修飾しません。各角括弧の組は、それぞれ自身の配列の層を修飾します。束縛の修飾子は、その直後の名前だけに適用します。デフォルトとコンストラクタの初期化規則については [README](../README.ja.md) を参照してください。`var`、`val`、インクリメント、複合代入、条件式、`for` ループは第17b章で導入します。

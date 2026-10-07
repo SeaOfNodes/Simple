@@ -57,6 +57,8 @@ and deep-final information while querying the contents of a precise alias.
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter23) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) it to the previous chapter.
 
 
+Here is the [complete language grammar](docs/23-grammar.md) for this chapter.
+
 ## Why Cyclic Types?
 
 Cyclic types give us a sharper analysis than the alternative, and thus admit

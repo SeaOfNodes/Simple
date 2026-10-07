@@ -6,6 +6,8 @@ English | [日本語](README.ja.md)
 [Next: Chapter 18](../chapter18/README.md)
 
 
+Here is the [complete language grammar](docs/17-grammar.md) for this chapter.
+
 ## Table of Contents
 
 1. [Pre/Post-increment](#prepost-increment)
@@ -13,7 +15,6 @@ English | [日本語](README.ja.md)
 3. [var/val](#var--val)
 4. [Trinary](#trinary)
 5. [For Loops](#for-loops)
-6. [Memory effects](#memory-effects)
 
 Chapter 17a established the permissions checked by assignments. This chapter
 adds shorter ways to write assignments and control flow without changing those

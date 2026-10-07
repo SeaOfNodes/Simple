@@ -7,6 +7,8 @@
 [前の章: 第19章](../chapter19/README.ja.md) |
 [次の章: 第21章](../chapter21/README.ja.md)
 
+文法は[第18章](../chapter18/docs/18-grammar.ja.md)から変わりません。
+
 ## 参考資料
 
 これは Briggs-Chaitin-Click 型の割り当て器であり、過去25年間にわたり大きな成功を収めてきた HotSpot の C2 割り当て器に非常によく似ています。

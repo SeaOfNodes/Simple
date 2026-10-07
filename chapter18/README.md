@@ -16,6 +16,8 @@ connect these pieces across function boundaries.  When a function has just one
 caller, removing that boundary lets ordinary peepholes simplify the combined
 graph: this is our first form of inlining.
 
+Here is the [complete language grammar](docs/18-grammar.md) for this chapter.
+
 ## Table of Contents
 
 1. [Writing functions](#writing-functions)

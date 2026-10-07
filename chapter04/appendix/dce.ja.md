@@ -152,7 +152,7 @@ return (2+1)+3;
 public final Node peephole( ) {
     ...
     if (!(this instanceof ConstantNode) && type.isConstant())
-        return new deadCodeElim(ConstantNode(type).peephole());
+        return deadCodeElim(new ConstantNode(type).peephole());
 
     ...
   
@@ -164,8 +164,6 @@ public final Node peephole( ) {
    ...
 }
 ``` 
-
-> 訳注: 上の原文コードの `return new deadCodeElim(ConstantNode(type).peephole());` は、そのままでは Java の構文として正しくありません。コードは原文どおり保持しています。章本文の対応するコードでは `return deadCodeElim(new ConstantNode(type).peephole());` となっています。
 
 ```java
 // m is the new Node, self is the old.

@@ -1,12 +1,14 @@
-# 第18章の文法
+# 第25章の文法
 
-[English](18-grammar.md) | 日本語
+[English](25-grammar.md) | 日本語
 
 ```antlrv4
 grammar SimpleLanguage;
 
 // Name lookup, assignable operands, type compatibility, and access permissions
 // are checked by the compiler in addition to these syntax rules.
+// A file is a compilation unit; its path supplies its namespace.
+// Qualified names resolve nested types and other units without an import keyword.
 program : statement* EOF ;
 
 block : '{' statement* '}' ;
@@ -35,12 +37,24 @@ forStatement
     : 'for' '(' (declaration | assignment)? ';' assignment? ';' assignment? ')' statement
     ;
 
-structDeclaration : 'struct' IDENTIFIER block ';' ;
+structDeclaration : 'struct' IDENTIFIER '{' structMember* '}' ';' ;
+structMember : constructorDeclaration | methodDeclaration | statement ;
+
+// The constructor name must match the enclosing struct's name.
+constructorDeclaration : 'new' IDENTIFIER '=' functionExpression ';' ;
+
+// A method is an ordinary fixed function binding in a struct definition.
+// The compiler supplies self; it is not written in parameterList.
+// Function types and expressions both receive their implicit receiver here.
+methodDeclaration : 'val' bindingModifier? IDENTIFIER '=' functionExpression ';' ;
 
 declaration : declarationType binding (',' binding)* ;
 declarationType : type | 'var' | 'val' ;
 binding : bindingModifier? IDENTIFIER ('=' initializer)? ;
 bindingModifier : '!' | '~' ;
+// A declaration initializer consisting of the string "C" declares an extern
+// symbol: a function, or explicit numeric native storage. Ordinary strings
+// elsewhere are array-valued expressions.
 initializer : assignment ;
 
 // The prefix qualifies the named struct reference, not an enclosing array.
@@ -52,7 +66,7 @@ type
     ;
 accessModifier : '!' | '~' ;
 typeSuffix : '?' | '[]' | '[~]' ;
-typeName : IDENTIFIER ;
+typeName : IDENTIFIER ('.' IDENTIFIER)* ;
 
 primitiveType
     : 'int' | 'i8' | 'i16' | 'i32' | 'i64'
@@ -66,14 +80,22 @@ assignmentOperator
     | '<<=' | '>>=' | '>>>='
     ;
 
-expression : bitwiseExpression ('?' assignment (':' assignment)?)? ;
+expression : logicalExpression ('?' assignment (':' assignment)?)? ;
+
+// Both logical operators short-circuit and associate to the right here.
+logicalExpression : bitwiseExpression (('&&' | '||') logicalExpression)? ;
 
 bitwiseExpression
-    : comparisonExpression (('&' | '|' | '^') comparisonExpression)*
+    : equalityExpression (('&' | '|' | '^') equalityExpression)*
     ;
 
+equalityExpression : comparisonExpression (('==' | '!=') comparisonExpression)* ;
+
+// Chained comparisons test adjacent operands and short-circuit. A chain must
+// keep its direction; equality has lower precedence and does not join a chain.
 comparisonExpression
-    : shiftExpression (('==' | '!=' | '<' | '<=' | '>' | '>=') shiftExpression)*
+    : shiftExpression
+      ( (('<' | '<=') shiftExpression)+ | (('>' | '>=') shiftExpression)+ )?
     ;
 
 shiftExpression
@@ -98,11 +120,18 @@ unaryExpression
 // and array elements. All updates require an assignable operand.
 updateOperator : '++' | '--' ;
 postfixExpression : primaryExpression postfixSuffix* updateOperator? ;
-postfixSuffix : '.' IDENTIFIER | '[' assignment ']' | '#' | callSuffix ;
+postfixSuffix : '.' IDENTIFIER | '[' assignment ']' | '#' | callSuffix | methodCallSuffix ;
+
+// For a fixed function-valued member, object.name(args) passes object as self.
+// This overlaps ordinary field selection followed by a call syntactically;
+// name/type resolution determines which call form applies.
+methodCallSuffix : '.' IDENTIFIER callSuffix ;
 
 primaryExpression
     : INTEGER_LITERAL
     | FLOAT_LITERAL
+    | STRING_LITERAL
+    | CHARACTER_LITERAL
     | 'true'
     | 'false'
     | 'null'
@@ -128,14 +157,19 @@ functionType
 callSuffix : '(' argumentList? ')' ;
 argumentList : assignment (',' assignment)* ','? ;
 
-// Struct initialization uses a block; array allocation supplies a length.
-newExpression : 'new' type ('[' assignment ']' | block)? ;
+// Allocation invokes the declared constructor; inline initializer blocks from
+// earlier chapters are replaced by constructor arguments.
+newExpression : 'new' type ('[' assignment ']' | callSuffix)? ;
 
 INTEGER_LITERAL : '0' | [1-9] DIGIT* ;
-FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' DIGIT+) ;
+FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' '-'? DIGIT+) ;
+STRING_LITERAL : '"' (ESCAPE | ~["\\])* '"' ;
+CHARACTER_LITERAL : '\'' (ESCAPE | ~['\\]) '\'' ;
+fragment ESCAPE : '\\' [0ntr\\'"] ;
 IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)* ;
 fragment NON_DIGIT : [a-zA-Z_] ;
 fragment DIGIT : [0-9] ;
 WHITESPACE : [ \t\r\n]+ -> skip ;
 LINE_COMMENT : '//' ~[\r\n]* -> skip ;
+BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
 ```

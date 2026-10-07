@@ -1,6 +1,6 @@
 # Simple
 
-[English](README.md) | 日本語
+[English](README.md) | 日本語 | [翻訳について](docs/japanese-translation.md)
 
 この文書は [Simple の README](README.md) の日本語訳です。
 

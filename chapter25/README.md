@@ -28,6 +28,8 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 in the [linear history](https://github.com/SeaOfNodes/Simple/tree/linear) and
 [compare it with Chapter 24](https://github.com/SeaOfNodes/Simple/compare/linear-chapter24...linear-chapter25).
 
+Here is the [complete language grammar](docs/25-grammar.md) for this chapter.
+
 ## Compilation units and names
 
 `CompUnit` represents a source or object file. `ParseAll` discovers dependencies,
@@ -158,9 +160,9 @@ regressions. `make release` builds the compiler jar and native library artifacts
 `make tags` builds editor tags. Native tools and the selected CPU/ABI must match
 the environment; the Makefile currently defaults to x86-64/win64.
 
-Serialized IR now uses the `C0D2` header: pointer types include an independent
-read-only access bit. Older object files must be rebuilt; the reader rejects
-their old header rather than interpreting their types with the new layout.
+Serialized IR uses the `C0DE` header; pointer types include an independent
+read-only access bit. The format is not versioned yet, so rebuild object files
+after format changes. Backward compatibility is not currently supported.
 
 Compiler changes can invalidate both serialized IR and native code in `sys.o`.
 Rebuild it before interpreting linked-program test results. A source-only subset

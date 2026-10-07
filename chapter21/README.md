@@ -15,6 +15,8 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 in the linear revision history and
 [compare it to Chapter 20](https://github.com/SeaOfNodes/Simple/compare/linear-chapter20...linear-chapter21).
 
+Here is the [complete language grammar](docs/21-grammar.md) for this chapter.
+
 ## From machine nodes to bytes
 
 Instruction selection chooses the operation and register constraints. Register

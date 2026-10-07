@@ -13,6 +13,8 @@ Loads and Stores.
 Also in this chapter, we'll be presenting several fairly detailed graph
 algorithms.  You might want to brush up on your graph theory!
 
+The grammar is unchanged from [Chapter 12](../chapter12/docs/12-grammar.md).
+
 # Table of Contents
 
 1. [High Level Overview](#high-level-overview)

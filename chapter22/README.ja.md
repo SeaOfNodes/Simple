@@ -26,6 +26,8 @@ sys.io.p("Hello, World!");
 
 [linear](https://github.com/SeaOfNodes/Simple/tree/linear) ブランチ上の直線的な Git リビジョン履歴で [この章](https://github.com/SeaOfNodes/Simple/tree/linear-chapter22) を読み、前の章と [比較](https://github.com/SeaOfNodes/Simple/compare/linear-chapter21...linear-chapter22) することもできます。
 
+この章の[完全な言語文法](docs/22-grammar.ja.md)はこちらです。
+
 ## 入れ子の型と静的フィールド
 
 Simple は入れ子の型をサポートします。これは名前空間だけの変更で、新しい意味規則はなく、型定義を入れ子にできるだけです。

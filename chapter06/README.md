@@ -5,6 +5,8 @@ English | [日本語](README.ja.md)
 [Previous: Chapter 5](../chapter05/README.md) |
 [Next: Chapter 7](../chapter07/README.md)
 
+The grammar is unchanged from [Chapter 5](../chapter05/docs/05-grammar.md).
+
 # Table of Contents
 
 1. [Type System Revision](#type-system-revision)

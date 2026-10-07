@@ -14,7 +14,6 @@ English | [日本語](README.ja.md)
 5. [Bitwise operations](#bitwise-operations)
 6. [Precedence](#precedence)
 7. [Type lattice](#type-implementation)
-8. [Nodes](#nodes)
 
 
 With structs, reference fields, and scheduling in place, this chapter extends

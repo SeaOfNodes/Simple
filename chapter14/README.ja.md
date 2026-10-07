@@ -17,8 +17,6 @@
 6. [優先順位](#優先順位)
 7. [型の束](#型の実装)
 
-> 訳注: 原文の目次にある「Nodes」に対応する節は、原文本文にはありません。
-
 構造体、参照フィールド、スケジューリングがそろったので、この章では、それらが運ぶ数値を拡張します。浮動小数点演算、狭い整数型と浮動小数点型、整数の範囲を追加します。
 
 [linear](https://github.com/SeaOfNodes/Simple/tree/linear) ブランチの線形の Git リビジョン履歴で[この章](https://github.com/SeaOfNodes/Simple/tree/linear-chapter14)を読むことや、前章との[差分](https://github.com/SeaOfNodes/Simple/compare/linear-chapter13...linear-chapter14)を見ることもできます。

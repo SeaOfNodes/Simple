@@ -8,7 +8,7 @@ English | [日本語](README.ja.md)
 Chapter 10 made memory effects explicit with one SSA memory value. This
 chapter keeps exactly that parser model and recovers independent memory chains
 through graph rewrites.  There is no new language syntax; the
-[grammar](docs/10-grammar.md), pointer types, and null checks are unchanged.
+[grammar](../chapter10/docs/10-grammar.md), pointer types, and null checks are unchanged.
 
 ## Why split memory?
 

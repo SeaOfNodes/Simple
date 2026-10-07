@@ -1,4 +1,4 @@
-# Grammar for Chapter 1
+# Grammar for Chapter 4
 
 English | [日本語](04-grammar.ja.md)
 

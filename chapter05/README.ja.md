@@ -28,8 +28,6 @@
 17. [Phi を通して加算を押し上げる](#phi-を通して加算を押し上げる)
 18. [さらにいくつかの例](#さらにいくつかの例)
 
-> 訳注: 原文の目次には「Recap」がありますが、対応する節がないため、この目次では省いています。
-
 [linear](https://github.com/SeaOfNodes/Simple/tree/linear) ブランチの直線的な Git のリビジョン履歴で [この章](https://github.com/SeaOfNodes/Simple/tree/linear-chapter05) を読み、前の章と [比較](https://github.com/SeaOfNodes/Simple/compare/linear-chapter04...linear-chapter05) することもできます。
 
 この章では、言語の文法を拡張して次の機能を追加します。

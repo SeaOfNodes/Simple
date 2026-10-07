@@ -1,6 +1,6 @@
-# 第17b章の文法
+# Grammar for Chapter 21
 
-[English](17-grammar.md) | 日本語
+English | [日本語](21-grammar.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;
@@ -46,7 +46,8 @@ initializer : assignment ;
 // The prefix qualifies the named struct reference, not an enclosing array.
 // Each [] / [~] suffix qualifies its own array layer. ? requires a reference.
 type
-    : primitiveType typeSuffix*
+    : functionType
+    | primitiveType typeSuffix*
     | accessModifier? typeName typeSuffix*
     ;
 accessModifier : '!' | '~' ;
@@ -97,7 +98,7 @@ unaryExpression
 // and array elements. All updates require an assignable operand.
 updateOperator : '++' | '--' ;
 postfixExpression : primaryExpression postfixSuffix* updateOperator? ;
-postfixSuffix : '.' IDENTIFIER | '[' assignment ']' | '#' ;
+postfixSuffix : '.' IDENTIFIER | '[' assignment ']' | '#' | callSuffix ;
 
 primaryExpression
     : INTEGER_LITERAL
@@ -108,13 +109,30 @@ primaryExpression
     | IDENTIFIER
     | '(' assignment ')'
     | newExpression
+    | functionExpression
     ;
+
+// A function is an expression bound with an ordinary declaration.
+// Its last statement supplies the implicit result; return can exit earlier.
+functionExpression : '{' parameterList? '->' statement* '}' ;
+parameterList : (parameter ','?)+ ;
+parameter : type bindingModifier? IDENTIFIER ;
+
+// Function types have unnamed, space-separated argument types.
+// {int} is the zero-argument type; its function expression still uses ->.
+functionType
+    : '{' type+ '->' type '}' '?'?
+    | '{' type '}' '?'?
+    ;
+
+callSuffix : '(' argumentList? ')' ;
+argumentList : assignment (',' assignment)* ','? ;
 
 // Struct initialization uses a block; array allocation supplies a length.
 newExpression : 'new' type ('[' assignment ']' | block)? ;
 
 INTEGER_LITERAL : '0' | [1-9] DIGIT* ;
-FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' DIGIT+) ;
+FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' '-'? DIGIT+) ;
 IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)* ;
 fragment NON_DIGIT : [a-zA-Z_] ;
 fragment DIGIT : [0-9] ;

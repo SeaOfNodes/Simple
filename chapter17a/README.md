@@ -10,6 +10,8 @@ bindings may be reassigned and which references permit writes after construction
 These are independent questions, including for fields and array elements.
 Chapter 17b will add inference and assignment shortcuts using these same rules.
 
+Here is the [complete language grammar](docs/17-grammar.md) for this chapter.
+
 ## Two permissions
 
 A modifier before a struct type names the access permission: `!Point` permits

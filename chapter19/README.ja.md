@@ -9,6 +9,8 @@
 
 [linear](https://github.com/SeaOfNodes/Simple/tree/linear) ブランチ上の直線的な Git リビジョン履歴で [この章](https://github.com/SeaOfNodes/Simple/tree/linear-chapter19) を読み、前の章と [比較](https://github.com/SeaOfNodes/Simple/compare/linear-chapter18...linear-chapter19) することもできます。
 
+文法は[第18章](../chapter18/docs/18-grammar.ja.md)から変わりません。
+
 ## 命令選択、レジスタ割り当て、命令エンコーディングにまつわる全体的な問題と開発上の問題
 
 命令選択の出力、すなわち理想化された Simple ノードからマシン固有のノードへの対応付けは、実行方法がないと大量にテストするのが困難です。命令選択、レジスタ割り当て、命令エンコーディングの3つすべてが完成するまでは、実行方法が得られません。そのため、エンコーディングの完成前後には、命令選択とレジスタ割り当てで多くのバグが見つかると予想しています。もちろん出力を手作業で調べて明らかな問題は修正しますが、実際にコードを動かせるようになるまで、多くのバグが残ります。

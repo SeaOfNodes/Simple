@@ -135,7 +135,7 @@ To fix this, we introduce an extra `deadCodeElim` call that is responsible for d
 public final Node peephole( ) {
     ...
     if (!(this instanceof ConstantNode) && type.isConstant())
-        return new deadCodeElim(ConstantNode(type).peephole());
+        return deadCodeElim(new ConstantNode(type).peephole());
 
     ...
   

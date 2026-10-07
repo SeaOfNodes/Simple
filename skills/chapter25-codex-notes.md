@@ -78,7 +78,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   not merely because the canonical declaration has different pointer permissions.
 - Construct cyclic pointers with their access bit already set before interning;
   creating a provisional pointer and then changing access can orphan temporary
-  cyclic types. Serialized objects use the `C0D2` header and require a rebuild.
+  cyclic types. Serialized objects use the unversioned `C0DE` header; rebuild
+  objects after format changes. Backward compatibility is not required yet.
 
 ## Tutorial backports
 

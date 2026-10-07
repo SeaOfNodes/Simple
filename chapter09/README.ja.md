@@ -7,6 +7,8 @@
 [前の章: 第8章](../chapter08/README.ja.md) |
 [次の章: 第10章](../chapter10/README.ja.md)
 
+文法は[第8章](../chapter08/docs/08-grammar.ja.md)から変わりません。
+
 # 目次
 
 1. [ピープホール最適化の基盤づくり](#ピープホール最適化の基盤づくり)
@@ -18,8 +20,6 @@
    - [例1](#例1)
    - [例2](#例2)
 7. [解析後の反復最適化](#解析後の反復最適化)
-
-> 訳注: 原文の目次の「Other Concerns」は、本文では「Future Work」という見出しです。日本語の目次は本文の見出しに合わせています。
 
 [linear](https://github.com/SeaOfNodes/Simple/tree/linear) ブランチの直線的な Git のリビジョン履歴で [この章](https://github.com/SeaOfNodes/Simple/tree/linear-chapter09) を読み、前の章と [比較](https://github.com/SeaOfNodes/Simple/compare/linear-chapter08...linear-chapter09) することもできます。
 

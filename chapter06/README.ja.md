@@ -7,6 +7,8 @@
 [前の章: 第5章](../chapter05/README.ja.md) |
 [次の章: 第7章](../chapter07/README.ja.md)
 
+文法は[第5章](../chapter05/docs/05-grammar.ja.md)から変わりません。
+
 # 目次
 
 1. [型システムの改訂](#型システムの改訂)

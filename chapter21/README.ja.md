@@ -11,6 +11,8 @@
 
 直線的なリビジョン履歴で [この章](https://github.com/SeaOfNodes/Simple/tree/linear-chapter21) を読み、[第20章と比較](https://github.com/SeaOfNodes/Simple/compare/linear-chapter20...linear-chapter21) することもできます。
 
+この章の[完全な言語文法](docs/21-grammar.ja.md)はこちらです。
+
 ## マシンノードからバイトへ
 
 命令選択は演算とレジスタ制約を選びます。レジスタ割り当ては物理レジスタとスタックスロットを割り当てます。その後、エンコーディングがオペコード、割り当て済みレジスタ、即値オペランドを命令バイトへ組み合わせます。この時点で命令は別のレジスタを選べません。周囲の命令が、すでに割り当て器の選択に依存しているためです。

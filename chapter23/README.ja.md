@@ -38,6 +38,8 @@ struct String {
 
 [linear](https://github.com/SeaOfNodes/Simple/tree/linear) ブランチ上の直線的な Git リビジョン履歴で [この章](https://github.com/SeaOfNodes/Simple/tree/linear-chapter23) を読み、前の章と [比較](https://github.com/SeaOfNodes/Simple/compare/linear-chapter22...linear-chapter23) することもできます。
 
+この章の[完全な言語文法](docs/23-grammar.ja.md)はこちらです。
+
 ## なぜ循環する型なのか
 
 循環する型は代替手法より精密な解析を可能にし、より多くのプログラムや、よりよい最適化、あるいは両方を許します。Simple では型を型検査にも使うので、より精密な型により、より多くの正しいプログラムを許容します。

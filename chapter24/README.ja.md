@@ -13,6 +13,8 @@
 
 [linear](https://github.com/SeaOfNodes/Simple/tree/linear) ブランチ上の直線的な Git リビジョン履歴で [この章](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) を読み、前の章と [比較](https://github.com/SeaOfNodes/Simple/compare/linear-chapter23...linear-chapter24) することもできます。
 
+この章の[完全な言語文法](docs/24-grammar.ja.md)はこちらです。
+
 ## 関係比較の連鎖
 
 関係比較の連鎖により、同じ変数を繰り返さず、連続する比較をすっきりと読みやすく書けます。
