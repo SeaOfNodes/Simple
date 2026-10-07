@@ -18,7 +18,6 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -373,21 +372,12 @@ public class Chapter25Test {
 
         String obj = "build/objs/"+base+".o";
         String exe = "build/objs/"+base+(TestC.OS.startsWith("Windows") ? ".exe" : "");
-        String syms = run(new String[]{"nm",obj});
+        String syms = TestC.exec("nm",obj);
         assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
 
         TestC.linkExe(obj,null,null,new Ary<>(new String[]{SYS_FILE.toString()}),exe);
-        String rez = run(new String[]{exe});
+        String rez = TestC.exec(exe);
         assertEquals(expected,rez);
-    }
-
-    private static String run(String[] cmd) throws Exception {
-        Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
-        boolean normal = p.waitFor(5, TimeUnit.SECONDS);
-        String out = new String(p.getInputStream().readAllBytes());
-        assertTrue(out, normal);
-        assertEquals(out,0,p.exitValue());
-        return out;
     }
 
     @Test
