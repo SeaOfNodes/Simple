@@ -670,6 +670,25 @@ The top-level runner accepts explicit chapter lists, e.g.
 
 ## Validation record
 
+- **Shared Phi inputs and deterministic inlining (2026-10-07).** Chapters
+  20-25 split a self-conflicting Phi's inputs when another Phi shares them;
+  splitting only the entry and result could leave two loop Phis joined through
+  their backedge forever. Chapters 24-25 keep their first cold-only attempt.
+  Chapter 25 relinks cloned calls in node-ID order, removing identity-map
+  iteration order from graph edges and optimizer worklists. The original
+  SystemV sys-library allocation failure reproduced directly on Windows with
+  `-XX:+UnlockExperimentalVMOptions -XX:hashCode=2`. With both fixes, complete
+  phase dumps through allocation agree between Windows Java 21.0.4, Windows
+  with constant identity hashes, and Linux Temurin 21.0.12.1. Windows suites
+  pass in all six affected chapters (406, 445, 466, 488, 518, and 494 tests),
+  including native tests and unchanged spill expectations. No tests were added.
+  A fresh Linux checkout with Temurin 21 passes the exact CI command
+  `make lib tests CTAGS=`, including all chapters, a fresh SystemV sys library,
+  native tests, and shared printer/ISA checks.
+  Logs: `build/ci-linux-all-tests.log`, `build/ci-windows-tests.log`,
+  `build/ci-windows-ch25-final.log`, and
+  `build/ci-fixed-{default,constant,linux}.log`.
+
 - **Unused parser memory aggregates, Chapters 11-24 (2026-10-03).** Release
   temporary prior-memory keeps with dead-node cleanup after publishing the new
   memory value. Flattening a MemMerge could remove its last real use while the

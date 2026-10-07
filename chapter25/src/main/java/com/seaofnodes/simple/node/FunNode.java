@@ -6,6 +6,7 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
 import com.seaofnodes.simple.util.Utils;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -341,7 +342,11 @@ public class FunNode extends RegionNode {
             if( !(fun2.in(i) instanceof CallNode call) || !body2.get(call._nid) )
                 fun2.removeDeadPath(i--);
 
-        for( Node old : map.keySet() )
+        // Linking adds graph edges and worklist entries; identity-map order
+        // would make inlining depend on the host JVM's object hashes.
+        Node[] olds = map.keySet().toArray(new Node[0]);
+        Arrays.sort(olds, (x,y) -> Integer.compare(x._nid,y._nid));
+        for( Node old : olds )
             if( old instanceof CallNode oldCall )
                 relinkClonedCall(oldCall,(CallNode)map.get(oldCall),map);
 

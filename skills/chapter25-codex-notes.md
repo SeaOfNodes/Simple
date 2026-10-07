@@ -331,6 +331,18 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Register allocation review
 
+- Phi self-conflict splitting must isolate inputs shared with another Phi,
+  not only the entry input and result. Two loop Phis sharing a backedge value
+  otherwise stay in one conflicting LRG across every round. The correction
+  starts in 20; 24-25 retain their first cold-only attempt.
+- Chapter 25's cloned-call relinking must visit old nodes in node-ID order.
+  Iterating the clone IdentityHashMap changed call edges and optimizer worklist
+  order across JVMs. The SystemV sys build reproduced on Windows with
+  `-XX:+UnlockExperimentalVMOptions -XX:hashCode=2`; WSL was not essential.
+  When investigating reproducibility, compare phase dumps before blaming the
+  allocator or target ABI. Even diagnostic identity maps can perturb JVM hash
+  assignment and expose an existing dependence on identity iteration order.
+
 - Allocation starts in 20; native encoding in 21. Backport legality and
   no-progress fixes to the first applicable chapter, but introduce spill-quality
   heuristics gradually. Do not import the complete Chapter 25 allocator into 20.
