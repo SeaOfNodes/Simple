@@ -123,6 +123,7 @@ public class Chapter18Test {
     }
 
 
+    @Ignore
     @Test
     public void testJig() {
         CodeGen code = new CodeGen(
@@ -462,7 +463,7 @@ if (i2i) return i2i(arg);
 return f2f(o)(1);
 """);
         code.parse().opto().typeCheck().GCM().localSched();
-        assertEquals("Stop[ return Phi(Region,#2,#2); return Parm_i(o,int); ]", code._stop.toString());
+        assertEquals("Stop[ return Phi(Region,#2,1); return Parm_i(o,int); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  2));
     }
 

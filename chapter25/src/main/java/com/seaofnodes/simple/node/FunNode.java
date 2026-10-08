@@ -221,6 +221,11 @@ public class FunNode extends RegionNode {
     public static boolean isInit(String name ) { return name!=null && name.endsWith("init>"); }
     public static boolean isInstance(String name ) { return name!=null && name.endsWith(".<init>"); }
 
+    // Allocation factories and instance initializers carry extra memory boilerplate.
+    public int inlineLimit() {
+        return isInstance() || (_name!=null && _name.endsWith(".<new>")) ? 200 : 100;
+    }
+
     // Function is public (callable from Start directly).
     public boolean isPublic( ) {
         // Never true for anonymous functions
@@ -316,7 +321,7 @@ public class FunNode extends RegionNode {
     FunNode copyBody() {
         // Build the function body BitSet
         BitSet body = body();
-        assert body.cardinality() < 100;
+        assert body.cardinality() < inlineLimit();
         // Walk the body, cloning
         IdentityHashMap<Node,Node> map = new IdentityHashMap<>();
         BitSet visit = CodeGen.CODE.visit();

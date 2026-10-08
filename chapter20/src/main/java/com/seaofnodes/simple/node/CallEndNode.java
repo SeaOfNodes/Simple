@@ -96,6 +96,99 @@ public class CallEndNode extends CFGNode implements MultiNode {
         return null;
     }
 
+    // Clone only tiny, straight-line boilerplate, after ordinary peeps settle.
+    // Larger bodies still use the existing single-caller, non-cloning inline.
+    public boolean inlineSmall() {
+        if( isDead() || _folding || nIns()!=2 || !(in(0) instanceof CallNode call) ) return false;
+        Node fptr = call.fptr();
+        if( !(fptr instanceof ConstantNode) ||
+            !(fptr._type instanceof TypeFunPtr tfp && tfp.notNull() && tfp.isConstant()) )
+            { fptr.addDep(this); return false; }
+        if( call.err()!=null ) return false;
+        ReturnNode ret = (ReturnNode)in(1);
+        FunNode fun = ret.fun();
+        if( fun._folding ) return false;
+        int len = smallBody(fun);
+        if( len==0 ) return false;
+        // All callers consume the three normal return projections.
+        for( Node use : _outputs )
+            if( !((use instanceof ProjNode p && p._idx>=0 && p._idx<3) ||
+                  (use instanceof CProjNode cp && cp._idx==0)) ) return false;
+
+        // Substitute control and arguments directly; no new function identity,
+        // parameter Phis, or return address is needed for this straight line.
+        Node[] copy = new Node[len];
+        for( int i=0; i<len; i++ ) {
+            Node n = TINYBODY[i];
+            copy[i] = n==fun ? call.ctrl() :
+                n instanceof ParmNode parm ? (parm._idx==0 ? null : call.arg(parm._idx)) :
+                n==ret ? null : n.copyEmpty();
+        }
+        for( int i=0; i<len; i++ ) {
+            Node n = TINYBODY[i];
+            if( n instanceof StoreNode || n instanceof MemMergeNode ) {
+                for( Node in : n._inputs ) copy[i].addDef(mapped(in,copy));
+                CodeGen.CODE.add(copy[i]);
+            }
+        }
+        Node[] result = new Node[3];
+        for( int i=0; i<3; i++ ) result[i] = mapped(ret.in(i),copy).keep();
+        keep();
+        call.unlink_all();
+        CodeGen.CODE.add(fun);
+        CodeGen.CODE.addAll(fun._outputs);
+        // subsume kills each projection; retain CallEnd until all are replaced.
+        while( nOuts()>1 ) {
+            Node use = out(0)==null ? out(1) : out(0);
+            int idx = use instanceof ProjNode p ? p._idx : ((CProjNode)use)._idx;
+            CodeGen.CODE.addAll(use._outputs);
+            use.subsume(result[idx]);
+        }
+        unkill();
+        for( Node n : result ) n.unkill();
+        CodeGen.CODE.invalidateIDepthCaches();
+        return true;
+    }
+
+    private static Node mapped(Node n, Node[] copy) {
+        for( int i=0; i<copy.length; i++ )
+            if( TINYBODY[i]==n ) return copy[i];
+        return n;               // Constants outside the body are shared.
+    }
+
+    // Bounded recognition of initializer boilerplate. Walk uses from the entry
+    // and stop at Return, never following callers or constant inputs. This also
+    // avoids scanning sparse MemMerge input arrays while a large body shrinks.
+    // Watch this small prefix, including an unsupported node that may fold.
+    private static final Node[] TINYBODY = new Node[15]; // Tiny worklist
+    private int smallBody(FunNode fun) {
+        ReturnNode ret = fun.ret();
+        for( Node in : ret._inputs )
+            if( in!=null ) in.addDep(this);
+        if( ret.ctrl()!=fun ) return 0;
+        TINYBODY[0] = fun;
+        int len=1;
+        for( int i=0; i<len; i++ ) {
+            Node n = TINYBODY[i];
+            n.addDep(this);
+            if( n==ret ) continue;
+            if( n instanceof ParmNode parm && parm.region()!=fun ) return 0;
+            if( n!=fun && !(n instanceof ParmNode) &&
+                !(n instanceof StoreNode) && !(n instanceof MemMergeNode) )
+                return 0;
+            if( n.nOuts()>TINYBODY.length ) return 0;
+            for( Node use : n._outputs ) {
+                if( use==null ) continue;
+                int j=0;
+                while( j<len && TINYBODY[j]!=use ) j++;
+                if( j<len ) continue;
+                if( len==TINYBODY.length ) { use.addDep(this); return 0; }
+                TINYBODY[len++] = use;
+            }
+        }
+        return len;
+    }
+
     @Override public Node pcopy(int idx) {
         return _folding ? in(1).in(idx) : null;
     }

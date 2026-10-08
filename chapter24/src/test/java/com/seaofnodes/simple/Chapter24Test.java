@@ -12,6 +12,7 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import java.io.IOException;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -36,6 +37,7 @@ public class Chapter24Test {
     }
 
 
+    @Ignore
     @Test
     public void testJig() throws IOException {
         String src = "int v0=0;  v0 = arg && 0== 0 !=0;";

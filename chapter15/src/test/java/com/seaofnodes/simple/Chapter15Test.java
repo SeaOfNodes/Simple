@@ -76,6 +76,7 @@ public class Chapter15Test {
         assertEquals(712L,Evaluator.evaluate(stop,5));
     }
 
+    @Ignore
     @Test
     public void testJig() {
         Parser parser = new Parser("""

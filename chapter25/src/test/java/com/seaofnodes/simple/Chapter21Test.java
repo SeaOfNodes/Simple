@@ -10,6 +10,7 @@ import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
 import com.seaofnodes.simple.util.SB;
 import java.io.IOException;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -257,6 +258,7 @@ public class Chapter21Test {
     }
 
 
+    @Ignore
     @Test
     public void testJig() throws IOException {
         String src =

@@ -32,6 +32,11 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 - Build with Make alone; Maven must never be required. Cliff prefers few tests:
   avoid tests for every small viewer edit or rapidly changing display experiment.
   Use focused existing tests and disposable probes when they answer a real risk.
+- Jig tests are temporary debugging placeholders. Keep every `testJig*` method
+  `@Ignore`, retain its scratch body, and exclude it from spill cohorts/replays.
+  They must not become benchmarks or regression tests just because their current
+  contents compile. Cohorts 23/24 now contain 24/58 allocations (199 total replay
+  entries), after removing all 15 frozen Jig entries.
 - Prefer concrete ArrayList to List, common base classes to unnecessary
   interfaces, and short names (`pred`, `proj`, `def`, `use`). Avoid redundant
   Objects.requireNonNull. Prefer int[]/AryInt to List<Integer>; avoid large boxed
@@ -364,9 +369,13 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   limit or changing spill goldens does not prove progress fixed. Heuristics
   which defer necessary splitting must retain a bounded fallback.
 - Review the README with each allocator chapter. End it with a RegAlloc
-  improvements section, a measured table, and commentary. Each row names a
-  program cohort, all compiled by that directory's compiler: 20 in Chapter 20,
-  20-21 in Chapter 21, through 20-25 in Chapter 25. Include the BrainFuck and
+  improvements section, a measured matrix, and commentary. Rows are fixed
+  program cohorts, columns are compiler chapters through that directory, and
+  cells are scaled spills. Include one test-count column, no totals row, and
+  leave cells before a cohort's introduction blank. The full matrix lives in
+  [regalloc-spills.md](../docs/regalloc-spills.md). Root `make spill-stats` uses
+  `build-support/spill-matrix.py` to rerun and validate membership; its
+  `--reuse --update-docs` mode refreshes the marked tables. Include the BrainFuck and
   MergeSort allocator cases in the Chapter 20 cohort (39 compilations, not just
   Chapter20Test's 33). Keep diagnostic machine graphs separate from quality data.
 - `make spill-stats` starts in 20. Helpers explicitly name the program cohort;
@@ -472,6 +481,38 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   Both trials were rejected. Keep the existing area/cost ranking; client-only
   totals do not prove whole-suite improvement. The driver uses seed 456, old
   cohort replay uses 123, and current test helpers normally use 126.
+- The 2026-10-07 targeted exception prioritizes single-use function addresses
+  separated from their use in the same block. This avoids adding callee-save
+  copies to hold rematerializable constants and passes fresh Win64/SystemV sys
+  builds. It does not restore the old broad ranking or prefer multi-use clones.
+  Eleven historical fixtures now mark local helpers/classes private; the fixture
+  README records this baseline change. Keep public export/API cases public and
+  separate visibility gains from same-source allocator measurements.
+- `_approxUIDs` is a parse-time count, not the optimized inlining size. The
+  early size rejection blocks `_hashCodeString` (100 estimated / 25 live) and
+  `_merge` (182 / 54) in the private fixtures. Removing that gate in a shadow
+  build inlines both, but ordinary-function policy stays unchanged. Cliff has
+  deferred deterministic best-call selection and per-convergence size caching
+  until after splitting Chapter 25. Do not resume that redesign as routine cleanup.
+- The interim inliner now uses a bounded 15-node boilerplate recognizer for
+  oversized parse estimates, replacing the earlier 1,000-node constructor
+  allowance. Walk uses from Fun through Parm/Store/MemMerge to Return, bounding
+  fanout and stopping at Return; scanning sparse MemMerge inputs would defeat
+  the bound. Watch Return inputs and the inspected prefix for later folding.
+  Normal body limits remain 100, or 200 for `<new>`/instance `<init>`, including
+  copyBody's assertion. Six Bubble Sort constructor calls fold despite parse
+  estimates 276-479 (also checked at 10,000); their live bodies are 11-14 nodes.
+  Public definitions remain emitted. Costs match the larger-allowance trial
+  (cohort 24 -3, cohort 25 +33 relative to private-helper changes), so do not claim
+  a general RA improvement. Full Make tests and fresh Win64/SystemV builds pass.
+  Chapters 20-24 now reuse the bounded recognizer with restricted straight-line
+  Store/MemMerge copying, substituting arguments/control directly. A separate
+  inline worklist runs after shrinking peeps settle; ordinary single-caller
+  inlining remains in idealize. Preserve Chapter 20's reversed dependency API
+  (`observed.addDep(dependent)`); 21 onward use `dependent.addDep(observed)`.
+  These chapters expand constructor defaults directly and have no parse-size
+  gate. Their full suites and three-seed store probes pass; spill records are
+  unchanged. This does not implement the deferred general Chapter 25 redesign.
 - ARM load/store opcodes must follow the allocated register bank, not the
   source Type. Emit the SIMD bit for both addressing modes, normalize D0-D31
   to register numbers 0-31, and permit FP registers only at supported widths.

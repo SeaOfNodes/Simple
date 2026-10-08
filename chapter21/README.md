@@ -135,109 +135,34 @@ excluded from the spill totals.
 
 A split inserts a copy between two live ranges. If both can safely become one
 range, the copy can disappear before coloring. [Coalesce.java](src/main/java/com/seaofnodes/simple/codegen/Coalesce.java)
-checks that the ranges do not interfere, intersects their allowed-register masks,
-and combines their neighbors. It merges only when the resulting neighbor count
-is smaller than the number of available registers. This simple conservative rule
-preserves a color choice even if every neighbor takes a different register.
-
-Merging also updates neighboring adjacency lists and removes sample references
-to the deleted copy. A rejected merge restores the original adjacency list.
-Mask compatibility alone is insufficient: two values that are simultaneously
-live cannot share a register merely because both permit it.
+checks that the ranges do not interfere, intersects their allowed-register
+masks, and combines their neighbors.  It merges only when the resulting
+neighbor count is smaller than the number of available registers - meaning it
+can always color.
 
 After coloring, a copy with one use in the immediately following instruction
 can also disappear when that operand accepts the source register and is not
 its two-address operand. For example, `mov rpc=s8; st1 [rpc+4],s1` becomes
-`st1 [s8+4],s1`. Adjacency proves that nothing overwrites the source in between.
-Phi and control-flow users are excluded. This local cleanup leaves spill
+`st1 [s8+4],s1`.  Adjacency proves that nothing overwrites the source in between.
+Phi and control-flow users are excluded.  This local cleanup leaves spill
 selection unchanged; it complements coalescing without another CFG analysis.
 
-Chapter 20's legality and progress fixes carry forward, including compatible
-rematerialization and clobber-aware copy reuse. Chapter 21 retains its native
-frame and ABI support. Stronger color bias and cheap-spill ranking are reserved
-for Chapter 22, popular-use grouping for 23, cold-first loop splitting for 24,
-and area/cost ranking for 25.
+For looking at allocator progress, we will keep a table of weighted spill costs
+a chapters' tests - and use the later chapter compiler and register allocator
+on them.  The later chapters also modify the graph (sometimes adding boiler
+plate graph) so its not really a 100% fair comparison of how well this
+*heuristic* does, but it does give us some idea that we're not losing ground.
 
-These are measured sums with **this chapter's compiler**, default optimizer seed
-123, on Windows x86-64. A split is a retained `SplitNode`, including register
-moves; it is not necessarily a memory spill. Weighted counts multiply each split
-by `8^loopDepth`.
+Rows are fixed test cohorts; columns are the compiler/allocator chapters.  Each
+cell is the sum of `_spillScaled`: retained split moves, including register
+copies, weighted by loopDepth.  Lower is better.  **# tests counts
+compilations** (program/CPU/ABI cases), including zero-spill cases, rather than
+JUnit methods.  The count and membership of each row stay fixed across columns.
 
-| Program cohort | Compilations | Retained moves | Loop-weighted moves |
+<!-- spill-matrix:start -->
+| Test cohort | # tests | Ch 20 | Ch 21 |
 |---|---:|---:|---:|
-| Chapter 20 | 39 | 380 | 576 |
-| Chapter 21 | 52 | 467 | 1,076 |
-| **Total** | **91** | **847** | **1,652** |
+| Ch 20 | 39 | 360 | 576 |
+| Ch 21 | 52 |  | 1,072 |
+<!-- spill-matrix:end -->
 
-The Chapter 20 row freezes all 13 original inputs, including BrainFuck and
-MergeSort, on three SystemV targets. They live in `Chapter20Test`. The revised
-sources/ABI cases previously in that file are retained in `Chapter21AllocTest`;
-together with `Chapter21Test` and the native BrainFuck/MergeSort tests they form
-the Chapter 21 row. That row includes 17 ARM/SystemV, 17 RISC-V/SystemV, eight
-x86/SystemV, and ten x86/Win64 compilations. Native host ABI changes affect this
-row; compare the same host and targets.
-
-Before adjacent-copy forwarding, the memory port changed the previous total of 840 / 1,456 to 845 / 1,559,
-with identical cohort membership and allocator heuristics. These are all changed
-rows; each entry is retained / loop-weighted splits:
-
-| Cohort / program | Target / ABI | Before | Lazy memory |
-|---|---|---:|---:|
-| 20 / MergeSort | ARM / SystemV | 44 / 44 | 41 / 41 |
-| 20 / BrainFuck | RISC-V / SystemV | 35 / 42 | 37 / 58 |
-| 20 / Alloc2 | x86 / SystemV | 3 / 3 | 4 / 4 |
-| 20 / Alloc2 | ARM / SystemV | 10 / 10 | 9 / 9 |
-| 20 / String | x86 / SystemV | 7 / 14 | 8 / 15 |
-| 20 / String | RISC-V / SystemV | 14 / 14 | 10 / 10 |
-| 20 / String | ARM / SystemV | 13 / 13 | 10 / 10 |
-| 21 / Sieve | x86 / Win64 | 24 / 178 | 24 / 185 |
-| 21 / Sieve | RISC-V / SystemV | 19 / 89 | 22 / 92 |
-| 21 / Sieve | ARM / SystemV | 23 / 93 | 21 / 91 |
-| 21 / BrainFuck | RISC-V / SystemV | 35 / 42 | 46 / 130 |
-
-RISC-V BrainFuck accounts for most of the weighted increase. A diagnostic run
-omitting only read-before-New ordering changes its two rows to 35 / 42 and
-37 / 58. That explains most of the cost; the compiler retains the ordering
-constraint. No heuristic tuning is included in the memory port.
-
-The subsequent Load-search improvement folds BrainFuck's fixed program length
-through the loop's N-way memory merge. Every backedge arm must fold or return
-to unchanged memory for the same pointer. It removes 907 executed heap loads
-in the RISC-V Hello World run and reduces stack traffic from 1,006 loads / 572
-stores to 15 / 15. Before copy forwarding, that row had 144 / 165 moves / weighted moves,
-and the complete 91-entry total was 943 / 1,594. Adjacent-copy forwarding
-reduces these to 35 / 42 and 821 / 1,444 respectively. The RISC-V Hello World
-run executes 21,787 instructions instead of 21,920, with unchanged heap and
-stack traffic. These are emulator instruction counts, not hardware timings.
-The current native BrainFuck test and all runtime assertions are enabled.
-
-Restoring GCM's anti-dependence dominator walk subsequently changes each
-RISC-V BrainFuck row from 35 / 42 to 48 / 146, giving the current table above.
-A conditional writer need not dominate a later Load placement, so checking
-only the writer's exact block misses required ordering. The restored walk
-fixes a read-before-conditional-store program that returned 140 instead of 120.
-Both BrainFuck execution checks and the complete 91-entry spill audit pass;
-the increased move count is recorded without changing allocator heuristics.
-
-The following coalescing comparison predates lazy memory. Both sides use the
-same compiler from that audit; it is not a fresh ablation of the current graph:
-
-| Earlier controlled comparison, same 91 compilations | Splits | Loop-weighted splits |
-|---|---:|---:|
-| Audit compiler with coalescing disabled | 1,070 | 1,889 |
-| Audit compiler with coalescing | 840 | 1,456 |
-
-The controlled run disables only `Coalesce.coalesce` in `graphColor`. Allocation,
-register constraints, and runtime checks pass in both runs. The disabled run
-reports nine changed spill goldens and exits unsuccessfully, as intended.
-Coalescing saves 230 moves (21.5%) and 433 weighted moves (22.9%). Local increases
-can still occur; the aggregate, rather than one example, judges the tradeoff.
-
-The final audit backported narrow x86/RISC-V store masks and corrected ARM
-register-bank selection and floating-point memory operations. Restricting byte
-stores to legal registers lowers RISC-V BrainFuck from 211 to 42 weighted moves
-in each of its two cohorts, reducing the previous table by 44 raw / 338 weighted
-moves. These correctness fixes are included on both sides of the comparison.
-Earlier measurements made with the broader masks are historical, not the current
-baseline. Chapter 20's 357 weighted moves are not a coalescing baseline either:
-Chapter 21 changes machine lowering and implements native ABI obligations.

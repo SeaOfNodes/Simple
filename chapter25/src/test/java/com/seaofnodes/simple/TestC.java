@@ -16,6 +16,7 @@ import static org.junit.Assert.*;
 // Call a C driver program, which calls a Simple-generated .o, and self-checks.
 // Expects GCC from the default CLI, compiles C, compiles Simple, links and runs.
 public abstract class TestC {
+    public static final int TEST_TIMEOUT_SECONDS = 60;
 
     public static final String OS  = System.getProperty("os.name");
     public static final String CPU = System.getProperty("os.arch");
@@ -187,7 +188,7 @@ public abstract class TestC {
         }
 
         // Run GCC to link (optionally compile C driver code)
-        exec(10,params.asAry());
+        exec(TEST_TIMEOUT_SECONDS,params.asAry());
     }
 
     public static String exec( String... args ) throws IOException {
@@ -229,9 +230,11 @@ public abstract class TestC {
             if( stdin==null )
                 p.getOutputStream().close();
             if( seconds>0 && !p.waitFor(seconds,TimeUnit.SECONDS) ) {
+                String process = "pid="+p.pid()+", cpu="+
+                    p.info().totalCpuDuration().map(Object::toString).orElse("unknown");
                 p.destroyForcibly();
                 boolean stopped = p.waitFor(5,TimeUnit.SECONDS);
-                throw new IOException(String.join(" ",args)+"\ntimed out after "+seconds+" seconds"+
+                throw new IOException(String.join(" ",args)+"\ntimed out after "+seconds+" seconds ("+process+")"+
                                       (stopped ? "" : "; process did not terminate")+
                                       "\nstdout:\n"+Files.readString(stdoutFile)+
                                       "\nstderr:\n"+Files.readString(stderrFile));

@@ -1,5 +1,5 @@
 // Newtons approximation to the square root
-val sqrt = { int x ->
+val _sqrt = { int x ->
     int guess = x;
     while( 1 ) {
         int next = (x/guess + guess)/2;
@@ -8,4 +8,4 @@ val sqrt = { int x ->
     }
 };
 int cast_int = arg+2;
-return sqrt(arg) + sqrt(cast_int);
+return _sqrt(arg) + _sqrt(cast_int);

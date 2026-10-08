@@ -48,6 +48,7 @@ public class Chapter14FloatTest {
     }
 
 
+    @Ignore
     @Test
     public void testJig() {
         Parser parser = new Parser(

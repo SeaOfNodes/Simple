@@ -179,10 +179,12 @@ public class CallEndNode extends CFGNode implements MultiNode {
             { addDep(fptr); return -1; }
 
         // Encouraged inlining because small size and constructor.
-        int maxSize = fun._name!=null && fun.isInit() && !fun.isClz() ? 200 : 100;
-        if( fun._approxUIDs >= maxSize )
-            return -2;          // Try later (if shrinking helps)
-        if( fun.body().cardinality() >= maxSize )
+        int maxSize = fun.inlineLimit();
+        // A large parse can leave only a tiny initializer.  Recognize that
+        // without repeatedly walking the whole body while it shrinks.
+        if( fun._approxUIDs >= maxSize ) {
+            if( !smallBody(fun) ) return -1;
+        } else if( fun.body().cardinality() >= maxSize )
             return -1;          // Try later (if cleanup makes the real body small enough)
 
         // Can be cloned but not trivial
@@ -190,6 +192,39 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
         // A candidate right now
         return 1;
+    }
+
+    // Bounded, conservative recognition of straight-line initializer boilerplate.
+    // Walk uses from the entry and stop at Return, never following callers or
+    // constant inputs.  This also avoids scanning sparse MemMerge input arrays.
+    // Watch only this small prefix, including an unsupported node that may fold.
+    private static final Node[] TINYBODY = new Node[15]; // Tiny worklist
+    private boolean smallBody(FunNode fun) {
+        ReturnNode ret = fun.ret();
+        for( Node in : ret._inputs )
+            if( in!=null ) addDep(in);
+        if( ret.ctrl()!=fun ) return false;
+        TINYBODY[0] = fun;
+        int len=1;
+        for( int i=0; i<len; i++ ) {
+            Node n = TINYBODY[i];
+            addDep(n);
+            if( n==ret ) continue;
+            if( n instanceof ParmNode parm && parm.region()!=fun ) return false;
+            if( n!=fun && !(n instanceof ParmNode) &&
+                !(n instanceof StoreNode) && !(n instanceof MemMergeNode) )
+                return false;                             // Something unexpected
+            if( n.nOuts()>TINYBODY.length ) return false; // Too big
+            for( Node use : n._outputs ) {
+                if( use==null ) continue;
+                int j=0;
+                while( j<len && TINYBODY[j]!=use ) j++;
+                if( j<len ) continue; // Already in TINYBODY
+                if( len==TINYBODY.length ) { addDep(use); return false; } // Too big
+                TINYBODY[len++] = use;  // Add to worklist
+            }
+        }
+        return true;
     }
 
     public void doInline() {

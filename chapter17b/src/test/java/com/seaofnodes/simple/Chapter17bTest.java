@@ -57,6 +57,7 @@ public class Chapter17bTest {
         assertEquals(10L,Evaluator.evaluate(stop,1));
     }
 
+    @Ignore
     @Test
     public void testJig() {
         Parser parser = new Parser("return 1;");

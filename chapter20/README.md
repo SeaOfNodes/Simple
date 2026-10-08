@@ -503,59 +503,25 @@ two-address operands, and Phi register agreement; tiny machine graphs exercise
 hard conflicts independently of optimizer choices. Native execution comes with
 encoding in Chapter 21.
 
-### Spill-count summed across tests
+Rows are fixed test cohorts; columns are the compiler/allocator chapters.
+Each cell is the sum of `_spillScaled`: retained split moves, including register
+copies, weighted by `8^loopDepth`. Lower is better. **# tests counts compilations**
+(program/CPU/ABI cases), including zero-spill cases, rather than JUnit methods.
+The count and membership of each row stay fixed across columns.
 
-Run `make spill-stats` to execute the tests and print each compilation's counts,
-CPU/ABI subtotals, and the total below. Assertions remain enabled, and a failing
-test makes the command fail. The optimizer's default seed is 123.
+<!-- spill-matrix:start -->
+| Test cohort | # tests | Ch 20 |
+|---|---:|---:|
+| Ch 20 | 39 | 360 |
+<!-- spill-matrix:end -->
 
-The Chapter 20 program cohort is all 11 source examples in `Chapter20Test`, plus
-`BrainFuckTest.testBrainfuck` and `MergeSortTest.testMergeSort`, on x86-64,
-RISC-V, and ARM using SystemV: 13 programs and 39 compilations, including the
-zero-spill cases. The synthetic allocator regression graphs are correctness
-checks, not additional program benchmarks.
+These Windows measurements use optimizer seed 123 for cohorts 20-24 and include
+x86-64 SystemV/Win64 and ARM/RISC-V SystemV as applicable. Run `make spill-stats`
+here for this compiler, or at the repository root to rebuild the full matrix
+and check cohort membership. See the [complete comparison](../docs/regalloc-spills.md)
+for measurement details and reproduction commands.
 
-| Program-test cohort | Allocator chapter | Compilations | Split moves | Loop-weighted moves |
-|---|---:|---:|---:|---:|
-| Chapter 20 | 20 | 39 | 234 | 360 |
-
-`_spills` counts surviving split moves, including register-to-register copies;
-it does not count only stack stores. `_spillScaled` weights each move by
-`8^loopDepth`, a rough cost estimate rather than measured execution frequency.
-The weighted subtotals are 161 for x86-64, 100 for RISC-V, and 99 for ARM.
-
-### Comments on the measurements
-
-Before the correctness fixes, this cohort had 235 moves / 354 weighted moves.
-The corrected baseline before lazy memory cost three more of each. The final narrow x86
-store-mask backport accounts for two of those moves: an integer byte/short store
-cannot consume an XMM register. This is a correctness cost, not a quality gain.
-The fixed-neighbor color-bias correction changes no counts in this cohort.
-
-With lazy memory and selected-read ordering, the same 39 compilations have
-234 moves / 360 weighted moves, versus 238 / 357 before the port. Register
-legality passes on every target; allocator heuristics are unchanged. The changed
-programs are:
-
-| Program | Target | Moves before / after | Weighted before / after |
-|---|---|---:|---:|
-| Array access (`testAlloc2`) | x86-64 | 1 / 2 | 1 / 2 |
-| Array prefix sum (`testArray1`) | x86-64 | 5 / 6 | 5 / 13 |
-| String hash | x86-64 | 7 / 5 | 21 / 19 |
-| String hash | RISC-V | 4 / 3 | 4 / 3 |
-| String hash | ARM | 5 / 3 | 5 / 3 |
-| Merge sort | ARM | 37 / 36 | 37 / 36 |
-
-The prefix sum's extra loop move follows from scheduling selected reads before
-clobbering writes. A diagnostic build omitting that ordering returns to 5 / 5;
-it is not a valid alternative schedule. These are changed frontend and scheduling
-graphs, not a comparison of allocator heuristics. The new memory-allocation
-regressions check legality but do not add entries to this measured cohort.
-
-Later chapters will add one quality technique at a time and end with this kind
-of table: Chapter 21 will measure both the Chapter 20 and Chapter 21 program
-cohorts using its allocator, and Chapter 25 will have rows for cohorts 20-25.
-Keep the program/target membership and seeds fixed when comparing a row between
-chapters, and separate changes in the optimizer or instruction selection from
-changes in allocation. A local regression may be worthwhile when the total
-improves; an allocation failure or illegal register assignment never is.
+Cohort 20 contains 11 Chapter20Test programs plus BrainFuck and MergeSort,
+each on three SystemV targets: 39 compilations. Synthetic allocator graphs
+check correctness separately. This is the baseline; later chapters extend the
+columns while keeping these programs and targets fixed.

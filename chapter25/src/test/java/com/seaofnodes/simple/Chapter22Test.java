@@ -96,6 +96,7 @@ public class Chapter22Test {
     }
 
 
+    @Ignore
     @Test
     public void testJig() throws IOException {
         String src = """

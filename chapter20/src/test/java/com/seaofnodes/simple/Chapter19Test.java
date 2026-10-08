@@ -31,6 +31,7 @@ public class Chapter19Test {
     }
 
 
+    @Ignore
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("""

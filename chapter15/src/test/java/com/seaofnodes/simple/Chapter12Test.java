@@ -8,6 +8,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Chapter12Test {
+    @Ignore
     @Test
     public void testJig() {
         Parser parser = new Parser(

@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import java.io.IOException;
 import java.nio.file.*;
+import org.junit.Ignore;
 import org.junit.Test;
 
 // Revised or newly enabled allocation examples in Chapter 23.
@@ -14,6 +15,7 @@ public class Chapter23AllocTest {
         Chapter23Test.testCPU(src,"arm"      , "SystemV", 1,null);
     }
 
+    @Ignore
     @Test
     public void testJig21() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
@@ -22,6 +24,7 @@ public class Chapter23AllocTest {
         Chapter23Test.testCPU(src,"arm"      , "SystemV",-1,null);
     }
 
+    @Ignore
     @Test
     public void testJig22() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));

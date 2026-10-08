@@ -204,44 +204,17 @@ print(hello);     // Pass along the read-only version
 ```
 
 What is the type of `hello`?  It is the read-only type of `List`... and `List` is
-a cyclic type.  Let's look at `Type.makeRO`:
-
-```java
-public final Type makeRO() {
-    if( isFinal() ) return this; // First check if already read-only
-    return recurOpen()._makeRO().recurClose();
-}
-```
-
-and `isFinal()`:
-
-```java
-// Are all reachable struct Fields are final?
-public final boolean isFinal() { return recurClose(recurOpen()._isFinal()); }
-boolean _isFinal() { assert _type < TCYCLIC; return true; }
-```
+a cyclic type. Follow the implementation of
+[`Type.makeRO`, `isFinal`, and `_isFinal`](src/main/java/com/seaofnodes/simple/type/Type.java).
 
 We call `recurOpen()` to start/open the recursive walk, do the recursion
 calling `_isFinal()` and end/close the recursive walk, and return a boolean
 answer.  `_isFinal()` is NOT Java final, and is overridden in the Type subclasses.
-Most subclasses just forward the problem along:
-
-`@Override boolean _isFinal() { return _obj._isFinal(); }`
-
-until we hit `TypeStruct`:
-
-```java
-@Override boolean _isFinal() {
-    if( _open ) return false;     // May have more non-final fields
-    if( VISIT.containsKey(_uid) ) // Test: been here before?
-        return true;              // Cycles assume final
-    VISIT.put(_uid,this);         // Set: don't do this again
-    for( Field fld : _fields )
-        if( !fld._isFinal() )
-            return false;
-    return true;
-}
-```
+Subclasses implement the check for their own representation. For example,
+[`TypeMemPtr._isFinal`](src/main/java/com/seaofnodes/simple/type/TypeMemPtr.java)
+reads the pointer's access permission, while
+[`TypeStruct._isFinal`](src/main/java/com/seaofnodes/simple/type/TypeStruct.java)
+walks the fields and handles cycles.
 
 Here we see a common pattern in dealing with cycles: the **test-and-set**.  We
 check for any hard and fast answers (open structs are never read-only; they are
@@ -257,9 +230,9 @@ fields asking the same question recursively.
 For our example, we open the recursion (set a sentinel in `VISIT`), call
 `makeRO` on `struct List`, which then calls `_isFinal` which then checks
 the `_open` flag (not open), checks the `VISIT` (not visited), sets the
-UID in `VISIT` and starts walking the fields.  Fields check:
-
-`@Override boolean _isFinal() { return _final && _t._isFinal(); }`
+UID in `VISIT` and starts walking the fields.
+[`Field._isFinal`](src/main/java/com/seaofnodes/simple/type/Field.java)
+checks both the field's binding and its type.
 
 The first field is `List*? !next`, which is not-final, so immediately returns
 `false`, which stops `_isFinal` on `List` and the whole `isFinal()` call returns
@@ -283,31 +256,13 @@ You can see from the repeated UIDs that `List#2` happens twice... because List
 is cyclic.
 
 Now we do really need to make a cyclic type, and so our `makeRO()` call falls
-into the next line:
-
-`return recurOpen()._makeRO().recurClose();`.
+into the recursive path in
+[`Type.makeRO`](src/main/java/com/seaofnodes/simple/type/Type.java).
 
 Once again `recurOpen` starts/opens our recursive walk, and then we call
-`_makeRO()` which is overridden in every child Type class.  Let's look at
-`TypeStruct`s version:
-
-```java
-// Make a read-only version
-@Override TypeStruct _makeRO() {
-    // Check for already visited
-    TypeStruct ts = (TypeStruct)VISIT.get(_name);
-    if( ts!=null ) return ts;   // Already visited
-    ts = recurPre(_name,_open); // Make a new type with blank fields
-    Field[] flds = ts._fields;
-    for( Field fld : flds ) fld._final = true;
-
-    // Now start the recursion
-    for( int i=0; i<flds.length; i++ )
-        flds[i].setType(_fields[i]._t._makeRO());
-
-    return ts;
-}
-```
+`_makeRO()` which is overridden in the child Type classes. Follow
+[`TypeStruct._makeRO` and `recurPre`](src/main/java/com/seaofnodes/simple/type/TypeStruct.java)
+for the implementation.
 
 First up is the **test-and-set**.  The **test** is by type name; we attempt to
 get a `List` TypeStruct from `VISIT`, and if successful we return early -
@@ -357,8 +312,10 @@ struct List#12 {
 ```
 
 At this point the recursion unwinds and we head into the complex
-`Type.recurClose()`.  You might try single-stepping through the code for a few
-examples; the `TypeTest.testList` test builds these types.  Here is a high
+[`Type.recurClose()`](src/main/java/com/seaofnodes/simple/type/Type.java).
+You might try single-stepping through
+[`TypeTest.testList`](src/test/java/com/seaofnodes/simple/TypeTest.java),
+which builds these types. Here is a high
 level summary:
 
 Copy all the visited types out of `VISIT` for easier management; we might find
@@ -469,64 +426,36 @@ the old buffer after growth is outside this example. Appending
 
 ## RegAlloc improvements: grouping popular uses
 
-Chapter 22 improved color preferences and cheap-spill ordering. This chapter
+Chapter 22 improved color preferences and cheap-spill ordering.  This chapter
 adds a way to split a popular value whose uses demand incompatible registers.
 For example, several shifts may need the same count register while another use
-needs a different register. Sharing one copy for each compatible group can avoid
-inserting a separate copy at every use.
+needs a different register.  Sharing one copy for each compatible group can
+avoid inserting a separate copy at every use.
 
 The allocator applies this to a single-definition live range with an empty
-register mask and more than two fixed-register uses. It intersects overlapping
+register mask and more than two fixed-register uses.  It intersects overlapping
 use masks into groups; narrowing a group keeps it compatible with its earlier
-users, so one pass suffices. Disjoint masks start separate groups. It snapshots
+users, so one pass suffices. Disjoint masks start separate groups.  It snapshots
 distinct users before rewiring their inputs, ignores scheduling-only edges,
 and counts a call once even when the value supplies several arguments.
 
 Grouping declines values used by multiple calls, whose register kills tend to
-undo the benefit of a shared copy. The usual loop-boundary splitting remains
+undo the benefit of a shared copy.  The usual loop-boundary splitting remains
 the fallback, including splitting an existing copy when all uses have the same
-loop depth. Cold-first loop splitting is left for Chapter 24; area/cost spill
+loop depth.  Cold-first loop splitting is left for Chapter 24; area/cost spill
 ranking remains for Chapter 25.
 
-Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
-a sole use in the next instruction can read the source register when its
-operand mask permits it and no two-address tie is broken. The table below
-includes this cleanup and the lazy memory forward port. Cohort 22 now also includes the two zero-move C return
-ABI checks added since the earlier audit (26 entries instead of 24).
+Rows are fixed test cohorts; columns are the compiler/allocator chapters.  Each
+cell is the sum of `_spillScaled`: retained split moves, including register
+copies, weighted by loopDepth.  Lower is better.  **# tests counts
+compilations** (program/CPU/ABI cases), including zero-spill cases, rather than
+JUnit methods.  The count and membership of each row stay fixed across columns.
 
-Run `make spill-stats` in this directory. All rows below use **this chapter's
-compiler**, seed 123, and frozen source/target combinations from each cohort.
-The Windows run combines x86 SystemV/Win64 and RISC-V/ARM SystemV. Diagnostic
-machine graphs are checked separately and do not contribute to the counts.
-
-| Program cohort | Compilations | Retained moves | Loop-weighted moves |
-|---|---:|---:|---:|
-| Chapter 20 | 39 | 323 | 442 |
-| Chapter 21 | 52 | 433 | 965 |
-| Chapter 22 | 26 | 67 | 67 |
-| Chapter 23 | 30 | 78 | 225 |
-| **Total** | **147** | **901** | **1,699** |
-
-`_spills` counts retained SplitNodes, including register moves; `_spillScaled`
-weights them by `8^loopDepth`. These estimate compiler-generated moves, not
-runtime memory traffic. The reporter prints individual compilations and sums
-by CPU/ABI, and still reports failure when a spill expectation or execution
-check fails.
-
-In the earlier audit, before adjacent-copy forwarding, disabling grouping produced
-**the same 933 moves / 1,745 weighted moves**. The original grouping code also
-has those totals. This suite therefore shows no spill improvement from grouping;
-the reduced machine-graph regression exercises its compatibility and call rules,
-including a null-mask crash in the old implementation. A plausible allocator
-heuristic needs measurements on workloads that reach it before claiming a win.
-
-For the older cohorts alone, Chapter 22's compiler produced 838 moves / 1,496
-weighted moves; this compiler then produced 849 / 1,514. That comparison includes
-changes outside allocation. In particular, Chapter 20's frozen String input
-survives optimization here and costs 16 weighted moves; Chapter 22 eliminated
-it at this seed. It would be misleading to attribute that difference to grouping.
-
-The original 64-bit `person21` and guarded `stringHash21` inputs preserve cohort
-21. The revised String input and two encoding tests enabled in this chapter
-belong to cohort 23. Keeping these cohorts fixed makes subsequent comparisons
-meaningful even as the language and its tests grow.
+<!-- spill-matrix:start -->
+| Test cohort | # tests | Ch 20 | Ch 21 | Ch 22 | Ch 23 |
+|---|---:|---:|---:|---:|---:|
+| Ch 20 | 39 | 360 | 576 | 430 | 442 |
+| Ch 21 | 52 |  | 1,072 | 960 | 961 |
+| Ch 22 | 26 |  |  | 63 | 63 |
+| Ch 23 | 24 |  |  |  | 103 |
+<!-- spill-matrix:end -->

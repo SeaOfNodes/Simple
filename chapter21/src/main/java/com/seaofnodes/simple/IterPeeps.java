@@ -46,7 +46,12 @@ public class IterPeeps {
 
     private final WorkList<Node> _work;
 
-    public IterPeeps( long seed ) { _work = new WorkList<>(seed); }
+    private final WorkList<CallEndNode> _workInline;
+
+    public IterPeeps( long seed ) {
+        _work = new WorkList<>(seed);
+        _workInline = new WorkList<>(seed);
+    }
 
     @SuppressWarnings("unchecked")
     public <N extends Node> N add( N n ) { return (N)_work.push(n); }
@@ -57,12 +62,24 @@ public class IterPeeps {
      * Iterate peepholes to a fixed point
      */
     public void iterate( CodeGen code ) {
+        while( true ) {
+            iteratePeeps(code);
+            CallEndNode cend;
+            while( (cend=_workInline.pop())!=null )
+                if( cend.inlineSmall() ) break;
+            if( cend==null ) return;
+        }
+    }
+
+    // Only try growing inlines once the shrinking peepholes reach a fixed point.
+    private void iteratePeeps( CodeGen code ) {
         assert progressOnList(code);
         int cnt=0;
 
         Node n;
         while( (n=_work.pop()) != null ) {
             if( n.isDead() )  continue;
+            if( n instanceof CallEndNode cend ) _workInline.push(cend);
             cnt++;              // Useful for debugging, searching which peephole broke things
             var obs = CodeGen.CODE._obs;
             if( obs != null ) obs.before(n);

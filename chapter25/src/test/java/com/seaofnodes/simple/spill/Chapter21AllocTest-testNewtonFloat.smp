@@ -1,6 +1,6 @@
 // -*- mode: java;  -*-
 // Newtons approximation to the square root
-val test_sqrt = { flt x ->
+val _test_sqrt = { flt x ->
     flt epsilon = 1e-15;
     flt guess = x;
     while( 1 ) {
@@ -10,4 +10,4 @@ val test_sqrt = { flt x ->
         guess = next;
     }
 };
-flt farg = arg; return test_sqrt(farg) + test_sqrt(farg+2.0);
+flt farg = arg; return _test_sqrt(farg) + _test_sqrt(farg+2.0);

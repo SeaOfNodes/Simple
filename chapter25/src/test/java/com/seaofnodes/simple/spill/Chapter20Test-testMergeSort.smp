@@ -1,21 +1,21 @@
 // based on the top-down version from https://en.wikipedia.org/wiki/Merge_sort
 
-val merge_sort = { int[] a, int[] b, int n ->
-    copy_array(a, 0, n, b);
-    split_merge(a, 0, n, b);
+val _merge_sort = { int[] a, int[] b, int n ->
+    _copy_array(a, 0, n, b);
+    _split_merge(a, 0, n, b);
 };
 
-val split_merge = { int[] b, int begin, int end, int[] a ->
+val _split_merge = { int[] b, int begin, int end, int[] a ->
     if (end - begin <= 1)
         return 0;
     int middle = (end + begin) / 2;
-    split_merge(a, begin, middle, b);
-    split_merge(a, middle, end, b);
-    merge(b, begin, middle, end, a);
+    _split_merge(a, begin, middle, b);
+    _split_merge(a, middle, end, b);
+    _merge(b, begin, middle, end, a);
     return 0;
 };
 
-val merge = { int[] b, int begin, int middle, int end, int[] a ->
+val _merge = { int[] b, int begin, int middle, int end, int[] a ->
     int i = begin, j = middle;
 
     for (int k = begin; k < end; k++) {
@@ -30,7 +30,7 @@ val merge = { int[] b, int begin, int middle, int end, int[] a ->
     }
 };
 
-val copy_array = { int[] a, int begin, int end, int[] b ->
+val _copy_array = { int[] a, int begin, int end, int[] b ->
     for (int k = begin; k < end; k++)
         b[k] = a[k];
 };
@@ -41,6 +41,6 @@ int[] !b = new int[a#];
 for (int i = 0; i < a#; i++)
     a[i] = a# - i;
 
-merge_sort(a, b, a#);
+_merge_sort(a, b, a#);
 
 return a;

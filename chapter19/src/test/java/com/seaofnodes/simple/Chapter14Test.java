@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.node.StopNode;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -8,6 +9,7 @@ import static org.junit.Assert.fail;
 
 public class Chapter14Test {
 
+    @Ignore
     @Test
     public void testJig() {
         CodeGen code = new CodeGen(

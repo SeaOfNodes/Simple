@@ -190,64 +190,29 @@ returned values and memory as well as successful execution.
 
 ## RegAlloc improvements: better color bias
 
-Chapter 21 introduced conservative copy coalescing. Here we improve the register
-preferences used when related live ranges cannot coalesce. A copy chain can take
+Chapter 21 introduced conservative copy coalescing.  Here we improve the register
+preferences used when related live ranges cannot coalesce.  A copy chain can take
 an already assigned register even at its terminal definition; a loop Phi prefers
 its backedge's register, avoiding a move on each iteration when possible.
 
 When no live range is trivially colorable, cheap values make better spill
-candidates. We favor a cloneable definition with distant or multiple uses over
+candidates.  We favor a cloneable definition with distant or multiple uses over
 one already adjacent to its only use, then callee-save values whose long spans
-are cheap to split. Register order breaks ties between callee saves. These are
-small preferences, not a general cost model. Grouping popular values by register
-class is left for Chapter 23, cold loop splits for 24, and area/cost ranking for 25.
+are cheap to split.  Register order breaks ties between callee saves.  These
+are small preferences, not a general cost model.  Grouping popular values by
+register class is left for Chapter 23, cold loop splits for 24, and area/cost
+ranking for 25.
 
-Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
-a sole use in the next instruction can read the source register when its
-operand mask permits it and no two-address tie is broken. The table below
-includes this cleanup and the lazy memory forward port. Cohort 22 now also includes the two zero-move C return
-ABI checks added since the earlier audit (26 entries instead of 24).
+Rows are fixed test cohorts; columns are the compiler/allocator chapters.  Each
+cell is the sum of `_spillScaled`: retained split moves, including register
+copies, weighted by loopDepth.  Lower is better.  **# tests counts
+compilations** (program/CPU/ABI cases), including zero-spill cases, rather than
+JUnit methods.  The count and membership of each row stay fixed across columns.
 
-Run `make spill-stats` in this directory. Each row below uses **this chapter's
-compiler**, default worklist seed 123, and the same source/target combinations
-as the earlier cohort. The Windows run combines x86 SystemV/Win64 and RISC-V/ARM
-SystemV. Diagnostic graphs and mask regressions do not contribute to the totals.
-
-| Program cohort | Compilations | Retained moves | Loop-weighted moves |
-|---|---:|---:|---:|
-| Chapter 20 | 39 | 324 | 443 |
-| Chapter 21 | 52 | 432 | 964 |
-| Chapter 22 | 26 | 67 | 67 |
-| **Total** | **117** | **823** | **1,474** |
-
-`_spills` counts retained SplitNodes, including register moves; `_spillScaled`
-weights each by `8^loopDepth`. These are compiler estimates, not measured runtime
-memory traffic. The reporter also prints individual allocations and CPU/ABI sums.
-Chapter 21's original `int age` person example is preserved as `person21`; this
-chapter's `i32 age` version and revised infinite-loop example belong to cohort 22.
-
-Before adjacent-copy forwarding, a controlled comparison of the same compiler and correctness fixes with
-Chapter 21's color preferences and spill ordering produce 885 moves and 1,543
-weighted moves. This chapter saves **47 weighted moves (3.0%)**. RISC-V BrainFuck
-improves from 42 to 28 and ARM from 34 to 28 in each of its two cohorts. Some
-MergeSort cases and RISC-V Sieve each cost one more move. Summing the whole suite
-shows whether those local tradeoffs pay off.
-
-The original Chapter 22 snapshot, which mixed several later heuristics, produced
-854 moves and 1,736 weighted moves on these same 115 compilations. The corrected,
-staged version saves 240 weighted moves (13.8%). Neither comparison should be
-confused with comparing entire compiler chapters: lowering also changes. For
-example, the frozen Chapter 20 String input has no explicit return, and Chapter
-22's default-return handling eliminated that workload in the earlier audit.
-With lazy memory, some target compilations retain callable bodies; the current
-table includes their moves.
-
-The full suite and statistics runner pass. Routine backend comparisons use a
-fixed optimizer seed:
-shuffling optimizer worklists should normalize to essentially the same graph,
-so repeating allocation on those graphs adds little coverage. Use seed variation
-when investigating optimizer normalization or worklist-order failures.
-
-The [backport record](../docs/chapter-backports.md) documents the resolved
-String fall-through and returned-function retention/relocation failures,
-including their reproductions and validation history.
+<!-- spill-matrix:start -->
+| Test cohort | # tests | Ch 20 | Ch 21 | Ch 22 |
+|---|---:|---:|---:|---:|
+| Ch 20 | 39 | 360 | 576 | 430 |
+| Ch 21 | 52 |  | 1,072 | 960 |
+| Ch 22 | 26 |  |  | 63 |
+<!-- spill-matrix:end -->

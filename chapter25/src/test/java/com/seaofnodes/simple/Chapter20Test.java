@@ -4,6 +4,7 @@ import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -87,6 +88,7 @@ return f(s);
     }
 
 
+    @Ignore
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");

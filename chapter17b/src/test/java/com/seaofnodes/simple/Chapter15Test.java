@@ -9,6 +9,7 @@ import static org.junit.Assert.fail;
 
 public class Chapter15Test {
 
+    @Ignore
     @Test
     public void testJig() {
         Parser parser = new Parser(

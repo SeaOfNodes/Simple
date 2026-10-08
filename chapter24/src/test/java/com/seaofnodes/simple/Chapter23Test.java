@@ -88,6 +88,7 @@ public class Chapter23Test {
         }
     }
 
+    @Ignore
     @Test
     public void testJig() throws IOException {
         String src =

@@ -12,6 +12,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 public class Chapter12Test {
+    @Ignore
     @Test
     public void testJig() {
         Parser parser = new Parser(

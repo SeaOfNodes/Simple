@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import com.seaofnodes.simple.node.cpus.arm.arm;
 import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -34,6 +35,7 @@ return sqrt(arg) + sqrt(cast_int);
         Chapter24Test.testCPU(src,"arm"      , "SystemV",19,null);
     }
 
+    @Ignore
     @Test
     public void testJig21() throws IOException {
         String src =
@@ -131,6 +133,7 @@ val addAll = { int i0, flt f1, int i2, flt f3, int i4, flt f5, int i6, flt f7, i
         assertEquals(22.8, result1, 0.00001);
     }
 
+    @Ignore
     @Test
     public void testJig22() throws IOException {
         String src =

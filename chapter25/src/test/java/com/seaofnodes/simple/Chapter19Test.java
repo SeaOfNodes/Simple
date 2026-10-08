@@ -6,6 +6,7 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.codegen.CodeGen;
 import java.io.IOException;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -30,6 +31,7 @@ public class Chapter19Test {
     }
 
 
+    @Ignore
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("""

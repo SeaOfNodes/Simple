@@ -1,5 +1,5 @@
 // -*- mode: java;  -*-
-val fib = {int n ->
+val _fib = {int n ->
     int temp=0;
     int f1=1;
     int f2=1;
@@ -13,4 +13,4 @@ val fib = {int n ->
     return f2;
 };
 
-fib(10);
+_fib(10);

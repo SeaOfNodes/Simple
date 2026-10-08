@@ -8,6 +8,10 @@ CHAPTER_TARGETS := $(foreach action,$(ACTIONS),$(addsuffix /$(action),$(CHAPTERS
 
 # Keep baseline/review runs sequential, including when invoked with -j.
 .NOTPARALLEL:
+.PHONY: spill-stats
+spill-stats:
+	python build-support/spill-matrix.py
+
 .PHONY: $(ACTIONS) tag $(CHAPTER_TARGETS)
 tag: tags
 $(foreach action,$(ACTIONS),$(eval $(action): $(addsuffix /$(action),$(CHAPTERS))))

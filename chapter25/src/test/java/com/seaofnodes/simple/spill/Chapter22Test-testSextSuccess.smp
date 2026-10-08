@@ -1,5 +1,5 @@
 // Should fold away sign extend
-struct Person { i8 age;};
-!Person !p = new Person;
+struct _Person { i8 age;};
+!_Person !p = new _Person;
 p.age = (arg<<48)>>48;
 return 0;

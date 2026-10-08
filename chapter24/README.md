@@ -282,7 +282,7 @@ Similarly, `CallEnd`s merge results from all called functions, computing the
 *meet* over all the `Return`s.
 
 This *link* step adds a few checks to our algorithm's inner loop, and also
-builds a precise Call Graph, and allows our SCCP to run interprocedurally.
+builds a precise Call Graph which allows our SCCP to run interprocedurally.
 Other than discovering a few new edges as the algorithm proceeds, the core
 algorithm is unchanged.  We are guaranteed to terminate with a fixed point
 solution, and may discover e.g. certain call parameters are constants (or
@@ -292,68 +292,32 @@ e.g. not-null) on all calling paths.
 ## RegAlloc improvements: try cold loop splits first
 
 A loop Phi and its backedge can belong to one live range even though their
-values must coexist at some instruction. This self-conflict requires splitting
-the range. Chapter 23 split the Phi's definition and incoming values right away.
+values must coexist at some instruction.  This self-conflict requires splitting
+the range.  Chapter 23 split the Phi's definition and incoming values right away.
 This chapter first leaves the hot definition/backedge alone and tries the
-outside-loop copies. If coloring succeeds, it avoids moves on every iteration.
+outside-loop copies.  If coloring succeeds, it avoids moves on every iteration.
 Other conflicts, including two-address operations, keep their existing handling.
 
-The allocator remembers which Phis have had this chance. If the same Phi
+The allocator remembers which Phis have had this chance.  If the same Phi
 self-conflicts again, the next attempt uses the ordinary aggressive splitting.
-The record uses Phi identity because live ranges are rebuilt each round. It
+The record uses Phi identity because live ranges are rebuilt each round.  It
 also covers a backedge-only conflict where the first attempt inserts no copy:
-that attempt must still consume the one permitted delay. A regression checks
+that attempt must still consume the one permitted delay.  A regression checks
 both the cheaper first attempt and the mandatory fallback.
 
-Chapter 21's adjacent-copy forwarding also carries forward: after coloring,
-a sole use in the next instruction can read the source register when its
-operand mask permits it and no two-address tie is broken. The table below
-includes this cleanup and the lazy memory forward port. Cohort 22 now also includes the two zero-move C return
-ABI checks added since the earlier audit (26 entries instead of 24).
+Rows are fixed test cohorts; columns are the compiler/allocator chapters.  Each
+cell is the sum of `_spillScaled`: retained split moves, including register
+copies, weighted by loopDepth.  Lower is better.  **# tests counts
+compilations** (program/CPU/ABI cases), including zero-spill cases, rather than
+JUnit methods.  The count and membership of each row stay fixed across columns.
 
-Run `make spill-stats`. All rows use **Chapter 24's compiler**, optimizer seed
-123, and the same source/target combinations as the earlier cohort tables.
-These Windows results combine x86 SystemV/Win64 and RISC-V/ARM SystemV,
-remeasured after the lazy memory forward port.
+<!-- spill-matrix:start -->
+| Test cohort | # tests | Ch 20 | Ch 21 | Ch 22 | Ch 23 | Ch 24 |
+|---|---:|---:|---:|---:|---:|---:|
+| Ch 20 | 39 | 360 | 576 | 430 | 442 | 441 |
+| Ch 21 | 52 |  | 1,072 | 960 | 961 | 948 |
+| Ch 22 | 26 |  |  | 63 | 63 | 63 |
+| Ch 23 | 24 |  |  |  | 103 | 103 |
+| Ch 24 | 58 |  |  |  |  | 1,387 |
+<!-- spill-matrix:end -->
 
-| Program cohort | Compilations | Retained moves | Loop-weighted moves |
-|---|---:|---:|---:|
-| Chapter 20 | 39 | 320 | 439 |
-| Chapter 21 | 52 | 420 | 952 |
-| Chapter 22 | 26 | 67 | 67 |
-| Chapter 23 | 30 | 78 | 225 |
-| Chapter 24 | 67 | 422 | 1,325 |
-| **Total** | **214** | **1,307** | **3,008** |
-
-`_spills` counts retained SplitNodes, including register moves. `_spillScaled`
-weights those moves by `8^loopDepth`; it is a cost estimate, not measured memory
-traffic. Diagnostic machine graphs contribute no allocations to this table.
-The reporter checks allocation legality and native/emulated results even when
-spill expectations differ, and exits unsuccessfully for either kind of failure.
-
-In the original 2026-09-20 allocator audit, before subsequent compiler fixes,
-the table totaled 1,332 / 2,956. With only the cold-first rule disabled, that
-compiler and the same programs produced
-**1,338 moves / 2,962 weighted moves**. The rule saves six of each. A RISC-V
-MergeSort case adds one move, offset by improvements in other MergeSort cases,
-Sieve, and an ARM loop case. Aggregate measurements justify accepting that
-local regression; the improvement here is modest, not universal.
-
-On cohorts 20-23 alone in that audit, Chapter 23 produced 933 / 1,745; Chapter 24 produced
-900 / 1,614. Only six of each reduction comes from this allocator change. The
-rest comes from other compiler changes, including SCCP; comparing chapters
-alone would overstate the heuristic's benefit.
-
-The older cohorts retain the 64-bit Person, guarded String, and smaller emulator
-argument list. Revised Jig, BubbleSort, Newton, and stack-argument inputs belong
-to cohort 24 alongside this chapter's existing tests. The frozen String workload
-also exposed a missing null check in the inlining dominator walk; that correctness
-fix is included on both sides of the heuristic comparison. Area/cost spill
-ranking remains for Chapter 25.
-
-The current function-pointer rule keeps unknown callers whenever an address is
-used as a value rather than only as a direct call target. This preserves callable
-bodies without escape analysis, but Phi-selected functions retain general
-parameter types. The no-return String case now drops its unused hash bodies and
-needs no splits. Source/target membership remains unchanged; these graph changes
-are separate from the cold-first allocator comparison above.

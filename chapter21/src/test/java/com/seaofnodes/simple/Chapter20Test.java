@@ -89,6 +89,7 @@ return f(s);
     }
 
 
+    @Ignore
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");

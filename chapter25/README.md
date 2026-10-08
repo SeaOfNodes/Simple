@@ -170,77 +170,41 @@ is not equivalent to this chapter's full `make tests`.
 
 ## RegAlloc improvements: live-range area and split cost
 
-Chapter 24 tried cold copies before splitting a loop Phi's hot edges. This
+Chapter 24 tried cold copies before splitting a loop Phi's hot edges.  This
 chapter also estimates how much scheduled code a spill frees from register
-pressure, divided by the estimated cost of the new copies. Callee-save ranges
-cover a whole function. Cloneable constants can be rebuilt nearer their uses.
+pressure, divided by the estimated cost of the new copies.  Callee-save ranges
+cover a whole function.  Cloneable constants can be rebuilt nearer their uses.
 Copies inside loops cost more: the estimate weights them by `8^loopDepth`.
 These are inexpensive approximations, especially for values with many uses.
 
-The other Chapter 25 conflict-handling rules remain here: direct splitting of
-several fixed-register uses and deeper splits for some multi-definition ranges.
-Their size thresholds are heuristics, not general invariants to backport to the
-first allocator. Shared legality fixes still start in the earliest affected
-chapter. The final audit corrected fixed-neighbor color bias in 20-25, narrow
-store masks in 20-21, and ARM register-bank/float-memory encoding in 21-25.
+A single-use function address in the same block gets priority for
+rematerialization when it is separated from its use.  Moving that address
+calculation next to the use adds no instruction and avoids preserving a
+callee-save register merely to hold the constant.  Adjacent uses and multi-use
+addresses retain the area/cost ranking.
 
-Chapter 21's adjacent-copy forwarding carries forward here as well: a copy
-used only by the next instruction is removed when the operand accepts its
-source register and is not tied to the instruction's result.
+Rows are fixed test cohorts; columns are the compiler/allocator chapters.  Each
+cell is the sum of `_spillScaled`: retained split moves, including register
+copies, weighted by loopDepth.  Lower is better.  **# tests counts
+compilations** (program/CPU/ABI cases), including zero-spill cases, rather than
+JUnit methods.  The count and membership of each row stay fixed across columns.
 
-The table below is the complete 2026-10-02 replay, after repairing three saved
-String sources with explicit constructors for their required `cs` field.
-All 212 historical entries now pass. This establishes a new baseline after the
-fixture adaptations and recent compiler corrections; it is not an allocator-only
-comparison with the earlier audit. The [backport record](../docs/chapter-backports.md)
-retains the older partial comparisons.
+<!-- spill-matrix:start -->
+| Test cohort | # tests | Ch 20 | Ch 21 | Ch 22 | Ch 23 | Ch 24 | Ch 25 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Ch 20 | 39 | 360 | 576 | 430 | 442 | 441 | 491 |
+| Ch 21 | 52 |  | 1,072 | 960 | 961 | 948 | 1,077 |
+| Ch 22 | 26 |  |  | 63 | 63 | 63 | 71 |
+| Ch 23 | 24 |  |  |  | 103 | 103 | 152 |
+| Ch 24 | 58 |  |  |  |  | 1,387 | 1,503 |
+| Ch 25 | 14 |  |  |  |  |  | 1,862 |
+<!-- spill-matrix:end -->
 
-Run `make spill-stats`. Each row uses **Chapter 25's compiler**. The first five
-rows preserve the earlier 212 program/target entries, adapted to this chapter's
-syntax and library organization; the [fixture notes](src/test/java/com/seaofnodes/simple/spill/README.md)
-list those adaptations and the measurement limits. They use optimizer seed 123.
-The last row includes thirteen recorded allocations from `Chapter25Test` at its existing
-seeds plus a fresh system-library compilation at the driver's seed 456. Reusing
-`sys.o` must not make that substantial workload disappear from the measurements.
-These results are from Windows x86-64; earlier cohorts also include RISC-V/ARM
-SystemV and x86 SystemV. The reporter prints per-target totals as well.
 
-| Program cohort | Compilations | Split/move count | Loop-weighted count |
-|---|---:|---:|---:|
-| Chapter 20 | 39 | 375 | 606 |
-| Chapter 21 | 52 | 479 | 1,172 |
-| Chapter 22 | 24 | 103 | 103 |
-| Chapter 23 | 30 | 129 | 353 |
-| Chapter 24 | 67 | 696 | 1,410 |
-| Chapter 25 | 14 | 786 | 1,815 |
-| **Total** | **226** | **2,568** | **5,459** |
+Chapter25 introduces several features, which when run on the older tests
+generate a lot more code, which in turn generates more spills.
 
-`_spills` counts retained SplitNodes, including register-to-register moves;
-`_spillScaled` applies the loop weight. Neither measures just memory traffic.
-The old cohorts are allocation replays with register-legality checks, not reruns
-of their native harnesses. All 23 `Chapter25Test` tests pass, including their
-native/result checks, with no spill-golden failures.
-Use `make -j 4 tests` for the full chapter, including inherited emulator tests.
+Class initialization, inlining, escape analysis, and library adaptations
+all change the graphs.  To help with this, we adjust the inlining
+heursitics to try and get all the boilerplate to inline and optimize.
 
-### Comments on the measurements
-
-The earlier allocator audit found no uniform improvement. Substituting Chapter
-24's ranking while keeping the rest of that compiler unchanged saved five moves on the 221
-client compilations (2,206 / 4,719 versus 2,211 / 4,724), but failed to allocate
-the system library within eight rounds. It is therefore an incomplete comparison,
-not a lower valid whole-suite total. The existing area/cost ranking is retained;
-the round limit and correctness checks are unchanged. The system library itself
-contributed 386 moves / 855 weighted moves in that audit; the current replay
-measures 373 / 828.
-
-A trial that favored all multi-use cloneable constants saved one move against
-the earlier ranking on those clients, but also failed the fresh library build.
-It was rejected. This is why both aggregate statistics and complete compilation
-and execution checks matter; a favorable subtotal cannot justify a change.
-
-In that earlier audit, the historical-cohort total rose from Chapter 24's
-1,332 / 2,956 to Chapter 25's 1,814 / 3,753.
-Chapter 25 adds class initializers, module ownership, different escape analysis,
-and syntax/library adaptations. These are different machine graphs; the increase
-cannot be attributed to allocator quality alone. Compare a heuristic within one
-compiler and fixed corpus before drawing conclusions from the chapter tables.

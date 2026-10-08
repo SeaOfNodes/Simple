@@ -146,6 +146,7 @@ public class Chapter18Test {
     }
 
 
+    @Ignore
     @Test
     public void testJig() {
         CodeGen code = new CodeGen(

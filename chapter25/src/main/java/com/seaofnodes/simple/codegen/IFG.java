@@ -457,6 +457,13 @@ abstract public class IFG {
             int area = cfg != use.cfg0()
                 ? functionArea(lrg._fun,alloc)
                 : cfg._outputs.find(use)-cfg._outputs.find(def)-1;
+            // A single-use function address can move next to its use without
+            // adding an instruction.  Prefer that to saving a callee-save
+            // register just to hold the address.  Stay in the same block and
+            // require a gap so the clone makes progress.
+            if( def instanceof FunPtrNode && !lrg._multiUse &&
+                cfg == use.cfg0() && area > 0 )
+                return 1000000;
             if( area > 0 )
                 return areaScore(area,loopCost(use));
         }
