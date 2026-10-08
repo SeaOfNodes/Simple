@@ -1,8 +1,8 @@
 // A hypothetical scanner class
-struct Scan {
+struct _Scan {
     int !x;
     u8[~] buf;
-    new Scan={ u8[~] b -> buf=b; };
+    new _Scan={ u8[~] b -> buf=b; };
     // Skip whitespace
     val skip = { ->
         while( buf[x] <= ' ' )
@@ -13,5 +13,5 @@ struct Scan {
         buf[x++]==ch;
     };
 };
-!Scan !s = new Scan("  [1,2]");
+!_Scan !s = new _Scan("  [1,2]");
 return s.require('[');

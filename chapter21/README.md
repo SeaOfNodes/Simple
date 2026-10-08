@@ -147,22 +147,24 @@ its two-address operand. For example, `mov rpc=s8; st1 [rpc+4],s1` becomes
 Phi and control-flow users are excluded.  This local cleanup leaves spill
 selection unchanged; it complements coalescing without another CFG analysis.
 
-For looking at allocator progress, we will keep a table of weighted spill costs
+For looking at allocator progress, we will keep a table of execution and allocation costs
 a chapters' tests - and use the later chapter compiler and register allocator
 on them.  The later chapters also modify the graph (sometimes adding boiler
 plate graph) so its not really a 100% fair comparison of how well this
 *heuristic* does, but it does give us some idea that we're not losing ground.
 
-Rows are fixed test cohorts; columns are the compiler/allocator chapters.  Each
-cell is the sum of `_spillScaled`: retained split moves, including register
-copies, weighted by loopDepth.  Lower is better.  **# tests counts
-compilations** (program/CPU/ABI cases), including zero-spill cases, rather than
-JUnit methods.  The count and membership of each row stay fixed across columns.
+Rows are fixed test cohorts; columns are compiler chapters. Each cell gives
+**Ops / RA / X**: executed ARM+RISC-V instructions, the subset emitted for
+allocator copies/rematerializations, and x86's loop-weighted split-move estimate.
+**Cases D / X** counts measured dynamic program/target cases and x86 compilations;
+membership and inputs stay fixed across columns. Native-library work is excluded.
+Chapter 20 has no encoder, hence no dynamic counts. Lower is better within each
+metric; see the [measurement details](../docs/regalloc-spills.md) for coverage.
 
 <!-- spill-matrix:start -->
-| Test cohort | # tests | Ch 20 | Ch 21 |
+| Test cohort | Cases D / X | Ch 20: Ops / RA / X | Ch 21: Ops / RA / X |
 |---|---:|---:|---:|
-| Ch 20 | 39 | 360 | 576 |
-| Ch 21 | 52 |  | 1,072 |
+| Ch 20 | 22 / 13 | — / — / 161 | 55,173 / 5,407 / 174 |
+| Ch 21 | 20 / 18 |  | 6,207 / 261 / 461 |
 <!-- spill-matrix:end -->
 

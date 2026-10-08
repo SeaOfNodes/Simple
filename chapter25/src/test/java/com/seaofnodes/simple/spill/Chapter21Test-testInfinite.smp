@@ -1,1 +1,1 @@
-struct S { int i; }; !S !s = new S; while(1) s.i++;
+struct _S { int i; }; !_S !s = new _S; while(1) s.i++;

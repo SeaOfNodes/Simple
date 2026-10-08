@@ -7,7 +7,11 @@ import com.seaofnodes.simple.node.Node;
 public class SetIRISC extends ImmRISC {
     final boolean _unsigned;    // slti vs sltiu
     public SetIRISC( Node src, int imm12, boolean unsigned ) {
-        super(src,imm12);
+        this(src,imm12,unsigned,true);
+    }
+    public SetIRISC( Node src, int imm12, boolean unsigned, boolean pop ) {
+        super(src,imm12,pop);
+        if( !pop ) _inputs.setLen(2);
         _unsigned = unsigned;
     }
     @Override public String op() { return "slt" + (_unsigned ? "u":"") + "i"; }

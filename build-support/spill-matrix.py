@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure allocator chapters, check cohort membership, and render scaled spills."""
+"""Measure fixed cohorts: dynamic ARM/RISC-V ops, allocator ops, and x86 estimates."""
 import argparse
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -60,13 +60,69 @@ def read_results(log_dir):
     return results
 
 
-def table(results, last=25):
+def read_dynamic(results):
+    dynamic = {}
+    values = {}
+    records = []
+    for chapter in range(21, 26):
+        path = ROOT / f"build/dynamic-stats/{chapter}/dynamic.log"
+        text = read_log(path)
+        if "FAILED," in text:
+            raise ValueError(f"Dynamic measurement failed; see {path}")
+        completion = re.search(r"Dynamic cases: (\d+); failures: 0", text)
+        if not completion:
+            raise ValueError(f"Incomplete dynamic measurement; see {path}")
+        cohorts = defaultdict(list)
+        for line in text.splitlines():
+            if not line.startswith("dynamic,"):
+                continue
+            _, cohort, test, cpu, count, ops, ra, value, inputs = line.split(",")
+            cohort = int(cohort.removeprefix("Chapter"))
+            test = test.removeprefix("Chapter25Test.") if cohort == 25 else test
+            row = (test, cpu, inputs, int(count), int(ops), int(ra))
+            cohorts[cohort].append(row)
+            identity = (cohort, test, inputs)
+            if identity in values and values[identity] != value:
+                raise ValueError(f"Dynamic results disagree: {identity}: {values[identity]} vs {value}")
+            values[identity] = value
+            records.append(f"{chapter},{cohort},{test},{cpu},{inputs},{count},{ops},{ra},{value}")
+        if set(cohorts) != set(range(20, chapter+1)):
+            raise ValueError(f"Missing dynamic cohort in Chapter {chapter}")
+        if sum(map(len, cohorts.values())) != int(completion[1]):
+            raise ValueError(f"Dynamic record count differs from completion record in {path}")
+        for cohort, rows in cohorts.items():
+            available = Counter((r[0], r[1]) for r in results[chapter][cohort])
+            measured = Counter(r[:2] for r in rows)
+            if measured - available:
+                raise ValueError(f"Dynamic cases absent from static cohort {chapter}/{cohort}")
+        dynamic[chapter] = cohorts
+    for cohort in CHAPTERS:
+        first = max(21, cohort)
+        baseline = Counter(r[:4] for r in dynamic[first][cohort])
+        for chapter in range(first+1, 26):
+            if Counter(r[:4] for r in dynamic[chapter][cohort]) != baseline:
+                raise ValueError(f"Dynamic membership/inputs changed: {chapter}/{cohort}")
+    header = "compiler,cohort,test,cpu,inputs,runs,instructions,allocator_instructions,result\n"
+    (ROOT / "build/spill-stats/dynamic-counts.csv").write_text(header+"\n".join(records)+"\n", encoding="utf-8", newline="\n")
+    return dynamic
+
+
+def table(results, dynamic, last=25):
     chapters = range(20, last + 1)
-    lines = ["| Test cohort | # tests | " + " | ".join(f"Ch {c}" for c in chapters) + " |",
+    lines = ["| Test cohort | Cases D / X | " + " | ".join(f"Ch {c}: Ops / RA / X" for c in chapters) + " |",
              "|---|---:|" + "---:|" * len(chapters)]
     for cohort in chapters:
-        cells = [f"Ch {cohort}", str(len(results[cohort][cohort]))]
-        cells += ["" if c < cohort else f"{sum(r[4] for r in results[c][cohort]):,}" for c in chapters]
+        count = len(dynamic[max(21,cohort)][cohort])
+        nx = sum(r[1]=="x86_64_v2" for r in results[cohort][cohort])
+        cells = [f"Ch {cohort}", f"{count} / {nx}"]
+        for c in chapters:
+            if c < cohort:
+                cells.append("")
+                continue
+            x = sum(r[4] for r in results[c][cohort] if r[1]=="x86_64_v2")
+            ops = f"{sum(r[4] for r in dynamic[c][cohort]):,}" if c>=21 else "—"
+            ra = f"{sum(r[5] for r in dynamic[c][cohort]):,}" if c>=21 else "—"
+            cells.append(f"{ops} / {ra} / {x:,}")
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
 
@@ -97,12 +153,17 @@ def main():
                                      stdout=log, stderr=subprocess.STDOUT)
             if run.returncode:
                 raise ValueError(f"Chapter {chapter} failed (exit {run.returncode}); see {path}")
+        for chapter in range(21, 26):
+            if chapter < 25:
+                subprocess.run([sys.executable, str(ROOT / "build-support/capture-alloc-sources.py"), str(chapter)], check=True)
+            subprocess.run([sys.executable, str(ROOT / "build-support/measure-alloc.py"), str(chapter)], check=True)
     results = read_results(args.log_dir)
-    matrix = table(results)
+    dynamic = read_dynamic(results)
+    matrix = table(results, dynamic)
     (args.log_dir / "matrix.md").write_text(matrix + "\n", encoding="utf-8", newline="\n")
     if args.update_docs:
         paths = [(ROOT / "docs/regalloc-spills.md", matrix)]
-        paths += [(ROOT / f"chapter{c}/README.md", table(results, c)) for c in CHAPTERS]
+        paths += [(ROOT / f"chapter{c}/README.md", table(results, dynamic, c)) for c in CHAPTERS]
         # Validate all destinations before changing any document.
         for path, _ in paths:
             text = path.read_text(encoding="utf-8")

@@ -35,7 +35,10 @@ Chapter 25 cannot parse all earlier sources unchanged. Adaptations are explicit:
   sources are a new comparison baseline; their totals cannot be compared as
   identical inputs with the earlier constructor-free fixtures.
 - The two short-circuit RHS initializer loops become equivalent guarded blocks,
-  preserving allocation, side effects, and the final result.
+  preserving allocation, side effects, and the final result. Their RHS assigns
+  the field value directly: Simple's `||` returns an operand, not a normalized
+  boolean. The 2026-10-07 cleanup removes an erroneous `!!` in those adaptations;
+  both fixtures return 44 for even arguments and 1 for odd arguments.
 - Simple I/O cases include the old `write` binding and print helper directly.
   Bubble Sort includes the old library bodies, with namespace prefixes flattened,
   explicit constructors, and mutable replacement buffers. This retains the old
@@ -50,6 +53,14 @@ Chapter 25 cannot parse all earlier sources unchanged. Adaptations are explicit:
   StringExport, Person and the C-return wrappers, retain their public names.
   These visibility adaptations change the generated workload and are recorded
   separately from the allocator improvement in the cross-chapter comparison.
+- The remaining visibility cleanup makes local classes/functions private in
+  AntiDeps1, Infinite, the Chapter 21/23 allocation String cases, the Chapter 23
+  scanner/pointer/short-circuit/function cases, and Stack3/Stack5. Bubble Sort's
+  copied library implementation is private; its `main` stays public. The three
+  adapted String API fixtures end in `return 0;`, avoiding an accidental return
+  of the last declared function. Their equality/hash APIs stay public, and the
+  named StringExport fixture also keeps its public String factory. No cohort
+  entries, workload operations, or intentional export APIs are removed.
 - Other source texts are retained.
 
 All entries replay **through RegAlloc**, checking scheduled register constraints.

@@ -28,3 +28,6 @@ val _hashCodeString = { !String self ->
     if( !hash ) hash = 123456789;
     return hash;
 };
+
+// This fixture exports its API, not the last declaration as a result.
+return 0;

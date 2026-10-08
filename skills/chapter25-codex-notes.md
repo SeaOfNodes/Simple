@@ -37,6 +37,12 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   They must not become benchmarks or regression tests just because their current
   contents compile. Cohorts 23/24 now contain 24/58 allocations (199 total replay
   entries), after removing all 15 frozen Jig entries.
+- Historical replay adaptations must preserve operand-valued short-circuit
+  expressions: replacing a `||` RHS with `!!rhs` changes its result. Compare
+  actual results as well as allocation legality when rewriting these fixtures.
+  Static `_spillScaled` also counts each inlined loop copy separately, without
+  credit for eliminated calls; inspect the optimized call graph before calling
+  a higher cross-chapter score an allocator regression.
 - Prefer concrete ArrayList to List, common base classes to unnecessary
   interfaces, and short names (`pred`, `proj`, `def`, `use`). Avoid redundant
   Objects.requireNonNull. Prefer int[]/AryInt to List<Integer>; avoid large boxed
@@ -877,3 +883,15 @@ Cliff removed the frozen Chapter 18 fixture, replay tests, related reductions,
 and seed-list entry on 2026-09-27 as unnecessary test overhead. Retain the
 evaluator fixes; do not recreate that test suite. Do not describe timeout-skipped
 comparisons as equal runtime results.
+
+- Dynamic ARM/RISC counts must validate results, not just termination. RISC
+  equality expands to SUB then unsigned SLTIU; the second node must consume
+  the SUB, not copy its inputs. ARM register 31 is XZR for load destinations,
+  so narrow loads use WMASK, never RMASK. Logical-not uses CMP to XZR followed
+  by CSET to its result register. Shared emulator fixes and Chapter 21-25
+  backports are recorded in `docs/chapter-backports.md`.
+- Cohort 23's dynamic increase from compiler 24 to 25 is primarily class-field
+  initialization: Ops 630->1106. RA 160->442 includes 224 extra pointer-address
+  and 56 integer rematerialization instructions, but only two extra splits.
+  Do not call that 282 additional spills. ARM and RISC Bubble Sort both improve
+  when executed. The measured breakdown lives in `docs/regalloc-spills.md`.

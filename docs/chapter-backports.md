@@ -465,6 +465,19 @@ lines beyond the original extraction.
 
 ## Pending corrections
 
+- **Residual allocation comparisons (investigated 2026-10-07; no compiler fix).**
+  After fixture cleanup, cohort 23 is 103 in Chapter 24 versus 104 in 25;
+  cohort 24 improves 1,387 to 1,315. The small actionable case is Win64
+  NewtonExport: six moves in both chapters, but Chapter 25 puts five in the loop
+  rather than four (34 to 41 weighted). Inspect destructive-add operand choice,
+  coalescing and Phi/return-register bias. Bubble Sort
+  now executes fewer instructions on both ARM and RISC-V; its higher static
+  weight does not represent more executed allocator instructions.
+  Ordinary Newton's larger static score mostly counts duplicated inlined loops:
+  a no-inline diagnostic nearly matches Chapter 24. The
+  [remaining-differences report](regalloc-spills.md#remaining-differences-after-fixture-cleanup)
+  separates these findings from the deferred inliner work below.
+
 - **Chapter 25 deterministic inlining (deferred until after the Chapter 25 split).**
   As of 2026-10-07, ordinary functions reject `_approxUIDs >= 100` before checking
   the optimized body. `_approxUIDs` counts node IDs consumed during parsing and
@@ -609,9 +622,9 @@ which checks matching test/CPU/ABI membership with assertions enabled.
 | 20 | Basic coloring, rematerialization and loop splitting, with shared legality/progress fixes | 39 |
 | 21 | Conservative copy coalescing and adjacent-copy forwarding | 39, 52 |
 | 22 | Stronger copy-chain/backedge bias and cheap-spill ordering | 39, 52, 26 |
-| 23 | Group popular single-def uses by compatible register classes | 39, 52, 26, 30 |
-| 24 | One cold-only attempt for loop-Phi self-conflicts, then mandatory fallback | 39, 52, 26, 30, 67 |
-| 25 | Existing area/cost ranking and later conflict strategies | 39, 52, 26, 30, 67, 14 |
+| 23 | Group popular single-def uses by compatible register classes | 39, 52, 26, 24 |
+| 24 | One cold-only attempt for loop-Phi self-conflicts, then mandatory fallback | 39, 52, 26, 24, 58 |
+| 25 | Existing area/cost ranking and later conflict strategies | 39, 52, 26, 24, 58, 14 |
 
 Shared corrections include RegMask/LRG bookkeeping, null use masks, kills without
 an output LRG, self-conflict splitting, compatible rematerialization, clobber-aware
@@ -635,7 +648,8 @@ registers removes that conflict. Encoding must then use the allocated register
 bank, with five-bit register numbers, for both immediate and indexed loads/stores.
 The emulator must preserve floating bits and scale double offsets by eight.
 
-Chapter 25 freezes the 214 earlier compilation entries in
+Chapter 25 freezes 199 earlier compilation entries, after excluding Jig scratch
+tests, in
 [documented source fixtures](../chapter25/src/test/java/com/seaofnodes/simple/spill/README.md).
 Constructor/library adaptations change IR, so this is a program-cohort comparison,
 not identical machine graphs. Those rows replay allocation and legality checks;
@@ -676,6 +690,52 @@ The top-level runner accepts explicit chapter lists, e.g.
 `make -k tests CHAPTERS="chapter20 chapter21"`. Tests in 25 alone are insufficient.
 
 ## Validation record
+
+- **Equality and ARM execution corrections, 2026-10-07.** Chapters 21-25
+  retain RISC-V's subtraction when expanding equality and use unsigned SEQZ
+  for logical-not (including negative inputs), exclude SP/XZR from
+  narrow ARM load destinations, and encode ARM logical-not with CMP-to-XZR
+  followed by CSET-to-result. ARM condition inversion is corrected in 21-23;
+  FCMP operand order in 21-24. Chapter 20 has different selection/stub encoders
+  and does not contain these faulty expansions. Shared evaluators now use
+  unsigned SLT/SLTIU comparisons and discard ARM XZR destination writes.
+  The existing Chapter 24 nested-equality test in 24/25 expected the wrong
+  result for argument 1; it now checks -1, 0 and 1. Independent ISA checks and full
+  Make suites pass in 21-25 (including native/system tests). All previously
+  excluded measurement cases execute successfully; the reporter also checks
+  nested equality at 0-3. Logs: `build/dynamic-stats/fix-tests{21..25}.log`
+  and `fix-isa.log`. The expanded matrices and a measured breakdown of the
+  Chapter 24-to-25 increase are in [the allocation report](regalloc-spills.md).
+  Cohort 23's +476 Ops is chiefly class-field initialization; its +282 RA
+  instructions comprise 280 rematerializations and only two extra splits.
+
+- **Dynamic allocation metrics, 2026-10-07.** Chapter 20-25 README matrices now
+  report executed ARM/RISC-V instructions, the allocator-created subset (copies,
+  spills/reloads and rematerializations), and x86-only weighted split estimates.
+  Dynamic membership and input vectors are fixed per cohort, with results
+  checked across compilers/targets. Native-library bodies are excluded. Chapter
+  20 has no encoder. The dynamic rows cover 22/20/14/14/36/2 program-target
+  cases; compilation-only/API exclusions are explicit.
+  The original full allocation cohorts are unchanged. Expanded shared evaluator
+  support fixes ARM SDIV, ORR-immediate and false CSET values, and RISC-V floating
+  stores and FEQ/FLT decoding. Independent instruction-word checks pass in
+  `make -C isa tests`; full Make suites pass in 21-25, including Chapter 25's
+  native/system groups. Logs: `build/dynamic-stats/tests-{21..25}.log` and
+  `isa-tests.log`. The reporter validates cohort identities, inputs and results;
+  generated per-case records are in `build/spill-stats/dynamic-counts.csv`.
+
+- **Remaining replay fixture cleanup, 2026-10-07.** Fourteen Chapter 25 replay
+  sources make implementation helpers/classes private while retaining export
+  APIs, explicitly return zero from three String API fixtures, and correct two
+  guarded short-circuit adaptations to return their RHS value (not `!!value`).
+  Disposable Eval2 checks at arguments 0-3 return 44, 1, 44, 1 for both loops.
+  `make -C chapter25 spill-stats CTAGS=` passes all 199 historical allocations,
+  fresh library encoding, 23 native tests and spill expectations. Fixed cohort
+  membership remains unchanged. Cohort 21 changes 1,077 to 1,036; 23 changes
+  152 to 104; 24 changes 1,503 to 1,315. Other rows are unchanged. The matrix
+  reporter validates membership against saved Chapter 20-24 reports and updates
+  the documentation. No compiler changes or permanent tests were added.
+  Logs and disposable allocation/assembly probes: `build/fixture-cleanup/`.
 
 - **Ignore debugging Jigs (2026-10-07).** All `testJig*` methods are scratch
   placeholders, not regression tests. Added missing `@Ignore` annotations in

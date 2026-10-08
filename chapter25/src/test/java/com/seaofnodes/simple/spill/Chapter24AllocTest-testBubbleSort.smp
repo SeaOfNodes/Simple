@@ -16,22 +16,22 @@
         i32 MAP_PRIVATE = 2;
         i32 MAP_ANON = 32;
 
-        val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
+        val _copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
             for( int i=0; i<len; i++ )
                 dst[i+doff] = src[i+soff];
             return dst;
         };
-    struct aryu8 {
+    struct _aryu8 {
         u32 !len = 0;
         u8[] !buf;
-        new aryu8={ u8[] b -> buf=b; };
+        new _aryu8={ u8[] b -> buf=b; };
         // Grow as needed
         val _grow = { int len2 ->
             if( len+len2 < buf# ) return self;
             int newlen = buf# * 2;
             while( len+len2 >= newlen ) newlen *= 2;
             u8[] !buf2 = new u8[newlen];
-            copy(buf2,0,buf,0,buf#);
+            _copy(buf2,0,buf,0,buf#);
             buf = buf2;
             self;
         };
@@ -45,7 +45,7 @@
         // Add a plain array to the aryu8
         val addAry = { u8[~] ary ->
             _grow(ary#);
-            copy(buf,len,ary,0,ary#);
+            _copy(buf,len,ary,0,ary#);
             len += ary#;
             self;
         };
@@ -75,10 +75,10 @@
         // Write to fd, returns the number of bytes written (len).
         val write = { i32 fd -> i64 ptr = buf; write(fd,ptr,len); };
     };
-struct Scan {
+struct _Scan {
         int !x;
         u8[~] buf;
-        new Scan={ u8[~] b -> buf=b; };
+        new _Scan={ u8[~] b -> buf=b; };
 
         // Skip whitespace
         val skip = { ->
@@ -105,10 +105,10 @@ struct Scan {
             return neg ? -n : n;
         };
     };
-struct aryi64 {
+struct _aryi64 {
         u32 !len = 0;
         i64[] !buf;
-        new aryi64={ i64[] b -> buf=b; };
+        new _aryi64={ i64[] b -> buf=b; };
         // Grow as needed
         val _grow = { int len2 ->
             if( len+len2 < buf# ) return self;
@@ -130,17 +130,17 @@ struct aryi64 {
         // Write to aryu8
         val str = { ->
             // TODO: clunky default constructor syntax
-            var str = new aryu8(new u8[1]).add('[');
+            var str = new _aryu8(new u8[1]).add('[');
             for( int i=0; i<len; i++ )
                 str.num(buf[i]).add(',').add(' ');
             str.undo(2).add(']');
         };
     };
-    val parseAryI64 = { u8[~] str ->
-        !Scan !s = new Scan(str);
+    val _parseAryI64 = { u8[~] str ->
+        !_Scan !s = new _Scan(str);
         if( !s.match('[') ) return null;
         // Array of parsed results
-        var nums = new aryi64(new i64[1]);
+        var nums = new _aryi64(new i64[1]);
         // Parse a list of numbers
         if( !s.match(']') ) {        // Handle the empty list
             // Parse "123, " until a something else
@@ -156,13 +156,13 @@ struct aryi64 {
 
 
         // Print string to stdout
-        val p = { u8[~] str ->
+        val _p = { u8[~] str ->
             i64 ptr = str;  // cast array base to i64
             return write(1,ptr,str#);
         };
 
         // Return stdin as a u8[]
-        val stdin = { ->
+        val _stdin = { ->
             var buf = new u8[8*1024];
             i64 ptr = buf;
             int len = 0;
@@ -176,7 +176,7 @@ struct aryi64 {
             }
             // Compress
             var dst = new u8[len];
-            return copy(dst,0,buf,0,len);
+            return _copy(dst,0,buf,0,len);
         };
     // -*- mode: java;  -*-
 
@@ -185,7 +185,7 @@ struct aryi64 {
 //
 // Bubble sort, with reading (parsing) and writing (formatting) the data.
 
-val sort = { !aryi64 nums ->
+val _sort = { !_aryi64 nums ->
     var done = false;
     while( !done ) {
         done = true;
@@ -202,14 +202,14 @@ val sort = { !aryi64 nums ->
 // Read from stdin a line of the form "[ 4, 3, 2, 1]" and print it sorted.
 val main = { ->
     // Parse array of numbers from stdin
-    var nums = parseAryI64( stdin() );
+    var nums = _parseAryI64( _stdin() );
     if( !nums ) {
-        p("stdin must look like [4, 3, 2, 1]");
+        _p("stdin must look like [4, 3, 2, 1]");
         return 1;
     }
 
     // Bubble sort array of integers
-    sort(nums);
+    _sort(nums);
 
     // Print a list of numbers to stdout
     nums.str().write(1);

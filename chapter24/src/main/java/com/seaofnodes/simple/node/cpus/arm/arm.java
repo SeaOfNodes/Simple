@@ -215,7 +215,7 @@ public class arm extends Machine {
     public static void f_cmp(Encoding enc, Node n) {
         short reg1 = (short)(enc.reg(n.in(1))-D_OFFSET);
         short reg2 = (short)(enc.reg(n.in(2))-D_OFFSET);
-        int body = Arm64.f_cmp(0b00011110, 3, reg1,  reg2);
+        int body = Arm64.f_cmp(0b00011110, 3, reg2,  reg1);
         enc.add4(body);
     }
 

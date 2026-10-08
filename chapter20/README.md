@@ -503,16 +503,18 @@ two-address operands, and Phi register agreement; tiny machine graphs exercise
 hard conflicts independently of optimizer choices. Native execution comes with
 encoding in Chapter 21.
 
-Rows are fixed test cohorts; columns are the compiler/allocator chapters.
-Each cell is the sum of `_spillScaled`: retained split moves, including register
-copies, weighted by `8^loopDepth`. Lower is better. **# tests counts compilations**
-(program/CPU/ABI cases), including zero-spill cases, rather than JUnit methods.
-The count and membership of each row stay fixed across columns.
+Rows are fixed test cohorts; columns are compiler chapters. Each cell gives
+**Ops / RA / X**: executed ARM+RISC-V instructions, the subset emitted for
+allocator copies/rematerializations, and x86's loop-weighted split-move estimate.
+**Cases D / X** counts measured dynamic program/target cases and x86 compilations;
+membership and inputs stay fixed across columns. Native-library work is excluded.
+Chapter 20 has no encoder, hence no dynamic counts. Lower is better within each
+metric; see the [measurement details](../docs/regalloc-spills.md) for coverage.
 
 <!-- spill-matrix:start -->
-| Test cohort | # tests | Ch 20 |
+| Test cohort | Cases D / X | Ch 20: Ops / RA / X |
 |---|---:|---:|
-| Ch 20 | 39 | 360 |
+| Ch 20 | 22 / 13 | — / — / 161 |
 <!-- spill-matrix:end -->
 
 These Windows measurements use optimizer seed 123 for cohorts 20-24 and include

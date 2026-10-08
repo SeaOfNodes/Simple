@@ -585,17 +585,21 @@ return 0 < arg < arg+1 < 4;
                 """;
         TestC.run(src, "stacked_r_13x", null, stack12,0);
 
-        // Evaluate on RISC5 emulator
+        // Compile once per target, then check false, true and negative inputs.
         EvalRisc5 R5 = TestRisc5.build("stacked_r_13", src2, 1, 0, false);
-        int trap = R5.step(100);
-        assertEquals(0,trap);
-        assertEquals(1,R5.regs[riscv.A0]);
-
-        // Evaluate on ARM emulator
+        for( int arg : new int[]{-1,0,1} ) {
+            R5._pc = 0;
+            R5.regs[riscv.A0] = arg;
+            assertEquals(0,R5.step(100));
+            assertEquals(arg==0 ? 1 : 0,R5.regs[riscv.A0]);
+        }
         EvalArm64 arm = TestArm64.build("stacked_r_13", src2, 1, 0, false);
-        trap = arm.step(100);
-        assertEquals(0,trap);
-        assertEquals(1,arm.regs[0]);
+        for( int arg : new int[]{-1,0,1} ) {
+            arm._pc = 0;
+            arm.regs[0] = arg;
+            assertEquals(0,arm.step(100));
+            assertEquals(arg==0 ? 1 : 0,arm.regs[0]);
+        }
     }
 
     @Test

@@ -4,11 +4,11 @@ val _p={u8[~] str -> i64 ptr=str; return write(1,ptr,str#);};
 int a = 1;
 int b = 1;
 
-var sq = { int x ->
+var _sq = { int x ->
     x*x;
 };
 
-if(a && sq(0)) {
+if(a && _sq(0)) {
     _p("And");
 } else {
     _p("Or");

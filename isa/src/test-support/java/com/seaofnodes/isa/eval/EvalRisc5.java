@@ -203,6 +203,17 @@ public class EvalRisc5 {
                 break;
             }
 
+            case 0x27: { // FSW/FSD
+                int rs1=(int)regs[(ir >>> 15)&31], rs2=(ir >>> 20)&31;
+                int addr=rs1+((ir >> 25)<<5)+((ir >>> 7)&31);
+                switch((ir >>> 12)&7) {
+                case 2: st4(addr,Float.floatToRawIntBits((float)fregs[rs2])); break;
+                case 3: st8(addr,Double.doubleToRawLongBits(fregs[rs2])); break;
+                default: trap=3;
+                }
+                rdid=0;
+                break;
+            }
             case 0x23: { // Store 0b0100011
                 int  rs1 = (int)regs[(ir >> 15) & 0x1f]; // Address chop to 32b
                 long rs2 = regs[(ir >> 20) & 0x1f];
@@ -252,7 +263,7 @@ public class EvalRisc5 {
                     case 0 -> (is_reg && (ir & 0x40000000) != 0) ? (rs1 - rs2) : (rs1 + rs2);
                     case 1 -> rs1 << (rs2 & 0x3F);
                     case 2 -> (rs1 < rs2) ? 1 : 0;
-                    case 3 -> (rs1 < rs2) ? 1 : 0;
+                    case 3 -> Long.compareUnsigned(rs1,rs2)<0 ? 1 : 0;
                     case 4 -> rs1 ^ rs2;
                     case 5 -> (ir & 0x40000000) != 0 ? (rs1 >> (rs2 & 0x3F)) : (rs1 >>> (rs2 & 0x3F));
                     case 6 -> rs1 | rs2;
@@ -329,8 +340,8 @@ public class EvalRisc5 {
                     is_f = false; // Output into a GPR
                     rval = switch( (ir >> 12) & 7 ) {
                     case 0 -> lhs <= rhs ? 1 : 0;
-                    case 1 -> lhs == rhs ? 1 : 0;
-                    case 2 -> lhs <  rhs ? 1 : 0;
+                    case 1 -> lhs <  rhs ? 1 : 0;
+                    case 2 -> lhs == rhs ? 1 : 0;
                     default -> throw new UnsupportedOperationException();
                     };
                     break;

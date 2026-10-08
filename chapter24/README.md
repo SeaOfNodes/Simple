@@ -305,19 +305,21 @@ also covers a backedge-only conflict where the first attempt inserts no copy:
 that attempt must still consume the one permitted delay.  A regression checks
 both the cheaper first attempt and the mandatory fallback.
 
-Rows are fixed test cohorts; columns are the compiler/allocator chapters.  Each
-cell is the sum of `_spillScaled`: retained split moves, including register
-copies, weighted by loopDepth.  Lower is better.  **# tests counts
-compilations** (program/CPU/ABI cases), including zero-spill cases, rather than
-JUnit methods.  The count and membership of each row stay fixed across columns.
+Rows are fixed test cohorts; columns are compiler chapters. Each cell gives
+**Ops / RA / X**: executed ARM+RISC-V instructions, the subset emitted for
+allocator copies/rematerializations, and x86's loop-weighted split-move estimate.
+**Cases D / X** counts measured dynamic program/target cases and x86 compilations;
+membership and inputs stay fixed across columns. Native-library work is excluded.
+Chapter 20 has no encoder, hence no dynamic counts. Lower is better within each
+metric; see the [measurement details](../docs/regalloc-spills.md) for coverage.
 
 <!-- spill-matrix:start -->
-| Test cohort | # tests | Ch 20 | Ch 21 | Ch 22 | Ch 23 | Ch 24 |
+| Test cohort | Cases D / X | Ch 20: Ops / RA / X | Ch 21: Ops / RA / X | Ch 22: Ops / RA / X | Ch 23: Ops / RA / X | Ch 24: Ops / RA / X |
 |---|---:|---:|---:|---:|---:|---:|
-| Ch 20 | 39 | 360 | 576 | 430 | 442 | 441 |
-| Ch 21 | 52 |  | 1,072 | 960 | 961 | 948 |
-| Ch 22 | 26 |  |  | 63 | 63 | 63 |
-| Ch 23 | 24 |  |  |  | 103 | 103 |
-| Ch 24 | 58 |  |  |  |  | 1,387 |
+| Ch 20 | 22 / 13 | — / — / 161 | 55,173 / 5,407 / 174 | 58,751 / 9,099 / 175 | 58,736 / 9,084 / 184 | 58,720 / 9,068 / 183 |
+| Ch 21 | 20 / 18 |  | 6,207 / 261 / 461 | 6,324 / 379 / 475 | 6,326 / 381 / 475 | 6,325 / 380 / 470 |
+| Ch 22 | 14 / 8 |  |  | 198 / 60 / 7 | 194 / 56 / 7 | 194 / 56 / 7 |
+| Ch 23 | 14 / 8 |  |  |  | 630 / 160 / 36 | 630 / 160 / 36 |
+| Ch 24 | 36 / 20 |  |  |  |  | 4,923 / 1,341 / 790 |
 <!-- spill-matrix:end -->
 

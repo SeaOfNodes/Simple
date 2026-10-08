@@ -9,6 +9,47 @@ public class RiscTest {
         assert expected==actual : String.format("Expected %08x, got %08x",expected,actual);
     }
     public static void main(String[] args) {
+        // Instructions encountered by dynamic allocation measurements.
+        for( long[] pair : new long[][]{{17,3},{-17,3},{17,0},{Long.MIN_VALUE,-1}} ) {
+            var a=new EvalArm64(new byte[1024],512);
+            a.st4(4,0x9AC20C20); // sdiv x0,x1,x2
+            a._pc=4;a.regs[1]=pair[0];a.regs[2]=pair[1];
+            assert a.step(1)==0;
+            assert a.regs[0]==(pair[1]==0 ? 0 : pair[0]/pair[1]);
+        }
+        var discard=new EvalArm64(new byte[1024],512);
+        discard.st4(4,0x3862683F); // ldrb wzr,[x1,x2]; discard without changing SP
+        discard._pc=4;discard.regs[1]=100;discard.regs[2]=4;discard.st1(104,91);
+        assert discard.step(1)==0 && discard.regs[31]==512;
+        for(long value:new long[]{-1,0,1,Long.MIN_VALUE}) {
+            var unsigned=new EvalRisc5(new byte[1024],512);
+            unsigned.st4(4,0x00113193); // sltiu x3,x2,1 (seqz)
+            unsigned._pc=4;unsigned.regs[2]=value;
+            assert unsigned.step(1)==0;
+            assert unsigned.regs[3]==(value==0 ? 1 : 0);
+        }
+        var logical=new EvalArm64(new byte[1024],512);
+        logical.st4(4,0xB27F0020); // orr x0,x1,#2
+        logical.st4(8,0x9A9F17E2); // cset x2,eq; false must not retain prior result
+        logical._pc=4;logical.regs[1]=8;
+        assert logical.step(2)==0;
+        assert logical.regs[0]==10 && logical.regs[2]==0;
+        for(double rhs:new double[]{1,2,3,Double.NaN}) {
+            var r=new EvalRisc5(new byte[1024],512);
+            r.st4(4,0xA220A1D3); // feq.d x3,f1,f2
+            r.st4(8,0xA2209253); // flt.d x4,f1,f2
+            r._pc=4;r.fregs[1]=2;r.fregs[2]=rhs;
+            assert r.step(2)==0;
+            assert r.regs[3]==(2==rhs ? 1 : 0);
+            assert r.regs[4]==(2<rhs ? 1 : 0);
+        }
+        var store=new EvalRisc5(new byte[1024],512);
+        store.st4(4,0x00113827); // fsd f1,16(sp)
+        store.st4(8,0xFE112E27); // fsw f1,-4(sp)
+        store._pc=4;store.fregs[1]=-3.25;
+        assert store.step(2)==0;
+        assert store.ld8(528)==Double.doubleToRawLongBits(-3.25);
+        assert store.ld4s(508)==Float.floatToRawIntBits(-3.25f);
         word(0x9E780020,Arm64.floatToInteger(1,0)); // FCVTZS x0,d1
         for( double value : new double[]{0.0,-0.0,6.92,-6.92,0.99,-0.99,
                 0x1p63,Math.nextDown(0x1p63),-0x1p63,Math.nextDown(-0x1p63),

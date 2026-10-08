@@ -1,108 +1,142 @@
 # Register allocation across chapters
 
-Read a row from left to right to follow a fixed test cohort through successive
-compilers. Columns identify the compiler/allocator chapter; each cell is its
-sum of `_spillScaled`. Blank cells precede the cohort's introduction.
-There is no total across different cohorts.
+Read a row left to right to follow a fixed cohort through successive compilers.
+Each cell gives **Ops / RA / X**:
+
+- **Ops:** executed ARM + RISC-V machine instructions, with fixed inputs.
+- **RA:** executed instructions belonging to allocator-created copies,
+  spills/reloads and rematerializations; a subset of Ops. A replacement constant
+  materialization counts even when it adds no instruction relative to the
+  original program. This measures allocator-generated code, not a net overhead.
+- **X:** x86-only `_spillScaled`, counting retained split moves (including
+  register copies) with weight `8^loopDepth`. It is a static estimate and does
+  not count rematerializations.
+
+**Cases D / X** counts dynamic program/target cases and x86 compilations.
+Repeated historical compilation entries remain repeated. These are independent
+coverage counts, not a sum; dynamic cases may use several inputs. Membership,
+inputs and returned values are checked across compiler columns. Chapter 20 has
+no encoder, so its dynamic cells are unavailable. There is no cross-cohort total.
 
 <!-- spill-matrix:start -->
-| Test cohort | # tests | Ch 20 | Ch 21 | Ch 22 | Ch 23 | Ch 24 | Ch 25 |
+| Test cohort | Cases D / X | Ch 20: Ops / RA / X | Ch 21: Ops / RA / X | Ch 22: Ops / RA / X | Ch 23: Ops / RA / X | Ch 24: Ops / RA / X | Ch 25: Ops / RA / X |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Ch 20 | 39 | 360 | 576 | 430 | 442 | 441 | 491 |
-| Ch 21 | 52 |  | 1,072 | 960 | 961 | 948 | 1,077 |
-| Ch 22 | 26 |  |  | 63 | 63 | 63 | 71 |
-| Ch 23 | 24 |  |  |  | 103 | 103 | 152 |
-| Ch 24 | 58 |  |  |  |  | 1,387 | 1,503 |
-| Ch 25 | 14 |  |  |  |  |  | 1,862 |
+| Ch 20 | 22 / 13 | — / — / 161 | 55,173 / 5,407 / 174 | 58,751 / 9,099 / 175 | 58,736 / 9,084 / 184 | 58,720 / 9,068 / 183 | 59,043 / 9,094 / 209 |
+| Ch 21 | 20 / 18 |  | 6,207 / 261 / 461 | 6,324 / 379 / 475 | 6,326 / 381 / 475 | 6,325 / 380 / 470 | 6,233 / 219 / 533 |
+| Ch 22 | 14 / 8 |  |  | 198 / 60 / 7 | 194 / 56 / 7 | 194 / 56 / 7 | 332 / 136 / 11 |
+| Ch 23 | 14 / 8 |  |  |  | 630 / 160 / 36 | 630 / 160 / 36 | 1,106 / 442 / 36 |
+| Ch 24 | 36 / 20 |  |  |  |  | 4,923 / 1,341 / 790 | 5,044 / 1,470 / 609 |
+| Ch 25 | 2 / 12 |  |  |  |  |  | 20 / 0 / 1,862 |
 <!-- spill-matrix:end -->
 
-Here **# tests counts compilations**, including the same program on different
-CPU/ABI combinations and separately recorded compilation phases. It is not the
-number of JUnit methods. Every filled cell in a row uses the same number of
-compilations and the same test/CPU/ABI membership, including zero-spill cases.
-The reporter checks the multiset of those identities before emitting the table.
-Jig methods are temporary debugging placeholders and are always ignored. Their
-15 replay entries are excluded consistently: six from cohort 23 and nine from
-cohort 24. The two cohort-23 Jigs duplicated one Fibonacci scratch program;
-Chapters 23-24 discarded its default main, while 25 compiled it and an exported
-function. Its removal eliminates 228 weighted moves from the Chapter 25 column
-without changing the compiler.
-Chapter 20's BrainFuck and MergeSort tests were moved into Chapter20Test in 21;
-the reporter recognizes that rename.
+Measured on Windows, 2026-10-07, using optimizer seed 123 for the historical
+cohorts. The x86 Chapter 25 cohort retains its native-test seeds and the fresh
+system-library compilation at seed 456. Dynamic counts include generated class
+initializers and calls, but exclude the bodies of native `calloc`, `read` and
+`write`. Their deterministic emulator stubs provide allocation and fixed I/O.
+No clock timings, native-library instruction counts or code-size metric are mixed in.
 
-`_spillScaled` counts retained SplitNodes, including register-to-register moves,
-weighted by `8^loopDepth`. Lower is better; these are estimated move costs,
-not measured memory traffic or execution time.
+## Inputs and coverage
 
-Measured on Windows x86-64, 2026-10-07. The earlier cohorts combine x86-64
-SystemV/Win64 with ARM and RISC-V SystemV, at optimizer seed 123. Cohort 25
-contains 13 recorded native-test allocations at their existing seeds and a
-fresh system-library compilation at seed 456.
+| Cohort | Dynamic cases | Executions per compiler | x86 compilations |
+|---|---:|---:|---:|
+| Ch 20 | 22 | 44 | 13 |
+| Ch 21 | 20 | 20 | 18 |
+| Ch 22 | 14 | 14 | 8 |
+| Ch 23 | 14 | 26 | 8 |
+| Ch 24 | 36 | 48 | 20 |
+| Ch 25 | 2 | 2 | 12 |
 
-The rows compare whole chapter compilers. Optimizations, scheduling, ABI
-lowering, and library representation also change, so a row need not decrease
-at every step. In particular, Chapter 25 replays earlier programs with the
-[documented syntax, constructor and visibility adaptations](../chapter25/src/test/java/com/seaofnodes/simple/spill/README.md).
-The two Chapter 22 C-return ABI cases are included there as well, keeping that
-row at 26 compilations. They cost no moves in 22-25 after Chapter 25's targeted
-function-address rematerialization preference.
-Use a controlled comparison within one compiler to isolate an allocator heuristic.
+Newton, array-fill and Merge Sort use argument 16; allocation-index tests use
+0, 1 and 2. Branch/short-circuit and nested-equality cases use 0-3, Fibonacci uses 9, and Sieve uses
+100. Bubble Sort reads `[4, 3, 2, 1]`; BrainFuck runs its embedded Hello World
+program. Other measured cases use argument 0. The Chapter 25 dynamic row is only
+the two existing external-data emulator cases, with `counter` initialized to -7;
+it does not represent execution of the whole system library or native suite.
 
-The Chapter 25 comparison below separates that allocator change from making
-local helpers/classes private in eleven replay fixtures. The ranking trial uses
-the same sources, seeds, targets and ABIs as its baseline. Private names remove
-unneeded exported bodies and allocation factories; their effect is a change to
-the lowered program, not an allocator gain. Export/API fixtures stay public.
+String/Person APIs, the returned mixed-argument function, exported Merge Sort
+and BrainFuck, and mixed/stack-argument API tests still need explicit emulator
+drivers. Deliberately infinite programs remain compilation-only. The original
+allocation cohorts are preserved; these cases are not silently measured as zero.
+The previously excluded equality, ARM Newton and ARM Bubble Sort cases now run
+in every applicable compiler column. The measurement harness checks their
+answers, including nested equality at arguments 0-3, finite Newton results and
+Bubble Sort's complete output. The shared ISA tests and full Chapter 21-25
+Make suites pass after the backend/evaluator corrections.
 
-| Test cohort | Before | Ranking only | + Private helpers | + Tiny-body check |
-|---|---:|---:|---:|---:|
-| Ch 20 | 608 | 608 | 491 | 491 |
-| Ch 21 | 1,170 | 1,170 | 1,077 | 1,077 |
-| Ch 22 | 127 | 99 | 71 | 71 |
-| Ch 23 | 152 | 152 | 152 | 152 |
-| Ch 24 | 1,558 | 1,545 | 1,506 | 1,503 |
-| Ch 25 | 1,851 | 1,829 | 1,829 | 1,862 |
+## Remaining differences after fixture cleanup
 
-These four successful Chapter 25 reports have been recomputed from their saved
-per-allocation records with the Jig entries excluded, leaving 199 replay
-allocations. They also passed fresh library encoding and 23 native/system tests.
-The final compiler also passes its complete
-Make suite and a fresh SystemV library encoding on Windows. The earlier compiler
-columns are unchanged.
+The Chapter 24-to-25 comparison, using the same inputs and cases in each row:
 
-The tiny-body check bypasses an oversized parse-time estimate only for recognized
-straight-line boilerplate containing at most 15 nodes. Parsing an initializer
-also builds its nested methods, so that estimate can greatly exceed the surviving
-body. Dependencies on Return inputs and the bounded inspected prefix allow retries
-after folding, without walking a large body on every change. The walk follows uses
-from entry to Return, with bounded fanout, avoiding sparse memory input arrays.
-This removes six constructor calls in the replay corpus, all in Bubble Sort:
-estimates 276, 352 and 479 represented bodies of only 11, 11 and 14 nodes. Public
-constructor bodies remain exported. The optimized-body limits remain 100 for
-ordinary functions and 200 for `<new>`/instance `<init>`; selection order is unchanged.
-It reproduces all 213 retained allocation records from the preceding 1,000-node constructor
-parse-allowance trial, replacing that allowance with a bounded structural check.
+| Cohort | Ch 24 Ops | Ch 25 Ops | Change |
+|---|---:|---:|---:|
+| Ch 20 | 58,720 | 59,043 | +0.6% |
+| Ch 21 | 6,325 | 6,233 | -1.5% |
+| Ch 22 | 194 | 332 | +71.1% |
+| Ch 23 | 630 | 1,106 | +75.6% |
+| Ch 24 | 4,923 | 5,044 | +2.5% |
 
-This is a boilerplate reduction, not a uniform spill improvement. Bubble Sort's
-weighted moves change by -10 on x86, +3 on ARM and +4 on RISC-V. The fresh Win64
-library improves 842 to 809 and Dijkstra 584 to 582, while FileIO rises 293 to 361.
-The separately checked SystemV library improves 803 to 777. The broader inliner
-redesign is deferred until after the Chapter 25 split.
+Chapter 25 retains top-level bindings in the compilation unit's class object.
+Initializing its fields generates stores, function-pointer constants and class
+addresses, even when helper calls have already inlined and folded. Chapters
+through 24 can eliminate these bindings as locals. Small programs make this
+fixed initialization cost particularly visible.
 
-Chapters 20-24 also recognize these tiny bodies, copying only straight-line
-stores and memory merges after ordinary peepholes settle. They already expand
-constructor defaults directly, so there are no analogous constructor calls to
-remove. Rerunning their full suites and allocation reports after this backport
-changed no raw or scaled allocation record; the matrix above remains unchanged.
+For example, `Chapter23Test.testAnd` takes 12 instructions per target in 24 and
+32 in 25. The extra 20 are four field stores, four instructions materializing
+two function pointers, ten materializing the class address at five uses
+(including the hidden call argument), and two integer constants. The actual
+short-circuit expression has already folded in both chapters.
 
-Run `make spill-stats` from the repository root to rerun all six chapters and
-write logs plus `matrix.md` under `build/spill-stats/`. A failed test or changed
-cohort membership makes the command fail; partial results are not published.
-To refresh these tables after a successful run:
+Across the entire Chapter 23 cohort, executed-node attribution accounts for
+the **476** extra instructions:
+
+| Generated work | Instruction change |
+|---|---:|
+| Field stores | +126 |
+| Function-pointer materialization | +108 |
+| Pointer-address materialization | +240 |
+| Integer constants | +50 |
+| Allocator copies/spills/reloads | +2 |
+| Unconditional jumps | +2 |
+| Calls, prologues/returns, extensions and loads removed | -52 |
+
+Its RA subset rises **160 to 442**, comprising **224** extra pointer-address
+rematerialization instructions, **56** extra integer rematerializations and
+only **2** extra copies/spills/reloads. RA labels allocator-created code; it
+does not mean all 282 extra instructions are stack traffic. `testAndPtr` also
+loses a helper call per execution, so inlining has improved despite the larger
+whole-program count. Moving constant initialization to static data would
+remove much of this work; reusing class addresses could reduce the repeated
+materialization. Neither optimization is included in this measurement update.
+
+Both Bubble Sort targets improve: RISC-V **2,062 / 591 to 1,877 / 493**, and
+ARM **2,040 / 579 to 1,868 / 478** (Ops / RA). Together they save 357 instructions;
+the other Chapter 24 cases add 478, leaving a net increase of 121. Newton
+integer improves **136 / 36 to 116 / 17** across both targets. In the Chapter 20
+BrainFuck case, ARM adds 95 instructions: 88 net extra integer materializations
+plus seven initialization instructions; its executed split count stays at 33.
+These tables compare whole chapter compilers, including frontend and inlining
+changes, rather than isolating allocator rankings.
+
+## Reproduce
+
+Run `make spill-stats` at the repository root to compile/run the static cohorts,
+capture their historical sources, execute the dynamic cases and validate the
+comparison. Capture uses temporary instrumented copies of the existing
+SpillStats listeners under `build/dynamic-stats`; it does not edit chapter code.
+The measured machine graph is stopped before allocation to identify subsequently
+inserted copies/cloned constants. After encoding, their instruction ranges are
+matched against the emulator's executed PCs, including multi-instruction expansions.
+
+After a successful run, update the marked tables with:
 
 ```sh
 python build-support/spill-matrix.py --reuse --update-docs
 ```
 
-Each Chapter 20-25 README contains the matrix up to that chapter. The per-chapter
-`make spill-stats` commands still provide individual allocations and CPU/ABI sums.
+Per-program inputs, results and dynamic counts are written to
+`build/spill-stats/dynamic-counts.csv`; emulator logs and explicit skips live
+under `build/dynamic-stats/{21..25}/dynamic.log`. The x86 records remain in
+`build/spill-stats/spill-matrix-{20..25}.log`. The source adaptations for Chapter
+25 are documented in the [replay README](../chapter25/src/test/java/com/seaofnodes/simple/spill/README.md).

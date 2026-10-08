@@ -329,6 +329,11 @@ public class EvalArm64 {
                 rval = regs[rn] & immediate;
                 break;
             }
+            case 0xB2: { // ORR (immediate)
+                int rn = (ir >>> 5) & 31;
+                rval = (rn==31 ? 0 : regs[rn]) | Arm64.decodeImm12((ir >>> 10) & 0x1FFF);
+                break;
+            }
             case 0x93, 0xD3: { // SBFM/UBFM: shifts and signed/unsigned extracts
                 int immr = (ir >>> 16) & 63;
                 int imms = (ir >>> 10) & 63;
@@ -372,6 +377,12 @@ public class EvalArm64 {
             }
 
             case 0x9A: {
+                if( (ir & 0xFFE0FC00)==0x9AC00C00 ) { // SDIV Xd,Xn,Xm
+                    int rn=(ir >>> 5)&31, rm=(ir >>> 16)&31;
+                    long lhs=rn==31 ? 0 : regs[rn], rhs=rm==31 ? 0 : regs[rm];
+                    rval = rhs==0 ? 0 : lhs/rhs;
+                    break;
+                }
                 int encodedCond = (ir >> 12) & 0xF;
                 int decodedCond  = encodedCond ^ 1;
                 // conditional select(csel)
@@ -394,7 +405,7 @@ public class EvalArm64 {
                 case 0xF -> false          ;   // never
                 default -> throw new UnsupportedOperationException();
                 };
-                if( cond ) rval = 1;
+                rval = cond ? 1 : 0;
                 break;
             }
             case 0x9B: {       // mul
@@ -761,7 +772,8 @@ public class EvalArm64 {
             }
             if(rdid != -1) {
                 if(is_f) fregs[rdid] = frval;
-                else      regs[rdid] =  rval;
+                // Register 31 is XZR except for ADD/SUB immediate, which writes SP.
+                else if( rdid!=31 || opcode1==0x91 || opcode1==0xD1 ) regs[rdid] = rval;
             }
 
             pc += 4;

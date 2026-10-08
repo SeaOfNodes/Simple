@@ -17,7 +17,7 @@ public class LoadARM extends MemOpARM {
         super(ld, base, idx, off, 0);
     }
     @Override public String op() { return "ld"+_sz; }
-    @Override public RegMask outregmap() { return size() >= 4 ? arm.MEM_MASK : arm.RMASK; }
+    @Override public RegMask outregmap() { return size() >= 4 ? arm.MEM_MASK : arm.WMASK; }
 
     private static final int[] OP_LOADS  = new int[]{ Arm64.OP_LOAD_IMM_8,  Arm64.OP_LOAD_IMM_16,  Arm64.OP_LOAD_IMM_32,  Arm64.OP_LOAD_IMM_64, };
 

@@ -15,7 +15,8 @@ public class NotRISC extends MachConcreteNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         short dst = enc.reg(this );
         short src = enc.reg(in(1));
-        enc.add4(RiscV.i_type(RiscV.OP_IMM, dst, 2, src, 1));
+        // SEQZ is unsigned: negative nonzero inputs must also produce false.
+        enc.add4(RiscV.i_type(RiscV.OP_IMM, dst, 3, src, 1));
     }
     @Override public void asm(CodeGen code, SB sb) { sb.p(code.reg(this)); }
 }
