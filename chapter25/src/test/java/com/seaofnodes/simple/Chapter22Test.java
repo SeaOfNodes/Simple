@@ -146,9 +146,9 @@ struct _Person { i32 age;};
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(82, testCPUSize(src, "x86_64_v2","win64", 3 ));
-        assertEquals(96, testCPUSize(src, "riscv",  "SystemV", 4 ));
-        assertEquals(96, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
+        assertEquals(65, testCPUSize(src, "x86_64_v2","win64", 3 ));
+        assertEquals(76, testCPUSize(src, "riscv",  "SystemV", 4 ));
+        assertEquals(76, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
 
         // do assertEquals here
         EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 4, false);
@@ -178,9 +178,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(82, testCPUSize(src, "x86_64_v2","win64",3 ));
-        assertEquals(96, testCPUSize(src, "riscv",  "SystemV",4 ));
-        assertEquals(96, testCPUSize(src, "arm",    "SystemV",4 ));
+        assertEquals(65, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(76, testCPUSize(src, "riscv",  "SystemV",4 ));
+        assertEquals(76, testCPUSize(src, "arm",    "SystemV",4 ));
 
     }
 
@@ -202,9 +202,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(72, testCPUSize(src, "x86_64_v2","win64",3 ));
-        assertEquals(92, testCPUSize(src, "riscv",  "SystemV",5 ));
-        assertEquals(92, testCPUSize(src, "arm",    "SystemV",5));
+        assertEquals(55, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(72, testCPUSize(src, "riscv",  "SystemV",5 ));
+        assertEquals(72, testCPUSize(src, "arm",    "SystemV",5));
         // do assertEquals here
     }
 

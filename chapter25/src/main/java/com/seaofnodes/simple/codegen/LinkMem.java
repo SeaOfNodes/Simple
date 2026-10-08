@@ -23,10 +23,11 @@ public class LinkMem {
         // Patch local ops, e.g. loading float constants from the constant pool
         for( Node op : enc._bigCons.keySet() ) {
             Encoding.Relo relo = enc._bigCons.get(op);
-            int target = relo._target+(relo.readOnly() ? cpool : sdata);
+            int target = enc._data.address(enc._data.object(relo._t),cpool,sdata);
             ((RIPRelSize)relo._op).patch(enc, relo._opStart, enc.opLen(relo._op), target - relo._opStart);
         }
 
+        enc._data.link(cpool,sdata);
         return _code;
     }
 }

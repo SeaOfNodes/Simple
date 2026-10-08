@@ -30,9 +30,6 @@ public class CompUnit {
     //BAOS _serial;           // Serialized IR for this ELF file
     Ary<CompUnit> _deps;    // CompUnits that this CompUnit depends on
 
-    //// List of symbols exported by this compilation unit, and their Node
-    //// definitions.
-    //public HashMap<String,Node> _exported;
     // Per-Compilation-Unit Start/StopNodes, keeping alive all exported Nodes.
     // Null means no code loaded (yet).
     public StartCUNode _start;

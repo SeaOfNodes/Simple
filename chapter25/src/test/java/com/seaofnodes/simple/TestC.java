@@ -167,6 +167,7 @@ public abstract class TestC {
         // pointers as 4bytes.
         var params = new Ary<>(String.class);
         params.add("gcc");
+        params.add(OS.startsWith("Windows") ? "-Wl,--image-base,0x400000" : "-no-pie");
         if( cfile!=null ) params.add(cfile); // Associated C driver, usually has a `main`
         params.add(obj);
         // Standalone Simple programs export `simple_main`; the small C

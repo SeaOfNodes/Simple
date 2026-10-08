@@ -20,6 +20,7 @@ public class Measure {
     }
     static byte[] image(CodeGen c) throws Exception {
         c.encode();
+        EXTERNFUNCTIONS
         var externalField=Encoding.class.getDeclaredField("_externals");externalField.setAccessible(true);
         @SuppressWarnings("unchecked") var externals=(Map<Node,String>)externalField.get(c._encoding);
         var extra=new LinkedHashMap<Node,String>();

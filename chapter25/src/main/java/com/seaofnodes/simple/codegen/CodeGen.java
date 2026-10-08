@@ -733,6 +733,8 @@ public class CodeGen {
     // make a machine node for "this".
     private Node _instSelect( Node n, IdentityHashMap<Node,Node> map ) {
         if( n==null ) return null;
+        if( n instanceof StoreNode st && StaticData.preinitialized(this,st) )
+            return _instSelect(st.mem(),map);
         Node x = map.get(n);
         if( x !=null ) return x; // Been there, done that
 

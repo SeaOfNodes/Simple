@@ -79,11 +79,18 @@ public final class ASMPrinter extends AssemblyAdapter<Node> {
         if( !encoded() ) return pools;
         int base=(codeEnd+15)&-16;
         if( _enc._cpool.size()>0 )
-            pools.add(new Pool("Constant Pool",_enc._cpool.buf(),0,base,entries(_enc._bigCons.values(),true)));
+            pools.add(new Pool("Constant Pool",_enc._cpool.buf(),0,base,objects(true)));
         base=(base+_enc._cpool.size()+15)&-16;
         if( _enc._sdata.size()>0 )
-            pools.add(new Pool("Static Data",_enc._sdata.buf(),0,base,entries(_enc._bigCons.values(),false)));
+            pools.add(new Pool("Static Data",_enc._sdata.buf(),0,base,objects(false)));
         return pools;
+    }
+    private ArrayList<Data> objects(boolean ro) {
+        var data=new ArrayList<Data>();
+        for( var obj : _enc._data.entries() )
+            if( !obj.external && obj.readOnly==ro )
+                data.add(new Data(obj,obj.symbol+": "+obj.type.str(),obj.alignment,obj.size));
+        return data;
     }
     // Retain this diagnostic entry point for checking that pool printing never lays out types.
     static int printConstantPool(int address, SB sb, BAOS bits, HashMap<Node,Encoding.Relo> relos,

@@ -129,6 +129,12 @@ public class GlobalBits {
         return next(clz,order);
     }
 
+    // Stable native symbol identity, independent of this compilation's dense IDs.
+    String owner(int local) { return _local2Clz.at(local); }
+    String symbol(int local) {
+        return _local2Clz.at(local)+"$F$"+_local2Order.at(local);
+    }
+
     // Write out to BAOS enough bits to unwind the local back to global index
     void packed( BAOS baos, HashMap<String,Integer> strs ) {
         // Unwind a local index to the clz.

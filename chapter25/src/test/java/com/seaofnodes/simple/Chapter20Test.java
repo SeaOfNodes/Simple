@@ -258,7 +258,7 @@ val _hashCodeString = { !String self ->
 };
 """;
         testCPU(src,"x86_64_v2", "SystemV",21,null);
-        testCPU(src,"riscv"    , "SystemV",10,null);
+        testCPU(src,"riscv"    , "SystemV",8,null);
         testCPU(src,"arm"      , "SystemV",8,null);
     }
 

@@ -465,18 +465,10 @@ lines beyond the original extraction.
 
 ## Pending corrections
 
-- **Residual allocation comparisons (investigated 2026-10-07; no compiler fix).**
-  After fixture cleanup, cohort 23 is 103 in Chapter 24 versus 104 in 25;
-  cohort 24 improves 1,387 to 1,315. The small actionable case is Win64
-  NewtonExport: six moves in both chapters, but Chapter 25 puts five in the loop
-  rather than four (34 to 41 weighted). Inspect destructive-add operand choice,
-  coalescing and Phi/return-register bias. Bubble Sort
-  now executes fewer instructions on both ARM and RISC-V; its higher static
-  weight does not represent more executed allocator instructions.
-  Ordinary Newton's larger static score mostly counts duplicated inlined loops:
-  a no-inline diagnostic nearly matches Chapter 24. The
-  [remaining-differences report](regalloc-spills.md#remaining-differences-after-fixture-cleanup)
-  separates these findings from the deferred inliner work below.
+Allocator tuning is good enough: the residual Win64 NewtonExport ranking issue
+is closed without a fix. Additional emulator-driver/measurement coverage is also
+closed without expansion (Cliff, 2026-10-08). The remaining active work is AOT
+class initialization below; the other items stay deferred for the chapter split.
 
 - **Chapter 25 deterministic inlining (deferred until after the Chapter 25 split).**
   As of 2026-10-07, ordinary functions reject `_approxUIDs >= 100` before checking
@@ -546,11 +538,44 @@ lines beyond the original extraction.
   known-null regression is already rejected
   during parsing in 10-24. Keep this separate from the constructor/memory fixes.
 
-## AOT class initialization: larger independent work
+## AOT class initialization
 
-Proposed on 2026-09-19; deferred behind the smaller queue above. This is
-a substantial, self-contained Chapter 25 change, not an entangled backport.
-Earlier chapter applicability has not been established.
+Authorized on 2026-10-08 as the final cleanup before revisiting the Chapter 25
+split. The declared-constant final-field portion is implemented in Chapter 25:
+
+- StaticData owns object placement, canonical class identity, and relocations
+  for function/object pointers in ELF and emulator data images. Imported class
+  objects reference their defining compilation unit's `Name.$class` symbol.
+- Instruction selection omits a final-field Store only when its declared type
+  already identifies exactly the stored constant. Serialized ideal IR retains
+  its memory edges; no lattice or constructor-memory contract changed.
+- Runtime stores to mutable or insufficiently precise fields remain. Constant
+  pools remain read-only and class objects remain writable. Function pointers
+  remain four bytes, data pointers eight bytes. Native linking now explicitly
+  selects low-address placement for the existing function-pointer width; ELF
+  relocation overflow is checked by the linker.
+- The full parallel Chapter 25 Make suite passes (395, 37, 9, 23, 1, 21 tests).
+  The final focused suite passes three static-data checks: native and ARM/RISC
+  function-pointer calls before `<clinit>`, plus two serialized importers
+  sharing one mutable class-object address. The third check was added after
+  that full run. All 199 historical allocations and 108 dynamic cases pass;
+  cohort membership, inputs and results remain fixed. Tables are refreshed.
+  Logs live under `build/aot-init/` and `build/{spill,dynamic}-stats/`.
+
+**Initialization semantics decided:** dynamic `<clinit>` runs once on first
+active touch, after its parent completes. Passive class references do not
+trigger execution. Reject initialization cycles across modules; there is no
+early parent-ready point. Untouched classes execute no initialization code.
+The [lazy initialization design](../chapter25/initialization.md) covers the
+proposed ClassInit metadata owned by CompUnit, CLInitNode checks with parser-flow
+and ideal simplification, a hidden `$init` field set inside `<clinit>`, static
+proofs, and serialization/composition validation. Those mechanisms are
+design work, not implemented by the constant-field lowering above.
+
+Changing data-pointer width and moving fully initialized class objects to
+read-only storage remain separate follow-ons.
+
+The original broader design below remains a proposal, not a completion claim.
 
 The goal is to pre-allocate AOT class objects in ELF data and pre-fill their
 fields, letting ordinary graph optimization remove redundant initialization.

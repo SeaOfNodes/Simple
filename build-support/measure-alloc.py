@@ -9,6 +9,10 @@ subs={'CHAPTER':str(ch),'OPSTART':'e.opStart(n)' if ch==25 else 'e._opStart[n._n
       'OPLEN':'e.opLen(n)' if ch==25 else 'e._opLen[n._nid]',
       'CONSTRUCTOR':'new CodeGen(src,123L,true)' if ch==25 else 'new CodeGen(src,TypeInteger.BOT,123L,true)',
       'EXPORT':'c.exportELF(true,false)' if ch==25 else 'c.exportELF(null)',
+      'EXTERNFUNCTIONS':'''var functionField=CodeGen.class.getDeclaredField("_externFunc");functionField.setAccessible(true);
+        @SuppressWarnings("unchecked") var functionNames=(Map<Integer,String>)functionField.get(c);
+        for(String name:functionNames.values())
+        c._encoding._externalAddresses.put(name,name.equals("calloc")?-4:name.equals("write")?-8:name.equals("read")?-12:-16);''' if ch==25 else '',
       'EXTERNDATA':'c._externDataAddresses.put("counter",0x3800);c._externDataAddresses.put("errno",0x3808);' if ch==25 else '',
       'RESUME':'return c.loopTree().instSelect(cpu,"SystemV").GCM().localSched();' if ch==21 else 'return c.driver(CodeGen.Phase.LocalSched,cpu,"SystemV");',
       'COPYPOOLS':'''int cp=(e._bits.size()+15)&-16,sd=(cp+e._cpool.size()+15)&-16;

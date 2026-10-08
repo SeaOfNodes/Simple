@@ -133,16 +133,22 @@ public class ElfWriter {
     // The relocations; 3 words per relocation
     public class ReloSection extends DataSection {
         ReloSection( int info ) {
-            super(".rela.text", SHT_RELA, SHF_INFO_LINK, 24/*entsize*/);
+            this(".rela.text",info);
+        }
+        ReloSection(String name,int info) {
+            super(name, SHT_RELA, SHF_INFO_LINK, 24/*entsize*/);
             _link = 2;
             _info = info;
         }
 
         void writeReloOffPlus(int offset, int symidx, byte relo) {
+            writeRelo(offset,symidx,relo,-4);
+        }
+        void writeRelo(int offset,int symidx,byte relo,long addend) {
             assert symidx > 0;
             write8(offset);
             write8(((long)symidx << 32L) | relo);
-            write8(-4);
+            write8(addend);
         }
     }
 
@@ -287,7 +293,7 @@ public class ElfWriter {
         _strtab = new StringSection();
 
         // place all the symbols
-        int nlocals = 1/*null*/+7/*number of sections*/+1/*Simple section*/;
+        int nlocals = 1/*null*/+9/*number of sections*/+1/*Simple section*/;
         SymbolSection symbols = new SymbolSection(nlocals);
 
         // we've already constructed these entire sections in the encoding phase
@@ -324,12 +330,35 @@ public class ElfWriter {
             relocations.writeReloOffPlus(offset, symidx, (byte)2/*PC32*/);
         }
 
-        // Write relocations for the constant pool
-        String cpoolPrefix = _code.entryClinitName().replaceAll("[^A-Za-z0-9_$]", "_") + "$CPOOL$";
+        // Stable function identities are also addressable from data, including
+        // anonymous functions which have no source-level exported name.
+        HashMap<String,Integer> dataSymbols=new HashMap<>();
+        for( FunNode fun : _code._linker )
+            if( fun!=null && !fun.isDead() && _code.owns(fun) && enc.opStart(fun)>=0 ) {
+                String name=_code._fidxs.symbol(fun.sig().fidx());
+                dataSymbols.put(name,symbols.symbol(name,text._index,SYM_BIND_GLOBAL,SYM_TYPE_FUNC,enc.opStart(fun),0));
+            }
+        for( StaticData.ObjectData obj : enc._data.objects.values() ) {
+            int section=obj.external ? 0 : obj.readOnly ? rodata._index : rwdata._index;
+            dataSymbols.put(obj.symbol,symbols.symbol(obj.symbol,section,SYM_BIND_GLOBAL,SYM_TYPE_OBJECT,
+                                                     obj.external ? 0 : obj.offset,obj.external ? 0 : obj.size));
+        }
         for( Encoding.Relo relo : enc._bigCons.values() ) {
-            DataSection data = relo.readOnly() ? rodata : rwdata;
-            int symidx = symbols.symbol(cpoolPrefix+symbols.gidx(), data._index, SYM_BIND_GLOBAL, SYM_TYPE_FUNC, relo._target, relo._t.size());
-            relocations.writeReloOffPlus(relo._opStart+relo._off, symidx, relo._elf );
+            StaticData.ObjectData obj=enc._data.object(relo._t);
+            relocations.writeReloOffPlus(relo._opStart+relo._off,dataSymbols.get(obj.symbol),relo._elf);
+        }
+        ReloSection roRelos=new ReloSection(".rela.rodata",rodata._index);
+        ReloSection rwRelos=new ReloSection(".rela.data",rwdata._index);
+        for( StaticData.Relocation relo : enc._data.relocations ) {
+            String name=enc._data.targetSymbol(relo.value());
+            Integer sym=dataSymbols.get(name);
+            if( sym==null ) {
+                sym=symbols.symbol(name,0,SYM_BIND_GLOBAL,SYM_TYPE_NOTYPE);
+                dataSymbols.put(name,sym);
+            }
+            // AMD64 absolute 32/64-bit addresses; linker rejects overflow.
+            byte kind=(byte)(relo.logSize()==2 ? 10 : 1);
+            (relo.object().readOnly ? roRelos : rwRelos).writeRelo(relo.object().offset+relo.offset(),sym,kind,0);
         }
 
         // Create a "Simple" section for Simple types and ir

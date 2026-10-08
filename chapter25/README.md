@@ -135,9 +135,10 @@ and missing initialization on constructor exits. Store widths come from target
 declarations, not from the values being stored.
 
 File-level code is represented by a class initializer (`<clinit>`), distinct
-from instance initialization. The older [module design notes](module.md) and
-[roadmap](ROADMAP.md) contain proposals and alternatives, especially concerning
-initialization order; they are not a specification of all implemented rules.
+from instance initialization. The [lazy initialization design](initialization.md)
+specifies proposed run-once checks, acyclic dependencies across modules, and
+serialization support. It describes planned work, not all currently implemented
+behavior. The [roadmap](ROADMAP.md) contains additional proposals.
 
 ## System library and examples
 
@@ -194,12 +195,12 @@ metric; see the [measurement details](../docs/regalloc-spills.md) for coverage.
 <!-- spill-matrix:start -->
 | Test cohort | Cases D / X | Ch 20: Ops / RA / X | Ch 21: Ops / RA / X | Ch 22: Ops / RA / X | Ch 23: Ops / RA / X | Ch 24: Ops / RA / X | Ch 25: Ops / RA / X |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Ch 20 | 22 / 13 | — / — / 161 | 55,173 / 5,407 / 174 | 58,751 / 9,099 / 175 | 58,736 / 9,084 / 184 | 58,720 / 9,068 / 183 | 59,043 / 9,094 / 209 |
-| Ch 21 | 20 / 18 |  | 6,207 / 261 / 461 | 6,324 / 379 / 475 | 6,326 / 381 / 475 | 6,325 / 380 / 470 | 6,233 / 219 / 533 |
-| Ch 22 | 14 / 8 |  |  | 198 / 60 / 7 | 194 / 56 / 7 | 194 / 56 / 7 | 332 / 136 / 11 |
-| Ch 23 | 14 / 8 |  |  |  | 630 / 160 / 36 | 630 / 160 / 36 | 1,106 / 442 / 36 |
-| Ch 24 | 36 / 20 |  |  |  |  | 4,923 / 1,341 / 790 | 5,044 / 1,470 / 609 |
-| Ch 25 | 2 / 12 |  |  |  |  |  | 20 / 0 / 1,862 |
+| Ch 20 | 22 / 13 | — / — / 161 | 55,173 / 5,407 / 174 | 58,751 / 9,099 / 175 | 58,736 / 9,084 / 184 | 58,720 / 9,068 / 183 | 58,965 / 9,076 / 208 |
+| Ch 21 | 20 / 18 |  | 6,207 / 261 / 461 | 6,324 / 379 / 475 | 6,326 / 381 / 475 | 6,325 / 380 / 470 | 6,196 / 219 / 534 |
+| Ch 22 | 14 / 8 |  |  | 198 / 60 / 7 | 194 / 56 / 7 | 194 / 56 / 7 | 252 / 92 / 11 |
+| Ch 23 | 14 / 8 |  |  |  | 630 / 160 / 36 | 630 / 160 / 36 | 864 / 358 / 36 |
+| Ch 24 | 36 / 20 |  |  |  |  | 4,923 / 1,341 / 790 | 4,646 / 1,335 / 609 |
+| Ch 25 | 2 / 12 |  |  |  |  |  | 20 / 0 / 1,856 |
 <!-- spill-matrix:end -->
 
 

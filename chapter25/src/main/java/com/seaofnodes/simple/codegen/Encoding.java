@@ -41,6 +41,8 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
     public final BAOS _cpool = new BAOS(); // Constant r/o pool
     public final BAOS _sdata = new BAOS(); // Static   r/w pool
     public final HashMap<Node,Relo> _bigCons = new HashMap<>();
+    public final StaticData _data;
+    public final HashMap<String,Integer> _externalAddresses = new HashMap<>();
 
     // Big Constant relocation info.
     public static class Relo {
@@ -70,6 +72,7 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
 
     Encoding( CodeGen code ) {
         _code = code;
+        _data = new StaticData(this);
     }
 
     // Shortcut to the defining register
@@ -217,10 +220,8 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
         // encodings and compact the code, changing all the offsets.
         compactShortForm();
 
-        // Write the constant pool
-        writeConstantPool(_cpool,true );
-        // Write the static memory
-        writeConstantPool(_sdata,false);
+        // Place pool objects and record relocations within their contents.
+        _data.write();
 
         // Patch RIP-relative and local encodings now.
         patchLocalRelocations();
@@ -517,52 +518,6 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
         }
     }
 
-    // --------------------------------------------------
-    // Write the constant pool into the BAOS and optionally patch locally
-    void writeConstantPool( BAOS bits, boolean ro ) {
-        padN(16,bits);
-
-        // radix sort the big constants by alignment
-        Ary<Relo>[] raligns = new Ary[5];
-        for( Node op : _bigCons.keySet() ) {
-            Relo relo = _bigCons.get(op);
-            if( relo.readOnly() != ro )
-                continue;
-            int align = relo._t.alignment();
-            Ary<Relo> relos = raligns[align]==null ? (raligns[align]=new Ary<>(Relo.class)) : raligns[align];
-            relos.add(relo);
-        }
-
-
-        // Types can be used more than once; collapse the dups
-        HashMap<Type,Integer> targets = new HashMap<>();
-
-        // By alignment
-        for( int align = raligns.length-1; align >= 0; align-- ) {
-            Ary<Relo> relos = raligns[align];
-            if( relos == null ) continue;
-            for( Relo relo : relos ) {
-                // Map from relo to constant start and patch
-                Integer target = targets.get(relo._t);
-                if( target==null ) {
-                    targets.put(relo._t,target = bits.size());
-                    // Write constant into constant pool
-                    switch( relo._t ) {
-                    case TypeTuple  tt -> throw Utils.TODO("no tuples here, use structs instead");
-                    case TypeStruct ts -> addStruct(bits,ts);
-                    // Simple primitive (e.g. larger int, float, function ptr)
-                    default -> addN(align,relo._t,bits);
-                    }
-                }
-                // Record target address and opcode start.
-                // Target is relative to the cpool/sdata start.
-                relo._target = target;
-                relo._opStart= opStart(relo._op);
-            }
-        }
-
-    }
-
     // Emit a single scalar as bits
     static void addN( int log, Type t, BAOS bits ) {
         long x = switch( t ) {
@@ -577,35 +532,21 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
         addN(log,x,bits);
     }
 
-    // Structs use internal field layout
-    private void addStruct( BAOS bits, TypeStruct ts ) {
-        // Field order by offset
-        int[] layout = ts.layout();
-        int off=0; // offset in the struct
-        for( int fn=0; fn<ts._fields.length; fn++ ) {
-            Field f  = ts._fields[layout[fn]];
-            if( f._extern ) continue;
-            int foff = ts. offset(layout[fn]);
-            // Pad up to field
-            while( off < foff ) { bits.write(0); off++; };
-            // Constant array fields are special
-            if( f._fname=="[]" ) {   // Must be a constant array
-                ((TypeConAry)f._t).write(bits);
-                off += ((TypeConAry)f._t).len();
-            } else {
-                int log = f._t.log_size();
-                addN(log,f._t.isConstant() ? f._t : f._t.makeZero(),bits);
-                off += 1<<log;
-            }
-        }
-    }
-
-
     // A series of libc/external calls that Simple can link against in a JIT.
     // Since no runtime in the JVM process, using magic numbers for the CPU
     // emulators to pick up on.
     public static int SENTINEL_CALLOC = -4;
     public static int SENTINEL_WRITE  = -8;
+
+    int externalAddress(String name) {
+        Integer address=_externalAddresses.get(name);
+        if( address!=null ) return address;
+        return switch(name) {
+        case "calloc" -> SENTINEL_CALLOC;
+        case "write" -> SENTINEL_WRITE;
+        default -> throw new IllegalArgumentException("Unresolved external function '"+name+"'");
+        };
+    }
 
     void patchGlobalRelocations() {
         for( Node src : _externData.keySet() ) {
@@ -618,11 +559,7 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
         for( Node src : _externals.keySet() ) {
             int start  = opStart(src);
             String dst =  _externals.get(src);
-            int target = switch( dst ) {
-            case "calloc" -> SENTINEL_CALLOC;
-            case "write"  -> SENTINEL_WRITE ;
-            default -> throw Utils.TODO();
-            };
+            int target = externalAddress(dst);
             ((RIPRelSize)src).patch(this, start, opLen(src), target - start);
         }
     }
