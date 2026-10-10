@@ -15,6 +15,7 @@
 # run the tests
 #
 #   make tests
+#   make test CLASS=Chapter25Test METHOD=testHelloWorldNoInline
 
 #######################################################
 #
@@ -196,6 +197,13 @@ tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_CRT)
 	@echo "testing " $(test_sys)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_sys)
+
+# One test method (or the whole class when METHOD is omitted).
+CLASS ?= Chapter25Test
+METHOD ?=
+.PHONY: test
+test: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_CRT)
+	@$(JVM) com.seaofnodes.simple.TestRunner "$(CLASS)" "$(METHOD)"
 
 fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@echo "fuzzing "

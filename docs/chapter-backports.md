@@ -567,10 +567,42 @@ active touch, after its parent completes. Passive class references do not
 trigger execution. Reject initialization cycles across modules; there is no
 early parent-ready point. Untouched classes execute no initialization code.
 The [lazy initialization design](../chapter25/initialization.md) covers the
-proposed ClassInit metadata owned by CompUnit, CLInitNode checks with parser-flow
+proposed initialization dependencies directly on CompUnit, CLInitNode checks with parser-flow
 and ideal simplification, a hidden `$init` field set inside `<clinit>`, static
-proofs, and serialization/composition validation. Those mechanisms are
-design work, not implemented by the constant-field lowering above.
+proofs, and serialization/composition validation. The constant-field lowering
+above does not implement the runtime initialization protocol.
+The [implementation checkpoints](../chapter25/initialization.md#implementation-sequence)
+choose CompUnit dependency edges and function may-touch summaries for cycle
+checking, separately from ordinary alias-memory facts for runtime `$init`.
+No separate ClassInit object or analysis-only memory slice is planned initially.
+
+**Checkpoint 1 revised for review (2026-10-10):** initialization cycles now
+count only requirements surviving Opto. Parser inserts ideal CLInit obligations
+on control; the collector walks optimized function bodies and propagates their
+final call-target effects into CompUnit dependencies. Removed branches/targets
+leave no historical edges. All generic Node watcher hooks are removed. Parent
+edges, cycle witnesses, and stable topological ordering remain. Nonreturning
+calls left out-of-line retain conservative continuations; touches after them
+can contribute extra initialization ordering. The ideal obligations are erased
+after validation for this checkpoint;
+runtime flags/calls and serialized summaries are still pending. Imported/native/
+unresolved effects remain explicitly incomplete and `_initStatic` remains false.
+All 492 Chapter 25 tests pass, plus focused x86/ARM/RISC-V encoding checks for
+the nonreturning-call fix added after the full run. Two existing RISC-V spill
+expectations improve from 9 to 7. Log: `build/init-deps-opto-final.log`.
+See the [checkpoint notes](../chapter25/initialization.md#1-compunit-dependencies-and-cycle-checking).
+
+**Non-exiting function inlining (2026-10-10):** general body cloning starts in
+Chapter 25. Chapters 20-24 clone only restricted straight-line boilerplate;
+their older `FunNode.body()` helpers have no callers. Chapter 25 now discovers
+body control forwards from Fun, including infinite-loop arms, and explicitly
+copies its Return even when that node has no executable incoming control.
+The nonreturning-inline guard is removed. Serialization also permits a unit
+whose unused memory projection disappeared. The regression covers a wholly
+non-exiting function and a two-call function with both returning and infinite
+arms, checking inlining and Eval2 behavior across three seeds and all three
+machine encoders with allocation checks. All 493 Chapter 25 tests pass;
+log: `build/inline-never-exit.log`.
 
 Changing data-pointer width and moving fully initialized class objects to
 read-only storage remain separate follow-ons.

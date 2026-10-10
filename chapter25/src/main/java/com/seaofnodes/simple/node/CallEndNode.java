@@ -17,8 +17,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
     // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
     boolean _folding;
-    // +2 must clone, so await all cleanup but OK
-    // +1 trivial now,
+    // +2: must clone, so await all cleanup but OK
+    // +1: trivial now, so can inline without cloning and without waiting for cleanup
     //  0: take a look,
     // -1: somethings wrong, but might improve
     // -2: never and stop asking,
@@ -122,9 +122,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
             state = (TypeTuple)state.meet(in(i)._type);
         // A reachable call whose presently linked exits are all unreachable
         // keeps a conservative continuation.  In particular, do not let a
-        // transient no-return result tear down the caller during SCCP.
-        if( state.ctl()==Type.XCONTROL &&
-            CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() )
+        // transient no-return result tear down the caller before/during SCCP.
+        // If the call remains out-of-line, its continuation can conservatively
+        // contribute class-init dependencies even though it never executes.
+        if( state.ctl()==Type.XCONTROL )
             return TypeTuple.make(Type.CONTROL,TypeMem.TOP,Type.TOP);
         // At least as good as the TFP
         return state.makeFrom(2,state.ret().join(tfp.ret()));
@@ -158,7 +159,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
         ReturnNode ret = (ReturnNode)in(1);
         FunNode fun = ret.fun();
 
-        // Heuristic forced inlining off via name
+        // Preserve initializer boundaries until post-Opto cycle validation.
+        if( fun.isClz() ) return -2;
+
+        // Heuristic forced inlining turned off via name
         if( fun._name != null &&
             fun._name.endsWith("_noInline") )
             return -2;          // Never, stop asking
@@ -168,7 +172,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
             if( fun.cfg(i).fun()==fun ) // Check for linked call input inside "fun"
                 { addDep(fun); return -1; } // No, but can lose the recursive edge
 
-        // Things that might improve, so not now a candidate
+        // Things that might improve, but not now a candidate
         Node fptr = call.fptr();
         // Constant Function is being called, and its not-null
         if( !(fptr._type instanceof TypeFunPtr tfp && tfp.notNull() && tfp.isConstant()) )
@@ -181,16 +185,16 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // Encouraged inlining because small size and constructor.
         int maxSize = fun.inlineLimit();
         // A large parse can leave only a tiny initializer.  Recognize that
-        // without repeatedly walking the whole body while it shrinks.
+        // and await cleanup to shrink the body.
         if( fun._approxUIDs >= maxSize ) {
             if( !smallBody(fun) ) return -1;
-        } else if( fun.body().cardinality() >= maxSize )
+        } else if( fun.body().cardinality() >= maxSize ) // Expensive size check
             return -1;          // Try later (if cleanup makes the real body small enough)
 
         // Can be cloned but not trivial
         if( fun.nIns() > 2 ) { addDep(fun); return 2; }
 
-        // A candidate right now
+        // A trivial candidate right now
         return 1;
     }
 

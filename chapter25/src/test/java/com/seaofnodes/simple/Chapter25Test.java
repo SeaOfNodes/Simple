@@ -8,6 +8,8 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.ElfReader;
 import com.seaofnodes.simple.codegen.ParseAll;
+import com.seaofnodes.simple.node.CallNode;
+import com.seaofnodes.simple.node.LoopNode;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import java.io.File;
@@ -41,6 +43,25 @@ public class Chapter25Test {
             if(arg) while(1) { s.x += arg; }
             return s;
             """).driver(CodeGen.Phase.Encoding,"riscv","SystemV");
+    }
+
+    @Test public void testInlineNeverExit() {
+        String[] sources={
+            "val _spin={ -> while(1) {} return 1; }; _spin(); return 2;",
+            // Two callers require cloning, including the non-exiting arm.
+            "val _spin={int x -> if(x) while(1) {} return 7; }; return _spin(arg)+_spin(arg);"
+        };
+        for( int i=0; i<sources.length; i++ ) {
+            for( long seed : new long[]{1,123,987654321} ) {
+                CodeGen code=new CodeGen(sources[i],seed,true).driver(CodeGen.Phase.TypeCheck);
+                assertNull("Calls should inline",code._start.walk(n -> n instanceof CallNode ? n : null));
+                assertNotNull("The non-exiting path must survive",code._start.walk(n -> n instanceof LoopNode && n!=code._start ? n : null));
+                if( i==1 ) assertEquals("14",Eval2.eval(code,0,10));
+                assertNull(Eval2.eval(code,1,10));
+            }
+            for( String cpu : new String[]{"x86_64_v2","arm","riscv"} )
+                new CheckedCodeGen(sources[i]).driver(CodeGen.Phase.Encoding,cpu,"SystemV");
+        }
     }
 
     @Test

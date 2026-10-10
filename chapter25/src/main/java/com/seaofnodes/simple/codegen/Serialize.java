@@ -508,8 +508,9 @@ abstract public class Serialize {
             // Whole CompUnits have no users, went dead
             if( cu._start != null && !cu._start.isDead() ) {
                 nodes.add(cu._start);
-                // Memory proj
-                nodes.add(cu._start.proj(1));
+                // A memory-free, nonreturning unit can lose its memory projection.
+                ProjNode mem=cu._start.proj(1);
+                if( mem!=null ) nodes.add(mem);
                 // All the functions, including internal ones, in comp-unit order
                 for( FunNode fun : code._linker )
                     if( fun!=null && !fun.isDead() && fun._compunit == cu )

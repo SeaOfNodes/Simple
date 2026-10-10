@@ -2297,6 +2297,15 @@ public class Parser {
             fld = fieldOrOpen(ts,name,false);
         if( fld==null && ts!=null && !latestStruct(ts)._open )
             throw error("Accessing unknown field '"+name+"' from '*"+ts._name+"'");
+
+        // We have to record "active touches" of a new class, to track when we
+        // need to force class initialization.  Basically, we insert an CLInit,
+        // and if it does not fold away it'll turn into a runtime check.
+        Kind.Func func = (Kind.Func)_scope._kinds.at(_scope.enclosingFuncOrDecl());
+        if( (ts==null || ts==TypeStruct.BOT || ts.isHigh() || startsClzPrefix(ts._name)) &&
+            !(ts!=null && (ts._name+".<clinit>").equals(func._name)) )
+            ctrl(new CLInitNode(loc(),name,ctrl(),expr).peephole());
+
         // With no field, we will update the bulk memory
         int alias = fld==null ?  1          : fld._alias;
         Type decl = fld==null ? Type.BOTTOM : fld._t;
@@ -2693,6 +2702,8 @@ public class Parser {
         public boolean before(Lexer that) {
             return that != null && _input == that._input && _position < that._position;
         }
+
+        public String position() { return _line_number+":"+(_position-_line_start+1); }
 
         /**
          * Record the source text for lexing

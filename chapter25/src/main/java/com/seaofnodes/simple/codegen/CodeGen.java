@@ -82,6 +82,7 @@ public class CodeGen {
 
     // Compilation Units in this compile; one per source/object file
     public HashMap<String,CompUnit> _compunits;
+    public final ClassInitDependencies _classInitDeps = new ClassInitDependencies(this);
     // Test shortcut for only one compilation unit
     public CompUnit compunit() {
         assert _compunits.size()==1;
@@ -534,6 +535,11 @@ public class CodeGen {
         _phase = Phase.TypeCheck;
         long t0 = System.currentTimeMillis();
 
+        // Check for class-init cycles first; such a cycle can prevent other
+        // things from resolving types.  Get the classes ordered and init'd
+        // before reporting other errors.
+        _classInitDeps.check();
+
         final Ary<Node> errs = new Ary<>(Node.class);
         _stop.walk( n -> {
                     if( n.err() != null )
@@ -572,6 +578,7 @@ public class CodeGen {
             if( _obs != null ) _obs.error(null, err.getMessage());
             throw err;
         }
+        _classInitDeps.eraseChecks();
         if( _obs != null ) _obs.phase("TypeCheck");
         return this;
     }

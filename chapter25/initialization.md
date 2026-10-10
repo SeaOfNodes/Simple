@@ -1,9 +1,10 @@
 # Lazy class initialization design
 
-Design proposal, 2026-10-08. This specifies the next implementation; the current
-compiler does not yet enforce this protocol. Declared constant final fields
-already have static-data lowering, but general lazy run-once initialization,
-dependency validation, and initialization guards remain to be implemented.
+Design and implementation plan, revised 2026-10-10. Checkpoint 1 implements
+post-Opto initialization dependencies and cycle checking for review. Declared
+constant final fields already have static-data lowering. General lazy run-once
+initialization, serialized dependency validation, and initialization guards
+remain to be implemented; the compiler does not yet enforce the full protocol.
 
 Initialization metadata belongs with class identity and compilation-unit
 ownership, not solely on the `<clinit>` FunNode. Represent active touches in
@@ -27,13 +28,15 @@ Use one runtime bit in the first, single-threaded implementation.
   a called function to observe unfinished dynamic state in an ancestor or any
   other class.
 - Initialization requirements form a DAG across the complete linked program,
-  including module boundaries.  Reject cycles, including potential cycles
-  behind runtime conditionals.  Ordinary recursive functions are still legal.
+  including module boundaries. Count only requirements surviving Opto and its
+  call-graph analysis. Reject cycles behind conditionals that remain unresolved;
+  eliminated branches and call targets contribute no edges. Ordinary recursive
+  functions are still legal.
 - Initialization order follows actual execution and parent requirements, not
   parser discovery order, worklist seed, or filesystem enumeration order.
 
 For example, A conditionally reading `B.foo`, with B initializing `foo` from
-`A.bar`, is rejected. Neither an initial zero nor an early evaluation of
+`A.bar`, is rejected if that read survives Opto. Neither an initial zero nor an early evaluation of
 `A.bar` resolves that cycle. If B is A's child, the parent requirement already
 provides the reverse dependency.
 
@@ -49,36 +52,49 @@ Keep `CompUnit._deps` for source/object discovery and rebuild dependencies.
 Do not reuse it as the initialization graph: passive references belong there,
 and its elements are files rather than necessarily individual classes.
 
-Add a small `ClassInit` record owned by a CompUnit. The file class is available
-as `CompUnit._init`; a canonical map in CodeGen resolves records by full class
-name. Classes nested within a file do not each have a CompUnit today. They can
-have records owned by that same unit, including records with no dynamic body.
-This avoids treating an instance `<init>` as a class `<clinit>`.
+Use CompUnit directly for the current runtime initialization graph. The parser
+creates a file `<clinit>` in `parseStruct(true, ...)`; nested struct declarations
+use `parseStruct(false, ...)` for instance initialization. Do not introduce a
+separate ClassInit object or invent a dynamic class initializer for those
+instance constructors.
 
-Suggested information, with names provisional:
+Reuse `_cname` for stable identity, `_par` for the filesystem parent, `_clz` for
+the canonical class object and hidden field, and existing function identities
+for the body. Add only initialization-specific information:
 
 | Member | Meaning |
 |---|---|
-| `_name` | Stable, fully qualified class identity |
-| `_owner` | Defining CompUnit; owns native data and initializer definitions |
-| `_parent` | Enclosing class record, if any |
-| `_body` | Optional current `<clinit>` FunNode; absent for unloaded/static-only bodies |
-| `_deps` | Lazily allocated, deduplicated direct initialization dependencies |
-| `_complete` | All declarations, call effects, and dependency targets resolved |
-| `_static` | Proven that this class's own initialization requires no execution |
-| `_flagAlias` | Alias of the hidden `$init` field in this class object |
+| `_classInitDeps` | Lazily allocated `Ary<CompUnit>` of direct initialization requirements |
+| `_initComplete` | All initializer touches and relevant call targets have resolved |
+| `_initStatic` | Proven that this unit's own initializer needs no execution |
 
-An absent body is not proof of `_static`: it may simply not have been loaded.
-Metadata flags describe compiler knowledge, not additional runtime states.
-An explicitly defined namespace-only parent can have an empty initialization
-record; a missing parent definition must not silently become such a record.
-FunNodes can refer back to their initialization record; the record survives
-inlining, dead-function elimination, and conversion of initialization to data.
+Keep diagnostic witnesses in the checker's temporary function summaries: source
+locations and indirect call witnesses where applicable. CompUnit retains only
+the edges and analysis flags after validation. Derive the flag alias from `_clz`'s
+`$init` field rather than maintaining a duplicate mapping. Locate the body by
+its stable function identity; a transient FunNode cache may be useful but does
+not define class identity. An unloaded or eliminated FunNode is not proof of
+static initialization.
 
-`addInitDep(target, reason)` adds a direct edge only once and invalidates the
-cached graph validation/order. Retain a source location and, for indirect
-dependencies, a call-site witness for diagnostics. Do not turn every dependency
-addition into a scan of all initializer bodies.
+Static class objects for nested struct declarations keep their existing named
+TypeStruct identity and defining CompUnit. Their materialized data need no new
+runtime graph vertex; an active use that requires the enclosing file initialized
+maps to its CompUnit. Preserve initialization-independent static accesses. If a
+future language feature adds an independent dynamic initializer inside one file,
+then introduce the additional per-class graph identity that feature needs.
+
+`CompUnit.addClassInitDep(code, target)` allocates the collection lazily, deduplicates
+edges, and invalidates a compilation-wide validation stamp. Keep self-edges so
+they can be diagnosed. Explicit namespace-only parents have no dynamic body;
+a missing parent definition must not silently become an empty initializer.
+
+There are two different dataflows. Runtime `$init` values use ordinary memory
+aliases and support flag-load/CLInitNode optimization. Dependency discovery
+records which initializers may be requested, independently of incoming flag
+values and normal return. A dedicated analysis-only memory slice could encode
+that second forward dataflow, but the first implementation uses explicit
+CompUnit edges plus small function summaries. It does not add a second family
+of memory aliases, and it does not infer cycles from runtime `$init` types.
 
 ## Discovering and validating dependencies
 
@@ -87,17 +103,30 @@ Topological output therefore places prerequisites before dependents. A dynamic
 child has a structural dependency on its parent. An active touch of another
 class during A's initializer contributes an edge; a passive reference does not.
 
-Record semantic touches before inlining and guard elimination. Collect direct
-touches in ordinary function bodies too, and propagate their initialization
-effects through the call graph with a worklist. Recursive function SCCs reach
-a fixed point of finite dependency sets; they are not themselves initialization
-cycles. Indirect calls contribute the union of all possible targets' effects.
+Insert active touches as CLInitNodes on executable control. After Opto finishes
+SCCP, inlining, and cleanup, collect surviving touches and calls. Use final
+function-pointer target sets and propagate initialization effects through the
+resulting call graph with a worklist. Recursive function SCCs reach a fixed
+point of finite dependency sets; they are not themselves initialization cycles.
+Indirect calls contribute the union of targets still possible after optimization.
 
-The initial policy is conservative: a runtime conditional contributes both
-branches' possible requirements. Do not let inlining choices or random peephole
-order decide whether a cycle is legal. Dependencies may be added as forward
-references and call targets resolve. Before declaring a graph complete, every
-reachable initialization-time call must have a complete effect summary.
+Do not accumulate historical targets or source touches eliminated by Opto.
+There is no side table watching Node replacements or type changes. An inlined
+helper's surviving CLInitNodes belong to its caller; an uninlined helper's
+summary propagates through its surviving calls. Walk executable control
+forwards so touches before nonreturning calls and infinite loops are included.
+Preserve initializer boundaries until validation; expanding/inlining CLInit
+operations early must not erase the class identity needed for checking.
+
+A field value becoming constant does not prove its initializer unnecessary.
+CLInitNode survives independently of the load. Dead control may remove both;
+a static-initialization proof may remove the obligation. Such proofs must not
+assume the very acyclicity being checked.
+
+Acceptance now depends on what Opto proves. Worklist determinism remains an
+implementation goal, but preserving every intermediate target set is not the
+language rule. Before declaring a graph complete, every surviving required
+initialization-time call must have a complete effect summary.
 
 An unknown function-pointer target or native callback is not an empty summary.
 Reject such a call during initialization unless an explicit trusted contract
@@ -131,7 +160,7 @@ initialize every possible dependency, or a prefix of the topological list.
 
 ## Ideal IR and runtime protocol
 
-Introduce an effectful `CLInitNode` with a stable ClassInit identity:
+Introduce an effectful `CLInitNode` with a stable target CompUnit identity:
 
 ```text
 CLInit(C, ctrl, memory) -> (ctrl, memory)
@@ -146,8 +175,9 @@ It can execute arbitrary initializer effects, so it is not a pure flag test.
 At dynamic class-field reads and writes, required instance creation, and calls
 requiring initialized class state, consult parser flow facts first and insert
 CLInitNode only if the required initialization is not already established.
-Record the semantic requirement even when no check needs inserting. Passive
-Simple class references remain subject to checks at their later field accesses.
+A check omitted by a valid dominating initialization proof needs no separate
+historical dependency record: its prerequisite is represented on the covering
+path. Passive Simple class references remain subject to checks at later field accesses.
 Native escape of class references is a separate boundary described below.
 Forward references must preserve the pending check until the target is known.
 
@@ -225,7 +255,7 @@ proved; tracking only the flag would lose the initializer's field and I/O effect
 
 There are two different facts:
 
-1. **Static body completion:** `_static` proves that C's own initial contents
+1. **Static body completion:** `_initStatic` proves that C's own initial contents
    are supplied by data and there are no remaining initializer effects. Its
    `$init` field starts true, and its redundant body/store can disappear.
 2. **Completion at a program point:** normal return from CLInitNode establishes
@@ -253,11 +283,13 @@ control-flow facts become available. A separate late must-analysis is optional,
 not a prerequisite for removing straightforward redundant checks.
 
 Carry known-initialized class identities with parser control flow, for example
-as a BitSet in ScopeNode keyed by compilation-local class IDs. These are path
-facts, not mutable global properties of ClassInit or its declared TypeStruct:
+as a BitSet in ScopeNode keyed by the existing remapped `$init` alias IDs. These
+are path facts, not mutable global properties of CompUnit or its declared
+TypeStruct:
 
-- On an active touch, record the dependency, then consult the facts. If C and
-  its required ancestors are known ready, omit the CLInitNode.
+- On an active touch, consult the facts. If C and its required ancestors are
+  known ready, omit the CLInitNode. Otherwise insert the obligation in the IR;
+  post-Opto analysis collects surviving requirements.
 - Normal return from CLInit(C) adds C and its required ancestors. Do not add
   every possible dependency: a conditional initializer may never touch one.
 - Copy facts on a branch and intersect them at a reachable merge. An abrupt
@@ -339,7 +371,8 @@ without materializing every function body. Serialize:
 
 Do not serialize transient node references, a cached global topo index, or the
 runtime value of a dynamic flag as an unconditional type fact. A definition
-and its imported declarations must resolve to the same ClassInit record.
+and its imported declarations must resolve to the same owning CompUnit and
+canonical class/flag identity.
 
 On load, register identities first, resolve parent/dependency edges second,
 then resolve function summaries and IR. Check conflicting owners, missing
@@ -354,7 +387,7 @@ importing compiler inlines and removes its local checks. Ordinary function
 symbols and function-pointer constants are not replaced by checked wrappers.
 
 Do not serialize a parser's transient BitSet as unconditional entry knowledge.
-Its local class IDs can change on reload; retained checks, control flow, and
+Its local alias IDs can change on reload; retained checks, control flow, and
 explicit entry contracts must support any omitted checks. Recompute flow facts
 for loaded graphs and verify hidden-field ownership/layout and that the flag
 store belongs to `<clinit>`, not to each checking caller.
@@ -438,37 +471,209 @@ export/startup mechanism is deferred; it must not require the native caller to
 invoke `<clinit>`. Existing native-linking tests are not evidence that this
 future initialization guarantee is already implemented.
 
-## Implementation sequence and validation
+## Implementation sequence
 
-1. Add ClassInit identities and a distinct lazy dependency collection; preserve
-   passive class references. Add direct/function effect summaries and cycle
-   diagnostics, including unresolved external-call handling.
-2. Serialize/load the directory and summaries. Validate combined graphs before
-   imported-body unlinking and at final composition. Preserve ordinary function
-   entries; establish startup handling and diagnostics for unsupported native
-   handoffs before claiming initialization coverage at the FFI boundary.
-3. Add serializable CLInitNode IR, the hidden field in each class object, and
-   the flag Store in `<clinit>`. Use the same node for ordinary checks and
-   startup. Add parser flow tracking and the basic constant/dominating-check
-   peepholes as part of this implementation, rather than relying on a later
-   cleanup pass to remove every repeated check.
-4. Refine flow proofs and fully-static classification. Extend constant-memory
-   lowering only with the required observation/identity proofs.
+Implement in Chapter 25 only, with the following reviewable checkpoints. Keep
+existing source/native entry conventions and pointer widths. Each checkpoint
+must build; do not claim the runtime guarantee until the executable protocol,
+serialization, and final-composition validation are all present.
 
-Validation should cover the actual boundaries, with a small number of focused
-fixtures: parent-before-child order; an untouched branch performing no I/O;
-two callers executing one initializer once; direct, indirect, sibling and
-cross-module cycle rejection; passive/static reference cycles; a shared class
-and flag reached through two separately compiled importers; a join/loop where
-the first check cannot be removed; and rejection of unsupported native class
-handoffs. Check function-pointer acquisition at the class field, with no new
-ordinary function wrapper. Check parser omission and ideal elimination separately: a dominating
-check, a true-test branch, an unchecked merge arm, and a zero-trip loop. Verify
-one body-owned flag store before inlining, and that folding its early true
-value cannot hide a cycle or bypass field initialization checks. Preserve entry
-arguments/results and verify after serialization reload.
-Run existing Chapter 25 suites and ARM/RISC/native execution checks for each
-implementation frontier. No earlier-chapter backport is implied by this design.
+### 1. CompUnit dependencies and cycle checking
+
+Implemented for review (2026-10-10). Files: `CompUnit.java`, `ParseAll.java`,
+`Parser.java`, `ClassInitDependencies.java`, `CLInitNode.java`, `CallEndNode.java`,
+`Opto.java`, and `CodeGen.java`. Generic `Node` needs no changes.
+
+- CompUnit holds direct `_classInitDeps`, `_initComplete`,
+  and reserved `_initStatic`. Existing file-discovery `_deps` is unchanged.
+  Diagnostic witnesses remain local to the dependency check.
+- Parser inserts a control-flow CLInitNode for an active class-field touch or
+  a receiver whose class is not yet resolved. Ordinary instance receivers
+  fold the obligation away when resolved. Passive references and direct
+  own-initializer field accesses do not insert a check.
+- This checkpoint's ideal node has control at input 0 and receiver at input 1;
+  it neither consumes nor produces memory yet. The full runtime form described
+  above will add memory at slot 1 and move the receiver to slot 2. No hidden
+  flag or runtime initialization call is generated in this checkpoint.
+- After Opto, the collector walks live control forwards in each surviving
+  function, reads final call-target sets, and propagates sparse may-touch
+  summaries. Ordinary helper inlining naturally relocates its checks into the
+  caller. Class initializers are not inlined before validation.
+- Reachable nonreturning calls retain a conservative CallEnd during dataflow.
+  Calls left out-of-line retain their continuations, so otherwise unreachable
+  touches after them can contribute initialization dependencies. This extra
+  ordering is accepted; users can remove such unreachable code.
+  Inlining discovers bodies forwards from their entry, including non-exiting
+  paths, and explicitly retains the Return node even when disconnected from
+  executable control. Nonreturning functions can therefore inline normally.
+- TypeCheck builds fresh CompUnit requirements from those summaries and parent
+  edges. It rejects cycles with source/call witnesses and computes a stable
+  prerequisite-first order. No source-history or Node watcher table is kept.
+- Following validation, the temporary CLInit obligations are erased for the
+  existing backend. Executable lowering and serialized obligations remain
+  later checkpoints. The full lazy-initialization runtime guarantee is not
+  implemented by this batch.
+
+Imported bodies, native calls, and unresolved targets leave `_initComplete`
+false; the returned order covers known edges and is not a completeness
+certificate. `_initStatic` remains false until static classification is added.
+
+Validation covers direct, helper-mediated, forward, conditional, indirect,
+sibling, and parent/child cycles; legal ordinary recursion and passive
+references; unknown native/imported effects; dependencies eliminated by SCCP;
+unused helpers; discarded field values; and effects before versus after a
+nonreturning call. Cycle and optimized-target cases run with three worklist
+seeds. A bounded Eval2 run verifies that a retained nonreturning call executes
+rather than falling through; its x86, ARM, and RISC-V encoding checks also pass.
+All 492 tests in the parallel Chapter 25 Make suite pass. The encoding checks
+were added afterward and pass in the focused suite. Two existing RISC-V spill
+expectations change from 9 to 7; execution and allocation checks pass.
+Generated fixtures are under
+`chapter25/build/init-deps/`; full-suite logs are under `build/init-deps-opto*.log`.
+
+### 2. Serializable flags and dependency summaries
+
+Files: `Parser.java`, `Serialize.java`, `ElfReader.java`, `GlobalBits.java`,
+`ParseAll.java`, and `StaticData.java`.
+
+- Add hidden `$init` fields with the normal field/alias/layout mechanism before
+  `freezePublicInterface()`. Declared flag type is boolean; initial image value
+  is false unless static initialization has been proved. Do not make a dynamic
+  flag's declared type the constant false.
+- Serialize per-unit initialization metadata and function may-touch summaries
+  in `.simple`, early enough for graph validation without loading every body.
+  Preserve stable owner/alias/function identities and diagnostic witnesses.
+- Register imported units first, resolve/remap edges and hidden fields second,
+  then validate the combined graph. Neither a module-local topological order
+  nor a summary from an older object file is a final-link proof.
+- Keep metadata for fully static or body-eliminated units. Rebuild objects
+  under the existing unversioned `C0DE` convention; add no compatibility layer.
+
+Checkpoint: a two-module cycle rejected from source is also rejected after
+serialization; an acyclic diamond resolves to one shared class and flag.
+Two local topo orders can be merged even when their modules must interleave.
+
+### 3. CLInitNode and the executable protocol
+
+Files: new `node/CLInitNode.java`; `Node.java`, `Parser.java`, `CodeGen.java`,
+`Serialize.java`, `Eval2.java`, and the printer adapters as needed.
+
+- Add an effectful, serializable CLInitNode targeting the resolved CompUnit,
+  with control/memory inputs and outputs in slots 0/1. Pending targets remain
+  explicit until resolved. Its type computation is conservative about the
+  initializer's whole memory effects; final normal output guarantees completion.
+- Integrate its possible call with existing Call/CallEnd linking, argument and
+  return propagation, and body liveness. A reference to CompUnit metadata alone
+  must not let SCCP discard the initializer as uncalled. Reuse the call machinery
+  or a generated guard helper, rather than implementing a second independent
+  calling convention in the node. Test an out-of-line imported initializer as
+  well as an inlined one.
+- Insert checks at class-field accesses, including function-pointer loads;
+  use the same operation for required instance creation and startup. Do not
+  instrument ordinary function headers or rewrite their function-pointer data.
+- Insert `$init = true` once in each dynamic `<clinit>` body, naturally at entry.
+  The checking node performs the test/conditional call and contains no store.
+  A false startup test becomes a direct call preserving `arg` and the result.
+- Give Eval2 the same shared-object/flag behavior. Lower checks to existing
+  control, memory, and call IR for machine compilation; use an out-of-line
+  helper if necessary rather than adding target-specific machine operations.
+- Reject the presently unsupported native class/raw-initializer handoffs. Keep
+  ordinary checked-field function pointers unchanged. Do not add an explicit
+  initialization obligation to C drivers or other native callers. Direct native
+  entry into a dynamic class remains outside the new guarantee until a
+  compiler-managed startup/export mechanism exists.
+
+Checkpoint: sequential touches run the body once; parent effects precede child
+initialization; an untaken branch runs no child code. Verify result/argument
+preservation and flag sharing in Eval2, ARM/RISC emulation, and native execution
+through Simple startup. Existing direct native tests must not be mistaken for
+coverage of the deferred dynamic-export case.
+
+### 4. Parser flow and ideal simplification
+
+Files: `ScopeNode.java`, `Parser.java`, `CLInitNode.java`, and existing
+control/memory lookup helpers.
+
+- Add path-local known-initialized facts to ScopeNode. Copy in `dup`, intersect
+  reachable predecessors in merges, and respect entry/backedge distinctions in
+  loop completion, break, continue, and return handling. The established
+  control/memory path must justify each check omitted by the parser.
+- Implement constant-true, constant-false, preceding dominating CLInit, and
+  dominating true-test peepholes. Use dependencies to revisit proofs after SCCP
+  or inlining sharpens values. Keep remaining parent requirements when only a
+  child's own body is static.
+- Preserve initialization effects when folding field loads into function
+  constants. Never hoist a check onto a path that previously did not touch the
+  class. Do not confuse an early true flag inside `<clinit>` with permission
+  to read that initializer's unfinished fields.
+- Add fully-static classification using the initializer body and its effects,
+  excluding the generated flag store from the test. Emit a true initial flag
+  only after proof; remove the now-redundant body/store/checks. Extend mutable
+  constant-field lowering only where observations during initialization remain
+  correct. Do not use classification to erase evidence of a genuine cycle.
+
+Checkpoint: distinguish a dominating check from a one-arm-only check, a
+zero-trip loop from a definitely executed touch, and a static child from an
+unfinished dynamic parent. Check that early flag folding cannot hide a cycle.
+
+### 5. Phase ordering and final composition
+
+Files: `CodeGen.java`, `ParseAll.java`, `Serialize.java`, `ElfReader.java`,
+`Main.java`, and the native linking path in `TestC.java` as appropriate.
+
+The current driver runs parse, Iter, Opto, TypeCheck, LoopTree,
+`unlinkImports`, serialization, then selection and scheduling. Add explicit
+initialization-analysis boundaries without relying on a particular peephole
+worklist order:
+
+1. During parse/load, register identities and represent active initialization
+   obligations in ideal IR. Ordinary Opto resolves targets and removes dead
+   control; do not collect a historical union of temporary types or calls.
+2. After Opto finishes, collect surviving CLInitNodes and calls, complete
+   function summaries, classify provably static work without circular
+   assumptions, and validate the graph. Any remaining unknown required
+   initialization effects prevent certification.
+3. Before `unlinkImports`, retain imported summaries needed for validation and
+   serialization. Serialize ideal CLInitNodes and their proof-bearing control
+   and memory edges, plus the independent requirements.
+4. Lower remaining CLInitNodes before final loop-tree construction and machine
+   selection. Because lowering introduces branches/calls, rebuild affected
+   control information and run ordinary ideal/type validation on that graph.
+   Move the final LoopTree step if needed rather than using a stale tree from
+   before expansion. Keep the serialized representation ideal and reloadable.
+   Ensure the generated call participates in call linking before the final
+   unlink step; imported bodies may remain represented by symbolic targets.
+5. Before native executable composition, load metadata for the exact full
+   Simple object set being linked, merge requirements, and validate again.
+   A plain GCC/ELF link is not an initialization-graph checker. Do the same
+   validation for a complete in-memory image.
+
+If optimization or loading discovers another target, mark summaries dirty and
+rerun validation before emission. No runtime `initializing` state is introduced;
+compile-time DFS bookkeeping is independent of the single runtime flag.
+
+Checkpoint: source, imported ideal IR, and final linked metadata agree on
+acceptance/rejection for equivalent optimized graphs. Exercise different
+worklist seeds and object-discovery orders to check determinism; eliminated
+branches and targets must not leave stale dependencies. Missing required
+metadata fails diagnostically.
+
+### Validation and scope
+
+Use a small set of focused fixtures covering several boundaries each, plus the
+existing full Chapter 25 Make suites. Include effects before a nonreturning
+call so dependency checking cannot accidentally depend on returned memory.
+Exercise duplicate touches, conditional cycles, native-handoff diagnostics,
+serialization alias remapping, class/flag ownership, and normal startup results.
+Run the fixed allocation cohorts only after runtime semantics stabilize; graph
+and spill changes are expected, and any new golden counts must follow execution
+and register-correctness checks. Keep Jig tests ignored.
+
+Do not backport this feature, change pointer widths, introduce concurrent or
+recoverable initialization, add dynamic module loading, or solve the general
+native-export policy in these checkpoints. The extra analysis-only alias slice
+remains an alternative representation if explicit summaries prove awkward;
+implementing both would add work without improving the initial guarantee.
 
 ## Module goals retained from the old notes
 

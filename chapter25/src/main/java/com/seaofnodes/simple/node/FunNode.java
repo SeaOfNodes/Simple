@@ -252,15 +252,20 @@ public class FunNode extends RegionNode {
 
     // Build the function body set
     public BitSet body() {
-        // Reverse up (stop to start) CFG only, collect bitmap.
+        // Iter drains ordinary peeps between inlines; body discovery precedes
+        // this inline's folding, so function boundaries are stable.
+        assert !_folding;
+        // Forward control includes paths that never reach Return.
         BitSet cfgs = new BitSet();
-        cfgs.set(_nid);
-        walkUp(ret(),cfgs );
+        walkCFG(this,cfgs);
+        cfgs.set(ret()._nid);
 
         // Top down (start to stop) all flavors.  CFG limit to bitmap.
         // If data use bottoms out in wrong CFG, returns false - but tries all outputs.
         // If any output hits an in-CFG use (e.g. phi), then keep node.
         BitSet body = new BitSet();
+        // The function owns its Return even when it has no executable exit.
+        body.set(ret()._nid);
         BitSet visit = new BitSet();
         int old;
         do {
@@ -271,13 +276,15 @@ public class FunNode extends RegionNode {
         return body;
     }
 
-    private static void walkUp(CFGNode n, BitSet cfgs) {
+    private static void walkCFG(CFGNode n, BitSet cfgs) {
         if( cfgs.get(n._nid) ) return;
         cfgs.set(n._nid);
-        if( n instanceof RegionNode r )
-            for( int i=1; i<n.nIns(); i++ )
-                walkUp(n.cfg(i),cfgs);
-        else walkUp(n.cfg0(),cfgs);
+        if( n instanceof ReturnNode ) return;
+        for( Node use : n._outputs ) {
+            if( !(use instanceof CFGNode cfg) || cfg instanceof FunNode ) continue;
+            if( cfg instanceof RegionNode ? cfg._inputs.find(n)>0 : cfg.in(0)==n )
+                walkCFG(cfg,cfgs);
+        }
     }
 
     private static boolean walkDown( Node n, BitSet cfgs, BitSet body, BitSet visit ) {
@@ -285,12 +292,12 @@ public class FunNode extends RegionNode {
         if( visit.get(n._nid) ) return body.get(n._nid);
         visit.set(n._nid);
         // Visit self as CFG outside the function
-        if( n instanceof CFGNode && !cfgs.get(n._nid) && unfolded( n ) )
+        if( n instanceof CFGNode && !cfgs.get(n._nid) )
             return false;
         // Pretend the NewNode is a CFG, so its projections stay with it in loops
         if( n instanceof NewNode nnn ) cfgs.set(n._nid);
         // Visit n.cfg() outside of function
-        if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) && unfolded( n.in( 0 ) ) )
+        if( n.in(0)!=null && !cfgs.get(n.in(0)._nid) )
             return false;
         // Phis inside the function must have their body flag set BEFORE
         // recursion walks around a loop and finds them again.
@@ -308,15 +315,6 @@ public class FunNode extends RegionNode {
         return in;
     }
 
-    // A CFG is folding, and so is basically Data
-    private static boolean unfolded( Node cfg) {
-        if( cfg instanceof CallNode call && call.cend().folding() ) return false;
-        if( cfg instanceof CallEndNode cend && cend.folding() ) return false;
-        if( cfg instanceof FunNode fun && fun._folding ) return false;
-        if( cfg instanceof ReturnNode ret && ret._fun._folding ) return false;
-        return true;
-    }
-
     // Clone function body.  Give function a new FIDX.
     FunNode copyBody() {
         // Build the function body BitSet
@@ -326,8 +324,10 @@ public class FunNode extends RegionNode {
         IdentityHashMap<Node,Node> map = new IdentityHashMap<>();
         BitSet visit = CodeGen.CODE.visit();
         bodyCopy( visit, body, map, this );
+        bodyCopy( visit, body, map, _ret ); // May be disconnected from executable control.
         visit.clear();
         bodyEdge( visit, body, map, this );
+        bodyEdge( visit, body, map, _ret );
         visit.clear();
         assert map.size()==body.cardinality();
 

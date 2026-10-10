@@ -59,7 +59,6 @@ abstract public class Opto {
         // Propagate field size constants
         code._iter.iterate(code);
 
-
         // Retain surviving functions in their CompUnits for later code
         // emission.  Start inputs are semantic: they mean unknown callers.
         for( FunNode fun : code._linker )

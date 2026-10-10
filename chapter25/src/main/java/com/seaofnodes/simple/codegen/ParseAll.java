@@ -42,6 +42,7 @@ public abstract class ParseAll {
         if( cunit != null ) return cunit;
         String cname = par==null ? name : (par._cname + "." + name).intern();
         code._compunits.put(fname, cunit = external ? new CompUnit(obj,par,fname,cname,name) : new CompUnit(par,fname,cname,name));
+        code._classInitDeps.invalidate();
         return cunit;
     }
 

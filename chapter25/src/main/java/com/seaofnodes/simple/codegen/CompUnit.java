@@ -16,19 +16,38 @@ import static com.seaofnodes.simple.codegen.CodeGen.CODE;
 // files.  These are mirrored over a file system tree (so form a tree), both
 // the source tree and build/object tree.
 public class CompUnit {
-    public final CompUnit _par;        // Parent, e.g. A/B
+    public final CompUnit _par; // Parent, e.g. A/B
     final String _fname;        // Full slashed file name starting from module root, e.g. A/B/C
     final public String _cname; // Full dotted class name starting from module root, e.g. A.B.C
     final String _name;         // Base name, e.g. C
     final ExternNode _ext;      // Found in external libs; e.g. libc
     final File _smp;            // Simple source file, e.g. module_root/A/B/C.smp
-    public final File _obj;            // ELF output file, e.g. build/A/B/C.o
+    public final File _obj;     // ELF output file, e.g. build/A/B/C.o
     final public String _src;   // Source code, from file or test case
-    //public Encoding _encoding;  // Encoding for output
 
     public TypeStruct _clz; // The one TypeStruct being published
-    //BAOS _serial;           // Serialized IR for this ELF file
-    Ary<CompUnit> _deps;    // CompUnits that this CompUnit depends on
+
+    // _deps records units required for types, code, or class references,
+    // without requiring their initializers to run.  These discovery/rebuild
+    // dependencies may form a cycle.
+    Ary<CompUnit> _deps;
+
+    // _classInitDeps records units whose initialization this initializer may
+    // require after Opto, including its parent; these edges must form a DAG.
+    // Initialization prerequisites are a subset of the units that must be
+    // available, but not necessarily of the direct _deps list: parent links
+    // and helper-call effects can add initialization edges to units discovered
+    // indirectly.
+    public Ary<CompUnit> _classInitDeps;
+
+    // Set after completing the cycle analysis for the <clinit> (and
+    // prerequisites).
+    public boolean _initComplete;
+
+    // This unit's own initializer is proven fully represented by static data
+    // and needs no execution; its ancestors may still need initialization.
+    // Reserved for static classification; currently always false.
+    public boolean _initStatic;
 
     // Per-Compilation-Unit Start/StopNodes, keeping alive all exported Nodes.
     // Null means no code loaded (yet).
@@ -120,6 +139,15 @@ public class CompUnit {
         _stop  = new  StopCUNode().init();
         _start = new StartCUNode(code._start,_stop, Type.BOTTOM, _fname).init();
         code._stop.addDef(_stop);
+    }
+
+
+    public boolean addClassInitDep(CodeGen code, CompUnit target) {
+        if( _classInitDeps==null ) _classInitDeps=new Ary<>(CompUnit.class);
+        if( _classInitDeps.find(target)!=-1 ) return false;
+        _classInitDeps.add(target);
+        code._classInitDeps.invalidate();
+        return true;
     }
 
 
