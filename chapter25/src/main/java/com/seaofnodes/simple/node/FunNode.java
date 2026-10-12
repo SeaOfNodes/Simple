@@ -49,6 +49,7 @@ public class FunNode extends RegionNode {
         baos.packed2(types.get(_sig)); // NPE if fails lookup
         baos.packed2(_name==null ? 0 : strs.get(_name));
         baos.packed2(_approxUIDs);
+        // _compunit set from context on loading, do not write
     }
     static Node make( BAOS bais, String[] strs, Type[] types)  {
         Node[] ins = new Node[bais.packed1()];
@@ -56,6 +57,7 @@ public class FunNode extends RegionNode {
         String name = strs[bais.packed2()];
         FunNode fun = new FunNode(null,sig,name,null,ins);
         fun._approxUIDs = bais.packed2();
+        // _compunit set from context on loading, do not read
         return fun;
     }
 

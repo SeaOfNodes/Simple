@@ -47,6 +47,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   interfaces, and short names (`pred`, `proj`, `def`, `use`). Avoid redundant
   Objects.requireNonNull. Prefer int[]/AryInt to List<Integer>; avoid large boxed
   ID collections (use arrays/BitSet or NBHML as appropriate). Node ID 0 means null.
+- Do not introduce Java streams. Use loops and explicit sorts; ask Cliff before
+  making any exception.
 - Cliff often debugs the same failure in parallel. If asked to work in a side
   repository, update `tmp/` and do not edit the live files he is debugging.
 - Stop and discuss before changing a central lattice, constructor, memory, or

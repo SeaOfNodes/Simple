@@ -71,4 +71,8 @@ public class ConFldOffNode extends ConstantNode {
         return _ts._name==off._ts._name && _fname.equals(off._fname) && super.eq(n);
     }
     @Override int hash() { return super.hash() * _ts._name.hashCode() * _fname.hashCode(); }
+
+    @Override public Parser.ParseException err() {
+        return _ts._fref ? Parser.error("Unknown struct type '"+_ts._name+"'",null) : null;
+    }
 }

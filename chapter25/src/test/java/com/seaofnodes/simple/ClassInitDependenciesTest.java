@@ -1,12 +1,16 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.CompUnit;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.FunNode;
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFunPtr;
+import com.seaofnodes.simple.type.Field;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.Map;
 import org.junit.Rule;
@@ -57,28 +61,59 @@ public class ClassInitDependenciesTest {
         for( long seed : new long[]{1,123,987654321} ) {
             try { compile(entry,sources,seed); fail("Expected initialization cycle"); }
             catch( Parser.ParseException ex ) {
-                assertTrue(ex.getMessage(),ex.getMessage().startsWith("Cyclic class initialization: "+expected));
-                assertTrue("Include a source witness",ex.getMessage().contains(" at 1:"));
+                assertCycle(ex.getMessage(),expected);
             }
         }
     }
 
-    @Test public void testOrderAndPassiveReferences() throws Exception {
-        CodeGen code = compile("A",Map.of("A","int value=B.value;", "B","int value=arg|1;"),123);
-        assertEquals("[Root, Root.B, Root.A]",code._classInitDeps.order().stream().map(c -> c._cname).toList().toString());
-        assertTrue(code._compunits.get("Root/A")._initComplete);
-        code=compile("A",Map.of("A","val b=B;", "B","val a=A;"),123);
-        for( CompUnit cu : code._classInitDeps.order() ) {
-            if( cu._par==null ) assertNull(cu._classInitDeps);
-            else {
-                assertEquals(1,cu._classInitDeps.size());
-                assertSame(cu._par,cu._classInitDeps.at(0));
-            }
-            assertTrue(cu._initComplete);
+    // The cycle can start at any member, but must follow dependency direction.
+    private void assertCycle(String message, String expected) {
+        String prefix="Cyclic class initialization: ";
+        assertTrue(message,message.startsWith(prefix));
+        String actual=message.substring(prefix.length()).trim();
+        String[] path=expected.split(" -> ");
+        for( int start=0; start<path.length-1; start++ ) {
+            ArrayList<String> rotated=new ArrayList<>();
+            for( int i=0; i<path.length; i++ ) rotated.add(path[(start+i)%(path.length-1)]);
+            if( actual.equals(String.join(" -> ",rotated)) ) return;
         }
+        fail("Expected cycle "+expected+" (up to rotation), got "+actual);
+    }
+
+    // Follow ordinary helpers, stopping at the next initializer. This checks
+    // the class prerequisite relation without requiring a total init order.
+    private boolean touches(CodeGen code, ClassInitDependencies deps, String from, String to) {
+        int src=code.link(code._compunits.get(from)).sig().fidx();
+        int dst=code.link(code._compunits.get(to)).sig().fidx();
+        return touches(code,deps._edgess,src,dst,new BitSet());
+    }
+
+    private boolean touches(CodeGen code, int[][] edges, int src, int dst, BitSet seen) {
+        if( src>=edges.length || seen.get(src) || edges[src]==null ) return false;
+        seen.set(src);
+        for( int edge : edges[src] ) {
+            if( edge==dst ) return true;
+            FunNode fun=code.link(edge);
+            if( fun!=null && !fun.isClz() && touches(code,edges,edge,dst,seen) ) return true;
+        }
+        return false;
+    }
+
+    @Test public void testEdgesAndPassiveReferences() throws Exception {
+        CodeGen code = compile("A",Map.of("A","int value=B.value;", "B","int value=arg|1;"),123);
+        ClassInitDependencies deps=new ClassInitDependencies(code);
+        assertTrue(touches(code,deps,"Root/A","Root/B"));
+        code=compile("A",Map.of("A","val b=B;", "B","val a=A;"),123);
+        deps=new ClassInitDependencies(code);
+        assertFalse(touches(code,deps,"Root/A","Root/B"));
+        assertFalse(touches(code,deps,"Root/B","Root/A"));
+        assertTrue(touches(code,deps,"Root/A","Root"));
+        assertTrue(touches(code,deps,"Root/B","Root"));
     }
 
     @Test public void testCycles() throws Exception {
+        cycle("A",Map.of("A","val get_noInline={ ->\n  B.value;\n};\nint value=get_noInline();",
+                          "B","int value=A.value;"),"A -> B -> A");
         cycle("A",Map.of("A","int value=B.value;", "B","int value=A.value;"),"A -> B -> A");
         cycle("A",Map.of("A","val get={ -> B.value; }; int value=get();",
                           "B","int value=A.value;"),"A -> B -> A");
@@ -113,42 +148,159 @@ public class ClassInitDependenciesTest {
             CodeGen code=compile("A",Map.of(
                 "A","val test_noInline={ -> false; }; int value=1; if(test_noInline()) value=B.value;",
                 "B","int value=A.value;"),seed);
-            CompUnit a=code._compunits.get("Root/A"), b=code._compunits.get("Root/B");
-            assertTrue(a._initComplete);
-            assertEquals(-1,a._classInitDeps.find(b));
-            assertTrue(b._classInitDeps.find(a)>=0);
+            ClassInitDependencies deps=new ClassInitDependencies(code);
+            assertFalse(touches(code,deps,"Root/A","Root/B"));
+            assertTrue(touches(code,deps,"Root/B","Root/A"));
 
             code=compile("A",Map.of(
                 "A","val test_noInline={ -> false; }; val f=test_noInline() ? { -> B.value; } : { -> 1; }; int value=f();",
                 "B","int value=A.value;"),seed);
-            a=code._compunits.get("Root/A"); b=code._compunits.get("Root/B");
-            assertTrue(a._initComplete);
-            assertEquals(-1,a._classInitDeps.find(b));
+            assertFalse(touches(code,new ClassInitDependencies(code),"Root/A","Root/B"));
 
             // An unused helper's body must not become an initializer dependency.
             code=compile("A",Map.of("A","val unused={ -> B.value; }; int value=1;",
                                     "B","int value=A.value;"),seed);
-            assertEquals(-1,code._compunits.get("Root/A")._classInitDeps.find(code._compunits.get("Root/B")));
+            assertFalse(touches(code,new ClassInitDependencies(code),"Root/A","Root/B"));
         }
         // Discarding the value of a field read cannot discard its active touch.
         cycle("A",Map.of("A","int value=1; B.value; return 0;",
                           "B","int value=2; A.value; return 0;"),"A -> B -> A");
     }
 
-    @Test public void testRecursionAndIncompleteEffects() throws Exception {
+    @Test public void testRecursionAndNativeCalls() throws Exception {
         CodeGen code=compile("A",Map.of("A","val f={int n -> n ? f(n-1) : B.value; }; int value=f(arg);",
                                        "B","int value=arg|1;"),123);
-        assertTrue(code._compunits.get("Root/A")._initComplete);
-        assertTrue(code._compunits.get("Root/A")._classInitDeps.find(code._compunits.get("Root/B"))>=0);
+        assertTrue(touches(code,new ClassInitDependencies(code),"Root/A","Root/B"));
         code=compile("A",Map.of("A","{int} native=\"C\"; return native();"),123);
-        assertFalse("Unknown native effects are not certified empty",code._compunits.get("Root/A")._initComplete);
 
         Path dir=tempDir("import-");
         new CodeGen(null,dir.toString(),null,"B","int value=1;",123,true,TypeInteger.BOT)
             .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
         code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
                          "A","return B.value;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
-        assertFalse("Imported summaries wait for checkpoint 2",code._compunits.get("B")._initComplete);
-        assertFalse(code._compunits.get("A")._initComplete);
+        assertTrue(touches(code,new ClassInitDependencies(code),"A","B"));
+    }
+
+    private CodeGen object(Path dir, Path imports, String name, String source) {
+        return new CodeGen(null,dir.toString(),new Ary<>(new String[]{imports.toString()}),
+                           name,source,123,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+    }
+
+    private CodeGen module(Path dir, Path imports, String name, Map<String,String> sources) throws Exception {
+        Path src=tempDir("import-");
+        for( var entry : sources.entrySet() ) {
+            Path file=src.resolve(entry.getKey()+".smp");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file,entry.getValue());
+        }
+        return new CodeGen(src.toString(),dir.toString(),new Ary<>(new String[]{imports.toString()}),
+            name,null,123,true,TypeInteger.BOT).driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+    }
+
+    @Test public void testImportedInitialization() throws Exception {
+        Path dir=tempDir("import-"), stubs=tempDir("import-");
+        object(stubs,stubs,"A","int value=arg;");
+        object(stubs,stubs,"B","int value=arg;");
+        // Each object is independently acyclic. Combining their real bodies
+        // must recheck the graph rather than trust either object's local order.
+        object(dir,stubs,"A","int value=arg;\nvalue=B.value;");
+        object(dir,stubs,"B","int value=arg; value=A.value;");
+        for( String entry : new String[]{"A","B"} ) {
+            try {
+                new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                            "Main","return "+entry+".value;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+                fail("Expected imported initialization cycle");
+            } catch( Parser.ParseException ex ) {
+                assertCycle(ex.getMessage(),"A -> B -> A");
+            }
+        }
+    }
+
+    @Test public void testImportedDiamondAndHelpers() throws Exception {
+        Path diamond=tempDir("import-");
+        CodeGen dcode=object(diamond,diamond,"D","int value=arg;");
+        var data=dcode._encoding._data.entries().stream().filter(obj -> obj.symbol.equals("D.$class")).findFirst().orElseThrow();
+        var dclz=dcode._compunits.get("D")._clz;
+        assertEquals(0,dcode._encoding._sdata.buf()[data.offset+dclz.offset(dclz.find("$init"))]);
+        object(diamond,diamond,"B","int value=D.value;");
+        object(diamond,diamond,"C","int value=D.value;");
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code=new CodeGen(null,diamond.toString(),new Ary<>(new String[]{diamond.toString()}),
+                "Main","int value=B.value+C.value;",seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            CompUnit b=code._compunits.get("B"), d=code._compunits.get("D");
+            ClassInitDependencies deps=new ClassInitDependencies(code);
+            assertTrue(touches(code,deps,"B","D"));
+            assertTrue(touches(code,deps,"C","D"));
+            assertTrue(touches(code,deps,"Main","B"));
+            assertTrue(touches(code,deps,"Main","C"));
+            Field flag=d._clz.field("$init");
+            assertSame(TypeInteger.U1,flag._t);
+            assertFalse(flag._final);
+            assertNotEquals(flag._alias,b._clz.field("$init")._alias);
+            // Loading just the header/types uses the same alias identity and
+            // does not require allocating any graph nodes.
+            ElfReader elf=ElfReader.load(diamond.resolve("D.o").toFile(),d);
+            assertEquals(flag._alias,elf.loadPublicTypes(code).field("$init")._alias);
+            assertNull(elf._nodes);
+        }
+        object(diamond,diamond,"Helper","val get={ -> D.value; }; val get_noInline={ -> D.value; };");
+        for( String name : new String[]{"get","get_noInline"} ) {
+            CodeGen code=new CodeGen(null,diamond.toString(),new Ary<>(new String[]{diamond.toString()}),
+                "Main","return Helper."+name+"();",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            ClassInitDependencies deps=new ClassInitDependencies(code);
+            assertTrue(touches(code,deps,"Main","D"));
+            assertFalse(touches(code,deps,"Helper","D"));
+        }
+        object(diamond,diamond,"Wrapper","val get_noInline={ -> Helper.get_noInline(); };");
+        CodeGen wrapped=new CodeGen(null,diamond.toString(),new Ary<>(new String[]{diamond.toString()}),
+            "Main","return Wrapper.get_noInline();",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertTrue(touches(wrapped,new ClassInitDependencies(wrapped),"Main","D"));
+    }
+
+    @Test public void testInterleavedModules() throws Exception {
+        // Two objects, each providing a parent and children. Their orders
+        // must interleave: P.B precedes Q.A, which precedes P.A.
+        Path modules=tempDir("import-"), qstub=tempDir("import-");
+        module(qstub,qstub,"Q",Map.of("Q","val A=A;", "Q/A","int value=arg;"));
+        module(modules,qstub,"P",Map.of("P","val A=A; val B=B;",
+            "P/A","int value=arg; value=Q.A.value;", "P/B","int value=arg;"));
+        module(modules,modules,"Q",Map.of("Q","val A=A;", "Q/A","int value=arg; value=P.B.value;"));
+        CodeGen combined=new CodeGen(null,modules.toString(),new Ary<>(new String[]{modules.toString()}),
+            "Main","return P.A.value;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        ClassInitDependencies deps=new ClassInitDependencies(combined);
+        assertTrue(touches(combined,deps,"Q/A","P/B"));
+        assertTrue(touches(combined,deps,"P/A","Q/A"));
+    }
+
+    @Test public void testCycleReportDirection() throws Exception {
+        cycle("A",Map.of("A","int value=B.value;", "B","int value=C.value;",
+                          "C","int value=A.value;"),"A -> B -> C -> A");
+    }
+
+    @Test public void testOverlappingFunctionAndClassCycles() {
+        // Fixed function graph: Opto/inlining must not erase the overlap that
+        // exercises SCC traversal. f -> g -> f is legal; f -> A -> g -> f isn't.
+        CodeGen code=new CodeGen("return 0;").driver(CodeGen.Phase.Opto);
+        CompUnit cu=code._compunits.get("Test");
+        code._linker.clear();
+        String[] names={"f", "g", "A.<clinit>"};
+        for( int i=0; i<names.length; i++ ) {
+            TypeFunPtr sig=TypeFunPtr.make1((byte)2,false,new Type[0],TypeInteger.BOT,i+2);
+            FunNode fun=new FunNode(null,sig,names[i],cu);
+            fun._type=Type.CONTROL;
+            code._linker.setX(i+2,fun);
+        }
+        ClassInitDependencies deps=new ClassInitDependencies(code);
+        deps._edgess[2]=new int[]{3}; // f -> g
+        deps._edgess[3]=new int[]{2}; // g -> f
+        assertNull("Ordinary mutual recursion is legal",deps.check());
+        deps._edgess[4]=new int[]{3}; // A -> g
+        deps._edgess[2]=new int[]{3,4};
+        String forward=deps.check();
+        deps._edgess[2]=new int[]{4,3};
+        String reverse=deps.check();
+        assertTrue("Both successor orders must reject the class cycle: "+forward+", "+reverse,
+                   forward!=null && reverse!=null);
     }
 }

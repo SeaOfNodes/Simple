@@ -282,6 +282,7 @@ public class x86_64_v2 extends Machine {
         case AddNode      add -> add(add);
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
+        case CLInitNode  init -> new CLInitNode(init);
         case CProjNode      c -> new CProjNode(c);
         case CallEndNode cend -> new CallEndMach(cend);
         case CallNode    call -> call(call);

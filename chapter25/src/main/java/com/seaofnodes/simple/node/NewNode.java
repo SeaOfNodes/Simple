@@ -1,12 +1,11 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
-
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.SB;
-
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 
@@ -63,6 +62,12 @@ public class NewNode extends Node implements MultiNode {
     @Override public boolean eq(Node n) { return this==n; }
 
     @Override int hash() { return _ts.hashCode(); }
+
+
+    @Override public Parser.ParseException err() {
+        return _ts._fref ? Parser.error("Unknown struct type '"+_ts._name+"'",null) : null;
+    }
+
 
     // ------------
     // MachNode specifics, shared across all CPUs

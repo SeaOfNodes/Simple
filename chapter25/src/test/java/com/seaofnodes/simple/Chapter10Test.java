@@ -139,7 +139,7 @@ else
 return v;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Test.Vector2D; return MEM[ 2:.x=0; 3:.y=0;]; return Test.Vector2D; ]", code.print());
+        assertEquals("Stop[ return Test.Vector2D; return MEM[ 2:___ 3:.x=0; 4:.y=0;]; return Test.Vector2D; ]", code.print());
     }
 
     @Test
@@ -177,7 +177,7 @@ while (arg) {
 return bar.a;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Loop,0,(Phi_a+2)); return MEM[ 2:.a=0;]; return Test.Bar; ]", code.print());
+        assertEquals("Stop[ return Phi(Loop,0,(Phi_a+2)); return MEM[ 2:___ 3:.a=0;]; return Test.Bar; ]", code.print());
     }
 
     @Test
@@ -299,7 +299,7 @@ while( i.x < i.len ) {
 return sum;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum)); return MEM[ 2:.x=0; 3:.len=0;]; return Test.Iter; ]", code.print());
+        assertEquals("Stop[ return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum)); return MEM[ 2:___ 3:.x=0; 4:.len=0;]; return Test.Iter; ]", code.print());
     }
 
 
@@ -318,7 +318,7 @@ while(arg) {
 return ret;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return Phi(Loop,Test.s0,Phi(Region,Test.s0,Phi_ret)); return MEM[ 2:.v0=0;]; return Test.s0; ]", code.print());
+        assertEquals("Stop[ return Phi(Loop,Test.s0,Phi(Region,Test.s0,Phi_ret)); return MEM[ 2:___ 3:.v0=0;]; return Test.s0; ]", code.print());
     }
 
     @Test
@@ -371,7 +371,7 @@ s0 b = new s0();
 return a.x * 100 + b.x * 10 + cnt;
 """);
         code.parse().iter().opto();
-        assertEquals("Stop[ return 112; return MEM[ 2:___ 3:.x=1;]; return Test.s0; ]", code.print());
+        assertEquals("Stop[ return 112; return MEM[ 2:___ 3:___ 4:.x=1;]; return Test.s0; ]", code.print());
     }
 
 
@@ -414,7 +414,7 @@ else return new s0;
 if(new s0.f0) return 0;
     """);
         code.parse().iter().opto().typeCheck();
-        assertEquals("Stop[ return Test.s0; return MEM[ 2:.f0=0;]; return Test.s0; ]", code.print());
+        assertEquals("Stop[ return Test.s0; return MEM[ 2:___ 3:.f0=0;]; return Test.s0; ]", code.print());
     }
 
     @Test
@@ -442,7 +442,7 @@ s0 v1 = v0;
 return v1;
     """);
         code.parse().opto();
-        assertEquals("Stop[ return (const)Test.s0; return MEM[ 2:.f0=0;]; return Test.s0; ]", code.print());
+        assertEquals("Stop[ return (const)Test.s0; return MEM[ 2:___ 3:.f0=0;]; return Test.s0; ]", code.print());
     }
 
 

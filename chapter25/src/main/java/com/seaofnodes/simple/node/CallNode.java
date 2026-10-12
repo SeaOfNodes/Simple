@@ -22,11 +22,17 @@ public class CallNode extends CFGNode {
     // Source location for late reported errors
     public final Parser.Lexer _loc;
 
-    public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc = loc; }
+    public CallNode(Parser.Lexer loc, Node... nodes) { this(loc,loc==null ? 0 : loc.lineColumn(),nodes); }
+    private CallNode(Parser.Lexer loc, long position, Node... nodes) { super(nodes); _loc=loc; }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
     @Override public Tag serialTag() { return Tag.Call; }
-    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) { baos.packed1(nIns()); }
-    static Node make( BAOS bais )  { return new CallNode(null,new Node[bais.packed1()]); }
+    public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        baos.packed1(nIns());
+    }
+    static Node make( BAOS bais ) {
+        int nIns = bais.packed1();
+        return new CallNode(null,new Node[nIns]);
+    }
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         String fname = name();

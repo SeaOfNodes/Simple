@@ -576,7 +576,7 @@ choose CompUnit dependency edges and function may-touch summaries for cycle
 checking, separately from ordinary alias-memory facts for runtime `$init`.
 No separate ClassInit object or analysis-only memory slice is planned initially.
 
-**Checkpoint 1 revised for review (2026-10-10):** initialization cycles now
+**Checkpoint 1 reviewed (2026-10-10):** initialization cycles now
 count only requirements surviving Opto. Parser inserts ideal CLInit obligations
 on control; the collector walks optimized function bodies and propagates their
 final call-target effects into CompUnit dependencies. Removed branches/targets
@@ -606,6 +606,23 @@ log: `build/inline-never-exit.log`.
 
 Changing data-pointer width and moving fully initialized class objects to
 read-only storage remain separate follow-ons.
+
+**Checkpoint 2 implemented for review (2026-10-10):** each class initializer's
+object has a normal mutable boolean `$init` field with a zero initial image.
+The C0DE header now carries owned units, initialization edges, completeness/static
+flags, and function effect summaries. Ideal CLInit markers survive serialization;
+backend erasure happens afterward. Loading remaps identities and validates the
+combined graph, including imported initializers without live bodies. Object
+discovery distinguishes definitions from referenced class names, and serialized
+IR excludes imported bodies. Focused fixtures cover cross-object cycles, shared
+diamond identities, interleaving module orders, imported helper inlining, and
+flag layout/remapping. Runtime check/call/store lowering remains checkpoint 3;
+rebuild old objects after the format change. All 494 Chapter 25 Make tests pass.
+Diagnostic witnesses use compact `ClassCyclicError` records with numeric locations
+and shared call-chain suffixes, including across serialization. Strings are
+formatted only on rejection. Validation includes source call-chain and imported
+field locations. Logs: `build/init-checkpoint2-*.log` and
+`build/class-cycle-witness-all.log`.
 
 The original broader design below remains a proposal, not a completion claim.
 

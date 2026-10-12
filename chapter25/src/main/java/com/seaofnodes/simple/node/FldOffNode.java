@@ -45,4 +45,10 @@ public class FldOffNode extends TypeNode {
         return _fname.equals(off._fname) && super.eq(n);
     }
     @Override int hash() { return super.hash() * _fname.hashCode(); }
+
+    @Override public Parser.ParseException err() {
+        if( in(0)._type instanceof TypeMemPtr tmp && tmp._obj._fref )
+            return Parser.error("Unknown struct type '"+tmp._obj._name+"'",null);
+        return null;
+    }
 }

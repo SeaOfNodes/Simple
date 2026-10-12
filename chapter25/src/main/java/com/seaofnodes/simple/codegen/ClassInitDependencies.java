@@ -1,176 +1,184 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.*;
 import java.util.*;
 
-/** Initialization requirements of the optimized, executable graph. */
-public final class ClassInitDependencies {
-    private final CodeGen code;
-    private ArrayList<CompUnit> order;
+// Search for Class Initialization Cycles.
 
-    private static final class Effects {
-        final FunNode fun;
-        final TreeMap<String,String> touches = new TreeMap<>();
-        final LinkedHashMap<Effects,String> callers = new LinkedHashMap<>();
-        boolean complete;
-        Effects(FunNode fun, boolean complete) { this.fun=fun; this.complete=complete; }
-    }
+// Done after Opto, so dead code does not make a cycle.
 
-    public ClassInitDependencies(CodeGen code) { this.code=code; }
-    public void invalidate() { order=null; }
+// Build the inits-graph, a call-graph plus CLInits plus class parents.
 
-    // Resolve named class objects, including static nested class objects in a file.
-    private CompUnit owner(String name) {
-        name=name.substring(Parser.CLZ.length());
-        CompUnit best=null;
-        for( CompUnit cu : code._compunits.values() )
-            if( cu._cname!=null && (name.equals(cu._cname) || name.startsWith(cu._cname+".")) &&
-                (best==null || cu._cname.length()>best._cname.length()) ) best=cu;
-        return best;
-    }
+// (1) Scan all functions f, building _edges[f][]: the set of <cinit> fcns from
+// CompUnits from CLInitNodes, and the set of fcn call targets in f and the
+// class parent.  These are all reported as fidxs (ints).
+//
+// (2) Walk the _edges graph using Tarjans SCC.  Stop at cycles containing a
+// <clint> (and continue with cycles NOT containing a <clinit>, which is
+// ordinary recursive functions).
+//
+// (3) Report on <clinit> cycles
+//
+//
+public class ClassInitDependencies {
+    private final CodeGen _code;
+    // Function FIDX -> callees, touched initializers, and parent initializer.
+    public final int[][] _edgess;
+    private final int[] _pres;
+    private final int[] _lows;
+    private final int[] _stk ;
+    private int _sp;
 
-    private static String reason(FunNode fun, String what, Parser.Lexer loc) {
-        return fun._compunit._cname+" ("+fun.label()+"): "+what+
-            (loc==null ? "" : " at "+loc.position());
-    }
 
-    // Walk control forwards, not backwards from Return: a live touch before an
-    // infinite loop or nonreturning call must still contribute. Never cross a
-    // function boundary through Call -> Fun or Return -> CallEnd graph edges.
-    private void scan(Effects fx, TreeMap<Integer,Effects> functions) {
-        ArrayDeque<CFGNode> work=new ArrayDeque<>();
-        BitSet seen=new BitSet();
-        work.add(fx.fun);
-        while( !work.isEmpty() ) {
-            CFGNode cfg=work.remove();
-            if( seen.get(cfg._nid) || cfg._type.isHigh() ) continue;
-            seen.set(cfg._nid);
-            if( cfg instanceof CLInitNode init ) {
-                if( init.ptr()._type instanceof TypeMemPtr ptr && ptr._obj!=TypeStruct.BOT && !ptr._obj.isHigh() ) {
-                    if( Parser.startsClzPrefix(ptr._obj._name) ) {
-                        CompUnit target=owner(ptr._obj._name);
-                        if( target==null ) fx.complete=false;
-                        else fx.touches.putIfAbsent(target._cname,reason(fx.fun,"field "+init._field,init._loc));
-                    }
-                } else fx.complete=false;
-            }
-            if( cfg instanceof CallNode call ) {
-                String why=reason(fx.fun,"call",call._loc);
-                if( call.fptr()._type instanceof TypeFunPtr fp && !XInt.isHigh(fp.fidxs()) && fp.nfcns()>0 ) {
-                    for( int id=XInt.next(fp.fidxs(),0); id>=0; id=XInt.next(fp.fidxs(),id) ) {
-                        Effects callee=functions.get(id);
-                        if( callee==null ) { fx.complete=false; continue; }
-                        if( callee.fun.isClz() )
-                            fx.touches.putIfAbsent(callee.fun._compunit._cname,why);
-                        else callee.callers.putIfAbsent(fx,why);
-                    }
-                } else fx.complete=false;
-            }
-            if( cfg instanceof ReturnNode ) continue;
-            for( Node use : cfg._outputs ) {
-                if( !(use instanceof CFGNode next) || next instanceof FunNode || next instanceof StopNode ) continue;
-                if( next instanceof RegionNode r ) {
-                    if( r._inputs.find(cfg)>0 ) work.add(r);
-                } else if( next.in(0)==cfg ) work.add(next);
-            }
-        }
-    }
-
-    /** Reject post-Opto cycles; incomplete imports/native effects are NOT certified. */
-    public void check() {
-        if( order!=null ) return;
+    // Build once; tests can inspect the graph independently of cycle checking.
+    public ClassInitDependencies( CodeGen code ) {
+        _code = code;
         assert code._phase.ordinal() >= CodeGen.Phase.Opto.ordinal();
-        TreeMap<Integer,Effects> functions=new TreeMap<>();
-        code._start.walk(n -> {
-            if( n instanceof FunNode fun && !fun.isDead() && !fun._type.isHigh() )
-                functions.put(fun.sig().fidx(),new Effects(fun,code.owns(fun)));
-            return null;
-        });
-        for( Effects fx : functions.values() ) scan(fx,functions);
+        _pres = new int[code._linker._len];
+        _lows = new int[code._linker._len];
+        _stk  = new int[code._linker._len];
 
-        // Recursive ordinary functions converge; only class requirements form
-        // initialization edges. This uses final call targets, never old types.
-        ArrayDeque<Effects> work=new ArrayDeque<>(functions.values());
-        HashSet<Effects> queued=new HashSet<>(functions.values());
+        //
+        BitSet visit = code.visit();                   // Visit set per-fcn
+        Ary<CFGNode> work = new Ary<>(CFGNode.class);  // Worklist per-fcn
+        IntHashMap iset = new IntHashMap(0);           // dedup hash set per-fcn
+        _edgess = new int[code._linker._len][];
+
+        // For all functions, build the _edges array
+        for( FunNode fun : code._linker )
+            if( fun!=null && !fun.isDead() )
+                // Visit function and collect direct class touches and callees
+                _edgess[fun.sig().fidx()] = walk(code,fun,work,iset,visit);
+        visit.clear();
+    }
+
+    // Return the outgoing init edge set for this function
+    private static int[] walk( CodeGen code, FunNode fun, Ary<CFGNode> work, IntHashMap iset, BitSet visit) {
+        // Walk function body, looking for outgoing init edges
+        assert iset .isEmpty(); // int hash set for de-dup
+        assert visit.isEmpty(); // needs a visit set, because loops
+        assert work .isEmpty(); // needs a worklist, because DAG, parallel explore paths
+
+        // Children classes always dependent on parents
+        if( fun.isClz() && fun._compunit._par != null )
+            iset.put(code.link(fun._compunit._par).sig().fidx(),1);
+
+        work.push(fun);
         while( !work.isEmpty() ) {
-            Effects callee=work.remove();
-            queued.remove(callee);
-            for( var edge : callee.callers.entrySet() ) {
-                Effects caller=edge.getKey();
-                boolean changed=false;
-                for( var touch : callee.touches.entrySet() )
-                    if( caller.touches.putIfAbsent(touch.getKey(),edge.getValue()+"; then "+touch.getValue())==null ) changed=true;
-                if( caller.complete && !callee.complete ) { caller.complete=false; changed=true; }
-                if( changed && queued.add(caller) ) work.add(caller);
+            CFGNode cfg = work.pop();
+            if( visit.get(cfg._nid) ) continue; // Been there, done that
+            visit.set(cfg._nid);
+            assert !cfg._type.isHigh();
+            // Do not walk off end of function
+            if( cfg instanceof ReturnNode ) continue;
+
+            // CLInit adds a class init requirement to this function
+            // (plus all parent classes)
+            if( cfg instanceof CLInitNode init ) {
+                FunNode clz = code.link(init.cu()); // <clinit> referred to
+                iset.put(clz.sig().fidx(),1);       // Add to edge set
+            }
+
+            // Calls union all their fptr fidxs into the callee set
+            if( cfg instanceof CallNode call && call.fptr()._type instanceof TypeFunPtr fp ) {
+                assert !XInt.isHigh(fp.fidxs()) && fp.nfcns()>0; // Call is alive with valid targets
+                // Union call targets into the callee set
+                for( int dstx = XInt.next(fp.fidxs(),0); dstx>=0; dstx=XInt.next(fp.fidxs(),dstx) )
+                    iset.put(dstx,1);
+            }
+
+            // Forward recursion to walk the whole function
+            for( Node use : cfg._outputs ) {
+                // Do not walk into another function
+                if( !(use instanceof CFGNode cfg1) || use instanceof FunNode || use instanceof StopNode ) continue;
+                // Expect control flow edge is sensible
+                assert (use instanceof RegionNode r && r._inputs.find(cfg)>0) ||  use.in(0)==cfg;
+                if( !visit.get(cfg1._nid) ) // Small speed opt
+                    work.add(cfg1);
             }
         }
-        TreeMap<String,CompUnit> units=new TreeMap<>();
-        // Reuse local initializer summaries for diagnostics; no witnesses are
-        // retained on CompUnit or on this checker after validation returns.
-        IdentityHashMap<CompUnit,TreeMap<String,String>> reasons=new IdentityHashMap<>();
-        for( CompUnit cu : code._compunits.values() )
-            if( cu._cname!=null ) {
-                units.put(cu._cname,cu);
-                cu._classInitDeps=null;
-                cu._initComplete=false; // Imported summaries arrive in checkpoint 2.
-                if( cu._par!=null ) cu.addClassInitDep(code,cu._par);
-            }
-        for( Effects fx : functions.values() )
-            if( fx.fun.isClz() ) {
-                CompUnit cu=fx.fun._compunit;
-                cu._initComplete=fx.complete;
-                reasons.put(cu,fx.touches);
-                for( String target : fx.touches.keySet() ) cu.addClassInitDep(code,units.get(target));
-            }
-        ArrayList<CompUnit> sorted=new ArrayList<>(), path=new ArrayList<>();
-        IdentityHashMap<CompUnit,Integer> colors=new IdentityHashMap<>();
-        for( CompUnit cu : units.values() ) visit(cu,colors,path,sorted,reasons);
-        for( CompUnit cu : sorted )
-            if( cu._classInitDeps!=null )
-                for( CompUnit dep : cu._classInitDeps ) cu._initComplete &= dep._initComplete;
-        order=sorted;
+
+        visit.clear();
+        int[] edges = iset.isEmpty() ? null : iset.keySet();
+        iset.clear();
+        return edges;
     }
 
-    // Temporary checkpoint lowering: retain existing runtime behavior. Later
-    // this becomes flag-and-call lowering, and obligations survive serialization.
-    public void eraseChecks() {
-        ArrayList<CLInitNode> checks=new ArrayList<>();
-        code._start.walk(n -> { if( n instanceof CLInitNode init ) checks.add(init); return null; });
-        for( CLInitNode init : checks )
-            if( !init.isDead() ) init.subsume(init.in(0));
-        code.invalidateIDepthCaches();
-    }
+    // Return an error string, or null for an acyclic class-init graph.
+    public String check() {
+        _pres[0] = 1;           // Preorders stored in pres[0] and start at 1
+        BitSet visit = _code.visit();
 
-    private void visit(CompUnit cu, IdentityHashMap<CompUnit,Integer> colors,
-                       ArrayList<CompUnit> path, ArrayList<CompUnit> sorted,
-                       IdentityHashMap<CompUnit,TreeMap<String,String>> reasons) {
-        Integer color=colors.get(cu);
-        if( color!=null ) {
-            if( color==2 ) return;
-            int start=path.indexOf(cu);
-            StringBuilder message=new StringBuilder("Cyclic class initialization: ");
-            for( int i=start; i<path.size(); i++ ) message.append(path.get(i)._cname).append(" -> ");
-            message.append(cu._cname);
-            for( int i=start; i<path.size(); i++ ) {
-                CompUnit from=path.get(i), to=i+1<path.size() ? path.get(i+1) : cu;
-                message.append("\n  ").append(from._cname).append(" -> ").append(to._cname)
-                    .append(": ").append(from._par==to ? "parent of "+from._cname : reasons.get(from).get(to._cname));
-            }
-            throw Parser.error(message.toString(),null);
+        int idx = 0;
+        for( int fidx = 1; fidx < _edgess.length; fidx++ ) {
+            if( _pres[fidx] == 0 ) // Already visited
+                idx = scc(fidx);
+            if( idx != -1 ) break; // Found a clz cycle
         }
-        colors.put(cu,1);
-        path.add(cu);
-        ArrayList<CompUnit> deps=new ArrayList<>();
-        if( cu._classInitDeps!=null ) for( CompUnit dep : cu._classInitDeps ) deps.add(dep);
-        deps.sort(Comparator.comparing(dep -> dep._cname));
-        for( CompUnit dep : deps ) visit(dep,colors,path,sorted,reasons);
-        path.removeLast();
-        colors.put(cu,2);
-        sorted.add(cu);
+        visit.clear();
+
+        // Error report for a clz heading a cycle
+        if( idx != -1 ) {
+            SB sb = new SB().p("Cyclic class initialization: ");
+            String first = null;
+            for( int i=idx; i<_sp; i++ ) {
+                FunNode fun = _code.link(_stk[i]);
+                if( fun.isClz() ) {
+                    if( first==null ) first = fun._compunit._cname;
+                    sb.p(fun._compunit._cname).p(" -> ");
+                }
+            }
+            sb.p(first);
+            visit.clear();
+            return sb.toString();
+        }
+
+        return null;            // No errors
     }
 
-    /** Prerequisite-first order of the known graph, not a completeness certificate. */
-    public ArrayList<CompUnit> order() { check(); return new ArrayList<>(order); }
+    // Tarjan SCC
+    int scc( int fidx ) {
+        // Assign pre-order number
+        _lows[fidx] = _pres[fidx] = _pres[0]++;
+        _stk[_sp++] = fidx;
+        // walk outbound edges
+        if( _edgess[fidx]!=null ) {
+            for( int edge : _edgess[fidx] ) {
+                if( edge >= _pres.length ) continue; // Out of bounds happens when calling C fcns
+                if( _pres[edge] == 0 ) { // Not visited
+                    int idx = scc(edge);
+                    if( idx != -1 ) return idx; // Found a cycle
+                    _lows[fidx] = Math.min(_lows[fidx],_lows[edge]);
+                } else if( _edgess[edge]!=null && onStk(edge) ) {
+                    _lows[fidx] = Math.min(_lows[fidx],_pres[edge]);
+                }
+            }
+        }
+        // Found a cycle
+        if( _lows[fidx] == _pres[fidx] ) {
+            int idx = find(fidx);
+            if( hasClzCycle(idx) )
+                return idx;     // Found a class cycle
+            // Pop stack, including fidx
+            _sp = idx;
+        }
+        return -1;              // No cycle
+    }
+
+    private int find(int e) {
+        for( int i=0; i<_sp; i++ )  if( _stk[i] == e ) return i;
+        return -1;
+    }
+    private boolean onStk(int e) { return find(e) != -1; }
+
+    private boolean hasClzCycle(int idx) {
+        if( idx+1 == _sp ) return false; // Cycle of 1 does not count
+        for( int i=idx; i<_sp; i++ )
+            if( _code.link(_stk[i]).isClz() )
+                return true;
+        return false;
+    }
+
 }

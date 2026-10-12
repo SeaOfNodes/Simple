@@ -80,9 +80,14 @@ public class CodeGen {
     // Current Working Directory; default module base
     private final String _cwd;
 
-    // Compilation Units in this compile; one per source/object file
+    // Compilation Units used in this compile; typically one per source/object
+    // file, although you can nest structs and get more than one.  These are all
+    // required to compile, and are expected to have their source timestamps
+    // ahead of their obj file.  Some of these may entirely be dead or inlined
+    // in this CompUnit and thus not needed in any linking stage.  All the
+    // alive ones (inlined away or not) participate in class init cycle checks.
     public HashMap<String,CompUnit> _compunits;
-    public final ClassInitDependencies _classInitDeps = new ClassInitDependencies(this);
+
     // Test shortcut for only one compilation unit
     public CompUnit compunit() {
         assert _compunits.size()==1;
@@ -376,6 +381,13 @@ public class CodeGen {
             _linker.setX(fidx,null); fun = null; }
         return fun;
     }
+    // Return the <clinit> for a CompUnit
+    public FunNode link( CompUnit cu ) {
+        for( FunNode fun : _linker )
+            if( fun!=null && fun._compunit == cu && fun.isClz() )
+                return fun;
+        return null;
+    }
 
     // Insert linker mapping from constant function signature to the function
     // being called.
@@ -536,28 +548,27 @@ public class CodeGen {
         long t0 = System.currentTimeMillis();
 
         // Check for class-init cycles first; such a cycle can prevent other
-        // things from resolving types.  Get the classes ordered and init'd
-        // before reporting other errors.
-        _classInitDeps.check();
+        // things from resolving types. The dependency graph is temporary.
+        String clzInitCycle = new ClassInitDependencies(this).check();
+        if( clzInitCycle != null )
+            throw Parser.error(clzInitCycle,null);
 
-        final Ary<Node> errs = new Ary<>(Node.class);
+        Ary<Node> errs = new Ary<>(Node.class);
         _stop.walk( n -> {
-                    if( n.err() != null )
-                        errs.add(n);
-                    return null;
+                if( n.err() != null )
+                    errs.add(n);
+                return null;
             });
-        String unresolved = unresolvedTypeName();
         _times[Phase.TypeCheck.ordinal()] = System.currentTimeMillis() - t0;
+
         if( !errs.isEmpty() ) {
             // Prefer an originating error over a secondary error caused by a
             // BOTTOM input.  If all errors are downstream-poisoned, retain
             // the old first-error behavior.
             Node min = null;
             for( Node n : errs )
-                if( noBottomInputs(n) ) {
-                    min = n;
-                    break;
-                }
+                if( noBottomInputs(n) )
+                    {  min = n;  break; }
             if( min==null )
                 min = errs.at(0);
             for( Node n : errs )
@@ -573,12 +584,6 @@ public class CodeGen {
             if( _obs != null ) _obs.error(min, min.err().getMessage());
             throw min.err();
         }
-        if( unresolved != null ) {
-            var err = Parser.error("Unknown struct type '"+unresolved+"'",null);
-            if( _obs != null ) _obs.error(null, err.getMessage());
-            throw err;
-        }
-        _classInitDeps.eraseChecks();
         if( _obs != null ) _obs.phase("TypeCheck");
         return this;
     }
@@ -590,21 +595,9 @@ public class CodeGen {
         return true;
     }
 
-    // Forward-ref structs are open while parsing.  They must all be resolved
-    // to closed structs before leaving type checking.
-    private String unresolvedTypeName() {
-        String[] unresolved = new String[1];
-        _stop.walk(n -> {
-            TypeStruct ts = requiredStruct(n);
-            if( unresolved[0]==null && ts!=null && ts._fref )
-                unresolved[0] = ts._name;
-            return null;
-        });
-        return unresolved[0];
-    }
-
     public static TypeStruct requiredStruct(Node n) {
-        if( n instanceof NewNode alloc ) return alloc._ts;
+        // CNC: remove? cleanup?
+        if( n instanceof NewNode alloc )  return alloc._ts;
         if( n instanceof ConFldOffNode off ) return off._ts;
         if( n instanceof FldOffNode off && off.in(0)._type instanceof TypeMemPtr ptr ) return ptr._obj;
         return null;
@@ -644,6 +637,13 @@ public class CodeGen {
     // turns them into external relocations.
     private void unlinkImports() {
         assert _phase.ordinal() <= Phase.Serialize.ordinal();
+        // Imported function constants keep their symbolic identity, not an
+        // embedded copy of the other object's Return and body.
+        for( Node n : _start._outputs.asAry() )
+            if( n instanceof FunPtrNode ptr && ptr.ret()!=null && !owns(ptr.fun()) ) {
+                ptr.liftType(ptr._type);
+                ptr.setDef(1,null);
+            }
         for( FunNode fun : _linker ) {
             if( fun==null || fun.isDead() || owns(fun) )
                 continue;
@@ -651,6 +651,14 @@ public class CodeGen {
                 if( fun.in(i) instanceof CallNode call )
                     call.unlink(fun,i--);
         }
+        for( int i=0; i<_stop.nIns(); i++ ) {
+            StopCUNode stop=(StopCUNode)_stop.in(i);
+            CompUnit cu=_compunits.get(stop.start()._fname);
+            if( cu._src==null ) _stop.delDef(i--);
+        }
+        // The whole-object wrappers now summarize only the emitted units.
+        _stop._type=_stop.compute();
+        _start._type=_start.compute();
         //_iter.iterate(this);
     }
 
@@ -1028,9 +1036,10 @@ public class CodeGen {
                 // Map from symbol string to ELFReader; most lookups
                 // will miss and no need to unpack ElfReader types
                 _externSymbols.putIfAbsent(elf._strs[1],elf);
-                for( String str : elf._strs )
-                    if( str.startsWith(Parser.CLZ) )
-                        _externSymbols.putIfAbsent(str,elf);
+
+                // Publish definitions only; referenced classes belong to other objects.
+                for( String fname : elf._units )
+                    _externSymbols.putIfAbsent(Parser.addClzPrefix(fname.replace('/','.')),elf);
                 break;
 
             default: throw Utils.TODO("should not reach here");

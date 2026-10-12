@@ -30,6 +30,8 @@ public class ElfReader {
     public String[] _strs;
     // Dependent file names
     public String[] _deps;
+    // Compilation units defined by this object, independent of init analysis.
+    public String[] _units;
     // Only published symbol this file
     public TypeStruct _clz;
     // Canonical named types, distinct from optimized same-named graph states.

@@ -332,17 +332,8 @@ public class Chapter25Test {
         // Elf files are sane
 
         // Sys depends on io, libc, char, collections, and array utilities.
-        assertEquals(10,sys_elf._deps.length);
-        assertSame("sys/aryu8" ,sys_elf._deps[0]);
-        assertSame("sys/char"  ,sys_elf._deps[1]);
-        assertSame("sys/io"    ,sys_elf._deps[2]);
-        assertSame("sys/ary"   ,sys_elf._deps[3]);
-        assertSame("sys/aryi64",sys_elf._deps[4]);
-        assertSame("sys/adt/bitset",sys_elf._deps[5]);
-        assertSame("sys",       sys_elf._deps[6]);
-        assertSame("sys/scan"  ,sys_elf._deps[7]);
-        assertSame("sys/adt"   ,sys_elf._deps[8]);
-        assertSame("sys/libc"  ,sys_elf._deps[9]);
+        assertArrayEquals(new String[]{"sys", "sys/adt", "sys/adt/bitset", "sys/ary",
+            "sys/aryi64", "sys/aryu8", "sys/char", "sys/io", "sys/libc", "sys/scan"},sys_elf._deps);
         assertSame("class:sys" ,sys_elf._clz._name);
     }
 

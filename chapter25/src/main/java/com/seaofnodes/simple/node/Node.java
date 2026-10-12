@@ -70,20 +70,21 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
 
     // Disk/serialized opcode tags
     public enum Tag {
-        Add,And,EQ,NE,LT,LE,ULT,
-        CallEnd,Call,ConFldOff,Con,CProj,
-        Div,Escape,Extern,Fun,FunPtr,If,Load,Loop,
-        MemMerge,Minus,Mul,
-        New,Never,Not,Or,Parm,Phi,Proj,
+        Add,And,BulkMemPhi,EQ,NE,LT,LE,ULT,
+        CallEnd,Call,ConFldOff,Con,CLInit,CProj,
+        Div,Escape,Extern,ExternOffset,Fun,FunPtr,Guard,
+        If,Load,Loop,MemMerge,MemPhi,Minus,Mul,
+        New,Never,Not,Or,Parm,Phi,Proj,PtrToInt,
         ReadOnly,Return,Region,RoundF32,
-        Sar,Shl,Shr,Start,Stop,Store,Sub,ToFloat,
-        XCtrl,Xor,StartCU,StopCU,Guard,MemPhi,BulkMemPhi,PtrToInt,ExternOffset,ToInteger;
+        Sar,Shl,Shr,Start,StartCU,StopCU,Stop,Store,Sub,
+        ToInteger,ToFloat,XCtrl,Xor;
         public static final Tag[] VALS = values();
         public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
             return switch(this) {
             case Add    -> new   AddNode(null,null,(byte)bais.packed1());
             case And    -> { int mode=bais.packed1(); assert mode==1; yield new AndNode(null,null,null); }
             case Div    -> new   DivNode(null,null,(byte)bais.packed1());
+            case Guard -> GuardNode.make(bais);
             case If     -> new    IfNode(null,null);
             case Loop   -> new  LoopNode(null,null,null);
             case Minus  -> new MinusNode(null,(byte)bais.packed1());
@@ -104,7 +105,6 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
             case ToInteger-> new ToIntegerNode(null);
             case XCtrl  -> new XCtrlNode();
             case Xor    -> { int mode=bais.packed1(); assert mode==1; yield new XorNode(null,null,null); }
-            case Guard -> GuardNode.make(bais);
 
             case EQ    -> new  BoolNode.EQ (null,null,(byte)bais.packed1());
             case NE    -> new  BoolNode.NE (null,null,(byte)bais.packed1());
@@ -114,23 +114,24 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
 
             case Call  ->      CallNode.make(bais);
             case CallEnd->  CallEndNode.make(bais     ,types);
+            case CLInit ->    new CLInitNode(bais);
             case CProj ->     CProjNode.make(bais,strs);
             case Con   ->  ConstantNode.make(bais     ,types);
             case Escape->    EscapeNode.make(bais     ,types);
             case Extern->    ExternNode.make(bais,strs,types);
             case ExternOffset-> new ExternOffsetNode(strs[bais.packed2()]);
-            case FunPtr->   FunPtrNode.make(bais,     types);
+            case FunPtr->    FunPtrNode.make(bais,     types);
             case Fun   ->       FunNode.make(bais,strs,types);
             case Load  ->       new LoadNode(bais,strs,types,fileAliases,aliases);
             case MemMerge->MemMergeNode.make(bais);
-            case MemPhi->  MemPhiNode.make(bais,strs,types,fileAliases,aliases);
+            case MemPhi->    MemPhiNode.make(bais,strs,types,fileAliases,aliases);
             case BulkMemPhi-> BulkMemPhiNode.make(bais,strs,types,fileAliases,aliases);
             case New   ->       NewNode.make(bais     ,types);
             case Parm  ->      ParmNode.make(bais,strs,types);
             case Phi   ->       PhiNode.make(bais,strs,types);
             case Proj  ->      ProjNode.make(bais,strs);
             case Store ->      new StoreNode(bais,strs,types,fileAliases,aliases);
-            case Stop ->       StopNode.make(bais);
+            case Stop  ->      StopNode.make(bais);
             case StartCU->  StartCUNode.make(bais,strs,types);
             case StopCU ->   StopCUNode.make(bais);
             case Region->    RegionNode.make(bais);

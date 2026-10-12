@@ -136,7 +136,6 @@ public abstract class MemOpNode extends TypeNode {
         if( off() instanceof ConFldOffNode && CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
             return Parser.error("Accessing unknown field '"+_name+"' from '*"+tmp._obj._name+"'",_loc);
         return null;
-
     }
 
     // Memory writers which must follow this read. A packaging node is not a

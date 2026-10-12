@@ -32,23 +32,6 @@ public class CompUnit {
     // dependencies may form a cycle.
     Ary<CompUnit> _deps;
 
-    // _classInitDeps records units whose initialization this initializer may
-    // require after Opto, including its parent; these edges must form a DAG.
-    // Initialization prerequisites are a subset of the units that must be
-    // available, but not necessarily of the direct _deps list: parent links
-    // and helper-call effects can add initialization edges to units discovered
-    // indirectly.
-    public Ary<CompUnit> _classInitDeps;
-
-    // Set after completing the cycle analysis for the <clinit> (and
-    // prerequisites).
-    public boolean _initComplete;
-
-    // This unit's own initializer is proven fully represented by static data
-    // and needs no execution; its ancestors may still need initialization.
-    // Reserved for static classification; currently always false.
-    public boolean _initStatic;
-
     // Per-Compilation-Unit Start/StopNodes, keeping alive all exported Nodes.
     // Null means no code loaded (yet).
     public StartCUNode _start;
@@ -140,16 +123,6 @@ public class CompUnit {
         _start = new StartCUNode(code._start,_stop, Type.BOTTOM, _fname).init();
         code._stop.addDef(_stop);
     }
-
-
-    public boolean addClassInitDep(CodeGen code, CompUnit target) {
-        if( _classInitDeps==null ) _classInitDeps=new Ary<>(CompUnit.class);
-        if( _classInitDeps.find(target)!=-1 ) return false;
-        _classInitDeps.add(target);
-        code._classInitDeps.invalidate();
-        return true;
-    }
-
 
     @Override public String toString() {
         String x = "{"+_cname;

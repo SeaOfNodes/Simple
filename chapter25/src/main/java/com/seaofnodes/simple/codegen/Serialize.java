@@ -21,6 +21,12 @@ abstract public class Serialize {
                     xdeps.add(cudep._fname);
         }
         String[] deps = xdeps.toArray(new String[xdeps.size()]);
+        Arrays.sort(deps);
+        Ary<String> owned = new Ary<>(String.class);
+        for( CompUnit cu : code._compunits.values() )
+            if( cu._src!=null ) owned.add(cu._fname);
+        String[] units = owned.asAry();
+        Arrays.sort(units);
 
         // Top-level clazz being reported
         String topName = code._srcName == null ? "Test" : code._srcName;
@@ -37,14 +43,14 @@ abstract public class Serialize {
         TypeStruct[] pubTypes = named.values().toArray(new TypeStruct[0]);
 
         // Compress into bytes
-        BAOS baos = write(nodes, clz, pubTypes, deps, code._aliases, code._fidxs, code._rpcs, code._externFunc);
+        BAOS baos = write(nodes, clz, pubTypes, deps, units, code._aliases, code._fidxs, code._rpcs, code._externFunc);
 
         // --- Expensive bijection assert
         if( false ) {
             // Inflate into POJOs; renumbers everything
             ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
             readAll(code,elf, code._aliases, code._fidxs, code._rpcs);
-            BAOS baos2 = write(elf._nodes,elf._clz,elf._pubTypes,elf._deps, code._aliases, code._fidxs, code._rpcs, code._externFunc);
+            BAOS baos2 = write(elf._nodes,elf._clz,elf._pubTypes,elf._deps,elf._units, code._aliases, code._fidxs, code._rpcs, code._externFunc);
 
             // Bi-jection
             for( int i=0; i<baos.size(); i++ )
@@ -58,7 +64,7 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static BAOS write(Ary<Node> nodes, TypeStruct clz, TypeStruct[] pubTypes, String[] depobjs, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs, HashMap<Integer,String> externFunc) {
+    static BAOS write(Ary<Node> nodes, TypeStruct clz, TypeStruct[] pubTypes, String[] depobjs, String[] units, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs, HashMap<Integer,String> externFunc) {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -85,6 +91,12 @@ abstract public class Serialize {
             if( n instanceof ParmNode parm ) parm._declaredType.gather(types);
             if( n instanceof TypeNode con ) con._con .gather(types);
         }
+        // A defined class remains importable even when its initializer body dies.
+        for( TypeStruct ts : pubTypes )
+            if( Parser.startsClzPrefix(ts._name) &&
+                Arrays.binarySearch(units,ts._name.substring(Parser.CLZ.length()).replace('.','/'))>=0 )
+                ts.gather(types);
+
         // Only record canonical declarations already reachable from this
         // object's graph.  Pulling unrelated parser types into this closure
         // can include open or partially built types from other units.
@@ -106,6 +118,7 @@ abstract public class Serialize {
         if( depobjs != null )
             for( String fname : depobjs )
                 gather(strs,fname);
+        for( String fname : units ) gather(strs,fname);
         // Count strings from all types
         for( Type t : atypes ) {
             if( t instanceof Field fld     ) gather(strs,fld._fname);
@@ -138,6 +151,10 @@ abstract public class Serialize {
         // Write in ID# order; the first depobjs.length of these are dependent strings
         for( String s : astrs )
             baos.packedS(s);
+
+        // Defined units are loader metadata, not initialization dependencies.
+        baos.packed4(units.length);
+        for( String fname : units ) baos.packed4(strs.get(fname));
 
         // B.2 - Write the local->global mappings
         aliases.packed(baos,strs);
@@ -232,6 +249,9 @@ abstract public class Serialize {
         elf._deps = new String[ndependents];
         for( int i=0; i<ndependents; i++ )
             elf._deps[i] = strs[1+i+1];
+        elf._units = new String[bais.packed4()];
+        for( int i=0; i<elf._units.length; i++ )
+            elf._units[i] = strs[bais.packed4()];
     }
 
     // --------------------------------------------------
@@ -260,6 +280,9 @@ abstract public class Serialize {
             elf._deps = new String[ndependents];
             for( int i = 0; i < ndependents; i++ )
                 elf._deps[i] = strs[1 + i + 1];
+            elf._units = new String[bais.packed4()];
+            for( int i=0; i<elf._units.length; i++ )
+                elf._units[i] = strs[bais.packed4()];
         }
 
         // B.2 - Read the local->global mappings.  Further down we will map
@@ -409,6 +432,10 @@ abstract public class Serialize {
             for( Node n : nodes ) {
                 if( n instanceof StopCUNode && !code.publicInterfaceFrozen() )
                     continue;
+                // Cross-object calls are relinked only after every body has
+                // loaded. Their saved return types cannot be recomputed yet.
+                if( n instanceof CallEndNode end && end.call().fptr()._type instanceof TypeFunPtr fp &&
+                    end.nIns()<=fp.nfcns() ) continue;
                 Type nval = n.compute();
                 if( nval != n._type ) {
                     System.err.println("Node "+n+" read in as "+n._type+" but computes as "+nval);
@@ -506,7 +533,7 @@ abstract public class Serialize {
         // All the CompUnits
         for( CompUnit cu : code._compunits.values() ) {
             // Whole CompUnits have no users, went dead
-            if( cu._start != null && !cu._start.isDead() ) {
+            if( cu._src!=null && cu._start != null && !cu._start.isDead() ) {
                 nodes.add(cu._start);
                 // A memory-free, nonreturning unit can lose its memory projection.
                 ProjNode mem=cu._start.proj(1);

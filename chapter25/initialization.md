@@ -480,13 +480,14 @@ serialization, and final-composition validation are all present.
 
 ### 1. CompUnit dependencies and cycle checking
 
-Implemented for review (2026-10-10). Files: `CompUnit.java`, `ParseAll.java`,
+Reviewed (2026-10-10). Files: `CompUnit.java`, `ParseAll.java`,
 `Parser.java`, `ClassInitDependencies.java`, `CLInitNode.java`, `CallEndNode.java`,
 `Opto.java`, and `CodeGen.java`. Generic `Node` needs no changes.
 
 - CompUnit holds direct `_classInitDeps`, `_initComplete`,
   and reserved `_initStatic`. Existing file-discovery `_deps` is unchanged.
-  Diagnostic witnesses remain local to the dependency check.
+  Diagnostic witnesses belong to the dependency checker and serialized summaries,
+  not CompUnit.
 - Parser inserts a control-flow CLInitNode for an active class-field touch or
   a receiver whose class is not yet resolved. Ordinary instance receivers
   fold the obligation away when resolved. Passive references and direct
@@ -509,13 +510,13 @@ Implemented for review (2026-10-10). Files: `CompUnit.java`, `ParseAll.java`,
 - TypeCheck builds fresh CompUnit requirements from those summaries and parent
   edges. It rejects cycles with source/call witnesses and computes a stable
   prerequisite-first order. No source-history or Node watcher table is kept.
-- Following validation, the temporary CLInit obligations are erased for the
-  existing backend. Executable lowering and serialized obligations remain
-  later checkpoints. The full lazy-initialization runtime guarantee is not
-  implemented by this batch.
+- Following validation and serialization, the temporary CLInit obligations are
+  erased for the existing backend. Executable lowering remains a later
+  checkpoint. The full lazy-initialization runtime guarantee is not implemented.
 
-Imported bodies, native calls, and unresolved targets leave `_initComplete`
-false; the returned order covers known edges and is not a completeness
+Unknown native effects and unresolved targets leave `_initComplete`
+false; imported summaries are now available in checkpoint 2. The returned order
+covers known edges and is not a completeness
 certificate. `_initStatic` remains false until static classification is added.
 
 Validation covers direct, helper-mediated, forward, conditional, indirect,
@@ -533,8 +534,10 @@ Generated fixtures are under
 
 ### 2. Serializable flags and dependency summaries
 
-Files: `Parser.java`, `Serialize.java`, `ElfReader.java`, `GlobalBits.java`,
-`ParseAll.java`, and `StaticData.java`.
+Implemented for review (2026-10-10). Files: `Parser.java`, `Serialize.java`,
+`ElfReader.java`, `ParseAll.java`, `ClassInitDependencies.java`, `CodeGen.java`,
+and `CLInitNode.java`. Existing `GlobalBits` and `StaticData` mechanisms handle
+alias/function remapping and the zero flag image without special cases.
 
 - Add hidden `$init` fields with the normal field/alias/layout mechanism before
   `freezePublicInterface()`. Declared flag type is boolean; initial image value
@@ -552,6 +555,35 @@ Files: `Parser.java`, `Serialize.java`, `ElfReader.java`, `GlobalBits.java`,
 Checkpoint: a two-module cycle rejected from source is also rejected after
 serialization; an acyclic diamond resolves to one shared class and flag.
 Two local topo orders can be merged even when their modules must interleave.
+
+The object header carries owned class identities, initialization edges,
+completeness/static flags, and per-function may-touch summaries with diagnostic
+witnesses. Imports use those summaries even when their initializer bodies are
+not live in the importing compilation. Class layouts survive body elimination.
+Each `ClassCyclicError` witness holds existing owner/field name references, a
+numeric line/column, and a shared suffix for indirect calls; a null field denotes
+a call. Diagnostic text is formatted only when a cycle is rejected. Serialization
+stores shared witnesses once and preserves numeric locations without requiring
+the original source text.
+Ideal CLInitNodes also survive serialization, including source positions, so
+inlining an imported helper retains its active touches. Erasure now happens in
+Unlink, after serialization; executable checks still belong to checkpoint 3.
+
+Object lookup distinguishes class definitions from references to other objects.
+Objects serialize their own bodies; imported function pointers retain symbolic
+identities. Loading registers all classes supplied by each object, resolves
+prerequisites against existing source/imported units, and selects the requested
+nested class's type rather than always the object's root class. Cross-object
+calls are relinked after all bodies load, before Iter validates saved types.
+
+Validation covers separately compiled cyclic objects, a shared diamond across
+three worklist seeds, interleaving orders from two multi-class objects, imported
+helpers with and without inlining, type-only loading with stable flag aliases,
+and the emitted zero flag byte. The C0DE layout changed: rebuild existing objects.
+The runtime still does not test or set the flag, and static classification remains
+deferred. All 494 tests pass in the Chapter 25 Make suite. Logs:
+`build/init-checkpoint2-focused.log` and
+`build/init-checkpoint2-all.log`.
 
 ### 3. CLInitNode and the executable protocol
 

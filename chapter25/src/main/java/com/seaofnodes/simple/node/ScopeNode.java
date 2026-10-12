@@ -1,12 +1,11 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
-
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.Var;
 import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.codegen.ParseAll;
 import com.seaofnodes.simple.codegen.CompUnit;
+import com.seaofnodes.simple.codegen.ParseAll;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.Utils;

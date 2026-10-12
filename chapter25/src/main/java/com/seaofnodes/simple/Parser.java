@@ -1342,6 +1342,10 @@ public class Parser {
             TYPES.put(typeName,tself = tself.defined());
         }
 
+        // Class object keeps a runtime flag to signal the <clinit> has run.
+        if( isClz )
+            TYPES.put(typeName,tself=tself.add(Field.make("$init",TypeInteger.BOOL,_code.alias(_ref._cname),false)));
+
         // Signature of the default constructor
         TypeFunPtr sig = structInitSig(isClz,tself);
         // Function and argument names of default constructor
@@ -2304,7 +2308,7 @@ public class Parser {
         Kind.Func func = (Kind.Func)_scope._kinds.at(_scope.enclosingFuncOrDecl());
         if( (ts==null || ts==TypeStruct.BOT || ts.isHigh() || startsClzPrefix(ts._name)) &&
             !(ts!=null && (ts._name+".<clinit>").equals(func._name)) )
-            ctrl(new CLInitNode(loc(),name,ctrl(),expr).peephole());
+            ctrl(new CLInitNode(loc(),ctrl(),expr).peephole());
 
         // With no field, we will update the bulk memory
         int alias = fld==null ?  1          : fld._alias;
@@ -2704,6 +2708,8 @@ public class Parser {
         }
 
         public String position() { return _line_number+":"+(_position-_line_start+1); }
+        // Numeric location for diagnostics that must survive without source text.
+        public long lineColumn() { return ((long)_line_number<<32) | (_position-_line_start+1); }
 
         /**
          * Record the source text for lexing

@@ -101,7 +101,7 @@ N n = new N(new M);
 return n.next;
 """);
         code.parse().opto();
-        assertEquals("Stop[ return (const)Test.M; return MEM[ 2:.m=0;]; return Test.M; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:.next=Parm_m(Test.N.N,*Test.M {i64 !m; }); 7:.i=0;]; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:___ 7:.i=0;]; return Test.N; ]", code.print());
+        assertEquals("Stop[ return (const)Test.M; return MEM[ 2:___ 3:.m=0;]; return Test.M; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:___ 7:.next=Parm_m(Test.N.N,*Test.M {i64 !m; }); 8:.i=0;]; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:___ 7:___ 8:.i=0;]; return Test.N; ]", code.print());
     }
 
     @Test

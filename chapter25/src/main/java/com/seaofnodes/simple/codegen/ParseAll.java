@@ -42,7 +42,6 @@ public abstract class ParseAll {
         if( cunit != null ) return cunit;
         String cname = par==null ? name : (par._cname + "." + name).intern();
         code._compunits.put(fname, cunit = external ? new CompUnit(obj,par,fname,cname,name) : new CompUnit(par,fname,cname,name));
-        code._classInitDeps.invalidate();
         return cunit;
     }
 
@@ -88,12 +87,6 @@ public abstract class ParseAll {
         // Load all pre-compiled CompUnits
         for( CompUnit cu : NEEDS_LOAD )
             loadCompUnit(code,cu);
-        if( !NEEDS_LOAD.isEmpty() )
-            code._stop.walk(n -> {
-                if( n instanceof CallNode )
-                    code.add(n);
-                return null;
-            });
 
         // Many types will have been declared cyclically either internally or
         // across multiple compilation units.
@@ -146,6 +139,9 @@ public abstract class ParseAll {
                 // Adds sort by NIDs, which just got shuffled
                 if( n instanceof AddNode add )
                     code.add(add);
+                // All imported bodies are loaded; link them before Iter checks types.
+                if( n instanceof CallNode call && !NEEDS_LOAD.isEmpty() )
+                    code.add(call).idealize();
                 return null;
             } );
 
@@ -196,6 +192,8 @@ public abstract class ParseAll {
                 CompUnit xcunit = findRequiredType(code,cunit,typeName);
                 if( xcunit != null )
                     cunit.addDep(xcunit);
+                else
+                    assert false : "expected to find required type";
             } catch( IOException ioe ) {
                 throw new RuntimeException(ioe);
             }
@@ -219,16 +217,22 @@ public abstract class ParseAll {
         // Load IR after parsing
         if( NEEDS_LOAD.find(cunit) != -1 )
             return;             // Already on the to-be-loaded list?
+        for( CompUnit loaded : NEEDS_LOAD )
+            if( loaded._obj.equals(cunit._obj) ) return; // Another class in the same object.
         try {
             NEEDS_LOAD.add(cunit);
             // Load dependent classes
             ElfReader elf = ElfReader.load(cunit._obj,cunit);
             elf.loadPublicSymbols();
+            // Register bundled definitions before resolving dependencies or IR.
+            for( String fname : elf._units )
+                makeCUnit(code,null,fname,cunit._obj);
             for( String fname : elf._deps ) {
                 // Check CompUnit for being up to date
-                CompUnit sub = makeCUnit(code,null,fname,null/*depObj(code,cunit,fname)*/);
+                CompUnit sub = code._compunits.get(fname);
+                if( sub==null ) sub=makeCUnit(code,null,fname,depObj(code,cunit,fname));
                 // If not seen before or out of date, parse the new nested cunit
-                if( sub._clz == null && sub._par == null )
+                if( sub._clz == null && WORK.find(sub)==-1 && NEEDS_LOAD.find(sub)==-1 )
                     WORK.add(sub);
             }
         } catch( IOException ioe ) {
@@ -257,7 +261,8 @@ public abstract class ParseAll {
         // Extract published symbols and put them in the internal tables;
         // cross-references will pick them up there.
         ElfReader elf = ElfReader.load(cunit._obj,cunit);
-        cunit._clz = elf.loadSimple(code);
+        elf.loadSimple(code);
+        cunit._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cunit._cname));
         StartNode lstart = (StartNode)elf._nodes.at(0);
         StopNode  lstop  = ( StopNode)elf._nodes.last();
 
@@ -283,8 +288,8 @@ public abstract class ParseAll {
         // Add the new top-level loaded class
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
         Field inst = cunit._clz.field(cunit._name);
-        if( inst != null ) // Also the instance type, if a constructor exists
-            Parser.TYPES.put(cunit._cname, ((TypeMem)((TypeFunPtr)inst._t)._ret)._t);
+        if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMem mem )
+            Parser.TYPES.put(cunit._cname,mem._t);
     }
 
     // Symbol not found in source code (or we would not be here).
@@ -382,11 +387,8 @@ public abstract class ParseAll {
             throw new RuntimeException(ioe);
         }
         ElfReader typedElf = ElfReader.load(cunit._obj,cunit);
-        TypeStruct clz = typedElf == null ? null : typedElf.loadPublicTypes(code);
-        if( clz != null )
-            Parser.TYPES.put(clz._name,clz);
-        else
-            clz = (TypeStruct)Parser.TYPES.get(clzName);
+        if( typedElf != null ) typedElf.loadPublicTypes(code);
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
         if( clz == null )
             Parser.TYPES.put(clzName,clz = TypeStruct.make(clzName,true));
         cunit._clz = clz;
