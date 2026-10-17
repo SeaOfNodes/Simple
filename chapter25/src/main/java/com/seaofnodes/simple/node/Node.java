@@ -112,9 +112,9 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
             case LE    -> new  BoolNode.LE (null,null,(byte)bais.packed1());
             case ULT   -> new  BoolNode.ULT(null,null,(byte)bais.packed1());
 
-            case Call  ->      CallNode.make(bais);
+            case Call  ->      CallNode.make(bais,strs);
             case CallEnd->  CallEndNode.make(bais     ,types);
-            case CLInit ->    new CLInitNode(bais);
+            case CLInit ->    new CLInitNode(bais,strs);
             case CProj ->     CProjNode.make(bais,strs);
             case Con   ->  ConstantNode.make(bais     ,types);
             case Escape->    EscapeNode.make(bais     ,types);

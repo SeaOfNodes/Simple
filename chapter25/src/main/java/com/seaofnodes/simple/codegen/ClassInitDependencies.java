@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
@@ -15,12 +16,10 @@ import java.util.*;
 // CompUnits from CLInitNodes, and the set of fcn call targets in f and the
 // class parent.  These are all reported as fidxs (ints).
 //
-// (2) Walk the _edges graph using Tarjans SCC.  Stop at cycles containing a
-// <clint> (and continue with cycles NOT containing a <clinit>, which is
-// ordinary recursive functions).
+// (2) Walk the _edges graph using Tarjans SCC. Reject cycles containing more
+// than one <clinit>.
 //
 // (3) Report on <clinit> cycles
-//
 //
 public class ClassInitDependencies {
     private final CodeGen _code;
@@ -50,12 +49,13 @@ public class ClassInitDependencies {
         for( FunNode fun : code._linker )
             if( fun!=null && !fun.isDead() )
                 // Visit function and collect direct class touches and callees
-                _edgess[fun.sig().fidx()] = walk(code,fun,work,iset,visit);
+                _edgess[fun.sig().fidx()] = walk(code,fun,work,iset,visit,null);
         visit.clear();
     }
 
     // Return the outgoing init edge set for this function
-    private static int[] walk( CodeGen code, FunNode fun, Ary<CFGNode> work, IntHashMap iset, BitSet visit) {
+    private static int[] walk( CodeGen code, FunNode fun, Ary<CFGNode> work, IntHashMap iset, BitSet visit,
+                              Ary<Parser.Lexer> sites) {
         // Walk function body, looking for outgoing init edges
         assert iset .isEmpty(); // int hash set for de-dup
         assert visit.isEmpty(); // needs a visit set, because loops
@@ -79,14 +79,17 @@ public class ClassInitDependencies {
             if( cfg instanceof CLInitNode init ) {
                 FunNode clz = code.link(init.cu()); // <clinit> referred to
                 iset.put(clz.sig().fidx(),1);       // Add to edge set
+                if( sites!=null && sites.atX(clz.sig().fidx())==null ) sites.setX(clz.sig().fidx(),init._loc);
             }
 
             // Calls union all their fptr fidxs into the callee set
             if( cfg instanceof CallNode call && call.fptr()._type instanceof TypeFunPtr fp ) {
                 assert !XInt.isHigh(fp.fidxs()) && fp.nfcns()>0; // Call is alive with valid targets
                 // Union call targets into the callee set
-                for( int dstx = XInt.next(fp.fidxs(),0); dstx>=0; dstx=XInt.next(fp.fidxs(),dstx) )
+                for( int dstx = XInt.next(fp.fidxs(),0); dstx>=0; dstx=XInt.next(fp.fidxs(),dstx) ) {
                     iset.put(dstx,1);
+                    if( sites!=null && sites.atX(dstx)==null ) sites.setX(dstx,call._loc);
+                }
             }
 
             // Forward recursion to walk the whole function
@@ -106,36 +109,61 @@ public class ClassInitDependencies {
         return edges;
     }
 
-    // Return an error string, or null for an acyclic class-init graph.
+    // Return an error string, or null if no cycle contains multiple clinits.
     public String check() {
+        Arrays.fill(_pres,0);
+        _sp = 0;
         _pres[0] = 1;           // Preorders stored in pres[0] and start at 1
-        BitSet visit = _code.visit();
 
-        int idx = 0;
-        for( int fidx = 1; fidx < _edgess.length; fidx++ ) {
-            if( _pres[fidx] == 0 ) // Already visited
-                idx = scc(fidx);
-            if( idx != -1 ) break; // Found a clz cycle
+        int idx = -1;
+        for( int fidx = 1; fidx < _edgess.length; fidx++ )
+            if( _pres[fidx] == 0 &&       // Already visited
+                (idx = scc(fidx)) != -1 ) // And found a cycle
+                return report(idx);       // Report cycle
+        return null;
+    }
+
+    // Every internal edge of an SCC belongs to a cycle. Print all of them:
+    // stack order is not a path, and enumerating all cycle paths can explode.
+    // This bookkeeping and formatting are only needed on an error.
+    private String report(int idx) {
+        BitSet members = new BitSet();
+        for( int i=idx; i<_sp; i++ ) members.set(_stk[i]);
+        SB sb = new SB().p("Cyclic class initialization:");
+        // Recover one surviving source site per edge only after finding an
+        // error. A representative touch is enough; runtime first-touch order
+        // need not be statically known. Lexer snapshots retain the source CU
+        // even when the node has been inlined into a different function.
+        Ary<CFGNode> work = new Ary<>(CFGNode.class);
+        IntHashMap iset = new IntHashMap(0);
+        BitSet visit = new BitSet();
+        Ary<Parser.Lexer> sites = new Ary<>(Parser.Lexer.class);
+        for( int i=idx; i<_sp; i++ ) {
+            int src = _stk[i];
+            FunNode fun = _code.link(src);
+            Arrays.fill(sites._es,null);
+            sites.clear();
+            walk(_code,fun,work,iset,visit,sites);
+            if( _edgess[src]!=null )
+                for( int dst : _edgess[src] )
+                    if( members.get(dst) ) {
+                        sb.p("\n  ").p(name(src)).p(" -> ").p(name(dst));
+                        Parser.Lexer loc = sites.atX(dst);
+                        if( loc!=null && loc._cu!=null )
+                            sb.p('\n').p(SourceError.format(loc._cu,loc.pos(),"cyclic class initialization"));
+                        else if( fun.isClz() && fun._compunit._par==_code.link(dst)._compunit )
+                            sb.p("\n    parent initialization requirement");
+                    }
         }
-        visit.clear();
+        return sb.toString();
+    }
 
-        // Error report for a clz heading a cycle
-        if( idx != -1 ) {
-            SB sb = new SB().p("Cyclic class initialization: ");
-            String first = null;
-            for( int i=idx; i<_sp; i++ ) {
-                FunNode fun = _code.link(_stk[i]);
-                if( fun.isClz() ) {
-                    if( first==null ) first = fun._compunit._cname;
-                    sb.p(fun._compunit._cname).p(" -> ");
-                }
-            }
-            sb.p(first);
-            visit.clear();
-            return sb.toString();
-        }
-
-        return null;            // No errors
+    private String name(int fidx) {
+        FunNode fun = _code.link(fidx);
+        String owner=fun._compunit._cname;
+        if( fun.isClz() ) return owner;
+        String label=fun.label();
+        return (label.startsWith(owner+".") ? label : owner+"."+label)+" [fidx "+fidx+"]";
     }
 
     // Tarjan SCC
@@ -174,10 +202,12 @@ public class ClassInitDependencies {
     private boolean onStk(int e) { return find(e) != -1; }
 
     private boolean hasClzCycle(int idx) {
-        if( idx+1 == _sp ) return false; // Cycle of 1 does not count
-        for( int i=idx; i<_sp; i++ )
-            if( _code.link(_stk[i]).isClz() )
+        int clinits = 0;
+        for( int i=idx; i<_sp; i++ ) {
+            FunNode fun = _code.link(_stk[i]);
+            if( fun!=null && fun.isClz() && ++clinits > 1 )
                 return true;
+        }
         return false;
     }
 

@@ -29,6 +29,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Collaboration preferences
 
+- For densely keyed integer maps, use indexed `Ary<T>` storage rather than
+  `HashMap<Integer,T>`.
 - Build with Make alone; Maven must never be required. Cliff prefers few tests:
   avoid tests for every small viewer edit or rapidly changing display experiment.
   Use focused existing tests and disposable probes when they answer a real risk.
@@ -71,6 +73,19 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   findings, the current check, and any blocker.
 
 ## Mutability and chapter boundaries
+
+- Class-init cycle validation (2026-10-14): reject an SCC only when it contains
+  more than one `<clinit>`. A self-edge or helper recursion with one initializer
+  is legal, regardless of inlining. Error reports list every internal edge of
+  the first rejected SCC, including helper calls; stack order is not a path.
+- Class-cycle diagnostics use `SourceError.format(CompUnit, byteOffset, message)`.
+  Start `file:line:column: error: message` in column one for Emacs compilation
+  buffers; put the source and caret on separate following lines. With no source,
+  report the path and saved byte offset, without inventing line/column numbers.
+  Lexer snapshots keep their original CompUnit through inlining and Call/CLInit
+  serialization; recover representative sites by rescanning only on rejection.
+  Source text is assumed available. Imported source paths are diagnostic data,
+  not `_smp` rebuild/discovery state. General error-message migration is deferred.
 
 - Constructors start in 16, independent binding/access permissions in 17a,
   syntax sugar and inference in 17b. Historical Chapter 17 references mean 17b.

@@ -22,10 +22,12 @@ public class CLInitNode extends CFGNode {
         _loc = loc;
     }
 
-    CLInitNode(BAOS bais) { super(null,null); }
+    CLInitNode(BAOS bais, String[] strs) { super(null,null); _loc=Parser.Lexer.unpack(bais,strs); }
     @Override public Tag serialTag() { return Tag.CLInit; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        Parser.Lexer.packed(_loc,baos,strs);
     }
+    @Override public void gather(HashMap<String,Integer> strs) { Parser.Lexer.gather(_loc,strs); }
 
     public CLInitNode(CLInitNode init) {
         super(init);

@@ -4,6 +4,7 @@ import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
 
 import static com.seaofnodes.simple.util.Utils.TODO;
@@ -168,7 +169,7 @@ public class Parser {
     public Ary<FRefNode> parse( CompUnit ref ) {
         assert _scope == null && _breakScope == null && _continueScope == null && _returnScope == null;
         assert _frefs == null;
-        _lexer = new Lexer(ref._src);
+        _lexer = new Lexer(ref);
         _frefs = new Ary<>(FRefNode.class);
         // Starting Scope has control, memory, initial arguments
         _scope = new ScopeNode();
@@ -2231,6 +2232,8 @@ public class Parser {
         return parsePostfix(expr);
     }
     private Node parsePostfix(Node expr) {
+        _lexer.skipWhiteSpace();
+        Lexer site = loc();
         String name;
         if( match(".") )      name = requireId();
         else if( match("#") ) name = "#";
@@ -2240,7 +2243,7 @@ public class Parser {
         else if( match("(") ) return parsePostfix(require(functionCall(expr,defaultSelf()),")"));
         else return expr;       // No postfix
 
-        return parsePostfixName(expr,name,0);
+        return parsePostfixName(expr,name,0,site);
     }
 
     private Node defaultSelf() {
@@ -2261,6 +2264,10 @@ public class Parser {
 
     // pre is +/-1 for a prefix update, otherwise parse a postfix operation.
     private Node parsePostfixName(Node expr, String name, int pre) {
+        return parsePostfixName(expr,name,pre,loc());
+    }
+
+    private Node parsePostfixName(Node expr, String name, int pre, Lexer site) {
         // Keep expr across possible updates
         expr.keep();
 
@@ -2308,7 +2315,7 @@ public class Parser {
         Kind.Func func = (Kind.Func)_scope._kinds.at(_scope.enclosingFuncOrDecl());
         if( (ts==null || ts==TypeStruct.BOT || ts.isHigh() || startsClzPrefix(ts._name)) &&
             !(ts!=null && (ts._name+".<clinit>").equals(func._name)) )
-            ctrl(new CLInitNode(loc(),ctrl(),expr).peephole());
+            ctrl(new CLInitNode(site,ctrl(),expr).peephole());
 
         // With no field, we will update the bulk memory
         int alias = fld==null ?  1          : fld._alias;
@@ -2473,6 +2480,8 @@ public class Parser {
      * </pre>
      */
     private Node functionCall(Node fcn, Node self) {
+        Lexer site = loc();
+        site._position--; // Opening '('; arguments can contain nested calls.
         if( fcn._type == Type.NIL )
             throw error("Calling a null function pointer");
         fcn.keep();            // Keep while parsing args
@@ -2495,10 +2504,14 @@ public class Parser {
         // Unkeep them all
         for( Node arg : args )
             arg.unkeep();
-        return functionCall(args);
+        return functionCall(args,site);
     }
 
     private Node functionCall( Ary<Node> args ) {
+        return functionCall(args,loc());
+    }
+
+    private Node functionCall( Ary<Node> args, Lexer site ) {
         // Dead into the call?  Skip all the node gen
         if( ctrl()._type == Type.XCONTROL ) {
             for( Node arg : args )
@@ -2508,7 +2521,7 @@ public class Parser {
         }
 
         // Into the call
-        CallNode call = (CallNode)new CallNode(loc(), args.asAry()).peephole();
+        CallNode call = (CallNode)new CallNode(site, args.asAry()).peephole();
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call,TypeRPC.constant(_code.rpc(_ref._cname))).peephole();
         call.peephole();        // Rerun peeps after CallEnd, allows early inlining
@@ -2694,6 +2707,7 @@ public class Parser {
 
         // Input buffer; an array of text bytes read from a file or a string
         private final byte[] _input;
+        public final CompUnit _cu; // Original source, retained across inlining.
         // Tracks current position in input buffer
         private int _position = 0;
 
@@ -2704,12 +2718,11 @@ public class Parser {
 
         /** True when this location precedes {@code that} in the same source. */
         public boolean before(Lexer that) {
-            return that != null && _input == that._input && _position < that._position;
+            return that != null && (_cu!=null ? _cu==that._cu : _input==that._input) && _position < that._position;
         }
 
         public String position() { return _line_number+":"+(_position-_line_start+1); }
-        // Numeric location for diagnostics that must survive without source text.
-        public long lineColumn() { return ((long)_line_number<<32) | (_position-_line_start+1); }
+        public int pos() { return _position; }
 
         /**
          * Record the source text for lexing
@@ -2723,6 +2736,45 @@ public class Parser {
          */
         public Lexer(byte[] buf) {
             _input = buf;
+            _cu = null;
+        }
+
+        private Lexer(CompUnit cu) {
+            _input = cu._src.getBytes();
+            _cu = cu;
+        }
+
+        // Imported location: source text is only needed when reporting an error.
+        private Lexer(CompUnit cu, int pos) {
+            _input = null;
+            _cu = cu;
+            _position = pos;
+        }
+
+        public static void gather(Lexer loc, HashMap<String,Integer> strs) {
+            if( loc==null || loc._cu==null ) return;
+            Serialize.gather(strs,loc._cu._cname);
+            String file=loc._cu.sourceFile();
+            if( file!=null ) Serialize.gather(strs,file);
+        }
+
+        public static void packed(Lexer loc, BAOS out, HashMap<String,Integer> strs) {
+            if( loc==null || loc._cu==null ) { out.packed4(0); return; }
+            out.packed4(loc._position+1);
+            out.packed4(strs.get(loc._cu._cname));
+            String file=loc._cu.sourceFile();
+            out.packed4(file==null ? 0 : strs.get(file));
+        }
+
+        public static Lexer unpack(BAOS in, String[] strs) {
+            int pos=in.packed4();
+            if( pos==0 ) return null;
+            String owner=strs[in.packed4()];
+            String file=strs[in.packed4()];
+            CompUnit cu=CodeGen.CODE._compunits.get(owner.replace('.','/'));
+            assert cu!=null : owner;
+            if( !file.isEmpty() ) cu._sourceFile=file;
+            return new Lexer(cu,pos-1);
         }
 
         /**
@@ -2730,6 +2782,7 @@ public class Parser {
          */
         private Lexer(Lexer l) {
             _input = l._input;
+            _cu = l._cu;
             _position = l._position;
             _line_number = l._line_number;
             _line_start = l._line_start;
@@ -2738,7 +2791,7 @@ public class Parser {
         // Very handy in the debugger, shows the unparsed program
         @Override
         public String toString() {
-            return new String(_input, _position, _input.length - _position);
+            return _input==null ? _cu._cname+"@"+_position : new String(_input, _position, _input.length - _position);
         }
 
         // True if at EOF

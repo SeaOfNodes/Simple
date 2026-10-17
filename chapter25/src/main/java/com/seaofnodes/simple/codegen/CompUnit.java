@@ -24,6 +24,13 @@ public class CompUnit {
     final File _smp;            // Simple source file, e.g. module_root/A/B/C.smp
     public final File _obj;     // ELF output file, e.g. build/A/B/C.o
     final public String _src;   // Source code, from file or test case
+    // Original source path from an imported diagnostic location. Does not
+    // affect discovery/rebuild decisions, which use _smp and _src.
+    public String _sourceFile;
+
+    public String sourceFile() {
+        return _smp!=null ? _smp.getAbsolutePath() : _sourceFile;
+    }
 
     public TypeStruct _clz; // The one TypeStruct being published
 

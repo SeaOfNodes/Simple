@@ -27,11 +27,11 @@ Use one runtime bit in the first, single-threaded implementation.
 - Proven static-data accesses require no dynamic work.  This does not authorize
   a called function to observe unfinished dynamic state in an ancestor or any
   other class.
-- Initialization requirements form a DAG across the complete linked program,
-  including module boundaries. Count only requirements surviving Opto and its
-  call-graph analysis. Reject cycles behind conditionals that remain unresolved;
-  eliminated branches and call targets contribute no edges. Ordinary recursive
-  functions are still legal.
+- After Opto, build the combined function-call and class-initialization graph,
+  including module boundaries. Reject an SCC only when it contains more than
+  one `<clinit>`. Ordinary recursion, initializer self-edges, and helper cycles
+  involving only one initializer are legal. Unresolved conditional branches
+  contribute edges; eliminated branches and call targets do not.
 - Initialization order follows actual execution and parent requirements, not
   parser discovery order, worklist seed, or filesystem enumeration order.
 
@@ -42,9 +42,20 @@ provides the reverse dependency.
 
 An initializer may read its own previously initialized fields under the existing
 definite-initialization rules.  That is not an ordinary external active touch.
-Do not infer permission for arbitrary callbacks or same-class helper calls from
-the fact that their owner is currently being initialized.  Such helpers need a
-proof that they do not observe unfinished state; otherwise reject their use.
+Same-class helper calls are allowed by the cycle checker, whether or not they
+inline. Ordinary field-initialization and type checks remain separate.
+
+The cycle diagnostic lists every internal edge of the first rejected SCC,
+including helper calls. Every listed edge participates in a cycle; this reports
+all cyclic connections in that component without enumerating individual paths.
+On failure, rescan the component's functions to choose one surviving touch or
+call site for each edge. `SourceError.format(CompUnit, byteOffset, message)` prints
+`file:line:character: error: message` starting in column one, followed by the
+source line and a separate caret line. Lexer snapshots retain their
+original CompUnit through inlining; Call and CLInit serialization retain the
+offset and source identity/path. Imported source is read only on error. Parent
+requirements are labeled explicitly rather than assigned a fabricated position.
+This is a focused diagnostic utility, not a migration of all parser errors.
 
 ## Ownership and identity
 

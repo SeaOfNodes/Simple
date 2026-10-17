@@ -12,7 +12,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -66,18 +69,34 @@ public class ClassInitDependenciesTest {
         }
     }
 
-    // The cycle can start at any member, but must follow dependency direction.
-    private void assertCycle(String message, String expected) {
-        String prefix="Cyclic class initialization: ";
-        assertTrue(message,message.startsWith(prefix));
-        String actual=message.substring(prefix.length()).trim();
-        String[] path=expected.split(" -> ");
-        for( int start=0; start<path.length-1; start++ ) {
-            ArrayList<String> rotated=new ArrayList<>();
-            for( int i=0; i<path.length; i++ ) rotated.add(path[(start+i)%(path.length-1)]);
-            if( actual.equals(String.join(" -> ",rotated)) ) return;
+    // The report lists internal SCC edges, including ordinary helper calls.
+    private HashMap<String,HashSet<String>> reportEdges(String message) {
+        String[] lines=message.split("\n");
+        assertEquals(message,"Cyclic class initialization:",lines[0]);
+        HashMap<String,HashSet<String>> edges=new HashMap<>();
+        for( int i=1; i<lines.length; i++ ) {
+            if( !lines[i].startsWith("  ") || lines[i].startsWith("    ") ) continue; // Diagnostic/source/caret.
+            String[] edge=lines[i].trim().split(" -> ");
+            assertEquals(message,2,edge.length);
+            edges.computeIfAbsent(edge[0],key -> new HashSet<>()).add(edge[1]);
         }
-        fail("Expected cycle "+expected+" (up to rotation), got "+actual);
+        return edges;
+    }
+
+    // Follow helpers in the diagnostic, stopping at the next class initializer.
+    private boolean reportedTouch(HashMap<String,HashSet<String>> edges, String from, String to, HashSet<String> seen) {
+        if( !seen.add(from) || !edges.containsKey(from) ) return false;
+        for( String dst : edges.get(from) )
+            if( dst.equals(to) || (dst.contains(" [fidx ") && reportedTouch(edges,dst,to,seen)) ) return true;
+        return false;
+    }
+
+    private void assertCycle(String message, String expected) {
+        HashMap<String,HashSet<String>> edges=reportEdges(message);
+        String[] path=expected.split(" -> ");
+        for( int i=1; i<path.length; i++ )
+            assertTrue("Missing "+path[i-1]+" -> "+path[i]+" in:\n"+message,
+                       reportedTouch(edges,path[i-1],path[i],new HashSet<>()));
     }
 
     // Follow ordinary helpers, stopping at the next initializer. This checks
@@ -204,8 +223,10 @@ public class ClassInitDependenciesTest {
         object(stubs,stubs,"B","int value=arg;");
         // Each object is independently acyclic. Combining their real bodies
         // must recheck the graph rather than trust either object's local order.
-        object(dir,stubs,"A","int value=arg;\nvalue=B.value;");
-        object(dir,stubs,"B","int value=arg; value=A.value;");
+        String asrc="int value=arg;\nvalue=B.value;";
+        CodeGen acode=module(dir,stubs,"A",Map.of("A",asrc));
+        String afile=acode._compunits.get("A").sourceFile();
+        module(dir,stubs,"B",Map.of("B","int value=arg; value=A.value;"));
         for( String entry : new String[]{"A","B"} ) {
             try {
                 new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
@@ -213,7 +234,20 @@ public class ClassInitDependenciesTest {
                 fail("Expected imported initialization cycle");
             } catch( Parser.ParseException ex ) {
                 assertCycle(ex.getMessage(),"A -> B -> A");
+                assertTrue(ex.getMessage(),ex.getMessage().contains("value=B.value;\n    -------^"));
+                assertTrue(ex.getMessage(),ex.getMessage().contains("\n"+afile+":2:8: error: cyclic class initialization\n"));
             }
+        }
+        // The imported object must still report its saved path and offset
+        // when the original source is no longer available.
+        Files.delete(Path.of(afile));
+        try {
+            new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                        "Main","return A.value;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            fail("Expected imported initialization cycle");
+        } catch( Parser.ParseException ex ) {
+            assertCycle(ex.getMessage(),"A -> B -> A");
+            assertTrue(ex.getMessage(),ex.getMessage().contains("\n"+afile+": error: cyclic class initialization (source unavailable at byte offset "+asrc.indexOf('.')+")"));
         }
     }
 
@@ -276,31 +310,88 @@ public class ClassInitDependenciesTest {
     @Test public void testCycleReportDirection() throws Exception {
         cycle("A",Map.of("A","int value=B.value;", "B","int value=C.value;",
                           "C","int value=A.value;"),"A -> B -> C -> A");
+        for( long seed : new long[]{1,123,987654321} ) {
+            // Stack order A,B,C is not a cycle: B has no edge to C. All four
+            // internal edges must be shown; edges to Root/D must be omitted.
+            try {
+                compile("A",Map.of("A","int value=B.value+C.value+D.value;",
+                                   "B","int value=A.value;", "C","int value=A.value;",
+                                   "D","int value=arg;"),seed);
+                fail("Expected initialization cycle");
+            } catch( Parser.ParseException ex ) {
+                assertEquals(Map.of("Root.A",Set.of("Root.B","Root.C"),
+                                    "Root.B",Set.of("Root.A"), "Root.C",Set.of("Root.A")),
+                             reportEdges(ex.getMessage()));
+            }
+        }
     }
 
-    @Test public void testOverlappingFunctionAndClassCycles() {
-        // Fixed function graph: Opto/inlining must not erase the overlap that
-        // exercises SCC traversal. f -> g -> f is legal; f -> A -> g -> f isn't.
-        CodeGen code=new CodeGen("return 0;").driver(CodeGen.Phase.Opto);
+    @Test public void testCycleSourceLocations() throws Exception {
+        for( String name : new String[]{"read", "read_noInline"} ) {
+            try {
+                compile("A",Map.of("A","int value=Helper."+name+"();",
+                    "Helper","val "+name+"={ ->\n  B.value;\n};",
+                    "B","int value=A.value;"),123);
+                fail("Expected initialization cycle");
+            } catch( Parser.ParseException ex ) {
+                String message=ex.getMessage();
+                assertCycle(message,"Root.A -> Root.B -> Root.A");
+                // Inlining must keep Helper's source identity, not substitute A.
+                assertTrue(message,message.contains("Helper.smp:2:4"));
+                assertTrue(message,message.contains("  B.value;\n    ---^"));
+                if( name.endsWith("noInline") ) {
+                    assertTrue(message,message.contains("A.smp:1:31"));
+                    assertTrue(message,message.contains("int value=Helper.read_noInline();"));
+                }
+            }
+        }
+    }
+
+    @Test public void testSourceError() {
+        String src="// π\r\n\treturn 1;\r\n";
+        CodeGen code=new CodeGen(src).driver(CodeGen.Phase.Parse);
         CompUnit cu=code._compunits.get("Test");
-        code._linker.clear();
-        String[] names={"f", "g", "A.<clinit>"};
+        int pos=src.substring(0,src.indexOf('1')).getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+        assertEquals("Test.smp:2:9: error: example\n            return 1;\n    ---------------^",SourceError.format(cu,pos,"example"));
+        assertEquals("Test.smp:3:1: error: example\n    \n    ^",SourceError.format(cu,src.getBytes(java.nio.charset.StandardCharsets.UTF_8).length,"example"));
+    }
+
+    @Test public void testSelfInitialization() throws Exception {
+        for( String name : new String[]{"read","read_noInline"} )
+            for( long seed : new long[]{1,123,987654321} )
+                compile("A",Map.of("A","int value=arg; val "+name+"={ -> A.value; }; int result="+name+"();"),seed);
+    }
+
+    @Test public void testOverlappingFunctionAndClassCycles() throws Exception {
+        // Fixed function graph: Opto/inlining must not erase the overlap that
+        // exercises SCC traversal. One clinit is legal, two in the SCC are not.
+        CodeGen code=compile("A",Map.of("A","val b=B; int value=arg;", "B","int value=arg;"),123);
+        int f=code._linker._len, g=f+1, a=f+2, b=f+3;
+        String[] names={"f", "g", "A.<clinit>", "B.<clinit>"};
         for( int i=0; i<names.length; i++ ) {
-            TypeFunPtr sig=TypeFunPtr.make1((byte)2,false,new Type[0],TypeInteger.BOT,i+2);
+            TypeFunPtr sig=TypeFunPtr.make1((byte)2,false,new Type[0],TypeInteger.BOT,i+f);
+            CompUnit cu=code._compunits.get(i==3 ? "Root/B" : "Root/A");
             FunNode fun=new FunNode(null,sig,names[i],cu);
             fun._type=Type.CONTROL;
-            code._linker.setX(i+2,fun);
+            code._linker.setX(i+f,fun);
         }
         ClassInitDependencies deps=new ClassInitDependencies(code);
-        deps._edgess[2]=new int[]{3}; // f -> g
-        deps._edgess[3]=new int[]{2}; // g -> f
+        deps._edgess[f]=new int[]{g}; // f -> g
+        deps._edgess[g]=new int[]{f}; // g -> f
         assertNull("Ordinary mutual recursion is legal",deps.check());
-        deps._edgess[4]=new int[]{3}; // A -> g
-        deps._edgess[2]=new int[]{3,4};
+        deps._edgess[a]=new int[]{a}; // A -> A
+        assertNull("A singleton initializer self-edge is legal",deps.check());
+        deps._edgess[a]=new int[]{g}; // A -> g
+        deps._edgess[f]=new int[]{g,a};
+        assertNull("A cycle containing only one initializer is legal",deps.check());
+        deps._edgess[a]=new int[]{b}; // A -> B
+        deps._edgess[b]=new int[]{g}; // B -> g -> f -> A
         String forward=deps.check();
-        deps._edgess[2]=new int[]{4,3};
+        deps._edgess[f]=new int[]{a,g};
         String reverse=deps.check();
         assertTrue("Both successor orders must reject the class cycle: "+forward+", "+reverse,
                    forward!=null && reverse!=null);
+        assertCycle(forward,"Root.A -> Root.B -> Root.A");
+        assertCycle(reverse,"Root.A -> Root.B -> Root.A");
     }
 }
