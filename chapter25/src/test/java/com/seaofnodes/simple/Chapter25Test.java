@@ -9,6 +9,7 @@ import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
 import com.seaofnodes.simple.codegen.ElfReader;
 import com.seaofnodes.simple.codegen.ParseAll;
 import com.seaofnodes.simple.node.CallNode;
+import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.LoopNode;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -26,6 +27,41 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter25Test {
+
+    @Test public void testPublicInstanceMethod() {
+        String src = """
+            struct Scan {
+                val visible = { u8 c -> c==255; };
+                val _hidden = { u8 c -> c==1; };
+            };
+            struct _Private {
+                val hiddenClassMethod = { u8 c -> c==2; };
+            };
+            return new Scan.visible(44);
+            """;
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code = new CodeGen(src,seed,true).driver(CodeGen.Phase.Parse);
+            FunNode visible = null;
+            int checked = 0;
+            for( FunNode fun : code._linker ) {
+                if( fun==null || fun._name==null ) continue;
+                if( fun._name.equals("visible") ) {
+                    assertTrue(code.publicFIDX(fun.sig().fidx()));
+                    visible = fun;
+                    checked++;
+                }
+                if( fun._name.equals("_hidden") || fun._name.equals("hiddenClassMethod") ) {
+                    assertFalse(code.publicFIDX(fun.sig().fidx()));
+                    checked++;
+                }
+            }
+            assertEquals(3,checked);
+            code.driver(CodeGen.Phase.TypeCheck);
+            assertTrue(visible.unknownCallers());
+            assertEquals(TypeInteger.U8,visible.parm(3)._type);
+            assertEquals("0",Eval2.eval(code,0));
+        }
+    }
 
     @Ignore
     @Test

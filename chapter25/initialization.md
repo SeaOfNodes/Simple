@@ -171,6 +171,119 @@ initialize every possible dependency, or a prefix of the topological list.
 
 ## Ideal IR and runtime protocol
 
+### Compiler phase boundaries
+
+The Chapter 25 driver runs `Parse -> Iter -> Opto -> IterPostOpto -> FinalizeIR
+-> TypeCheck -> LoopTree`, followed by the existing serialization and backend
+phases. `Opto` performs SCCP, resolves numeric modes, and seeds the worklist;
+it does not invoke either Iter pass. `IterPostOpto` performs peepholes and
+inlining using the SCCP results. `FinalizeIR` resolves field layouts and offsets,
+runs the resulting cleanup, roots surviving functions, and releases temporary
+CU memory keeps. Numeric resolution remains in Opto because it can require
+another SCCP propagation before the types are ready for Iter.
+
+Direct callers explicitly run `parse().iter().opto().iterPostOpto().finalizeIR()`
+before `typeCheck()`. The driver handles that sequence when a later phase is
+requested. CLInit expansion after successful TypeCheck remains unimplemented;
+its phase and the serialization boundary are separate decisions.
+
+### Memory IR checkpoint (2026-10-17)
+
+This checkpoint supersedes the older representation details below. Keep CLInit
+opaque through Iter/Opto and the class-cycle check; introduce neither its
+conditional call CFG nor frequency estimates in those phases.
+
+Use the existing mutable `$init` field and alias. The implemented node shape is:
+
+```text
+ready = Load(C.$init, incoming memory)
+CLInit(ctrl, wholeMemory, classPtr, ready)
+    -> (ctrl, wholeMemory, initAliasMemory)
+```
+
+The third result is an alias slice containing true on normal continuation.
+Merge it over the whole-memory result using MemMerge. The whole-memory result
+conservatively accounts for arbitrary initializer effects; changing just the
+flag slice would be incorrect. The flag result is a fact about the operation's
+result, not an extra runtime store at each touch. Keep the class pointer and
+source location on the operation; resolve the flag alias from the class type,
+including after forward-reference resolution and object loading.
+
+The parser creates the ready load up front, using the existing receiver node.
+For an unresolved receiver, ordinary Load/FldOff machinery resolves the alias
+and offset later; no additional named FRef is needed. If the receiver becomes
+an ordinary instance, the speculative CLInit and flag load disappear together.
+If the parser cannot yet identify the flag alias, precise Loads and MemPhis
+recover that slice from the whole-memory projection once the type resolves.
+
+Known-true input bypasses the operation, returning incoming control/memory;
+false or unknown retains it. Parser memory uses the result, so subsequent flag
+loads, MemPhis, and ordinary peepholes can establish redundant checks without
+a separate parser set of initialized classes. A merge establishes true only
+when every live incoming path does. Initially an ordinary unknown call may
+lose a known-true fact; that is conservative, and preserving monotone flag
+facts across arbitrary calls can follow later.
+
+The static flag starts false. Its true store belongs inside `<clinit>`, not at
+each CLInit site. It is installed at body entry so the body knows its own flag
+is true. The parent requirement remains structural; runtime lowering must
+execute it before entering the body. This implements the accepted same-class
+reentry rule; it does not exempt cross-class cycles from validation. Retain
+initializer boundaries and their dependency edges until the post-Opto check;
+do not propagate an in-progress caller's flag into another initializer to
+erase that check. Ordinary field-initialization checking remains separate.
+
+Memory/projection wiring, parser updates, the initializer-owned flag store,
+and copying/serialization are implemented. Rebuild serialized objects for the
+new four-input node shape. Runtime lowering, entry adaptation, and executable
+run-once behavior remain a subsequent step.
+
+Public function fields on instances of public classes must retain their Start
+caller, just like public class-object fields. `CodeGen.publicFIDX` now checks
+both, preserving private-field/class and hidden-constructor exclusions. This
+fixes the `sys.scan.match` widening exposed by conservative CLInit memory
+effects; neither imported-type resets nor SCCP assertions needed changes.
+
+Validation: 395 raw0 tests, 37 raw1 tests, 9 standalone tests, the fuzzer
+regression wrapper, 25 Chapter 25 tests, and 38 additional tests all pass.
+The additional group includes 16 class-init tests
+covering cycles, serialization, repeated touches, branch merges, flag stores,
+and removal of a speculative flag load when a forward call returns an instance.
+
+### Deferred constant instance fields
+
+A final instance field proven to have the same constant value in every instance
+can eventually be stored on the class object, or folded directly to a
+ConstantNode, and removed from instance layout. Instance-field access semantics
+remain unchanged. Public function reachability must not depend on that storage
+choice: an externally accessible function field is callable by anyone whether
+stored in the instance or class. This optimization is not needed for the current
+initialization checkpoint; instance layout is unchanged.
+
+### Deferred CFG frequencies
+
+After Opto and cycle validation, lower surviving CLInit operations to flag
+tests, conditional calls, and control/memory merges. Mark the needs-init edge
+rare. Once the resulting CFG and loop tree are stable, estimate frequencies
+before GCM and reuse them in Encoding block layout. Frequencies are derived
+backend data, not ideal-IR types or inputs to Iter/Opto.
+
+Start each function at 1.0; use 50/50 for unknown tests, 90/10 for non-null/null,
+and a small positive minimum probability for initialization and known-failure
+edges. Use an estimated loop trip count of 10 unless a proven count is known;
+distinguish body iterations from header tests and account for early exits.
+Compute cyclic flow using loop-aware propagation, not an unbounded walk around
+backedges. Regions sum incoming edge flows, and branch outputs sum to their
+input. Bound probabilities and loop amplification and normalize outgoing
+probabilities; do not independently clamp successor counts and break those
+relationships. Unreachable blocks remain zero. Bound the resulting estimates
+against overflow. Later profiling can supply probabilities/trip estimates
+through the same interface; switch distributions are deferred.
+
+GCM chooses the lowest-frequency legal placement, with deterministic tie breaks.
+Encoding prefers common fall-through paths, forward cold branches, and backward
+loop edges. Recompute/invalidate estimates if later CFG changes require it.
+
 Introduce an effectful `CLInitNode` with a stable target CompUnit identity:
 
 ```text
@@ -664,7 +777,7 @@ unfinished dynamic parent. Check that early flag folding cannot hide a cycle.
 Files: `CodeGen.java`, `ParseAll.java`, `Serialize.java`, `ElfReader.java`,
 `Main.java`, and the native linking path in `TestC.java` as appropriate.
 
-The current driver runs parse, Iter, Opto, TypeCheck, LoopTree,
+The current driver runs Parse, Iter, Opto, IterPostOpto, FinalizeIR, TypeCheck, LoopTree,
 `unlinkImports`, serialization, then selection and scheduling. Add explicit
 initialization-analysis boundaries without relying on a particular peephole
 worklist order:

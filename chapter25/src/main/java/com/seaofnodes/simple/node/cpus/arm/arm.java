@@ -305,6 +305,7 @@ public class arm extends Machine {
         case PtrToIntNode ptr -> new PtrToIntMach(ptr);
         case GuardNode guard -> new GuardMach(guard);
         case CallEndNode cend-> new CallEndMach(cend);
+        case CLInitNode init -> new CLInitNode(init);
         case CProjNode c     -> new CProjNode(c);
         case ConstantNode con-> con(con);
         case DivNode div     -> div.mode()==2 ? new DivFARM(div) : new DivARM(div);
@@ -459,6 +460,7 @@ public class arm extends Machine {
     }
 
     private Node prj(ProjNode prj) {
+        if( prj.in(0) instanceof CLInitNode ) return new ProjNode(prj);
         TypeInteger ret = cReturn(prj);
         if( ret!=null ) return new ExtendARM(prj,ret);
         return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjARM(prj);

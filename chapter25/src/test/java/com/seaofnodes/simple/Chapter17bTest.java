@@ -15,7 +15,7 @@ public class Chapter17bTest {
 """
 return 1;
 """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -27,7 +27,7 @@ return 1;
         CodeGen code = new CodeGen("""
 return arg++;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return arg;", code.print());
         assertEquals("0", Eval2.eval(code, 0));
     }
@@ -37,7 +37,7 @@ return arg++;
         CodeGen code = new CodeGen("""
 return arg+++arg++;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return ((arg<<1)+1);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
@@ -48,7 +48,7 @@ return arg+++arg++;
 //   -(arg--)-(arg--)
 return -arg---arg--;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return (-((arg<<1)+-1));", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
@@ -61,7 +61,7 @@ xs[0]++;
 xs[1]++;
 return xs[0];
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 2));
     }
@@ -73,7 +73,7 @@ u8[] !xs = new u8[1];
 xs[0]--;
 return xs[0];
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 255;", code.print());
         assertEquals("255", Eval2.eval(code, 2));
     }
@@ -86,7 +86,7 @@ struct _S { u16 x; };
 s.x--;
 return s.x;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 65535;", code.print());
         assertEquals("65535", Eval2.eval(code, 2));
     }
@@ -94,7 +94,7 @@ return s.x;
     @Test
     public void testInc6() {
         CodeGen code = new CodeGen("return --arg;");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return (arg+-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
     }
@@ -102,7 +102,7 @@ return s.x;
     @Test
     public void testInc7() {
         CodeGen code = new CodeGen("u8 x=0; return --x;");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 255;", code.print());
         assertEquals("255", Eval2.eval(code, 0));
     }
@@ -110,7 +110,7 @@ return s.x;
     @Test
     public void testInc8() {
         CodeGen code = new CodeGen("int x; x+=2; return x+=3;");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 5;", code.print());
         assertEquals("5", Eval2.eval(code, 0));
     }
@@ -118,14 +118,14 @@ return s.x;
     @Test
     public void testInc9() {
         CodeGen code = new CodeGen("flt x = 1.5; x++; return x;");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 2.5f;", code.print());
         assertEquals("2.5", Eval2.eval(code, 0));
     }
 
     @Test public void testInt10() {
         CodeGen code = new CodeGen("flt x = 1.5; x++; int i = x; return i;");
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("2",Eval2.eval(code,0));
     }
 
@@ -133,73 +133,73 @@ return s.x;
     // ---------------------------------------------------------------
     @Test public void testVar0() {
         CodeGen code = new CodeGen("var d; return d;");
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("Syntax error, expected `=expression` but found `;`",e.getMessage()); }
     }
 
     @Test public void testVar1() {
         CodeGen code = new CodeGen("val d; return d;");
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("Syntax error, expected `=expression` but found `;`",e.getMessage()); }
     }
 
     @Test public void testVar2() {
         CodeGen code = new CodeGen("int x; x=3; x++; return x; // Ok, no initializer so x is mutable ");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
     }
 
     @Test public void testVar3() {
         CodeGen code = new CodeGen("int x=3; x++; return x; // Ok, primitive so x is mutable despite initializer ");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
     }
 
     @Test public void testVar4() {
         CodeGen code = new CodeGen("struct _S{int x;}; !_S? !s; s=new _S; s.x++; return s.x; // Ok, no initializer so x is mutable ");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar5() {
         CodeGen code = new CodeGen("struct _S{int x; new _S={ int xx -> x=xx; };}; !_S? !s; s=new _S(3); s.x++; return s.x; // Ok, no initializer so x is mutable ");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 4;", code.print());
         assertEquals("4", Eval2.eval(code, 0));
     }
 
     @Test public void testVar6() {
         CodeGen code = new CodeGen("struct S{int x;}; ~S s = new S; s.x++; return s.x; // Error initializer so x is immutable ");
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test public void testVar7() {
         CodeGen code = new CodeGen("struct S{int x; new S={ int xx -> x=xx; };}; ~S s = new S(3); s.x++; return s.x; // Error initializer so x is immutable ");
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
     @Test public void testVar8() {
         CodeGen code = new CodeGen("struct _S{int x;}; !_S !s=new _S; s.x++; return s.x; // Ok, has '!' so s.x is mutable ");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar9() {
         CodeGen code = new CodeGen("struct _S{int x;}; var s=new _S; s.x++; return s.x; // Ok, has var so s.x is mutable ");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code, 0));
     }
 
     @Test public void testVar10() {
         CodeGen code = new CodeGen("struct S{int x;}; ~S s=new S; s.x++; return s.x; // Error, has val so x is immutable ");
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
@@ -218,7 +218,7 @@ foo.bar.x++;   // Ok foo and foo.bar and foo.bar.x are all mutable
 xfoo.bar.x++;   // Error, cannot mutate through xfoo
 return xfoo.bar.x;
  """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
@@ -239,7 +239,7 @@ foo.bar.x++;           // Bumps to 5
 int x5 = xfoo.bar.x;   // Ok to read through xfoo, gets 5
 return x4*10+x5;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 45;", code.print());
         assertEquals("45", Eval2.eval(code, 0));
     }
@@ -249,7 +249,7 @@ return x4*10+x5;
         CodeGen code = new CodeGen("""
 int i,i++;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Redefining name 'i'",e.getMessage()); }
     }
 
@@ -264,7 +264,7 @@ struct A { !B !b; new A = { ->
 }; };
 A x = new A;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Field 'b' might not be initialized",e.getMessage()); }
     }
 
@@ -296,7 +296,7 @@ A x = new A;
             "!B !b; new A = { -> if (arg) { b = new B; return 0; } b = new B; };",
         } ) {
             CodeGen code = new CodeGen("struct B {}; struct A { "+fields+" }; return new A.b != null;");
-            code.parse().opto().typeCheck();
+            code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
             assertEquals("1",Eval2.eval(code,0));
             assertEquals("1",Eval2.eval(code,1));
         }
@@ -314,7 +314,7 @@ val x = 1;
 return x;
 """
 );
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Undefined name 'x'",e.getMessage()); }
     }
 
@@ -343,7 +343,7 @@ return me;
         CodeGen code = new CodeGen("""
 return arg ? 1 : 2;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Region,1,2);", code.print());
         assertEquals("2", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
@@ -354,7 +354,7 @@ return arg ? 1 : 2;
         CodeGen code = new CodeGen("""
 return arg ? 0 : arg;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code, 0));
     }
@@ -368,7 +368,7 @@ val get = { !S s -> s.x; };
 if( !s || !arg ) return 0;
 return get(s);
 """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
     }
 
     @Test
@@ -378,7 +378,7 @@ struct _Bar { int x; };
 var b = arg ? new _Bar : null;
 return b ? b.x++ + b.x++ : -1;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
 
@@ -392,7 +392,7 @@ struct _Bar { int x; };
 var b = arg ? new _Bar;
 return b ? b.x++ + b.x++ : -1;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Region,((.x<<1)+1),-1);", code.print());
         assertEquals("-1", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
@@ -406,7 +406,7 @@ struct _Bar { !_Bar? !next; int x; new _Bar = { !_Bar? !n, int xx -> next=n; x=x
 var b = arg ? new _Bar((arg==2) ? new _Bar(null,2), 1);
 return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0"
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Region,.x,0,.x);", code.print());
         assertEquals("0", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
@@ -419,7 +419,7 @@ return b ? b.next ? b.next.x : b.x; // parses "b ? (b.next ? b.next.x : b.x) : 0
 flt f=arg?1:1.2;
 return f;   // missing widening
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Region,1.0f,1.2);", code.print());
         assertEquals("1.2", Eval2.eval(code,  0));
     }
@@ -431,7 +431,7 @@ return f;   // missing widening
 struct S{};
 return arg ? 7 : new S;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot return generic scalar",e.getMessage()); }
     }
 
@@ -444,7 +444,7 @@ for( int i=0; i<arg; i++ )
     sum += i;
 return sum;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
@@ -457,7 +457,7 @@ for( ; i<arg; i++ )
     sum += i;
 return sum;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
@@ -472,7 +472,7 @@ for( int i=0; ; i++ ) {
 }
 return sum;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
@@ -485,7 +485,7 @@ for( int i=0; i<arg; )
     sum += i++;
 return sum;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Loop,0,(Phi_sum+Phi(Loop,0,(Phi_i+1))));", code.print());
         assertEquals("3", Eval2.eval(code, 3));
         assertEquals("45", Eval2.eval(code, 10));
@@ -498,7 +498,7 @@ for( int i=0; i<arg; i++ )
     sum += i;
 return i;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("Undefined name 'i'",e.getMessage()); }
     }
     @Test
@@ -506,7 +506,7 @@ return i;
         CodeGen code = new CodeGen("""
 for(;;arg++;) {}
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("Syntax error, expected `Unexpected code after expression` but found `;`",e.getMessage()); }
     }
 
@@ -522,7 +522,7 @@ struct _A {
 };
 return new _A;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Test._A;", code.print());
         assertEquals("Test._A{f1=null,f2=null}", Eval2.eval(code,0));
     }
@@ -537,7 +537,7 @@ struct _A {
 };
 return new _A(new !B?[0]).array_of_b;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return []*B?;", code.print());
         assertEquals("*B {}?[]", Eval2.eval(code,0));
     }
@@ -556,7 +556,7 @@ for( ; ptr; ptr = ptr.next )
     sum += ptr.i;
 return sum;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Loop,0,(Phi_sum+.i));", code.print());
         assertEquals("45", Eval2.eval(code, 10));
     }
@@ -587,7 +587,7 @@ for( int j=0; j<nprimes; j++ )
     rez[j] = primes[j];
 return rez;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck().GCM();
         assertEquals("return []i64;", code.print());
         assertEquals("i64[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }

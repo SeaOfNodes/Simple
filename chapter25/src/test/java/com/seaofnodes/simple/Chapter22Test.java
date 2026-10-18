@@ -88,7 +88,7 @@ public class Chapter22Test {
 
     @Test public void testSubZeroTypeError() {
         try {
-            new CodeGen("return null-0;").parse().opto().typeCheck();
+            new CodeGen("return null-0;").parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
             fail("Subtraction must reject null even when the other operand is zero");
         } catch( Parser.ParseException e ) {
             assertEquals("Cannot null - 0",e.getMessage());
@@ -135,6 +135,7 @@ return new s0.v1;
 
 
     static int testCPUSize( String src, String cpu, String os, int spills ) {
+        // Includes the file initializer's hidden $init=true store.
         return testCPU(src,cpu,os,spills, "return 0;" )._encoding._bits.size();
     }
 
@@ -146,9 +147,9 @@ struct _Person { i32 age;};
 p.age = (arg<<17)>>17;
 return 0;
 """;
-        assertEquals(65, testCPUSize(src, "x86_64_v2","win64", 3 ));
-        assertEquals(76, testCPUSize(src, "riscv",  "SystemV", 4 ));
-        assertEquals(76, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
+        assertEquals(76, testCPUSize(src, "x86_64_v2","win64", 3 ));
+        assertEquals(92, testCPUSize(src, "riscv",  "SystemV", 4 ));
+        assertEquals(92, testCPUSize(src, "arm"  ,  "SystemV", 4 ));
 
         // do assertEquals here
         EvalRisc5 R5 = TestRisc5.build( src, "sext_str_not_fold_away", 0, 4, false);
@@ -178,9 +179,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(65, testCPUSize(src, "x86_64_v2","win64",3 ));
-        assertEquals(76, testCPUSize(src, "riscv",  "SystemV",4 ));
-        assertEquals(76, testCPUSize(src, "arm",    "SystemV",4 ));
+        assertEquals(76, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(92, testCPUSize(src, "riscv",  "SystemV",4 ));
+        assertEquals(92, testCPUSize(src, "arm",    "SystemV",4 ));
 
     }
 
@@ -202,9 +203,9 @@ return 0;
         int trap_arm = A5.step(100);
         assertEquals(0,trap_arm);
 
-        assertEquals(55, testCPUSize(src, "x86_64_v2","win64",3 ));
-        assertEquals(72, testCPUSize(src, "riscv",  "SystemV",5 ));
-        assertEquals(72, testCPUSize(src, "arm",    "SystemV",5));
+        assertEquals(66, testCPUSize(src, "x86_64_v2","win64",3 ));
+        assertEquals(84, testCPUSize(src, "riscv",  "SystemV",5 ));
+        assertEquals(84, testCPUSize(src, "arm",    "SystemV",5));
         // do assertEquals here
     }
 
@@ -282,7 +283,7 @@ aa.c = cc;
 bb.c = cc;
 return cc.cz;
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return 25;", code.print());
         assertEquals("25", Eval2.eval(code, 0));
     }
@@ -321,7 +322,7 @@ return 0;
     @Test
     public void testStrLoad() {
         CodeGen code = new CodeGen("return \"abc\"[1];");
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return .[];", code.print());
     }
 
@@ -341,7 +342,7 @@ val _sum = { i32[~] is ->  // final array
 };
 return _sum(is);
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code.print());
         assertEquals("14", Eval2.eval(code, 0));
     }

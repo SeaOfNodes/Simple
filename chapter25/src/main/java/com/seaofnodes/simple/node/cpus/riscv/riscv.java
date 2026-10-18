@@ -218,6 +218,7 @@ public class riscv extends Machine {
         case PtrToIntNode  ptr -> new PtrToIntMach(ptr);
         case GuardNode guard  -> new GuardMach(guard);
         case CallEndNode cend -> new CallEndMach(cend);
+        case CLInitNode init -> new CLInitNode(init);
         case CProjNode      c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivNode      div -> div.mode()==2 ? new DivFRISC(div) : new DivRISC(div);
@@ -412,6 +413,7 @@ public class riscv extends Machine {
     }
 
     private Node prj(ProjNode prj) {
+        if( prj.in(0) instanceof CLInitNode ) return new ProjNode(prj);
         TypeInteger ret = cReturn(prj);
         if( ret!=null ) return new ExtendRISC(prj,ret);
         return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjRISC(prj);

@@ -290,6 +290,19 @@ public class Parser {
             _scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole(), loc);
         }
 
+        // The initializer owns its run-once flag store. Parent initialization
+        // is a structural requirement, to be executed before this body when
+        // CLInit runtime lowering is added.
+        if( fun.isClz() ) {
+            Node self = fun.parm(2);
+            Field flag = ((TypeMemPtr)self._type)._obj.field("$init");
+            Node prior = mem().keep();
+            Node st = peep(new StoreNode(loc,"$init",flag._alias,flag._t,ctrl(),prior,self,
+                                        fldoff(self,"$init"),con(1),false));
+            storeMem(st,flag._alias,prior);
+            prior.unkeep();
+        }
+
         // Parse the function body.
         Node last=_code.ZERO;   // Last statement as the default result
 
@@ -1236,9 +1249,12 @@ public class Parser {
             ? Field.make(initName,sig,_code.alias(_ref._cname),true)
             : oldFld.makeFrom(sig);
         Field ctorFld = ts==null ? null : ts.field("<ctor>");
+        // A same-named struct shares its file's class object and flag.
+        Field flag = ts==null ? null : ts.field("$init");
         ts = ctorFld==null
             ? TypeStruct.make(clzName,false,fld)
             : TypeStruct.make(clzName,false,fld,ctorFld);
+        if( flag!=null ) ts=ts.add(flag);
         TypeFunPtr alloc = makeAllocator((TypeStruct)TYPES.get(fullName),ret,ctorFld);
         ts = ts.add(Field.make("<new>",alloc,_code.alias(_ref._cname),true));
         TYPES.put(clzName,ts);
@@ -2315,7 +2331,7 @@ public class Parser {
         Kind.Func func = (Kind.Func)_scope._kinds.at(_scope.enclosingFuncOrDecl());
         if( (ts==null || ts==TypeStruct.BOT || ts.isHigh() || startsClzPrefix(ts._name)) &&
             !(ts!=null && (ts._name+".<clinit>").equals(func._name)) )
-            ctrl(new CLInitNode(site,ctrl(),expr).peephole());
+            classInit(site,expr);
 
         // With no field, we will update the bulk memory
         int alias = fld==null ?  1          : fld._alias;
@@ -2578,6 +2594,22 @@ public class Parser {
     private ConstantNode parseLiteral() { return con(_lexer.parseNumber()); }
     ConstantNode con( long con ) { return _code.con(con); }
     ConstantNode con( Type t   ) { return _code.con(t  ); }
+    private void classInit(Lexer site, Node ptr) {
+        // Ordinary load machinery resolves the flag alias and offset when
+        // the receiver is still a forward reference.
+        Field flag = ptr._type instanceof TypeMemPtr tmp ? tmp._obj.field("$init") : null;
+        int alias = flag==null ? 1 : flag._alias;
+        Node ready = new LoadNode(site,"$init",alias,null,mem(),ptr,fldoff(ptr,"$init")).peephole();
+        CLInitNode init = new CLInitNode(site,ctrl(),mem(),ptr,ready).peephole().keep();
+        ctrl(new CProjNode(init,0,ScopeNode.CTRL).peephole());
+        Node bulk = new ProjNode(init,1,ScopeNode.MEM0).peephole().keep();
+        flag = init.flag();
+        mem(flag==null ? bulk : mergeAlias(bulk,flag._alias,
+            new ProjNode(init,2,memName(flag._alias)).peephole()));
+        bulk.unkeep();
+        init.unkeep();
+    }
+
     // Field offset for a known type (but unknown offset)
     public static ConFldOffNode off( TypeStruct ts, String fname ) {
         return (ConFldOffNode)(new ConFldOffNode(ts,fname).peephole());

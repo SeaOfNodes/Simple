@@ -491,6 +491,7 @@ public class x86_64_v2 extends Machine {
     }
 
     private Node prj( ProjNode prj ) {
+        if( prj.in(0) instanceof CLInitNode ) return new ProjNode(prj);
         TypeInteger ret = cReturn(prj);
         if( ret!=null ) return new ExtendX86(prj,ret);
         return prj.in(0) instanceof StartNode ? new ProjNode(prj) : new ProjX86(prj);

@@ -62,7 +62,7 @@ public class CProjNode extends CFGNode implements Proj {
             return new CProjNode(new IfNode(iff.ctrl(),not.in(1)).peephole(),1-_idx,_idx==0 ? "False" : "True");
 
         // Copy of some other input
-        return ((MultiNode)ctrl()).pcopy(_idx);
+        return ((MultiNode)ctrl()).pcopy(_idx,this);
     }
 
     // Only called during basic-block layout, inverts a T/F CProj

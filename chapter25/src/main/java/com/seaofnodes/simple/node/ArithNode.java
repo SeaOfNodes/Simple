@@ -55,6 +55,9 @@ public abstract class ArithNode extends Node implements ModeNode {
         if( n instanceof ModeNode mode && mode.mode()==0 ) {
             mode.setMode((byte)1);
             n.setType(n.compute());
+            // Mode changes remove n from GVN even if the caller's remaining
+            // conditions prevent replacing the int-only operation by n.
+            CodeGen.CODE.add(n);
         }
         return true;
     }

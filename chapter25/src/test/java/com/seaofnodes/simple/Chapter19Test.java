@@ -37,7 +37,7 @@ public class Chapter19Test {
         CodeGen code = new CodeGen("""
 return 0;
 """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  2));
     }

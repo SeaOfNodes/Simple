@@ -160,7 +160,7 @@ public class BulkMemPhiNode extends PhiNode {
         case MemPhiNode phi -> unsplit(phi._alias);
         case EscapeNode esc -> esc.pub()==this ? unsplit(esc.fld()._alias) : 0;
         default -> {
-            assert use instanceof ReturnNode || use instanceof CallNode
+            assert use instanceof ReturnNode || use instanceof CallNode || use instanceof CLInitNode
                 : "Unexpected bulk-memory user "+use.getClass().getSimpleName()+"#"+use._nid+": "+use;
             yield 0;
         }

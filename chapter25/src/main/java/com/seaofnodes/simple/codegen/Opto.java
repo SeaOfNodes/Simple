@@ -3,9 +3,7 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
-import com.seaofnodes.simple.util.Utils;
 
-import java.util.Arrays;
 import java.util.BitSet;
 
 // Optimistic Algorithm
@@ -45,36 +43,6 @@ abstract public class Opto {
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
         moveChangesToWorklist(code, oldTypes);
-
-        // Progress with improved types.  E.g. since we have a full Call Graph
-        // here, we might do better inlining.
-        code._iter.iterate(code);
-
-        // TODO:
-        // loop unroll, peel, RCE, etc
-
-        // Freeze field sizes; do struct layouts; convert field offsets into
-        // constants.
-        fieldSizes(code);
-        // Propagate field size constants
-        code._iter.iterate(code);
-
-        // Retain surviving functions in their CompUnits for later code
-        // emission.  Start inputs are semantic: they mean unknown callers.
-        for( FunNode fun : code._linker )
-            if( fun != null && !fun.isDead() && !fun._type.isHigh() )
-                keepInCompUnit(code,fun);
-
-        for( CompUnit cu : code._compunits.values() ) {
-            ProjNode mem = cu._start.proj(1);
-            if( mem != null ) mem.unkeep();
-        }
-
-        // To help with testing, sort StopNode Returns by NID
-        for( Node stop : code._stop._inputs )
-            Arrays.sort(stop._inputs._es,0,stop.nIns(),
-                        (x,y) -> ((((ReturnNode)x).fun().isClz() ? -1 : x._nid) -
-                                  (((ReturnNode)y).fun().isClz() ? -1 : y._nid) ));
     }
 
     // Reset Types before running the worklist algorithm
@@ -178,7 +146,7 @@ abstract public class Opto {
         if( fun.nIns() < 2 ) {
             assert fun.nIns() < 2 || fun.in(1) != start;
             assert !start.isDead();
-            keepInCompUnit(code,fun);
+            code.keepInCompUnit(fun);
             // Function is reachable by any *remote* caller who gets the pointer!
             fun.insertDef(1,start);
             code._iter.add(fun);
@@ -189,14 +157,6 @@ abstract public class Opto {
                     code.add(parm);
                 }
         }
-    }
-
-    // Keep a surviving function rooted in its compilation unit without
-    // claiming that it has unknown callers.
-    private static void keepInCompUnit(CodeGen code, FunNode fun) {
-        StopCUNode stop = fun._compunit._stop;
-        if( stop._inputs.find(fun.ret()) == -1 )
-            code.add(stop).addDef(fun.ret());
     }
 
 
@@ -352,20 +312,5 @@ abstract public class Opto {
             evidence |= numericEvidence(n.in(i),visited);
 
         return evidence;
-    }
-
-
-    // Freeze field sizes; do struct layouts; convert field offsets into
-    // constants.
-    private static void fieldSizes( CodeGen code ) {
-        for( int i=0; i<code._start.nOuts(); i++ ) {
-            Node use = code._start.out(i);
-            if( use instanceof ConFldOffNode off ) {
-                Node con = off.asOffset();
-                assert con != null; // Can be null for trying to reference missing field
-                off.subsume( con );
-                i--;
-            }
-        }
     }
 }

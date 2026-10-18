@@ -91,7 +91,7 @@ public class Chapter18Test {
              "No common type amongst int and reference"}
         } ) {
             try {
-                new CodeGen(test[0]).parse().opto().typeCheck();
+                new CodeGen(test[0]).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
                 fail("Expected incompatible return types: " + test[0]);
             } catch( Parser.ParseException e ) {
                 assertEquals("Cannot return generic scalar",e.getMessage());
@@ -140,7 +140,7 @@ while(arg--) {
 }
 return a;
 """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return Phi(Loop,1,Phi(Loop,2,Phi_a));", code.print());
         assertEquals("1", Eval2.eval(code,  0));
         assertEquals("2", Eval2.eval(code,  1));
@@ -157,7 +157,7 @@ return a;
 {int -> int}? x2 = null; // null function ptr
 return x2;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return null;", code.print());
         assertEquals("null", Eval2.eval(code, 0 ) );
     }
@@ -170,7 +170,7 @@ return x2;
     x*x;
 };
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("Stop[ return { sq}; return (Parm_x(sq,i64)*x); ]", code.print());
         assertEquals("{ ptr i64 -> i64 #[ 3]}", Eval2.eval(code, 3));
     }
@@ -197,7 +197,7 @@ return _sq(arg)+_sq(3);
 int cnt=1;                      // Global scope; exactly one of these
 return { -> cnt++; };           // Escape global-scope variable is OK
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("Stop[ return { ptr -> i64 #[ 3]}; return .cnt; ]", code.print());
         assertEquals("{ ptr -> i64 #[ 3]}", Eval2.eval(code, 0));
     }
@@ -216,7 +216,7 @@ val B = ctr();                  // Make a counter
 A();                            // Increment counter A
 return A()*10 + B();            // Incr A and B; result: 2*10+1 == 21
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("Variable 'cnt' is out of function scope and must be a final constant",e.getMessage()); }
     }
 
@@ -228,7 +228,7 @@ return A()*10 + B();            // Incr A and B; result: 2*10+1 == 21
 val cnt=2;
 return { -> cnt; }();
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 2;", code.print());
         assertEquals("2", Eval2.eval(code, 0));
     }
@@ -241,7 +241,7 @@ return { -> cnt; }();
 var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("Stop[ return #2; return (Parm_x($fun3,i64,3)*x); return (Parm_x($fun4,i64,3)<<1); ]", code.print());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
@@ -251,7 +251,7 @@ return fcn(3);
     @Test
     public void testFcn5() {
         CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1 : x*_fact(x-1); }; return _fact(arg);");
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         String ir = code.print();
         assertTrue(ir.equals("Stop[ return #2; return Phi(Region,1,(Parm_x(_fact,arg,(x-1))*#2)); ]") ||
                    ir.equals("Stop[ return Phi(Region,1,(arg*#2)); return Phi(Region,1,(Parm_x(_fact,(arg-1),(x-1))*#2)); ]") ||
@@ -269,7 +269,7 @@ return fcn(3);
     @Test
     public void testFcn5Float() {
         CodeGen code = new CodeGen("val _fact = { int x -> x <= 1 ? 1.0 : x*_fact(x-1); }; return _fact(arg);");
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("1.0",  Eval2.eval(code, 0));
         assertEquals("1.0",  Eval2.eval(code, 1));
         assertEquals("2.0",  Eval2.eval(code, 2));
@@ -280,7 +280,7 @@ return fcn(3);
     @Test
     public void testFcn5Minus() {
         CodeGen code = new CodeGen("val _neg = { int x -> x ? -_neg(x-1) : 1; }; return _neg(arg);");
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals("-1", Eval2.eval(code, 1));
         assertEquals( "1", Eval2.eval(code, 2));
@@ -295,7 +295,7 @@ struct _S { int i; new _S = { int x -> i=x; }; };
 val _newS = { int x -> return new _S(x); };
 return _newS(1).i;
 """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -310,7 +310,7 @@ val _g = {->2;};
 if( arg ? _f : _g ) return 1;
 return 2;
 """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -388,7 +388,7 @@ for(;;) {
 }
 return 1;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("No active loop for a break or continue",e.getMessage()); }
     }
 
@@ -404,7 +404,7 @@ for(;;) {
 }
 return 0;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Might be null calling { ptr i64 -> i64 #[ 3]}?",e.getMessage()); }
     }
 
@@ -416,7 +416,7 @@ return 0;
 val f = { int i, int j -> return i+j; };
 return f();
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Expecting 3 arguments, but found 1",e.getMessage()); }
     }
 
@@ -432,7 +432,7 @@ val x = { -> return 1; };
 S? s = new S;
 return s.x;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*Test.S'",e.getMessage()); }
     }
 
@@ -445,7 +445,7 @@ val g = { ->
 };
 return g();
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("No defined return type",e.getMessage()); }
     }
 
@@ -459,7 +459,7 @@ val is_even = { int x -> x ? is_odd (x-1) : true ; };
 val is_odd  = { int x -> x ? is_even(x-1) : false; };
 return is_even(arg);
 """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("Stop[ return #2; return Phi(Region,0,1,#2); ]", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         assertEquals("0", Eval2.eval(code, 1));
@@ -481,7 +481,7 @@ for(;;) {
     if (s) return s.f;
 }
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck().GCM();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }

@@ -467,8 +467,20 @@ lines beyond the original extraction.
 
 Allocator tuning is good enough: the residual Win64 NewtonExport ranking issue
 is closed without a fix. Additional emulator-driver/measurement coverage is also
-closed without expansion (Cliff, 2026-10-08). The remaining active work is AOT
-class initialization below; the other items stay deferred for the chapter split.
+closed without expansion (Cliff, 2026-10-08). Active work is AOT class
+initialization below. Phase cleanup also needs backporting; the other items
+stay deferred for the chapter split.
+
+- **Compiler phase cleanup: needs backport (2026-10-17).** Chapter 25 separates
+  `Opto` (SCCP, numeric resolution, worklist seeding), `IterPostOpto` (peepholes
+  and inlining), and `FinalizeIR` (field layout/offsets, cleanup, function/CU
+  roots). `opto()` no longer silently runs pre-Iter; callers explicitly name
+  the required phases. Backport the applicable boundaries to earlier chapters,
+  updating tests, viewer/CLI callers, phase guards, timings, and dump options.
+  Numeric resolution stays in Opto where present. Keep CLInit expansion and
+  serialization changes separate. Chapter 25's full Make suite passes (505 tests),
+  including rebuilt sys.o and import/native execution. Earlier chapter compilers
+  are not yet changed or validated for this cleanup.
 
 - **Chapter 25 deterministic inlining (deferred until after the Chapter 25 split).**
   As of 2026-10-07, ordinary functions reject `_approxUIDs >= 100` before checking

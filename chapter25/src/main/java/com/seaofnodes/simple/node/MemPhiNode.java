@@ -56,11 +56,14 @@ public class MemPhiNode extends PhiNode {
     public Node idealize() {
         // A precise memory Phi can always bypass a MemMerge and select its
         // matching slice.
-        for( int i=1; i<nIns(); i++ )
+        for( int i=1; i<nIns(); i++ ) {
             if( in(i) instanceof MemMergeNode mem ) {
                 setDef(i,mem.alias(_alias));
                 return this;
             }
+            Node slice = CLInitNode.slice(in(i),_alias,this);
+            if( slice!=in(i) ) { setDef(i,slice); return this; }
+        }
         if( nIns()==3 && region() instanceof LoopNode loop && !loop.inProgress() &&
             in(2) instanceof StoreNode st && st.mem()==this ) {
             Node sink = st.sink(this);

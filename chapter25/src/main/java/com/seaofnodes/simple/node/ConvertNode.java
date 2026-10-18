@@ -30,10 +30,10 @@ public class ConvertNode extends Node {
     }
 
     // The declaration fixes the result family during pessimistic parsing.
-    // Optimistic SCCP must retain stronger facts already inside that family.
+    // From SCCP onward, preserve dead inputs and stronger facts in that family.
     @Override public Type compute() {
         Type src = val()._type;
-        if( CodeGen.CODE._phase == CodeGen.Phase.Opto ) {
+        if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() ) {
             if( src.isHigh() ) return Type.TOP;
             if( (src.isa(_dst) && src.accessISA(_dst)) ) return src;
         }

@@ -130,10 +130,10 @@ public abstract class MemOpNode extends TypeNode {
         if( !(ptr instanceof TypeMemPtr tmp && tmp.notNull()) )
             return Parser.error( "Might be null accessing '" + _name + "'",_loc);
         if( tmp._obj.field(_name)==null &&
-            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
+            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.FinalizeIR.ordinal() )
             return Parser.error("Accessing unknown field '"+_name+"' from '*"+tmp._obj._name+"'",_loc);
         // Sane field
-        if( off() instanceof ConFldOffNode && CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Opto.ordinal() )
+        if( off() instanceof ConFldOffNode && CodeGen.CODE._phase.ordinal() > CodeGen.Phase.FinalizeIR.ordinal() )
             return Parser.error("Accessing unknown field '"+_name+"' from '*"+tmp._obj._name+"'",_loc);
         return null;
     }
@@ -154,7 +154,7 @@ public abstract class MemOpNode extends TypeNode {
                 Node slice = _alias<merge.nIns() ? merge.in(_alias) : null;
                 if( (slice==mem) || (slice==null && merge.in(1)==mem) )
                     antiDeps(merge,deps,visit);
-            } else if( use instanceof CallNode ||
+            } else if( use instanceof CallNode || use instanceof CLInitNode ||
                        (use instanceof MemOpNode st && !st._isLoad && st._alias==_alias) ||
                        (use instanceof EscapeNode esc && esc.fld()._alias==_alias) ||
                        (use instanceof MemPhiNode phi && phi._alias==_alias) ||

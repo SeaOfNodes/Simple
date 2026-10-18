@@ -304,7 +304,7 @@ public class StoreNode extends MemOpNode {
     public Parser.ParseException err() {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
-        assert _size>0 || CodeGen.CODE._phase.ordinal() <= CodeGen.Phase.Opto.ordinal();
+        assert _size>0 || CodeGen.CODE._phase.ordinal() <= CodeGen.Phase.FinalizeIR.ordinal();
         if( ptr()._type == Type.TOP ) // Dead store?
             return null;
         TypeMemPtr tmp = (TypeMemPtr)ptr()._type;

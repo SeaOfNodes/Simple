@@ -28,7 +28,9 @@ public class CodeGen {
     public enum Phase {
         Parse,                  // Parse ASCII text into Sea-of-Nodes IR
         Iter,                   // Pessimistic peepholes after parse
-        Opto,                   // Run ideal optimizations
+        Opto,                   // SCCP, numeric modes, seed the peephole worklist
+        IterPostOpto,           // Peepholes and inlining using SCCP results
+        FinalizeIR,             // Field layout, offset cleanup, function/CU roots
         TypeCheck,              // Last check for bad programs
         LoopTree,               // Build a loop tree; break infinite loops
         Serialize,              // Serialize public IR for future compiles to link
@@ -97,8 +99,7 @@ public class CodeGen {
         return null;
     }
 
-    // True when fidx is published through a public field of a public class.
-    // TypeStruct.fidxs() already excludes private (underscore) fields.
+    // True when fidx is published through a public class or instance field.
     public boolean publicFIDX(int fidx) {
         if( fidx < GlobalBits.RESERVED ) return false;
         // A public class initializer is itself an external root; unlike
@@ -106,19 +107,21 @@ public class CodeGen {
         FunNode fun = _linker.atX(fidx);
         if( fun != null && fun.isClz() && fun.isPublic() )
             return true;
-        // Constructors and methods live on their class objects, including
-        // nested classes which do not have their own CompUnit.
+        // Include instance methods even while their constant function fields
+        // are stored in each instance rather than on the class object.
         for( Type t : Parser.TYPES.values() )
             if( t instanceof TypeStruct clz &&
                 Parser.startsClzPrefix(clz._name) &&
                 Parser.isPublicClassName(clz._name) &&
-                resolvedClass(clz) &&
-                publicClassFIDX(clz,fidx) )
-                return true;
+                resolvedClass(clz) ) {
+                if( publicFieldFIDX(clz,fidx) ) return true;
+                Type self = Parser.TYPES.get(clz._name.substring(Parser.CLZ.length()));
+                if( self instanceof TypeStruct ts && publicFieldFIDX(ts,fidx) ) return true;
+            }
         return false;
     }
 
-    private static boolean publicClassFIDX(TypeStruct clz, int fidx) {
+    private static boolean publicFieldFIDX(TypeStruct clz, int fidx) {
         boolean hasCtor = clz.field("<ctor>") != null;
         for( Field fld : clz._fields )
             if( fld._fname.charAt(0)!='_' && fld._t instanceof TypeFunPtr tfp &&
@@ -182,7 +185,7 @@ public class CodeGen {
     public final XCtrlNode XCTRL;
 
     public Node constant( Type t ) {
-        assert _phase==null || _phase.ordinal() <= Phase.Opto.ordinal();
+        assert _phase==null || _phase.ordinal() <= Phase.FinalizeIR.ordinal();
         return ConstantNode.make(t).peephole();
     }
     public ConstantNode con( Type t ) { return (ConstantNode)constant(t); }
@@ -259,6 +262,8 @@ public class CodeGen {
         if( p2 < p1 && p2 <  Phase.Parse     .ordinal() ) { parse();     p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Iter      .ordinal() ) { iter();      p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.Opto      .ordinal() ) { opto();      p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.IterPostOpto.ordinal() ) { iterPostOpto(); p2 = dump(dump); }
+        if( p2 < p1 && p2 <  Phase.FinalizeIR.ordinal() ) { finalizeIR(); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.TypeCheck .ordinal() ) { typeCheck(); p2 = dump(dump); }
         if( p2 < p1 && p2 <  Phase.LoopTree  .ordinal() ) { loopTree();  p2 = dump(dump); }
         if( p2 < p1 && p1 >= Phase.Encoding  .ordinal() ) { unlinkImports(); p2 = dump(dump); }
@@ -520,10 +525,8 @@ public class CodeGen {
     }
 
 
-    // Run ideal optimizations
+    // SCCP and numeric-mode resolution; leave cleanup work queued for Iter.
     public CodeGen opto() {
-        if( _phase == Phase.Parse )
-            iter();
         assert _phase == Phase.Iter;
         _phase = Phase.Opto;
         long t0 = System.currentTimeMillis();
@@ -534,6 +537,60 @@ public class CodeGen {
         if( _obs != null ) _obs.phase(_phase.name());
         return this;
     }
+
+    public CodeGen iterPostOpto() {
+        assert _phase == Phase.Opto;
+        _phase = Phase.IterPostOpto;
+        long t0 = System.currentTimeMillis();
+        // Use SCCP types and the sharp call graph for peepholes and inlining.
+        _iter.iterate(this);
+        _times[Phase.IterPostOpto.ordinal()] = System.currentTimeMillis() - t0;
+        if( _obs != null ) _obs.phase(_phase.name());
+        return this;
+    }
+
+    public CodeGen finalizeIR() {
+        assert _phase == Phase.IterPostOpto;
+        _phase = Phase.FinalizeIR;
+        long t0 = System.currentTimeMillis();
+
+        // Freeze field sizes and replace symbolic field offsets by constants.
+        for( int i=0; i<_start.nOuts(); i++ ) {
+            Node use = _start.out(i);
+            if( use instanceof ConFldOffNode off ) {
+                Node con = off.asOffset();
+                assert con != null : off._ts._name+"."+off._fname;
+                off.subsume(con);
+                i--;
+            }
+        }
+        _iter.iterate(this); // Propagate field offsets and clean up.
+
+        // Retain surviving functions for emission without adding unknown callers.
+        for( FunNode fun : _linker )
+            if( fun != null && !fun.isDead() && !fun._type.isHigh() )
+                keepInCompUnit(fun);
+        for( CompUnit cu : _compunits.values() ) {
+            ProjNode mem = cu._start.proj(1);
+            if( mem != null ) mem.unkeep();
+        }
+        // Stable print order: initializers first, then other Returns by NID.
+        for( Node stop : _stop._inputs )
+            Arrays.sort(stop._inputs._es,0,stop.nIns(),
+                        (x,y) -> ((((ReturnNode)x).fun().isClz() ? -1 : x._nid) -
+                                  (((ReturnNode)y).fun().isClz() ? -1 : y._nid) ));
+
+        _times[Phase.FinalizeIR.ordinal()] = System.currentTimeMillis() - t0;
+        if( _obs != null ) _obs.phase(_phase.name());
+        return this;
+    }
+
+    // Root a surviving function without claiming that it has unknown callers.
+    void keepInCompUnit(FunNode fun) {
+        StopCUNode stop = fun._compunit._stop;
+        if( stop._inputs.find(fun.ret()) == -1 )
+            add(stop).addDef(fun.ret());
+    }
     public <N extends Node> N add( N n ) { return _iter.add(n); }
     public void addAll( Ary<Node> ary ) { _iter.addAll(ary); }
     public void addAll( Node n ) { _iter.add(n); _iter.addAll(n._inputs); }
@@ -541,9 +598,7 @@ public class CodeGen {
     // ---------------------------
     // Last check for bad programs
     public CodeGen typeCheck() {
-        // Demand phase Opto for cleaning up dead control flow at least,
-        // required for the following GCM.
-        assert _phase.ordinal() <= Phase.Opto.ordinal();
+        assert _phase == Phase.FinalizeIR;
         _phase = Phase.TypeCheck;
         long t0 = System.currentTimeMillis();
 

@@ -120,10 +120,10 @@ return a && b ? 0 : 1;  // Expected answer 0
 
     @Test
     public void testLogicalValueSemantics() {
-        assertEquals("42", Eval2.eval(new CodeGen("return 7 && 42;").parse().opto(), 0));
-        assertEquals("0",  Eval2.eval(new CodeGen("return 0 && 42;").parse().opto(), 0));
-        assertEquals("7",  Eval2.eval(new CodeGen("return 7 || 42;").parse().opto(), 0));
-        assertEquals("42", Eval2.eval(new CodeGen("return 0 || 42;").parse().opto(), 0));
+        assertEquals("42", Eval2.eval(new CodeGen("return 7 && 42;").parse().iter().opto().iterPostOpto().finalizeIR(), 0));
+        assertEquals("0",  Eval2.eval(new CodeGen("return 0 && 42;").parse().iter().opto().iterPostOpto().finalizeIR(), 0));
+        assertEquals("7",  Eval2.eval(new CodeGen("return 7 || 42;").parse().iter().opto().iterPostOpto().finalizeIR(), 0));
+        assertEquals("42", Eval2.eval(new CodeGen("return 0 || 42;").parse().iter().opto().iterPostOpto().finalizeIR(), 0));
     }
 
     @Test
@@ -133,7 +133,7 @@ struct S {};
 S? s = arg ? new S;
 return !(!s || !arg) ? 1 : 0;
 """);
-        code.parse().opto().typeCheck();
+        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("0", Eval2.eval(code, 0));
         assertEquals("1", Eval2.eval(code, 1));
     }
@@ -146,7 +146,7 @@ struct S { !S? !fld; new S = { !S? f -> fld=f; }; };
 val ptr = arg == 1 ? null : new S(arg==1 ? null : new S(null));
 return ptr && ptr.fld ? "true" : "false";
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("true", Eval2.eval(code, 0));
 
         // Evaluate on RISC5 emulator
@@ -276,7 +276,7 @@ struct _Scan {
 return _s.peek('q');
 """;
 
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return Phi(Region,0,1);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "win64",23,null);
@@ -301,7 +301,7 @@ struct _Scan {
 return s.skip().x;
 """;
 
-        try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
+        try { new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) {
             // Bad error message, but basically requires a mutable 'x' field.
             org.junit.Assert.assertTrue(e.getMessage().startsWith("Argument #0 isa"));
@@ -331,7 +331,7 @@ struct _Scan {
 return _s.require('[');
 """;
 
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return (.[]==91);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "win64",4, null);

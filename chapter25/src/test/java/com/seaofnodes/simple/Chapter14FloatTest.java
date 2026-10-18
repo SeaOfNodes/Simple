@@ -18,7 +18,7 @@ public class Chapter14FloatTest {
             {"f32 rounded=arg+16777216.0; return rounded;", "1.6777232E7", "1.6777199E7"}
         };
         for( String[] test : tests ) {
-            var code = new CodeGen(test[0]).parse().opto().typeCheck();
+            var code = new CodeGen(test[0]).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
             assertEquals(test[0],test[1],Eval2.eval(code,17));
             assertEquals(test[0],test[2],Eval2.eval(code,-17));
         }
@@ -26,7 +26,7 @@ public class Chapter14FloatTest {
 
 
     @Test public void testSubZeroFloat() {
-        var code = new CodeGen("flt x = arg; return 0-x;").parse().opto().typeCheck();
+        var code = new CodeGen("flt x = arg; return 0-x;").parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         // Compare strings so +0.0 and -0.0 remain distinct.
         assertEquals("0.0", Eval2.eval(code,0));
         assertEquals("-1.0", Eval2.eval(code,1));
@@ -40,7 +40,7 @@ public class Chapter14FloatTest {
             {"return 2.5; return 7;", "2.5"}
         } ) {
             String src = test[0];
-            var code = new CodeGen(src).parse().opto().typeCheck();
+            var code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
             assertEquals(src,test[1],Eval2.eval(code,0));
         }
     }
@@ -53,7 +53,7 @@ public class Chapter14FloatTest {
 """
 return 0;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -65,7 +65,7 @@ return 0;
 flt x = 3.14;
 return 0;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -84,7 +84,7 @@ return guess;
 """);
         // TODO: One of the problems with <clinit> returning an OS error code,
         // is it chops all results to int.
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Loop,(flt)arg,((Phi_guess+(ToFloat/Phi_guess))*0.5f));", code.print());
         assertEquals("3.0", Eval2.eval(code,  9));
         assertEquals("1.414213562373095", Eval2.eval(code,  2));
@@ -97,7 +97,7 @@ return guess;
 flt x = arg;
 return x+1==x;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return ((flt)arg==(ToFloat+1.0f));", code.print());
         assertEquals("0", Eval2.eval(code, 1));
     }

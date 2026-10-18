@@ -109,6 +109,7 @@ public abstract class CFGNode extends Node {
     }
     private CFGNode _safeCFG() {
         return switch(this) {
+        case CLInitNode init when init.bypass() -> init.cfg0()._safeCFG();
         case CallNode call when call.cend()._folding -> call.cfg0()._safeCFG();
         case CallEndNode cend when cend._folding -> cend.cfg(1)._safeCFG();
         case FunNode fun when fun._folding -> fun.cfg(1)._safeCFG();

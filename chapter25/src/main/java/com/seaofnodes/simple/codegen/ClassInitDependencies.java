@@ -34,7 +34,7 @@ public class ClassInitDependencies {
     // Build once; tests can inspect the graph independently of cycle checking.
     public ClassInitDependencies( CodeGen code ) {
         _code = code;
-        assert code._phase.ordinal() >= CodeGen.Phase.Opto.ordinal();
+        assert code._phase.ordinal() >= CodeGen.Phase.IterPostOpto.ordinal();
         _pres = new int[code._linker._len];
         _lows = new int[code._linker._len];
         _stk  = new int[code._linker._len];

@@ -40,7 +40,8 @@ public class StopCUNode extends StopNode {
         // can widen from a precise set to FULL; the public-only normalization
         // below must not forget private bits already discovered precisely from
         // that Return on an earlier SCCP step.
-        if( CodeGen.CODE._phase == CodeGen.Phase.Opto &&
+        if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() &&
+            CodeGen.CODE._phase.ordinal() <= CodeGen.Phase.FinalizeIR.ordinal() &&
             _type instanceof TypeTuple old && old.mem() instanceof TypeMem omem )
             xmem = xmem.makeFrom(XInt.meet(xmem._escFs,omem._escFs),
                                  XInt.meet(xmem._escAs,omem._escAs));
@@ -100,7 +101,8 @@ public class StopCUNode extends StopNode {
         // precise finite sets.  Replacing FULL early there would let a later
         // input refinement add bits, reversing Iter's monotonic direction.
         // This normalization is needed only for Opto's optimistic grand cycle.
-        if( CodeGen.CODE._phase != CodeGen.Phase.Opto ) return mem;
+        if( CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal() ||
+            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.FinalizeIR.ordinal() ) return mem;
         int[] escFs = XInt.isHigh(mem._escFs)
             ? XInt.meet(prior._escFs,CodeGen.CODE.publicFIDXs())
             : mem._escFs;

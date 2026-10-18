@@ -55,7 +55,7 @@ public class ProjNode extends Node implements Proj {
         return t instanceof TypeTuple tt ? tt._types[_idx] : t.oob();
     }
 
-    @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx); }
+    @Override public Node idealize() { return ((MultiNode)in(0)).pcopy(_idx,this); }
 
     @Override
     public boolean eq( Node n ) { return _idx == ((ProjNode)n)._idx; }

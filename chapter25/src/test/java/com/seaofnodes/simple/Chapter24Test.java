@@ -257,7 +257,7 @@ while (cnt) {
 }
 return x;
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return 1;", code.print());
     }
 
@@ -272,7 +272,7 @@ while( cnt-- )
     x = 2-x;
 return x;
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
         assertEquals("return 1;", code.print());
     }
 

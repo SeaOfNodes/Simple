@@ -47,7 +47,8 @@ public class LoadNode extends MemOpNode {
             dep.addDepForwards(use);
             if( use instanceof StoreNode || use instanceof PhiNode ||
                 use instanceof MemMergeNode ||
-                use instanceof NewNode || use instanceof EscapeNode || use instanceof CallNode ) return true;
+                use instanceof NewNode || use instanceof EscapeNode || use instanceof CallNode ||
+                use instanceof CLInitNode ) return true;
         }
         return false;
     }
@@ -133,6 +134,9 @@ public class LoadNode extends MemOpNode {
         // Must sharpen alias first
         if( _alias == 1 )
             return null;
+
+        Node slice = CLInitNode.slice(mem,_alias,this);
+        if( slice!=mem ) { setDef(1,slice); return this; }
 
         if( mem instanceof MemMergeNode merge ) {
             setDef(1,merge.alias(_alias));

@@ -48,7 +48,7 @@ public class Chapter21Test {
                 else if(i==4) b.x=40;
             }
             return sum;
-            """).parse().opto();
+            """).parse().iter().opto().iterPostOpto().finalizeIR();
         // The i==2 read still sees 10: three reads of 10, then three of 30.
         assertEquals("120",Eval2.eval(code,0));
         assertEquals("60",Eval2.eval(code,1));
@@ -298,7 +298,7 @@ return new _s0.v1;
 
     @Test public void testBasic1() {
         String src = "return arg | 2;";
-        testCPU(src,"x86_64_v2", "SystemV",1,"return (ori,mov(arg));");
+        testCPU(src,"x86_64_v2", "SystemV",1,"return mov((ori,arg));");
         testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
         testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
     }

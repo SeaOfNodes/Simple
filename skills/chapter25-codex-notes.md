@@ -74,6 +74,35 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Mutability and chapter boundaries
 
+- Chapter 25 phase split (2026-10-17): Opto now only runs SCCP, numeric-mode
+  resolution and worklist seeding. IterPostOpto does peepholes/inlining;
+  FinalizeIR does field layout/offset cleanup and function/CU finalization.
+  opto() requires an explicit prior iter(). Direct calls needing the old complete
+  optimization sequence also name iterPostOpto().finalizeIR(); driver() handles
+  the sequence for later targets. The full 505-test Make suite passes. Earlier
+  chapter backports are pending in docs/chapter-backports.md. CLInit expansion
+  and serialization ordering are not part of this refactor.
+- Class-init memory checkpoint (2026-10-17) is implemented: keep CLInit
+  opaque through Iter/Opto, carry whole-memory effects plus the known-true
+  `$init` alias result, and use normal parser memory for redundant checks.
+  The flag store belongs inside the initializer. Parser creates the ready load
+  up front; ordinary Load/FldOff nodes resolve forward receivers. The fourth
+  CLInit input is always present in a constructed graph. If the receiver resolves
+  to an instance, CLInit and its speculative flag load disappear together.
+  Precise alias recovery can still be deferred. See `chapter25/initialization.md`.
+  Runtime lowering and startup adaptation remain deferred. Public function fields
+  on instances of public classes must retain Start, just like class-object
+  fields. publicFIDX now checks both; this fixes sys.scan.match losing Start
+  while building sys.o and subsequently widening after import. All Chapter 25
+  Make suites pass (505 tests). Do not weaken assertions or reset imported types
+  to conceal incorrect public classification.
+  Future optimization: move final, always-constant instance fields to the class
+  or fold them to constants and omit their instance storage. Access semantics
+  and public reachability remain unchanged; do not implement layout changes yet.
+  Frequency estimates belong
+  after Opto and lowering: function entry 1, unknown branches 50/50, estimated
+  loop trips 10, rare init/failure edges, non-null/null 90/10; bounded,
+  flow-consistent estimates shared by GCM and Encoding.
 - Class-init cycle validation (2026-10-14): reject an SCC only when it contains
   more than one `<clinit>`. A self-edge or helper recursion with one initializer
   is legal, regardless of inlining. Error reports list every internal edge of

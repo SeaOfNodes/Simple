@@ -1,11 +1,13 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.*;
-import com.seaofnodes.simple.node.FunNode;
+import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.Field;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.util.Ary;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -360,6 +362,75 @@ public class ClassInitDependenciesTest {
         for( String name : new String[]{"read","read_noInline"} )
             for( long seed : new long[]{1,123,987654321} )
                 compile("A",Map.of("A","int value=arg; val "+name+"={ -> A.value; }; int result="+name+"();"),seed);
+    }
+
+    @Test public void testInitializationMemory() throws Exception {
+        String[] sources={
+            "int value=B.value+B.value;",
+            "int value; if(arg) value=B.value; else value=B.value+1; value=value+B.value;",
+            "int value; if(arg) value=B.value; value=value+B.value;"
+        };
+        int[] counts={1,2,2};
+        for( long seed : new long[]{1,123,987654321} )
+            for( int i=0; i<sources.length; i++ ) {
+                CodeGen code=compile("A",Map.of("A",sources[i],"B","int value=arg;"),seed);
+                FunNode fun=code.link(code._compunits.get("Root/A"));
+                CompUnit b=code._compunits.get("Root/B");
+                int[] touches={0};
+                code._stop.walk(n -> {
+                    if( n instanceof CLInitNode init && init.fun()==fun && init.cu()==b ) {
+                        touches[0]++;
+                        TypeTuple state=(TypeTuple)init._type;
+                        assertSame(TypeMem.BOT,state._types[1]);
+                        TypeMem flag=(TypeMem)state._types[2];
+                        assertEquals(b._clz.field("$init")._alias,flag._alias);
+                        assertSame(TypeInteger.TRUE,flag._t);
+                        assertNotNull(init.ready());
+                    }
+                    return null;
+                });
+                assertEquals(sources[i],counts[i],touches[0]);
+            }
+    }
+
+    @Test public void testForwardInstanceTouch() {
+        String src="""
+            struct S { int x=7; };
+            val _get={ -> _make().x; };
+            val _make={ -> new S; };
+            return _get();
+            """;
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code=new CodeGen(src,seed,true).driver(CodeGen.Phase.Parse);
+            CLInitNode init=code._stop.walk(n -> n instanceof CLInitNode c ? c : null);
+            assertNotNull("The unresolved receiver needs a speculative check",init);
+            assertNotNull("The readiness load is present from parsing",init.ready());
+            code.driver(CodeGen.Phase.TypeCheck);
+            assertNull("An instance needs neither CLInit nor its speculative $init load",
+                code._stop.walk(n -> n instanceof CLInitNode ||
+                    (n instanceof LoadNode ld && ld._name.equals("$init")) ? n : null));
+            assertEquals("7",Eval2.eval(code,0));
+        }
+    }
+
+    @Test public void testInitializerFlagStore() throws Exception {
+        // A same-named struct must retain the file class's hidden flag.
+        CodeGen code=compile("A",Map.of("A","struct A { int value; }; int value=arg;"),123);
+        CompUnit a=code._compunits.get("Root/A");
+        Field flag=a._clz.field("$init");
+        assertNotNull(flag);
+        assertFalse(flag._final);
+        FunNode fun=code.link(a);
+        int[] stores={0};
+        code._stop.walk(n -> {
+            if( n instanceof StoreNode st && st._name.equals("$init") && st._alias==flag._alias ) {
+                stores[0]++;
+                assertSame(TypeInteger.TRUE,st.val()._type);
+                assertSame(fun,CFGNode.earlyCFG(st).fun());
+            }
+            return null;
+        });
+        assertEquals(1,stores[0]);
     }
 
     @Test public void testOverlappingFunctionAndClassCycles() throws Exception {

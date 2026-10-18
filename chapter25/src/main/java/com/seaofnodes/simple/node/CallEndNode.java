@@ -302,7 +302,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     }
 
 
-    @Override public Node pcopy(int idx) {
+    @Override public Node pcopy(int idx, Node dep) {
         return _folding ? in(1).in(idx) : null;
     }
 

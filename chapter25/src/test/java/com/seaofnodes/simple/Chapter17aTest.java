@@ -15,7 +15,7 @@ int x=2, y=3;
 if( arg ) { int x = y; x = x*x; y=x; } // Shadow final x
 return y;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Phi(Region,9,3);", code.print());
         assertEquals("3", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
@@ -28,7 +28,7 @@ struct _X { int ~x; new _X = { int xx -> x=xx; }; };
 _X z = new _X(3);
 return z.x;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return 3;", code.print());
         assertEquals("3", Eval2.eval(code,  0));
     }
@@ -40,7 +40,7 @@ struct _Point { int ~x, ~y; new _Point = { int xx, int yy -> x=xx; y=yy; }; };
 _Point p = new _Point(3,4);
 return p;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return (const)Test._Point;", code.print());
         assertEquals("Test._Point{x=3,y=4}", Eval2.eval(code,  0));
     }
@@ -53,7 +53,7 @@ struct _Point { int x=3, y=4; new _Point = { int xx, int yy -> x=xx; y=yy; }; };
 p.x++;
 return p;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
@@ -65,7 +65,7 @@ struct _Point { int x=3, y=4; };
 p.x++;
 return p;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
@@ -77,7 +77,7 @@ _Point p = new _Point;
 p.x++;
 return p;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR(); fail(); }
         catch( Exception e ) { assertEquals("'Test._Point' is not fully initialized, field 'x' needs to be set in a constructor",e.getMessage()); }
     }
 
@@ -89,7 +89,7 @@ _Point p = new _Point;
 p.x++;
 return p;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Cannot modify final field 'x'",e.getMessage()); }
     }
 
@@ -101,7 +101,7 @@ struct _Point { var x=3; var y=4; };
 p.x++;
 return p;
 """);
-        code.parse().opto();
+        code.parse().iter().opto().iterPostOpto().finalizeIR();
         assertEquals("return Test._Point;", code.print());
         assertEquals("Test._Point{x=4,y=4}", Eval2.eval(code,  0));
     }
