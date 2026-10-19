@@ -757,6 +757,13 @@ Consequences:
   widen only below-center nonconstant ranges: above-center widening can fall to
   an unwidened constant, violating SCCP monotonicity. Existing Chapter14/21 tests
   exposed this during the backport.
+- Recursion needs two widening points in Chapters 24-25: ParmNode for arguments,
+  and CallEndNode for results. The return cycle in `f(x-1)+1` never crosses the
+  Parm. Keep the comments at both sites and PhiNode cross-linked. Chapter 25's
+  FunPtrNode follows the live Return range; join that range before widening,
+  then bound widening by the callee signatures, not that live range. Apply the
+  same rule before and after linking, and retain narrow results such as i32.
+  `Chapter24Test.testRecursiveWidening` checks both cycles in both chapters.
 - TypeConAry's `_make(any,widen)` shares the backing array and returns an
   uninterned type. `xdual()` must leave interning to Type.intern's dual-pair setup;
   ordinary factories and ymeet's widening replacement intern their results.

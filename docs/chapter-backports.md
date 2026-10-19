@@ -7,7 +7,6 @@ live in the [AI notes](../skills/chapter25-codex-notes.md).
 ## Investigate next
 
 Establish an earlier-chapter failure before changing compiler behavior.
-The remaining candidate below is not yet confirmed.
 
 ### SCCP function revival: Chapter 24
 
@@ -23,6 +22,20 @@ structurally deleted node. No earlier-chapter failure is established yet.
 Dependency propagation already exists in Chapter 24's SCCP; only port a
 specific missing dependency with a reproducer. Keep Chapter 25's escape and
 external-caller machinery out of this investigation.
+
+Investigation on 2026-10-19 found no cleanup loss. A shadow Opto checked the
+linker entry before and after every `linkCG` lookup while running all 513
+Chapter 24 tests: 787 SCCP runs, 297 lookups, 74 links to functions with only
+their null input remaining, and zero structurally dead targets or removed
+entries. All tests passed. The remaining null lookups are not evidence of a
+cleanup loss: their entries were already null before the lookup.
+
+The factorial trace shows the distinction: FunNode#1309 loses Start and has
+one input, four uses, and type TOP; it then reaches XCONTROL before a real
+call links it. `isDead()` stays false, since it requires no inputs, no uses,
+and a null type. Thus the observed temporary lack of callers does not trigger
+`link()` cleanup. Keep this candidate unconfirmed rather than backporting the
+Chapter 25 lookup change on textual differences alone.
 
 ## Deferred until the Chapter 25 split
 

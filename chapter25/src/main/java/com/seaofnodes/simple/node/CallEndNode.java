@@ -96,10 +96,18 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // produce their declared return type.  A missing non-external target
         // is still an unresolved/error call.
         int externs = 0;
-        if( !XInt.isHigh(tfp.fidxs()) )
-            for( int fidx = XInt.next(tfp.fidxs(),0); fidx >= 0; fidx = XInt.next(tfp.fidxs(),fidx) )
+        // The signature bounds widening (e.g. an i32 result stays i32).
+        // Use the callee signature, not FunPtrNode's live recursive range.
+        Type bound = tfp.ret();
+        if( !XInt.isHigh(tfp.fidxs()) ) {
+            bound = Type.TOP;
+            for( int fidx = XInt.next(tfp.fidxs(),0); fidx >= 0; fidx = XInt.next(tfp.fidxs(),fidx) ) {
                 if( CodeGen.CODE.externFunc(fidx)!=null )
                     externs++;
+                FunNode fun = CodeGen.CODE._link(fidx);
+                bound = bound.meet(fun==null ? tfp.ret() : addDep(fun).sig().ret());
+            }
+        }
         boolean hasExtern = externs != 0;
 
         // If we have an error-call, e.g. wrong args, then we never link.
@@ -113,7 +121,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
                            CodeGen.CODE._phase.ordinal() <  CodeGen.Phase.Lower.ordinal();
             Type tmem = opto ? TypeMem.TOP : TypeMem.BOT;
             Type ret  = opto ? Type.TOP    : tfp.ret();
-            return TypeTuple.make(Type.CONTROL,tmem,ret);
+            // Use the same widening before and after linking a callee.
+            return TypeTuple.make(Type.CONTROL,tmem,widenResult(ret,bound));
         }
 
         // A linked function for every concrete function
@@ -129,8 +138,20 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // contribute class-init dependencies even though it never executes.
         if( state.ctl()==Type.XCONTROL )
             return TypeTuple.make(Type.CONTROL,TypeMem.TOP,Type.TOP);
-        // At least as good as the TFP
-        return state.makeFrom(2,state.ret().join(tfp.ret()));
+        // Join before widening: FunPtrNode follows the live Return type, so
+        // joining it afterward would undo the widening.
+        return state.makeFrom(2,widenResult(state.ret().join(tfp.ret()),bound));
+    }
+
+    private static Type widenResult(Type ret, Type bound) {
+        // Recursion is a loop in disguise. For f(x-1)+1, the result
+        // flows Return -> CallEnd -> Add -> Phi -> Return, without
+        // crossing ParmNode.compute's widening point. Widen here too,
+        // using the loop rule in PhiNode.compute. Keep constants and
+        // above-center ranges narrow.
+        if( ret instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
+            ret = ti.same_but_slightly_wider_than().join(bound);
+        return ret;
     }
 
     @Override

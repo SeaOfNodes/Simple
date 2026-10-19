@@ -57,6 +57,16 @@ public class CallEndNode extends CFGNode implements MultiNode {
                     Type tret = in(i)._type instanceof TypeTuple rtt ? rtt.ret() : in(i)._type;
                     ret = ret.meet(tret);
                 }
+                // Recursion is a loop in disguise. For f(x-1)+1, the result
+                // flows Return -> CallEnd -> Add -> Phi -> Return, without
+                // crossing ParmNode.compute's widening point. Widen here too,
+                // using the loop rule in PhiNode.compute. Keep constants and
+                // above-center ranges narrow, and stay within the return type.
+                Type oldret = _type instanceof TypeTuple tt ? tt.ret() : Type.TOP;
+                if( ret instanceof TypeInteger ti && ret != oldret &&
+                    !ti.isHigh() && !ti.isConstant() &&
+                    (!(oldret instanceof TypeInteger oldi) || ti._widen <= oldi._widen) )
+                    ret = ti.same_but_slightly_wider_than(TypeInteger.BOT).join(tfp.ret());
             }
         }
         return TypeTuple.make(call._type,TypeMem.BOT,ret);

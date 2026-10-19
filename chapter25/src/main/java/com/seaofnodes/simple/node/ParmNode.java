@@ -80,6 +80,13 @@ public class ParmNode extends PhiNode {
                 t = t.meet(in(i)._type);
             }
         }
+        // Recursion is a loop in disguise. A Parm merges the first argument
+        // with those from recursive calls, just as a loop Phi merges its entry
+        // and backedge. Use the widening rule in PhiNode.compute here too.
+        // CallEndNode.compute handles the separate cycle through return values;
+        // widening this Parm alone cannot stop f(x-1)+1 from growing its result.
+        if( t instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
+            t = ti.same_but_slightly_wider_than();
         return t.join(_declaredType);
     }
 
