@@ -14,7 +14,7 @@ public class Chapter12Test {
 """
 return 3;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3;", code.print());
         assertEquals("3", Eval2.eval(code,  0));
     }
@@ -34,7 +34,7 @@ while( arg ) {
 }
 return head.next.i;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
     }
 
@@ -56,7 +56,7 @@ _LLI? next = head.next;
 if( next==null ) return 1;
 return next.q;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Phi(Region,1,.q,0);", code.print());
         assertEquals("2", Eval2.eval(code,  3));
     }
@@ -75,7 +75,7 @@ i0.f = f0;
 f0.i = i0;
 return f0.i.f.i.i;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 17;", code.print());
     }
 
@@ -87,7 +87,7 @@ struct _N { !_N? !next; int i; };
 _N n = new _N;
 return n.next;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return null;", code.print());
     }
 
@@ -100,7 +100,7 @@ struct N { !M !next; int i; new N = { !M m -> next = m; }; };
 N n = new N(new M);
 return n.next;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("Stop[ return (const)Test.M; return MEM[ 2:___ 3:.m=0;]; return Test.M; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:___ 7:.next=Parm_m(Test.N.N,*Test.M {i64 !m; }); 8:.i=0;]; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:___ 7:___ 8:.i=0;]; return Test.N; ]", code.print());
     }
 
@@ -113,7 +113,7 @@ struct N { !M !next; int i; new N = { !M m -> next = m; }; };
 N n = new N(null);
 return n.next;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Argument #0 isa null, but must be a *Test.M {i64 !m; }",e.getMessage()); }
     }
 
@@ -126,20 +126,20 @@ struct N { !N? !next; int i; };
 n.i = 3.14;
 return n.i;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("3",Eval2.eval(code,0));
     }
 
     @Test
     public void testNullRef4() {
         CodeGen code = new CodeGen("return -null-5/null-5;");
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Cannot null + 5",e.getMessage()); }
     }
 
     @Test public void testNullRef5() {
         CodeGen code = new CodeGen("return null+42;");
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Cannot null + 42",e.getMessage()); }
     }
 
@@ -150,7 +150,7 @@ return n.i;
 struct _S{};
 return 0;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -162,7 +162,7 @@ return 0;
 struct S1 { S2? s; };
 return new S2;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
     }
 
@@ -174,7 +174,7 @@ struct _S1 { !_S2? !s; };
 struct _S2 { int x; };
 return (new _S1).s=new _S2;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Test._S2;", code.print());
     }
 
@@ -191,7 +191,7 @@ p2.pi.i = 2;
 if (arg) p1 = new P;
 return p1.pi.i + 1;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();  fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck);  fail(); }
         catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
     }
 
@@ -210,7 +210,7 @@ c.f0=a;  c.f1=b;
 return a.f0.f1.f0.f1.f0;
 
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck().GCM().localSched();
+        code.driver(CodeGen.Phase.FinalizeIR).driver(CodeGen.Phase.Schedule).localSched();
         assertEquals("return Test._B;", code.print());
         assertEquals("Test._B{f0=Test._C{f0=Test._A{f0=$cyclic,f1=$cyclic},f1=$cyclic},f1=$cyclic}", Eval2.eval(code,  0));
     }
@@ -276,7 +276,7 @@ z.a=k;  z.b=s; z.c=e;
 return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
 
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck().GCM().localSched();
+        code.driver(CodeGen.Phase.FinalizeIR).driver(CodeGen.Phase.Schedule).localSched();
         assertEquals("return Test._R;", code.print());
         assertEquals("Test._R{a=Test._C{a=Test._N{a=Test._Y{a=Test._J{a=Test._U{a=Test._F{a=Test._Q{a=Test._B{a=Test._M{a=Test._X{a=Test._I{a=Test._T{a=Test._E{a=Test._P{a=Test._A{a=Test._L{a=Test._W{a=Test._H{a=Test._S{a=Test._D{a=Test._O{a=Test._Z{a=Test._K{a=Test._V{a=Test._G{a=$cyclic,b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic},b=$cyclic,c=$cyclic}", Eval2.eval(code,  0));
     }

@@ -23,6 +23,11 @@ public class RegAllocTestSupport {
         @Override public Node copy() { return new Op(_def,_use,_kill,_clone,(Node)null); }
         @Override public int encoding(ByteArrayOutputStream bytes) { throw new AssertionError(); }
     }
+    private static SplitNode testSplit(CodeGen code, MachNode def) {
+        LRG lrg = new LRG((short)0);
+        lrg._machDef = def;
+        return code._mach.split("test",(byte)0,lrg);
+    }
     private static CodeGen graph() {
         CodeGen code = new CodeGen("");
         code._mach = new x86_64_v2();
@@ -169,11 +174,11 @@ public class RegAllocTestSupport {
             RegAlloc alloc = new RegAlloc(code);
             Op def = new Op(A,null,null,false,code._start);
             alloc.newLRG(def)._reg=0;
-            SplitNode hi = code._mach.split("test",(byte)0,null);
+            SplitNode hi = testSplit(code,def);
             hi.setDef(0,code._start); hi.setDef(1,def);
             alloc.newLRG(hi)._reg=1;
             new Op(null,null,killed ? A : null,false,code._start);
-            SplitNode lo = code._mach.split("test",(byte)0,null);
+            SplitNode lo = testSplit(code,hi);
             lo.setDef(0,code._start); lo.setDef(1,hi);
             alloc.newLRG(lo)._reg=0;
             Op use = new Op(null,A,null,false,code._start,lo);
@@ -187,7 +192,7 @@ public class RegAllocTestSupport {
         uncolored.newLRG(def0)._mask=A;
         Op fixed = new Op(A,null,null,false,pre._start);
         uncolored.newLRG(fixed)._mask=A;
-        SplitNode copy = pre._mach.split("test",(byte)0,null);
+        SplitNode copy = testSplit(pre,def0);
         copy.setDef(0,pre._start); copy.setDef(1,def0);
         assertFalse("A fixed definition clobbers even before coloring",uncolored.sameBlockNoClobber(copy));
     }

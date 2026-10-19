@@ -65,7 +65,7 @@ public class MemoryEncodingTest {
             """
         };
         for( int p=0; p<sources.length; p++ ) {
-            CodeGen code=new CodeGen(sources[p]).parse().opto();
+            CodeGen code=new CodeGen(sources[p]).parse().iter();
             if( p==0 ) assertNull(code._stop.walk(n ->
                 n instanceof LoadNode ld && ld.ptr() instanceof ProjNode ptr &&
                 ptr.in(0) instanceof NewNode nn &&
@@ -158,7 +158,7 @@ public class MemoryEncodingTest {
                 }
                 return null;
             }));
-            code.instSelect(target,"SystemV").GCM().localSched().regAlloc();
+            code.driver(CodeGen.Phase.RegAlloc,target,"SystemV");
             RegAllocTestSupport.checkRegisters(code);
             code.encode();
         }

@@ -81,8 +81,7 @@ es[1] = 9;
 return find(es,9); // 1
 ```
 
-All reachable results of one function must have a common type. This is checked
-after optimization, so an unreachable return does not cause a type error.
+Return types are generally inferred, so all returns must have a common type. 
 There is no `void` type although a function can return `null` with no syntax,
 and callers can ignore a result by using the call as a statement.
 
@@ -161,10 +160,10 @@ body contains branches, loops, and several return statements.
 ### Calls and return points
 
 [CallNode](src/main/java/com/seaofnodes/simple/node/CallNode.java) takes inputs
-`{control, memory, arguments..., function pointer}`. The final input determines
-the target; it can be a constant function or the result of a function-valued
-expression.  Argument expressions are evaluated before the Call takes its
-control and memory inputs.
+`{control, memory, arguments..., function pointer}`.  The final input
+determines the target; it can be a constant function or the result of a
+function-valued expression.  Argument expressions are evaluated in order before the Call
+takes its control and memory inputs.
 
 Each Call has a [CallEndNode](src/main/java/com/seaofnodes/simple/node/CallEndNode.java),
 the point where its caller continues.  CallEnd takes the Call and the Returns
@@ -323,8 +322,9 @@ compilation process and its function lookup table. It enforces the phase order:
 | Phase | Purpose |
 |---|---|
 | Parse | Build the functions and calls directly in the IR. |
-| Opto | Iterate peepholes, including call linking and trivial inlining. |
+| Iter | Iterate peepholes, including call linking and trivial inlining. |
 | TypeCheck | Check the surviving graph after types and dead control have settled. |
+| LoopTree | Discover loop nesting and connect nonreturning loops with synthetic exits. |
 | Schedule | Use global code motion to place operations in basic blocks. |
 | LocalSched | Order operations within each block for execution. |
 
@@ -332,8 +332,24 @@ For example:
 
 ```java
 CodeGen code = new CodeGen("val sq = { int x -> x*x; }; return sq(arg);");
-code.parse().opto().typeCheck().GCM().localSched();
+code.driver(CodeGen.Phase.TypeCheck);
 ```
+
+With six stages, writing the whole call chain at every use obscures what the
+caller needs. `driver(target)` runs the missing phases in order and stops at
+the requested stage. A later call resumes from there; asking for an already
+completed stage does not rerun it:
+
+```java
+code.driver(CodeGen.Phase.LoopTree); // Ready to inspect loops.
+code.driver(CodeGen.Phase.LocalSched); // Finish scheduling.
+```
+
+Short tests can still say `code.parse().iter()` to show exactly what they test.
+`Iter` is the worklist solve introduced in Chapter 9; an optimistic `Opto`
+phase arrives with SCCP in Chapter 24. Phase entry points check ordering and
+report their completion to the graph viewer. Loop-tree construction is now
+an explicit entry point instead of work hidden inside GCM.
 
 Global code motion extends the work of [Chapter 13](../chapter13/README.md) to
 multiple functions.  It keeps their bodies separate, gives shared constant

@@ -16,7 +16,7 @@ public class Compile {
     private static Process run(String simple, String c) throws IOException, InterruptedException {
         boolean USE_WSL = System.getProperty("os.name").startsWith("Windows");
         CodeGen code = new CodeGen(simple);
-        code.parse().opto().typeCheck().instSelect("x86_64_v2", "SystemV").GCM().localSched().regAlloc().encode();
+        code.driver(CodeGen.Phase.Encoding,"x86_64_v2","SystemV");
         if (c != null) for (var n:code._start._outputs) if (n instanceof FunNode f && f._name.equals("main")) f._name = "simple_main";
         code.exportELF("test.o");
         var params = new ArrayList<String>();

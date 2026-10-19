@@ -1,6 +1,7 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.CodeGen.Phase;
 import com.seaofnodes.simple.print.*;
 
 import java.nio.file.Files;
@@ -13,20 +14,20 @@ import java.util.stream.Collectors;
 public class Simple {
     public static final String PORTS = "com.seaofnodes.simple.node.cpus";
 
-    static final int DUMP_AFTER_PARSE        = 1<<0;
-    static final int DUMP_AFTER_OPTO         = 1<<1;
-    static final int DUMP_AFTER_TYPE_CHECK   = 1<<2;
-    static final int DUMP_AFTER_LOOP_TREE    = 1<<3;
-    static final int DUMP_AFTER_INSTR_SELECT = 1<<4;
-    static final int DUMP_AFTER_GCM          = 1<<5;
-    static final int DUMP_AFTER_LOCAL_SCHED  = 1<<6;
-    static final int DUMP_AFTER_REG_ALLOC    = 1<<7;
-    static final int DUMP_AFTER_ENCODE       = 1<<8;
+    static final int DUMP_AFTER_PARSE = 1<<Phase.Parse.ordinal();
+    static final int DUMP_AFTER_ITER = 1<<Phase.Iter.ordinal();
+    static final int DUMP_AFTER_TYPE_CHECK = 1<<Phase.TypeCheck.ordinal();
+    static final int DUMP_AFTER_LOOP_TREE = 1<<Phase.LoopTree.ordinal();
+    static final int DUMP_AFTER_INSTR_SELECT = 1<<Phase.InstSelect.ordinal();
+    static final int DUMP_AFTER_GCM = 1<<Phase.Schedule.ordinal();
+    static final int DUMP_AFTER_LOCAL_SCHED = 1<<Phase.LocalSched.ordinal();
+    static final int DUMP_AFTER_REG_ALLOC = 1<<Phase.RegAlloc.ordinal();
+    static final int DUMP_AFTER_ENCODE = 1<<Phase.Encoding.ordinal();
 
     static final int DUMP_FINAL              = 1<<16;
 
     static final int DUMP_PASS_NAME          = 1<<30;
-    static final int DUMP_AFTER_ALL          = 0xff | DUMP_PASS_NAME;
+    static final int DUMP_AFTER_ALL = ((1<<Phase.values().length)-1) | DUMP_PASS_NAME;
 
     static final int DUMP_DISASSEMBLE        = 1<<31;
 
@@ -39,15 +40,16 @@ public class Simple {
 simple <input-file> [options] [--eval|--run ...]
 Options:
   --dump                     - dump final intermediate representation
-  --dump-after-parse         - dump intermediate representation after parse
-  --dump-after-opto          - dump intermediate representation after opto pass
-  --dump-after-type-check    - dump intermediate representation after type check pass
-  --dump-after-instr-select  - dump intermediate representation after instrution selection pass
-  --dump-after-gcm           - dump intermediate representation after GCM pass
-  --dump-after-local-sched   - dump intermediate representation after local scheduling pass
-  --dump-after-reg-alloc     - dump intermediate representation after register allocation pass
-  --dump-after-encode        - dump intermediate representation after encoding pass
-  --dump-after-all           - dump intermediate representation after all passes
+  --dump-after-parse           - dump intermediate representation after parsing
+  --dump-after-iter            - dump intermediate representation after Iter
+  --dump-after-type-check      - dump intermediate representation after type checking
+  --dump-after-loop-tree       - dump intermediate representation after loop-tree construction
+  --dump-after-instr-select    - dump intermediate representation after instruction selection
+  --dump-after-gcm             - dump intermediate representation after GCM
+  --dump-after-local-sched     - dump intermediate representation after local scheduling
+  --dump-after-reg-alloc       - dump intermediate representation after register allocation
+  --dump-after-encode          - dump intermediate representation after encoding
+  --dump-after-all             - dump intermediate representation after all passes
   -S                         - dump generated assembler code
   --eval ...                 - evaluate the compiled code in emulator
   --run ...                  - run the compiled code natively
@@ -80,50 +82,19 @@ Options:
     }
 
     static void dump(CodeGen code, int dump, int pass) {
-        if ((dump & pass) != 0) {
-            if ((dump & DUMP_PASS_NAME) != 0) {
-                System.err.println(switch (pass) {
-                    case DUMP_AFTER_PARSE        -> "After Parse:";
-                    case DUMP_AFTER_OPTO         -> "After OPTO:";
-                    case DUMP_AFTER_TYPE_CHECK   -> "After Type Check:";
-                    case DUMP_AFTER_LOOP_TREE    -> "After Loop Tree:";
-                    case DUMP_AFTER_INSTR_SELECT -> "After Instruction Selection:";
-                    case DUMP_AFTER_GCM          -> "After GCM:";
-                    case DUMP_AFTER_LOCAL_SCHED  -> "After Local Scheduling:";
-                    case DUMP_AFTER_REG_ALLOC    -> "After Register Allocation:";
-                    case DUMP_AFTER_ENCODE       -> "After Instruction Encoding:";
-                    case DUMP_FINAL              -> "Final:";
-                    default                      -> throw Utils.TODO();
-                });
-            }
-
-            System.err.println(IRPrinter.prettyPrint(code._stop, 9999));
-
-        }
+        if( (dump & pass)==0 ) return;
+        if( (dump & DUMP_PASS_NAME)!=0 ) System.err.println("Final:");
+        System.err.println(code);
     }
 
     static void print_compilation_times(CodeGen code) {
-        double t, total = 0;
-
-        total += t = code._tParse / 1e3;
-        System.out.println(String.format("Parsing Time:               %.3f sec", t));
-        total += t = code._tOpto / 1e3;
-        System.out.println(String.format("Optimization Time:          %.3f sec", t));
-        total += t = code._tTypeCheck / 1e3;
-        System.out.println(String.format("Type Checking Time:         %.3f sec", t));
-        total += t = code._tLoopTree / 1e3;
-        System.out.println(String.format("Loop Tree Time:             %.3f sec", t));
-        total += t = code._tInsSel / 1e3;
-        System.out.println(String.format("Instruction Selection Time: %.3f sec", t));
-        total += t = code._tGCM / 1e3;
-        System.out.println(String.format("GCM Time:                   %.3f sec", t));
-        total += t = code._tLocal / 1e3;
-        System.out.println(String.format("Local Scheduling Time:      %.3f sec", t));
-        total += t = code._tRegAlloc / 1e3;
-        System.out.println(String.format("Register Allocation Time:   %.3f sec", t));
-        total += t = code._tEncode / 1e3;
-        System.out.println(String.format("Instruction Encoding Time:  %.3f sec", t));
-        System.out.println(String.format("TOTAL COMPILATION TIME:     %.3f sec", total));
+        long total=0;
+        for( Phase phase : Phase.values() ) {
+            long time=code._times[phase.ordinal()];
+            total+=time;
+            System.out.printf("%-24s %.3f sec%n",phase+" Time:",time/1e3);
+        }
+        System.out.printf("TOTAL COMPILATION TIME:   %.3f sec%n",total/1e3);
     }
 
     static String getInput() throws IOException {
@@ -157,16 +128,16 @@ loop:   for (int i = 0; i < args.length; i++) {
                 switch (arg) {
                     case "-":                         use_stdin = true; break;
                     case "--dump":                    dump |= DUMP_FINAL; break;
-                    case "--dump-after-parse":        dump |= DUMP_AFTER_PARSE; break;
-                    case "--dump-after-opto":         dump |= DUMP_AFTER_OPTO; break;
-                    case "--dump-after-type-check":   dump |= DUMP_AFTER_TYPE_CHECK; break;
-                    case "--dump-after-loop-tree":    dump |= DUMP_AFTER_LOOP_TREE; break;
-                    case "--dump-after-instr-select": dump |= DUMP_AFTER_INSTR_SELECT; break;
-                    case "--dump-after-gcm":          dump |= DUMP_AFTER_GCM; break;
-                    case "--dump-after-local-sched":  dump |= DUMP_AFTER_LOCAL_SCHED; break;
-                    case "--dump-after-reg-alloc":    dump |= DUMP_AFTER_REG_ALLOC; break;
-                    case "--dump-after-encode":       dump |= DUMP_AFTER_ENCODE; break;
-                    case "--dump-after-all":          dump |= DUMP_AFTER_ALL; break;
+                    case "--dump-after-parse":          dump |= DUMP_AFTER_PARSE; break;
+                    case "--dump-after-iter":           dump |= DUMP_AFTER_ITER; break;
+                    case "--dump-after-type-check":     dump |= DUMP_AFTER_TYPE_CHECK; break;
+                    case "--dump-after-loop-tree":      dump |= DUMP_AFTER_LOOP_TREE; break;
+                    case "--dump-after-instr-select":   dump |= DUMP_AFTER_INSTR_SELECT; break;
+                    case "--dump-after-gcm":            dump |= DUMP_AFTER_GCM; break;
+                    case "--dump-after-local-sched":    dump |= DUMP_AFTER_LOCAL_SCHED; break;
+                    case "--dump-after-reg-alloc":      dump |= DUMP_AFTER_REG_ALLOC; break;
+                    case "--dump-after-encode":         dump |= DUMP_AFTER_ENCODE; break;
+                    case "--dump-after-all":            dump |= DUMP_AFTER_ALL; break;
                     case "-S":                        dump |= DUMP_DISASSEMBLE; break;
                     case "--eval":                    do_eval = true; first_arg = i + 1; break loop;
                     case "--run":                     do_run = true; first_arg = i + 1; break loop;
@@ -221,36 +192,8 @@ loop:   for (int i = 0; i < args.length; i++) {
         // Compilation pipeline
         CodeGen code = new CodeGen(src);
 
-        code.parse();
-        dump(code, dump, DUMP_AFTER_PARSE);
-
-        code.opto();
-        dump(code, dump, DUMP_AFTER_OPTO);
-
-        code.typeCheck();
-        dump(code, dump, DUMP_AFTER_TYPE_CHECK);
-
-        code.loopTree();
-        dump(code, dump, DUMP_AFTER_LOOP_TREE);
-
-        if (do_codegen) {
-            code.instSelect(PORTS, cpu, abi);
-            dump(code, dump, DUMP_AFTER_INSTR_SELECT);
-        }
-
-        code.GCM();
-        dump(code, dump, DUMP_AFTER_GCM);
-
-        code.localSched();
-        dump(code, dump, DUMP_AFTER_LOCAL_SCHED);
-
-        if (do_codegen) {
-            code.regAlloc();
-            dump(code, dump, DUMP_AFTER_REG_ALLOC);
-
-            code.encode();
-            dump(code, dump, DUMP_AFTER_ENCODE);
-        }
+        code.driver(do_codegen ? Phase.Encoding : Phase.LocalSched,
+                    do_codegen ? cpu : null, abi, dump);
 
         dump(code, dump, DUMP_FINAL);
 

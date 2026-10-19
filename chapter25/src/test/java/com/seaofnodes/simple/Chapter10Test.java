@@ -12,7 +12,7 @@ public class Chapter10Test {
             "if(1) return new S; else return 0;"
         } ) {
             String src = "struct S { int x; }; " + body;
-            var code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+            var code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
             // This chapter also has constructor/class-init Returns in the CompUnit.
             var entry = (com.seaofnodes.simple.node.FunNode)code._start.uctrl();
             org.junit.Assert.assertTrue(body,
@@ -102,7 +102,7 @@ if( (arg/13)==0 ) {
 int r = g+h;
 return p-r;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
     }
 
@@ -122,7 +122,7 @@ bar.a = 1;
 bar.a = 2;
 return bar.a;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 2;", code.print());
     }
 
@@ -138,7 +138,7 @@ else
     v.y = 3;
 return v;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("Stop[ return Test.Vector2D; return MEM[ 2:___ 3:.x=0; 4:.y=0;]; return Test.Vector2D; ]", code.print());
     }
 
@@ -151,7 +151,7 @@ struct s0 {
 s0? v1=null;
 int v3=v1.zAicm;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();  fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck);  fail(); }
         catch( Exception e ) {  assertEquals("Might be null accessing 'zAicm'",e.getMessage());  }
     }
 
@@ -176,7 +176,7 @@ while (arg) {
 }
 return bar.a;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("Stop[ return Phi(Loop,0,(Phi_a+2)); return MEM[ 2:___ 3:.a=0;]; return Test.Bar; ]", code.print());
     }
 
@@ -189,7 +189,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Test.Bar",e.getMessage()); }
     }
 
@@ -202,7 +202,7 @@ if (arg) bar = new Bar;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'a'",e.getMessage()); }
     }
 
@@ -215,7 +215,7 @@ if (arg) bar = null;
 bar.a = 1;
 return bar.a;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *Test.Bar", e.getMessage()); }
     }
 
@@ -228,7 +228,7 @@ if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar.a;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,1,.a);", code.print());
     }
 
@@ -244,7 +244,7 @@ if( !bar ) rez=4;
 else bar.a = 1;
 return rez;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return Phi(Region,4,3);", code.print());
     }
 
@@ -261,7 +261,7 @@ while(arg) {
 }
 return ret;
 """);
-        try { code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) {
             assertEquals("Might be null accessing 'v0'", e.getMessage()); }
     }
@@ -298,7 +298,7 @@ while( i.x < i.len ) {
 }
 return sum;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("Stop[ return Phi(Loop,0,(Phi(Loop,0,(Phi_x+1))+Phi_sum)); return MEM[ 2:___ 3:.x=0; 4:.len=0;]; return Test.Iter; ]", code.print());
     }
 
@@ -317,7 +317,7 @@ while(arg) {
 }
 return ret;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("Stop[ return Phi(Loop,Test.s0,Phi(Region,Test.s0,Phi_ret)); return MEM[ 2:___ 3:.v0=0;]; return Test.s0; ]", code.print());
     }
 
@@ -334,7 +334,7 @@ while(arg) {
 }
 return ret.v0;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return .v0;", code.print());
     }
 
@@ -351,7 +351,7 @@ while(arg < 10) {
 }
 return ret.v0;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return .v0;", code.print());
     }
 
@@ -370,7 +370,7 @@ s0 b = new s0();
 // a.x==1, b.x==1, cnt==2
 return a.x * 100 + b.x * 10 + cnt;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("Stop[ return 112; return MEM[ 2:___ 3:___ 4:.x=1;]; return Test.s0; ]", code.print());
     }
 
@@ -399,7 +399,7 @@ if(0) {
 }
 return 0;
    """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
     }
 
@@ -413,7 +413,7 @@ if(0) return 0;
 else return new s0;
 if(new s0.f0) return 0;
     """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("Stop[ return Test.s0; return MEM[ 2:___ 3:.f0=0;]; return Test.s0; ]", code.print());
     }
 
@@ -429,7 +429,7 @@ while(0<arg) {
 }
 return 0;
     """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
     }
 
     @Test
@@ -441,7 +441,7 @@ while(v0.f0) {}
 s0 v1 = v0;
 return v1;
     """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("Stop[ return (const)Test.s0; return MEM[ 2:___ 3:.f0=0;]; return Test.s0; ]", code.print());
     }
 
@@ -474,7 +474,7 @@ while(0) {}
 }
 return 0;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
     }
 
@@ -485,7 +485,7 @@ int v0=arg==0;
 while(v0) continue;
 return 0;
 """);
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
     }
 

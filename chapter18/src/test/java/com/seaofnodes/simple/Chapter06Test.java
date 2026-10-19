@@ -14,7 +14,7 @@ public class Chapter06Test {
 if( true ) return 2;
 return 1;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 2;", code.print());
         assertTrue(code.ctrl() instanceof FunNode);
     }
@@ -28,7 +28,7 @@ if (arg)
     a = 2;
 return (arg < a) < 3; // Because (arg < a) is a bool/uint1/[0-1], its always less than 3
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 1;", code.print());
     }
 
@@ -43,7 +43,7 @@ else
   a=3;
 return a;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 2;", code.print());
         assertTrue(code.ctrl() instanceof FunNode);
     }
@@ -64,7 +64,7 @@ else
     b=5;
 return b;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,42,5);", code.print());
     }
 
@@ -83,7 +83,7 @@ if( arg==2 )
 else
     b=5;
 return b;""");
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,2,5);", code.print());
     }
 
@@ -104,7 +104,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(2));
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 5;", code.print());
     }
 
@@ -125,7 +125,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(1));
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 3;", code.print());
     }
 
@@ -145,7 +145,7 @@ else
     a=5;
 return a;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,3,Phi(Region,4,5));", code.print());
     }
 
@@ -166,7 +166,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(1));
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 3;", code.print());
     }
 
@@ -187,7 +187,7 @@ else
     a=5;
 return a;
 """, TypeInteger.constant(3));
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 4;", code.print());
     }
 
@@ -203,7 +203,7 @@ if( arg ) {
 }
 return a+b;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,4,1);", code.print());
     }
 
@@ -221,7 +221,7 @@ if( arg ) {
 }
 return a+b;
 """, TypeInteger.constant(1));
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 4;", code.print());
     }
 
@@ -238,7 +238,7 @@ if( arg ) {
 }
 return a+b;
 """, TypeInteger.constant(0));
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 1;", code.print());
     }
 
@@ -256,7 +256,7 @@ if( arg ) {
 }
 return a+b+c;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return (Phi(Region,Phi(Region,2,3),0)+Phi(Region,3,1));", code.print());
     }
 
@@ -276,7 +276,7 @@ if( arg ) {
 }
 return a+b+c;
 """, TypeInteger.constant(1));
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 6;", code.print());
     }
 
@@ -295,7 +295,7 @@ if( arg ) {
 }
 return a+b+c;
 """, TypeInteger.constant(2));
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 5;", code.print());
     }
 

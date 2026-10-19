@@ -7,6 +7,11 @@ English | [日本語](README.ja.md)
 
 The grammar is unchanged from [Chapter 18](../chapter18/docs/18-grammar.md).
 
+`RegAlloc` follows local scheduling and assigns physical registers or stack
+slots to live ranges. Request the complete pipeline through allocation with
+`code.driver(CodeGen.Phase.RegAlloc, "x86_64_v2", "SystemV")`. Instruction
+encoding is introduced in Chapter 21; this chapter stops with allocated nodes.
+
 ## Some Reading Material
 
 This is a Briggs-Chaitin-Click allocator, and is very similar to the one used

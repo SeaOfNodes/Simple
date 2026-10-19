@@ -56,24 +56,6 @@ public final class StaticData {
         return owner;
     }
 
-    // A final field whose declaration already denotes this exact constant is
-    // available as that value to every ideal Load. Materialize it in the object
-    // image instead of emitting the redundant initializer Store. This lowering
-    // leaves serialized ideal IR intact, so imports retain their memory edges.
-    static boolean preinitialized(CodeGen code,StoreNode st) {
-        if( !(st.ptr()._type instanceof TypeMemPtr ptr) || !ptr._one || !isClass(ptr._obj) ) return false;
-        CompUnit owner=owner(code,ptr._obj);
-        if( owner==null || owner._src==null ) return false;
-        if( !(Parser.TYPES.get(ptr._obj._name) instanceof TypeStruct ts) ) return false;
-        Field fld=ts.field(st._name);
-        if( fld==null || !fld._final || !fld._t.isConstant() || !st.val()._type.isConstant() ) return false;
-        Type value=st.val()._type, declared=fld._t;
-        if( declared instanceof TypeFunPtr fp && value instanceof TypeFunPtr vp ) return fp.fidx()==vp.fidx();
-        if( declared instanceof TypeMemPtr ptr0 && value instanceof TypeMemPtr ptr1 )
-            return pointerConstant(ptr0) && ptr0._obj==ptr1._obj;
-        return declared==value;
-    }
-
     ObjectData object(Type t) {
         Object key=isClass(t) ? ((TypeStruct)t)._name
             : t instanceof TypeFunPtr fp ? functionSymbol(fp) : t;

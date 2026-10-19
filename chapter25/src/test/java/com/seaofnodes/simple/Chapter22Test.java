@@ -88,7 +88,7 @@ public class Chapter22Test {
 
     @Test public void testSubZeroTypeError() {
         try {
-            new CodeGen("return null-0;").parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+            new CodeGen("return null-0;").driver(CodeGen.Phase.TypeCheck);
             fail("Subtraction must reject null even when the other operand is zero");
         } catch( Parser.ParseException e ) {
             assertEquals("Cannot null - 0",e.getMessage());
@@ -283,7 +283,7 @@ aa.c = cc;
 bb.c = cc;
 return cc.cz;
 """;
-        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 25;", code.print());
         assertEquals("25", Eval2.eval(code, 0));
     }
@@ -322,7 +322,7 @@ return 0;
     @Test
     public void testStrLoad() {
         CodeGen code = new CodeGen("return \"abc\"[1];");
-        code.parse().iter().opto().iterPostOpto().finalizeIR();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return .[];", code.print());
     }
 
@@ -342,7 +342,7 @@ val _sum = { i32[~] is ->  // final array
 };
 return _sum(is);
 """;
-        CodeGen code = new CodeGen(src).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code.print());
         assertEquals("14", Eval2.eval(code, 0));
     }

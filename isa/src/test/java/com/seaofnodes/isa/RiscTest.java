@@ -9,6 +9,22 @@ public class RiscTest {
         assert expected==actual : String.format("Expected %08x, got %08x",expected,actual);
     }
     public static void main(String[] args) {
+        word(0xD53B4209,Arm64.flags(9,false)); // MRS x9,NZCV
+        word(0xD51B421A,Arm64.flags(26,true)); // MSR NZCV,x26
+        for( int flags=0; flags<16; flags++ ) {
+            var a=new EvalArm64(new byte[1024],512);
+            a.st4(4,0xD51B4209); // MSR NZCV,x9
+            a.st4(8,0xD53B421A); // MRS x26,NZCV
+            a.st4(12,0xD53B421F); // MRS xzr,NZCV
+            a.st4(16,0xD51B421F); // MSR NZCV,xzr
+            a._pc=4; a.regs[9]=((long)flags<<28) | 0xFFF;
+            assert a.step(3)==0;
+            assert a.regs[26]==(long)flags<<28 && a.regs[31]==512;
+            assert a.N==((flags&8)!=0) && a.Z==((flags&4)!=0);
+            assert a.C==((flags&2)!=0) && a.V==((flags&1)!=0);
+            assert a.step(1)==0;
+            assert !a.N && !a.Z && !a.C && !a.V && a.regs[31]==512;
+        }
         // Instructions encountered by dynamic allocation measurements.
         for( long[] pair : new long[][]{{17,3},{-17,3},{17,0},{Long.MIN_VALUE,-1}} ) {
             var a=new EvalArm64(new byte[1024],512);

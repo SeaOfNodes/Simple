@@ -34,16 +34,23 @@ Let's break it down.
   pool*, and from there in an ELF file's RODATA section.
 
 
-Chapter 11's lazy memory partitioning continues here: the parser carries one
-`$mem`, and BulkMemPhi/MemPhi discover field aliases during optimization.
-Allocations consume a partial MemMerge and produce `{ptr, $mem}`; calls carry
-whole memory. The loop Load search follows every arm of a memory merge, so
-BrainFuck's invariant program length folds out of its main loop.
-
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter22) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter21...linear-chapter22) it to the previous chapter.
 
 
 Here is the [complete language grammar](docs/22-grammar.md) for this chapter.
+
+## Finalizing the ideal graph
+
+Library functions introduce a distinction between an externally callable entry
+and an unused internal function. After `Iter` settles function pointers,
+`FinalizeIR` removes unknown-caller hooks from internal functions with no callers
+or exposed function address, then runs the resulting peephole cleanup. Public
+entries retain their calling assumptions. Type checking examines the surviving
+graph afterward.
+
+The ideal pipeline is `Parse -> Iter -> FinalizeIR -> TypeCheck`; use
+`code.driver(CodeGen.Phase.TypeCheck)` when all of it is needed.
+
 
 ## Nested Types and Static Fields
 

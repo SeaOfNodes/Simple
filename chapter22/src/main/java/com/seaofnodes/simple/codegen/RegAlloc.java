@@ -361,7 +361,7 @@ public class RegAlloc {
         // If the minLoopDepth is less than the maxLoopDepth: for-all defs and
         // uses, if at minLoopDepth or lower, split after def and before use.
         for( Node n : _ns ) {
-            if( n instanceof SplitNode ) continue; // Ignoring splits; since spilling need to split in a deeper loop
+            if( n instanceof SplitNode split && !split.isNonStackSplit() ) continue; // Ordinary splits already reach stack storage.
             if( n.isDead() ) continue; // Some Clonable went dead by other spill changes
             // If this is a 2-address commutable op (e.g. AddX86, MulX86) and the rhs has only a single user,
             // commute the inputs... which chops the LHS live ranges' upper bound to just the RHS.
@@ -414,8 +414,8 @@ public class RegAlloc {
     }
 
     private static long ldepth( long ld, Node n, CFGNode cfg ) {
-        // Do not count splits
-        if( n instanceof SplitNode ) return ld;
+        // Ordinary splits already reach stack storage; register-only transfers do not.
+        if( n instanceof SplitNode split && !split.isNonStackSplit() ) return ld;
         // Collect min/max loop depth
         int min = (int)ld;
         int max = (int)(ld>>32);

@@ -45,7 +45,7 @@ public class x86_64_v2 extends Machine {
     static RegMask RPC_MASK = new RegMask(RPC);
 
     static final long SPILLS = -(1L << MAX_REG);
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS /* | (1L<<FLAGS)*/ | SPILLS, -1L );
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS | SPILLS, -1L );
 
     // Load/store mask; both GPR and FPR
     static RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
@@ -235,7 +235,9 @@ public class x86_64_v2 extends Machine {
 
     // Create a split op; any register to any register, including stack slots
     @Override public SplitNode split(String kind, byte round, LRG lrg) {
-        return new SplitX86(kind, round);
+        return lrg._machDef!=null && lrg._machDef.outregmap().test(FLAGS)
+            ? new SplitFlagsX86(kind,round)
+            : new SplitX86(kind,round);
     }
 
     // Return a MachNode unconditional branch

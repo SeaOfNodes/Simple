@@ -11,6 +11,10 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @Test public void testFlagSpills() throws Exception {
+        com.seaofnodes.simple.codegen.FlagSpillTestSupport.run();
+    }
+
     @Test public void testAllocatorTopPhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.topPhi(); }
 
     @Test public void testNeverReturnAllocation() {
@@ -71,7 +75,7 @@ return f(s);
         // The entry of g can disappear before its Return is folded into f.
         // Exercise both worklist orders; deleting the entry does not kill 123.
         for( int seed=0; seed<64; seed++ ) {
-            CodeGen code = new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,seed,true).parse().opto().typeCheck();
+            CodeGen code = new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,seed,true).driver(CodeGen.Phase.TypeCheck);
             assertEquals("seed "+seed, "123", Eval2.eval(code,0));
         }
     }
@@ -96,7 +100,7 @@ return f(s);
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");
-        code.parse().opto().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
@@ -409,8 +413,7 @@ return a;
             for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
                                           Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY,
                                           "int[] !a = new int[3]; a[arg]=arg; return a[0]+1;"} ) {
-                var code = new CodeGen(src).parse().opto().typeCheck().loopTree()
-                    .instSelect(cpu,"SystemV").GCM().localSched().regAlloc();
+                var code = new CodeGen(src).driver(CodeGen.Phase.RegAlloc,cpu,"SystemV");
                 com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
                 code._stop.walk(n -> {
                     // Whole memory, precise Phis, and memory projections need no register.

@@ -40,7 +40,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     }
     @Override public Tag serialTag() { return Tag.CallEnd; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
-        baos.packed1(nIns());
+        baos.packed1(Serialize.nIns(this,anodes));
         // Linked CallEnds depend on Return types which depend on CallEnds;
         // break the cycle
         baos.packed2(types.get(_type));
@@ -108,7 +108,9 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // effects.
         if( (nIns()-1)+externs < tfp.nfcns() ) {
             // If during Opto, assume call won't be called and thus won't return anything.
-            boolean opto = CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal();
+            // Lowered calls deliberately have no links into optimized bodies.
+            boolean opto = CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() &&
+                           CodeGen.CODE._phase.ordinal() <  CodeGen.Phase.Lower.ordinal();
             Type tmem = opto ? TypeMem.TOP : TypeMem.BOT;
             Type ret  = opto ? Type.TOP    : tfp.ret();
             return TypeTuple.make(Type.CONTROL,tmem,ret);

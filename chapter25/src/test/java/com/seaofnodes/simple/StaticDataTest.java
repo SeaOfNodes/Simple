@@ -2,6 +2,9 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.StaticData;
+import com.seaofnodes.simple.node.ConstantNode;
+import com.seaofnodes.simple.node.StoreNode;
+import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.util.Ary;
@@ -16,14 +19,25 @@ public class StaticDataTest {
     private static final String SRC="val n=42; val f={int x -> x+n;}; return 0;";
 
     private static StaticData.ObjectData root(CodeGen code) {
-        return code._encoding._data.entries().stream()
-            .filter(obj -> obj.symbol.endsWith("Test.$class")).findFirst().orElseThrow();
+        for( var obj : code._encoding._data.entries() )
+            if( obj.symbol.endsWith("Test.$class") ) return obj;
+        throw new AssertionError("Missing Test class object");
     }
 
     // Read the image before <clinit>, then call the function through its data slot.
     @Test public void testEmulatorImage() {
         for( String cpu : new String[]{"arm","riscv"} ) {
-            CodeGen code=new CodeGen(SRC).driver(cpu,"SystemV",true,false);
+            CodeGen code=new CodeGen(SRC).driver(CodeGen.Phase.TypeCheck);
+            assertNull("Constant fields fold before instruction selection",
+                       code._stop.walk(n -> n instanceof StoreNode st &&
+                           (st._name.equals("n") || st._name.equals("f")) ? n : null));
+            assertNotNull(code._stop.walk(n -> n instanceof ConstantNode &&
+                n._type instanceof TypeMem mem && mem.isConstant() &&
+                mem._t==TypeInteger.constant(42) ? n : null));
+            assertNotNull("The runtime initialization flag still needs its Store",
+                          code._stop.walk(n -> n instanceof StoreNode st &&
+                              st._name.equals("$init") ? n : null));
+            code.driver(cpu,"SystemV",true,false);
             var e=code._encoding;
             var obj=root(code);
             TypeStruct ts=(TypeStruct)obj.type;

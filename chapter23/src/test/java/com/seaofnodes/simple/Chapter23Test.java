@@ -154,7 +154,7 @@ struct S { !S? !fld; };
 val ptr = arg == 1 ? null : new S{fld = arg==1 ? null : new S{fld = null;};};
 return ptr && ptr.fld ? "true" : "false";
         """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
 
         // Evaluate on RISC5 emulator
@@ -257,7 +257,7 @@ struct Scan {
 return Scan.peek(s,'q');
         """;
 
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Phi(Region,0,1);", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "Win64"  ,23,null);
@@ -282,7 +282,7 @@ struct Scan {
 return s.skip().x;
         """;
 
-        try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
+        try { new CodeGen(src).driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { org.junit.Assert.assertTrue(e.getMessage().startsWith("Argument #0 isa")); }
     };
 
@@ -309,7 +309,7 @@ struct Scan {
 return s.require('[');
         """;
 
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return (.[]==91);", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "Win64"  ,4,null);

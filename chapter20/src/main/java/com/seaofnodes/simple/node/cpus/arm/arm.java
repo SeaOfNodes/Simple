@@ -55,7 +55,7 @@ public class arm extends Machine {
     // Load/store mask; both GPR and FPR
     static final RegMask MEM_MASK = new RegMask(WR_BITS | FP_BITS);
 
-    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -1L);
+    static final RegMask SPLIT_MASK = new RegMask(WR_BITS | FP_BITS, -2L/*skip flags*/);
 
     static final RegMask FLAGS_MASK = new RegMask(FLAGS);
     //  x30 (LR): Procedure link register, used to return from subroutines.
@@ -169,7 +169,16 @@ public class arm extends Machine {
     }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(String kind, byte round, LRG lrg) {  return new SplitARM(kind,round);  }
+    @Override public SplitNode split(String kind, byte round, LRG lrg) {
+        RegMask def = lrg._machDef==null ? null : lrg._machDef.outregmap(), use = lrg.useMask();
+        if( (def!=null && def.size1() && def.test(FLAGS)) ||
+            (use!=null && use.size1() && use.test(FLAGS)) )
+            return new SplitFlagsARM(kind,round);
+        // Spilling the saved flags requires a GPR between NZCV and the stack.
+        if( lrg._machDef instanceof SplitFlagsARM || lrg._machDef instanceof SplitGPRARM )
+            return new SplitGPRARM(kind,round);
+        return new SplitARM(kind,round);
+    }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {

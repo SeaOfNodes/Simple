@@ -352,6 +352,14 @@ stores, we do the same - until/unless we find stores with the SAME block as the
 Load's LCA. Then we add the anti-dependency edge to force ordering within the
 same block.
 
+For a memory Phi, constrain the paths whose inputs differ from the Load's
+memory; paths carrying that memory unchanged do not overwrite it. A different
+input can come from a sibling branch, so its dominator chain need not reach
+the memory definition's block. Stop the walk when it rises above that block's
+depth, or reaches its immediate dominator. Include the boundary depth so
+same-block ordering is preserved. The immediate-dominator sentinel also handles
+a root with no dominator.
+
 See [`antiUse()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L224)
 for the alias filter, and
 [`find_anti_dep()`](src/main/java/com/seaofnodes/simple/GlobalCodeMotion.java#L233)

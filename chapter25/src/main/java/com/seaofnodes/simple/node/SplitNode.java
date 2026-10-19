@@ -13,6 +13,8 @@ public abstract class SplitNode extends MachConcreteNode {
     public final String _kind;  // Kind of split
     public final byte _round;   // Debugging info for which RegAlloc round
     public SplitNode(LRG lrg,String kind, byte round, Node[] nodes) { super(nodes); _lrg=lrg; _kind = kind; _round = round; }
+    // A register-only transfer may need another split to reach stack storage.
+    public boolean isNonStackSplit() { return false; }
     @Override public String op() { return "mov"; }
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         p.p("mov(");

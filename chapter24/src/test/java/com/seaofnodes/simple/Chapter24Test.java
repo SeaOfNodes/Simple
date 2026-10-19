@@ -142,7 +142,7 @@ if( ptr && ptr.fld ) {
 
 return 0;
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("[97-117][ 116,114,117,101]", Eval2.eval(code, 0));
 
         // Evaluate on RISC5 emulator
@@ -627,7 +627,7 @@ struct Scan {
 return Scan.peek(s,'q');
 """;
 
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Phi(Region,0,1);", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "Win64"  ,23,null);
@@ -652,7 +652,7 @@ struct Scan {
 return s.skip().x;
 """;
 
-        try { new CodeGen(src).parse().opto().typeCheck(); fail(); }
+        try { new CodeGen(src).driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { org.junit.Assert.assertTrue(e.getMessage().startsWith("Argument #0 isa")); }
     };
 
@@ -679,7 +679,7 @@ struct Scan {
 return s.require('[');
 """;
 
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return (.[]==91);", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
         testCPU(src,"x86_64_v2", "Win64"  ,4,null);
@@ -699,7 +699,7 @@ while (cnt) {
 }
 return x;
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 1;", code._stop.toString());
     }
 
@@ -714,7 +714,7 @@ while( cnt-- )
     x = 2-x;
 return x;
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 1;", code._stop.toString());
     }
 

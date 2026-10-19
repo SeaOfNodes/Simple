@@ -114,6 +114,9 @@ public abstract class Eval2 {
     // Current active Frame, to avoid having to pass it everywhere
     public static Frame F;
 
+    // Class pointers and initializer self parameters share one object per run.
+    private static final HashMap<String,Object[]> CLASSES = new HashMap<>();
+
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
         if( code._start.uctrl()==null ) return ""; // The empty program
@@ -122,6 +125,7 @@ public abstract class Eval2 {
         code.driver(CodeGen.Phase.LocalSched);
         // Set global, so don't have to pass everywhere
         CODE = code;
+        CLASSES.clear();
 
         // Timer for when we run too long.  Ticks once per backedge or function call
         int loopCnt = 0;
@@ -140,7 +144,7 @@ public abstract class Eval2 {
                 TypeStruct clz = ((TypeMemPtr)fun.sig().arg(0))._obj;
                 // Map from the <clinit> self parameter to the
                 // singleton class structure.
-                F.put(fun.parm(2),alloc(clz));
+                F.put(fun.parm(2),classObject(clz));
             }
 
 
@@ -203,9 +207,9 @@ public abstract class Eval2 {
 
             // Parms read from Call args -
             // - except RPC is the actual prior frame
-            // - except <clinit> takes the singleton class object and external args
+            // - except entry <clinit> takes the external program argument
             Object val;
-            if( isClz && phi instanceof ParmNode parm && parm._idx==3 )
+            if( isClz && prior instanceof StartNode && phi instanceof ParmNode parm && parm._idx==3 )
                 PHICACHE[i] = arg; // Reading the initial arguments to <clinit>
             else {
                 Node n = phi instanceof ParmNode parm
@@ -349,6 +353,8 @@ public abstract class Eval2 {
                     yield new Object[0];
                 }
 
+            } else if( Parser.startsClzPrefix(tmp._obj._name) ) {
+                yield classObject(tmp._obj);
             } else {
                 // Constant object with all zeros
                 yield alloc(tmp._obj);
@@ -414,6 +420,12 @@ public abstract class Eval2 {
         Object[] ptr = new Object[num];
         for( int i=0; i<num; i++ )
             ptr[i] = con(type._fields[i]._t.makeZero());
+        return ptr;
+    }
+
+    private static Object[] classObject(TypeStruct type) {
+        Object[] ptr = CLASSES.get(type._name);
+        if( ptr==null ) CLASSES.put(type._name,ptr=alloc(type));
         return ptr;
     }
 

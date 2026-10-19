@@ -17,12 +17,10 @@ public class SplitX86 extends SplitNode {
     @Override public RegMask regmap(int i) { return x86_64_v2.SPLIT_MASK; }
     @Override public RegMask outregmap() { return x86_64_v2.SPLIT_MASK; }
 
-    // Need to handle 8 cases: . reg->reg, reg->xmm, reg->flags, xmm->reg, xmm->xmm, xmm->flags, flags->reg, flags->xmm,
-    // flags->flags.
+    // Ordinary GPR, XMM, and stack moves. Flags use SplitFlagsX86.
     @Override public void encoding( Encoding enc ) {
         short dst=enc.reg(this), src=enc.reg(in(1));
-        if( dst==x86_64_v2.FLAGS ) { X86.flags(enc,src,true); return; }
-        if( src==x86_64_v2.FLAGS ) { X86.flags(enc,dst,false); return; }
+        assert dst!=x86_64_v2.FLAGS && src!=x86_64_v2.FLAGS;
         boolean dstX=dst>=x86_64_v2.XMM_OFFSET, srcX=src>=x86_64_v2.XMM_OFFSET;
         // Stack spills
         if( dst >= x86_64_v2.MAX_REG ) {

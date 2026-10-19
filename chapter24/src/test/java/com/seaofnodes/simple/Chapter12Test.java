@@ -14,7 +14,7 @@ public class Chapter12Test {
 """
 return 3.14;
 """);
-        code.parse().opto();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -34,7 +34,7 @@ while( arg ) {
 }
 return head.next.i;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing 'next'",e.getMessage()); }
     }
 
@@ -56,7 +56,7 @@ LLI? next = head.next;
 if( next==null ) return 1;
 return next.q;
 """);
-        code.parse().opto().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Phi(Region,0,1,.q);", code.print());
         assertEquals("2", Eval2.eval(code,  3));
     }
@@ -75,7 +75,7 @@ i0.f = f0;
 f0.i = i0;
 return f0.i.f.i.i;
 """);
-        code.parse().opto();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 17;", code.print());
     }
 
@@ -87,7 +87,7 @@ struct N { !N? !next; int i; };
 N n = new N;
 return n.next;
 """);
-        code.parse().opto();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return null;", code.print());
     }
 
@@ -100,7 +100,7 @@ struct N { !M !next; int i; };
 N n = new N { next = new M; };
 return n.next;
 """);
-        code.parse().opto();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return (const)M;", code.print());
     }
 
@@ -113,7 +113,7 @@ struct N { !M !next; int i; };
 N n = new N { next = null; };
 return n.next;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Type null is not of declared type *M",e.getMessage()); }
     }
 
@@ -126,20 +126,20 @@ struct N { !N? !next; int i; };
 n.i = 3.14;
 return n.i;
 """);
-        code.parse().opto().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("3",Eval2.eval(code,0));
     }
 
     @Test
     public void testNullRef4() {
         CodeGen code = new CodeGen("return -null-5/null-5;");
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Cannot '//' null",e.getMessage()); }
     }
 
     @Test public void testNullRef5() {
         CodeGen code = new CodeGen("return null+42;");
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) { assertEquals("Cannot '+' null",e.getMessage()); }
     }
 
@@ -150,7 +150,7 @@ return n.i;
 struct S{};
 return 0;
 """);
-        code.parse().opto();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -162,7 +162,7 @@ return 0;
 struct S1 { !S2? !s; };
 return new S2;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.driver(CodeGen.Phase.FinalizeIR); fail(); }
         catch( Exception e ) { assertEquals("Unknown struct type 'S2'",e.getMessage()); }
     }
 
@@ -174,7 +174,7 @@ struct S1 { !S2? !s; };
 struct S2 { int x; };
 return new S1.s=new S2;
 """);
-        code.parse().opto();
+        code.driver(CodeGen.Phase.FinalizeIR);
         assertEquals("return S2;", code.print());
     }
 
@@ -191,7 +191,7 @@ p2.pi.i = 2;
 if (arg) p1 = new P;
 return p1.pi.i + 1;
 """);
-        try { code.parse().opto().typeCheck();  fail(); }
+        try { code.driver(CodeGen.Phase.TypeCheck);  fail(); }
         catch( Exception e ) {  assertEquals("Might be null accessing 'i'",e.getMessage());  }
     }
 
@@ -210,7 +210,7 @@ c.f0=a;  c.f1=b;
 return a.f0.f1.f0.f1.f0;
 
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(CodeGen.Phase.LocalSched);
         assertEquals("return B;", code._stop.toString());
         assertEquals("B{f0=C},f1=A{f0=$cyclic,f1=$cyclic}}", Eval2.eval(code,  0));
     }
@@ -276,7 +276,7 @@ z.a=k;  z.b=s; z.c=e;
 return a.b.c.a.b.c.a.b.c.a.b.c.a.b.c.a.b.c;
 
 """);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(CodeGen.Phase.LocalSched);
         assertEquals("return R;", code._stop.toString());
         assertEquals("R{a=C{a=N},b=V},c=H}},b=K{a=$cyclic,b=D{a=O},b=W},c=I}},c=P}},c=$cyclic}", Eval2.eval(code,  0));
     }

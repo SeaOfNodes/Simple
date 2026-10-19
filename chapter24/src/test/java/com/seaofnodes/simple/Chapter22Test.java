@@ -126,7 +126,7 @@ public class Chapter22Test {
                     else assertEquals(42,cpu.regs[0]);
                 }
             }
-        CodeGen unused = new CodeGen("({->42;}); return 0;").parse().opto();
+        CodeGen unused = new CodeGen("({->42;}); return 0;").driver(CodeGen.Phase.FinalizeIR);
         assertEquals(1,unused._stop.nIns());
     }
 
@@ -172,7 +172,7 @@ public class Chapter22Test {
 
     @Test public void testSubZeroTypeError() {
         try {
-            new CodeGen("return null-0;").parse().opto().typeCheck();
+            new CodeGen("return null-0;").driver(CodeGen.Phase.TypeCheck);
             fail("Subtraction must reject null even when the other operand is zero");
         } catch( Parser.ParseException e ) {
             assertEquals("Cannot '-' null",e.getMessage());
@@ -356,7 +356,7 @@ bb.c = cc;
 val x = 5; // aa.az; // Error to self-define forward ref
 return cc.cz;
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 25;", code._stop.toString());
         assertEquals("25", Eval2.eval(code, 0));
     }
@@ -400,7 +400,7 @@ val sum = { i32[~] is ->  // final array
 };
 return sum(is);
 """;
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Phi(Loop,0,(Phi_sum+.[]));", code._stop.toString());
         assertEquals("14", Eval2.eval(code, 0));
     }

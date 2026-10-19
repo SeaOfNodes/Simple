@@ -58,6 +58,8 @@ public class LRG {
 
     public int nadj() { return _adj==null ? 0 : _adj._len; }
 
+    public RegMask useMask() { return _machUse==null ? null : _machUse.regmap(_uidx); }
+
     void addNeighbor(LRG lrg) {
         if( _adj==null ) _adj = new Ary<>(LRG.class);
         _adj.push(lrg);

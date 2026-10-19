@@ -2,30 +2,12 @@
 
 This file is intentionally AI-facing. It records durable invariants, debugging
 habits, and project-owner preferences that are easy to miss when reading only
-the implementation. Use the current checkpoint below rather than old session
-handoffs or historical branch/status reports.
-For cross-chapter work, read [the backport queue and validation record](../docs/chapter-backports.md).
-It owns pending reproductions and a condensed completion record; these notes
-capture reusable lessons. Detailed superseded validation history remains in Git.
+the implementation. Check current code and Git state rather than treating old
+session handoffs as live status.
+For cross-chapter work, read [the backport queue](../docs/chapter-backports.md).
+It owns pending work; these notes capture reusable lessons. Completed work and
+superseded validation history remain in Git.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
-
-## Reset checkpoint (2026-10-03)
-
-- Cliff committed the chapter reorganization and mutability split as `22df8918`
-  (`Chapter renumber, and split ch 17`). Implementation and validation are done;
-  there is no unfinished compiler port or hung validation process to resume.
-  Check current Git state before treating this checkpoint as live status.
-- Cliff subsequently committed the Chapter 18 README review and backup-file
-  deletion as `3c13b271` (`Update README.md`). The tree was clean before this
-  memory refresh; only these two notes files are left modified by the refresh.
-  Do not commit or push without a new instruction.
-- Read the mutability section and validation record in
-  [chapter-backports.md](../docs/chapter-backports.md) for scope and results.
-  Full affected chapter suites, Chapter 25 native tests, standalone 17a/17b
-  builds, and exporter checks passed. Logs are disposable under
-  `build/mutability/`; no need to repeat suites without a new change or concern.
-- Next work is Cliff's review, not another inferred cleanup task. The separate
-  pending queue still includes float-to-int syntax and deferred BOTTOM contracts.
 
 ## Collaboration preferences
 
@@ -74,14 +56,62 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Mutability and chapter boundaries
 
-- Chapter 25 phase split (2026-10-17): Opto now only runs SCCP, numeric-mode
+- Native boundary decision (2026-10-18): no classes for native code; do not
+  design a native-startup policy. Ordinary supported FFI calls are separate.
+  Chapter 25's README owns the tutorial explanation of class initialization;
+  ROADMAP owns future work. Do not recreate an initialization progress document.
+- GCM memory-Phi anti-dependencies constrain paths whose input differs from
+  the load's memory, not paths carrying that memory unchanged. Bound the idom
+  walk by the memory definition's depth: an alternate Phi input need not be
+  dominated by that definition. Also stop at `defblk.idom()`: when the memory
+  definition is the function entry, its null idom is the valid sentinel.
+  Include the boundary depth; a strict `>` skips required same-block edges
+  and can make a read observe a later store. Keep `testCapitalize`,
+  `testConditionalClassInitX86`, and
+  `testReadBeforeConditionalStore` passing; dropping Phi handling entirely
+  miscompiles the latter (140 instead of 120).
+  This rule applies from Chapter 13 onward. The nested-branch regression
+  `SchedulerTest.testMemoryPhiAcrossSiblingBranch` checks the disjoint walk;
+  removing the depth bound reproduces a null-stblk crash. Retain each early
+  chapter's evaluator scheduling rules when porting the boundary.
+- CLInit lowering (2026-10-17): TypeCheck queues surviving markers; optional
+  Serialize saves opaque ideal IR, then Lower runs Iter before LoopTree.
+  Serialization includes disconnected Returns and filters cross-object links
+  without mutating the live graph. Parent initialization precedes the child's
+  flag test/call; the true flag store remains inside the initializer. Runtime
+  flag reads follow ordinary Load idealization, including removing control.
+  Handle x86 condition-flag lifetime constraints in the backend, not by pinning
+  ideal Loads. Generated calls remain unlinked and
+  conservative; do not reopen parameter flow into SCCP-optimized bodies.
+  Private/imported initializer bodies retain Start because opaque CLInit has no
+  ordinary Call edge yet; this does not change public reachability.
+  The selected entry gets the external arg; other clinits get zero for now.
+  The planned array ABI uses non-null entry args and null elsewhere; not yet
+  implemented. Eval2 shares singleton class objects and retains imported bodies.
+  Full Chapter 25 Make validation: 509 tests, including native cold/hot calls,
+  parent order, ARM/RISC-V encoding and nonreturning object reload.
+- Chapter 25 phase structure: Opto only runs SCCP, numeric-mode
   resolution and worklist seeding. IterPostOpto does peepholes/inlining;
   FinalizeIR does field layout/offset cleanup and function/CU finalization.
   opto() requires an explicit prior iter(). Direct calls needing the old complete
   optimization sequence also name iterPostOpto().finalizeIR(); driver() handles
-  the sequence for later targets. The full 505-test Make suite passes. Earlier
-  chapter backports are pending in docs/chapter-backports.md. CLInit expansion
-  and serialization ordering are not part of this refactor.
+  the sequence for later targets. Iter setup, FinalizeIR, TypeCheck, Unlink,
+  and InstSelect own their algorithms in separate files. CodeGen's phase wrapper
+  handles assertions, timing (including failures), and successful viewer phase
+  notifications. Its driver lists the order and skips completed steps.
+  Serialize decides whether ideal IR is needed: explicit Serialize or file
+  Export, not Encoding or in-memory linking. A staged file export must request
+  Serialize before Lower; ideal IR cannot be recovered from machine nodes.
+  Unlink detaches imports for machine selection, including requests stopping at
+  Select, while ideal evaluation retains them. Schedule requires Unlink or Select;
+  use the driver instead of skipping Lower/LoopTree in hand-written test chains.
+  Earlier chapters expose only phases with real work. CodeGen and its resumable
+  driver start in Chapter 18, with explicit LoopTree and LocalSched boundaries.
+  Instruction selection arrives in 19, RegAlloc in 20, Encoding/Export in 21.
+  FinalizeIR starts in 22 with unused-function cleanup and gains layout in 23.
+  Opto (SCCP) and IterPostOpto start in 24; earlier peepholes are named Iter.
+  Serialize, Lower, and Unlink stay in 25. Use short explicit chains such as
+  parse().iter(), and driver(Phase.target, ...) for longer compilation paths.
 - Class-init memory checkpoint (2026-10-17) is implemented: keep CLInit
   opaque through Iter/Opto, carry whole-memory effects plus the known-true
   `$init` alias result, and use normal parser memory for redundant checks.
@@ -89,8 +119,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   up front; ordinary Load/FldOff nodes resolve forward receivers. The fourth
   CLInit input is always present in a constructed graph. If the receiver resolves
   to an instance, CLInit and its speculative flag load disappear together.
-  Precise alias recovery can still be deferred. See `chapter25/initialization.md`.
-  Runtime lowering and startup adaptation remain deferred. Public function fields
+  Precise alias recovery can still be deferred. See `chapter25/README.md`.
+  Runtime lowering is implemented above; argument arrays remain deferred. Public function fields
   on instances of public classes must retain Start, just like class-object
   fields. publicFIDX now checks both; this fixes sys.scan.match losing Start
   while building sys.o and subsequently widening after import. All Chapter 25
@@ -157,8 +187,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   deliberately retains immutable shallow struct references resolved by name;
   see its README's L0/L1 notes before trying to expand recursive types.
   Keep Chapter 25's separate constructor-memory and incomplete-type design.
-  See the concrete boundary notes
-  in `docs/chapter-backports.md`. GCM readiness and anti-dependency checks must both
+  GCM readiness and anti-dependency checks must both
   filter by alias and ignore MemMerge as a clobber; keep the evaluator's same
   alias filtering too. MemMerge still needs ordinary data-dependency placement.
 
@@ -305,8 +334,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   affected directories explicitly listed. Establish the destination baseline
   before changing it; older Makefiles may need a forced rebuild after API changes.
 - Keep unrelated discoveries separate in `docs/chapter-backports.md`. Completed
-  fixes leave the pending queue; retain a concise validation summary and move
-  unresolved discoveries out of the history into the actual queue. A green suite
+  fixes leave the pending queue; record validation in the change description.
+  Keep unresolved discoveries in the actual queue. A green suite
   after changing graph/test order does not prove an intermittent failure fixed.
 - Store disposable probes/logs under an appropriate ignored build directory.
   Preserve durable reproducers in tests or the review record, not only scratch
@@ -512,6 +541,18 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   before coloring, a fixed-register definition can clobber despite `_reg==-1`.
   Cloning is valid only if its output mask can satisfy the use. A fixed-register
   clone with flexible uses needs use-side splits, not a no-op def-side path.
+- Chapters 20-25 flag spills use specialized splits that exclude FP registers.
+  x86 can transfer FLAGS directly to a GPR or stack slot. ARM's
+  `SplitFlagsARM` transfers NZCV through a GPR and overrides
+  `isNonStackSplit()`; RegAlloc includes these transfers in loop-depth
+  collection and subsequent splitting. `SplitGPRARM` then admits GPRs and
+  stack slots, preserving the FP exclusion through cascading spills.
+  Keep ordinary splits excluded from those allocator paths. Test both flags
+  clobbers and simultaneous flags/GPR clobbers: `testFlagSpills` executes the
+  allocated moves for all 64 x86 status-bit and 16 ARM NZCV combinations from
+  Chapter 21 onward. Chapter 20 checks allocation and masks only; encoding
+  begins in 21. Preserve each allocator's existing ordinary-split policy:
+  20-22 always skip ordinary splits here, while 23-25 skip them when min!=max.
 - Check function ownership and register masks immediately after allocation,
   before encoding rewrites tail calls or adds untyped branches. Call.regmap can
   itself depend on CFG.fun/idom. The test-only CheckedCodeGen override keeps

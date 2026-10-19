@@ -39,7 +39,7 @@ public class Chapter19Test {
         CodeGen code = new CodeGen("""
 return 0;
 """);
-        code.parse().opto().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
@@ -48,7 +48,7 @@ return 0;
     @Test
     public void testString() throws IOException {
         String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/stringHash.smp"));
-        CodeGen code = new CodeGen(src).parse().opto().typeCheck().GCM().localSched();
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LocalSched);
         assertEquals("Stop[ return Phi(Region,1,0,0,1); return Phi(Region,._hashCode,Phi(Region,123456789,Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code._stop.toString());
         //assertEquals("-4898613127354160978", Eval2.eval(code,  2));
     }
@@ -358,11 +358,11 @@ return sq(arg) + sq(3);
         for( String cpu : new String[]{"x86_64_v2","riscv","arm"} )
             for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
                                           Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY} ) {
-                var code = new CodeGen(src).parse().opto().typeCheck();
+                var code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
                 var aliases = memoryPhis(code._stop);
-                code.loopTree().instSelect(cpu,"SystemV");
+                code.loopTree().driver(CodeGen.Phase.Select,cpu,"SystemV");
                 assertEquals(aliases,memoryPhis(code._stop));
-                code.GCM().localSched();
+                code.driver(CodeGen.Phase.Schedule).localSched();
                 code._stop.walk(n -> {
                     if( !(n instanceof CFGNode) && !(n instanceof ProjNode) )
                         assertTrue(n.in(0) instanceof CFGNode);
@@ -414,7 +414,7 @@ return sq(arg) + sq(3);
             int before = p.x + arg;
             a.x=33; b.x=44;
             return before;
-            """).parse().opto().typeCheck().loopTree().instSelect("x86_64_v2","SystemV").GCM().localSched();
+            """).driver(CodeGen.Phase.LocalSched,"x86_64_v2","SystemV");
         var read = (MemOpNode)code._stop.walk(n ->
             n instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.AddMemX86 ? n : null);
         assertNotNull(read);

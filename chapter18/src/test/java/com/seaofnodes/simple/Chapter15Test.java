@@ -13,7 +13,7 @@ public class Chapter15Test {
 """
 return 3.14;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 3.14;", code.print());
         assertEquals("3.14", Eval2.eval(code,  0));
     }
@@ -27,7 +27,7 @@ struct C { !C? !l; };
 c.l = c;
 return c;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return C;", code.print());
         assertEquals("C{l=$cyclic}", Eval2.eval(code,  0));
     }
@@ -46,7 +46,7 @@ while (i < old#) {
 output[i] = 1;
 return output;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return [u8];", code.print());
         assertEquals("\u0001", Eval2.eval(code,  0));
     }
@@ -58,7 +58,7 @@ return output;
 int[] is = new int[2];
 return is[1];
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -71,7 +71,7 @@ int[] is = new int[2];
 int[] is2 = new int[2];
 return is[1];
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -85,7 +85,7 @@ a[0] = 1;
 a[1] = 2;
 return a[0];
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 1;", code.print());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -98,7 +98,7 @@ struct A { int i; };
 !A?[] !a = new !A?[2];
 return a;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return [*A?];", code.print());
         assertEquals("*A {int !i; }?[ null,null]", Eval2.eval(code, 0));
     }
@@ -127,7 +127,7 @@ else {
 }
 return rez;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,1.2,Phi(Region,2.3,.y));", code.print());
         assertEquals("3.14", Eval2.eval(code, 0));
         assertEquals("1.2", Eval2.eval(code, 1));
@@ -153,7 +153,7 @@ if( iss[arg] )
         rez = iss[arg][2].y;
 return rez;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Might be null accessing '[]'",e.getMessage()); }
     }
 
@@ -168,7 +168,7 @@ root._kids = new !Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
 root._kids[0] = new Tree;
 return root;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Tree;", code.print());
         assertEquals("Tree{_kids=*Tree?[ Tree{_kids=null},null]}", Eval2.eval(code,  0));
     }
@@ -180,7 +180,7 @@ return root;
 struct S { int a; int[] !b; };
 return 0;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 0;", code.print());
     }
 
@@ -203,7 +203,7 @@ while( i < ary# - 1 ) {
 }
 return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return (.[]+(.[]*1000));", code.print());
         assertEquals("1006", Eval2.eval(code,  4));
     }
@@ -244,7 +244,7 @@ while( j < nprimes ) {
 }
 return rez;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return [int];", code.print());
         assertEquals("int[ 2,3,5,7,11,13,17,19]",Eval2.eval(code, 20));
     }
@@ -261,7 +261,7 @@ s2.f = 2.0;
 if (arg) s1 = new S;
 return s1.i + s1.f;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return ((flt).i+.f);", code.print());
         assertEquals("0.0", Eval2.eval(code,  0));
     }
@@ -273,7 +273,7 @@ return s1.i + s1.f;
 """
 return new flt;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter(); fail(); }
         catch( Exception e ) { assertEquals("Cannot allocate a flt",e.getMessage()); }
     }
 
@@ -283,7 +283,7 @@ return new flt;
 """
 int is = new int[2];
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter(); fail(); }
         catch( Exception e ) { assertEquals("Type *[int] is not of declared type int",e.getMessage()); }
     }
 
@@ -294,7 +294,7 @@ int is = new int[2];
 int[] is = new int[3.14];
 return is[1];
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter(); fail(); }
         catch( Exception e ) { assertEquals("Cannot allocate an array with length 3.14",e.getMessage()); }
     }
 
@@ -305,7 +305,7 @@ return is[1];
 int[] is = new int[arg];
 return is[1];
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  4));
         try { Eval2.eval(code,0); }
@@ -335,7 +335,7 @@ while(v5+(0&0)) {
 }
 return v1;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -350,7 +350,7 @@ u32 v7=0;
 int v8=0;
 while(0<--1>>>---(v7*0==v8)) {}
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 0;", code.print());
     }
 
@@ -374,7 +374,7 @@ else {
         }
 }
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 0;", code.print());
     }
 }

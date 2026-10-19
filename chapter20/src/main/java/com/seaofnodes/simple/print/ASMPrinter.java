@@ -49,5 +49,5 @@ public final class ASMPrinter extends AssemblyAdapter<Node> {
         if( n instanceof MemMergeNode ) return true;
         return n.getClass()==ConstantNode.class;
     }
-    @Override public boolean postAlloc() { return _code._phase.ordinal()>CodeGen.Phase.RegAlloc.ordinal(); }
+    @Override public boolean postAlloc() { return _code._phase.ordinal()>=CodeGen.Phase.RegAlloc.ordinal(); }
 }

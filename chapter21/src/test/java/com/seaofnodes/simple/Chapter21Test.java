@@ -27,7 +27,7 @@ public class Chapter21Test {
                 else if(i==4) b.x=40;
             }
             return sum;
-            """).parse().opto();
+            """).parse().iter();
         // The i==2 read still sees 10: three reads of 10, then three of 30.
         assertEquals("120",Eval2.eval(code,0));
         assertEquals("60",Eval2.eval(code,1));

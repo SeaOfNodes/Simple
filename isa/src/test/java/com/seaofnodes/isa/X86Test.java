@@ -102,6 +102,10 @@ public class X86Test {
         check("41ffd2", b -> X86.callRegister(b,10));
         check("41519d", b -> X86.flags(b,9,true));
         check("9c4159", b -> X86.flags(b,9,false));
+        check("9c8f442418", b -> X86.flagsStack(b,24,false));
+        check("ff7424189d", b -> X86.flagsStack(b,24,true));
+        check("9c8f842480000000", b -> X86.flagsStack(b,128,false));
+        check("ffb424800000009d", b -> X86.flagsStack(b,128,true));
         check("ff7424088f442410", b -> X86.stackCopy(b,8,16));
         check("4d8bca", b -> X86.move(b,false,false,9,10));
         check("4d0f28ca", b -> X86.move(b,true,true,9,10));

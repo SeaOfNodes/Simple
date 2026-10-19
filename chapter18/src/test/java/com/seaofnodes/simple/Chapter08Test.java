@@ -23,7 +23,7 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add),Add);", code.print());
         assertTrue(code.ctrl() instanceof RegionNode);
         Assert.assertEquals( "5", Eval2.eval(code, 1));
@@ -46,7 +46,7 @@ while(arg < 10) {
 }
 return a;
                 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Loop,1,Phi(Region,Phi_a,(Phi_a+1)));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
@@ -65,7 +65,7 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", code.print());
         assertTrue(code.ctrl() instanceof RegionNode);
     }
@@ -81,7 +81,7 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,Phi(Loop,arg,(Phi_arg+1)),Add);", code.print());
         assertTrue(code.ctrl() instanceof RegionNode);
     }
@@ -100,7 +100,7 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
@@ -117,7 +117,7 @@ while(arg < 10) {
 }
 return arg;
                 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Loop,arg,(Phi_arg+1));", code.print());
         assertTrue(code.ctrl() instanceof CProjNode);
     }
@@ -133,14 +133,14 @@ while( arg < 10 ) {
 }
 return arg;
                 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return arg;", code.print());
     }
 
     @Test
     public void testRegress2() {
         CodeGen code = new CodeGen("if(1) return 0;  else while(arg>- -arg) arg=arg+1; return 0;");
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 0;", code.print());
     }
 
@@ -168,7 +168,7 @@ while(arg < 10) {
 }
 return arg;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return arg;", code.print());
     }
 
@@ -185,7 +185,7 @@ while(arg < 10) {
 }
 return a;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return Phi(Region,Phi(Loop,1,(Phi_a+1)),Add);", code.print());
         assertTrue(code.ctrl() instanceof RegionNode);
     }
@@ -201,7 +201,7 @@ while(1) {
 }
 return a;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return (Phi(Loop,1,Add)+1);", code.print());
         assertTrue(code.ctrl() instanceof CProjNode prj && prj._idx==1 );
     }

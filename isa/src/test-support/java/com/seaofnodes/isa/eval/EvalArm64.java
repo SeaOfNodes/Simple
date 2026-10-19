@@ -597,6 +597,22 @@ public class EvalArm64 {
                 break;
             }
 
+            case 0xD5: {
+                if( (ir & ~31)==0xD53B4200 ) { // MRS Xt,NZCV
+                    rval = (N ? 1L<<31 : 0) | (Z ? 1L<<30 : 0) |
+                           (C ? 1L<<29 : 0) | (V ? 1L<<28 : 0);
+                    if( rdid==31 ) rdid=-1; // XZR, not SP.
+                } else if( (ir & ~31)==0xD51B4200 ) { // MSR NZCV,Xt
+                    long value = rdid==31 ? 0 : regs[rdid];
+                    N = (value & (1L<<31))!=0;
+                    Z = (value & (1L<<30))!=0;
+                    C = (value & (1L<<29))!=0;
+                    V = (value & (1L<<28))!=0;
+                    rdid=-1;
+                } else throw new UnsupportedOperationException("Unknown system instruction");
+                break;
+            }
+
             case 0xD6: {
                 int op = ir & 0xFFFFFC1F;
                 int rn = (ir >>> 5) & 31;

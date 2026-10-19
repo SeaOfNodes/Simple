@@ -10,124 +10,15 @@ where `score` in the middle does not have to be repeated.
 
 The main compiler change is Interprocedural Sparse Conditional Constant
 Propagation (SCCP): an optimistic type solve which also discovers call-graph
-edges. Memory follows Chapter 11's lazy partitioning: BulkMemPhi represents
-whole memory, MemPhi merges precise aliases, and allocations consume and produce
-partial memory for their instance fields. During SCCP, memory Phis ignore
-unreachable inputs and allocation results stay high until control reaches them.
-Chapter 25 retains the larger incomplete-types SSA redesign, private constructor
-memory, and separate compilation; see the [backport review queue](../docs/chapter-backports.md).
+edges.  SCCP is otherwise the traditional one taught in many classes, except
+the lattice it operates on is very rich.
 
+A new syntax feature is chaining conditions, ala `lo <= x < min` is legal syntax.
 
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter24) in a linear Git revision history on the [linear](https://github.com/SeaOfNodes/Simple/tree/linear) branch and [compare](https://github.com/SeaOfNodes/Simple/compare/linear-chapter23...linear-chapter24) it to the previous chapter.
 
 
 Here is the [complete language grammar](docs/24-grammar.md) for this chapter.
-
-## Chaining Relational Tests
-
-Chaining relational tests offer a cleaner, more readable way to write chained
-comparisons without repeating the same variable.
-
-```java
-if (min <= x && x < max)
-```
-
-becomes
-
-```java
-if (min <= x < max)
-```
-
-This syntax saves space and makes the condition more intuitive, similar to how
-range checks are written in mathematics.  E.g.
-
-```java
-int score = 75;
-if (60 <= score < 90) {
-    sys.io.p("Pass");
-}
-```
-This checks if score is between 60 (inclusive) and 90 (exclusive), without repeating `score`.
-
-Expressions that mix opposite directions of comparison, like using both
-`<=` and `>=`, are not allowed by Simple's direction rule.
-
-```java
-if (a <= b >= c)
-```
-
-
-### Operator direction rules
-Stacked comparisons are *only* valid if all the comparison operators
-"point" the same way:
-- `<` with `<`
-- `<` with `<=`
-- `>` with `>`
-- `>` with `>=`
-
-Equality operators (`==` and `!=`) have their normal, lower precedence; they
-are not links in a relational chain.
-
-It is not allowed to mix directions in a single chain:
-```java
-if (a <= b >= c) // Invalid
-```
-
-Comparisons can be forced into numeric context using booleans.
-This is valid but unusual:
-```java
-return (0 < arg) > 1;
-```
-Depending on the result of (0 < arg) this will turn into either
-```java
-return 0 > 1;
-```
-OR
-```java
-return 1 > 1;
-```
-The equality operator is valid in this form, but since it has lower precedence than comparisons,
-```java
-a < b == c
-```
-is parsed as:
-```java
-(a < b) == c
-```
-This might not be the intended chained comparison.
-A more explicit alternative is:
-```java
-a < b && b == c
-```
-Comparisons can be chained together in any length, and different comparison operators may be
-mixed freely as long as they point in the same direction.
-Each intermediate operand is evaluated once. Later operands are evaluated only
-if earlier comparisons succeed, so calls and updates in a chain short-circuit.
-
-E.g:
-```
-return 0 < arg < arg+1 < 4;
-```
-
-### Tricky edge cases
-```java
-return 0 != arg != 1;
-```
-
-This is parsed by standard precedence rules as:
-```java
-return ((0 != arg) != 1);
-```
-not as chained inequality.
-
-```java
-return a == b == c;
-```
-Similarly, this is parsed as:
-```java
-return ((a == b) == c);
-```
-
 
 
 ## Sparse Conditional Constant Propagation
@@ -167,7 +58,7 @@ those found by the peephole rules; we can then run the peephole rules on nodes
 with improved types, to see if unrelated peepholes can fire - such as newly
 discovered constants replacing computations with ConstantNodes.
 
-The following is SSA pseudocode; `phi` denotes a merge, not Simple syntax.
+The following is SSA pseudocode:
 
 ```text
 int x0 = 1;          // x0 = 1
@@ -287,6 +178,128 @@ Other than discovering a few new edges as the algorithm proceeds, the core
 algorithm is unchanged.  We are guaranteed to terminate with a fixed point
 solution, and may discover e.g. certain call parameters are constants (or
 e.g. not-null) on all calling paths.
+
+
+
+## Chaining Relational Tests
+
+Chaining relational tests offer a cleaner, more readable way to write chained
+comparisons without repeating the same variable.
+
+```java
+if (min <= x && x < max)
+```
+
+becomes
+
+```java
+if (min <= x < max)
+```
+
+This syntax saves space and makes the condition more intuitive, similar to how
+range checks are written in mathematics.  E.g.
+
+```java
+int score = 75;
+if (60 <= score < 90) {
+    sys.io.p("Pass");
+}
+```
+This checks if score is between 60 (inclusive) and 90 (exclusive), without repeating `score`.
+
+Expressions that mix opposite directions of comparison, like using both
+`<=` and `>=`, are not allowed by Simple's direction rule.
+
+```java
+if (a <= b >= c)
+```
+
+
+### Operator direction rules
+Stacked comparisons are *only* valid if all the comparison operators
+"point" the same way:
+- `<` with `<`
+- `<` with `<=`
+- `>` with `>`
+- `>` with `>=`
+
+Equality operators (`==` and `!=`) have their normal, lower precedence; they
+are not links in a relational chain.
+
+It is not allowed to mix directions in a single chain:
+```java
+if (a <= b >= c) // Invalid
+```
+
+Comparisons can be forced into numeric context using booleans.
+This is valid but unusual:
+```java
+return (0 < arg) > 1;
+```
+Depending on the result of (0 < arg) this will turn into either
+```java
+return 0 > 1;
+```
+OR
+```java
+return 1 > 1;
+```
+The equality operator is valid in this form, but since it has lower precedence than comparisons,
+```java
+a < b == c
+```
+is parsed as:
+```java
+(a < b) == c
+```
+This might not be the intended chained comparison.
+A more explicit alternative is:
+```java
+a < b && b == c
+```
+Comparisons can be chained together in any length, and different comparison operators may be
+mixed freely as long as they point in the same direction.
+Each intermediate operand is evaluated once. Later operands are evaluated only
+if earlier comparisons succeed, so calls and updates in a chain short-circuit.
+
+E.g:
+```
+return 0 < arg < arg+1 < 4;
+```
+
+### Tricky edge cases
+```java
+return 0 != arg != 1;
+```
+
+This is parsed by standard precedence rules as:
+```java
+return ((0 != arg) != 1);
+```
+not as chained inequality.
+
+```java
+return a == b == c;
+```
+Similarly, this is parsed as:
+```java
+return ((a == b) == c);
+```
+
+
+### Optimization phases
+
+SCCP introduces a real `Opto` phase between two uses of the peephole worklist:
+
+```text
+Parse -> Iter -> Opto -> IterPostOpto -> FinalizeIR -> TypeCheck
+```
+
+`Iter` first reaches the pessimistic fixed point. `Opto` resets types to TOP,
+solves SCCP and the call graph, and queues nodes whose types changed.
+`IterPostOpto` applies rewrites and inlining enabled by that solution.
+`FinalizeIR` settles layouts and detaches the analyzed call graph while keeping
+surviving functions available to the backend.
 
 
 ## RegAlloc improvements: try cold loop splits first

@@ -10,7 +10,7 @@ public class Main {
         String src = Files.readString(Path.of(args[0]));
         int arg = Integer.valueOf(args[1]);
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().GCM().localSched();
+        code.driver(CodeGen.Phase.LocalSched);
         System.out.println(code._stop);
         System.out.println(Eval2.eval(code,arg,100000));
     }

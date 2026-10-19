@@ -45,11 +45,11 @@ public class StartNode extends LoopNode implements MultiNode {
         // Find module.<clinit>, it's the start.
         CFGNode C = null;
         for( Node use : _outputs )
-            if( use instanceof FunNode fun && fun.isModInit() )
+            if( use instanceof FunNode fun && CodeGen.CODE.entryClinitName().equals(fun._name) )
                 { assert C==null; C = fun; }
         if( C==null )
             for( FunNode fun : CodeGen.CODE._linker )
-                if( fun!=null && !fun.isDead() && fun.isModInit() )
+                if( fun!=null && !fun.isDead() && CodeGen.CODE.entryClinitName().equals(fun._name) )
                     { assert C==null; C = fun; }
         return C;
     }

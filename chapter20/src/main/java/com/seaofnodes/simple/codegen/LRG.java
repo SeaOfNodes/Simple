@@ -54,6 +54,8 @@ public class LRG {
     // Adjacent Live Range neighbors.  Only valid during coloring
     Ary<LRG> _adj;
 
+    public RegMask useMask() { return _machUse==null ? null : _machUse.regmap(_uidx); }
+
     void addNeighbor(LRG lrg) {
         if( _adj==null ) _adj = new Ary<>(LRG.class);
         _adj.push(lrg);

@@ -5,12 +5,12 @@ import static org.junit.Assert.*;
 
 public class MutabilityTest {
     private static void ok(String src, String result) {
-        var code = new CodeGen(src).parse().opto().typeCheck();
+        var code = new CodeGen(src).parse().iter().typeCheck();
         assertEquals(result,Eval2.eval(code,0));
     }
     private static void bad(String src) {
         try {
-            new CodeGen(src).parse().opto().typeCheck();
+            new CodeGen(src).parse().iter().typeCheck();
         } catch( RuntimeException expected ) {
             String msg = expected.getMessage();
             assertTrue("Expected a permission error, got: "+expected,

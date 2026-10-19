@@ -37,13 +37,13 @@ public class ConstantNode extends TypeNode {
     }
     static Node make( BAOS bais, Type[] types)  { return raw(types[bais.packed2()]); }
 
-    // Semantic constant construction through FinalizeIR.  A unique internal
+    // Semantic constant construction through Lower.  A unique internal
     // function identity carries a lifetime edge to the function's Return.
     public static Node make( Type type ) {
         if( type==Type. CONTROL ) return new CtrlNode();
         if( type==Type.XCONTROL ) return new XCtrlNode();
         if( CodeGen.CODE._phase != null &&
-            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.FinalizeIR.ordinal() )
+            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Lower.ordinal() )
             return raw(type);
         if( type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
             FunNode fun = CodeGen.CODE._link(tfp);

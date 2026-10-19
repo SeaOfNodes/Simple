@@ -6,13 +6,9 @@ import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.BAOS;
-import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.*;
 import java.lang.StringBuilder;
-import java.util.BitSet;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
+import java.util.*;
 
 /**
  * Convenience common base for Load and Store.
@@ -140,27 +136,24 @@ public abstract class MemOpNode extends TypeNode {
 
     // Memory writers which must follow this read. A packaging node is not a
     // write; follow this alias through aggregates to its writers.
-    public ArrayList<Node> antiDeps() {
-        ArrayList<Node> deps = new ArrayList<>();
-        antiDeps(mem(),deps,new BitSet());
-        return deps;
+    public Ary<Node> antiDeps( Ary<Node> antideps ) {
+        antideps.clear();
+        return antiDeps(mem(),antideps);
     }
 
-    private void antiDeps(Node mem, ArrayList<Node> deps, BitSet visit) {
-        if( visit.get(mem._nid) ) return;
-        visit.set(mem._nid);
+    private Ary<Node> antiDeps( Node mem, Ary<Node> antideps )  {
         for( Node use : mem._outputs ) {
             if( use instanceof MemMergeNode merge ) {
-                Node slice = _alias<merge.nIns() ? merge.in(_alias) : null;
-                if( (slice==mem) || (slice==null && merge.in(1)==mem) )
-                    antiDeps(merge,deps,visit);
+                if( merge.alias(_alias)==mem )
+                    antiDeps(merge,antideps);
             } else if( use instanceof CallNode || use instanceof CLInitNode ||
                        (use instanceof MemOpNode st && !st._isLoad && st._alias==_alias) ||
                        (use instanceof EscapeNode esc && esc.fld()._alias==_alias) ||
                        (use instanceof MemPhiNode phi && phi._alias==_alias) ||
                        (use instanceof BulkMemPhiNode phi && !phi.isSplit(_alias)) ) {
-                if( !deps.contains(use) ) deps.add(use);
+                if( !antideps.contains(use) ) antideps.add(use);
             }
         }
+        return antideps;
     }
 }

@@ -462,3 +462,42 @@ Here:
 - Then it evaluates `z++`, which is false (0).
 - Since `&&` requires all conditions to be true, the final result `g` is 0.
 - All operands up to the false one are evaluated, so `x`, `y`, and `z` are all incremented.
+
+## Class initialization and compiler follow-ups
+
+### Entry arguments
+
+Replace the integer initializer argument with an argument array. The selected
+entry class receives a non-null array, empty when there are no arguments;
+other class initializers receive null. Coordinate the parser, entry signature,
+runtime driver, and separately compiled interfaces.
+
+### Pre-initialize classes from ELF data
+
+Prove when a class's entire initialization can be represented by ELF static
+data and relocations, with no remaining runtime effects. Emit its initial
+contents and start its `$init` flag as true, so no initializer call is needed.
+Carry that fact through separate compilation so importing compilers can remove
+checks too. A constant field alone is not proof that the whole class can be
+pre-initialized; I/O, argument-dependent work, and other observable effects
+still require execution. Preserve any dynamic parent requirement, and do not
+let cyclic dependencies justify their own pre-initialization.
+
+Mutable fields may have static initial contents without becoming constants.
+Choose read-only storage only when no runtime writes remain. Static reference
+cycles can use relocations without requiring a dynamic initialization cycle.
+
+### CFG frequency estimates
+
+After lowering and loop-tree construction, estimate block frequencies for GCM
+and code layout. Treat initialization and known-failure paths as rare; use
+bounded loop-trip estimates and branch probabilities when no profile is
+available. Keep estimates consistent with control flow and shared between
+scheduling and layout. These are backend estimates, not ideal-IR types.
+
+### Constant instance-field storage
+
+When a final instance field has the same constant value in every instance,
+fold accesses or store the value on the class object and omit the instance
+slot. Preserve field-access semantics and public function reachability:
+externally accessible function fields remain callable regardless of storage.

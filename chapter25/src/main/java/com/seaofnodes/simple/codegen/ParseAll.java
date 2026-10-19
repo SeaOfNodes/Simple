@@ -13,6 +13,18 @@ import java.util.*;
 // Parse a given file, and all its dependencies
 public abstract class ParseAll {
 
+    static void parse(CodeGen code, String src) {
+        Parser.TYPES.clear();
+        Parser.TYPES.putAll(Parser.INIT_TYPES);
+        if( src != null ) {
+            // No source file, just the source itself.
+            parseSource(code,code._srcName==null ? "Test" : code._srcName,src);
+        } else {
+            // Path from module root to source file
+            parsePath(code,code._srcName);
+        }
+    }
+
     // Worklist of symbols to search and files to parse
     private static final Ary<CompUnit> WORK = new Ary<>(CompUnit.class);
 

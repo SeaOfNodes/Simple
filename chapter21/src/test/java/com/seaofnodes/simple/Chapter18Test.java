@@ -91,7 +91,7 @@ public class Chapter18Test {
              "No common type amongst int and reference"}
         } ) {
             try {
-                new CodeGen(test[0]).parse().opto().typeCheck();
+                new CodeGen(test[0]).parse().iter().typeCheck();
                 fail("Expected incompatible return types: " + test[0]);
             } catch( Parser.ParseException e ) {
                 assertEquals(test[1],e.getMessage());
@@ -140,7 +140,7 @@ while(arg--) {
 }
 return a;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.driver(CodeGen.Phase.Schedule);
         assertEquals("return Phi(Loop,1,Phi(Loop,2,Phi_a));", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
         assertEquals("2", Eval2.eval(code,  1));
@@ -157,7 +157,7 @@ return a;
 {int -> int}? x2 = null; // null function ptr
 return x2;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return null;", code._stop.toString());
         assertEquals("null", Eval2.eval(code, 0 ) );
     }
@@ -170,7 +170,7 @@ return x2;
     x*x;
 };
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return (Parm_x(sq,int)*x);", code._stop.toString());
         //assertEquals("{ int -> int #1}", Eval2.eval(code, 3));
     }
@@ -197,7 +197,7 @@ return sq(arg)+sq(3);
 int cnt=1;
 return { -> cnt; };
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter(); fail(); }
         catch( Exception e ) { assertEquals("Variable 'cnt' is out of function scope and must be a final constant",e.getMessage()); }
     }
 
@@ -209,7 +209,7 @@ return { -> cnt; };
 val cnt=2;
 return { -> cnt; }();
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("return 2;", code._stop.toString());
         assertEquals("2", Eval2.eval(code, 0));
     }
@@ -222,7 +222,7 @@ return { -> cnt; }();
 var fcn = arg ? { int x -> x*x; } : { int x -> x+x; };
 return fcn(3);
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("Stop[ return #2; return (Parm_x($fun1,int,3)*x); return (Parm_x($fun2,int,3)<<1); ]", code._stop.toString());
         assertEquals("6", Eval2.eval(code, 0));
         assertEquals("9", Eval2.eval(code, 1));
@@ -232,7 +232,7 @@ return fcn(3);
     @Test
     public void testFcn5() {
         CodeGen code = new CodeGen("val fact = { int x -> x <= 1 ? 1 : x*fact(x-1); }; return fact(arg);");
-        code.parse().opto().typeCheck();
+        code.parse().iter().typeCheck();
         assertEquals("Stop[ return #2; return Phi(Region,1,(Parm_x(fact,int,arg,(x-1))*#2)); ]", code._stop.toString());
         assertEquals( "1", Eval2.eval(code, 0));
         assertEquals( "1", Eval2.eval(code, 1));
@@ -249,7 +249,7 @@ struct S { int i; };
 val newS = { int x -> return new S { i=x; }; };
 return newS(1).i;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.driver(CodeGen.Phase.Schedule);
         assertEquals("return 1;", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -264,7 +264,7 @@ val f = {->1;};
 val g = {->2;};
 return 2;
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.driver(CodeGen.Phase.Schedule);
         assertEquals("Stop[ return 1; return 1; return 2; ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code,  0));
     }
@@ -342,7 +342,7 @@ for(;;) {
 }
 return 1;
 """);
-        try { code.parse().opto(); fail(); }
+        try { code.parse().iter(); fail(); }
         catch( Exception e ) { assertEquals("No active loop for a break or continue",e.getMessage()); }
     }
 
@@ -357,7 +357,7 @@ for(;;) {
     i2i = null;
 }
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Might be null calling { int -> int #1}?",e.getMessage()); }
     }
 
@@ -369,7 +369,7 @@ for(;;) {
 val f = { int i, int j -> return i+j; };
 return f();
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Expecting 2 arguments, but found 0",e.getMessage()); }
     }
 
@@ -387,7 +387,7 @@ for(;;) {
     if (s) return s.x;
 }
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*S'",e.getMessage()); }
     }
 
@@ -400,7 +400,7 @@ val g = { ->
 };
 return 0;
 """);
-        try { code.parse().opto().typeCheck(); fail(); }
+        try { code.parse().iter().typeCheck(); fail(); }
         catch( Exception e ) { assertEquals("No defined return type",e.getMessage()); }
     }
 
@@ -414,7 +414,7 @@ val is_even = { int x -> x ? is_odd (x-1) : true ; };
 val is_odd  = { int x -> x ? is_even(x-1) : false; };
 return is_even(arg);
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("Stop[ return is_even( arg); return Phi(Region,Phi(Region,is_even( ((Parm_x(is_even,int,arg,Sub)-1)-1)),0),1); ]", code._stop.toString());
         assertEquals("1", Eval2.eval(code, 0));
         assertEquals("0", Eval2.eval(code, 1));
@@ -436,7 +436,7 @@ for(;;) {
     if (s) return s.f;
 }
 """);
-        code.parse().opto().typeCheck().GCM();
+        code.driver(CodeGen.Phase.Schedule);
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  0));
     }
@@ -488,7 +488,7 @@ return p.coffee_count;
         """;
 
     @Test public void testCallMemory() {
-        var code = new CodeGen(CALL_MEMORY).parse().opto();
+        var code = new CodeGen(CALL_MEMORY).parse().iter();
         int[] calls={0};
         code._stop.walk(n -> { if(n instanceof CallNode) calls[0]++; return null; });
         assertEquals(2,calls[0]); // Keep real calls so this checks scheduling across them.
@@ -517,7 +517,7 @@ return p.coffee_count;
         """;
 
     @Test public void testRecursiveMemory() {
-        var code = new CodeGen(RECURSIVE_MEMORY).parse().opto();
+        var code = new CodeGen(RECURSIVE_MEMORY).parse().iter();
         for(int n=0; n<7; n++)
             assertEquals(Long.toString((10L*(n+1)+n*(n+1)/2)*100+10+n),Eval2.eval(code,n));
     }
@@ -535,7 +535,7 @@ return p.coffee_count;
         """;
 
     @Test public void testInlineAllocationMemory() {
-        var code = new CodeGen(INLINE_MEMORY).parse().opto();
+        var code = new CodeGen(INLINE_MEMORY).parse().iter();
         assertNull(code._stop.walk(n -> n instanceof CallNode ? n : null));
         assertEquals("400944",Eval2.eval(code,0));
         assertEquals("420946",Eval2.eval(code,2));

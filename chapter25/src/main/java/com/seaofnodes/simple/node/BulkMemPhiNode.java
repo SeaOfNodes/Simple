@@ -125,7 +125,7 @@ public class BulkMemPhiNode extends PhiNode {
 
     // True if the MemMerge has no precise slice still covered by this Phi.
     private boolean canPeek(MemMergeNode mmm) {
-        return missingAlias(mmm,false)==0;
+        return missingAlias(mmm)==0;
     }
 
     // Return an alias required by an input but still covered by this Phi, or 0.
@@ -137,7 +137,7 @@ public class BulkMemPhiNode extends PhiNode {
             assert !(con._con instanceof TypeMem tmem && tmem._alias != 1);
             yield 0;
         }
-        case MemMergeNode mmm -> missingAlias(mmm,false);
+        case MemMergeNode mmm -> missingAlias(mmm);
         case MemOpNode mem -> unsplit(mem._alias);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
         default -> throw Utils.TODO("Should not reach here");
@@ -154,7 +154,7 @@ public class BulkMemPhiNode extends PhiNode {
         return switch(use) {
         case ScopeNode scope -> 0;
         case ParmNode parm -> 0;
-        case MemMergeNode mmm -> missingAlias(mmm,true);
+        case MemMergeNode mmm -> missingAlias(mmm);
         case BulkMemPhiNode bulk -> missingAlias(bulk);
         case MemOpNode mem -> unsplit(mem._alias);
         case MemPhiNode phi -> unsplit(phi._alias);
@@ -183,14 +183,14 @@ public class BulkMemPhiNode extends PhiNode {
         return 0;
     }
 
-    // First precise MemMerge slice still covered by this Phi.  When inspecting
-    // a user, ignore slots which point back to this Phi.
-    private int missingAlias(MemMergeNode mmm, boolean user) {
+    // First explicit MemMerge slice still covered by this Phi. A user's slice
+    // may point to this Phi after a precise Phi folds; splitting is still valid.
+    private int missingAlias( MemMergeNode mmm ) {
         for( int alias=2; alias<mmm.nIns(); alias++ )
             if( mmm.in(alias)!=null &&
                 mmm.alias(alias)!=mmm.in(1) &&
                 !_aliases.get(alias) )
-                { assert (!user || mmm.in(alias)!=this); return alias; }
+                return alias;
         return 0;
     }
 

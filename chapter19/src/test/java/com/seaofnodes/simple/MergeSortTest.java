@@ -57,7 +57,7 @@ merge_sort(a, b, a#);
 
 return a;
 """);
-        code.parse().opto();
+        code.parse().iter();
         assertEquals("Stop[ return [int]; return 0; ]", code._stop.toString());
         assertEquals("int[ 1,2,3,4,5,6,7,8,9,10,11]", Eval2.eval(code, 11));
     }

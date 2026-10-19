@@ -43,6 +43,16 @@ the porting code is looked up and used then.  This allows the Java
 implementation at least the ability to add CPU ports lazily.
 
 
+The driver from Chapter 18 accepts a CPU and calling convention when machine
+selection is needed:
+
+```java
+code.driver(CodeGen.Phase.LocalSched, "x86_64_v2", "SystemV");
+```
+
+This runs through loop discovery, instruction selection, and both schedulers.
+Omitting the CPU keeps the ideal graph for evaluation.
+
 ## Machine Specific Nodes
 
 We add a notion of "machine specific" Nodes, which implement the `MachNode`

@@ -4,6 +4,12 @@ package com.seaofnodes.isa;
 public final class Arm64 {
     private Arm64() {}
 
+    // MRS Xt,NZCV / MSR NZCV,Xt. Register 31 denotes XZR.
+    public static int flags(int reg, boolean toFlags) {
+        assert 0<=reg && reg<32;
+        return (toFlags ? 0xD51B4200 : 0xD53B4200) | reg;
+    }
+
     public static final int OP_ADD       = 0b10_001_011;
     public static final int OPF_ADD      = 0b00_011_110;
     public static final int OPF_OP_ADD   = 0b00_101_0;

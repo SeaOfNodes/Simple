@@ -288,7 +288,16 @@ public class arm extends Machine {
     @Override public int rpc() { return X30; }
 
     // Create a split op; any register to any register, including stack slots
-    @Override public SplitNode split(LRG lrg, String kind, byte round) {  return new SplitARM(lrg,kind,round);  }
+    @Override public SplitNode split(LRG lrg, String kind, byte round) {
+        RegMask def = lrg._machDef==null ? null : lrg._machDef.outregmap(), use = lrg.useMask();
+        if( (def!=null && def.size1() && def.test(FLAGS)) ||
+            (use!=null && use.size1() && use.test(FLAGS)) )
+            return new SplitFlagsARM(lrg,kind,round);
+        // Spilling the saved flags requires a GPR between NZCV and the stack.
+        if( lrg._machDef instanceof SplitFlagsARM || lrg._machDef instanceof SplitGPRARM )
+            return new SplitGPRARM(lrg,kind,round);
+        return new SplitARM(lrg,kind,round);
+    }
 
     // Return a MachNode unconditional branch
     @Override public CFGNode jump() {

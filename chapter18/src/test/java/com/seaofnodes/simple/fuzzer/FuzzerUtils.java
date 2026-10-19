@@ -130,7 +130,7 @@ class FuzzerUtils {
             var code = new CodeGen(script);
             code.parse();
             WorkRandom.setSeed(workListSeed);
-            return code.opto().typeCheck().GCM().localSched();
+            return code.iter().driver(CodeGen.Phase.Schedule).localSched();
         } finally {
             NodeWalkVisit.clear();
             System.setErr(err);

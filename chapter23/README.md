@@ -376,6 +376,14 @@ will be cycle-equals (all other things being equals).
 
 
 
+## Finalizing field layouts
+
+`FinalizeIR` now also settles field sizes and layouts, replaces symbolic field
+offsets by constants, and runs peepholes exposed by those constants. Recursive
+type construction must finish before layout is queried. The phase follows
+`Iter` and precedes `TypeCheck`; the driver includes it when compiling through
+any later stage.
+
 ## Methods and Final Fields and Classes
 
 Methods are simply function values (final fields) declared inside a struct that

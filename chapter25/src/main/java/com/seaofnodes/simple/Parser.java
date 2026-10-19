@@ -291,8 +291,7 @@ public class Parser {
         }
 
         // The initializer owns its run-once flag store. Parent initialization
-        // is a structural requirement, to be executed before this body when
-        // CLInit runtime lowering is added.
+        // is a structural requirement, executed before this body by CLInit lowering.
         if( fun.isClz() ) {
             Node self = fun.parm(2);
             Field flag = ((TypeMemPtr)self._type)._obj.field("$init");

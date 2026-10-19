@@ -435,7 +435,7 @@ public class TypeStruct extends Type {
         return _offs[idx];
     }
     private int[] offsets() {    // Field byte offsets
-        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal();
+        assert CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.FinalizeIR.ordinal();
         // Compute a layout for a collection of fields
         assert _fields != null; // No forward refs
 

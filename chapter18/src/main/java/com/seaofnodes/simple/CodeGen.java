@@ -1,4 +1,4 @@
- package com.seaofnodes.simple;
+package com.seaofnodes.simple;
 
 import com.seaofnodes.graph.GraphObserver;
 
@@ -20,9 +20,44 @@ public class CodeGen {
 
 
     public enum Phase {
-        Parse, Opto, TypeCheck, Schedule, LocalSched, RegAlloc;
+        Parse,                  // Build ideal IR from source
+        Iter,                   // Pessimistic peepholes
+        TypeCheck,              // Check the surviving ideal graph
+        LoopTree,               // Discover loops and connect nonreturning paths
+        Schedule,               // Global code motion
+        LocalSched;             // Order instructions within blocks
+
     }
     public Phase _phase;
+
+    // Run through target, skipping phases already completed.
+    public CodeGen driver(Phase target) {
+        step(target, Phase.Parse, this::parse);
+        step(target, Phase.Iter, this::iter);
+        step(target, Phase.TypeCheck, this::typeCheck);
+        step(target, Phase.LoopTree, this::loopTree);
+        step(target, Phase.Schedule, this::GCM);
+        step(target, Phase.LocalSched, this::localSched);
+        return this;
+    }
+
+    private void step(Phase target, Phase next, Runnable work) {
+        if( next.ordinal()>target.ordinal() || (_phase!=null && _phase.ordinal()>=next.ordinal()) ) return;
+        work.run();
+    }
+
+    public final long[] _times = new long[Phase.values().length];
+    private CodeGen phase(Phase next, boolean ordered, Runnable work) {
+        assert ordered : "Cannot run "+next+" after "+_phase;
+        _phase = next;
+        long t0 = System.currentTimeMillis();
+        try { work.run(); }
+        finally { _times[next.ordinal()] = System.currentTimeMillis()-t0; }
+        if( _obs!=null ) _obs.phase(next.name());
+        return this;
+    }
+
+
 
     public final String _src;
     // Compile-time known initial argument type
@@ -46,71 +81,38 @@ public class CodeGen {
     public CodeGen( String src ) { this(src,TypeInteger.BOT); }
 
     public CodeGen parse() {
-        assert _phase == null;
-        _phase = Phase.Parse;
-        _linker.clear();
+        return phase(Phase.Parse, _phase==null, () -> {
+            _linker.clear();
 
-        P = new Parser(_src,_arg);
-        _stop = P.parse();
-        _start = Parser.START;   // Capture global start
-        if( _obs != null ) _obs.phase("Parse");
-        P = null;                // No longer parsing
-        return this;
-    }
-
-    public CodeGen opto() {
-        assert _phase == Phase.Parse;
-        _phase = Phase.Opto;
-
-        // Optimization
-        IterPeeps.iterate(_stop);
-
-        // TODO:
-        // Optimistic
-        if( _obs != null ) _obs.phase("Opto");
-        return this;
-    }
-
-    public CodeGen typeCheck() {
-        // Demand phase Opto for cleaning up dead control flow at least,
-        // required for the following GCM.
-        assert _phase == Phase.Opto;
-        _phase = Phase.TypeCheck;
-
-        // Type check
-        Parser.ParseException err = _stop.walk(n -> {
-            Parser.ParseException msg = n.err();
-            if( msg != null && _obs != null ) _obs.error(n, msg.getMessage());
-            return msg;
+            P = new Parser(_src,_arg);
+            _stop = P.parse();
+            _start = Parser.START;   // Capture global start
+            P = null;                // No longer parsing
         });
-        if( err != null )
-            throw err;
-        if( _obs != null ) _obs.phase("TypeCheck");
-        return this;
     }
 
+    // Pessimistic peepholes reach a fixed point after parsing.
+    public CodeGen iter() { return phase(Phase.Iter, _phase==Phase.Parse, () -> IterPeeps.iterate(_stop)); }
+
+    public CodeGen typeCheck() { return phase(Phase.TypeCheck, _phase==Phase.Iter, () -> TypeCheck.run(this)); }
+
+
+    public CodeGen loopTree() {
+        return phase(Phase.LoopTree, _phase==Phase.TypeCheck, () -> _start.buildLoopTree(_stop));
+    }
 
     public CodeGen GCM() {
-        assert _phase == Phase.TypeCheck;
-        _phase = Phase.Schedule;
-
-        // Build the loop tree, fix never-exit loops
-        _start.buildLoopTree(_stop);
-
-
-        // TODO:
-        // loop unroll, peel, RCE, etc
-        GlobalCodeMotion.buildCFG(_start,_stop);
-        return this;
+        return phase(Phase.Schedule, _phase==Phase.LoopTree, () -> {
+            // TODO:
+            // loop unroll, peel, RCE, etc
+            GlobalCodeMotion.buildCFG(_start,_stop);
+        });
     }
 
     // Local (basic block) scheduler phase, a classic list scheduler
     public CodeGen localSched() {
-        assert _phase == Phase.Schedule;
-        _phase = Phase.LocalSched;
-        ListScheduler.sched(this);
-        return this;
-     }
+        return phase(Phase.LocalSched, _phase==Phase.Schedule, () -> ListScheduler.sched(this));
+    }
 
     // Reverse from a constant function pointer to the IR function being called
     public FunNode link( TypeFunPtr tfp ) {

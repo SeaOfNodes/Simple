@@ -134,7 +134,7 @@ public class Fuzzer {
 
             double parse_peeps_per_node = (double)parse_peeps/nids;
 
-            code.opto();
+            code.iter();
             int iter_peeps= Node.ITER_CNT;
             int iter_nops = Node.ITER_NOP_CNT;
             double iter_nop_ratio = (double)iter_nops/iter_peeps;

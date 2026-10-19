@@ -282,6 +282,8 @@ public class ElfWriter {
     // ------------------------------------------------------------------------
 
     public ElfWriter export(boolean emitEntrySymbol) {
+        if( _code._serial==null )
+            throw new IllegalStateException("ELF export needs ideal IR: request Export from the driver, or Serialize before Lower");
         // Sections are created in the order they are emitted.
         _sections = new Ary<>(Section.class);
 

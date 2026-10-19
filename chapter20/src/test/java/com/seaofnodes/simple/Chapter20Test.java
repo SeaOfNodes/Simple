@@ -10,6 +10,10 @@ import static com.seaofnodes.simple.Main.PORTS;
 import static org.junit.Assert.*;
 
 public class Chapter20Test {
+    @Test public void testFlagSpills() throws Exception {
+        com.seaofnodes.simple.codegen.FlagSpillTestSupport.run();
+    }
+
     @Test public void testAllocatorTopPhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.topPhi(); }
 
     @Test public void testAllocatorFixedNeighbor() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.uncoloredFixedNeighbor(); }
@@ -17,7 +21,7 @@ public class Chapter20Test {
     @Test public void testNarrowStoreMasks() {
         for( String type : new String[]{"i8","u8","i16","u16"} ) {
             CodeGen code = new CodeGen("struct S { "+type+" x; }; !S !s=new S; s.x=arg; return 0;")
-                .parse().opto().typeCheck().instSelect(PORTS,"x86_64_v2","SystemV").GCM().localSched().regAlloc();
+                .driver(CodeGen.Phase.RegAlloc,"x86_64_v2","SystemV");
             int stores=0;
             for( var bb : code._cfg )
                 for( var node : bb.outs() )
@@ -40,7 +44,7 @@ return f(s);
         // The entry of g can disappear before its Return is folded into f.
         // Exercise both worklist orders; deleting the entry does not kill 123.
         for( int seed=0; seed<64; seed++ ) {
-            CodeGen code = new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,seed).parse().opto().typeCheck();
+            CodeGen code = new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,seed).parse().iter().typeCheck();
             assertEquals("seed "+seed, "123", Eval2.eval(code,0));
         }
     }
@@ -64,7 +68,7 @@ return f(s);
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");
-        code.parse().opto().typeCheck();
+        code.parse().iter().typeCheck();
         assertEquals("return 0;", code._stop.toString());
         assertEquals("0", Eval2.eval(code,  2));
     }
@@ -76,7 +80,7 @@ return f(s);
 
     static void testCPU(String src, String cpu, String os, int spills, String stop) {
         CodeGen code = new CodeGen(src);
-        code.parse().opto().typeCheck().instSelect(PORTS,cpu,os).GCM().localSched().regAlloc().encode();
+        code.driver(CodeGen.Phase.RegAlloc,cpu,os);
         com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
         SpillStats.record(code,"Chapter20",cpu,os);
         assertEquals("Expect spills: "+cpu,spills,code._regAlloc._spillScaled,Math.max(1,spills>>3));
@@ -254,8 +258,7 @@ return arg;
             for( String src : new String[]{Chapter10Test.NESTED_MEMORY,Chapter16Test.CONSTRUCTOR_MEMORY,
                                           Chapter18Test.CALL_MEMORY,Chapter18Test.RECURSIVE_MEMORY,
                                           "int[] !a = new int[3]; a[arg]=arg; return a[0]+1;"} ) {
-                var code = new CodeGen(src).parse().opto().typeCheck()
-                    .instSelect(PORTS,cpu,"SystemV").GCM().localSched().regAlloc();
+                var code = new CodeGen(src).driver(CodeGen.Phase.RegAlloc,cpu,"SystemV");
                 com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
                 code._stop.walk(n -> {
                     // Whole memory, precise Phis, and memory projections need no register.

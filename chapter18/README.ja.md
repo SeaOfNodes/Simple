@@ -214,7 +214,7 @@ Add は残りますが、今度は `arg` を直接消費します。引数が `3
 
 ```java
 CodeGen code = new CodeGen("val sq = { int x -> x*x; }; return sq(arg);");
-code.parse().opto().typeCheck().GCM().localSched();
+code.driver(CodeGen.Phase.LocalSched);
 ```
 
 大域的コード移動は、[第13章](../chapter13/README.ja.md)の処理を複数の関数に拡張します。関数本体を別々に保ち、共有される定数式には、それを使う各関数内に局所的なコピーを与え、呼び出しをまたぐメモリへの作用を尊重します。

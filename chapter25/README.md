@@ -10,20 +10,6 @@ their types and ideal IR into later compilations, and links native programs
 against a separately built system library. It also contains a substantial
 parser, type, and memory-SSA redesign to support incomplete information.
 
-These are the contents of the current snapshot. Independent correctness fixes
-will move to earlier chapters first; moving the larger SSA redesign backward,
-or splitting this chapter, is deferred. See the [backport queue](../docs/chapter-backports.md).
-
-The memory work from Chapters 21-24 carries forward here: Load search proves
-all arms of a merge before moving a read out of a loop, Phi factoring checks
-memory clobbers, and scheduling follows aliases through memory aggregates.
-The search follows `EscapeNode` to private or public memory and waits for
-unresolved Store aliases. Array-length reads have no element bounds check;
-array-element reads retain control. Integer value Phis use the existing typed
-conversion machinery to preserve the load's width across loop widening.
-New still produces private constructor memory, with publication handled by
-Escape; the earlier chapters' allocation-input design does not replace it.
-
 You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter25)
 in the [linear history](https://github.com/SeaOfNodes/Simple/tree/linear) and
 [compare it with Chapter 24](https://github.com/SeaOfNodes/Simple/compare/linear-chapter24...linear-chapter25).
@@ -107,9 +93,21 @@ optimize, and validate the graph.
 - Guards carry branch-proven zero/nonzero facts before the input family is known.
   `FunPtrNode` retains an explicit edge to its function's return graph.
 
-The driver runs parsing, pessimistic iteration, SCCP, and final type checking
-before serialization and machine selection. Nontrivial inlining is coordinated
-with iteration instead of always occurring as an immediate peephole.
+The driver separates optimization from lowering:
+
+```text
+Parse -> Iter -> Opto -> IterPostOpto -> FinalizeIR -> TypeCheck
+      -> Serialize (when producing an object) -> Lower -> LoopTree
+      -> Unlink -> Select -> Schedule -> LocalSched -> RegAlloc -> Encoding
+```
+
+`Opto` runs SCCP and resolves numeric modes. `IterPostOpto` applies peepholes
+and inlining using those results; `FinalizeIR` settles field layouts and offsets.
+Type checking sees the optimized ideal graph. Serialization saves that graph
+before lowering introduces implementation details such as initialization guards.
+For machine compilation, `Unlink` detaches imported function bodies before
+instruction selection; calls retain the symbols needed for linking. Ideal-IR
+evaluation keeps those bodies available and skips machine selection.
 
 ## Memory and construction
 
@@ -134,11 +132,46 @@ memory through `EscapeNode`s. Parser `Var` metadata detects early field reads
 and missing initialization on constructor exits. Store widths come from target
 declarations, not from the values being stored.
 
+## Lazy class initialization
+
 File-level code is represented by a class initializer (`<clinit>`), distinct
-from instance initialization. The [lazy initialization design](initialization.md)
-specifies proposed run-once checks, acyclic dependencies across modules, and
-serialization support. It describes planned work, not all currently implemented
-behavior. The [roadmap](ROADMAP.md) contains additional proposals.
+from instance initialization. An active class-field access ensures that the
+class is initialized. Taking a class reference is passive: it identifies the
+class without running its body. Initialization runs once, on the path that
+first needs it, and a parent initializes before its child.
+
+For example, if `B.smp` computes `value`, then this code initializes B only
+when `take` is true; the second access reuses the initialized class:
+
+```java
+return take ? B.value + B.value : 0;
+```
+
+The compiler represents the obligation with an opaque `CLInit` node. It carries
+control, whole-memory effects, the class pointer, and a load of the hidden
+`$init` flag. Its results include a memory slice where that flag is known true.
+Ordinary memory SSA and load simplification can therefore remove repeated
+checks, including after a merge when every incoming path has initialized the
+class. Calls conservatively account for arbitrary memory effects.
+
+After optimization, the compiler builds a graph containing function calls,
+class touches, and parent requirements. A strongly connected component with
+more than one class initializer is an error. Ordinary recursion and helper
+cycles involving just one initializer are allowed. Checking after optimization
+means eliminated branches and call targets do not create false dependencies.
+Diagnostics show the cyclic edges and their source locations, including calls
+through helpers and imported code.
+
+Object files preserve opaque initialization nodes and their source locations.
+Imported ideal bodies participate in the combined cycle check before lowering.
+Lower then expands each remaining obligation into a flag test, a conditional
+initializer call, and control/memory merges. The initializer owns the flag store;
+the store is at body entry to support permitted same-class reentry. Cross-class
+cycles have already been rejected. This is a single-threaded protocol.
+
+The selected entry class receives the current integer `arg`; other initializers
+receive zero. Planned argument arrays and further initialization optimizations
+are described in the [roadmap](ROADMAP.md).
 
 ## System library and examples
 

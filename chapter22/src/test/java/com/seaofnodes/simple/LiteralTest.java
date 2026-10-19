@@ -20,7 +20,7 @@ public class LiteralTest {
     }
 
     private static void assertString(String text, byte[] expected) {
-        var code = new CodeGen("return \"" + text + "\";").parse().opto().typeCheck();
+        var code = new CodeGen("return \"" + text + "\";").driver(CodeGen.Phase.TypeCheck);
         TypeMemPtr ptr = (TypeMemPtr)code.expr()._type;
         TypeConAryB bytes = (TypeConAryB)ptr._obj._con;
         assertArrayEquals(text, expected, bytes._ary);
@@ -33,7 +33,7 @@ public class LiteralTest {
     }
 
     private static void assertCharacter(String text, int expected) {
-        var code = new CodeGen("return '" + text + "';").parse().opto().typeCheck();
+        var code = new CodeGen("return '" + text + "';").driver(CodeGen.Phase.TypeCheck);
         assertEquals(text, expected, ((TypeInteger)code.expr()._type).value());
     }
 

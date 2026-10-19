@@ -26,7 +26,8 @@ diagnostic. Implemented in chapters 10-25 (the chapters with a TypeCheck pass):
 
 - Chapters 10-17: SimpleGraphObserver calls STOP.typeCheck() after Iter; the
   previously package-private method is now public. Chapters 18-25 call
-  CodeGen.parse().opto().typeCheck(). Earlier chapters remain unchanged.
+  CodeGen.driver(CodeGen.Phase.TypeCheck), running the real ideal phases in
+  that chapter. Earlier chapters remain unchanged.
 - GraphObserver.error(node,msg) is an optional callback. Existing compiler type
   checking reports the node it diagnoses, rather than the viewer repeating the
   check or trying to infer the node from text. Chapter 25 retains its originating

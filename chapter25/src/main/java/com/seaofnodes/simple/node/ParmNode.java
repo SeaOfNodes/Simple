@@ -3,6 +3,7 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.codegen.Serialize;
 import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
@@ -23,7 +24,7 @@ public class ParmNode extends PhiNode {
     public ParmNode(ParmNode parm) { super(parm, parm._label ); _idx = parm._idx; _declaredType = parm._declaredType; }
     @Override public Tag serialTag() { return Tag.Parm; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
-        baos.packed1(nIns());   // Number of linked calls
+        baos.packed1(Serialize.nIns(this,anodes)); // Object-local linked calls
         baos.packed2(_label==null ? 0 : strs.get(_label));
         baos.packed2(types.get(_declaredType)); // NPE if fails lookup
         baos.packed1(_idx);

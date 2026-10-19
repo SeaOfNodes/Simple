@@ -385,6 +385,14 @@ The single memory chain is correct but conservative.  A store to `y` can
 prevent forwarding an earlier store to `x`, even when the objects are
 identical.  This is a missed optimization and it motivates the next chapter.
 
+## Checking the optimized graph
+
+Memory accesses can expose type errors only after their pointer types settle.
+The post-parse pipeline therefore adds `TypeCheck` after iterative peepholes.
+It walks the surviving graph and reports node errors; dead control has already
+been removed. Here `StopNode.iterate()` runs both steps. Chapter 18 introduces
+the `CodeGen` driver and explicit phase entry points.
+
 ## Executing the graph
 
 The evaluator includes a small late scheduler. A load must execute before a

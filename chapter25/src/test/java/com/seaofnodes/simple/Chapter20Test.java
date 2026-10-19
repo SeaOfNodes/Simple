@@ -69,7 +69,7 @@ return f(s);
         // The entry of g can disappear before its Return is folded into f.
         // Exercise both worklist orders; deleting the entry does not kill 123.
         for( int seed=0; seed<64; seed++ ) {
-            CodeGen code = new CodeGen(src,seed,true).parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+            CodeGen code = new CodeGen(src,seed,true).driver(CodeGen.Phase.TypeCheck);
             assertEquals("seed "+seed, "123", Eval2.eval(code,0));
         }
     }
@@ -92,7 +92,7 @@ return f(s);
     @Test
     public void testJig() {
         CodeGen code = new CodeGen("return 0;");
-        code.parse().iter().opto().iterPostOpto().finalizeIR().typeCheck();
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return 0;", code.print());
         assertEquals("0", Eval2.eval(code,  2));
     }

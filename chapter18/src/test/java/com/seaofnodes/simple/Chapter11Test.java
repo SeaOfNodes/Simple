@@ -12,7 +12,7 @@ public class Chapter11Test {
             s.x = 42;
             while (arg > 0) { s.y = s.y + arg; arg = arg - 1; }
             return s.x;
-            """).parse().opto();
+            """).parse().iter();
         var stop = code._stop;
         assertEquals("return 42;",stop.toString());
         assertEquals("42",Eval2.eval(code,5));
@@ -31,7 +31,7 @@ public class Chapter11Test {
                 arg = arg - 1;
             }
             return a;
-            """).parse().opto();
+            """).parse().iter();
         var stop = code._stop;
         int[] phis = {0};
         stop.walk(n -> {
@@ -59,7 +59,7 @@ public class Chapter11Test {
             field = work.getClass().getDeclaredField("_R");
             field.setAccessible(true);
             ((java.util.Random)field.get(work)).setSeed(seed);
-            code.opto();
+            code.iter();
             assertEquals("S{x=9,y=25,z=17}",Eval2.eval(code,4));
         }
     }

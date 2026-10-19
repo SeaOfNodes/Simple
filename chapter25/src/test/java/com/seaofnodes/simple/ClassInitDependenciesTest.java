@@ -433,6 +433,88 @@ public class ClassInitDependenciesTest {
         assertEquals(1,stores[0]);
     }
 
+    @Test public void testInitializationExecution() throws Exception {
+        Path dir=tempDir("execution-");
+        object(dir,dir,"State","int count=0;");
+        object(dir,dir,"B","State.count++; int value=17+arg;");
+        String src="int value=arg ? B.value+B.value : 0; return value+100*State.count;";
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                "Main",src,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            assertNotNull(code._stop.walk(n -> n instanceof CLInitNode ? n : null));
+            assertEquals("0",Eval2.eval(code,0));
+            assertNull(code._stop.walk(n -> n instanceof CLInitNode ? n : null));
+            assertEquals("134",Eval2.eval(code,1));
+        }
+
+        object(dir,dir,"Main","val run={int take -> "+src.replace("arg ?","take ?")+" };");
+        Path cfile=dir.resolve("check.c");
+        Files.writeString(cfile,"""
+            #include <stdint.h>
+            __attribute__((CALL_CONV)) extern int64_t run(int64_t take);
+            int main(void) {
+                return run(0)!=0 || run(1)!=134 || run(1)!=134 || run(0)!=100;
+            }
+            """);
+        String exe=dir.resolve(TestC.OS.startsWith("Windows") ? "check.exe" : "check").toString();
+        TestC.linkExe(dir.resolve("Main.o").toString(),TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",
+            cfile.toString(),new Ary<>(new String[]{dir.resolve("B.o").toString(),dir.resolve("State.o").toString()}),exe);
+        assertEquals("",TestC.exec(exe));
+        for( String cpu : new String[]{"arm","riscv"} )
+            new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                "Main",src,123,true,TypeInteger.BOT).driver(CodeGen.Phase.Encoding,cpu,"SystemV");
+    }
+
+    @Test public void testParentInitializationExecution() throws Exception {
+        Path dir=tempDir("execution-");
+        object(dir,dir,"State","int count=0;");
+        module(dir,dir,"P",Map.of("P","val C=C; State.count=State.count*10+1;",
+            "P/C","State.count=State.count*10+2; int value=arg;"));
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                "Main","return P.C.value+State.count;",seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            assertEquals("12",Eval2.eval(code,99));
+        }
+        object(dir,dir,"Main","val run={ -> P.C.value+State.count; };");
+        Path cfile=dir.resolve("check.c");
+        Files.writeString(cfile,"""
+            #include <stdint.h>
+            __attribute__((CALL_CONV)) extern int64_t run(void);
+            int main(void) { return run()!=12 || run()!=12; }
+            """);
+        String exe=dir.resolve(TestC.OS.startsWith("Windows") ? "check.exe" : "check").toString();
+        TestC.linkExe(dir.resolve("Main.o").toString(),TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",
+            cfile.toString(),new Ary<>(new String[]{dir.resolve("P.o").toString(),dir.resolve("State.o").toString()}),exe);
+        assertEquals("",TestC.exec(exe));
+    }
+
+    @Test public void testNonreturningObject() throws Exception {
+        Path dir=tempDir("nonreturning-");
+        object(dir,dir,"Spin","val spin_noInline={ -> while(1) {} return 7; };");
+        CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+            "Main","Spin.spin_noInline(); return 7;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertNull(Eval2.eval(code,0,10));
+    }
+
+    @Test public void testImportedPrivateInitializer() throws Exception {
+        Path dir=tempDir("private-");
+        module(dir,dir,"Library",Map.of("Library","val read={ -> _Hidden.value; };",
+            "Library/_Hidden","int value=17+arg;"));
+        CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+            "Main","return Library.read();",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("17",Eval2.eval(code,99));
+        // Even a request stopping at Select must drop imported bodies. They
+        // remain available only to the ideal evaluator above, not this object.
+        for( String cpu : new String[]{"x86_64_v2","arm","riscv"} ) {
+            CodeGen selected=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+                "Main","return Library.read();",123,true,TypeInteger.BOT).driver(CodeGen.Phase.Select,cpu,"SystemV");
+            assertNull(selected._serial);
+            for( CompUnit cu : selected._compunits.values() )
+                if( cu._src==null ) assertNull(cu._stop);
+            selected.driver(CodeGen.Phase.Encoding,cpu,"SystemV");
+        }
+    }
+
     @Test public void testOverlappingFunctionAndClassCycles() throws Exception {
         // Fixed function graph: Opto/inlining must not erase the overlap that
         // exercises SCC traversal. One clinit is legal, two in the SCC are not.

@@ -162,10 +162,17 @@ public final class X86 {
         }
     }
     public static void flags(CodeSink out, int reg, boolean toFlags) {
+        assert 0<=reg && reg<16 && reg!=4;
         if( !toFlags ) out.add1(0x9C); // PUSHF
         rexF(0,reg,-1,false,out);
         out.add1((toFlags ? 0x50 : 0x58)+(reg&7));
         if( toFlags ) out.add1(0x9D); // POPF
+    }
+    public static void flagsStack(CodeSink out, int offset, boolean toFlags) {
+        if( !toFlags ) out.add1(0x9C); // PUSHFQ
+        // POP's destination uses the restored RSP, so offset needs no adjustment.
+        memory(out,0,toFlags ? 0xFF : 0x8F,false,toFlags ? 6 : 0,4,-1,offset,0);
+        if( toFlags ) out.add1(0x9D); // POPFQ
     }
     public static void stackCopy(CodeSink out, int srcOffset, int dstOffset) {
         memory(out,0,0xFF,false,6,4,-1,srcOffset,0); // PUSH [rsp+srcOffset]

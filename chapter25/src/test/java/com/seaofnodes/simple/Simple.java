@@ -49,6 +49,7 @@ Options:
   --dump-after-iter-post-opto - dump after SCCP-driven peepholes and inlining
   --dump-after-finalize-ir - dump after field layout and IR finalization
   --dump-after-type-check  - dump intermediate representation after type check pass
+  --dump-after-lower       - dump expanded class initialization before loop trees
   --dump-after-select      - dump intermediate representation after instruction selection pass
   --dump-after-gcm         - dump intermediate representation after GCM pass
   --dump-after-local-sched - dump intermediate representation after local scheduling pass
@@ -119,6 +120,7 @@ Options:
             case "--dump-after-iter-post-opto": dump |= 1<<Phase.IterPostOpto.ordinal(); break;
             case "--dump-after-finalize-ir":  dump |=  1<<Phase.FinalizeIR.ordinal()   ; break;
             case "--dump-after-type-check":   dump |=  1<<Phase.TypeCheck .ordinal()   ; break;
+            case "--dump-after-lower":        dump |=  1<<Phase.Lower     .ordinal()   ; break;
             case "--dump-after-loop-tree":    dump |=  1<<Phase.LoopTree  .ordinal()   ; break;
             case "--dump-after-select":       dump |=  1<<Phase.Select    .ordinal()   ; break;
             case "--dump-after-gcm":          dump |=  1<<Phase.Schedule  .ordinal()   ; break;

@@ -8,6 +8,13 @@ import java.util.*;
 
 abstract public class Serialize {
 
+    // Encoding/emulation need only machine code. File export also needs ideal
+    // IR for a later compiler to import; an explicit Serialize request stops here.
+    static void forTarget(CodeGen code, CodeGen.Phase target, boolean inMemory) {
+        if( target==CodeGen.Phase.Serialize || (target.ordinal()>=CodeGen.Phase.Export.ordinal() && !inMemory) )
+            code.serialize();
+    }
+
     static void serialize( CodeGen code ) {
 
         // Get all Nodes in a sane order
@@ -68,6 +75,15 @@ abstract public class Serialize {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
+        IdentityHashMap<Node,Integer> anodes = new IdentityHashMap<>();
+        for( Node n : nodes ) anodes.put(n,anodes.size()+1); // 0 is null.
+        // The saved wrappers summarize this object's units only. Keep the
+        // live whole-program graph intact for subsequent lowering.
+        TypeTuple stopType = TypeTuple.STOP_HIGH;
+        for( Node n : nodes.last()._inputs )
+            if( anodes.containsKey(n) ) stopType = (TypeTuple)stopType.meet(n._type);
+        Type startType = TypeTuple.make(Type.CONTROL,stopType.mem(),((StartNode)nodes.at(0)).arg());
+
         BAOS baos = new BAOS();
         // A - Print the C0DE header. The format is not versioned yet.
         baos.write('C').write('0').write('D').write('E');
@@ -91,6 +107,8 @@ abstract public class Serialize {
             if( n instanceof ParmNode parm ) parm._declaredType.gather(types);
             if( n instanceof TypeNode con ) con._con .gather(types);
         }
+        stopType.gather(types);
+        startType.gather(types);
         // A defined class remains importable even when its initializer body dies.
         for( TypeStruct ts : pubTypes )
             if( Parser.startsClzPrefix(ts._name) &&
@@ -190,21 +208,20 @@ abstract public class Serialize {
         // How many nodes?
         baos.packed4(nodes._len);
 
-        // Radix sort by Node ID#, new compressed NIDs
-        IdentityHashMap<Node,Integer> anodes = new IdentityHashMap<>();
-        for( Node n : nodes )
-            anodes.put(n,anodes.size()+1); // +1 bias, reserve 0 for null
         // First cut: 1 byte opcode, optional per-node info, includes variable nIns
         for( Node n : nodes ) {
             baos.packed1(n.serialTag().ordinal());
-            baos.packed2(types.get(n._type));
+            baos.packed2(types.get(n==nodes.at(0) ? startType : n==nodes.last() ? stopType : n._type));
             n.packed(baos,strs,types,anodes);
         }
         // Write out the input indices packed.
         for( Node n : nodes ) {
             for( int j=0; j<n.nIns(); j++ ) {
+                if( !writeInput(n,j,anodes) ) continue;
                 Node def = n.in(j);
                 Integer idx = def==null ? Integer.valueOf(0) : anodes.get(def);
+                // Imported function constants retain their symbol, not a body.
+                if( idx==null && n instanceof FunPtrNode && j==1 ) idx=0;
                 assert idx != null : "Missing serialized input for "+n+" input "+j+" def "+def;
                 baos.packed2(idx);
             }
@@ -213,6 +230,22 @@ abstract public class Serialize {
         }
 
         return baos;
+    }
+
+    // Omit cross-object call-graph links without unlinking the live IR.
+    // A parameter follows exactly the same retained callers as its function.
+    private static boolean writeInput(Node n, int i, IdentityHashMap<Node,Integer> nodes) {
+        if( n instanceof ParmNode parm ) n=parm.fun();
+        if( (n instanceof FunNode || n instanceof CallEndNode) && i>0 )
+            return nodes.containsKey(n.in(i));
+        if( n instanceof StopNode ) return nodes.containsKey(n.in(i));
+        return true;
+    }
+
+    public static int nIns(Node n, IdentityHashMap<Node,Integer> nodes) {
+        int len=0;
+        for( int i=0; i<n.nIns(); i++ ) if( writeInput(n,i,nodes) ) len++;
+        return len;
     }
     public static <T> void gather( HashMap<T,Integer> strs, T s) {
         if( s!=null && !strs.containsKey(s) )
@@ -450,7 +483,6 @@ abstract public class Serialize {
 
     // --------------------------------------------------
     public static Ary<Node> nodeOrder( CodeGen code, CompUnit cu ) {
-        assert code._start._ltree != null; // Uses loop tree
         BitSet visit = code.visit();
         Ary<Node> nodes = new Ary<>(Node.class);
         visit.set(code._stop._nid);
@@ -501,7 +533,6 @@ abstract public class Serialize {
 
     // --------------------------------------------------
     public static Ary<Node> nodeOrder( CodeGen code ) {
-        assert code._start._ltree != null; // Uses loop tree
         Ary<Node> nodes = new Ary<>(Node.class);
         BitSet visit = code.visit();
         nodes.add(code._start);
@@ -555,6 +586,9 @@ abstract public class Serialize {
     private static void _funWalk( FunNode fun, Ary<Node> rpo, BitSet visit ) {
         int start = rpo._len;
         _funRPO(fun,rpo,visit);
+        // A nonreturning function still owns a Return, even before LoopTree
+        // inserts synthetic exits. No loop-depth ordering is needed on disk.
+        _funRPO(fun.ret(),rpo,visit);
         int len = rpo._len - start;
         for( int i=0; i< len>>1; i++ )
             rpo.swap(start+i,start+len-1-i);
@@ -566,13 +600,9 @@ abstract public class Serialize {
         visit.set(n._nid);              // Stop recursion
         // Walk outputs ordered
         if( n instanceof CFGNode ncfg ) {
-            // If nodes walk outer loops before inner, so they hit the
-            // Return first, so Return is at the bottom of the RPO.
             if( n instanceof IfNode iff ) {
                 CProjNode c0 = iff.cproj(0);
                 CProjNode c1 = iff.cproj(1);
-                if( c0._ltree.depth() > c1._ltree.depth() )
-                    { c0 = c1; c1 = iff.cproj(0); }
                 _funRPO(c0,rpo,visit);
                 _funRPO(c1,rpo,visit);
             } else if( n instanceof StopNode ) {

@@ -28,6 +28,36 @@ import static org.junit.Assert.*;
 
 public class Chapter25Test {
 
+    @Test public void testFlagSpills() throws IOException {
+        com.seaofnodes.simple.codegen.FlagSpillTestSupport.run();
+    }
+
+    @Ignore
+    @Test
+    public void testJig() {
+        String src = "{ i32 -> i32 } close = \"C\"; val main = { u8[] a -> if (a# > 1) return close(0);  return a[0]; };";
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,"riscv","SystemV");
+        assertEquals("return (arg+3);", code.print());
+        assertEquals("3",Eval2.eval(code,0));
+    }
+
+    @Test public void testConditionalClassInitX86() throws IOException {
+        Path build=Path.of("build/objs");
+        Files.createDirectories(build);
+        Path dir=Files.createTempDirectory(build,"init_flags_");
+        // Keep B separately compiled so its first-touch check survives.
+        new CodeGen(null,dir.toString(),null,"B","int value=17+arg;",123,true,TypeInteger.BOT)
+            .driver("x86_64_v2","win64",false,false);
+        // GCM can hoist the fused B.$init compare above the test of take.
+        // Its flags then cross another flag definition and need a legal split.
+        new CheckedCodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+            "Main","val run={int take -> return take ? B.value : 0; };",123,true,TypeInteger.BOT)
+            .driver(CodeGen.Phase.Encoding,"x86_64_v2","win64");
+        // Remove successful fixtures; preserve the object if compilation fails.
+        Files.delete(dir.resolve("B.o"));
+        Files.delete(dir);
+    }
+
     @Test public void testPublicInstanceMethod() {
         String src = """
             struct Scan {
@@ -61,15 +91,6 @@ public class Chapter25Test {
             assertEquals(TypeInteger.U8,visible.parm(3)._type);
             assertEquals("0",Eval2.eval(code,0));
         }
-    }
-
-    @Ignore
-    @Test
-    public void testJig() {
-        String src = "int x = arg/17; if( arg == 0 ) return arg + x; return arg + x;";
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
-        assertEquals("return (arg+3);", code.print());
-        assertEquals("3",Eval2.eval(code,0));
     }
 
     @Test public void testNeverReturnPointerRiscV() {

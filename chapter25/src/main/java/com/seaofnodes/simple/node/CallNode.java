@@ -101,6 +101,9 @@ public class CallNode extends CFGNode {
 
     @Override
     public Node idealize() {
+        // Lowering may introduce calls after the call graph has been analyzed.
+        // These use the callee interface without reopening its parameter flow.
+        if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Lower.ordinal() ) return null;
         CallEndNode cend = cend();
         if( cend==null ) return null; // Still building
 

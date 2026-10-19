@@ -17,6 +17,18 @@ in the linear revision history and
 
 Here is the [complete language grammar](docs/21-grammar.md) for this chapter.
 
+Two phases extend the pipeline: `Encoding` turns allocated nodes into bytes,
+and `Export` resolves relocations in memory or writes an ELF object. For example:
+
+```java
+code.driver(CodeGen.Phase.Encoding, "x86_64_v2", "SystemV");
+code.exportELF("program.o");
+```
+
+The CLI uses the same driver. `--dump-after-iter`, the other phase dump options,
+and `--dump-time` expose the stages without duplicating their ordering in the
+command-line frontend.
+
 ## From machine nodes to bytes
 
 Instruction selection chooses the operation and register constraints. Register

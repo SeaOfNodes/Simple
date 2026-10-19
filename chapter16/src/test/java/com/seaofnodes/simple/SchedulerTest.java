@@ -10,6 +10,27 @@ import static org.junit.Assert.assertEquals;
 
 public class SchedulerTest {
 
+    @Test public void testMemoryPhiAcrossSiblingBranch() {
+        // The inner memory Phi defines the load's memory. The outer Phi's
+        // other input comes from a branch not dominated by that definition.
+        String src = """
+            struct S { int x; }; S a=new S; S b=new S;
+            a.x=10; b.x=20; S p=a; if(arg>3) p=b;
+            int result=0;
+            if(arg>0) {
+                if(arg>2) p.x=30; else p.x=40;
+                result=a.x;
+            }
+            return result;
+            """;
+        StopNode stop = new Parser(src).parse().iterate();
+        var eval = new Evaluator(stop);
+        long[] expected = {0,40,40,30,10,10};
+        for( int arg=0; arg<expected.length; arg++ )
+            assertEquals(expected[arg],eval.evaluate(arg,100));
+    }
+
+
     private static void assertObj(Object obj, String name, Object... fields) {
         assertEquals(Evaluator.Obj.class, obj.getClass());
         var o = (Evaluator.Obj)obj;

@@ -58,7 +58,7 @@ public class MemoryEncodingTest {
         // Exercise both unresolved Store aliases and nested value-Phi cleanup.
         for( long seed : new long[]{0,9,126} )
             for( int p=0; p<sources.length; p++ ) {
-                CodeGen code=new CodeGen(sources[p],seed,true).parse().iter().opto().iterPostOpto().finalizeIR();
+                CodeGen code=new CodeGen(sources[p],seed,true).driver(CodeGen.Phase.FinalizeIR);
                 if( p==0 ) assertNull(code._stop.walk(n ->
                     n instanceof LoadNode ld && ld.ptr() instanceof ProjNode ptr &&
                     ptr.in(0) instanceof NewNode nn &&
@@ -86,7 +86,7 @@ public class MemoryEncodingTest {
             if (arg>1) { v=p.x; p.x=41; p.y=5; }
             else       { v=q.x; q.x=42; }
             return v;
-            """).parse().iter().opto().iterPostOpto().finalizeIR();
+            """).driver(CodeGen.Phase.FinalizeIR);
         StopNode stop = code._stop;
         assertEquals(2,countMemoryNodes(stop,LoadNode.class,new BitSet()));
         assertEquals("-1",Eval2.eval(code,-1));

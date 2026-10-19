@@ -89,6 +89,16 @@ public class StoreNode extends MemOpNode {
         Type decl = declaredType();
         if( decl != Type.BOTTOM )
             { assert decl != Type.TOP; val = val.join(decl); }
+        // A singleton class's final constant field lives in the static image.
+        // Its precise memory slice is a constant too; ordinary peepholes can
+        // replace this Store before scheduling or instruction selection.
+        // A constant runtime value alone is not enough: mutable fields (notably
+        // $init) still need their writes, and instance fields need allocation.
+        Field fld = ptr._obj.field(_name);
+        if( _alias!=1 && ptr._one && Parser.startsClzPrefix(ptr._obj._name) &&
+            fld!=null && fld._final && decl.isConstant() )
+            return TypeMem.make(_alias,val,true,true,true,mem._escFs,mem._escAs).escapesFrom(val);
+
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
         // which is never does in a constructor.
@@ -108,7 +118,6 @@ public class StoreNode extends MemOpNode {
         Type t = val.meet(tfld);
         // Bulk memory's final bit describes its conservative remainder, not
         // this newly precise slice.  Slice finality comes from the field.
-        Field fld = ptr._obj.field(_name);
         boolean xfinal = fld != null && fld._final;
         return TypeMem.make(_alias,t,mem._one,mem._clz,xfinal,mem._escFs,mem._escAs).escapesFrom(val);
     }

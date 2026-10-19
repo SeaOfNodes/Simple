@@ -99,7 +99,65 @@ public class CLInitNode extends CFGNode implements MultiNode {
         return CodeGen.CODE.con(((TypeTuple)_type)._types[2]);
     }
 
-    @Override public Node idealize() { return null; }
+    @Override public Node idealize() {
+        if( CodeGen.CODE._phase!=CodeGen.Phase.Lower || bypass() || in(0)._type.isHigh() ) return null;
+        if( CodeGen.CODE._midAssert ) return this;
+        // Until entry arguments become arrays, ordinary initializers receive zero.
+        return expand(CodeGen.CODE.con(TypeInteger.ZERO));
+    }
+
+    // Called only after cycle/type checking. The initialized arm skips the
+    // call; both arms rejoin with whole memory and a known-true flag slice.
+    private Node expand(Node arg) {
+        FunNode target = CodeGen.CODE.link(cu());
+        assert target!=null && !target.isDead();
+        keep();
+        Node ctrl = in(0);
+        Node memory = mem();
+
+        // A child body may assume its parent has finished. Establish that
+        // requirement first, then test the child's flag in the resulting memory.
+        CompUnit parent = cu()._par;
+        if( parent!=null ) {
+            Node ptr = CodeGen.CODE.con(TypeMemPtr.make((byte)2,parent._clz,true));
+            Field flag = parent._clz.field("$init");
+            Node off = CodeGen.CODE.con(parent._clz.offset(parent._clz.find("$init")));
+            Node parentReady = CodeGen.CODE.add(new LoadNode(_loc,"$init",flag._alias,ctrl,memory,ptr,off).init());
+            CLInitNode init = CodeGen.CODE.add(new CLInitNode(_loc,ctrl,memory,ptr,parentReady).init());
+            ctrl = CodeGen.CODE.add(new CProjNode(init,0,ScopeNode.CTRL).init());
+            memory = CodeGen.CODE.add(new ProjNode(init,1,ScopeNode.MEM0).init());
+        }
+
+        Node childOff = CodeGen.CODE.con(cu()._clz.offset(cu()._clz.find("$init")));
+        // Read the child's flag after establishing its parent's memory effects.
+        Node ready = CodeGen.CODE.add(new LoadNode(_loc,"$init",flag()._alias,ctrl,memory,ptr(),childOff).init());
+
+        IfNode iff = CodeGen.CODE.add(new IfNode(ctrl,ready).init());
+        Node done = CodeGen.CODE.add(new CProjNode(iff,0,"True").init());
+        Node cold = CodeGen.CODE.add(new CProjNode(iff,1,"False").init());
+
+        Node fptr = new FunPtrNode(target.sig(),CodeGen.CODE._start,target.ret()).peephole();
+        CallNode call = CodeGen.CODE.add(new CallNode(_loc,cold,memory,ptr(),arg,fptr).init());
+        CallEndNode end = new CallEndNode(call,TypeRPC.constant(CodeGen.CODE.rpc(_loc._cu._cname)));
+        // This is a lowered call, after interprocedural analysis. Do not add
+        // new parameter flows to a body already optimized by SCCP.
+        CodeGen.CODE.add(end.init());
+        Node called = CodeGen.CODE.add(new CProjNode(end,0,ScopeNode.CTRL).init());
+        Node after = CodeGen.CODE.add(new ProjNode(end,1,ScopeNode.MEM0).init());
+        RegionNode region = CodeGen.CODE.add(new RegionNode(_loc,null,done,called).init());
+        Node merged = CodeGen.CODE.add(new BulkMemPhiNode(ScopeNode.MEM0,region,memory,after).init());
+
+        // Replace the individual outputs; no tuple-pack node or second
+        // representation of CLInit is needed while the projections collapse.
+        for( Node use : _outputs.asAry() ) {
+            if( use==null ) continue; // Our temporary keep.
+            assert use instanceof Proj;
+            int idx = ((Proj)use).idx();
+            use.subsume(idx==0 ? region : idx==1 ? merged : CodeGen.CODE.con(((TypeTuple)_type)._types[2]));
+        }
+        CodeGen.CODE.invalidateIDepthCaches();
+        return unkeep(); // Iter removes this now-unused node.
+    }
 
     // Resolve a precise flag slice even when the parser did not yet know the
     // class/alias and could only install the whole-memory projection.

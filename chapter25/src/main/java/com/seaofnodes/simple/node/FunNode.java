@@ -45,7 +45,7 @@ public class FunNode extends RegionNode {
     @Override public Tag serialTag() { return Tag.Fun; }
     @Override public void packed(BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node,Integer> anodes ) {
         assert !_folding;
-        baos.packed1(nIns());          // Number of linked calls
+        baos.packed1(Serialize.nIns(this,anodes)); // Object-local linked calls
         baos.packed2(types.get(_sig)); // NPE if fails lookup
         baos.packed2(_name==null ? 0 : strs.get(_name));
         baos.packed2(_approxUIDs);
@@ -171,7 +171,8 @@ public class FunNode extends RegionNode {
         //   through class-field loads and other initially imprecise values.
         // - FIDX is not in the escape set
         // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
-        if( in(1) instanceof StartCUNode start ) {
+        // Opaque CLInit obligations need their bodies even without Call edges.
+        if( !isClz() && in(1) instanceof StartCUNode start ) {
             boolean preOpto = CodeGen.CODE._phase == null ||
                 CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
             if( !preOpto && !start.escapedFIDX(_sig.fidx()) && nIns()<=2 && _ret!=null ) {
