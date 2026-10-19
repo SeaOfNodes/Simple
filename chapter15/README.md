@@ -127,6 +127,12 @@ from a distinct New can bypass the allocation to its memory input. Mere node
 inequality is insufficient: a Phi or cast can still denote the allocated object.
 Array length is set by a subsequent Store; the array body is zeroed by New.
 Array accesses retain their existing control input as the bounds-check proxy.
+When pushing a Load through a memory Phi, its control must dominate the
+Region's immediate dominator, so both predecessor loads can retain that check.
+A check at the Region or below it cannot be copied onto the predecessors.
+For example, a Load guarded by `if (a# > 1)` must not move above that branch
+just because its memory comes from an earlier Phi. Memory ordering alone does
+not prove that `a[1]` is in bounds.
 
 Both schedulers follow an alias through MemMerge to find New's memory effect.
 MemMerge itself does not overwrite memory, but must not hide the ordering of

@@ -4,6 +4,37 @@ This file tracks pending backports and deferred work. Completed work and old
 validation results belong in Git history. Reusable implementation constraints
 live in the [AI notes](../skills/chapter25-codex-notes.md).
 
+## Investigate next
+
+These are candidates, not confirmed missing correctness fixes. Establish an
+earlier-chapter failure before changing compiler behavior.
+
+### Conditional Store control
+
+Compare conditional field writes under each destination's memory-Phi and alias
+model. Chapter 24 attaches control to array stores but lets ordinary field
+stores rely on memory dependencies. Chapter 25's explicit Store control input
+is not by itself evidence that the earlier representation is wrong.
+
+Keep this investigation separate from GCM's memory-Phi anti-dependency walk.
+Use the existing read-before-conditional-store regression as a guard, and find
+a distinct failing program before adding more control constraints.
+
+### SCCP function revival: Chapter 24
+
+`Opto.linkCG` uses `code.link(fidx)`, which clears a linker entry when its
+function is structurally dead. Chapter 25 uses the non-cleaning `_link(fidx)`
+while discovering calls, so temporarily disconnected functions can be revived.
+Chapter 24 already has `_link`; the question is whether its own unlinking and
+SCCP sequence can expose the same failure.
+
+Trace a function from removal of its unknown-caller edge through discovery of
+a real call. Preserve the distinction between unreachable control and a
+structurally deleted node. No earlier-chapter failure is established yet.
+Dependency propagation already exists in Chapter 24's SCCP; only port a
+specific missing dependency with a reproducer. Keep Chapter 25's escape and
+external-caller machinery out of this investigation.
+
 ## Deferred until the Chapter 25 split
 
 ### Deterministic inlining
@@ -36,20 +67,16 @@ Preserve the current contracts until the parser, conversions, loop bounds,
 and diagnostics can move together. Do not weaken narrowing assertions or
 expected errors to make an isolated backport pass.
 
-### Other candidates requiring a concrete earlier-chapter failure
+### Representation changes
 
-These are investigation candidates, not promised wholesale ports:
-
-| Candidate | Boundary to establish |
-|---|---|
-| Conditional Store and array Load control | Reproduce under the destination chapter's alias model. |
-| SCCP dependencies, function revival, reachability | Separate corrections applicable to Chapter 24 from Chapter 25's guards, escape analysis, and external-caller machinery. |
-| Incomplete types, numeric modes, guards, symbolic fields, private constructor memory | Choose chapter boundaries and move the required invariants together. |
+Incomplete types, numeric modes, guards, symbolic fields, and private
+constructor memory need explicit teaching boundaries and coordinated
+invariants. They are not independent fixes to copy into earlier snapshots.
 
 Serialization, global identity remapping, and module escape summaries stay
 with separate compilation. Escape analysis stays in Chapter 25 pending the split.
 
-## Chapter 25 follow-ups
+## Work that stays in Chapter 25
 
 Class-cycle checking and CLInit runtime lowering stay in Chapter 25. The
 [chapter README](../chapter25/README.md#lazy-class-initialization) explains the
@@ -57,9 +84,6 @@ implementation; future work lives in the
 [roadmap](../chapter25/ROADMAP.md#class-initialization-and-compiler-follow-ups).
 Native code cannot receive classes; a native-startup/class-handoff policy is
 not planned. Current data pointers remain eight bytes.
-
-Allocator tuning and additional emulator measurement coverage are closed.
-Current allocation measurements live in [regalloc-spills.md](regalloc-spills.md).
 
 ## Backport validation
 

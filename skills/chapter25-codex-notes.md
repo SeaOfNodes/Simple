@@ -56,6 +56,10 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Mutability and chapter boundaries
 
+- The class-init-cycle project is closed. Cycle checking, diagnostics,
+  serialization/import handling, and runtime lowering are complete for the
+  agreed scope. Argument arrays and initialization optimizations remain
+  separate ROADMAP work; they do not keep this project open.
 - Native boundary decision (2026-10-18): no classes for native code; do not
   design a native-startup policy. Ordinary supported FFI calls are separate.
   Chapter 25's README owns the tutorial explanation of class initialization;
@@ -88,8 +92,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   The selected entry gets the external arg; other clinits get zero for now.
   The planned array ABI uses non-null entry args and null elsewhere; not yet
   implemented. Eval2 shares singleton class objects and retains imported bodies.
-  Full Chapter 25 Make validation: 509 tests, including native cold/hot calls,
-  parent order, ARM/RISC-V encoding and nonreturning object reload.
+  Execution coverage includes native cold/hot calls, parent order,
+  ARM/RISC-V encoding, and nonreturning object reload.
 - Chapter 25 phase structure: Opto only runs SCCP, numeric-mode
   resolution and worklist seeding. IterPostOpto does peepholes/inlining;
   FinalizeIR does field layout/offset cleanup and function/CU finalization.
@@ -123,8 +127,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   Runtime lowering is implemented above; argument arrays remain deferred. Public function fields
   on instances of public classes must retain Start, just like class-object
   fields. publicFIDX now checks both; this fixes sys.scan.match losing Start
-  while building sys.o and subsequently widening after import. All Chapter 25
-  Make suites pass (505 tests). Do not weaken assertions or reset imported types
+  while building sys.o and subsequently widening after import.
+  Do not weaken assertions or reset imported types
   to conceal incorrect public classification.
   Future optimization: move final, always-constant instance fields to the class
   or fold them to constants and omit their instance storage. Access semantics
@@ -190,6 +194,18 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   GCM readiness and anti-dependency checks must both
   filter by alias and ignore MemMerge as a clobber; keep the evaluator's same
   alias filtering too. MemMerge still needs ordinary data-dependency placement.
+
+- From Chapter 15, an array element Load's control stands for its range check.
+  Keep that edge during parsing and rewriting. A Load can push through a
+  memory Phi when its control is null or dominates the Region's idom; retain
+  that control on both copies. The Region itself or a later check cannot
+  supply control to predecessor loads. Dropping it permits an out-of-bounds
+  speculative read. The parser currently attaches the current control as a
+  placeholder, which can be the Region itself even in a valid graph.
+  `Chapter15Test.testArrayLoadControl` checks a guarded read after a memory
+  merge; `testArrayLoadDominatingControl` checks successful splitting under
+  an earlier common check. Length loads have no index;
+  Chapters 19+ already leave them unpinned, independently of element control.
 
 - Chapter 15 New consumes `{ctrl, $mem, size}` and produces `{ptr, $mem}`:
   no control result, pointer slot 0, memory slot 1. Its TypeStruct/TypeMemPtr

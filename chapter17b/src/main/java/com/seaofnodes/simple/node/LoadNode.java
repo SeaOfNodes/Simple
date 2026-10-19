@@ -128,6 +128,9 @@ public class LoadNode extends MemOpNode {
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
         if( mem() instanceof MemPhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
+            // Retain control on both copies only if it dominates both paths.
+            // The Region itself, or a later range check, cannot move to its inputs.
+            (in(0)==null || cfg0().domLCA(memphi.region().idom(this),this)==cfg0()) &&
             // Offset can be hoisted
             off() instanceof ConstantNode &&
             // Pointer can be hoisted

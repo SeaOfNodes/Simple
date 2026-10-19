@@ -6,6 +6,59 @@ import static org.junit.Assert.*;
 
 public class Chapter15Test {
 
+    @Test public void testArrayLoadDominatingControl() {
+        String src = """
+            int[] !a=new int[arg+1]; a[arg]=7;
+            if(a#>1) {
+                if(arg==2) a[1]=9;
+                return a[1];
+            }
+            return 42;
+            """;
+        var code = new CodeGen(src).parse();
+        var stop = code._stop;
+        var load = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") ? ld : null);
+        org.junit.Assert.assertNotNull(load);
+        // The parser uses current control as a placeholder for a range check.
+        // Model an explicit check already performed before the inner diamond:
+        // both predecessors are below the a#>1 true projection.
+        var region = (com.seaofnodes.simple.node.RegionNode)load.in(0);
+        var checked = region.idom().cfg(0);
+        org.junit.Assert.assertTrue(checked instanceof com.seaofnodes.simple.node.CProjNode);
+        load.setDef(0,checked);
+        code.driver(CodeGen.Phase.TypeCheck);
+        org.junit.Assert.assertTrue("Common dominating control permits Phi splitting",load.isDead());
+        var split = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") ? ld : null);
+        org.junit.Assert.assertNotNull(split);
+        org.junit.Assert.assertSame("The surviving read retains the earlier check",checked,split.in(0));
+        code.driver(CodeGen.Phase.LocalSched);
+        assertEquals("42",Eval2.eval(code,0));
+        assertEquals("7",Eval2.eval(code,1));
+        assertEquals("9",Eval2.eval(code,2));
+    }
+
+
+    @Test public void testArrayLoadControl() {
+        // With arg==0, a has length 1 and a[1] must not execute. The memory
+        // merge must not pull the read above its array-length guard.
+        String src = """
+            int n=1; if(arg) n=2;
+            int[] !a=new int[n]; a[arg]=7;
+            if(arg) a[1]=9;
+            if(a#>1) return a[1];
+            return 42;
+            """;
+        var code = new CodeGen(src).parse();
+        var stop = code._stop;
+        var load = stop.walk(n -> n instanceof com.seaofnodes.simple.node.LoadNode ld && ld._name.equals("[]") ? ld : null);
+        org.junit.Assert.assertNotNull(load);
+        org.junit.Assert.assertNotNull("Element loads carry their range-check control",load.in(0));
+        code.driver(CodeGen.Phase.LocalSched);
+        assertEquals("42",Eval2.eval(code,0));
+        assertEquals("9",Eval2.eval(code,1));
+    }
+
+
     @Ignore
     @Test
     public void testJig() {
