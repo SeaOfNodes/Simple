@@ -64,6 +64,12 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第24章](chapter24/README.ja.md)：連鎖した条件分岐と SCCP。
 * [第25章](chapter25/README.ja.md)：モジュール、分割コンパイル、不完全な型を使う SSA の構築。
 
+[章の分割案](docs/chapter-split.md) に沿って、章数が変わる間は名前を使います。
+番号付きの章は比較用に残します。
+
+* [関数内の SCCP](chapter-sccp/README.ja.md)
+* [関数間の SCCP](chapter-interprocedural-sccp/README.ja.md)
+
 ## 章をまたぐビルド
 
 任意で使える[対話的なグラフビューア（英語）](graph/README.md)は `graph/` で共有しています。

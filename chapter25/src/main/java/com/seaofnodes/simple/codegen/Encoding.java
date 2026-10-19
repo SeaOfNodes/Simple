@@ -171,6 +171,10 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
     // Code address as a constant
     public Encoding relo( FunPtrNode fptr ) {
         TypeFunPtr tfp = (TypeFunPtr)fptr._type;
+        // Native functions have no local FunNode, but are still callable.
+        // Do not treat their addresses as identities of deleted functions.
+        String nativeName = _code.externFunc(tfp.fidx());
+        if( nativeName!=null ) return external(fptr,nativeName);
         FunNode fun = _code.link(tfp);
         if( fun != null && !_code.owns(fun) )
             _externals.put(fptr,fun._name);

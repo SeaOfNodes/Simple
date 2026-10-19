@@ -2,7 +2,10 @@
 #   make tests CHAPTERS="chapter21 chapter22"
 #   make -k tests   # continue through failures, but return a failing status
 .DEFAULT_GOAL := tests
-CHAPTERS ?= $(sort $(patsubst %/pom.xml,%,$(wildcard chapter[0-9][0-9]/pom.xml chapter[0-9][0-9][a-z]/pom.xml)))
+# Named snapshots follow teaching order, not alphabetical order. Numbered
+# chapters remain comparison baselines while the split is being extracted.
+NAMED_CHAPTERS := chapter-sccp chapter-interprocedural-sccp
+CHAPTERS ?= $(sort $(patsubst %/pom.xml,%,$(wildcard chapter[0-9][0-9]/pom.xml chapter[0-9][0-9][a-z]/pom.xml))) $(NAMED_CHAPTERS)
 ACTIONS := tests tags release lib
 CHAPTER_TARGETS := $(foreach action,$(ACTIONS),$(addsuffix /$(action),$(CHAPTERS)))
 

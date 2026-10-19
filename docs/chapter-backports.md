@@ -4,6 +4,27 @@ This file tracks pending backports and deferred work. Completed work and old
 validation results belong in Git history. Reusable implementation constraints
 live in the [AI notes](../skills/chapter25-codex-notes.md).
 
+The [approved chapter split](chapter-split.md) owns the teaching sequence for
+the current Chapters 24 and 25. Use descriptive chapter names while the count
+changes. Cliff approved starting with the proposed SCCP and construction/escape
+boundaries; revisit construction/escape after he can run both snapshots.
+Library construction and optimizer tuning move to appendices.
+
+The first named snapshots are `chapter-sccp` and
+`chapter-interprocedural-sccp`. Local SCCP keeps unknown callers and the call
+result summaries from pessimistic analysis; the next chapter discovers calls
+and widens recursive arguments and returns. Numbered Chapters 24 and 25 remain
+comparison baselines during extraction.
+
+Next extract SSA construction with incomplete types, then private construction
+and escape analysis. Keep the incomplete-type changes together, including
+numeric modes, conversions, guards, symbolic fields, and unbounded Load/Phi
+nodes. Chained comparisons still need their move to Chapter 23; allocator
+tuning and native library material still need their appendices.
+Root Make includes named snapshots in checks. Linear-history publication keeps
+the numbered sequence until the complete replacement sequence is ready; switch
+its ordering and index links when retiring the comparison baselines.
+
 ## Investigate next
 
 Establish an earlier-chapter failure before changing compiler behavior.
@@ -71,12 +92,14 @@ expected errors to make an isolated backport pass.
 
 ### Representation changes
 
-Incomplete types, numeric modes, guards, symbolic fields, and private
-constructor memory need explicit teaching boundaries and coordinated
-invariants. They are not independent fixes to copy into earlier snapshots.
+The approved split keeps incomplete types, numeric modes, conversions, guards,
+and symbolic fields together, then introduces private constructor memory in
+the construction chapter. They are not independent fixes to copy into earlier
+snapshots.
 
-Serialization, global identity remapping, and module escape summaries stay
-with separate compilation. Escape analysis stays in Chapter 25 pending the split.
+Serialization, global identity remapping, and imported escape summaries belong
+with separate compilation. Escape analysis gets its own earlier chapter after
+construction; its extraction boundary is still to be established.
 
 ## Work that stays in Chapter 25
 

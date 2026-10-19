@@ -25,7 +25,10 @@ fi
 
 last_committer_date='0 +0000'
 
-git -C "$repo" ls-tree HEAD --name-only | grep '^chapter' |
+# Named snapshots are extracted alongside the numbered comparison baselines.
+# Publish the existing sequence until the whole replacement sequence is ready;
+# alphabetical order would put interprocedural SCCP before Chapter 1.
+git -C "$repo" ls-tree HEAD --name-only | grep -E '^chapter[0-9][0-9][a-z]?$' |
 while read -r chapter; do
   echo "Processing $chapter"
 

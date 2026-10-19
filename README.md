@@ -73,6 +73,13 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 24](chapter24/README.md): Chained conditionals and SCCP
 * [Chapter 25](chapter25/README.md): Modules, Separate Compilation, and SSA Construction with Incomplete Types
 
+The [approved split](docs/chapter-split.md) uses descriptive chapter names
+while the teaching boundaries settle. The numbered chapters remain comparison
+baselines during extraction. The first named snapshots are:
+
+* [SCCP Within a Function](chapter-sccp/README.md)
+* [SCCP Across Functions](chapter-interprocedural-sccp/README.md)
+
 ## Building across chapters
 
 The optional [interactive graph viewer](graph/README.md) is shared in `graph/`.

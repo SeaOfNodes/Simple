@@ -487,6 +487,26 @@ Mutable fields may have static initial contents without becoming constants.
 Choose read-only storage only when no runtime writes remain. Static reference
 cycles can use relocations without requiring a dynamic initialization cycle.
 
+For a wholly immutable, pre-initialized class, eliminate the mutable `$init`
+state as well as the checks so the class image can reside in ROM. The native
+function thunks preserve static initialization of function fields.
+
+### Compact code and data arenas
+
+Keep four-byte Simple references into bounded code and data arenas; the arenas
+need not overlap or live near zero. Choose absolute addresses versus offsets
+from an arena base when implementing placement and indirect calls. Native
+function thunks can occupy the code arena while native libraries live elsewhere.
+The current thunk implementation uses the existing low-address executable;
+ordinary data pointers still occupy eight bytes.
+
+Give full-width native pointers separate types and foreign lifetime contracts.
+Opaque device addresses may need to be passed through without CPU dereference.
+Simple object lifetimes should be managed automatically without a GC;
+ownership, borrowing, cycles, and native retention still need design. Compact
+storage alone does not establish those rules. Preserve static class images and
+explicit native boundary conversions when choosing the arena representation.
+
 ### CFG frequency estimates
 
 After lowering and loop-tree construction, estimate block frequencies for GCM

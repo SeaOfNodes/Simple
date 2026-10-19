@@ -93,6 +93,53 @@ public class StaticDataTest {
         assertEquals("",TestC.exec(TestC.TEST_TIMEOUT_SECONDS,exe));
     }
 
+    // Native entries must agree too, both in static fields (before <clinit>)
+    // and when code materializes the address. The native body may live above 4G.
+    @Test public void testNativeFunctionIdentity() throws Exception {
+        Path dir=Path.of("build/objs/static-native-functions");
+        Files.createDirectories(dir);
+        int[] offsets=new int[2];
+        for( int i=0; i<2; i++ ) {
+            String name=i==0 ? "A" : "B";
+            String src="{ i32 -> i32 } abs = \"C\"; val get"+name+"={ -> abs; }; return 0;";
+            CodeGen code=new CodeGen(null,dir.toString(),null,name,src,123L,true,TypeInteger.BOT)
+                .driver(CodeGen.Phase.TypeCheck);
+            assertNull("The native address is initialized in the static image",
+                       code._stop.walk(n -> n instanceof StoreNode st && st._name.equals("abs") ? n : null));
+            code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+            for( var obj : code._encoding._data.entries() )
+                if( obj.symbol.equals(name+".$class") ) {
+                    TypeStruct ts=(TypeStruct)obj.type;
+                    offsets[i]=ts.offset(ts.find("abs"));
+                }
+        }
+        Path driver=dir.resolve("driver.c");
+        Files.writeString(driver,"""
+            #include <stdint.h>
+            #include <string.h>
+            extern unsigned char a[] __asm__("A.$class"), b[] __asm__("B.$class");
+            typedef int32_t (__attribute__((CALL_CONV)) *fun)(int32_t);
+            __attribute__((CALL_CONV)) extern fun getA(void), getB(void);
+            int main(void) {
+                uint32_t x,y;
+                memcpy(&x,a+%d,sizeof(x));
+                memcpy(&y,b+%d,sizeof(y));
+                fun f=(fun)(uintptr_t)x;
+                if(!x || x!=y || f!=getA() || f!=getB()) return 1;
+                return f(-7)!=7;
+            }
+            """.formatted(offsets[0],offsets[1]));
+        String exe=dir.resolve(TestC.OS.startsWith("Windows")?"test.exe":"test").toString();
+        String conv=TestC.CALL_CONVENTION.equals("win64")?"ms_abi":"sysv_abi";
+        // Either object's weak definition can win; every reference must agree.
+        for( String first : new String[]{"A","B"} ) {
+            String second=first.equals("A")?"B":"A";
+            TestC.linkExe(dir.resolve(first+".o").toString(),conv,driver.toString(),
+                          new Ary<>(new String[]{dir.resolve(second+".o").toString()}),exe);
+            assertEquals("",TestC.exec(TestC.TEST_TIMEOUT_SECONDS,exe));
+        }
+    }
+
     // Two separately compiled users must reference the same mutable class object.
     @Test public void testSharedClass() throws Exception {
         Path dir=Path.of("build/objs/static-data-shared");

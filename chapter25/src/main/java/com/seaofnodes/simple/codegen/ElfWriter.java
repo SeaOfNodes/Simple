@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeStruct;
 import com.seaofnodes.simple.util.Ary;
 import com.seaofnodes.simple.util.BAOS;
@@ -171,7 +172,7 @@ public class ElfWriter {
 
         public int symbol( String name, int shndx, int bind, int type, long value, long size ) {
             int gidx = gidx();  // Global index before I write to _globals
-            BAOS baos = bind==SYM_BIND_GLOBAL ? _globals : _contents;
+            BAOS baos = bind==SYM_BIND_LOCAL ? _contents : _globals;
             write4(baos,_strtab.writeCString(name));
             int info = (bind << 4) | (type & 0xF);
             baos.write(info);
@@ -179,7 +180,7 @@ public class ElfWriter {
             write2(baos,shndx); // section index
             write8(baos,value);
             write8(baos,size);
-            return bind==SYM_BIND_GLOBAL ? gidx : -99;
+            return bind==SYM_BIND_LOCAL ? -99 : gidx;
         }
 
         public int symbol( String name, int shndx, int bind, int type ) {
@@ -265,6 +266,7 @@ public class ElfWriter {
 
     public static final int SYM_BIND_LOCAL   = 0;
     public static final int SYM_BIND_GLOBAL  = 1;
+    public static final int SYM_BIND_WEAK    = 2;
 
     public static final int SYM_TYPE_NOTYPE  = 0;
     public static final int SYM_TYPE_OBJECT  = 1;
@@ -280,6 +282,26 @@ public class ElfWriter {
 
 
     // ------------------------------------------------------------------------
+
+    // Native code can live above 4G, outside our four-byte function pointers.
+    // Give address-taken natives a low entry which tail-jumps through the PLT.
+    // A weak, stable name makes references from separate objects agree on one
+    // entry. Do not patch references straight to the local copy: that would
+    // bypass the linker's choice and break pointer equality across objects.
+    private int nativeEntry(String name, HashMap<String,Integer> entries,
+                            DataSection text, SymbolSection symbols, ReloSection relos) {
+        Integer old = entries.get(name);
+        if( old!=null ) return old;
+        int offset = text.size();
+        text._contents.write(0xE9); // jmp rel32; preserve arguments and return address
+        text.write4(0);
+        int target = symbols.symbol(name,0,SYM_BIND_GLOBAL,SYM_TYPE_FUNC);
+        relos.writeReloOffPlus(offset+1,target,(byte)4/*PLT32*/);
+        int entry = symbols.symbol("__simple_native$"+name,text._index,
+                                   SYM_BIND_WEAK,SYM_TYPE_FUNC,offset,5);
+        entries.put(name,entry);
+        return entry;
+    }
 
     public ElfWriter export(boolean emitEntrySymbol) {
         if( _code._serial==null )
@@ -300,7 +322,10 @@ public class ElfWriter {
 
         // we've already constructed these entire sections in the encoding phase
         Encoding enc = _code._encoding;
-        DataSection text   = new DataSection(".text"  , Section.SHT_PROGBITS, enc._bits , DataSection.SHF_ALLOC | DataSection.SHF_WRITE | DataSection.SHF_EXECINSTR );
+        // Append ELF-only thunks to a copy. Export must not change instruction
+        // offsets or the image used by the in-memory linker and emulators.
+        BAOS textBits = new BAOS(enc._bits.toByteArray(),enc._bits.size());
+        DataSection text   = new DataSection(".text"  , Section.SHT_PROGBITS, textBits, DataSection.SHF_ALLOC | DataSection.SHF_WRITE | DataSection.SHF_EXECINSTR );
         // Constant pool
         DataSection rodata = new DataSection(".rodata", Section.SHT_PROGBITS, enc._cpool, DataSection.SHF_ALLOC );
         // Static/global pool
@@ -316,12 +341,19 @@ public class ElfWriter {
 
         // create external .text relocations
         ReloSection relocations = new ReloSection(text._index);
+        HashMap<String,Integer> nativeEntries = new HashMap<>();
 
         for( Node n : enc._externals.keySet()) {
             String extern = enc._externals.get(n);
-            int symidx = symbols.symbol(extern, 0, SYM_BIND_GLOBAL, SYM_TYPE_NOTYPE);
+            boolean nativeAddress = n instanceof FunPtrNode &&
+                _code.externFunc(((TypeFunPtr)n._type).fidx())!=null;
+            int symidx = nativeAddress
+                ? nativeEntry(extern,nativeEntries,text,symbols,relocations)
+                : symbols.symbol(extern,0,SYM_BIND_GLOBAL,SYM_TYPE_FUNC);
             int offset = enc.opStart(n) + enc.opLen(n) - 4;
-            relocations.writeReloOffPlus(offset, symidx, (byte)4/*PLT32*/);
+            // Address materialization and static fields name the same thunk;
+            // direct calls still go straight to the native symbol's PLT entry.
+            relocations.writeReloOffPlus(offset,symidx,(byte)(nativeAddress ? 2/*PC32*/ : 4/*PLT32*/));
         }
 
         // Native ELF output is AMD64. Data addresses use PC32, not PLT calls.
@@ -353,7 +385,9 @@ public class ElfWriter {
         ReloSection rwRelos=new ReloSection(".rela.data",rwdata._index);
         for( StaticData.Relocation relo : enc._data.relocations ) {
             String name=enc._data.targetSymbol(relo.value());
-            Integer sym=dataSymbols.get(name);
+            String nativeName=relo.value() instanceof TypeFunPtr fp ? _code.externFunc(fp.fidx()) : null;
+            Integer sym=nativeName==null ? dataSymbols.get(name)
+                : nativeEntry(nativeName,nativeEntries,text,symbols,relocations);
             if( sym==null ) {
                 sym=symbols.symbol(name,0,SYM_BIND_GLOBAL,SYM_TYPE_NOTYPE);
                 dataSymbols.put(name,sym);

@@ -7,6 +7,16 @@ session handoffs as live status.
 For cross-chapter work, read [the backport queue](../docs/chapter-backports.md).
 It owns pending work; these notes capture reusable lessons. Completed work and
 superseded validation history remain in Git.
+The [approved chapter split](../docs/chapter-split.md) owns the teaching outline
+for current Chapters 24-25. Cliff approved it on 2026-10-19: two SCCP chapters,
+one combined incomplete-type chapter, then construction, escape analysis,
+modules/class initialization, and separate compilation. Library construction
+and optimizer tuning are appendices. Use descriptive chapter names while the
+count changes. Cliff approved starting with both proposed boundaries and wants
+to review/play with construction versus escape after the snapshots run. Keep
+that border open to refinement. Revisit 17a/17b when choosing final names or
+numbers. The first extracted snapshots are chapter-sccp and
+chapter-interprocedural-sccp; numbered 24/25 remain comparison baselines.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
 ## Collaboration preferences
@@ -56,6 +66,18 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Mutability and chapter boundaries
 
+- Native function addresses in AMD64 ELF use low-address tail-jump thunks.
+  Static fields and computed addresses must name the same weak entry across
+  objects; direct calls can still use the native PLT. A native FunPtr has no
+  local FunNode, so Encoding must check externFunc before the dead-function
+  identity fallback. Do not suppress relocation overflow checks or make class
+  storage read-only to accept a narrow dynamic relocation. Preserve constant
+  initialization Store folding. See StaticDataTest.testNativeFunctionIdentity.
+- Long-term pointer direction: compact code and data arenas, which may be
+  separate; full-width native pointers have separate types and lifetime rules.
+  Keep static class images viable for ROM and eventual removal of initialization
+  checks. These are future changes, recorded in the Chapter 25 roadmap; the
+  native thunk fix keeps current four-byte function/eight-byte data pointers.
 - The class-init-cycle project is closed. Cycle checking, diagnostics,
   serialization/import handling, and runtime lowering are complete for the
   agreed scope. Argument arrays and initialization optimizations remain

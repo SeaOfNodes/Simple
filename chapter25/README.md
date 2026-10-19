@@ -52,6 +52,24 @@ these addresses through the in-memory linker. Thread-local variables and C macro
 need accessor functions: the system library exposes `libc.errno()` through a small
 native runtime accessor.
 
+Native function pointers still occupy four bytes. A native library can live
+above that address range, so the AMD64 ELF writer gives each address-taken
+native function a small entry in Simple's low-address code. The entry tail-jumps
+through the native symbol's PLT entry; arguments and the return address pass
+through unchanged. Direct calls still use the native symbol directly.
+
+Static class fields and addresses computed in code both refer to that entry.
+Its stable weak symbol, `__simple_native$<name>`, lets separately compiled
+objects agree on one pointer when linked into an executable. The class image
+uses a four-byte relocation to this defined entry, instead of a four-byte
+relocation to a dynamic native symbol in writable data, which GNU ld rejects.
+Constant field Stores can still fold away. The entry is a Simple function
+identity; it need not equal the raw address obtained by native code.
+
+`StaticDataTest.testNativeFunctionIdentity` reads two separately compiled class
+images before their initializers run, compares their stored and computed
+addresses, and calls the native function. It checks both object-link orders.
+
 ## Object files contain ideal IR
 
 The ELF writer stores native code and a `.simple` section containing canonical
