@@ -143,36 +143,21 @@ from Start, `x` from MemPhi #20, and `y` from Store #8.
 
 ![Only the x memory Phi still needs the branch merge](docs/example2b-merged.svg)
 
-**Factor the Stores, then remove the overwritten initialization.** With the
-bulk Phi and the incoming aggregates gone, Stores #14 and #16 are used only
-by MemPhi #20. They store to the same pointer and alias, and share the same
-incoming memory. `PhiNode` can pull the Store below the merge:
+**Keep the branch Stores separate.** This is the final graph. Store equality
+uses node identity, so neither GVN nor generic Phi factoring combines Stores
+#14 and #16. Each stays on its own branch. Both use the initial `p.x = 0`
+Store #7, so the sole-use guard prevents store-after-store elimination from
+removing it. The `p.y = 0` Store #8 also remains because we return the object.
 
-```text
-MemPhi_x(Store_x(mem, p, 3), Store_x(mem, p, 4))
-    becomes
-Store_x(mem, p, Phi(3, 4))
-```
+The graph has four Stores, one MemPhi, and one MemMerge; the BulkMemPhi is gone.
+Although factoring the two Stores in this particular diamond could be safe,
+we disable that rewrite along with Store GVN. Sharing equal Stores on only two
+of three paths can force the write onto the third path. See Chapter 10's
+discussion of Store equality. Load factoring remains enabled, using precise
+MemPhis for differing memory operands once bulk splitting has finished.
 
-In general, Phi refactoring can combine Loads or Stores as in Chapter 10 (pushing
-up or pulling down).  The Phi new memory operands can use precise MemPhis for
-the alias.  This peep requires precise aliases, and is otherwise blocked by
-BulkMems - and thus is a trigger for splitting a BulkMem.
-
-
-Continuing with the example, the new value Phi #28 chooses 3 on the true arm
-and 4 on the false arm. Store
-#27 replaces both branch Stores and their memory Phi. Now the initial
-`p.x = 0` Store #7 has only that one Store as a user, so store-after-store
-elimination bypasses it. The `p.y = 0` Store #8 remains: we return the object,
-and its `y` field still needs initialization.
-
-![Final graph: one x Store of a value Phi, and the y initialization](docs/example2b-final.svg)
-
-Thus the final graph has two Stores, one ordinary value Phi, and one MemMerge;
-neither a MemPhi nor a BulkMemPhi remains. Other worklists order can, for
-instance, bypass the original incoming MemMerges before flattening them,
-avoiding the temporary `y` split.
+Other worklist orders can bypass the original incoming MemMerges before
+flattening them, avoiding the temporary `y` split.
 
 This memory splitting transform is invasive, and is disallowed from being
 called recursively; you can end up splitting around a loop (which is good) but

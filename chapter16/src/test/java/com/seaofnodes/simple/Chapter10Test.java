@@ -8,6 +8,26 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Chapter10Test {
+    @Test public void testConditionalStoreSharing() {
+        // Sharing the writes on two of three paths must not write on the third.
+        // Return the object so Load forwarding cannot hide the physical Store.
+        String src = """
+            struct S { int x; };
+            S a = new S;
+            a.x = 10;
+            if (arg == 1) a.x = 9;
+            else if (arg == 2) a.x = 9;
+            return a;
+            """;
+        var stop = new Parser(src).parse().iterate();
+        for( int arg : new int[]{0,1,2,3} ) {
+            long expected = (arg==1 || arg==2) ? 9 : 10;
+            var obj = (com.seaofnodes.simple.evaluator.Evaluator.Obj)
+                com.seaofnodes.simple.evaluator.Evaluator.evaluate(stop,arg);
+            assertEquals(expected,obj.fields()[0]);
+        }
+    }
+
     @Test public void testDeadReferenceReturn() {
         for( String body : new String[] {
             "return new S; return 0;",
@@ -532,14 +552,15 @@ return 0;
         assertEquals(3L,Evaluator.evaluate(stop,3));
     }
 
-    @Test public void testDropStores() {
+    @Test public void testKeepBranchStores() {
         StopNode stop = new Parser("""
             struct S { int x; };
             S s = new S;
             if (arg) s.x=arg+1; else s.x=arg+2;
             return s;
             """).parse().iterate();
-        assertEquals(1,countMemoryNodes(stop,StoreNode.class,new BitSet()));
+        // Keep each Store on its own branch.
+        assertEquals(2,countMemoryNodes(stop,StoreNode.class,new BitSet()));
         assertEquals(2L,((Evaluator.Obj)Evaluator.evaluate(stop,0)).fields()[0]);
         assertEquals(4L,((Evaluator.Obj)Evaluator.evaluate(stop,3)).fields()[0]);
     }

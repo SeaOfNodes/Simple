@@ -359,25 +359,28 @@ graph, not just a hoped-for cleanup afterward. See
 
 The reverse direction extends
 [Chapter 5's common-operation pull-down](../chapter05/README.md#example-3):
-"A Phis of Loads becomes a Load of a Phi".  A Phi of matching Loads or Stores
-can become one operation after the join.  For example, these two writes:
+"A Phi of Loads becomes a Load of Phis". A Phi of matching Loads can become
+one Load after the join. The rewrite creates a separate, correctly typed Phi
+for each differing operand, including memory and pointers. It must preserve
+the result's type and reject any possible conflicting write or memory merge
+among the memory's users. Otherwise delaying the read could change its value.
+Later chapters add anti-dependences; here we use a conservative check.
+
+Stores are excluded from GVN and this Phi rewrite. The easy GVN failure has
+equal Stores on two of three paths:
 
 ```java
-if (arg) s.x = arg+1;
-else     s.x = arg+2;
+if (arg == 1) s.x = 9;
+else if (arg == 2) s.x = 9;
 ```
 
-can become `s.x = Phi(arg+1,arg+2)` and eventually `s.x = arg+Phi(1,2)`.  The
-general rewrite creates a separate, correctly typed Phi for each differing
-operand, including memory and pointers.  We must be more careful here with
-memory ops; it is possible to lose some type precision, so we check for that as
-part of the profitability.
-
-Also, a Store must have no other users, so moving it removes the original
-effect.  A Load must have no possible conflicting writes or memory merges among
-its memory's users; otherwise delaying the read could change its value.  Much 
-later, we will be adding anti-dependences, but for now we do a conservative
-check.
+Sharing those Stores forces the scheduler to place the write on all three
+paths, including the path that should leave `s.x` unchanged. Sharing needs a
+proof that the original Stores cover every exit path, or a scheduler that can
+split the shared Store back onto its original paths. We do neither. Store
+equality therefore uses node identity; this also disables generic Phi factoring
+of Stores. Explicit store-after-store elimination remains enabled. Chapter 17b
+adds a separate peep that sinks a closed loop's Stores to the loop exit.
 
 ### Missing an easy one
 

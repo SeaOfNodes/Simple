@@ -6,19 +6,8 @@ live in the [AI notes](../skills/chapter25-codex-notes.md).
 
 ## Investigate next
 
-These are candidates, not confirmed missing correctness fixes. Establish an
-earlier-chapter failure before changing compiler behavior.
-
-### Conditional Store control
-
-Compare conditional field writes under each destination's memory-Phi and alias
-model. Chapter 24 attaches control to array stores but lets ordinary field
-stores rely on memory dependencies. Chapter 25's explicit Store control input
-is not by itself evidence that the earlier representation is wrong.
-
-Keep this investigation separate from GCM's memory-Phi anti-dependency walk.
-Use the existing read-before-conditional-store regression as a guard, and find
-a distinct failing program before adding more control constraints.
+Establish an earlier-chapter failure before changing compiler behavior.
+The remaining candidate below is not yet confirmed.
 
 ### SCCP function revival: Chapter 24
 

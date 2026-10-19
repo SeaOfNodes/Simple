@@ -321,25 +321,35 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   User-count dependencies must wake from Node.delUse, including unkeep.
 
 - Generalized Phi factoring now starts in 10 and is forwarded through 25.
-  Memory-specific eligibility lives in `MemOpNode.canDrop`, with virtual Load
-  and Store checks. Load owns `clobbered`: all these chapters check only
-  immediate memory users, without recursion or a visited set. Stop at Stores,
-  Phis, MemMerges (11+), New (15+), and Calls (18+); do not chase aliases or aggregates just
-  to save one Load. Keep this teaching optimization simple and conservative.
+  Memory-specific eligibility lives in `MemOpNode.canDrop`. Store identity
+  equality now excludes Stores from this rewrite. Load owns `clobbered`: all
+  these chapters check only immediate memory users, without recursion or a
+  visited set. Stop at Stores, Phis, MemMerges (11+), New (15+), and Calls (18+);
+  do not chase aliases or aggregates just to save one Load. Keep this teaching
+  optimization simple and conservative.
   Preserve exact operation attributes with clone-based `copyEmpty`, type each
   operand Phi separately, reuse identical inputs, and reject type widening.
-  Stores require sole use by the Phi; Loads inspect memory users for clobbers
-  before GCM has made anti-dependence edges. From 11, create precise memory
+  Loads inspect memory users for clobbers before GCM has made anti-dependence
+  edges. From 11, create precise memory
   Phis for the factored operands. Do not factor aggregates or bulk Phis;
   wait for other BulkMemPhis at the Region to disappear, since their slice
-  lookup assumes Region/alias identifies the completed memory point. Existing
-  control-bound Stores in 13-14 remain ineligible. `delUse` wakes recorded
-  dependents for user-count queries; Region's empty-diamond fold depends on
+  lookup assumes Region/alias identifies the completed memory point. `delUse`
+  wakes recorded dependents for user-count queries; Region's empty-diamond fold depends on
   projection rewiring as well as projection types. These guards are already
   forwarded through 25; preserve the later chapters' existing `copyEmpty`.
   `subsume` must wake each rewired user's recorded dependents, just as `setDef`
   does: operand identity changes can enable a Phi fold without changing the
   intervening operation's type (`Chapter14Test.testCloneAnd` in 16).
+- Stores use identity equality from Chapter 10 onward. Equal Stores on two of
+  three paths must not merge and run on the third path. Sharing requires the
+  original Stores to cover every exit path, or GCM to split the shared Store
+  back onto those paths. GVN checks neither, and GCM does not split Stores.
+  This also disables generic Phi factoring of Stores, but keeps explicit
+  store-after-store elimination and the closed-loop sink introduced in 17b.
+  `Chapter10Test.testConditionalStoreSharing` returns the object to expose the
+  actual write; returning a Load could hide it through forwarding.
+  `Chapter17bTest.testSinkLoopStores` checks exit placement and zero-trip values
+  in 17b and every later snapshot. Do not restore Store GVN to recover a fold.
 - Find the chapter where the relevant feature first appears, not just the chapter
   that can parse the original reproducer. Reduce away later syntax/features when
   possible. Put the regression in that earliest `ChapterNTest.java`, and forward

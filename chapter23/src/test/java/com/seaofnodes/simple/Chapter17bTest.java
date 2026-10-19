@@ -8,6 +8,31 @@ import static org.junit.Assert.fail;
 
 public class Chapter17bTest {
 
+    @Test public void testSinkLoopStores() {
+        var code = new CodeGen("""
+            struct S { int x; };
+            !S !a = new S;
+            a.x = 10;
+            int i = 0;
+            while (i < arg) { a.x = i + 1; i++; }
+            return a;
+            """).driver(CodeGen.Phase.LocalSched);
+        int[] stores = {0};
+        code._stop.walk(n -> {
+            if( n instanceof com.seaofnodes.simple.node.StoreNode st && st._name.equals("x") ) {
+                assertEquals(0,st.cfg0().loopDepth()); // One final Store outside the loop.
+                stores[0]++;
+            }
+            return null;
+        });
+        assertEquals(1,stores[0]);
+        for( int arg : new int[]{-1,0,1,4} ) {
+            long expected = arg<=0 ? 10 : arg;
+            assertEquals("S{x="+expected+"}",Eval2.eval(code,arg));
+        }
+    }
+
+
     @Ignore
     @Test
     public void testJig() {

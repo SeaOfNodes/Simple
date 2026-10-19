@@ -72,4 +72,12 @@ public class StoreNode extends MemOpNode {
         return false;
     }
 
+
+    // Do not GVN Stores. Two equal Stores on two of three paths are the easy
+    // failure: sharing them makes GCM place the Store on all three paths.
+    // Sharing is safe only if every exit path goes through an original Store,
+    // or GCM splits the shared Store to keep it on those paths. Stores must
+    // sink, not run on extra paths. GVN does not check this; GCM does not split.
+    // Identity also disables generic Phi factoring of Stores.
+    @Override boolean eq(Node n) { return this == n; }
 }

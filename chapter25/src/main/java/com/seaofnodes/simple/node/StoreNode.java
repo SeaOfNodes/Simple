@@ -129,7 +129,7 @@ public class StoreNode extends MemOpNode {
         // peeps can lose the declaration to a flow-sensitive constant field
         // state.  Imported Stores already carry a serialized non-zero width.
         if( _size==0 && (_size= storageType()) != 0 ) {
-            unlock();           // Width participates in GVN identity.
+            unlock();           // Width participates in the cached hash.
             return init();
         }
 
@@ -323,6 +323,13 @@ public class StoreNode extends MemOpNode {
         return null;
     }
 
-    @Override public boolean eq(Node n) { return _size==((StoreNode)n)._size && super.eq(n); }
+    // Do not GVN Stores. Two equal Stores on two of three paths are the easy
+    // failure: sharing them makes GCM place the Store on all three paths.
+    // Sharing is safe only if every exit path goes through an original Store,
+    // or GCM splits the shared Store to keep it on those paths. Stores must
+    // sink, not run on extra paths. GVN does not check this; GCM does not split.
+    // Identity also disables generic Phi factoring of Stores.
+    // The closed-loop Store sink is a separate peep and still applies.
+    @Override public boolean eq(Node n) { return this == n; }
     @Override int hash() { return super.hash() ^ _size; }
 }

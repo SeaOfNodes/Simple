@@ -162,4 +162,13 @@ public class StoreNode extends MemOpNode {
         Type t = val()._type;
         return _init || t.isa(_declaredType) ? null : "Cannot store "+t+" into field "+_declaredType+" "+_name;
     }
+
+    // Do not GVN Stores. Two equal Stores on two of three paths are the easy
+    // failure: sharing them makes GCM place the Store on all three paths.
+    // Sharing is safe only if every exit path goes through an original Store,
+    // or GCM splits the shared Store to keep it on those paths. Stores must
+    // sink, not run on extra paths. GVN does not check this; GCM does not split.
+    // Identity also disables generic Phi factoring of Stores.
+    // The closed-loop Store sink is a separate peep and still applies.
+    @Override boolean eq(Node n) { return this == n; }
 }
