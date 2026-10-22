@@ -48,6 +48,7 @@
         <module>chapter-sccp</module>
         <module>chapter-interprocedural-sccp</module>
         <module>chapter-incomplete-types</module>
+        <module>chapter-construction</module>
     </modules>
 
     <properties>

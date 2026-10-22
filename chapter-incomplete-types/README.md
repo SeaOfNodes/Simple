@@ -3,6 +3,7 @@
 English | [日本語](README.ja.md)
 
 [Previous: SCCP Across Functions](../chapter-interprocedural-sccp/README.md) |
+[Next: Construction and Private Memory](../chapter-construction/README.md)
 
 The previous compiler solved for recursive types and calls, but its parser
 still needs types to choose e.g. float-vs-integer arithmetic instructions or

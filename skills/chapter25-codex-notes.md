@@ -16,7 +16,7 @@ count changes. Cliff approved starting with both proposed boundaries and wants
 to review/play with construction versus escape after the snapshots run. Keep
 that border open to refinement. Revisit 17a/17b when choosing final names or
 numbers. The first extracted snapshots are chapter-sccp,
-chapter-interprocedural-sccp, and chapter-incomplete-types; numbered 24/25
+chapter-interprocedural-sccp, chapter-incomplete-types, and chapter-construction; numbered 24/25
 remain comparison baselines.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
@@ -66,6 +66,20 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   findings, the current check, and any blocker.
 
 ## Mutability and chapter boundaries
+
+- A symbolic Store with alias 1 is a barrier to Load forwarding: until its
+  field resolves it may write the queried alias. Skipping it can turn a byte
+  compound assignment at 255 into a stale read of 255 instead of 2. Both
+  incomplete-types and construction keep this barrier; exercise worklist seeds.
+- Constructor fields stay in local SSA values and ordinary Phis. Emit ordinary
+  initializing Stores at helper exits and package precise aliases in MemMerge.
+  Private memory carries fields between helpers and into publication; it does
+  not carry each loop update. Keep converted field values in private summaries
+  and keep unwritten fields visible to completion checks. Constructor bodies
+  are parsed after the field list closes, so later fields also have local slots.
+  The discarded InitStore/InitPhi design must not be brought into the EA split.
+  Construction privacy follows language rules; global escape discovery is a
+  separate topic, with no required teaching order between them.
 
 - Native function addresses in AMD64 ELF use low-address tail-jump thunks.
   Static fields and computed addresses must name the same weak entry across

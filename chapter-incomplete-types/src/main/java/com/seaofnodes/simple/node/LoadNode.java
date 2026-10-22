@@ -166,6 +166,9 @@ public class LoadNode extends MemOpNode {
             case MemMergeNode merge: mem=merge.alias(_alias); break;
             case CastNode cast: mem=cast.in(1); break;
             case StoreNode st:
+                // A symbolic Store may write this field. Wait for its alias;
+                // skipping it can make a compound assignment read the old value.
+                if( st._alias==1 ) return null;
                 addDep(st.ptr());
                 if( _alias==st._alias && ptr==address(st.ptr()) && off()==st.off() ) return st;
                 if( _alias==st._alias && !neverAlias(ptr,address(st.ptr())) &&

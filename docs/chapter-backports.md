@@ -11,14 +11,16 @@ boundaries; revisit construction/escape after he can run both snapshots.
 Library construction and optimizer tuning move to appendices.
 
 The first named snapshots are `chapter-sccp`, `chapter-interprocedural-sccp`,
-and `chapter-incomplete-types`. Local SCCP keeps unknown callers and the call
+`chapter-incomplete-types`, and `chapter-construction`. Local SCCP keeps unknown callers and the call
 result summaries from pessimistic analysis; the next chapter discovers calls
 and widens recursive arguments and returns. Numbered Chapters 24 and 25 remain
 comparison baselines during extraction.
 
 The incomplete-type snapshot groups numeric modes, conversions, guards,
-symbolic fields, and unbounded Load/Phi nodes. Next extract private construction,
-then escape analysis. Chained comparisons still need their move to Chapter 23;
+symbolic fields, and unbounded Load/Phi nodes. Construction now has hidden
+initializer/allocator calls, local field values and Phis, exit Stores, and
+explicit publication. Private memory carries fields between helpers. Next
+extract escape analysis and review the limits on early exposure of `self`. Chained comparisons still need their move to Chapter 23;
 allocator tuning and native library material still need their appendices.
 Root Make includes named snapshots in checks. Linear-history publication keeps
 the numbered sequence until the complete replacement sequence is ready; switch

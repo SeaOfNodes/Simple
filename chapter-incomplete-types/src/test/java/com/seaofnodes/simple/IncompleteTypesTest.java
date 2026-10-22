@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Test;
+import com.seaofnodes.simple.type.TypeInteger;
 import static org.junit.Assert.assertEquals;
 
 public class IncompleteTypesTest {
@@ -28,8 +29,12 @@ public class IncompleteTypesTest {
         for( String update : new String[]{"p.x += n","p.x++"} ) {
             String updates = "val set = { !Later p, int n -> p.x=255; return "+update+"; }; " +
                 "struct Later { u8 x; }; return set(new Later,3);";
-            var result = new CodeGen(updates).driver(CodeGen.Phase.TypeCheck);
-            assertEquals(update.equals("p.x++") ? "255" : "2",Eval2.eval(result,0));
+            // Seeds 2 and 13 let the Load resolve before the symbolic Store.
+            // It must wait for that Store's alias, not read an earlier Store.
+            for( long seed : new long[]{2,13,123} ) {
+                var result = new CodeGen(updates,TypeInteger.BOT,seed,true).driver(CodeGen.Phase.TypeCheck);
+                assertEquals(update.equals("p.x++") ? "255" : "2",Eval2.eval(result,0));
+            }
         }
     }
 }
