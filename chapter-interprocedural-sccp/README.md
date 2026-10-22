@@ -3,12 +3,11 @@
 English | [日本語](README.ja.md)
 
 [Previous: SCCP Within a Function](../chapter-sccp/README.md) |
-[Split outline](../docs/chapter-split.md)
+[Next: SSA Before Types Are Known](../chapter-incomplete-types/README.md) |
 
-The previous chapter solves each function with conservative call interfaces.
-This chapter lets the same worklist discover call edges and propagate values
-between functions. It is an independent snapshot of the interprocedural
-compiler previously taught in Chapter 24.
+The previous chapter runs SCCP with each function, and assumes very
+conservative typing across calls.  This chapter lets the same worklist
+discover call edges and propagate values between functions.  
 
 ## Discovering calls while solving types
 
@@ -20,9 +19,10 @@ Such edges make up a [Call Graph](https://en.wikipedia.org/wiki/Call_graph).
 
 We extend the normal SCCP algorithm to observe when a `Call`s function pointer
 input changes - when it picks up new function targets.  There are only a finite
-number so we represent them exactly with *function indices* as described in an
-earlier chapter.  (Separate compilation adds a special index for the infinite
-unknown functions that are called outside this compilation unit).
+number so we represent them exactly with *function indices*, or *fidx*
+internally, as described earlier chapters.  (Separate compilation adds a
+special index for the infinite unknown functions that are called outside this
+compilation unit).
 
 Once we observe a new *fidx* at a `Call`, we *link* the `Call` with the `Fun`,
 and the `Return` with the `CallEnd`.  Such linkage acts exactly as-if we added
@@ -42,24 +42,37 @@ e.g. not-null) on all calling paths.
 
 ## Recursion is a loop in disguise
 
-An argument can flow from a Parm through arithmetic into a recursive call,
-then back to the same Parm. A result has a separate cycle: Return -> CallEnd
--> arithmetic -> Phi -> Return. Widening at Parm alone cannot stop a return
-range from growing in `f(x-1)+1`.
+We use the notion of *widening* integer ranges at loop heads, see Chapter XXX.
+This allows us to have a sharper notion of integers over `BOTTOM` without also
+allowing the lattice to fall 2^32 times.  The same issue arises during
+recursive calls: an argument can flow from a Parm through arithmetic into a
+recursive call, then back to the same Parm.
 
-Loop Phis, Parms, and CallEnds therefore need widening points. Their comments
-cross-reference each other. Constants and above-center ranges remain narrow;
-the growing below-center ranges widen within their type bounds.
+```simple
+val fact = { int x -> x ? 0 : f(x-1)+1; };
+```
 
-`SccpTest` uses the same two calls as the previous chapter and checks that the
-parameter now receives [1,2]. `Chapter24Test.testRecursiveWidening` exercises
-argument and return cycles at several worklist seeds and evaluates the results.
+Here if we pass in `f(999)` , parameter `x` will have the integer range
+`[999]`.  We'll then track the recursive call to `f(998)` via normal SCCP 
+and realize the parameter `x` has a range `[999-998]`.  Lather, rinse, repeat 
+and we're at `[999-997]`.  We need to *widen* integer parameters at `Parms`
+not just loop-head `Phis`.  
+
+The same issue arises during the recursive return: the first return will be
+with `0` when `x` is zero, then we return `0+1` or the range `[0-1]` then range
+`[0-2]`, etc.  `CallEnds` also need to widen.
+
+Loop Phis, Parms, and CallEnds get widening points, and since this same issue
+hits in 3 unrelated places, their comments all cross-reference each other.
+
 
 ## Unknown callers
 
-A function address that survives outside a direct call may be called by code
-we cannot see. Preserve its unknown-caller input. Precise escape analysis is
-introduced later; this chapter does not infer exposure through memory.
+A `FunPtrNode` (function address) that survives outside a direct call may be
+called by code we cannot see.  We have to assume the address escapes into
+unknown code, which later calls it.  We preserve its unknown-caller input,
+since we cannot tell what that unknown caller will pass.  Precise escape
+analysis is introduced later exactly to inmprove this.
 
 ## Building and checking
 

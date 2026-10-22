@@ -13,7 +13,11 @@ import java.util.BitSet;
 
 public class ExternNode extends ConstantNode {
     public final String _extern;
-    public ExternNode(Type t, String ex) { super(t); _extern = ex; }
+    public ExternNode(Type t, String ex) {
+        super(t);
+        _extern = ex;
+        if( t instanceof TypeFunPtr tfp ) CodeGen.CODE.externFunc(tfp,ex);
+    }
 
     @Override public String  label() { return "#"+_con+":"+_extern; }
 

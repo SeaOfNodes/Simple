@@ -168,6 +168,12 @@ public class CodeGen {
     // the return is not part of the match).
     private final HashMap<TypeFunPtr,FunNode> _linker = new HashMap<>();
 
+    // Native symbols belong to function identities, not to one ExternNode.
+    // Selection and spill copies can turn that node into an ordinary constant.
+    private final HashMap<TypeFunPtr,String> _externs = new HashMap<>();
+    public void externFunc(TypeFunPtr tfp, String name) { _externs.put(tfp.makeFrom(Type.BOTTOM),name); }
+    public String externFunc(TypeFunPtr tfp) { return _externs.get(tfp.makeFrom(Type.BOTTOM)); }
+
     // Parser object
     public final Parser P;
 

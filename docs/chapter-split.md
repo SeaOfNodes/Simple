@@ -94,8 +94,9 @@ constant instance-field storage remain future work. See the
 
 The first runnable extractions are
 [SCCP Within a Function](../chapter-sccp/README.md) and
-[SCCP Across Functions](../chapter-interprocedural-sccp/README.md).
-The other five snapshots remain to be extracted. Numbered Chapters 24 and 25
+[SCCP Across Functions](../chapter-interprocedural-sccp/README.md), followed by
+[SSA Before Types Are Known](../chapter-incomplete-types/README.md).
+The other four snapshots remain to be extracted. Numbered Chapters 24 and 25
 remain comparison baselines during this work.
 
 Choose final numbers after trying the implementation boundaries above.

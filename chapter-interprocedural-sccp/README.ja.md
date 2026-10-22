@@ -3,6 +3,7 @@
 [English](README.md) | 日本語
 
 [前: 関数内の SCCP](../chapter-sccp/README.ja.md) |
+[次: 型が確定する前の SSA 構築](../chapter-incomplete-types/README.ja.md) |
 [章の分割案](../docs/chapter-split.md)
 
 前の章では関数ごとに保守的な呼び出し境界で解析しました。この章では

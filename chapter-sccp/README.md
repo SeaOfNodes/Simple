@@ -5,10 +5,9 @@ English | [日本語](README.ja.md)
 [Previous: Methods and Types](../chapter23/README.md) |
 [Next: SCCP Across Functions](../chapter-interprocedural-sccp/README.md)
 
-This chapter introduces optimistic type analysis within each function. It
-starts with the existing pessimistic peepholes, resets flow types to TOP,
-then propagates reachable control and values to a fixed point. Calls keep
-their conservative interfaces; discovering calls is the next chapter's topic.
+This chapter introduces [SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)
+within each function.  Next chapter, we'll go interprocedural with SCCP.
+
 
 The [chapter split](../docs/chapter-split.md) uses names while the chapter
 boundaries settle. This is an independent compiler snapshot, extracted from

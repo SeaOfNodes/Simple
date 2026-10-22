@@ -138,6 +138,10 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
     }
     public Encoding relo( ConstantNode con ) {
         TypeFunPtr tfp = (TypeFunPtr)con._con;
+        // A native address has no local FunNode. Keep its symbol even after
+        // selection or a spill copy has replaced the original ExternNode.
+        String name = _code.externFunc(tfp);
+        if( name!=null ) return external(con,name);
         _internals.put(con,_code.link(tfp));
         return this;
     }

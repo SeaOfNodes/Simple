@@ -15,8 +15,9 @@ and optimizer tuning are appendices. Use descriptive chapter names while the
 count changes. Cliff approved starting with both proposed boundaries and wants
 to review/play with construction versus escape after the snapshots run. Keep
 that border open to refinement. Revisit 17a/17b when choosing final names or
-numbers. The first extracted snapshots are chapter-sccp and
-chapter-interprocedural-sccp; numbered 24/25 remain comparison baselines.
+numbers. The first extracted snapshots are chapter-sccp,
+chapter-interprocedural-sccp, and chapter-incomplete-types; numbered 24/25
+remain comparison baselines.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
 ## Collaboration preferences
@@ -189,6 +190,11 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 - Resolving a forward struct reference must preserve pointer access/nullability.
   Phi idealization should report progress only when the referenced struct changes,
   not merely because the canonical declaration has different pointer permissions.
+- In chapter-incomplete-types, complete named declarations as a group before
+  upgrading old graph types. Update stored declarations in New, Parm, Convert,
+  and similar nodes as well as their cached result types. A nested undeclared
+  struct must remain open, not become an empty finished definition. Unknown
+  expression types are distinct from explicit missing-initialization sentinels.
 - Construct cyclic pointers with their access bit already set before interning;
   creating a provisional pointer and then changing access can orphan temporary
   cyclic types. Serialized objects use the unversioned `C0DE` header; rebuild
@@ -872,6 +878,11 @@ Consequences:
   checking rather than a pre-Opto deletion.
 - Extern C functions have no Simple FunNode/Return and are handled only while
   linking.
+- From Chapter 22, retain native symbol names by function identity in CodeGen.
+  Selection and spill copies can turn ExternNode into a plain ConstantNode;
+  address relocation must consult that identity before looking for a local
+  function. ARM ADRP splits a signed page delta into unsigned instruction
+  fields: mask both pieces, including the high piece for backward addresses.
 - Unknown-caller Start edges and post-Opto compilation-unit ownership are
   separate concepts. Do not overload Start edges merely to keep surviving
   functions attached to a compilation unit.
