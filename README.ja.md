@@ -71,6 +71,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [関数間の SCCP](chapter-interprocedural-sccp/README.ja.md)
 * [型が確定する前の SSA 構築](chapter-incomplete-types/README.ja.md)
 * [オブジェクトの構築と非公開メモリ](chapter-construction/README.ja.md)
+* [エスケープ解析と未知の呼び出し元](chapter-escape/README.ja.md)
 
 ## 章をまたぐビルド
 

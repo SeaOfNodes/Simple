@@ -82,7 +82,7 @@ is needed to build that representation.
 
 Construction and escape discovery need not be taught in this order. Keep the
 current order provisionally, without inventing a constructor example to claim
-that dependency. The callback example below belongs in the EA chapter.
+that dependency. The callback example now lives in the EA chapter.
 
 ## Modules before separate compilation
 
@@ -115,9 +115,10 @@ constant instance-field storage remain future work. See the
 The first runnable extractions are
 [SCCP Within a Function](../chapter-sccp/README.md) and
 [SCCP Across Functions](../chapter-interprocedural-sccp/README.md), followed by
-[SSA Before Types Are Known](../chapter-incomplete-types/README.md) and
-[Construction and Private Memory](../chapter-construction/README.md).
-The other three snapshots remain to be extracted. Numbered Chapters 24 and 25
+[SSA Before Types Are Known](../chapter-incomplete-types/README.md),
+[Construction and Private Memory](../chapter-construction/README.md) and
+[Escape Analysis and Unknown Callers](../chapter-escape/README.md).
+The other two snapshots remain to be extracted. Numbered Chapters 24 and 25
 remain comparison baselines during this work.
 
 Choose final numbers after trying the implementation boundaries above.
@@ -134,47 +135,21 @@ checks. Keep declarations, conversions, diagnostics, and type bounds consistent;
 do not weaken checks to make an intermediate snapshot pass. Rebuild serialized
 libraries when their compiler or object format changes.
 
-## Example reserved for the escape-analysis chapter
+## Escape snapshot ready for boundary review
 
-### An address can stay within known code
+`chapter-escape` adds function/alias exposure sets to TypeMem and closes the
+Start/Stop feedback cycle during SCCP. Known calls propagate memory summaries;
+exposed returns, fields, external arguments and native calls discover further
+addresses. Native calls contribute even on paths with no live Return. Function
+addresses kept entirely in known code no longer imply unknown callers.
 
-Escape analysis answers the question: which pointers can reach code we
-cannot inspect? Taking an address or passing it to a known function does not,
-by itself, make it available to unknown code.
+The [recursive callback example](../chapter-escape/README.md) now belongs in
+that chapter. Its base parameter becomes 2 while recursive calls remain.
+Returning the callback or a containing object, or handing it to native code,
+restores conservative arguments. FinalizeIR separates those analysis facts
+from the roots needed to emit code.
 
-Here is a recursive reduction with a function argument:
-
-```simple
-val run = { int n ->
-    val power = { int base, int exponent ->
-        if (exponent <= 0) return 1;
-        int smaller = power(base, exponent - 1);
-        return base * smaller;
-    };
-    val sumPowers = { int n, {int int -> int} f ->
-        if (n <= 0) return 0;
-        return f(2,n) + sumPowers(n-1,f);
-    };
-    return sumPowers(n,power);
-};
-return run(arg);
-```
-
-For `arg == 3`, the result is `2 + 4 + 8 == 14`. Both `power` and `sumPowers`
-are recursive; their calls remain in the graph.
-
-The construction snapshot treats the function address passed as `f` conservatively:
-unknown callers might obtain `power` and call it with any `base`. Its `base`
-parameter therefore stays `i64`, despite the visible call using 2.
-
-Escape analysis follows that address through the argument and recursive calls.
-Neither function returns it, stores it where unknown code can find it, nor
-passes it to an unknown callee. All calls to `power` are accounted for. SCCP
-can then infer `base == 2`, including in the recursive body, and the multiply
-can become a shift. The function bodies need not be inlined or cloned.
-
-This difference is observable at the end of Opto: the construction snapshot reports
-`base: i64`; Chapter 25 reports `base: 2`, with calls to both functions still
-present. Both execute to 14. Returning the callback to unknown code, or passing
-it to an opaque native call, would require keeping the unknown-caller edge.
-That is the distinction escape analysis adds to interprocedural SCCP.
+Construction still keeps local field values and rejects early exposure of self.
+Both runnable snapshots are available for Cliff's promised review/play session.
+This extraction does not choose broader rules for partially initialized objects.
+No modules, class singletons, serialized IR or identity remapping are included.

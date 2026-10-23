@@ -1,0 +1,256 @@
+package com.seaofnodes.simple.node;
+
+import com.seaofnodes.print.ExprPrinter;
+
+import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.type.*;
+
+/**
+ *  CallEnd
+ */
+public class CallEndNode extends CFGNode implements MultiNode {
+
+    // When set true, this Call/CallEnd/Fun/Return is being trivially inlined
+    private boolean _folding;
+    public boolean folding() { return _folding; }
+    public final TypeRPC _rpc;
+
+    public CallEndNode(CallNode call) { super(new Node[]{call}); _rpc = TypeRPC.constant(_nid); }
+    public CallEndNode(CallEndNode cend) { super(cend); _rpc = cend._rpc; }
+
+    @Override public String label() { return "CallEnd"; }
+    @Override public boolean blockHead() { return true; }
+
+    public CallNode call() { return (CallNode)in(0); }
+
+    @Override public CFGNode idom(Node dep) {
+        // Folding the idom is the one inlining Return
+        return _folding ? cfg(1) : super.idom(dep);
+    }
+
+    @Override
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("cend( ");
+        p.p( in(0) instanceof CallNode ? "Call, " : "----, ");
+        for( int i=1; i<nIns()-1; i++ )
+            p.n(in(i)).p(",");
+        return p.unchar(',').unchar(' ').close();
+    }
+
+    @Override
+    public Type compute() {
+        if( !(in(0) instanceof CallNode call) || call._type != Type.CONTROL )
+            return TypeTuple.RET.dual();
+        // Mid-fold, just take the one single callers' return type
+        if( _folding ) return in(1)._type;
+        // Grab the TFP and use the functions declared return type.
+        Type ftype = addDep(call.fptr())._type;
+        Type ret = ftype.isHigh() ? Type.TOP : Type.BOTTOM;
+        if( ftype instanceof TypeFunPtr tfp ) {
+            ret = tfp.ret();
+            // Here, if I can figure out I've found *all* callers, then I can meet
+            // across the linked returns and join with the function return type.
+            if( 1+tfp.nfcns() == nIns() ) { // A linked function for every concrete function
+                ret = Type.TOP;
+                for( int i=1; i<nIns(); i++ ) {
+                    Type tret = in(i)._type instanceof TypeTuple rtt ? rtt.ret() : in(i)._type;
+                    ret = ret.meet(tret);
+                }
+                // Recursion is a loop in disguise. For f(x-1)+1, the result
+                // flows Return -> CallEnd -> Add -> Phi -> Return, without
+                // crossing ParmNode.compute's widening point. Widen here too,
+                // using the loop rule in PhiNode.compute. Keep constants and
+                // above-center ranges narrow, and stay within the return type.
+                Type oldret = _type instanceof TypeTuple tt ? tt.ret() : Type.TOP;
+                if( ret instanceof TypeInteger ti && ret != oldret &&
+                    !ti.isHigh() && !ti.isConstant() &&
+                    (!(oldret instanceof TypeInteger oldi) || ti._widen <= oldi._widen) )
+                    ret = ti.same_but_slightly_wider_than(TypeInteger.BOT).join(tfp.ret());
+            }
+        }
+        TypeMem mem=TypeMem.TOP;
+        for( int i=1; i<nIns(); i++ ) {
+            Type state=in(i)._type;
+            if( state instanceof TypeTuple tt ) mem=(TypeMem)mem.meet(tt._types[1]);
+            else if( !state.isHigh() ) mem=TypeMem.BOT;
+        }
+        boolean known=false, external=false;
+        if( ftype instanceof TypeFunPtr tfp && !XInt.isHigh(tfp.fidxs()) ) {
+            int locals=0;
+            for( int fidx=XInt.next(tfp.fidxs(),-1); fidx>=0; fidx=XInt.next(tfp.fidxs(),fidx) ) {
+                if( CodeGen.CODE.externFunc(tfp.makeFrom(fidx))!=null ) external=true;
+                else locals++;
+            }
+            known=locals==nIns()-1;
+        }
+        if( external || (ftype instanceof TypeFunPtr tfp && XInt.isHigh(tfp.fidxs())) ) {
+            // Unknown code may retain arguments and all addresses already
+            // exposed to it. Heap values are arbitrary after this call;
+            // exposure itself still has a useful finite summary.
+            mem=(TypeMem)mem.meet(call.exposed(this));
+        } else if( !known && (CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ||
+                             CodeGen.CODE._phase.ordinal()>CodeGen.Phase.FinalizeIR.ordinal()) ) mem=TypeMem.BOT;
+        return TypeTuple.make(call._type,mem,ret);
+    }
+
+    @Override
+    public Node idealize() {
+
+        // Trivial inlining: call site calls a single function; single function
+        // is only called by this call site.
+        if( !_folding && nIns()==2 && in(0) instanceof CallNode call ) {
+            Node fptr = call.fptr();
+            if( fptr.nOuts() == 1 && // Only user is this call
+                fptr instanceof ConstantNode && // We have an immediate call
+                // Function is being called, and its not-null
+                fptr._type instanceof TypeFunPtr tfp && tfp.notNull() &&
+                // Arguments are correct
+                call.err()==null ) {
+                ReturnNode ret = (ReturnNode)in(1);
+                FunNode fun = ret.fun();
+                // Expecting Start, and the Call
+                if( fun.nIns()==3 ) {
+                    assert fun.in(1) instanceof StartNode && fun.in(2)==call;
+                    // Disallow self-recursive inlining (loop unrolling by another name).
+                    // Disallow if still folding other things, as it makes other
+                    // dependency checks carry long chains of half-folded calls.
+                    // Dead control may end the walk before an enclosing function.
+                    CFGNode idom = call;
+                    while( idom!=null ) {
+                        idom = idom.idom();
+                        if( idom instanceof FunNode ) break;
+                        if( idom instanceof CallEndNode cend && cend._folding ) break;
+                    }
+                    // Inline?
+                    if( idom instanceof FunNode fun2 && fun2 != fun && !fun2._folding ) {
+                        // Trivial inline: rewrite
+                        _folding = true;
+                        // Rewrite Fun so the normal RegionNode ideal collapses
+                        fun._folding = true;
+                        fun.setDef(1,Parser.XCTRL); // No default/unknown StartNode caller
+                        fun.setDef(2,call.ctrl());  // Bypass the Call;
+                        fun.ret().setDef(3,null);   // Return is folding also
+                        CodeGen.CODE.addAll(fun._outputs);
+                        // Repeat defs 1 layer down, for users of Parm (Phis)
+                        for( Node parm : fun._outputs )
+                            if( parm instanceof ParmNode )
+                                CodeGen.CODE.addAll(parm._outputs);
+
+                        // Inlining immediately blows all cache idepth fields past the inline point.
+                        // Bump the global version number invalidating them en-masse.
+                        CodeGen.CODE.invalidateIDepthCaches();
+                        return this;
+                    } else if( idom!=null ) {
+                        addDep(idom);
+                    }
+                } else {
+                    addDep(fun);
+                }
+            } else { // Function ptr has multiple users (so maybe multiple call sites)
+                addDep(fptr);
+            }
+        }
+
+        return null;
+    }
+
+    // Clone only tiny, straight-line boilerplate, after ordinary peeps settle.
+    // Larger bodies still use the existing single-caller, non-cloning inline.
+    public boolean inlineSmall() {
+        if( isDead() || _folding || nIns()!=2 || !(in(0) instanceof CallNode call) ) return false;
+        Node fptr = call.fptr();
+        if( !(fptr instanceof ConstantNode) ||
+            !(fptr._type instanceof TypeFunPtr tfp && tfp.notNull() && tfp.isConstant()) )
+            { addDep(fptr); return false; }
+        if( call.err()!=null ) return false;
+        ReturnNode ret = (ReturnNode)in(1);
+        FunNode fun = ret.fun();
+        if( fun._folding ) return false;
+        int len = smallBody(fun);
+        if( len==0 ) return false;
+        // All callers consume the three normal return projections.
+        for( Node use : _outputs )
+            if( !((use instanceof ProjNode p && p._idx>=0 && p._idx<3) ||
+                  (use instanceof CProjNode cp && cp._idx==0)) ) return false;
+
+        // Substitute control and arguments directly; no new function identity,
+        // parameter Phis, or return address is needed for this straight line.
+        Node[] copy = new Node[len];
+        for( int i=0; i<len; i++ ) {
+            Node n = TINYBODY[i];
+            copy[i] = n==fun ? call.ctrl() :
+                n instanceof ParmNode parm ? (parm._idx==0 ? null : call.arg(parm._idx)) :
+                n==ret ? null : n.copyEmpty();
+        }
+        for( int i=0; i<len; i++ ) {
+            Node n = TINYBODY[i];
+            if( n instanceof StoreNode || n instanceof MemMergeNode ||
+                n instanceof NewNode || n instanceof ProjNode || n instanceof EscapeNode ) {
+                for( Node in : n._inputs ) copy[i].addDef(mapped(in,copy));
+                CodeGen.CODE.add(copy[i]);
+            }
+        }
+        Node[] result = new Node[3];
+        for( int i=0; i<3; i++ ) result[i] = mapped(ret.in(i),copy).keep();
+        keep();
+        call.unlink_all();
+        CodeGen.CODE.add(fun);
+        CodeGen.CODE.addAll(fun._outputs);
+        // subsume kills each projection; retain CallEnd until all are replaced.
+        while( nOuts()>1 ) {
+            Node use = out(0)==null ? out(1) : out(0);
+            int idx = use instanceof ProjNode p ? p._idx : ((CProjNode)use)._idx;
+            CodeGen.CODE.addAll(use._outputs);
+            use.subsume(result[idx]);
+        }
+        unkill();
+        for( Node n : result ) n.unkill();
+        CodeGen.CODE.invalidateIDepthCaches();
+        return true;
+    }
+
+    private static Node mapped(Node n, Node[] copy) {
+        for( int i=0; i<copy.length; i++ )
+            if( TINYBODY[i]==n ) return copy[i];
+        return n;               // Constants outside the body are shared.
+    }
+
+    // Bounded recognition of initializer boilerplate. Walk uses from the entry
+    // and stop at Return, never following callers or constant inputs. This also
+    // avoids scanning sparse MemMerge input arrays while a large body shrinks.
+    // Watch this small prefix, including an unsupported node that may fold.
+    private static final Node[] TINYBODY = new Node[15]; // Tiny worklist
+    private int smallBody(FunNode fun) {
+        ReturnNode ret = fun.ret();
+        for( Node in : ret._inputs )
+            if( in!=null ) addDep(in);
+        if( ret.ctrl()!=fun ) return 0;
+        TINYBODY[0] = fun;
+        int len=1;
+        for( int i=0; i<len; i++ ) {
+            Node n = TINYBODY[i];
+            addDep(n);
+            if( n==ret ) continue;
+            if( n instanceof ParmNode parm && parm.region()!=fun ) return 0;
+            if( n!=fun && !(n instanceof ParmNode) &&
+                !(n instanceof StoreNode) && !(n instanceof MemMergeNode) &&
+                !(n instanceof NewNode) && !(n instanceof ProjNode) && !(n instanceof EscapeNode) )
+                return 0;
+            if( n.nOuts()>TINYBODY.length ) return 0;
+            for( Node use : n._outputs ) {
+                if( use==null ) continue;
+                int j=0;
+                while( j<len && TINYBODY[j]!=use ) j++;
+                if( j<len ) continue;
+                if( len==TINYBODY.length ) { addDep(use); return 0; }
+                TINYBODY[len++] = use;
+            }
+        }
+        return len;
+    }
+
+    @Override public Node pcopy(int idx) {
+        return _folding ? in(1).in(idx) : null;
+    }
+}

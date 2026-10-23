@@ -3,7 +3,7 @@
 [English](README.md) | 日本語
 
 [前章: 型が確定する前の SSA 構築](../chapter-incomplete-types/README.ja.md) |
-[章分割の計画](../docs/chapter-split.md)
+[次章: エスケープ解析と未知の呼び出し元](../chapter-escape/README.ja.md)
 
 この章では、フィールドの初期化とコンストラクタを関数として扱います。
 構築中のフィールドはローカルな SSA 値として扱い、分岐やループでは

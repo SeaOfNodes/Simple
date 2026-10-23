@@ -16,7 +16,8 @@ count changes. Cliff approved starting with both proposed boundaries and wants
 to review/play with construction versus escape after the snapshots run. Keep
 that border open to refinement. Revisit 17a/17b when choosing final names or
 numbers. The first extracted snapshots are chapter-sccp,
-chapter-interprocedural-sccp, chapter-incomplete-types, and chapter-construction; numbered 24/25
+chapter-interprocedural-sccp, chapter-incomplete-types, chapter-construction,
+and chapter-escape; numbered 24/25
 remain comparison baselines.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
@@ -80,6 +81,16 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   The discarded InitStore/InitPhi design must not be brought into the EA split.
   Construction privacy follows language rules; global escape discovery is a
   separate topic, with no required teaching order between them.
+
+- The escape snapshot carries function/alias exposure sets in TypeMem. Stop
+  feeds externally visible results/memory back to Start; SCCP restores unknown
+  callers only for exposed function identities. Their parameters use declared
+  bounds, never the narrower values inferred from known calls. External callers
+  already hold their object arguments, so writes through them expose addresses.
+  Native calls are exposure roots even when their path has no live Return.
+  FinalizeIR freezes this feedback before replacing call edges with emission
+  roots; the analysis cycle is not runtime CFG. Keep construction's local SSA
+  representation and early-self restrictions for the planned boundary review.
 
 - Native function addresses in AMD64 ELF use low-address tail-jump thunks.
   Static fields and computed addresses must name the same weak entry across

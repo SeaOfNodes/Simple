@@ -81,6 +81,7 @@ baselines during extraction. The first named snapshots are:
 * [SCCP Across Functions](chapter-interprocedural-sccp/README.md)
 * [SSA Before Types Are Known](chapter-incomplete-types/README.md)
 * [Construction and Private Memory](chapter-construction/README.md)
+* [Escape Analysis and Unknown Callers](chapter-escape/README.md)
 
 ## Building across chapters
 
