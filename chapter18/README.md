@@ -116,7 +116,7 @@ reference to `fact` is resolved when the declaration receives its function
 value.  Recursive calls can then find the same entry as calls from outside.
 Return-type inference is still pessimistic in this chapter; mutually recursive
 definitions can require the stronger analysis introduced with SCCP in
-[Chapter 24](../chapter24/README.md).
+[Chapter 24](../chapter24b/README.md).
 
 ## Functions in the graph
 

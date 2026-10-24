@@ -1,12 +1,12 @@
-# 関数内の SCCP
+# 第24a章: 関数内の SCCP
 
 [English](README.md) | 日本語
 
-[前: メソッドと型](../chapter23/README.ja.md) |
-[次: 関数間の SCCP](../chapter-interprocedural-sccp/README.ja.md)
+[Previous: Chapter 23](../chapter23/README.ja.md) |
+[Next: Chapter 24b](../chapter24b/README.ja.md)
 
-章の分割中は番号の代わりに名前を使います。この章は第24章から分けた、
-単独で実行できるコンパイラです。番号付きの章は比較用に残しています。
+この章は旧第24章から分けた、単独で実行できるコンパイラです。
+関数内の SCCP を第24a章で、関数間への拡張を第24b章で説明します。
 最新の説明と検証方法は [英語版](README.md) を参照してください。
 
 ## 疎な条件付き定数伝播
@@ -113,4 +113,4 @@ while( rand ) {
 引数と戻り値の推論・拡大は次の章で導入します。
 
 このディレクトリで最初に `make lib`、続いて `make tests` を実行してください。
-リポジトリのルートでは `make tests CHAPTERS=chapter-sccp` を使えます。
+リポジトリのルートでは `make tests CHAPTERS=chapter24a` を使えます。

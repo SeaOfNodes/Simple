@@ -8,7 +8,7 @@
         <artifactId>simple</artifactId>
         <version>1.0</version>
     </parent>
-    <artifactId>chapter-incomplete-types</artifactId>
+    <artifactId>chapter25</artifactId>
     <packaging>jar</packaging>
     <name>SSA Before Types Are Known</name>
     <properties>

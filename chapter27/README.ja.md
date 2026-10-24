@@ -1,9 +1,9 @@
-# エスケープ解析と未知の呼び出し元
+# 第27章: エスケープ解析と未知の呼び出し元
 
 [English](README.md) | 日本語
 
-[前章: オブジェクトの構築と非公開メモリ](../chapter-construction/README.ja.md) |
-[次: モジュールと遅延クラス初期化](../chapter-modules/README.ja.md)
+[Previous: Chapter 26](../chapter26/README.ja.md) |
+[Next: Chapter 28a](../chapter28a/README.ja.md)
 
 この章では、オブジェクトや関数のアドレスが、解析できない外部コードに届くかを追跡します。
 関数のアドレスを既知の関数に渡すだけでは、未知の呼び出し元を残す必要はありません。

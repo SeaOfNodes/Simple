@@ -9,6 +9,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 CHAPTERS = range(20, 26)
+# Cohort IDs are historical test identities. Compiler directories follow the
+# final teaching sequence; never silently reuse logs from the retired 24/25.
+COMPILERS = {c: str(c) for c in CHAPTERS} | {24: "24b", 25: "28b"}
 START = "<!-- spill-matrix:start -->"
 END = "<!-- spill-matrix:end -->"
 
@@ -21,7 +24,7 @@ def read_log(path):
 def read_results(log_dir):
     results = {}
     for chapter in CHAPTERS:
-        path = log_dir / f"spill-matrix-{chapter}.log"
+        path = log_dir / f"spill-matrix-{COMPILERS[chapter]}.log"
         text = read_log(path)
         if re.search(r"FAILED|(?:[Ff]ailures|Spill golden failures): [1-9]", text):
             raise ValueError(f"Chapter {chapter} failed; see {path}")
@@ -65,7 +68,7 @@ def read_dynamic(results):
     values = {}
     records = []
     for chapter in range(21, 26):
-        path = ROOT / f"build/dynamic-stats/{chapter}/dynamic.log"
+        path = ROOT / f"build/dynamic-stats/{COMPILERS[chapter]}/dynamic.log"
         text = read_log(path)
         if "FAILED," in text:
             raise ValueError(f"Dynamic measurement failed; see {path}")
@@ -109,7 +112,7 @@ def read_dynamic(results):
 
 def table(results, dynamic, last=25):
     chapters = range(20, last + 1)
-    lines = ["| Test cohort | Cases D / X | " + " | ".join(f"Ch {c}: Ops / RA / X" for c in chapters) + " |",
+    lines = ["| Historical test cohort | Cases D / X | " + " | ".join(f"Ch {COMPILERS[c]}: Ops / RA / X" for c in chapters) + " |",
              "|---|---:|" + "---:|" * len(chapters)]
     for cohort in chapters:
         count = len(dynamic[max(21,cohort)][cohort])
@@ -146,24 +149,24 @@ def main():
     args.log_dir.mkdir(parents=True, exist_ok=True)
     if not args.reuse:
         for chapter in CHAPTERS:
-            path = args.log_dir / f"spill-matrix-{chapter}.log"
+            path = args.log_dir / f"spill-matrix-{COMPILERS[chapter]}.log"
             print(f"Measuring chapter {chapter}: {path}", flush=True)
             with path.open("wb") as log:
-                run = subprocess.run(["make", "-C", str(ROOT / f"chapter{chapter}"), "spill-stats"],
+                run = subprocess.run(["make", "-C", str(ROOT / f"chapter{COMPILERS[chapter]}"), "spill-stats"],
                                      stdout=log, stderr=subprocess.STDOUT)
             if run.returncode:
                 raise ValueError(f"Chapter {chapter} failed (exit {run.returncode}); see {path}")
         for chapter in range(21, 26):
             if chapter < 25:
-                subprocess.run([sys.executable, str(ROOT / "build-support/capture-alloc-sources.py"), str(chapter)], check=True)
-            subprocess.run([sys.executable, str(ROOT / "build-support/measure-alloc.py"), str(chapter)], check=True)
+                subprocess.run([sys.executable, str(ROOT / "build-support/capture-alloc-sources.py"), COMPILERS[chapter]], check=True)
+            subprocess.run([sys.executable, str(ROOT / "build-support/measure-alloc.py"), COMPILERS[chapter]], check=True)
     results = read_results(args.log_dir)
     dynamic = read_dynamic(results)
     matrix = table(results, dynamic)
     (args.log_dir / "matrix.md").write_text(matrix + "\n", encoding="utf-8", newline="\n")
     if args.update_docs:
-        paths = [(ROOT / "docs/regalloc-spills.md", matrix)]
-        paths += [(ROOT / f"chapter{c}/README.md", table(results, dynamic, c)) for c in CHAPTERS]
+        # Preserve the dated pre-split measurements in the original READMEs.
+        paths = [(ROOT / "docs/appendices/current-spill-matrix.md", matrix)]
         # Validate all destinations before changing any document.
         for path, _ in paths:
             text = path.read_text(encoding="utf-8")

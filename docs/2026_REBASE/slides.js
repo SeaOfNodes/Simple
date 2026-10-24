@@ -186,7 +186,7 @@
       ])+'<table class="sccp-table"><thead><tr><th>Value</th><th>Initial</th><th>Fixed point</th></tr></thead><tbody><tr><td>Loop Phi</td><td>⊤</td><td data-reveal="1">1</td></tr><tr><td>2 − Phi</td><td>⊤</td><td data-reveal="2">1</td></tr></tbody></table><p class="sccp-warning" data-reveal="2">After SCCP, the program is fully typed.<br><strong>SCCP is the type analysis pass.</strong></p></div></div>',
       notes:notes('Optimism earns its keep',[
           'Use the source as a concrete loop, but the equations are SSA pseudocode. The pessimistic fixed point cannot discover x=1 through the cycle.',
-          'For this talk, Copy viewer command launches make -C chapter25 view. Chapter 25 demonstrates the same SCCP example using its separately compiled standard library, avoiding Chapter 24’s thousands of library capture frames. The slide topic and lattice remain Chapter 24.',
+          'For this talk, Copy viewer command launches make -C chapter28b view. Chapter 25 demonstrates the same SCCP example using its separately compiled standard library, avoiding Chapter 24’s thousands of library capture frames. The slide topic and lattice remain Chapter 24.',
         'Use Rich lattice for the big picture, then return to Example. The entry value sharpens the Phi to 1; the backedge evaluates to 1 and confirms it. Explain the direction of monotonicity, not just “assume it works.”',
         'Control propagation makes the solve conditional. Chapter 24 also discovers interprocedural call-graph edges; Chapter 18’s local linking was only the beginning.'
       ],'<p>Target time: 28:00. Continue to the closing slide, or use Overview → Chapter 25 if two minutes remain and replace the closing discussion.</p>')

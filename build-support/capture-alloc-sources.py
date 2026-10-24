@@ -2,9 +2,10 @@
 from pathlib import Path
 import subprocess,sys,os
 root=Path(__file__).resolve().parents[1]
-ch=int(sys.argv[1]); chapter=root/f'chapter{ch}'
-if ch not in range(21,25): raise SystemExit("Capture supports chapters 21-24")
-out=root/'build/dynamic-stats'/str(ch); out.mkdir(parents=True,exist_ok=True)
+name=sys.argv[1].removeprefix('chapter')
+if name not in ('21','22','23','24b'): raise SystemExit("Capture supports chapters 21, 22, 23, 24b")
+chapter=root/f'chapter{name}'
+out=root/'build/dynamic-stats'/name; out.mkdir(parents=True,exist_ok=True)
 src=(chapter/'src/test/java/com/seaofnodes/simple/SpillStats.java').read_text()
 needle='String test = ACTIVE._test.getTestClass().getSimpleName()+"."+ACTIVE._test.getMethodName();'
 extra='''
@@ -15,7 +16,7 @@ extra='''
             java.nio.file.Files.writeString(dir.resolve(name),code._src);
             java.nio.file.Files.writeString(dir.resolve("index.tsv"),cohort+"\\t"+test+"\\t"+cpu+"\\t"+abi+"\\t"+name+"\\n",java.nio.file.StandardOpenOption.CREATE,java.nio.file.StandardOpenOption.APPEND);
         } catch(java.io.IOException e) { throw new RuntimeException(e); }
-'''.replace('CH',str(ch))
+'''.replace('CH',name)
 assert needle in src
 src=src.replace(needle,needle+extra).replace('private static SpillStats ACTIVE;','private static SpillStats ACTIVE;\n    private static int _capture;')
 (out/'SpillStats.java').write_text(src,newline='\n')
@@ -25,4 +26,4 @@ idx=out/'captured/index.tsv'
 if idx.exists(): idx.write_text('')
 with (out/'capture.log').open('w') as log:
     subprocess.run(['java','-ea','-cp',str(out)+os.pathsep+cp,'com.seaofnodes.simple.SpillStats'],cwd=chapter,stdout=log,stderr=subprocess.STDOUT,check=True)
-print(ch,'captured',len(idx.read_text().splitlines()))
+print(name,'captured',len(idx.read_text().splitlines()))

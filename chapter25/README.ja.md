@@ -1,9 +1,9 @@
-# 型が確定する前の SSA 構築
+# 第25章: 型が確定する前の SSA 構築
 
 [English](README.md) | 日本語
 
-[前章: 関数間の SCCP](../chapter-interprocedural-sccp/README.ja.md) |
-[次章: オブジェクトの構築と非公開メモリ](../chapter-construction/README.ja.md)
+[Previous: Chapter 24b](../chapter24b/README.ja.md) |
+[Next: Chapter 26](../chapter26/README.ja.md)
 
 この章では、前方参照やループのために型がまだ分からない場合でも、演算と
 フィールド参照をグラフに記録します。数値演算のモード、Convert、Guard、

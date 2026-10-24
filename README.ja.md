@@ -61,30 +61,29 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第21章](chapter21/README.ja.md)：命令エンコーディングと ELF。
 * [第22章](chapter22/README.ja.md)：Simple の Hello, World!
 * [第23章](chapter23/README.ja.md)：メソッドと型の再検討。
-* [第24章](chapter24/README.ja.md)：連鎖した条件分岐と SCCP。
-* [第25章](chapter25/README.ja.md)：モジュール、分割コンパイル、不完全な型を使う SSA の構築。
+* [第24a章](chapter24a/README.ja.md)：関数内の SCCP
+* [第24b章](chapter24b/README.ja.md)：関数間の SCCP
+* [第25章](chapter25/README.ja.md)：型が決まる前の SSA
+* [第26章](chapter26/README.ja.md)：構築とプライベートメモリ
+* [第27章](chapter27/README.ja.md)：エスケープ解析と未知の呼び出し元
+* [第28a章](chapter28a/README.ja.md)：モジュールと遅延クラス初期化
+* [第28b章](chapter28b/README.ja.md)：分離コンパイル
 
-[章の分割案](docs/chapter-split.md) に沿って、章数が変わる間は名前を使います。
-番号付きの章は比較用に残します。
-
-* [関数内の SCCP](chapter-sccp/README.ja.md)
-* [関数間の SCCP](chapter-interprocedural-sccp/README.ja.md)
-* [型が確定する前の SSA 構築](chapter-incomplete-types/README.ja.md)
-* [オブジェクトの構築と非公開メモリ](chapter-construction/README.ja.md)
-* [エスケープ解析と未知の呼び出し元](chapter-escape/README.ja.md)
-* [モジュールと遅延クラス初期化](chapter-modules/README.ja.md)
+付録：[ネイティブライブラリ](docs/appendices/native-libraries.md)、
+[最適化とバックエンドの調整](docs/appendices/optimizer-tuning.ja.md)。
+旧章と現在の章の対応は[分割記録](docs/chapter-split.md)にあります。
 
 ## 章をまたぐビルド
 
 任意で使える[対話的なグラフビューア（英語）](graph/README.md)は `graph/` で共有しています。
-第1〜25章では、章のディレクトリで `make view` を実行して起動します。
+各章のディレクトリで `make view` を実行して起動します。
 
 [デバッグ用プリンタ（英語）](print/README.md)は `print/` で共有しています。
 第2章で必要なのは1行の式形式だけです。共通の `BaseNode` が、プリンタとビューアの両方に
 ノードの同一性とエッジへのアクセスを提供します。IR が拡張されるにつれて、
 各章のアダプタが意味に関する詳細を追加します。
 
-[命令エンコーダ（英語）](isa/README.md)は、第21〜25章の x86-64、ARM、RISC-V の
+[命令エンコーダ（英語）](isa/README.md)は、第21〜28b章の x86-64、ARM、RISC-V の
 バイト出力処理と、ARM/RISC-V のテスト用評価器を共有します。
 機械命令ノードの選択、レジスタ割り当て、コード配置は各章に残ります。
 共通層は具体的なオペランドを受け取り、バイト列を書き出します。
@@ -93,13 +92,13 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 新しく取得したチェックアウトでは、まず `make lib`、続いて `make tests` を実行してください。
 
 CI は Linux と JDK 21 で `make lib tests CTAGS=` を実行します。
-Make のターゲットは、それらを使うテストの実行前に、第25章のネイティブランタイムと
+Make のターゲットは、それらを使うテストの実行前に、第28b章のネイティブランタイムと
 `sys` ライブラリもビルドします。Maven の Java ビルドだけでは、これらの前提となる成果物は生成されません。
 
 [章へのバックポート一覧（英語）](docs/chapter-backports.md)には、提案された小さな修正と
 各章のテスト・レビューワークフローを記録しています。大規模なアーキテクチャ変更は、そこで別に管理します。
 第10〜14章は現在、メモリ全体、必要時のエイリアス分割、参照、GCM、数値型の順に構成されています。
-このメモリ表現は第25章まで引き継がれています。
+このメモリ表現は第28b章まで引き継がれています。
 
 メモリに関する章だけをビルドしてテストするには、次を実行します。
 

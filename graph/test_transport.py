@@ -1,6 +1,6 @@
 """Check HTTP assets and a delayed, fragmented WebSocket upgrade.
 
-Build the chapter first, then run: python graph/test_transport.py chapter25
+Build the chapter first, then run: python graph/test_transport.py chapter28b
 Uses only the Python standard library; does not launch a browser.
 """
 
@@ -145,4 +145,4 @@ def check(chapter):
 
 
 if __name__ == "__main__":
-    check(sys.argv[1] if len(sys.argv) > 1 else "chapter25")
+    check(sys.argv[1] if len(sys.argv) > 1 else "chapter28b")

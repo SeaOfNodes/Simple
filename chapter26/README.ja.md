@@ -1,9 +1,9 @@
-# オブジェクトの構築と非公開メモリ
+# 第26章: オブジェクトの構築と非公開メモリ
 
 [English](README.md) | 日本語
 
-[前章: 型が確定する前の SSA 構築](../chapter-incomplete-types/README.ja.md) |
-[次章: エスケープ解析と未知の呼び出し元](../chapter-escape/README.ja.md)
+[Previous: Chapter 25](../chapter25/README.ja.md) |
+[Next: Chapter 27](../chapter27/README.ja.md)
 
 この章では、フィールドの初期化とコンストラクタを関数として扱います。
 構築中のフィールドはローカルな SSA 値として扱い、分岐やループでは

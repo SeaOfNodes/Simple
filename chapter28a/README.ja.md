@@ -1,8 +1,11 @@
-# モジュールと遅延クラス初期化
+# 第28a章: モジュールと遅延クラス初期化
+
+[次の章: 分離コンパイル](../chapter28b/README.ja.md)
 
 [English](README.md) | 日本語
 
-[前: エスケープ解析と未知の呼び出し元](../chapter-escape/README.ja.md)
+[Previous: Chapter 27](../chapter27/README.ja.md) |
+[Next: Chapter 28b](../chapter28b/README.ja.md)
 
 この章では複数のソースファイルを一度にコンパイルします。各ファイルは
 一つのクラスと共有オブジェクトを定義し、トップレベルの文は隠れた
@@ -80,7 +83,7 @@ B の初期化が A を使う場合、先に完了できるクラスがありま
 リポジトリのルートで次を実行します。
 
 ```sh
-make tests CHAPTERS=chapter-modules
+make tests CHAPTERS=chapter28a
 ```
 
 このディレクトリでは初回に `make lib`、続いて `make tests` を使えます。

@@ -70,24 +70,22 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 21](chapter21/README.md): Instruction Encodings & ELF
 * [Chapter 22](chapter22/README.md): A Simple Hello, World!
 * [Chapter 23](chapter23/README.md): Methods and Types Revisited
-* [Chapter 24](chapter24/README.md): Chained conditionals and SCCP
-* [Chapter 25](chapter25/README.md): Modules, Separate Compilation, and SSA Construction with Incomplete Types
+* [Chapter 24a](chapter24a/README.md): SCCP Within a Function
+* [Chapter 24b](chapter24b/README.md): SCCP Across Functions
+* [Chapter 25](chapter25/README.md): SSA Before Types Are Known
+* [Chapter 26](chapter26/README.md): Construction and Private Memory
+* [Chapter 27](chapter27/README.md): Escape Analysis and Unknown Callers
+* [Chapter 28a](chapter28a/README.md): Modules and Lazy Class Initialization
+* [Chapter 28b](chapter28b/README.md): Separate Compilation
 
-The [approved split](docs/chapter-split.md) uses descriptive chapter names
-while the teaching boundaries settle. The numbered chapters remain comparison
-baselines during extraction. The first named snapshots are:
-
-* [SCCP Within a Function](chapter-sccp/README.md)
-* [SCCP Across Functions](chapter-interprocedural-sccp/README.md)
-* [SSA Before Types Are Known](chapter-incomplete-types/README.md)
-* [Construction and Private Memory](chapter-construction/README.md)
-* [Escape Analysis and Unknown Callers](chapter-escape/README.md)
-* [Modules and Lazy Class Initialization](chapter-modules/README.md)
+Appendices: [Native libraries](docs/appendices/native-libraries.md),
+[optimizer and backend tuning](docs/appendices/optimizer-tuning.md).
+The [split record](docs/chapter-split.md) maps the old chapters to this sequence.
 
 ## Building across chapters
 
 The optional [interactive graph viewer](graph/README.md) is shared in `graph/`.
-Chapters 1–25 launch it with `make view` from the chapter directory.
+All chapters launch it with `make view` from the chapter directory.
 
 The [debug printers](print/README.md) are shared in `print/`; Chapter 2 needs only
 a one-line expression format. A shared `BaseNode` supplies identity and edge
@@ -95,7 +93,7 @@ access to both printers and the viewer; chapter adapters add semantic details
 as the IR grows.
 
 The [instruction encoders](isa/README.md) share x86-64, ARM, and RISC-V byte
-emission for Chapters 21-25, along with ARM/RISC-V test evaluators. Machine-node
+emission for Chapters 21–28b, along with ARM/RISC-V test evaluators. Machine-node
 selection, register allocation, and code layout remain in each chapter; the
 shared layer takes concrete operands and writes bytes.
 
@@ -104,14 +102,14 @@ The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 `make tests`.
 
 CI runs `make lib tests CTAGS=` on Linux with JDK 21. The Make targets also build
-Chapter 25's native runtime and `sys` library before running the tests that use
+Chapter 28b's native runtime and `sys` library before running the tests that use
 them; Maven's Java build alone does not produce those prerequisites.
 
 The [chapter backport queue](docs/chapter-backports.md) records proposed small
 corrections and the per-chapter test/review workflow. Larger architectural moves
 are tracked separately there. Chapters 10-14 now group whole memory,
 lazy alias splitting, references, GCM, and numeric types in that order.
-The memory representation is forwarded through Chapter 25.
+The memory representation is forwarded through Chapter 28b.
 
 To build and test just the memory chapters:
 

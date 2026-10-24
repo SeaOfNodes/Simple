@@ -1,0 +1,82 @@
+# Chapter split cleanup audit
+
+This record distinguishes checked behavior, existing gaps, and future designs
+while retiring the old combined Chapters 24/25. The final mapping is in the
+[split record](chapter-split.md). Historical Java test names are retained as
+regression identities; they do not identify current chapter boundaries.
+
+## Corrections in this cleanup
+
+- Chained comparisons now begin in Chapter 23. The early SCCP implementations
+  incorrectly compared a boolean intermediate with the third operand:
+  `10 < 30 < 20` returned true. Later implementations preserved the middle
+  operand but reused the first operator, making `0 < 2 <= 2` false. All current
+  snapshots from 23 onward now compare adjacent values using each written
+  operator. Regression cases cover both directions, strict/non-strict mixtures,
+  single evaluation, side effects, short-circuiting, and mixed-direction errors.
+- Chapter 23's inherited, explicitly described fuzzer scratch contains many
+  comparisons using the former left-associative grammar. It is retained as an
+  ignored `testJigFuzzer`, consistent with the scratch-test policy; its mixed
+  directions are no longer valid source. Later snapshots already omitted it.
+- Native-library and tuning material is preserved in [appendices](appendices/README.md),
+  and the former roadmap is now [docs/roadmap.md](roadmap.md).
+- The recursive-return diagnostic already passed. It remains enabled in the
+  earlier snapshots and is enabled again in 28a/28b. The mutual-recursion test had an obsolete graph-string
+  expectation; it now checks its existing four execution results in 24b–28b.
+  In 24a, local SCCP cannot infer the recursive return type; the same example
+  checks that conservative diagnostic instead. This makes the boundary explicit.
+- Allocation/runtime measurement runs passed after the comparison correction;
+  the changed spill goldens record the resulting smaller graphs. Historical
+  published tables retain their original compiler labels and dates.
+
+## Implemented, with narrower limits than earlier prose suggested
+
+- Separate compilation imports types and optimized IR without source parsing;
+  it reruns analysis and type checking with the new callers.
+- Loading is by object and recorded dependencies, not individual used members.
+  A call to `sys.io.p` loads all ten bundled sys units. Independent, unrelated
+  objects can remain unloaded. Loading does not imply class initialization.
+- Timestamp checks do not yet provide a reliable incremental build system.
+  The [design note](incremental-builds.md) records the missing pieces.
+- Underscores select exports in modules; source privacy checks are still a
+  proposal awaiting review. Do not treat hidden exports as inaccessible source.
+- Constructor-local final fields use SSA values and exit Stores. Reads of an
+  unfinished object are allowed only for initialized fields. Passing unfinished
+  self to arbitrary helpers and accepting completion only after SCCP are not
+  promised by the current chapter boundary.
+
+## Existing failures and deferred validation
+
+- Prefix update of a field from a method can lose the write, starting in
+  Chapter 23 (confirmed by two calls to `inc={ -> ++x; }`). The enclosing
+  module-field reproducer and the worklist failure below are retained in the
+  [queue](chapter-backports.md), rather than hidden by the split.
+- A constructor loop with both break and continue still reproduces a worklist
+  assertion in Chapter 26. It is not caused by final-field mutability.
+- `testModule0` is an ignored historical incremental-build experiment. It
+  assumes per-source output objects and unchanged explicit-input builds, neither
+  of which matches the present compiler's contract.
+- Serialization's expensive byte-for-byte round-trip assertion remains disabled.
+  Ordinary import tests do not establish that stronger property.
+- Direct probes of the remaining ignored tests found a stale forward-method
+  graph expectation and a missing `progs/sieve.smp` fixture in 28b. These and
+  the interactive stdin test remain ignored. Ignored Jig and
+  random-fuzzer entry points are intentional scratch/long-running tools.
+  Audit these separately before advertising their behavior as tested.
+
+Selective loading, full incremental builds, source privacy, compact pointers,
+argument arrays, deterministic inlining, and broader constructor rules remain
+future work. They are not prerequisites for completing the chapter numbering.
+
+## Validation
+
+The affected snapshots (23, 24a, 24b, 25, 26, 27, 28a, 28b) were checked with
+their full Make suites on Windows and Linux, plus focused reruns after updating
+test expectations. The final Windows coverage is 4,143 tests plus eight fuzzer
+regression runs, with the shared printer and ISA tests also passing. The
+native library/client cases and final Chapter 28b release build pass on both OSes.
+
+A local linear-history dry run produced all 31 tags in teaching order. The
+final source snapshot, chapter navigation, Maven module IDs, and reviewed local
+documentation links were checked. Measurement capture in 24b and dynamic
+measurements in 24b/28b pass; the historical published tables were not rewritten.

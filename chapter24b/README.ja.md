@@ -1,9 +1,9 @@
-# 関数間の SCCP
+# 第24b章: 関数間の SCCP
 
 [English](README.md) | 日本語
 
-[前: 関数内の SCCP](../chapter-sccp/README.ja.md) |
-[次: 型が確定する前の SSA 構築](../chapter-incomplete-types/README.ja.md) |
+[Previous: Chapter 24a](../chapter24a/README.ja.md) |
+[Next: Chapter 25](../chapter25/README.ja.md)
 [章の分割案](../docs/chapter-split.md)
 
 前の章では関数ごとに保守的な呼び出し境界で解析しました。この章では
@@ -31,4 +31,4 @@
 
 このディレクトリで最初に `make lib`、続いて `make tests` を実行してください。
 リポジトリのルートでは
-`make tests CHAPTERS=chapter-interprocedural-sccp` を使えます。
+`make tests CHAPTERS=chapter24b` を使えます。

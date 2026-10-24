@@ -3,7 +3,7 @@
 English | [日本語](README.ja.md)
 
 [Previous: Chapter 22](../chapter22/README.md) |
-[Next: Chapter 24](../chapter24/README.md)
+[Next: Chapter 24a](../chapter24a/README.md)
 
 In this chapter we add *methods*, functions defined in structs which take a
 hidden `self` argument and can access the struct fields.  Here is an
@@ -52,6 +52,18 @@ You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linea
 
 
 Here is the [complete language grammar](docs/23-grammar.md) for this chapter.
+
+## Chained comparisons
+
+`lo <= x < hi` compares adjacent values and evaluates `x` only once. If the
+first comparison fails, the later operand is not evaluated. This uses the
+same control and scope merges as short-circuit expressions; it does not need
+SCCP. For example, `10 < 30 < 20` is false, and `0 < 2 <= 2` is true.
+
+A chain must keep one direction, but may mix strict and inclusive tests:
+`a < b <= c` and `a >= b > c` are allowed; `a < b > c` is rejected. Equality
+has lower precedence and does not join a chain. Parentheses can still make
+the result of one comparison an operand of another.
 
 ## Why Cyclic Types?
 

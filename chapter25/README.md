@@ -1,9 +1,9 @@
-# SSA Before Types Are Known
+# Chapter 25: SSA Before Types Are Known
 
 English | [日本語](README.ja.md)
 
-[Previous: SCCP Across Functions](../chapter-interprocedural-sccp/README.md) |
-[Next: Construction and Private Memory](../chapter-construction/README.md)
+[Previous: Chapter 24b](../chapter24b/README.md) |
+[Next: Chapter 26](../chapter26/README.md)
 
 The previous compiler solved for recursive types and calls, but its parser
 still needs types to choose e.g. float-vs-integer arithmetic instructions or
@@ -142,7 +142,7 @@ method and initializer bodies out of that parser scope is construction work.
 ## Building and checking
 
 Run `make lib tests CTAGS=` here, or from the repository root run
-`make tests CHAPTERS=chapter-incomplete-types CTAGS=`.
+`make tests CHAPTERS=chapter25 CTAGS=`.
 
 `IncompleteTypesTest` exercises a forward field with deferred numeric mode and
 a forward store whose byte width must be resolved. The inherited suite covers

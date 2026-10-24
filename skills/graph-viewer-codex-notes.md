@@ -48,7 +48,7 @@ passed for real TypeCheck errors in chapters 10, 17, 18, 25, including final Nex
 folded error nodes, backward playback, direct jump, and a subsequent valid compile.
 Dead erroneous code was removed before TypeCheck. Existing JUnit checks passed:
 chapter10 Chapter10Test (27), chapter18 Chapter13Test + Chapter18Test (39),
-chapter25 Chapter13Test (16). This was NOT an all-chapter full test-suite run.
+chapter28b Chapter13Test (16). This was NOT an all-chapter full test-suite run.
 
 ## Durable design and owner preferences
 
@@ -146,7 +146,7 @@ capture server on an ephemeral port. Scratch helpers may disappear after cleanup
   sibling-Phi exclusion, nested replacement ordering. Some older scratch scripts
   assumed adjacent capture frames and are stale after atomic peep playback.
 - build/check-folding-state.py: inlining FOLDING labels; folding-frames.json is a
-  349-frame chapter25 capture predating the added final TypeCheck frame.
+  349-frame chapter28b capture predating the added final TypeCheck frame.
 - build/check-graph-finish.py defines capture(ch) before its chapter05 invocation;
   helpers reuse that prefix. build/FinishFrames.java (build/graph-finish classes)
   calls GraphCapture.run on an ephemeral socket without launching a browser.

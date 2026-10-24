@@ -104,7 +104,7 @@ before the session so compilation does not consume stage time:
     make -C chapter08 build CTAGS=
     make -C chapter17b build CTAGS=
     make -C chapter18 build CTAGS=
-    make -C chapter25 build CTAGS=
+    make -C chapter28b build CTAGS=
 
 The deck's **Copy viewer command** button gives one of these commands:
 
@@ -112,7 +112,7 @@ The deck's **Copy viewer command** button gives one of these commands:
     make -C chapter08 view
     make -C chapter17b view
     make -C chapter18 view
-    make -C chapter25 view
+    make -C chapter28b view
 
 The Chapter 24 SCCP slide deliberately launches **Chapter 25's viewer** for
 this talk, using the same example with a separately compiled standard library.
@@ -231,7 +231,7 @@ fixed-point theory works” and “It’s a rich lattice, so we get rich results
 Regenerate with Chapter 24 built and Graphviz installed:
 
 ```sh
-java -ea --class-path chapter24/build/classes/main docs/2026_REBASE/tools/RichLattice.java
+java -ea --class-path chapter24b/build/classes/main docs/2026_REBASE/tools/RichLattice.java
 dot -Tsvg docs/2026_REBASE/assets/rich-lattice.gv -o docs/2026_REBASE/assets/rich-lattice.svg
 ```
 

@@ -190,11 +190,11 @@ only raises an existing browser window, paste that URL into a new tab. Use
 or connecting a browser manually. A disconnected viewer stays open and shows
 its connection status instead of silently closing the tab.
 
-After building a chapter, `python graph/test_transport.py chapter25` from the
+After building a chapter, `python graph/test_transport.py chapter28b` from the
 repository root checks HTTP asset delivery, a delayed and fragmented WebSocket
 upgrade, and session shutdown without opening a browser.
 
-`python graph/test_browser.py chapter25 --browser msedge` additionally checks
+`python graph/test_browser.py chapter28b --browser msedge` additionally checks
 actual rendering, stepping backward/forward, compiling multiple programs, and
 disconnected startup in a headless browser. This optional test requires the
 Python `playwright` package and the selected browser; it is not a viewer runtime
@@ -480,7 +480,7 @@ classes using `javac`. From the repository root:
 
 ```sh
 make -C chapter04 build
-make -C chapter25 build
+make -C chapter28b build
 ```
 
 `build` compiles the compiler and adapter without running tests or opening a

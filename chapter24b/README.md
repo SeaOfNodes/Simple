@@ -1,9 +1,9 @@
-# SCCP Across Functions
+# Chapter 24b: SCCP Across Functions
 
 English | [日本語](README.ja.md)
 
-[Previous: SCCP Within a Function](../chapter-sccp/README.md) |
-[Next: SSA Before Types Are Known](../chapter-incomplete-types/README.md)
+[Previous: Chapter 24a](../chapter24a/README.md) |
+[Next: Chapter 25](../chapter25/README.md)
 
 The previous chapter runs SCCP within each function, and assumes very
 conservative typing across calls.  This chapter lets the same worklist
@@ -43,7 +43,7 @@ e.g. not-null) on all calling paths.
 ## Recursion is a loop in disguise
 
 We use *widening* of integer ranges at loop heads, as described in the
-[previous chapter](../chapter-sccp/README.md#convergence-and-calls).
+[previous chapter](../chapter24a/README.md#convergence-and-calls).
 This allows us to have a sharper notion of integers over `BOTTOM` without also
 allowing the range to grow one integer at a time. The same issue arises during
 recursive calls: an argument can flow from a Parm through arithmetic into a
@@ -79,9 +79,9 @@ analysis is introduced later to improve this.
 
 Run `make lib` once for Java test dependencies, then `make tests` in this
 directory. From the repository root, use
-`make tests CHAPTERS=chapter-interprocedural-sccp`.
+`make tests CHAPTERS=chapter24b`.
 The inherited tests retain their historical class names.
 
-The [grammar](docs/24-grammar.md) includes chained comparisons inherited from
-the extraction baseline. Their planned teaching home is with short-circuit
-expressions. Allocator tuning is covered separately by the planned appendix.
+The [grammar](docs/24-grammar.md) includes chained comparisons introduced in
+Chapter 23 beside short-circuit expressions. Allocator tuning is covered in
+the [appendix](../docs/appendices/optimizer-tuning.md).

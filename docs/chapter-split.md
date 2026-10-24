@@ -1,11 +1,31 @@
 # Approved chapter split
 
-Cliff approved this teaching outline on 2026-10-19. It splits the material
-currently in Chapters 24 and 25 into seven chapters. Use descriptive chapter
-names while the chapter count changes; final numbers can wait. Cliff approved
-starting with both proposed implementation boundaries and wants to review the
-construction/escape border after the snapshots run. Native library construction
-and optimizer tuning belong in appendices for now.
+Cliff approved the seven-part split on 2026-10-19 and the final numbering on
+2026-10-24. The old combined Chapters 24 and 25 are retired; their history is
+available in Git. Every new directory is a complete compiler snapshot.
+
+| Previous directory | Final chapter |
+|---|---|
+| chapter-sccp | 24a: SCCP within a function |
+| chapter-interprocedural-sccp | 24b: SCCP across functions |
+| chapter-incomplete-types | 25: SSA before types are known |
+| chapter-construction | 26: Construction and private memory |
+| chapter-escape | 27: Escape analysis and unknown callers |
+| chapter-modules | 28a: Modules and lazy class initialization |
+| chapter-separate-compilation | 28b: Separate compilation |
+
+Keep 17a/17b. The other paired chapters extend one idea: 24a/24b goes from
+local to interprocedural SCCP; 28a/28b goes from compiling modules together to
+compiling them independently. Construction and escape remain separate topics;
+neither is presented as requiring the other.
+
+Inherited Java test names such as `Chapter24Test` and `Chapter25Test` retain
+their historical identities across snapshots. They are regression cohorts,
+not an index of the current teaching sequence. Historical allocator tables
+also retain their original labels and dates.
+
+Native library construction and optimizer tuning are now [appendices](appendices/README.md).
+The [roadmap](roadmap.md) and [backport queue](chapter-backports.md) own future work.
 
 The teaching pattern is to introduce a difficult idea, then show how to make
 it useful in a larger setting. Each chapter must remain a complete, runnable
@@ -41,8 +61,8 @@ Ordinary loop widening belongs in the first chapter. The second adds argument
 and result widening for recursion. Use `f(x-1)+1` to explain why these are
 separate data cycles: the recursive return value never crosses Parm(x).
 
-Chained comparisons do not need their own chapter. Their provisional home is
-beside the current Chapter 23 short-circuit expressions: evaluate each operand
+Chained comparisons do not need their own chapter. Their home is
+beside Chapter 23 short-circuit expressions: evaluate each operand
 once and evaluate later operands only when earlier comparisons succeed.
 The current Chapter 24 cold-loop-split allocator improvement belongs with the
 tuning appendix.
@@ -64,7 +84,7 @@ snapshot can publish conservatively; the later one refines that behavior.
 The name EscapeNode does not require teaching the full escape analysis at
 the point where publication is introduced.
 
-`chapter-construction` now implements that explicit boundary. Hidden initializer
+`chapter26` now implements that explicit boundary. Hidden initializer
 and allocator functions carry whole private object memory; completion publishes
 fields into public aliases. The new constructor functions reject early passing
 or storing of `self`, including self-links, and access through a merged alias.
@@ -108,28 +128,21 @@ Keeping a function for emission must not imply arbitrary callers can reach it.
 This split organizes implemented behavior. Deterministic inlining, argument
 arrays, static pre-initialization of classes, CFG frequency estimates, and
 constant instance-field storage remain future work. See the
-[backport queue](chapter-backports.md) and [Chapter 25 roadmap](../chapter25/ROADMAP.md).
+[backport queue](chapter-backports.md) and [roadmap](roadmap.md).
 
 ## Renumbering and validation
 
 The first runnable extractions are
-[SCCP Within a Function](../chapter-sccp/README.md) and
-[SCCP Across Functions](../chapter-interprocedural-sccp/README.md), followed by
-[SSA Before Types Are Known](../chapter-incomplete-types/README.md),
-[Construction and Private Memory](../chapter-construction/README.md) and
-[Escape Analysis and Unknown Callers](../chapter-escape/README.md), and
-[Modules and Lazy Class Initialization](../chapter-modules/README.md).
-Separate compilation remains to be extracted. Numbered Chapters 24 and 25
-remain comparison baselines during this work.
-
-Choose final numbers after trying the implementation boundaries above.
-Revisit 17a/17b during that pass: they currently separate permissions from useful
-syntax. Chapters 10/11 separate whole-memory SSA from useful alias partitioning.
-Preserve those teaching boundaries when choosing names and numbers.
-
-The same progression guides this split: local SCCP to interprocedural SCCP,
-private construction to escape discovery, and modules compiled together to
-modules compiled independently.
+[SCCP Within a Function](../chapter24a/README.md) and
+[SCCP Across Functions](../chapter24b/README.md), followed by
+[SSA Before Types Are Known](../chapter25/README.md),
+[Construction and Private Memory](../chapter26/README.md) and
+[Escape Analysis and Unknown Callers](../chapter27/README.md), and
+[Modules and Lazy Class Initialization](../chapter28a/README.md), and
+[Separate Compilation](../chapter28b/README.md).
+All seven main snapshots are extracted and numbered. Chained comparisons now
+start in Chapter 23 beside short-circuit expressions. The linear-history
+publisher follows the numbered directories, including lettered pairs.
 
 Validate each intermediate compiler with its own Make suite, including execution
 checks. Keep declarations, conversions, diagnostics, and type bounds consistent;
@@ -138,13 +151,13 @@ libraries when their compiler or object format changes.
 
 ## Escape snapshot ready for boundary review
 
-`chapter-escape` adds function/alias exposure sets to TypeMem and closes the
+`chapter27` adds function/alias exposure sets to TypeMem and closes the
 Start/Stop feedback cycle during SCCP. Known calls propagate memory summaries;
 exposed returns, fields, external arguments and native calls discover further
 addresses. Native calls contribute even on paths with no live Return. Function
 addresses kept entirely in known code no longer imply unknown callers.
 
-The [recursive callback example](../chapter-escape/README.md) now belongs in
+The [recursive callback example](../chapter27/README.md) now belongs in
 that chapter. Its base parameter becomes 2 while recursive calls remain.
 Returning the callback or a containing object, or handing it to native code,
 restores conservative arguments. FinalizeIR separates those analysis facts
@@ -157,8 +170,8 @@ No modules, class singletons, serialized IR or identity remapping are included.
 
 ## Modules snapshot ready for review
 
-`chapter-modules` compiles all discovered source files together. It adds class
-singletons, namespaces and privacy, parent initialization, CLInit memory effects,
+`chapter28a` compiles all discovered source files together. It adds class
+singletons, namespaces and export filtering, parent initialization, CLInit memory effects,
 cycle diagnostics, runtime lowering, and shared native class storage. Source
 discovery reads parents as well as referenced children. The bundled modular sys
 is supplied as source; building reusable libraries remains appendix material.
@@ -180,3 +193,28 @@ source/type cycles, rejected initialization cycles, parent order, native cold/ho
 calls, shared storage, and ARM/RISC-V encoding. The construction/escape border
 remains open to Cliff's review; this extraction does not settle broader rules for
 publishing unfinished objects.
+
+## Separate compilation snapshot ready for review
+
+`chapter28b` adds saved types and ideal IR, `GlobalBits`
+identity remapping, object discovery, imported bodies, and `Unlink`. It carries
+Modules' deferred constructor parsing, local final-field values and loop Phis,
+converted private memory summaries, native callback exposure, and source-parent
+initialization order. Source privacy enforcement remains a separate review.
+
+The runnable example compiles a library and a client from separate source roots.
+The client allocates an imported struct whose constructor updates a final field
+in a loop, then calls a retained library function that updates shared state.
+The regression checks evaluation under three seeds and native cold/repeated
+calls. A second import test preserves unknown callers for a callback passed to
+native code. Existing import tests retain initialization-cycle diagnostics,
+shared class data, public type reconstruction, and native function thunks.
+
+Serialization now saves the class declarations of owned nested structs even
+when they are absent from the optimized graph's type closure. Otherwise a
+client can load the instance type but cannot find its allocation signature.
+An explicit source input is always recompiled; dependency objects may still
+be reused. The old incremental-rebuild experiment remains ignored.
+
+All seven main teaching boundaries now have numbered snapshots. Broader
+language choices and compiler improvements remain in the review queue.

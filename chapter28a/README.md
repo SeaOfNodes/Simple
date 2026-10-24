@@ -1,8 +1,11 @@
-# Modules and Lazy Class Initialization
+# Chapter 28a: Modules and Lazy Class Initialization
 
 English | [日本語](README.ja.md)
 
-[Previous: Escape Analysis and Unknown Callers](../chapter-escape/README.md)
+[Previous: Chapter 27](../chapter27/README.md) |
+[Next: Chapter 28b](../chapter28b/README.md)
+
+[Next: Separate Compilation](../chapter28b/README.md)
 
 
 The compiler can now discover several source files and compile them together.
@@ -256,7 +259,7 @@ val scale = read_setting(); // Final binding; value only known at runtime
 From the repository root:
 
 ```sh
-make tests CHAPTERS=chapter-modules
+make tests CHAPTERS=chapter28a
 ```
 
 Or, in this directory, `make lib` once for JUnit, then `make tests`. The suite

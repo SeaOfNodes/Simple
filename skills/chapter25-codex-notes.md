@@ -1,4 +1,4 @@
-# Codex notes for Simple Chapter 25
+# Codex notes for Simple
 
 This file is intentionally AI-facing. It records durable invariants, debugging
 habits, and project-owner preferences that are easy to miss when reading only
@@ -7,18 +7,15 @@ session handoffs as live status.
 For cross-chapter work, read [the backport queue](../docs/chapter-backports.md).
 It owns pending work; these notes capture reusable lessons. Completed work and
 superseded validation history remain in Git.
-The [approved chapter split](../docs/chapter-split.md) owns the teaching outline
-for current Chapters 24-25. Cliff approved it on 2026-10-19: two SCCP chapters,
-one combined incomplete-type chapter, then construction, escape analysis,
-modules/class initialization, and separate compilation. Library construction
-and optimizer tuning are appendices. Use descriptive chapter names while the
-count changes. Cliff approved starting with both proposed boundaries and wants
-to review/play with construction versus escape after the snapshots run. Keep
-that border open to refinement. Revisit 17a/17b when choosing final names or
-numbers. The first extracted snapshots are chapter-sccp,
-chapter-interprocedural-sccp, chapter-incomplete-types, chapter-construction,
-chapter-escape, and chapter-modules; numbered 24/25
-remain comparison baselines.
+The [completed split](../docs/chapter-split.md) maps the former combined 24/25
+to 24a/24b (SCCP), 25 (incomplete types), 26 (construction), 27 (escape), and
+28a/28b (modules/separate compilation). The old combined snapshots are retired.
+Earlier entries below retain historical chapter numbers and test names; old
+Chapter 25 implementation references describe the lineage now in 25–28b, with
+the complete implementation in 28b. Use current paths and teaching boundaries.
+The construction/escape border remains open to semantic review.
+Future work belongs in the [roadmap](../docs/roadmap.md), including the separate
+[incremental build design](../docs/incremental-builds.md).
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
 ## Collaboration preferences
@@ -67,6 +64,14 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   findings, the current check, and any blocker.
 
 ## Mutability and chapter boundaries
+
+- Separate compilation retains the Modules parser's constructor local values
+  and escape fixes while adding saved IR and import ownership. Save owned nested
+  struct class declarations even when graph types omit them: callers need the
+  allocation and constructor signatures before bodies load. Preserve the nearest
+  file owner so imported children are not claimed by a compiled parent. The
+  library/client example checks three seeds and repeated native calls; native
+  callback exposure is also checked after saving and loading the library.
 
 - The four README intention questions are kept in
   [the review agenda](../docs/chapter-backports.md#four-readme-intentions-to-review).
@@ -186,7 +191,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   up front; ordinary Load/FldOff nodes resolve forward receivers. The fourth
   CLInit input is always present in a constructed graph. If the receiver resolves
   to an instance, CLInit and its speculative flag load disappear together.
-  Precise alias recovery can still be deferred. See `chapter25/README.md`.
+  Precise alias recovery can still be deferred. See `chapter28a/README.md`.
   Runtime lowering is implemented above; argument arrays remain deferred. Public function fields
   on instances of public classes must retain Start, just like class-object
   fields. publicFIDX now checks both; this fixes sys.scan.match losing Start
@@ -230,7 +235,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 - Resolving a forward struct reference must preserve pointer access/nullability.
   Phi idealization should report progress only when the referenced struct changes,
   not merely because the canonical declaration has different pointer permissions.
-- In chapter-incomplete-types, complete named declarations as a group before
+- In chapter25, complete named declarations as a group before
   upgrading old graph types. Update stored declarations in New, Parm, Convert,
   and similar nodes as well as their cached result types. A nested undeclared
   struct must remain open, not become an empty finished definition. Unknown
@@ -433,7 +438,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   after changing graph/test order does not prove an intermittent failure fixed.
 - Store disposable probes/logs under an appropriate ignored build directory.
   Preserve durable reproducers in tests or the review record, not only scratch
-  files. The B13 `chapter25/tmp` probes were removed at Cliff's request after he
+  files. The B13 `chapter28b/tmp` probes were removed at Cliff's request after he
   reviewed and pushed the fix; future sessions must not rely on those files.
 
 ## Dominator caches and searches
@@ -660,7 +665,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   with documented constructor, receiver, library and mutability adaptations.
   These are allocation/legality replays, not historical runtime harnesses. Its
   own cohort includes current Chapter25Test allocations and a fresh library
-  encoding. See `chapter25/src/test/java/com/seaofnodes/simple/spill/README.md`.
+  encoding. See `chapter28b/src/test/java/com/seaofnodes/simple/spill/README.md`.
   Do not silently use current inherited tests as though their sources were frozen.
 - Rebuild and measure the system library even if sys.o is up to date. In the
   final 25 review, the older ranking and a multi-use-clone preference looked

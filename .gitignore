@@ -2,6 +2,7 @@
 
 # Compiled class file
 *.class
+__pycache__/
 build/
 */docs/examples/*.o
 */docs/examples/*.exe

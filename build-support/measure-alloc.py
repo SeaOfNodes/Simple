@@ -1,9 +1,11 @@
 """Compile the shared measurement harness against one chapter's existing classes."""
 from pathlib import Path
 import json,os,re,subprocess,sys
-root=Path(__file__).resolve().parents[1]; ch=int(sys.argv[1]); chapter=root/f'chapter{ch}'
-if ch not in range(21,26): raise SystemExit("Dynamic measurement supports chapters 21-25")
-out=root/'build/dynamic-stats'/str(ch);out.mkdir(parents=True,exist_ok=True)
+root=Path(__file__).resolve().parents[1]; name=sys.argv[1].removeprefix('chapter')
+slots={'21':21,'22':22,'23':23,'24b':24,'28b':25}
+if name not in slots: raise SystemExit("Dynamic measurement supports chapters 21, 22, 23, 24b, 28b")
+ch=slots[name]; chapter=root/f'chapter{name}'
+out=root/'build/dynamic-stats'/name;out.mkdir(parents=True,exist_ok=True)
 src=(root/'build-support/AllocMetrics.java.in').read_text()
 subs={'CHAPTER':str(ch),'OPSTART':'e.opStart(n)' if ch==25 else 'e._opStart[n._nid]',
       'OPLEN':'e.opLen(n)' if ch==25 else 'e._opLen[n._nid]',
@@ -26,7 +28,7 @@ cp=os.pathsep.join([str(chapter/'build/classes/main'),str(chapter/'build/classes
 subprocess.run(['javac','-cp',cp,'-d',str(out),str(out/'Measure.java')],check=True)
 subprocess.run(['javac','-cp',cp,'-d',str(out),*[str(p) for p in (root/'isa/src/test-support/java/com/seaofnodes/isa/eval').glob('*.java')]],check=True)
 if ch==25:
-    p=root/'chapter25/src/test/java/com/seaofnodes/simple/spill'
+    p=root/'chapter28b/src/test/java/com/seaofnodes/simple/spill'
     index=out/'index.tsv'
     rows=[]
     for line in (p/'cohorts.tsv').read_text().splitlines():
@@ -42,4 +44,4 @@ if ch==25:
 else:index=out/'captured/index.tsv'
 with (out/'dynamic.log').open('w') as log:
     subprocess.run(['java','-ea','-cp',str(out)+os.pathsep+cp,'Measure',str(index)],cwd=chapter,stdout=log,stderr=subprocess.STDOUT,check=True)
-print(ch, 'done')
+print(name, 'done')

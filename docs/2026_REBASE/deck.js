@@ -47,8 +47,8 @@ window.REBASE = {
     },
     {
       "id": "sccp",
-      "chapter": "chapter24",
-      "viewerChapter": "chapter25",
+      "chapter": "chapter24b",
+      "viewerChapter": "chapter28b",
       "title": "Prove a loop-carried constant",
       "code": "int x = 1;\nfor( int i = 0; i < arg; i++ )\n    x = 2 - x;\nreturn x;\n",
       "result": "Return value is always 1",

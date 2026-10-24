@@ -25,25 +25,37 @@ fi
 
 last_committer_date='0 +0000'
 
-# Named snapshots are extracted alongside the numbered comparison baselines.
-# Publish the existing sequence until the whole replacement sequence is ready;
-# alphabetical order would put interprocedural SCCP before Chapter 1.
+# Numbered snapshots, including 17a/17b, 24a/24b and 28a/28b, are already in
+# teaching order. The combined old Chapters 24/25 have been retired.
 git -C "$repo" ls-tree HEAD --name-only | grep -E '^chapter[0-9][0-9][a-z]?$' |
 while read -r chapter; do
   echo "Processing $chapter"
 
   chapter_number="$(sed 's/^chapter0*//' <<< "$chapter")"
 
+  # Directory renames must not erase credit for the source snapshots. Include
+  # both the named extraction and its former combined implementation.
+  history_paths=("$chapter")
+  case "$chapter" in
+    chapter24a) history_paths+=(chapter-sccp chapter24) ;;
+    chapter24b) history_paths+=(chapter-interprocedural-sccp chapter24) ;;
+    chapter25)  history_paths+=(chapter-incomplete-types chapter24) ;;
+    chapter26)  history_paths+=(chapter-construction chapter25) ;;
+    chapter27)  history_paths+=(chapter-escape chapter25) ;;
+    chapter28a) history_paths+=(chapter-modules chapter25) ;;
+    chapter28b) history_paths+=(chapter-separate-compilation chapter25) ;;
+  esac
+
   if [[ ! -f "$repo/$chapter/README.md" ]]; then
-    echo "Missing $chapter/READMD.md" >&2
+    echo "Missing $chapter/README.md" >&2
     echo "# Chapter $chapter_number" > "$repo/$chapter/README.md"
   fi
   chapter_title="$(grep '^#' "$repo/$chapter/README.md" | head -n1 | sed 's/^#* //')"
 
   # Extract the authors for this chapter from commit authors and the
   # Co-authored-by trailer.
-  authors="$(git -C "$repo" log --format='%an <%ae>' --no-merges "$chapter")"
-  co_authors="$(git -C "$repo" log --format=%B --no-merges "$chapter" |
+  authors="$(git -C "$repo" log --format='%an <%ae>' --no-merges -- "${history_paths[@]}")"
+  co_authors="$(git -C "$repo" log --format=%B --no-merges -- "${history_paths[@]}" |
     tr -d $'\r' | sed -n 's/^ *Co-authored-by: //p')"
   first_author="$(sort_authors <<< "$authors" | head -n1)"
   all_authors="$(sort_authors <<< "$authors"$'\n'"$co_authors")"
@@ -56,14 +68,14 @@ while read -r chapter; do
   done <<< "$all_authors"
 
   # Get the first and last dates this chapter was modified.
-  root_files=("${readmes[@]}" LICENSE pom.xml .gitignore .dir-locals.el transpile-tests graph print isa build-support)
+  root_files=("${readmes[@]}" LICENSE pom.xml .gitignore .dir-locals.el transpile-tests graph print isa build-support docs)
   author_root_files=()
   if [[ $chapter = chapter01 ]]; then
     # Only include the commit date of the root files for chapter01.
     author_root_files+=("${root_files[@]}")
   fi
-  author_date="$(git -C "$repo" log --format=%ad --date=raw "$chapter" "${author_root_files[@]}" | tail -n1)"
-  committer_date="$(git -C "$repo" log --format=%ad --date=raw -1 "$chapter" "${root_files[@]}")"
+  author_date="$(git -C "$repo" log --format=%ad --date=raw -- "${history_paths[@]}" "${author_root_files[@]}" | tail -n1)"
+  committer_date="$(git -C "$repo" log --format=%ad --date=raw -1 -- "${history_paths[@]}" "${root_files[@]}")"
   if [[ $committer_date < $last_committer_date ]]; then
     committer_date="$last_committer_date"
   else
@@ -132,6 +144,15 @@ while read -r chapter; do
                     </execution>' pom.xml
   fi
   git mv chapter_docs "docs/$chapter"
+  # Shared plans, appendices and review notes are linked from the chapter docs.
+  # Keep them alongside the accumulated chapter documentation.
+  cp "$repo"/docs/*.md docs/
+  cp -R "$repo/docs/appendices" docs/
+  cp -R "$repo/skills" .
+  sed -Ei 's,\(\.\./chapter[0-9]+[a-z]?/src/,(../src/,g; s,\(\.\./(chapter[0-9]+[a-z]?)/,(\1/,g' docs/*.md
+  sed -Ei 's,\(\.\./\.\./chapter[0-9]+[a-z]?/src/,(../../src/,g; s,\(\.\./\.\./(chapter[0-9]+[a-z]?)/,(../\1/,g' docs/appendices/*.md
+  sed -Ei 's,\(\.\./chapter[0-9]+[a-z]?/src/,(../src/,g; s,\(\.\./(chapter[0-9]+[a-z]?)/,(../docs/\1/,g' skills/*.md
+  git add docs skills
   # Restore the link to this chapter.
   sed -Ei "s,^\* Chapter $chapter_number: ,* [Chapter $chapter_number](docs/$chapter/README.md): ," README.md
   if [[ -f README.ja.md ]]; then

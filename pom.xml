@@ -43,14 +43,13 @@
         <module>chapter21</module>
         <module>chapter22</module>
         <module>chapter23</module>
-        <module>chapter24</module>
+        <module>chapter24a</module>
+        <module>chapter24b</module>
         <module>chapter25</module>
-        <module>chapter-sccp</module>
-        <module>chapter-interprocedural-sccp</module>
-        <module>chapter-incomplete-types</module>
-        <module>chapter-construction</module>
-        <module>chapter-escape</module>
-        <module>chapter-modules</module>
+        <module>chapter26</module>
+        <module>chapter27</module>
+        <module>chapter28a</module>
+        <module>chapter28b</module>
     </modules>
 
     <properties>

@@ -1,6 +1,6 @@
 """End-to-end viewer regression: requires Playwright and a browser.
 
-Build the chapter, then run python graph/test_browser.py chapter25 --browser msedge.
+Build the chapter, then run python graph/test_browser.py chapter28b --browser msedge.
 Use --browser firefox for Playwright's Firefox build. See README.md for setup.
 """
 from pathlib import Path
@@ -147,7 +147,7 @@ def check(chapter, browser_name):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("chapter", nargs="?", default="chapter25")
+    parser.add_argument("chapter", nargs="?", default="chapter28b")
     parser.add_argument("--browser", default="msedge", choices=("msedge", "chrome", "firefox"))
     args = parser.parse_args()
     check(args.chapter, args.browser)

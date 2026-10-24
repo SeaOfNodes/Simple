@@ -1,3 +1,0 @@
-// -*- mode: java;  -*-
-sys.io.p("Hello, World!");
-return 0;

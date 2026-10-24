@@ -1,9 +1,9 @@
-# Escape Analysis and Unknown Callers
+# Chapter 27: Escape Analysis and Unknown Callers
 
 English | [日本語](README.ja.md)
 
-[Previous: Construction and Private Memory](../chapter-construction/README.md) |
-[Next: Modules and Lazy Class Initialization](../chapter-modules/README.md)
+[Previous: Chapter 26](../chapter26/README.md) |
+[Next: Chapter 28a](../chapter28a/README.md)
 
 
 We run a simple form of escape analysis in this chapter, tracking both
@@ -170,7 +170,7 @@ Neither topic requires the other to be taught first.
 From this directory, run `make lib tests CTAGS=`. From the repository root, run:
 
 ```bash
-make tests CHAPTERS=chapter-escape CTAGS=
+make tests CHAPTERS=chapter27 CTAGS=
 ```
 
 `EscapeTest` checks the recursive callback, direct and indirect returned

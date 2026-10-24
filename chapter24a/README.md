@@ -1,17 +1,20 @@
-# SCCP Within a Function
+# Chapter 24a: SCCP Within a Function
 
 English | [日本語](README.ja.md)
 
-[Previous: Methods and Types](../chapter23/README.md) |
-[Next: SCCP Across Functions](../chapter-interprocedural-sccp/README.md)
+[Previous: Chapter 23](../chapter23/README.md) |
+[Next: Chapter 24b](../chapter24b/README.md)
 
 This chapter introduces [SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)
 within each function.  Next chapter, we'll go interprocedural with SCCP.
 
+Calls retain conservative interfaces here. In particular, mutually recursive
+functions whose return types need inference across calls can still fail with
+`No defined return type`; Chapter 24b solves those recursive return cycles.
 
-The [chapter split](../docs/chapter-split.md) uses names while the chapter
-boundaries settle. This is an independent compiler snapshot, extracted from
-Chapter 24. The numbered snapshot remains a comparison baseline.
+
+This is an independent compiler snapshot. The [split record](../docs/chapter-split.md)
+explains how the former combined SCCP chapter became Chapters 24a and 24b.
 
 ## Sparse Conditional Constant Propagation
 
@@ -170,9 +173,9 @@ that inference and the widening needed to make it converge; its
 ## Building and checking
 
 Run `make lib` once for Java test dependencies, then `make tests` in this
-directory. From the repository root, use `make tests CHAPTERS=chapter-sccp`.
+directory. From the repository root, use `make tests CHAPTERS=chapter24a`.
 The inherited tests retain their historical class names.
 
-The [grammar](docs/24-grammar.md) includes chained comparisons inherited from
-the extraction baseline. Their planned teaching home is with short-circuit
-expressions. Allocator tuning is covered separately by the planned appendix.
+The [grammar](docs/24-grammar.md) includes chained comparisons introduced in
+Chapter 23 beside short-circuit expressions. Allocator tuning is covered in
+the [appendix](../docs/appendices/optimizer-tuning.md).

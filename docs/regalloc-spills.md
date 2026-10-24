@@ -1,5 +1,11 @@
 # Register allocation across chapters
 
+This is the dated **pre-split** comparison. Its Ch 24/25 columns describe the
+retired combined snapshots, not today's Chapter 25 (incomplete types). Current
+measurement tools target 24b/28b and publish a
+[separate table](appendices/current-spill-matrix.md). The historical numbers
+below remain unchanged.
+
 Read a row left to right to follow a fixed cohort through successive compilers.
 Each cell gives **Ops / RA / X**:
 
@@ -98,7 +104,8 @@ The measured machine graph is stopped before allocation to identify subsequently
 inserted copies/cloned constants. After encoding, their instruction ranges are
 matched against the emulator's executed PCs, including multi-instruction expansions.
 
-After a successful run, update the marked tables with:
+After a successful run, publish the current compiler table (leaving these
+historical tables unchanged) with:
 
 ```sh
 python build-support/spill-matrix.py --reuse --update-docs
@@ -106,6 +113,6 @@ python build-support/spill-matrix.py --reuse --update-docs
 
 Per-program inputs, results and dynamic counts are written to
 `build/spill-stats/dynamic-counts.csv`; emulator logs and explicit skips live
-under `build/dynamic-stats/{21..25}/dynamic.log`. The x86 records remain in
-`build/spill-stats/spill-matrix-{20..25}.log`. The source adaptations for Chapter
-25 are documented in the [replay README](../chapter25/src/test/java/com/seaofnodes/simple/spill/README.md).
+under `build/dynamic-stats/{21,22,23,24b,28b}/dynamic.log`. The x86 records use
+`build/spill-stats/spill-matrix-{20,21,22,23,24b,28b}.log`. The source adaptations for old Chapter
+25 are documented in the [replay README](../chapter28b/src/test/java/com/seaofnodes/simple/spill/README.md).

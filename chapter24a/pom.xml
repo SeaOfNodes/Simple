@@ -8,7 +8,7 @@
         <artifactId>simple</artifactId>
         <version>1.0</version>
     </parent>
-    <artifactId>chapter-sccp</artifactId>
+    <artifactId>chapter24a</artifactId>
     <packaging>jar</packaging>
     <name>SCCP Within a Function</name>
     <properties>

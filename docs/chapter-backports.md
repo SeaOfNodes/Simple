@@ -4,32 +4,14 @@ This file tracks pending backports and deferred work. Completed work and old
 validation results belong in Git history. Reusable implementation constraints
 live in the [AI notes](../skills/chapter25-codex-notes.md).
 
-The [approved chapter split](chapter-split.md) owns the teaching sequence for
-the current Chapters 24 and 25. Use descriptive chapter names while the count
-changes. Cliff approved starting with the proposed SCCP and construction/escape
-boundaries; revisit construction/escape after he can run both snapshots.
-Library construction and optimizer tuning move to appendices.
+The [completed split](chapter-split.md) places local/interprocedural SCCP in
+24a/24b, incomplete types in 25, construction in 26, escape in 27, and
+modules/separate compilation in 28a/28b. The combined old 24/25 snapshots are
+retired. Do not backport fixes into those retired copies; their replacements
+already retain the constructor, alias, native-exposure and import fixes.
 
-The first named snapshots are `chapter-sccp`, `chapter-interprocedural-sccp`,
-`chapter-incomplete-types`, `chapter-construction`, `chapter-escape`, and
-`chapter-modules`.
-Local SCCP keeps unknown callers and the call result summaries from pessimistic
-analysis; the next chapter discovers calls
-and widens recursive arguments and returns. Numbered Chapters 24 and 25 remain
-comparison baselines during extraction.
-
-The incomplete-type snapshot groups numeric modes, conversions, guards,
-symbolic fields, and unbounded Load/Phi nodes. Construction now has hidden
-initializer/allocator calls, local field values and Phis, exit Stores, and
-explicit publication. Private memory carries fields between helpers. Escape
-now discovers exposed aliases/functions through the Start/Stop cycle. Review
-the construction/escape border as needed. Modules/lazy initialization now has a
-runnable snapshot; separate compilation is next. Chained comparisons still need
-their move to Chapter 23; allocator tuning and native library material still
-need their appendices.
-Root Make includes named snapshots in checks. Linear-history publication keeps
-the numbered sequence until the complete replacement sequence is ready; switch
-its ordering and index links when retiring the comparison baselines.
+Native library construction and tuning material live in [appendices](appendices/README.md).
+Future incremental builds are specified in [incremental-builds.md](incremental-builds.md).
 
 ## Four README intentions to review
 
@@ -60,7 +42,7 @@ may change the construction/escape boundary or later chapter splits.
 ### Privacy proposal for review
 
 Introduce enforced underscore privacy in **Modules and Lazy Class
-Initialization** (`chapter-modules`). This is a visible language change:
+Initialization** (`chapter28a`). This is a visible language change:
 earlier snapshots allow underscore field access; from Modules onward, access
 must obey the declaring class's boundary. The teaching outline already places
 privacy here, alongside class names, ownership, and the public interface.
@@ -121,45 +103,40 @@ After approval, implement and test in Modules, update its English/Japanese
 READMEs with the explicit language boundary, and run the full module suite
 including bundled `sys` and native execution. Cover allowed same-class access,
 rejected cross-class access, private class lookup, and forward receiver types.
-Port the rule and library adaptations to the numbered Chapter 25 comparison
-snapshot, with import tests preserving the original source owner. Carry it
-into the forthcoming separate-compilation chapter. Do not backport the new
+Carry the rule and library adaptations into Chapter 28b, with import tests
+preserving the original source owner. Do not backport the new
 language restriction into Chapters 10-24 or the named pre-module snapshots.
-
-## Proven Chapter 25 follow-ups from the module extraction
-
-Three failures reproduce in the numbered Chapter 25 baseline. The fixes are in
-`chapter-modules`, but have not been copied back into that comparison snapshot:
-
-- A private recursive callback passed to native code retains `base == 2` from
-  known calls instead of restoring its declared `i64` bound. See
-  `BoundaryTest.testNativeExposure`. Carry direct Call exposure to StopCU even
-  on nonreturning paths, and restore Start when a function already has known
-  callers. `Opto.linkStart` must test unknown callers, not `nIns() < 2`.
-- The lazy-table example crashes in `StoreNode.useAlias` when a symbolic class
-  Store has an EscapeNode user from a later allocation. Like
-  `BulkMemPhiNode.outputAlias`, use the publication field's alias when the Store
-  is that Escape's public-memory input. See `BoundaryTest.testLazyTables` and
-  `chapter-modules/src/test/smp/lazy`. The numbered baseline throws `Untested`.
-- Final constructor fields lose writes when their declaration value is constant:
-  `val x=1; new C={->x=1; x=2;};` still reads back 1. Keep constructor field
-  declarations broad enough for later values, build loop Phis for final fields,
-  and preserve the distinction from final local bindings. See
-  `FinalConstructionTest` in the named snapshots. Recheck serialized declarations
-  and imported constructors when carrying this to the numbered baseline.
-
-Disposable reproducer: `build/SplitProbe.java`, compiled against Chapter 25;
-arguments `native` and `array` exercise these failures. Port with the baseline's
-import tests enabled, since the module snapshot intentionally lacks imports.
-
-Constructor local SSA, deferred constructor parsing and converted private
-summaries also need to survive the final separate-compilation extraction.
-These carry the already-reviewed construction design forward; they are not
-independent changes for pre-construction chapters.
 
 ## Investigate next
 
 Establish an earlier-chapter failure before changing compiler behavior.
+
+### Prefix update of an enclosing class field
+
+The following returns 11 instead of 21 in numbered Chapter 25, Modules, and
+Separate Compilation:
+
+```simple
+int calls=0;
+val next_noInline={ -> ++calls; };
+return next_noInline()+10*next_noInline();
+```
+
+The prefix path updates an enclosing parser slot instead of class memory.
+Postfix `calls++; return calls;` works and is used in the new chapter example.
+This is independent of importing IR. The stage audit also reproduced the
+instance-method form in Chapter 23, where methods first appear:
+
+```simple
+struct C { int x=0; val inc={ -> ++x; }; };
+var c=new C;
+return c.inc()+10*c.inc();
+```
+
+It returns 11 instead of 21 in Chapters 23 and 26. Prefix lookup bypasses the
+ordinary field-access path. A fix should share name resolution with other
+reads/updates while preserving constructor locals, and propagate from 23
+through 28b. No fix is included in the numbering change.
 
 ### Constructor loop with break/continue: worklist assertion
 
@@ -214,7 +191,7 @@ and a null type. Thus the observed temporary lack of callers does not trigger
 `link()` cleanup. Keep this candidate unconfirmed rather than backporting the
 Chapter 25 lookup change on textual differences alone.
 
-## Deferred until the Chapter 25 split
+## Future compiler work
 
 ### Deterministic inlining
 
@@ -257,13 +234,31 @@ Serialization, global identity remapping, and imported escape summaries belong
 with separate compilation. Escape analysis now has its own earlier snapshot after
 construction; keep its boundary open to review.
 
-## Work that stays in Chapter 25
+### Selective loading of library IR
 
-Class-cycle checking and CLInit runtime lowering also appear in the new
-modules snapshot; they do not belong in the pre-module chapters. The baseline
-[chapter README](../chapter25/README.md#lazy-class-initialization) explains the
-implementation; future work lives in the
-[roadmap](../chapter25/ROADMAP.md#class-initialization-and-compiler-follow-ups).
+Reliable incremental rebuilding is separate future work; see the
+[incremental build design](incremental-builds.md) for the stale-dependency
+example, required input tracking, rebuild propagation, and validation plan.
+
+The Separate Compilation README review found that importing only `sys.io.p`
+still loads all ten units in the bundled `sys.o`, including `aryu8`, `aryi64`,
+`scan`, and `adt.bitset`. All remain loaded through TypeCheck. Loading only
+needed library members is a desired improvement, not current behavior.
+
+Selection works between independent objects: a client of `Counters.o` leaves
+an unrelated `Unused.o` unloaded. Once selected, an object's entire saved IR
+is reconstructed, and `ParseAll.loadDeps` follows its recorded dependencies.
+Splitting the object alone is insufficient while the root's reexports and
+unused function bodies still pull in those dependencies. Design member-level
+IR loading and dependency discovery together; preserve type identity,
+initialization rules, and imported escape summaries. This is separate from
+whether imported code is initialized or emitted in the client's object.
+
+## Modules and separate compilation
+
+Class-cycle checking and CLInit runtime lowering belong in 28a/28b. The
+[module README](../chapter28a/README.md) explains their semantics; remaining
+argument, initialization and pointer plans live in the [roadmap](roadmap.md).
 Native code cannot receive classes; a native-startup/class-handoff policy is
 not planned. Current data pointers remain eight bytes.
 
