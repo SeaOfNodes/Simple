@@ -4,7 +4,7 @@
 .DEFAULT_GOAL := tests
 # Named snapshots follow teaching order, not alphabetical order. Numbered
 # chapters remain comparison baselines while the split is being extracted.
-NAMED_CHAPTERS := chapter-sccp chapter-interprocedural-sccp chapter-incomplete-types chapter-construction chapter-escape
+NAMED_CHAPTERS := chapter-sccp chapter-interprocedural-sccp chapter-incomplete-types chapter-construction chapter-escape chapter-modules
 CHAPTERS ?= $(sort $(patsubst %/pom.xml,%,$(wildcard chapter[0-9][0-9]/pom.xml chapter[0-9][0-9][a-z]/pom.xml))) $(NAMED_CHAPTERS)
 ACTIONS := tests tags release lib
 CHAPTER_TARGETS := $(foreach action,$(ACTIONS),$(addsuffix /$(action),$(CHAPTERS)))

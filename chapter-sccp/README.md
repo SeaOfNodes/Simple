@@ -16,8 +16,9 @@ Chapter 24. The numbered snapshot remains a comparison baseline.
 ## Sparse Conditional Constant Propagation
 
 [SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)
-is the top-down version of the same peephole/constant-folding work we have
-been doing all along.  The rules for the algorithm are well known from the
+is the optimistic version of the same peephole/constant-folding work we have
+been doing all along. Types start at the top of the lattice and fall as we
+discover reachable values. The rules for the algorithm are well known from the
 literature and commonly taught at the college level;
 [example slides](https://www.cse.psu.edu/~gxt29/teaching/cse522s23/slides/08monotoneFramework.pdf).
 
@@ -30,7 +31,7 @@ We initialize all `_type` fields to ⊤ (as opposed to ⊥), and place all Nodes
 a worklist.  We pull a Node from the worklist, run the transfer function
 `node.compute()`, and if the result changes from `node._type` we update
 `node._type` and put its output neighbors on the worklist.  A simplified
-version with all asserts and debug helpers removed:
+version, omitting dependency tracking and most debug checks:
 
 ```java
 while( (n = code._iter._work.pop()) != null ) {
@@ -43,10 +44,11 @@ while( (n = code._iter._work.pop()) != null ) {
 }
 ```
 
-This algorithm always terminates (and generally fairly quickly) and always
-reaches a *fixed point*, as "best answer" subject to the limits of our lattice
-and transfer functions.  The resulting types are monotonically better than
-those found by the peephole rules; we can then run the peephole rules on nodes
+With monotone transfer functions and bounded range widening, this algorithm
+terminates at a *fixed point*. Widening can lose range precision, so this need
+not be the sharpest answer the lattice can express. The resulting types are
+at least as precise as those found by pessimistic analysis. We can then run
+the peephole rules on nodes
 with improved types, to see if unrelated peepholes can fire - such as newly
 discovered constants replacing computations with ConstantNodes.
 
@@ -70,8 +72,8 @@ also a `1`. Folding the value does not prove the loop terminates or make
 its condition and side effects removable.
 
 
-The algorithm progresses from left to right and stops when no more changes
-happen:
+The table shows one possible worklist order, from left to right. The solve
+stops when no more changes happen:
 
 |Var|init|x0=1|x1=phi(1,T)|x2=2-x1|x1=phi(1,1)|
 |---|----|----|-----------|-------|-----------|
@@ -101,7 +103,7 @@ while( rand ) {
 return x1
 ```
 
-Again the algorithm progresses from left to right, although this time not all
+Again the table shows one possible order, although this time not all
 paths are reachable.  The `if` result is a pair of Control values, shown as
 either `C` if the path is alive or `X` if not.  This is used when we compute
 `x4 = phi(x2,x3)`; the `PhiNode` ALSO checks the corresponding control input
@@ -120,9 +122,9 @@ from the `if` and only merges alive paths.
 This kind of conditional constant propagation really helps if a condition can
 be proven true or false, as this removes a test and branch from the optimized
 program.  A common way this happens is with null tests; here is the same
-program above, but using null pointers instead of integers:
+idea as above, but using null pointers instead of integers (in pseudocode):
 
-```java
+```text
 List head = notNullList();
 while( rand ) {
     if( head ) head = new List(head,payload);
@@ -134,7 +136,7 @@ Here since `head` starts not-null, it can never be null and the
 `default_action` can never happen, and the loop can
 simplify:
 
-```java
+```text
 List head = notNullList();
 while( rand ) {
     head = new List(head,payload);

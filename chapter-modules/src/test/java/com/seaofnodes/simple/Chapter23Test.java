@@ -1,0 +1,341 @@
+package com.seaofnodes.simple;
+
+import com.seaofnodes.isa.eval.EvalRisc5;
+
+import com.seaofnodes.isa.eval.EvalArm64;
+
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
+
+
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.node.cpus.riscv.riscv;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.Ignore;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class Chapter23Test {
+    @Test public void testPopularUses() { com.seaofnodes.simple.codegen.RegAllocTestSupport.popularUses(); }
+
+    @Test public void testDiagnosticTypeAccessors() throws Exception {
+        new CodeGen("return 0;").parse();
+        var tfp = TypeFunPtr.TEST;
+        var con = ConstantNode.raw(tfp);
+        var call = new CallNode(null,con,con,con);
+        var field = Type.class.getDeclaredField("VISIT");
+        field.setAccessible(true);
+        var visit = (java.util.Map<Object,Type>)field.get(null);
+        var marker = new Object();
+        visit.put(marker,Type.BOTTOM);
+        try {
+            assertEquals(0,TypeInteger.ZERO.alignment());
+            assertEquals(0,TypeInteger.ZERO.value());
+            org.junit.Assert.assertTrue(tfp._isConstant());
+            con.toString();
+            call.name();
+            con.p(1);
+            org.junit.Assert.assertSame(Type.BOTTOM,visit.get(marker));
+            assertEquals(1,visit.size());
+        } finally { visit.clear(); }
+    }
+
+
+    @Test @Ignore
+    public void testJig() throws IOException {
+        //String src = Files.readString(Path.of("src/test/java/com/seaofnodes/simple/progs/jig.smp"));
+        String src = Files.readString(Path.of("docs/examples/BubbleSort.smp"));
+        testCPU(src,"x86_64_v2", "win64"  ,-1,null);
+        testCPU(src,"riscv"    , "SystemV",-1,null);
+        testCPU(src,"arm"      , "SystemV",-1,null);
+    }
+
+
+    static CodeGen testCPU( String src, String cpu, String os, int spills, String stop ) {
+        CodeGen code = new CheckedCodeGen(src).driver(CodeGen.Phase.Encoding,cpu,os);
+        int delta = spills>>3;
+        if( delta==0 ) delta = 1;
+        if( spills != -1 && !CodeGen.iterSeedOverridden() )
+            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        if( stop != null )
+            assertEquals(stop, code.print());
+        return code;
+    }
+
+    @Test
+    public void testOr() throws IOException {
+        String src = """
+int a = 1;
+int b = 0;
+int rez = 2;
+
+if( a++ || b++ ) {
+    if( b == 0 && a == 2 )
+        rez = 0; // Expected answer
+} else {
+    rez = 1;
+}
+return rez;
+""";
+
+        TestC.runSF( src, "or1", "", 0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build( src, "or1", 0, 0, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("or1", src,0, 0, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+    }
+
+    @Test
+    public void testAnd() throws IOException {
+        String src = """
+int a = 1;
+int b = 1;
+return a && b ? 0 : 1;  // Expected answer 0
+""";
+        TestC.runSF( src, "and1", "", 0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build( src, "and1", 0, 0, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("and1", src, 0, 0, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+    }
+
+    @Test
+    public void testLogicalValueSemantics() {
+        assertEquals("42", Eval2.eval(new CodeGen("return 7 && 42;").driver(CodeGen.Phase.FinalizeIR), 0));
+        assertEquals("0",  Eval2.eval(new CodeGen("return 0 && 42;").driver(CodeGen.Phase.FinalizeIR), 0));
+        assertEquals("7",  Eval2.eval(new CodeGen("return 7 || 42;").driver(CodeGen.Phase.FinalizeIR), 0));
+        assertEquals("42", Eval2.eval(new CodeGen("return 0 || 42;").driver(CodeGen.Phase.FinalizeIR), 0));
+    }
+
+    @Test
+    public void testMixedScalarNotPhiPredicate() {
+        CodeGen code = new CodeGen("""
+struct S {};
+S? s = arg ? new S;
+return !(!s || !arg) ? 1 : 0;
+""");
+        code.driver(CodeGen.Phase.TypeCheck);
+        assertEquals("0", Eval2.eval(code, 0));
+        assertEquals("1", Eval2.eval(code, 1));
+    }
+
+    @Test
+    public void testAndPtr() throws IOException {
+        // Todo: have one src here
+        String src = """
+struct S { !S? !fld; new S = { !S? f -> fld=f; }; };
+val ptr = arg == 1 ? null : new S(arg==1 ? null : new S(null));
+return ptr && ptr.fld ? "true" : "false";
+""";
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("true", Eval2.eval(code, 0));
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build( src, "class:Test.<clinit>", 1, 12, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        int adr = (int)R5.regs[riscv.A0]; // Returns a Simple *u8[~] string
+        assertEquals(4,R5.ld4s(adr)); // String length
+        assertEquals(0x65757274,R5.ld4s(adr+4)); // "true"
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("class:Test.<clinit>", src, 1, 12, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        int adr2 = (int)arm.regs[0]; // Returns a Simple *u8[~] string
+        assertEquals(4,arm.ld4s(adr2)); // String length
+        assertEquals(0x65757274,arm.ld4s(adr2+4)); // "true"
+    }
+
+    // conditional side effect
+    @Test
+    public void testCondSideEffAnd() throws IOException {
+        String src = """
+int x=1;
+int y=1;
+int z=0;
+
+int g = x++ && y++ && z++;
+return x == 2 && y == 2 && z == 1 && g == 0
+    ? 0  // Effected, Expected
+    : 1; // Error, not effected
+""";
+
+        TestC.runSF( src, "and2", "", 0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build( src, "and2", 0, 0, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("and2", src, 0, 0, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+    }
+
+    @Test
+    public void testCondSideEffOr() throws IOException {
+        String src = """
+int x = -1;
+int y =  1;
+int z = -1;
+int g = x++ || y++ || z++;
+int switch = (x == 4 || y == 4 || z == 4) ? -1 : 1;
+return (x == 0 && y == 1 && z==-1) && switch && g
+    ? 0   // Effected, expected
+    : 1;  // Error
+""";
+        TestC.runSF( src, "or2", "", 0);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build( src, "or2", 0, 0, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("or2", src, 0, 0, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+    }
+
+    // test it with function calls
+    @Test
+    public void testFuncCall() throws IOException {
+        String src = """
+int a = 1;
+int b = 1;
+var sq_noInline = { int x ->
+    x*x;
+};
+return (a && sq_noInline(0))
+    ? 1  // Error
+    : 0; // Expected
+""";
+        TestC.runSF( src, "and3", "", 2);
+
+        // Evaluate on RISC5 emulator
+        EvalRisc5 R5 = TestRisc5.build( src, "and3", 0, 2, false);
+        int trap = R5.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,R5.regs[riscv.A0]);
+
+        // Evaluate on ARM emulator
+        EvalArm64 arm = TestArm64.build("and3", src, 0, 2, false);
+        trap = arm.step(100);
+        assertEquals(0,trap);
+        assertEquals(0,arm.regs[0]);
+    }
+
+
+    @Test
+    public void testFRefFields() {
+        String src = """
+// A hypothetical scanner class
+struct _Scan {
+    int !x;
+    u8[~] !buf;
+    new _Scan = { u8[~] b -> buf=b; };
+    // Skip whitespace
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
+    };
+    // Peek a character; if matched consume it, else false.
+    val peek = { u8 c ->
+        skip();
+        if( buf[x] != c ) return false;
+        x++;
+        return true;
+    };
+};
+!_Scan !_s = new _Scan("  q");
+return _s.peek('q');
+""";
+
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return Phi(Region,0,1);", code.print());
+        assertEquals("1", Eval2.eval(code, 0));
+        testCPU(src,"x86_64_v2", "win64",23,null);
+    };
+
+    @Test
+    public void testFRefFields2() {
+        String src ="""
+// A hypothetical scanner class
+struct _Scan {
+    int !x;
+    u8[~] !buf;
+    new _Scan = { u8[~] b -> buf=b; };
+    // Skip whitespace
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
+        return self;
+    };
+};
+~_Scan s = new _Scan("  q");
+return s.skip().x;
+""";
+
+        try { new CodeGen(src).driver(CodeGen.Phase.TypeCheck); fail(); }
+        catch( Exception e ) {
+            // Bad error message, but basically requires a mutable 'x' field.
+            org.junit.Assert.assertTrue(e.getMessage().startsWith("Argument #0 isa"));
+        }
+    };
+
+
+    @Test
+    public void testMethod() {
+        String src = """
+// A hypothetical scanner class
+struct _Scan {
+    int !x;
+    u8[~] !buf;
+    new _Scan = { u8[~] b -> buf=b; };
+    // Skip whitespace
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
+    };
+    val require = { u8 ch ->
+        skip();
+        buf[x++]==ch;
+    };
+};
+!_Scan !_s = new _Scan("  [1,2]");
+return _s.require('[');
+""";
+
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return (.[]==91);", code.print());
+        assertEquals("1", Eval2.eval(code, 0));
+        testCPU(src,"x86_64_v2", "win64",4, null);
+    };
+
+
+}

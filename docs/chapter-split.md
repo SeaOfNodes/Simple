@@ -117,8 +117,9 @@ The first runnable extractions are
 [SCCP Across Functions](../chapter-interprocedural-sccp/README.md), followed by
 [SSA Before Types Are Known](../chapter-incomplete-types/README.md),
 [Construction and Private Memory](../chapter-construction/README.md) and
-[Escape Analysis and Unknown Callers](../chapter-escape/README.md).
-The other two snapshots remain to be extracted. Numbered Chapters 24 and 25
+[Escape Analysis and Unknown Callers](../chapter-escape/README.md), and
+[Modules and Lazy Class Initialization](../chapter-modules/README.md).
+Separate compilation remains to be extracted. Numbered Chapters 24 and 25
 remain comparison baselines during this work.
 
 Choose final numbers after trying the implementation boundaries above.
@@ -153,3 +154,29 @@ Construction still keeps local field values and rejects early exposure of self.
 Both runnable snapshots are available for Cliff's promised review/play session.
 This extraction does not choose broader rules for partially initialized objects.
 No modules, class singletons, serialized IR or identity remapping are included.
+
+## Modules snapshot ready for review
+
+`chapter-modules` compiles all discovered source files together. It adds class
+singletons, namespaces and privacy, parent initialization, CLInit memory effects,
+cycle diagnostics, runtime lowering, and shared native class storage. Source
+discovery reads parents as well as referenced children. The bundled modular sys
+is supplied as source; building reusable libraries remains appendix material.
+
+There is no Serialize phase, object reader, GlobalBits remapping, or imported
+IR. LocalIds assigns dense IDs within the invocation. FinishCalls detaches
+analysis call edges after loop analysis, before scheduling or instruction
+selection. ELF emits all discovered live bodies in the selected entry object.
+
+The preceding construction representation remains: field values and loop Phis
+stay local, with Stores at helper exits. Constructor reads may see an unfinished
+object, but may never read an uninitialized field. The module snapshot checks
+this separately from completion and publication. Escape analysis still restores
+unknown callers when a private callback reaches native code, including on paths
+with no Return.
+
+The README's lazy lookup-table example is executable. Existing tests also cover
+source/type cycles, rejected initialization cycles, parent order, native cold/hot
+calls, shared storage, and ARM/RISC-V encoding. The construction/escape border
+remains open to Cliff's review; this extraction does not settle broader rules for
+publishing unfinished objects.

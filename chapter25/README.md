@@ -27,10 +27,13 @@ Each unit has Start/Stop nodes. A function's ownership by a compilation unit is
 distinct from an edge representing unknown external callers: retaining code
 for emission must not imply that arbitrary callers can reach it.
 
-The driver accepts `--root` for the project root, `-o` for output, and `-L` for
-external Simple object search paths, including an object file or a directory.
+The driver infers the project root from the input path and accepts `-o` for
+output and `-L` for external Simple object search paths, including an object
+file or a directory. Its help advertises `--root`, but this numbered snapshot
+does not yet parse that option; the named modules snapshot does.
 The compiler also resolves external C symbols for native linking. Names beginning
-with `_` control privacy; public reachability depends on enclosing names too.
+with `_` control the public interface; enclosing names also affect which
+entries are exposed to unknown callers.
 
 Explicit numeric C declarations bind directly to mutable native storage:
 
@@ -255,10 +258,10 @@ metric; see the [measurement details](../docs/regalloc-spills.md) for coverage.
 <!-- spill-matrix:end -->
 
 
-Chapter25 introduces several features, which when run on the older tests
+Chapter 25 introduces several features, which when run on the older tests
 generate a lot more code, which in turn generates more spills.
 
 Class initialization, inlining, escape analysis, and library adaptations
 all change the graphs.  To help with this, we adjust the inlining
-heursitics to try and get all the boilerplate to inline and optimize.
+heuristics to try to inline and optimize the boilerplate.
 

@@ -47,7 +47,7 @@ return 0;
 """
 struct String {
     u8[] !cs;
-    int _hashCode;
+    int hashCode;
 };
 
 val equals = { !String !self, !String s ->
@@ -60,12 +60,12 @@ val equals = { !String !self, !String s ->
 };
 
 val hashCode = { !String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
+    self.hashCode
+    ?  self.hashCode
+    : (self.hashCode = hashCodeString(self));
 };
 
-val _hashCodeString = { !String self ->
+val hashCodeString = { !String self ->
     int hash=0;
     if( self.cs ) {
         for( int i=0; i< self.cs#; i++ )

@@ -2,7 +2,8 @@
 
 [English](README.md) | 日本語
 
-[前章: オブジェクトの構築と非公開メモリ](../chapter-construction/README.ja.md)
+[前章: オブジェクトの構築と非公開メモリ](../chapter-construction/README.ja.md) |
+[次: モジュールと遅延クラス初期化](../chapter-modules/README.ja.md)
 
 この章では、オブジェクトや関数のアドレスが、解析できない外部コードに届くかを追跡します。
 関数のアドレスを既知の関数に渡すだけでは、未知の呼び出し元を残す必要はありません。

@@ -1,0 +1,86 @@
+package com.seaofnodes.simple.node;
+
+import com.seaofnodes.print.ExprPrinter;
+
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFunPtr;
+
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+
+/**
+ * A Constant node represents a constant value.
+ * <p>
+ * Constants have no semantic inputs. However, we set Start as an input to
+ * Constants to enable a forward graph walk.  This edge carries no semantic
+ * meaning, and it is present <em>solely</em> to allow visitation.
+ * <p>
+ * The Constant's value is the value stored in it.
+ */
+
+public class ConstantNode extends TypeNode {
+    public ConstantNode( Type type ) {
+        this(type,false);
+    }
+    protected ConstantNode( Type type, boolean raw ) {
+        super(type,new Node[]{CodeGen.CODE._start});
+        assert raw || !(type instanceof TypeFunPtr tfp && tfp.isConstant()) :
+            "Unique function identities require a Return-linked FunPtrNode";
+        _type = type;
+    }
+    public ConstantNode( ConstantNode con ) { super(con); }
+
+
+    // Semantic constant construction through Lower.  A unique internal
+    // function identity carries a lifetime edge to the function's Return.
+    public static Node make( Type type ) {
+        if( type==Type. CONTROL ) return new CtrlNode();
+        if( type==Type.XCONTROL ) return new XCtrlNode();
+        if( CodeGen.CODE._phase != null &&
+            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Lower.ordinal() )
+            return raw(type);
+        if( type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+            FunNode fun = CodeGen.CODE._link(tfp);
+            if( fun != null )
+                return new FunPtrNode(tfp,CodeGen.CODE._start,fun.ret()).init();
+            // TODO: A singleton FIDX can also emerge after merging and
+            // guarding several function pointers.  Preserve that identity
+            // even if its internal Return is no longer available.
+            return raw(type);
+        }
+        return new ConstantNode(type);
+    }
+
+    // Exact construction for deserialization and graph-incomplete machine
+    // selection.  No semantic classification, compute, idealize, or GVN.
+    public static ConstantNode raw( Type type ) { return new ConstantNode(type,true); }
+    public static ConstantNode raw( ConstantNode con ) { return new ConstantNode(con); }
+
+    // Analysis input created from whole cloth, rather than a first-class
+    // runtime value.  In particular, a constructor call descriptor does not
+    // own the constructor function; the class FunPtr does.
+    public static ConstantNode seed( Type type ) { return new ConstantNode(type,true); }
+
+    @Override protected String repeatName() {
+        return _con==null || _con.toString().length()<=32 ? null : uniqueName();
+    }
+
+    @Override public String label() { return "Con"; }
+    @Override public Node copy() { return raw(this); }
+
+
+    @Override
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        if( _con instanceof TypeFunPtr tfp && tfp._isConstant() && tfp.notNull() ) {
+            FunNode fun = CodeGen.CODE._link(tfp);
+            if( fun!=null && fun._name != null )
+                return p.p("{ ").p(fun._name).p("}");
+        }
+        return p.p(_con==null ? "---" : _con.toString());
+    }
+
+    @Override public boolean isConst() { return true; }
+    @Override public Type compute() { return _con; }
+    @Override public Node idealize() { return null; }
+}

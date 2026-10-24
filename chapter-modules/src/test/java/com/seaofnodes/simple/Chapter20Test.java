@@ -1,0 +1,306 @@
+package com.seaofnodes.simple;
+
+import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
+
+
+import com.seaofnodes.simple.codegen.CodeGen;
+import org.junit.Ignore;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class Chapter20Test {
+    @Test public void testAllocatorTopPhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.topPhi(); }
+
+    @Test public void testNeverReturnAllocation() {
+        String[] sources = {
+            // A real integer return merged with a synthetic exit.
+            "if(arg) while(1) {} return arg+1;",
+            // TOP must not widen a non-null pointer or constrain a float register.
+            "struct S { int x; }; !S !s=new S; if(arg) while(1) {} return s;",
+            "if(arg) while(1) {} return 1.5;",
+            // Several synthetic exits into the same return.
+            "if(arg==1) while(1) {} if(arg==2) while(1) {} return arg+3;",
+            // No real return, including a merge of only synthetic exits.
+            "while(1) { arg+=1; }",
+            "if(arg) while(1) {} while(1) {}",
+            // Loop-carried memory and scalar self-conflicts exercise spilling.
+            "struct S { int x; int y; }; !S !a=new S; if(arg) while(1) { a.x+=arg; a.y+=a.x; } return a.x+a.y;"
+        };
+        for( String target : new String[]{"x86_64_v2","riscv","arm"} )
+            for( String src : sources ) {
+                CodeGen code = new CodeGen(src).driver(CodeGen.Phase.RegAlloc,target,"SystemV");
+                com.seaofnodes.simple.codegen.RegAllocTestSupport.checkRegisters(code);
+                assertNotNull(code._stop.walk(n -> {
+                    if( n._type!=com.seaofnodes.simple.type.Type.TOP ) return null;
+                    assertEquals(-1,code._regAlloc.regnum(n));
+                    for( var use : n.outs() )
+                        assertFalse(use instanceof com.seaofnodes.simple.node.SplitNode);
+                    return n;
+                }));
+                code.encode();
+            }
+    }
+
+    @Test public void testAllocatorFixedNeighbor() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.uncoloredFixedNeighbor(); }
+
+    @Test public void testNarrowStoreMasks() {
+        for( String type : new String[]{"i8","u8","i16","u16"} ) {
+            CodeGen code = new CodeGen("struct S { "+type+" x; }; !S !s=new S; s.x=arg; return 0;")
+                .driver(CodeGen.Phase.RegAlloc,"x86_64_v2","SystemV");
+            int stores=0;
+            for( var bb : code._cfg )
+                for( var node : bb.outs() )
+                    if( node instanceof com.seaofnodes.simple.node.cpus.x86_64_v2.StoreX86 st && st._name.equals("x") ) {
+                        stores++;
+                        assertEquals(-1,st.regmap(4).nextReg((short)15));
+                    }
+            assertTrue(stores>0);
+        }
+    }
+
+    @Test public void testInlinedReturnValue() {
+        String src = """
+struct S { int x; };
+val f = { !S s -> s.x = g(); };
+val g = { -> 123; };
+!S !s = new S;
+return f(s);
+""";
+        // The entry of g can disappear before its Return is folded into f.
+        // Exercise both worklist orders; deleting the entry does not kill 123.
+        for( int seed=0; seed<64; seed++ ) {
+            CodeGen code = new CodeGen(src,seed,true).driver(CodeGen.Phase.TypeCheck);
+            assertEquals("seed "+seed, "123", Eval2.eval(code,0));
+        }
+    }
+
+
+    @Test public void testAllocatorMasks() { com.seaofnodes.simple.codegen.RegAllocTestSupport.masks(); }
+    @Test public void testAllocatorUnion() { com.seaofnodes.simple.codegen.RegAllocTestSupport.union(); }
+    @Test public void testAllocatorCopyClobber() throws Exception { com.seaofnodes.simple.codegen.RegAllocTestSupport.copyClobber(); }
+    @Test public void testAllocatorCommutativePhi() { com.seaofnodes.simple.codegen.RegAllocTestSupport.commutativePhi(); }
+    @Test public void testAllocatorKills() { com.seaofnodes.simple.codegen.RegAllocTestSupport.killWithoutResult(); }
+    @Test public void testAllocatorDependencies() { com.seaofnodes.simple.codegen.RegAllocTestSupport.nullUseMask(); }
+    @Test public void testAllocatorCloneClass() { com.seaofnodes.simple.codegen.RegAllocTestSupport.cloneRegisterClass(); }
+
+    @Test public void testPrintingRegisters() throws Exception {
+        com.seaofnodes.simple.codegen.PrintRegTestSupport.check();
+    }
+
+
+    @Ignore
+    @Test
+    public void testJig() {
+        CodeGen code = new CodeGen("return 0;");
+        code.driver(CodeGen.Phase.TypeCheck);
+        assertEquals("return 0;", code.print());
+        assertEquals("0", Eval2.eval(code,  2));
+    }
+
+    static void testCPU( String src, String cpu, String os, int spills, String stop ) {
+        CodeGen code = new CheckedCodeGen(src);
+        code.driver(CodeGen.Phase.RegAlloc,cpu,os);
+        int delta = spills>>3;
+        if( delta==0 ) delta = 1;
+        if( spills != -1 && !CodeGen.iterSeedOverridden() )
+            assertEquals("Expect spills:",spills,code._regAlloc._spillScaled,delta);
+        if( stop != null )
+            assertEquals(stop, code.print());
+    }
+
+    private static void testAllCPUs( String src, int spills, String stop ) {
+        testCPU(src,"x86_64_v2", "SystemV",spills,stop);
+        testCPU(src,"riscv"    , "SystemV",spills,stop);
+        testCPU(src,"arm"      , "SystemV",spills,stop);
+    }
+
+    @Test public void testAlloc0() {
+        testCPU("return new u8[arg];","x86_64_v2", "SystemV",3,"return []u8;");
+        testCPU("return new u8[arg];","riscv"    , "SystemV",5,"return []u8;");
+        testCPU("return new u8[arg];","arm"      , "SystemV",5,"return []u8;");
+    }
+
+    @Test public void testBasic1() {
+        String src = "return arg | 2;";
+        testCPU(src,"x86_64_v2", "SystemV",1,"return mov((ori,arg));");
+        testCPU(src,"riscv"    , "SystemV",0,"return ( arg | #2 );");
+        testCPU(src,"arm"      , "SystemV",0,"return (ori,arg);");
+    }
+
+    @Test
+    public void testNewtonInteger() {
+        String src =
+"""
+// Newtons approximation to the square root
+val _sqrt = { int x ->
+    int guess = x;
+    while( 1 ) {
+        int next = (x/guess + guess)>>1;
+        if( next == guess ) return guess;
+        guess = next;
+    }
+};
+return _sqrt(arg) + _sqrt(arg+2);
+""";
+        testCPU(src,"x86_64_v2", "win64"  ,38,null);
+        testCPU(src,"riscv"    , "SystemV",19,null);
+        testCPU(src,"arm"      , "SystemV",19,null);
+    }
+
+    @Test
+    public void testNewtonFloat() {
+        String src =
+"""
+val _test_sqrt_noInline = { flt x ->
+    flt epsilon = 1e-15;
+    flt guess = x;
+    while( 1 ) {
+        flt next = (x/guess + guess)/2;
+        if( guess-epsilon <= next && next <= guess+epsilon )
+            return guess;
+        guess = next;
+    }
+};
+flt farg = arg; return _test_sqrt_noInline(farg) + _test_sqrt_noInline(farg+2.0);
+""";
+        testCPU(src,"x86_64_v2", "SystemV",40,null);
+        testCPU(src,"riscv"    , "SystemV",17,null);
+        testCPU(src,"arm"      , "SystemV",18,null);
+    }
+
+    @Test
+    public void testIterPrettyPrintIsLocalAndReadOnly() {
+        CodeGen code = new CodeGen("""
+            val f_noInline = { flt x -> while(1) { if(x) return x; } };
+            flt y=arg;
+            return f_noInline(y)+f_noInline(y+2.0);
+            """).driver(CodeGen.Phase.Iter);
+        assertNull(code._start._ltree);
+        int pre = code._start._pre;
+
+        String p0 = code.toString();
+        String p1 = code.toString();
+        assertEquals(p0,p1);
+        assertNull(code._start._ltree);
+        assertEquals(pre,code._start._pre);
+
+        int main0 = p0.indexOf("--- class:Test.<clinit>");
+        int main1 = p0.indexOf("--- class:Test.<clinit> ----------------------",main0);
+        int fun0  = p0.indexOf("--- f_noInline ",main1);
+        int fun1  = p0.indexOf("--- f_noInline ----------------------",fun0);
+        assertTrue(main0 < main1 && main1 < fun0 && fun0 < fun1);
+        assertTrue(p0.indexOf("ToFloat",main0) < p0.indexOf("Call",main0));
+        assertTrue(p0.indexOf("CallEnd",fun0) == -1 || p0.indexOf("CallEnd",fun0) > fun1);
+    }
+
+    @Test
+    public void testAlloc2() {
+        String src = "int[] !xs = new int[3]; xs[arg]=1; return xs[arg&1];";
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return .[];");
+        testCPU(src,"riscv"    , "SystemV", 6,"return .[];");
+        testCPU(src,"arm"      , "SystemV", 6,"return .[];");
+    }
+
+
+    @Test
+    public void testArray1() {
+        String src =
+"""
+int[] !ary = new int[arg];
+// Fill [0,1,2,3,4,...]
+for( int i=0; i<ary#; i++ )
+    ary[i] = i;
+// Fill [0,1,3,6,10,...]
+for( int i=0; i<ary#-1; i++ )
+    ary[i+1] += ary[i];
+return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
+""";
+        testCPU(src,"x86_64_v2", "SystemV",-1,"return mov(.[]);");
+        testCPU(src,"riscv"    , "SystemV", 7,"return (add,.[],(mul,.[],1000));");
+        testCPU(src,"arm"      , "SystemV", 5,"return (add,.[],(mul,.[],1000));");
+    }
+
+
+    @Test
+    public void testString() {
+        String src =
+"""
+struct String {
+    u8[] !cs;
+    int _hashCode;
+    new String = { u8[] data -> cs=data; };
+};
+
+// Compare two Strings
+val equals = { !String !self, !String s ->
+    if( self == s ) return true;
+    if( self.cs# != s.cs# ) return false;
+    for( int i=0; i< self.cs#; i++ )
+        if( self.cs[i] != s.cs[i] )
+            return false;
+    return true;
+};
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { !String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
+val _hashCodeString = { !String self ->
+    int hash=0;
+    for( int i=0; i< self.cs#; i++ )
+        hash = hash*31 + self.cs[i];
+    if( !hash ) hash = 123456789;
+    return hash;
+};
+""";
+        testCPU(src,"x86_64_v2", "SystemV",12,null);
+        testCPU(src,"riscv"    , "SystemV",6,null);
+        testCPU(src,"arm"      , "SystemV",6,null);
+    }
+
+    @Test
+    public void testCast() {
+        String src = "struct Bar { int x; }; var b = arg ? new Bar;  return b ? b.x++ + b.x++ : -1;";
+        testCPU(src,"x86_64_v2", "SystemV",3,null);
+        testCPU(src,"riscv"    , "SystemV",6,null);
+        testCPU(src,"arm"      , "SystemV",6,null);
+    }
+
+    @Test
+    public void testFltArg() {
+        String src = "return {int i, flt f, int j->return i+f+j;};";
+        testAllCPUs(src,0,null);
+    }
+
+    @Test
+    public void testFlags1() {
+        String src = """
+bool _b1 = arg == 1;
+bool b2 = arg == 2;
+if (b2) if (_b1) return 1;
+if (_b1) return 2;
+return 0;
+""";
+        testCPU(src,"x86_64_v2", "SystemV",0,"return Phi(Region,2,0,1);");
+        testCPU(src,"riscv"    , "SystemV",0,"return Phi(Region,2,0,1);");
+        testCPU(src,"arm"      , "SystemV",0,"return Phi(Region,2,0,1);");
+    }
+
+    @Test
+    public void testFlags2() {
+        String src = """
+bool b1 = arg == 1;
+while (arg > 0) {
+    arg--;
+    if (b1) arg--;
+}
+return arg;
+""";
+        testCPU(src,"x86_64_v2", "SystemV",3,null);
+        testCPU(src,"riscv"    , "SystemV",2,null);
+        testCPU(src,"arm"      , "SystemV",2,null);
+    }
+}

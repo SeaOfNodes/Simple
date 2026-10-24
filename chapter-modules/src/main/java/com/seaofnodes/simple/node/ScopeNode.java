@@ -1,0 +1,719 @@
+package com.seaofnodes.simple.node;
+
+import com.seaofnodes.print.ExprPrinter;
+import com.seaofnodes.simple.Parser;
+import com.seaofnodes.simple.Var;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.CompUnit;
+import com.seaofnodes.simple.codegen.ParseAll;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.Utils;
+import java.util.*;
+
+/**
+ * The Scope node is purely a parser helper - it tracks names to nodes with a
+ * stack of variables.
+ */
+public class ScopeNode extends MemMergeNode {
+
+    /**
+     * The control is a name that binds to the currently active control
+     * node in the graph
+     */
+    public static final String CTRL = "$ctrl";
+    public static final String ARG0 = "arg";
+    public static final String MEM0 = "$mem";
+
+    // All active/live variables in all nested scopes, all run together.
+    // Maps 1-to-1 to the _inputs array.
+    public final Ary<Var> _vars;
+
+    // Lexical scope is typed:
+    public static class Kind {
+        // Basic block scoping
+        public static class Block extends Kind { }
+        // Constructor/initializer block for an allocated struct.
+        public static class Constructor extends Block {
+            public Constructor(TypeStruct self) { _self = self; }
+            public final TypeStruct _self;
+        }
+        // Function scope
+        public static class Func extends Kind {
+            public final String _name;
+            public final boolean _constructor;
+            public Func(String name) { this(name,false); }
+            public Func(String name, boolean constructor) { _name=name; _constructor=constructor; }
+        }
+
+        public int _lexSize;     // Number of Vars in this scope
+    }
+    public final Ary<Kind> _kinds;
+    // Lexical scope nesting depth
+    public int depth() { return _kinds._len; }
+    public Kind klast() { return _kinds.last(); }
+
+    // Extra guards; tested predicates and cast results
+    private final Ary<Node> _guards;
+
+    // A new ScopeNode
+    public ScopeNode() {
+        super();
+        _vars   = new Ary<>(Var .class);
+        _kinds  = new Ary<>(Kind.class);
+        _guards = new Ary<>(Node.class);
+    }
+
+    @Override public String label() { return "Scope"; }
+
+    @Override
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("Scope[ ");
+        int j=1;
+        for( int i=0; i<nIns(); i++ ) {
+            if( j < depth() && i == _kinds.at(j)._lexSize ) { p.p("| "); j++; }
+            Var v = var(i);
+            p.p(v._type());
+            p.p(" ");
+            if( v._final ) p.p("!");
+            p.p(v._name);
+            p.p("=");
+            Node n = in(i);
+            while( n instanceof ScopeNode loop ) {
+                p.p("Lazy_");
+                n = loop.in(i);
+            }
+            p.n(n);
+            p.p(", ");
+        }
+        return p.unchar(", ").p("]");
+    }
+
+
+    public Node ctrl() { return in(0); }
+    public Node mem() { return in(1); }
+    public Var var(int i) { return _vars.at(i); }
+
+    /**
+     * The ctrl of a ScopeNode is always bound to the currently active
+     * control node in the graph, via a special name '$ctrl' that is not
+     * a valid identifier in the language grammar and hence cannot be
+     * referenced in Simple code.
+     *
+     * @param n The node to be bound to '$ctrl'
+     *
+     * @return Node that was bound
+     */
+    public <N extends Node> N ctrl(N n) { return setDef(0,n); }
+    public Node mem(Node n) { return setDef(1,n); }
+
+    public void push( Kind kind ) {
+        kind._lexSize = _vars.size();
+        _kinds.push(kind);
+    }
+
+    // Pop a lexical scope
+    public void pop() {
+        promote(null);    // Promote forward references to the next outer scope
+        _pop();
+    }
+    // Pop a scope, no promote FRefs
+    public void _pop() {
+        int n = _kinds.pop()._lexSize;
+        popUntil(n);            // Pop off inputs going out of scope
+        _vars.setLen(n);        // Pop off variables going out of scope
+    }
+
+
+    // Look for forward references in the last lexical scope and promote to the
+    // next outer lexical scope.  At the last scope declare them an error.
+    public void promote(CodeGen code) {
+        Kind kind = klast();
+        int n = kind._lexSize;
+        for( int i=n; i<nIns(); i++ ) {
+            Var v = var(i);
+            Node vn = in(i);
+            if( !v.isFRef() ) continue;
+            // Shuffle vars and inputs to move the forward reference to
+            // *before* the start of the using scope ("as if" it was not
+            // actually a forward reference).
+            for( int j=n; j<=i; j++ ) {
+                Var  vtmp = var(j);
+                Node ntmp = in (j);
+                v._idx = j;
+                _vars  .set(j,v );
+                _inputs.set(j,vn);
+                v  = vtmp;
+                vn = ntmp;
+            }
+            kind._lexSize = ++n;
+        }
+    }
+
+
+    public boolean inFunction   () { return klast() instanceof Kind.Func; }
+    // Is any enclosing scope a constructor?
+    public boolean inConstructor() { return constructorSelf() != null; }
+    // Nearest constructor self type, if any.
+    public TypeStruct constructorSelf() {
+        for( int i=depth()-1; i>=0; i-- )
+            if( _kinds.at(i) instanceof Kind.Constructor ctor )
+                return ctor._self;
+            else if( _kinds.at(i) instanceof Kind.Func func && FunNode.isInstance(func._name) )
+                return ((TypeMemPtr)var(_kinds.at(i)._lexSize).type())._obj;
+        return null;
+    }
+
+    // Find nearest enclosing function scope
+    public int enclosingFunction() {
+        for( int i=depth()-1; i>=0; i-- )
+            if( _kinds.at(i) instanceof Kind.Func func && !FunNode.isInstance(func._name) )
+                return i;
+        throw Utils.TODO("Should not reach here");
+    }
+
+    // Find nearest enclosing function or declaration scope
+    public int enclosingFuncOrDecl() {
+        for( int i=depth()-1; i>=0; i-- )
+            if( _kinds.at(i) instanceof Kind.Func func )
+                return i;
+        throw Utils.TODO("Should not reach here");
+    }
+
+    // Which lexical scope contains this Var?
+    public int kindx( Var v ) {
+        for( int i=depth()-1; i>=0; i-- )
+            if( v._idx >= _kinds.at(i)._lexSize )
+                return i;
+        return -1;
+    }
+
+    // Which lexical scope contains this Var?
+
+
+    public int kindFcnx( Var v ) {
+        for( int i=depth()-1; i>=0; i-- )
+            if( v._idx >= _kinds.at(i)._lexSize && _kinds.at(i) instanceof Kind.Func )
+                return i;
+        throw Utils.TODO("Should not reach here");
+    }
+
+    // Which function scope contains this Var?
+    public Kind kindFcn( Var v ) {
+        int kx = kindFcnx(v);
+        return kx == -1 ? null : _kinds.at(kx);
+    }
+
+    // Final fields are writable local values inside their own initializer or
+    // constructor. Final parameters, local variables, and captured bindings
+    // remain final. Use the same rule when deciding which loop Phis to build.
+    public boolean canInit(Var v) {
+        int fx=enclosingFuncOrDecl();
+        Kind.Func fun=(Kind.Func)_kinds.at(fx);
+        if( !fun._constructor || v._extern!=0 ) return false;
+        int dx=FunNode.isInstance(fun._name) ? fx : fx-1;
+        return dx>=0 && kindx(v)==dx && v._idx>=_kinds.at(dx)._lexSize+2;
+    }
+
+    private boolean loopVar(Var v) {
+        return !v._final || (canInit(v) && !v.type().isHighOrConst());
+    }
+
+    // Find name in reverse, return an index into _vars or -1.  Linear scan
+    // instead of hashtable, but probably doesn't matter until the scan
+    // typically hits many dozens of variables.
+    public int find( String name ) {
+        for( int i=_vars.size()-1; i>=0; i-- )
+            if( var(i)._name.equals(name) )
+                return i;
+        return -1;
+    }
+
+    /**
+     * Create a new variable name in the current scope
+     */
+    public boolean define( String name, Type declaredType, boolean xfinal, Node init, Parser.Lexer loc ) {
+        assert _kinds.isEmpty() || name!=MEM0 ; // Later scopes do not define memory
+        if( depth() > 0 )
+            for( int i=_vars.size()-1; i>=klast()._lexSize; i-- ) {
+                Var n = var(i);
+                if( n._name.equals(name) ) {
+                    if( !n.isFRef() ) return false;       // Double define
+                    FRefNode fref = (FRefNode)in(n._idx); // Get forward ref
+                    if( !xfinal || !declaredType.isConstant() ) throw fref.err();  // Must be a final constant
+                    n.defFRef(declaredType,xfinal,loc);   // Declare full correct type, final, source location
+                    setDef(n._idx,fref.addDef(init));     // Set FRef to defined; tell parser also
+                    return true;
+                }
+            }
+        Var v = new Var(nIns(),name,declaredType,xfinal,loc,init==CodeGen.CODE.XCTRL);
+        _vars.add(v);
+        // Creating a forward reference
+        if( init==CodeGen.CODE.XCTRL )
+            //init = new FRefNode(v).init();
+            throw Utils.TODO();
+        addDef(init);
+        return true;
+    }
+
+    // Normal lookup was tried and failed.  Append a forward ref in the current
+    // lexical scope.  Scope pops promote it outwards "as if" the final constant
+    // had been declared before the using scope.
+
+    public Var defineFRef( String id, Type t, boolean xfinal, Parser.Lexer loc ) {
+        Var var = new Var(nIns(),id,t,xfinal,loc,true);
+        FRefNode fref = new FRefNode(id,loc).init();
+        fref._type = fref._con = t;
+        _vars.add(var);
+        addDef(fref);
+        return var;
+    }
+
+
+    // Parser state carries one complete, conservative memory value.  Precise
+    // alias partitions belong to the graph and are introduced by peepholes.
+    public Node mem( int alias ) {
+        assert alias == 1;
+        return in(update(var(1),null));
+    }
+    public void mem( int alias, Node st ) {
+        assert alias == 1;
+        update(var(1),st);
+    }
+
+
+    /**
+     * Lookup a name in all scopes starting from most deeply nested.
+     *
+     * @param name Name to be looked up
+     * @return null if not found, or the implementing Node
+     */
+    public Var lookup( String name ) {
+        int idx = find(name);
+        // -1 is missed in all scopes, not found
+        return idx == -1 ? null : update(var(idx),null);
+    }
+
+    /**
+     * Redefine an existing name
+     *
+     * @param name Name being redefined
+     * @param n    The node to bind to the name
+     */
+    public void update( String name, Node n ) {
+        int idx = find(name);
+        assert idx>=0;
+        update(var(idx),n);
+    }
+
+    public Var update( Var v, Node st ) {
+        Node old = in(v._idx);
+        if( old instanceof ScopeNode loop ) {
+            // Lazy Phi!
+            Node def = loop.in(v._idx);
+            old = def instanceof PhiNode phi && loop.ctrl()==phi.region()
+                // Loop already has a real Phi, use it
+                ? def
+                // Set real Phi in the loop head
+                // The phi takes its one input (no backedge yet) from a recursive
+                // lookup, which might have insert a Phi in every loop nest.
+                : loop.setDef(v._idx,PhiNode.make(v._name, v.type(), loop.ctrl(), loop.in(loop.update(v,null)._idx),null).init());
+            setDef(v._idx,old);
+        }
+        //assert !v._final || st==null;
+        if( st!=null ) setDef(v._idx,st); // Set new value
+        return v;
+    }
+
+    /**
+     * Duplicate a ScopeNode; including all levels, up to Nodes.  So this is
+     * neither shallow (would dup the Scope but not the internal HashMap
+     * tables), nor deep (would dup the Scope, the HashMap tables, but then
+     * also the program Nodes).
+     * <p>
+     * If the {@code loop} flag is set, the edges are filled in as the original
+     * Scope, as an indication of Lazy Phis at loop heads.  The goal here is to
+     * not make Phis at loop heads for variables which are never touched in the
+     * loop body.
+     * <p>
+     * The new Scope is a full-fledged Node with proper use<->def edges.
+     */
+    public ScopeNode dup() { return dup(false); }
+    public ScopeNode dup(boolean loop) {
+        ScopeNode dup = new ScopeNode();
+        // Our goals are:
+        // 1) duplicate the name bindings of the ScopeNode across all stack levels
+        // 2) Make the new ScopeNode a user of all the nodes bound
+        // 3) Ensure that the order of defs is the same to allow easy merging
+        dup._vars   .addAll(_vars   );
+        dup._kinds  .addAll(_kinds  );
+        dup._guards .addAll(_guards );
+        // The dup'd guards all need dup'd keepers, to keep proper accounting
+        // when later removing all guards
+        for( Node n : _guards )
+            if( !(n instanceof CFGNode) )
+                n.keep();
+        dup.addDef(ctrl());     // Control input is just copied
+
+        // Memory is one ordinary parser-state value.  At loop heads the
+        // Scope sentinel triggers the same lazy-Phi machinery as variables.
+        dup.addDef(loop ? this : mem());
+
+        // Copy of other inputs
+        for( int i=2; i<nIns(); i++ )
+            // For lazy phis on loops we use a sentinel
+            // that will trigger phi creation on update
+            dup.addDef(loop && loopVar(var(i)) ? this : in(i));
+        return dup;
+    }
+
+    /**
+     * Merges the names whose node bindings differ, by creating Phi node for such names
+     * The names could occur at all stack levels, but a given name can only differ in the
+     * innermost stack level where the name is bound.
+     *
+     * @param that The ScopeNode to be merged into this
+     * @return A new node representing the merge point
+     */
+    public RegionNode mergeScopes(ScopeNode that, Parser.Lexer loc) {
+        RegionNode r = ctrl(new RegionNode(loc,null,ctrl(), that.ctrl()).keep());
+        this._merge(that,r);
+        that.kill();            // Kill merged scope
+        CodeGen.CODE.add(r);
+        return r.unkeep();
+    }
+
+    public void _merge(ScopeNode that, RegionNode r) {
+        _merge(that,r,nIns());
+    }
+    public void _merge(ScopeNode that, RegionNode r, int max ) {
+        for( int i = 1; i < max; i++)
+            if( in(i) != that.in(i) ) { // No need for redundant Phis
+                // If we are in lazy phi mode we need to a lookup
+                // by name as it will trigger a phi creation
+                Var v = var(i);
+                Node lhs = this.in(this.update(v,null));
+                Node rhs = that.in(that.update(v,null));
+                setDef(i, PhiNode.make(v._name, v.type(), r, lhs, rhs).peephole());
+            }
+    }
+
+    // Balance arms of an IF.  Extra lonely defs are thrown: "if(pred) int x;".
+    // Forward refs are copied to the other side, "as if" they were there all along.
+    // 'this' scope is the default, 'scope' might have frefs.
+    public void balanceIf( ScopeNode scope ) {
+        if( nIns()==scope.nIns() )
+            return;             // Fast-path cutout
+        int kidx = enclosingFunction();
+        assert _kinds.at(kidx) == scope._kinds.at(kidx);
+        if( kidx==0 ) kidx = 1;
+        for( int i = _kinds.at(kidx-1)._lexSize; i < scope.nIns(); i++ ) {
+            Var n = scope.var(i);
+            if( i<nIns() && var(i)==n ) continue;
+            if( n.isFRef() ) {  // RHS has forward refs
+                _vars.insert(n,i);
+                insertDef(i,scope.in(i));
+            } else
+                throw Parser.error("Cannot define a '"+n._name+"' on one arm of an if",n._loc);
+        }
+    }
+
+    public void balanceLoopFRefs( ScopeNode scope ) {
+        for( int i = nIns(); i < scope.nIns(); i++ ) {
+            Var n = scope.var(i);
+            if( n.isFRef() ) {  // Loop body has forward refs
+                Var v = new Var(nIns(),n._name,n.type(),n._final,n._loc,true);
+                v._uninit = n._uninit;
+                _vars.add(v);
+                addDef(scope.in(i));
+            }
+        }
+    }
+
+
+    // ------------------------------------------------
+    // peephole the backedge scope into this loop head scope
+    // We set the second input to the phi from the back edge (i.e. loop body)
+    public void endLoop(ScopeNode back, ScopeNode exit ) {
+        Node ctrl = ctrl();
+        assert ctrl instanceof LoopNode loop && loop.inProgress();
+        ctrl.setDef(2,back.ctrl());
+
+        this._endLoop( this, back, exit);
+        back.kill();            // Loop backedge is dead
+        // Now one-time do a useless-phi removal
+        this._useless();
+    }
+
+    // Fill in the backedge of any inserted Phis
+    void _endLoop( ScopeNode scope, Node back, Node exit ) {
+        for( int i=1; i<nIns(); i++ ) {
+            if( !loopVar(var(i)) ) continue;
+            Node n = in(i);
+            if( var(i).type().isHighOrConst() && !(n instanceof PhiNode phi && phi.inProgress()) ) { // Cannot lift higher than a constant, so no Phi
+                Node con = ConstantNode.make(var(i).type()).init();
+                n.subsume(con);
+                n = con;
+            } else if( back.in(i) != scope ) {
+                PhiNode phi = (PhiNode)n;
+                assert phi.region()==scope.ctrl() && phi.in(2)==null;
+                phi.setDef(2,back.in(i)); // Fill backedge
+            }
+            if( exit.in(i) == scope ) // Replace a lazy-phi on the exit path also
+                exit.setDef(i,n);
+        }
+    }
+
+    // ------------------------------------------------
+    // Up-casting: using the results of an If to improve a value.
+    // E.g. "if( ptr ) ptr.field;" is legal because ptr is known not-null.
+    //
+    // This operation is lexical, not a full semantic theorem prover, and thus
+    // its behavior changes the language spec.  Optimizations that hide the
+    // lexical structure (e.g. constant folding control flow) can hide what is
+    // guarded or how the guard is applied, making it somewhat fragile.  Several
+    // good use cases are covered here, but not everything you might like.
+    //
+    // Simple lexical facts work well:
+    //
+    //  ```
+    //    if( ptr )
+    //        return ptr.field; // `ptr` is guarded non-null here.
+    //
+    //    if( a && a.ptr )
+    //        return a.ptr.x;   // `a` is guarded while parsing the RHS load,
+    //                          // and remains guarded on the true arm.
+    //  ```
+    //
+    // Short-circuit expressions are lowered as nested Phis.  We recursively
+    // decompose the recognized Phi shape, so chains such as:
+    //
+    //  ```
+    //    if( x && y && z )
+    //        use(x,y,z);
+    //  ```
+    //
+    // discover the nested `x && y` and then `x`, `y`, and `z`; this is not
+    // merely a one-level lookup.  Likewise, nested tests carry lexical guards
+    // inwards:
+    //
+    //  ```
+    //    if( x && y )
+    //        if( z && a )
+    //            if( x.ptr && z.ptr )
+    //                ...
+    //  ```
+    //
+    // Here `x` is already guarded while parsing the outer true arm, `z` while
+    // parsing the inner true arm, and both are available before the matching
+    // loads.  The later post-test decomposition is just a convenience for
+    // values still schedulable at the post-test control.
+    //
+    // The hard limit is that a semantic implication is not always a
+    // schedulable Node.  For `(x && y)`, the true side implies that `y` was
+    // true, but `y` might be a value computed only on the RHS control arm:
+    //
+    //  ```
+    //    val ptr = ...;
+    //    if( ptr && (ptr=fcn() ? 0 : arg ) {}
+    //  ```
+    //
+    // A Guard pinned after the Phi merge and using the branch-local `ptr`
+    // value would give that value a use above its defining arm.  GCM then has
+    // no legal block between the value's early control and the LCA of its
+    // uses.  Thus `_addGuards` first checks that the predicate's effective
+    // early CFG dominates the control where the Guard would be pinned.  If it
+    // does not, we skip that guard even if the fact is semantically true.
+    //
+    // A more complete answer would need a richer logical/proof node, or would
+    // need to rematerialize predicates on the guarded path instead of using
+    // branch-local nodes directly.  Plain GuardNodes are intentionally kept to
+    // facts represented by values already available at the guard control.
+    //
+    // TODO: Make this more robust for shapes like:
+    //  ```
+    //    if( !ary || !ary# ) exit(); // facts about ary are lost, despite the early exit
+    //    for( ...; ary# ) ...;
+    //  ```
+    // Here the guard ends up guarding the whole expression (both ary and ary#
+    // are not-null), but loses that ary is not-null.  A better answer might be
+    // a dedicated logical expression node, or some sort of gather-of-checked
+    // values to Guard post-test.
+
+    public void addGuards( CFGNode ctrl, Node pred, boolean invert ) {
+        _guards.add(ctrl);      // Marker between guard sets
+        // add pred & its cast to the normal input list, with special Vars
+        if( pred==null || pred.isDead() )
+            return;           // Dead, do not add any guards
+        _addGuards(ctrl,pred,invert);
+    }
+
+    private void _addGuards( CFGNode ctrl, Node pred, boolean invert ) {
+        if( pred==null || pred.isDead() )
+            return;
+        CFGNode early = CFGNode.earlyCFG(pred);
+        if( early != null && !early.dominates(ctrl,null) )
+            return;
+        // A single negation is handled below. For !!p (including p != null)
+        // or a negated short-circuit Phi, also discover the underlying facts.
+        if( pred instanceof NotNode not &&
+            (not.in(1) instanceof NotNode || not.in(1) instanceof PhiNode) ) {
+            pred.keep();        // Recursive peepholes may rediscover this Not.
+            _addGuards(ctrl,not.in(1),!invert);
+            pred.unkeep();
+        }
+        // Short-circuit logic is represented by a Phi.  For `a || b` being
+        // false, or `a && b` being true, both individual operands have the
+        // same proven value as the whole expression.  The "skipped RHS" path
+        // is the Region input whose Phi value is the controlling If predicate.
+        if( pred instanceof PhiNode phi && phi.nIns()==3 && phi.region() instanceof RegionNode r && r.nIns()==3 )
+            for( int i=1; i<3; i++ )
+                if( r.in(i) instanceof CProjNode prj && prj.ctrl() instanceof IfNode iff ) {
+                    Node skip = shortCircuitSkippedPred(phi.in(i),iff.pred(),prj,invert);
+                    if( skip != null ) {
+                        _addGuards(ctrl,skip,invert);
+                        _addGuards(ctrl,phi.in(3-i),invert);
+                        break;
+                    }
+                }
+        // Invert the If conditional
+        if( invert )
+            pred = pred instanceof NotNode not ? not.in(1) : CodeGen.CODE.add(new NotNode(pred).peephole());
+        Node zeroPred = pred instanceof NotNode not ? not.in(1) : null;
+        // This is a zero/null test.
+        // Compute the positive test type.
+        _addGuard(true,ctrl,pred);
+
+        // Compute the negative test type.
+        if( zeroPred != null )
+            _addGuard(false,ctrl,zeroPred);
+    }
+
+    private static Node shortCircuitSkippedPred( Node val, Node pred, CProjNode prj, boolean invert ) {
+        if( val == null )
+            return null;
+        if( val == pred )
+            return (prj._idx==0)==invert ? val : null;
+        if( val instanceof NotNode not && not.in(1)==pred )
+            return (prj._idx==1)==invert ? val : null;
+        if( val._type == TypeInteger.TRUE && invert )
+            return prj._idx==0 ? pred : CodeGen.CODE.add(new NotNode(pred).peephole());
+        if( val._type == TypeInteger.FALSE && !invert )
+            return prj._idx==1 ? pred : CodeGen.CODE.add(new NotNode(pred).peephole());
+        return null;
+    }
+
+    private void _addGuard(boolean nonZero, Node ctrl, Node pred) {
+        Node guard = new GuardNode(nonZero,ctrl,pred).peephole();
+        if( guard != pred ) {
+            pred.keep();
+            guard.keep();
+            _guards.add(pred);
+            _guards.add(guard);
+            replace(pred,guard,nonZero);
+        }
+    }
+
+
+    // Remove matching pred/cast pairs from this guarded region.
+    public void removeGuards( Node ctrl ) {
+        assert ctrl instanceof CFGNode;
+        // Pop the guards up to this region's marker.
+        while( true ) {
+            Node g = _guards.pop();
+            if( g == ctrl ) break;
+            if( g instanceof CFGNode ) continue;
+            g            .unkill(); // Pop/kill cast
+            _guards.pop().unkill(); // Pop/kill pred
+        }
+    }
+
+    // If we find a guarded instance of pred, replace with the upcasted version
+    public Node upcastGuard( Node pred ) {
+        // If finding an instanceof pred, replace with cast.
+        // Otherwise, just pred itself.
+        int i = _guards._len;
+        while( i > 0 ) {
+            Node  cast = _guards.at(--i);
+            if( cast instanceof CFGNode ) continue; // Marker between guard sets
+            Node xpred = _guards.at(--i);
+            if( xpred == pred )
+                return cast;
+        }
+        return pred;
+    }
+
+    // Kill guards also
+    @Override public void kill() {
+        for( Node n : _guards )
+            if( !(n instanceof CFGNode) )
+                n.unkill();
+        _guards.clear();
+        // Can have lazy uses remaining
+        if( isUnused() )
+            super.kill();
+    }
+
+
+    private void replace( Node old, Node cast, boolean nonZero ) {
+        assert old!=null && old!=cast;
+        for( int i=0; i<nIns(); i++ )
+            if( in(i)==old || nonZero && nullCheckedPhi(in(i),old) )
+                setDef(i,cast);
+    }
+
+    private static boolean nullCheckedPhi( Node n, Node old ) {
+        if( !(n instanceof PhiNode phi) || phi.nIns()!=3 )
+            return false;
+        if( phi.in(1)==null || phi.in(2)==null )
+            return false;
+        int zero = phi.in(1)._type == phi.in(1)._type.makeZero() ? 1 :
+                   phi.in(2)._type == phi.in(2)._type.makeZero() ? 2 : -1;
+        if( zero == -1 )
+            return false;
+        Node val = phi.in(3-zero);
+        return val==old ||
+            val instanceof GuardNode guard && guard._nonZero && guard.in(1)==old;
+    }
+
+    // ------------------------------------------------------------------------
+    // Insert a top-level public external symbol, "as-if" some #include/import
+    // was executed at the top of tile.
+    public Var insertExtern( ExternNode ext ) {
+        // Size of top-level scope
+        int lexSize = _kinds.at(0)._lexSize;
+        Var var = new Var(lexSize,ext._extern,ext._con,true,null);
+        insert(var,ext,0);
+        return var;
+    }
+
+    // ------------------------------------------------------------------------
+    // Insert a Var with Node n in the lex scope just prior to kidx
+    private void insert( Var var, Node n, int kidx ) {
+        // Insert just prior to scope kidx
+        int nidx = _kinds.at(kidx)._lexSize;
+        _vars.insert(var,nidx);
+        insertDef(nidx,n);
+        // All outer Kinds lexical offsets bump by one
+        for( int i = kidx; i < depth(); i++ )
+            _kinds.at(i)._lexSize++;
+        // All Vars outside the innermost lexical scope bump out one
+        for( int i=nidx+1; i<_vars._len; i++ )
+            var(i)._idx++;
+    }
+
+    // Save the existing Node state to an array
+    public Node[] save() {
+        Node[] olds = new Node[nIns()];
+        for( int i=0; i<nIns(); i++ )
+            olds[i] = in(i)==null ? null : in(i).keep();
+        return olds;
+    }
+
+    // Restore saved Node state back into scope
+    public void restore( Node[] olds ) {
+        assert olds.length<=nIns();
+        for( int i=0; i<olds.length; i++ )
+            setDef(i,olds[i]==null ? null : olds[i].unkeep());
+    }
+}

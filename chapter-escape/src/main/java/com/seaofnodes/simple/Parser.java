@@ -267,7 +267,7 @@ public class Parser {
         // Pre-call the function from Start, with worse-case arguments.  This
         // represents all the future, yet-to-be-parsed functions calls and
         // external calls.
-        _scope.push(new Kind.Func());
+        _scope.push(new Kind.Func(_privateFun!=null));
         ctrl(fun);              // Scope control from function
         // Unknown callers supply whole memory; field aliases are discovered lazily.
         _scope.mem(new ParmNode(ScopeNode.MEM0,1,TypeMem.BOT,fun,new ProjNode(_code._start,1,ScopeNode.MEM0).peephole()).peephole());
@@ -768,6 +768,7 @@ public class Parser {
             // The alloc() call added the allocation scope
             !_scope.canInit(def) )
             throw error("Cannot reassign final '"+name+"'");
+        checkSharedField(def);
 
         // Parse assignment expression
         checkCaptureWrite(def);
@@ -869,6 +870,14 @@ public class Parser {
                     throw error("a not-null/non-zero expression");
                 t = expr._type;
                 if( !xfinal ) t = inferredType(t);  // Widen if not final
+                // A final field is still a local variable during construction.
+                // Its constant default is a value, not a one-value declaration
+                // type: later assignments and loop Phis may change it.
+                else if( _scope.inConstructor() && !(t instanceof TypeFunPtr) ) {
+                    Type wide=inferredType(t);
+                    t = t instanceof TypeMemPtr ptr && ptr.notNull()
+                        ? TypeMemPtr.make((byte)2,((TypeMemPtr)wide)._obj,false).withAccess(ptr._ro) : wide;
+                }
             }
             // expr is a constant function
             if( t instanceof TypeFunPtr && expr._type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
@@ -948,7 +957,10 @@ public class Parser {
             Var v = _scope.var(index++);
             if( v.isFRef() ) continue;
             Node value = _scope.in(v);
-            boolean constant = v._final && v._init && value._type.isConstant();
+            // Only function declarations are shared across instances. A final
+            // data field can change in a named or inline constructor, so a
+            // constant default does not justify folding every future read.
+            boolean constant = v._final && v._init && value._type instanceof TypeFunPtr && value._type.isConstant();
             Field field = Field.make(v._name,v.type(),_code.getALIAS(),v._final,constant);
             shape=shape.add(field);
             TYPES.put(_nestedType,TypeMemPtr.make(shape));
@@ -1452,8 +1464,9 @@ public class Parser {
             if( name!=null ) {
                 Var n = _scope.lookup(name);
                 if( n != null && !(n.type() instanceof TypeMemPtr) ) {
-                    if( n._final )
+                    if( n._final && !_scope.canInit(n) )
                         throw error("Cannot reassign final '"+n._name+"'");
+                    checkSharedField(n);
                     Node expr = liftExpr(peep(new AddNode(_scope.in(n),con(delta))),n.type(),true);
                     _scope.update(n,expr);
                     return expr;
@@ -1545,8 +1558,9 @@ public class Parser {
         if( ch==0  )            // Normal primary, check for postfix updates
             return parsePostfix(rvalue);
         // Assign-update direct into Scope
-        if( var._final )
+        if( var._final && !_scope.canInit(var) )
             throw error("Cannot reassign final '"+var._name+"'");
+        checkSharedField(var);
         checkCaptureWrite(var);
         Node op = opAssign(ch,rvalue, var.type() );
         _scope.update(var,op);
@@ -1598,6 +1612,24 @@ public class Parser {
         for( int i=_scope.depth()-1; i>=0 && var._idx<_scope._kinds.at(i)._lexSize; i-- )
             if( _scope._kinds.at(i) instanceof Kind.Func )
                 throw error("Cannot assign captured variable '"+var._name+"' in an initializer");
+    }
+
+    // Inline constructors have local field slots too, but shared function
+    // declarations have no instance slot to publish. Do not silently discard
+    // an assignment to one of those declarations.
+    private void checkSharedField(Var var) {
+        if( !_scope.canInit(var) ) return;
+        if( _scope.kind(var) instanceof Kind.Define ) {
+            checkPrivateWrite(var._name);
+            return;
+        }
+        for( int i=_scope.depth()-1; i>0; i-- )
+            if( _scope._kinds.at(i) instanceof Kind.Alloc alloc ) {
+                Field field=alloc._tmp._obj.field(var._name);
+                if( field!=null && field._one )
+                    throw error("Cannot reassign shared function '"+var._name+"'");
+                return;
+            }
     }
 
     // Check for assign-update, "x += e0".
@@ -1980,6 +2012,7 @@ public class Parser {
         if( v.type() instanceof TypeFunPtr ctor && ctor.ret() instanceof TypeMem )
             throw error("A constructor is only called by new");
         if( matchOpx('=','=') ) {
+            checkPrivateWrite(name);
             Node value=parseAsgn().keep();
             checkPublication(value);
             _scope.update(v,liftExpr(value,v.type(),false));
@@ -1990,6 +2023,7 @@ public class Parser {
             throw error("Cannot read uninitialized field '"+name+"'");
         char ch=_lexer.matchOperAssign();
         if( ch!=0 ) {
+            checkPrivateWrite(name);
             Node op=opAssign(ch,value,v.type());
             checkPublication(op);
             _scope.update(v,op);
@@ -1998,6 +2032,12 @@ public class Parser {
         if( value._type instanceof TypeFunPtr && match("(") )
             return parsePostfix(require(functionCall(value,self()),")"));
         return parsePostfix(value);
+    }
+
+    private void checkPrivateWrite(String name) {
+        Field field=((TypeMemPtr)TYPES.get(_nestedType))._obj.field(name);
+        if( field!=null && field._one )
+            throw error("Cannot reassign shared function '"+name+"'");
     }
 
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or

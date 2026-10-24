@@ -1,0 +1,24 @@
+
+// Array utilities
+
+// Copy byte array contents.  Copies the shorter of the buffers and len
+val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
+    if( len > dst# - doff ) len = dst# - doff;
+    if( len > src# - soff ) len = src# - soff;
+    for( int i=0; i<len; i++ )
+        dst[i+doff] = src[i+soff];
+    return dst;
+};
+
+// Compare lexigraphically array contents.  Compares up to shorter array or
+// len.  Returns <0 or >0 for first non-matching byte.  Returns <0 or >0 for
+// the larger array after that, or 0 if both arrays are fully equal.
+val cmp = { u8[~] src1, u32 off1, u8[~] src2, u32 off2, u32 len ->
+    u32 len1 = len > src1# - off1 ? src1# - off1 : len;
+    u32 len2 = len > src2# - off2 ? src2# - off2 : len;
+    u32 max = len1 > len2 ? len2 : len1;
+    for( int i=0; i<max; i++ )
+        if( src1[off1+i] != src2[off2+i] )
+            return src1[off1+i] - src2[off2+i]; // Bytes determine compare
+    return len1 - len2;                         // Length determines compare
+};

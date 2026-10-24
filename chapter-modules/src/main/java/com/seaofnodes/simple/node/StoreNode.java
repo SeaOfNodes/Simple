@@ -1,0 +1,326 @@
+package com.seaofnodes.simple.node;
+
+import com.seaofnodes.print.ExprPrinter;
+
+import com.seaofnodes.simple.*;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Utils;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+
+/**
+ * Store represents setting a value to a memory based object, in chapter 10
+ * this means a field inside a struct.
+ */
+public class StoreNode extends MemOpNode {
+
+    final boolean _init; // Initializing writes are allowed to write null
+    // Semantic store width in bytes.  Zero is the sole undecided state;
+    // otherwise hardware and ideal Stores are the 1/2/4/8-byte variants.
+    private byte _size;
+
+    /**
+     * @param name  The struct field we are assigning to
+     * @param mem   The memory alias node - this is updated after a Store
+     * @param ptr   The ptr to the struct base where we will store a value
+     * @param off   The offset inside the struct base
+     * @param value Value to be stored
+     */
+    public StoreNode(Parser.Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init) {
+        this(loc,name,alias,decl,ctrl,mem,ptr,off,value,init,(byte)0);
+    }
+    private StoreNode(Parser.Lexer loc, String name, int alias, Type decl, Node ctrl, Node mem, Node ptr, Node off, Node value, boolean init, byte size) {
+        super(loc, name, alias, false, decl, ctrl, mem, ptr, off, value);
+        _init = init;
+        _size = size;
+    }
+
+
+    @Override boolean canDrop(MemOpNode other, Node dep) {
+        return super.canDrop(other,dep) && _init==((StoreNode)other)._init;
+    }
+
+    // Debugger label
+    @Override public String  label() { return "st_"+mlabel(); }
+    @Override public boolean isMem() { return true; }
+
+    public Node nnptr() {
+        if( !(ptr() instanceof GuardNode cast) ) return ptr();
+        assert cast._nonZero;
+        return cast.in(1);
+    }
+    public Node val() { return in(4); }
+    public int storeSize() { assert _size==1 || _size==2 || _size==4 || _size==8; return _size; }
+    public int log_size() { return Integer.numberOfTrailingZeros(storeSize()); };
+
+    @Override
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        return p.p(".").p(_name).p("=").p( val()).p(";");
+    }
+
+    @Override
+    public Type compute() {
+        Type val  = val()._type;
+        Type mem0 = mem()._type;
+        Type ptr0 = ptr()._type;
+        // Validate argument types
+        if( ptr0.isHigh() )
+            return TypeMem.TOP;
+        if( !(mem0 instanceof TypeMem    mem) ||
+            !(ptr0 instanceof TypeMemPtr ptr) )
+            return mem0.isHigh() || ptr0==Type.NIL ? TypeMem.TOP : TypeMem.BOT;
+
+        // Sharpen memory value; required for narrowing stores where the parser
+        // inserts zero/sign masking and somebody reads the TypeMem type.
+        Type decl = declaredType();
+        if( decl != Type.BOTTOM )
+            { assert decl != Type.TOP; val = val.join(decl); }
+        // A singleton class's final constant field lives in the static image.
+        // Its precise memory slice is a constant too; ordinary peepholes can
+        // replace this Store before scheduling or instruction selection.
+        // A constant runtime value alone is not enough: mutable fields (notably
+        // $init) still need their writes, and instance fields need allocation.
+        Field fld = ptr._obj.field(_name);
+        if( _alias!=1 && ptr._one && Parser.startsClzPrefix(ptr._obj._name) &&
+            fld!=null && fld._final && decl.isConstant() )
+            return TypeMem.make(_alias,val,true,true,true,mem._escFs,mem._escAs).escapesFrom(val);
+
+        // Allocation uses a private TypeMem and nothing else does.  This
+        // memory is truly private; a temporary singleton until it escapes -
+        // which is never does in a constructor.
+        if( !_name.equals("[]") && mem._one )
+            // Just track the stored value
+            return TypeMem.make(_alias,val,true,false,_init,null,null).escapesFrom(val);
+
+        // Normal aliasing Store.
+        assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
+
+        // Single alias store.  If memory is fat, attempt to get a narrow slice.
+        Type tfld = mem._alias==1 && mem._t instanceof TypeStruct ts
+            ? ts._fields[ts.findAlias(_alias)]._t
+            : mem._t;
+
+        // Same alias, meet into other fields.
+        Type t = val.meet(tfld);
+        // Bulk memory's final bit describes its conservative remainder, not
+        // this newly precise slice.  Slice finality comes from the field.
+        boolean xfinal = fld != null && fld._final;
+        return TypeMem.make(_alias,t,mem._one,mem._clz,xfinal,mem._escFs,mem._escAs).escapesFrom(val);
+    }
+
+    @Override
+    public Node idealize() {
+        // Freeze the semantic Store variant as soon as the pointer exposes a
+        // canonical field declaration.  Waiting until after structural memory
+        // peeps can lose the declaration to a flow-sensitive constant field
+        // state.
+        if( _size==0 && (_size= storageType()) != 0 ) {
+            unlock();           // Width participates in the cached hash.
+            return init();
+        }
+
+        assert !(mem()._type instanceof TypeMem mem) || _alias == 1 || mem._alias == 1 || _alias == mem._alias;
+
+        // Simple store-after-MemMerge to a known alias can bypass.  Happens when inlining.
+        Node mem = mem();
+        if( _alias != 1 && mem instanceof MemMergeNode merge ) {
+            setDef(1,merge.alias(_alias));
+            return this;
+        }
+
+        Field fld;
+        if( _alias==1 && ptr()._type instanceof TypeMemPtr tmp && (fld=tmp._obj.field(_name)) != null && _size != 0 ) {
+            // Expand Store(bulkMem,alias#1) into MemMerge(bulkMem,#N:Store(bulkMem,alias#N)).
+
+            // Normally I'd like to just drop in this xform and move on, but
+            // users of the bulk Store memory might nontheless depend on the
+            // sharp memory type (e.g. I64) from the store's memory.  Using the
+            // MemMerge means using the bulk memory which e.g. might be BOT.
+            // Check for store users with the same alias, and use the new store
+            // directly, preserving the sharper graph.
+            Node st = new StoreNode(_loc,_name,fld._alias,fld._t,in(0),mem,ptr(),off(),val(),_init,_size).peephole();
+            for( int i=0; i<nOuts(); i++ ) {
+                Node use = out(i);
+                if( useAlias(use)==fld._alias ) {
+                    int idx = use._inputs.find(this);
+                    assert idx != -1;
+                    CodeGen.CODE.add(use).setDef(idx,st);
+                    i--;        // setDef removed use from this Store's outputs
+                }
+            }
+            MemMergeNode mmm = mem instanceof BulkMemPhiNode bulk
+                ? bulk.aggregate(mem,fld._alias,st)
+                : new MemMergeNode(null,mem);
+            if( !(mem instanceof BulkMemPhiNode) )
+                mmm.alias(fld._alias,st);
+            return mmm.init();
+        }
+
+        // Simple store-after-store on same address.  Should pick up the
+        // required init-store being stomped by a first user store.
+        if( mem instanceof StoreNode st &&
+            ptr()==st.ptr() &&  // Must check same object
+            off()==st.off() &&  // And same offset (could be "same alias" but this handles arrays to same index)
+            ptr()._type instanceof TypeMemPtr && // No bother if weird dead pointers
+            // Must have exactly one use of "this" or you get weird
+            // non-serializable memory effects in the worse case.
+            checkOnlyUse(st) ) {
+            assert _name==st._name; // Equiv class aliasing is perfect
+            setDef(1,st.mem());
+            return this;
+        }
+
+        // Private constructor memory describes the value that the next helper
+        // reads. Keep its conversion, even if a machine store could truncate it.
+        // This is the same rule as in the construction and escape chapters.
+        boolean priv = mem()._type instanceof TypeMem tm && tm._one;
+        // Value is automatically truncated by narrow store
+        if( !priv && _size!=0 && val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
+            int log = log_size();
+            if( log<3 ) {       // And-mask vs narrow store
+                long mask = ((TypeInteger)and.in(2)._type).value();
+                long bits = (1L<<(8<<log))-1;
+                // Mask does not mask any of the stored bits
+                if( (bits&mask)==bits )
+                    // So and-mask is already covered by the store
+                    { setDef(4,and.in(1)); return this; }
+            }
+        }
+
+        // Store will chop high order bits off; math to change those bits can be dropped.
+        if( !priv && _size!=0 && val() instanceof SarNode shr &&
+            shr.in(1) instanceof ShlNode shl &&
+            shr.in(2)._type.isConstant() &&
+            shl.in(2)._type.isConstant() ) {
+            TypeInteger shrC = (TypeInteger) shr.in(2)._type;
+
+            // size of the thing that sign-extends
+            int base_size = (1 << shr.in(1)._type.log_size()) << 3;
+            int not_affected_bits = base_size - (int) shrC.value();
+            int store_size = (1 << log_size()) << 3;
+            // if the store is unrelated to the shift amount, then get rid of the shift
+            if( shl.in(2)._type == shr.in(2)._type && shrC.value() >= store_size && not_affected_bits >= store_size) {
+                setDef(4, shl.in(1));
+                return this;
+            }
+        }
+
+        return null;
+    }
+
+    // Flow-sensitive pointer types can carry a current field value (e.g. the
+    // constant zero in a u32 field).  Storage width comes from the canonical
+    // struct declaration.  If the pointer/definition is not available yet,
+    // leave the Store undecided instead of consulting the value or `_con`.
+    private byte storageType() {
+        if( !(ptr()._type instanceof TypeMemPtr tmp) )
+            return 0;
+        TypeStruct obj = (TypeStruct)Parser.TYPES.get(tmp._obj._name);
+        Field fld = obj.field(_name);
+        if( fld == null || fld._t == null )
+            return 0;
+        if( fld._t == Type.BOTTOM )
+            return 0; // Store into a final field
+        assert fld._t != Type.TOP;
+        // Freshly parsed field stores retain the declaring structure on their
+        // symbolic offset even after the pointer's flow type sharpens.
+        if( fld._t.isConstant() ) {
+            if( !(off() instanceof ConFldOffNode coff) )
+                return 0;
+            fld = coff._ts.field(_name);
+            if( fld == null || fld._t == null )
+                return 0;
+        }
+        // Compute storage size from field type
+        byte size = (byte)(1 << fld._t.log_size());
+        assert size==1 || size==2 || size==4 || size==8;
+        return size;
+    }
+
+    // Alias required by a direct consumer of this Store's memory result.
+    // Keep in sync with BulkMemPhiNode.outputAlias.
+    private int useAlias(Node use) {
+        return switch( use ) {
+        case MemOpNode mem -> mem._alias;
+        case MemPhiNode phi -> phi._alias;
+        case EscapeNode esc -> esc.pub()==this ? esc.fld()._alias : 0;
+        default -> 0;
+        };
+    }
+
+    // Phi(mem, Store(phi,ptr,off,val)) -> Store(mem,ptr,off,Phi(load(mem),val)).
+    // With no observers of the backedge store, only the last value matters.
+    // The entry load preserves the field even when the loop takes zero trips.
+    Node sink(MemPhiNode phi) {
+        phi.addDepForwards(this);
+        if( nOuts()!=1 || _alias==1 || _size==0 || _init ) return null;
+        phi.addDep(ptr());
+        // Start with a fixed field of an allocation dominating the loop.
+        // In particular, do not sink stores through a loop-varying address.
+        if( !(ptr() instanceof ProjNode p) || !(p.in(0) instanceof NewNode obj) ||
+            !(ptr()._type instanceof TypeMemPtr tmp) || tmp._obj.isAry() ||
+            !(off() instanceof ConstantNode) || err()!=null ) return null;
+        LoopNode loop = (LoopNode)phi.region();
+        // Bulk splitting identifies precise slices by Region/alias. Finish it
+        // before replacing this memory point with a Store.
+        for( Node use : loop._outputs )
+            if( use instanceof BulkMemPhiNode ) {
+                phi.addDepForwards(use);
+                return null;
+            }
+        phi.addDep(obj);
+        CFGNode ctrl = loop.entry();
+        while( ctrl!=null && ctrl!=obj.cfg0() ) {
+            phi.addDep(ctrl);
+            ctrl=ctrl.idom(phi);
+        }
+        if( ctrl==null ) return null;
+
+        Node mem = phi.in(1);
+        Node init = new LoadNode(_loc,_name,_alias,null,mem,ptr(),off()).peephole();
+        Node value = CodeGen.CODE.add(new PhiNode(_name,loop,init,val()).peephole());
+        Node sink = new StoreNode(_loc,_name,_alias,_con,null,mem,ptr(),off(),value,_init,_size);
+        // Break the memory cycle, killing the old store. Keep the Phi alive
+        // even if that store was its last use, until our caller replaces it.
+        phi.keep();
+        phi.setDef(2,mem);
+        phi.unkeep();
+        return sink;
+    }
+
+    // Check that "mem" has no uses except "this"
+    private boolean checkOnlyUse(Node mem) {
+        if( mem.nOuts()==1 ) return true;
+        // Add deps on the other uses (can be e.g. ScopeNode mid-parse) so that
+        // when the other uses go away we can retry.
+        for( Node use : mem._outputs )
+            if( use != this )
+                addDep(use);
+        return false;
+    }
+
+    @Override
+    public Parser.ParseException err() {
+        Parser.ParseException err = super.err();
+        if( err != null ) return err;
+        assert _size>0 || CodeGen.CODE._phase.ordinal() <= CodeGen.Phase.FinalizeIR.ordinal();
+        if( ptr()._type == Type.TOP ) // Dead store?
+            return null;
+        TypeMemPtr tmp = (TypeMemPtr)ptr()._type;
+        Field f = tmp._obj.field(_name);
+        if( f!=null && (tmp._ro || f._final) && !_init )
+            return Parser.error("Cannot modify final field '"+_name+"'",_loc);
+        return null;
+    }
+
+    // Do not GVN Stores. Two equal Stores on two of three paths are the easy
+    // failure: sharing them makes GCM place the Store on all three paths.
+    // Sharing is safe only if every exit path goes through an original Store,
+    // or GCM splits the shared Store to keep it on those paths. Stores must
+    // sink, not run on extra paths. GVN does not check this; GCM does not split.
+    // Identity also disables generic Phi factoring of Stores.
+    // The closed-loop Store sink is a separate peep and still applies.
+    @Override public boolean eq(Node n) { return this == n; }
+    @Override int hash() { return super.hash() ^ _size; }
+}

@@ -1,0 +1,60 @@
+package com.seaofnodes.simple.node.cpus.arm;
+
+import com.seaofnodes.isa.Arm64;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.FunNode;
+import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.SplitNode;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
+
+public class SplitARM extends SplitNode {
+    SplitARM(LRG lrg, String kind, byte round) { super(lrg,kind,round,new Node[2]);}
+    @Override public RegMask regmap(int i) { return arm.SPLIT_MASK; }
+    @Override public RegMask outregmap() { return arm.SPLIT_MASK; }
+
+    @Override public void encoding( Encoding enc ) {
+        short dst = enc.reg(this );
+        short src = enc.reg(in(1));
+
+        boolean dstX = dst >= arm.D_OFFSET;
+        boolean srcX = src >= arm.D_OFFSET;
+
+        if (dst >= arm.MAX_REG) {
+            // store to sp
+            if(src >= arm.MAX_REG) {
+                throw Utils.TODO();
+            }
+            int off = fun(enc).computeStackOffset(enc._code,dst);
+            if( srcX ) src -= arm.D_OFFSET;
+            enc.add4(Arm64.load_str_imm(Arm64.OP_STORE_IMM_64, off, arm.RSP, src, 8));
+            return;
+        }
+
+        if(src >= arm.MAX_REG) {
+            // Load from SP
+            int off = fun(enc).computeStackOffset(enc._code,src);
+            if( dstX ) dst -= arm.D_OFFSET;
+            enc.add4(Arm64.load_str_imm(Arm64.OP_LOAD_IMM_64, off, arm.RSP, dst, 8));
+            return;
+        }
+
+        // pick opcode based on regs
+        if(!dstX && !srcX) {
+            // GPR->GPR
+            enc.add4(Arm64.mov_reg(Arm64.OP_MOV, src, dst));
+        } else if(dstX && srcX) {
+            // FPR->FPR
+            // fmov reg
+            enc.add4(Arm64.f_mov_reg(Arm64.OP_FMOV_REG, src - arm.D_OFFSET,dst - arm.D_OFFSET));
+        } else if(!srcX && dstX) {
+            // GPR->FPR
+            // FMOV(general) 64 bits to DOUBLE-PRECISION
+            enc.add4(Arm64.f_mov_general(Arm64.OP_FMOV, 0b01, 0, 0b111, src, dst - arm.D_OFFSET));
+        } else if( srcX && !dstX) {
+            //FPF->GPR
+            // FMOV(general) DOUBLE-PRECISION to 64 bits
+            enc.add4(Arm64.f_mov_general(Arm64.OP_FMOV, 0b01, 0, 0b110, src - arm.D_OFFSET, dst));
+        }
+    }
+}

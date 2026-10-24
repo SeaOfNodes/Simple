@@ -17,7 +17,7 @@ to review/play with construction versus escape after the snapshots run. Keep
 that border open to refinement. Revisit 17a/17b when choosing final names or
 numbers. The first extracted snapshots are chapter-sccp,
 chapter-interprocedural-sccp, chapter-incomplete-types, chapter-construction,
-and chapter-escape; numbered 24/25
+chapter-escape, and chapter-modules; numbered 24/25
 remain comparison baselines.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
@@ -68,6 +68,18 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Mutability and chapter boundaries
 
+- The four README intention questions are kept in
+  [the review agenda](../docs/chapter-backports.md#four-readme-intentions-to-review).
+  Final data fields are writable constructor locals, including in loops; final
+  local bindings and shared function declarations stay fixed. Do not classify
+  a constant instance default as a shared field or skip its loop Phi merely
+  because the published field is final. Class constants keep their static image.
+
+- The modules snapshot is source-only: LocalIds reserves class slots within one
+  invocation; ParseAll reads discovered parents and children; FinishCalls removes
+  analysis call edges before scheduling/selection. No Serialize, ElfReader,
+  GlobalBits or imported type reconstruction. Keep the constructor and native
+  exposure cases in BoundaryTest when extracting separate compilation.
 - A symbolic Store with alias 1 is a barrier to Load forwarding: until its
   field resolves it may write the queried alias. Skipping it can turn a byte
   compound assignment at 255 into a stale read of 255 instead of 2. Both
@@ -79,6 +91,9 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   and keep unwritten fields visible to completion checks. Constructor bodies
   are parsed after the field list closes, so later fields also have local slots.
   The discarded InitStore/InitPhi design must not be brought into the EA split.
+  Constructor reads may see an unfinished object, but never an uninitialized
+  field. Exact self aliases must read the current local value, including inside
+  loops, rather than loading the allocation before exit Stores have run.
   Construction privacy follows language rules; global escape discovery is a
   separate topic, with no required teaching order between them.
 

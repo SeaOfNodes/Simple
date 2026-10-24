@@ -82,6 +82,7 @@ baselines during extraction. The first named snapshots are:
 * [SSA Before Types Are Known](chapter-incomplete-types/README.md)
 * [Construction and Private Memory](chapter-construction/README.md)
 * [Escape Analysis and Unknown Callers](chapter-escape/README.md)
+* [Modules and Lazy Class Initialization](chapter-modules/README.md)
 
 ## Building across chapters
 
