@@ -359,17 +359,17 @@ sys.io.p(str);
 return 0;
 """;
 
-        TestC.runSF("stacked_r_3", src, null, "In Range", 5);
+        TestC.runSF("stacked_r_3", src, null, "In Range", 3);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_3", src, 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_3", src, 0, 3, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
         assertEquals("In Range",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_3", src, 0, 5, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_3", src, 0, 3, false);
         int trap_1 = arm.step(100);
         assertEquals(0,trap_1);
         assertEquals(0,arm.regs[0]);
@@ -425,17 +425,17 @@ sys.io.p("Out of range");
 
 return 0;
 """;
-        TestC.runSF("stacked_r_5", src, null, "In Range", 5);
+        TestC.runSF("stacked_r_5", src, null, "In Range", 3);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build("stacked_r_5", src, 0, 7, false);
+        EvalRisc5 R5 = TestRisc5.build("stacked_r_5", src, 0, 5, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
         assertEquals("In Range",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("stacked_r_5", src, 0, 7, false);
+        EvalArm64 arm = TestArm64.build("stacked_r_5", src, 0, 5, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);

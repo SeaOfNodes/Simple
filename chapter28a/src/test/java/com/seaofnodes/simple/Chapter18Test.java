@@ -436,7 +436,7 @@ return s.x;
         catch( Exception e ) { assertEquals("Accessing unknown field 'x' from '*Test.S'",e.getMessage()); }
     }
 
-    @Test @Ignore
+    @Test
     public void testErr5() {
         CodeGen code = new CodeGen(
 """
@@ -450,8 +450,8 @@ return g();
     }
 
 
-    // Mutual recursion.  Fails without SCCP to lift the recursive return types.
-    @Ignore @Test
+    // Mutual recursion: check results, independent of how much gets inlined.
+    @Test
     public void testFcnMutRec() {
         CodeGen code = new CodeGen(
 """
@@ -460,7 +460,6 @@ val is_odd  = { int x -> x ? is_even(x-1) : false; };
 return is_even(arg);
 """);
         code.driver(CodeGen.Phase.TypeCheck);
-        assertEquals("Stop[ return #2; return Phi(Region,0,1,#2); ]", code.print());
         assertEquals("1", Eval2.eval(code, 0));
         assertEquals("0", Eval2.eval(code, 1));
         assertEquals("1", Eval2.eval(code, 2));

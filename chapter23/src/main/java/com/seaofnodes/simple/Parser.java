@@ -1050,15 +1050,29 @@ public class Parser {
     }
 
     private Node parseBitwise() {
-        Node lhs = parseComparison();
+        Node lhs = parseEquality();
         while( true ) {
             if( false ) ;
             else if( matchOp('&') ) lhs = new AndNode(loc(),lhs,null);
             else if( matchOp('|') ) lhs = new  OrNode(loc(),lhs,null);
             else if( match  ("^") ) lhs = new XorNode(loc(),lhs,null);
             else break;
-            lhs.setDef(2,parseComparison());
+            lhs.setDef(2,parseEquality());
             lhs = peep(lhs);
+        }
+        return lhs;
+    }
+
+    private Node parseEquality() {
+        Node lhs = parseComparison();
+        while( true ) {
+            boolean eq = false;
+            if( match("==") ) eq = true;
+            else if( !match("!=") ) break;
+            lhs.keep();
+            Node rhs = parseComparison();
+            lhs = peep(new BoolNode.EQ(lhs.unkeep(),rhs).widen());
+            if( !eq ) lhs = peep(new NotNode(lhs));
         }
         return lhs;
     }
@@ -1072,25 +1086,72 @@ public class Parser {
      * @return an comparator expression {@link Node}, never {@code null}
      */
     private Node parseComparison() {
-        var lhs = parseShift();
-        while( true ) {
-            int idx=0;  boolean negate=false;
-            // Test for any local nodes made, and "keep" lhs during peepholes
-            if( false ) ;
-            else if( match("==") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); }
-            else if( match("!=") ) { idx=2;  lhs = new BoolNode.EQ(lhs, null); negate=true; }
-            else if( match("<=") ) { idx=2;  lhs = new BoolNode.LE(lhs, null); }
-            else if( match("<" ) ) { idx=2;  lhs = new BoolNode.LT(lhs, null); }
-            else if( match(">=") ) { idx=1;  lhs = new BoolNode.LE(null, lhs); }
-            else if( match(">" ) ) { idx=1;  lhs = new BoolNode.LT(null, lhs); }
-            else break;
-            // Peepholes can fire, but lhs is already "hooked", kept alive
-            lhs.setDef(idx,parseShift());
-            lhs = peep(lhs.widen());
-            if( negate )        // Extra negate for !=
-                lhs = peep(new NotNode(lhs));
+        Node lhs = parseShift();
+        int dir = parseCompDir();
+        // No compare
+        if( dir==0 ) return lhs;
+        lhs.keep();
+
+        // Compare
+        Node rhs = parseShift().keep();
+        Node cmp = makeCompBool(dir,lhs.unkeep(),rhs).keep(); // Convert to a bool
+
+        // Stacked compares?
+        int dir0 = parseCompDir();
+        if( dir0 == 0 ) {
+            rhs.unkill();
+            return cmp.unkeep();
         }
-        return lhs;
+
+        // Keep the middle operand separately from the boolean result.
+        // The next test compares adjacent operands, not that boolean.
+        Node ifNode = new IfNode(ctrl(), cmp.unkeep()).peephole();
+        Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+        Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+        // False side does nothing but capture memory & side-effects
+        ScopeNode fail = _scope.dup();
+        fail.ctrl(ifF);
+
+        // Loop over stacked compares.  Each loop moves the old RHS to become
+        // the new LHS, so e.g. (a < b < c < d) compares (LHS:a < RHS:b) then
+        // compares (LHS:b < RHS:c) then (LHS:c < RHS:d), etc.
+        while( dir0 != 0 ) {
+            if( Math.abs(dir) != Math.abs(dir0) )
+                throw error("Mixing relational directions in a chained relational test");
+            // True side parses next arm of test
+            ctrl(ifT.unkeep());
+            lhs = rhs;          // Reuse the previous RHS exactly once
+            rhs = parseShift().keep();
+            cmp = makeCompBool(dir0,lhs.unkeep(),rhs); // Convert to a bool
+            ifNode = new IfNode(ctrl(), cmp).peephole();
+            ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
+            ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
+            // Merge result into the fail case
+            ctrl(ifF);
+            fail.mergeScopes(_scope.dup(), loc()).peephole();
+            // Check next stacked compare
+            dir0 = parseCompDir();
+        }
+        rhs.unkill();
+        ctrl(ifT.unkeep());
+        RegionNode r = fail.mergeScopes(_scope, loc()).init();
+        _scope = fail;
+        return new PhiNode("",TypeInteger.BOOL,r,con(0),con(1)).peephole();
+    }
+
+    private int parseCompDir() {
+        if( match("<=") ) return -1; // Negative for "equals-or-less"
+        if( match(">=") ) return -2; // 1 for <, 2 for >
+        if( match("<" ) ) return  1; // Positive for just "less"
+        if( match(">" ) ) return  2;
+        return 0;
+    }
+
+    private Node makeCompBool( int dir, Node lhs, Node rhs ) {
+        if( Math.abs(dir)==2 )
+            { Node tmp=lhs; lhs=rhs; rhs=tmp; }
+        Node cmp = dir < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs);
+        return peep(cmp.widen());
     }
 
     /**

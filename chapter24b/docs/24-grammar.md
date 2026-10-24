@@ -1,4 +1,4 @@
-# Grammar for Chapter 24
+# Grammar for Chapter 24b
 
 English | [日本語](24-grammar.ja.md)
 

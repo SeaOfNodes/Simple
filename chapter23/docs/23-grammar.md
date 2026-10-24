@@ -80,11 +80,16 @@ expression : logicalExpression ('?' assignment (':' assignment)?)? ;
 logicalExpression : bitwiseExpression (('&&' | '||') logicalExpression)? ;
 
 bitwiseExpression
-    : comparisonExpression (('&' | '|' | '^') comparisonExpression)*
+    : equalityExpression (('&' | '|' | '^') equalityExpression)*
     ;
 
+equalityExpression : comparisonExpression (('==' | '!=') comparisonExpression)* ;
+
+// Compare adjacent operands once; stop after the first false comparison.
+// Keep one direction per chain; < and <= (or > and >=) may mix.
 comparisonExpression
-    : shiftExpression (('==' | '!=' | '<' | '<=' | '>' | '>=') shiftExpression)*
+    : shiftExpression (('<' | '<=') shiftExpression)*
+    | shiftExpression (('>' | '>=') shiftExpression)+
     ;
 
 shiftExpression

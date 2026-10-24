@@ -1862,8 +1862,8 @@ public class Parser {
             return cmp.unkeep();
         }
 
-        // rhs is keeped() and becomes lhs
-        // cmp is NOT keeped() and is the last test
+        // Keep the middle operand separately from the boolean result.
+        // The next test compares adjacent operands, not that boolean.
         Node ifNode = new IfNode(ctrl(), cmp.unkeep()).peephole();
         Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
         Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
@@ -1879,9 +1879,9 @@ public class Parser {
                 throw error("Mixing relational directions in a chained relational test");
             // True side parses next arm of test
             ctrl(ifT.unkeep());
-            lhs = rhs;          // lhs is keeped() and is old RHS
+            lhs = rhs;          // Reuse the previous RHS exactly once
             rhs = parseShift().keep();
-            cmp = makeCompBool(dir,lhs.unkeep(),rhs); // Convert to a bool
+            cmp = makeCompBool(dir0,lhs.unkeep(),rhs); // Convert to a bool
             ifNode = new IfNode(ctrl(), cmp).peephole();
             ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
             ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
@@ -1895,7 +1895,7 @@ public class Parser {
         ctrl(ifT.unkeep());
         RegionNode r = fail.mergeScopes(_scope, loc()).init();
         _scope = fail;
-        return new PhiNode("", r,_code.ZERO,con(1)).peephole();
+        return new PhiNode("", r,con(0),con(1)).peephole();
     }
 
     private int parseCompDir() {
@@ -1906,12 +1906,11 @@ public class Parser {
         return 0;
     }
 
-    private Node makeCompBool( int dir0, Node lhs, Node rhs ) {
-        // Convert to a bool
-        if( Math.abs(dir0)==2 ) // Swap direction
-            { Node tmp = lhs; lhs = rhs; rhs = tmp; }
-        lhs = peep(dir0 < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs));
-        return peep(lhs);
+    private Node makeCompBool( int dir, Node lhs, Node rhs ) {
+        if( Math.abs(dir)==2 )
+            { Node tmp=lhs; lhs=rhs; rhs=tmp; }
+        Node cmp = dir < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs);
+        return peep(cmp);
     }
 
     /**
