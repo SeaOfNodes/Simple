@@ -202,7 +202,6 @@ flt farg = arg; return _test_sqrt_noInline(farg) + _test_sqrt_noInline(farg+2.0)
     }
 
 
-
     @Test
     public void testArray1() {
         String src =
@@ -257,9 +256,9 @@ val _hashCodeString = { !String self ->
     return hash;
 };
 """;
-        testCPU(src,"x86_64_v2", "SystemV",21,null);
-        testCPU(src,"riscv"    , "SystemV",8,null);
-        testCPU(src,"arm"      , "SystemV",8,null);
+        testCPU(src,"x86_64_v2", "SystemV",12,null);
+        testCPU(src,"riscv"    , "SystemV",6,null);
+        testCPU(src,"arm"      , "SystemV",6,null);
     }
 
     @Test

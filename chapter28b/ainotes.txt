@@ -1,4 +1,8 @@
 
+Historical design notes from the former combined Chapter 25, now Chapter 28b.
+Current status and remaining work are in ../docs/stage-audit.md and
+../docs/chapter-backports.md. The original intent below is preserved.
+
 Meta-info: I intend to keep extending and re-editing this "ainotes.txt" file so
 I can reprompt the you (the AI) between AI restarts, As such this file will
 contain a mix of high-level design decisions, goals, intents and wisdom, and

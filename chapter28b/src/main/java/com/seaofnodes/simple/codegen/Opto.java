@@ -145,8 +145,7 @@ abstract public class Opto {
     private static void linkStart( CodeGen code, FunNode fun ) {
         assert !fun.isDead();
         StartCUNode start = fun._compunit._start;
-        if( fun.nIns() < 2 ) {
-            assert fun.nIns() < 2 || fun.in(1) != start;
+        if( !fun.unknownCallers() ) {
             assert !start.isDead();
             code.keepInCompUnit(fun);
             // Function is reachable by any *remote* caller who gets the pointer!

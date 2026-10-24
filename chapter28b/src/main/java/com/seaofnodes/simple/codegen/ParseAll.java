@@ -81,11 +81,16 @@ public abstract class ParseAll {
         }
     }
 
+    private static void enqueue(CompUnit cu) {
+        if( cu._par!=null && (cu._par._src!=null || (cu._par._obj!=null && cu._par._obj.exists())) ) enqueue(cu._par);
+        if( cu._start==null && WORK.find(cu)==-1 ) WORK.add(cu);
+    }
+
     private static void parseAll(CodeGen code, CompUnit cunit) {
         WORK.clear();           // Cleanup from prior tests
         NEEDS_LOAD.clear();
         // Prime the pump with the first CompUnit
-        WORK.add(cunit);
+        enqueue(cunit);
         // Work through all unparsed compilation units and parse
         while( !WORK.isEmpty() ) {
             CompUnit cu = WORK.remove(0);
@@ -245,7 +250,7 @@ public abstract class ParseAll {
                 if( sub==null ) sub=makeCUnit(code,null,fname,depObj(code,cunit,fname));
                 // If not seen before or out of date, parse the new nested cunit
                 if( sub._clz == null && WORK.find(sub)==-1 && NEEDS_LOAD.find(sub)==-1 )
-                    WORK.add(sub);
+                    enqueue(sub);
             }
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
@@ -370,7 +375,7 @@ public abstract class ParseAll {
             CompUnit sub = makeCUnit(code,cunit,symbol);
             // If not seen before or out of date, parse the new nested cunit
             if( sub._clz == null && WORK.find(sub) == -1 )
-                WORK.add(sub);
+                enqueue(sub);
             return sub;
         }
 
@@ -405,7 +410,7 @@ public abstract class ParseAll {
             Parser.TYPES.put(clzName,clz = TypeStruct.make(clzName,true));
         cunit._clz = clz;
         if( WORK.find(cunit) == -1 && NEEDS_LOAD.find(cunit) == -1 )
-            WORK.add(cunit);
+            enqueue(cunit);
         return cunit;
     }
 }

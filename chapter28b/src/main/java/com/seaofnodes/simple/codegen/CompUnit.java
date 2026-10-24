@@ -57,7 +57,8 @@ public class CompUnit {
         _obj  = new File( CODE._buildDir + "/" + fname + ".o"  );
 
         boolean mustCompile = _smp.exists() && // Has source to compile
-            ( !_obj.exists() ||                // No object file
+            ( fname.equals(CODE._srcName) ||   // Explicit input is a compilation request
+              !_obj.exists() ||                // No object file
               _smp.lastModified() > _obj.lastModified() || // Out-of-date with source?
               checkDependentObjs() );                      // Out-of-date with other objs?
         _src  = mustCompile ? new String(Files.readAllBytes(_smp.toPath())) : null;

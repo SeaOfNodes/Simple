@@ -184,8 +184,12 @@ public class StoreNode extends MemOpNode {
             return this;
         }
 
+        // Private constructor memory describes the value that the next helper
+        // reads. Keep its conversion, even if a machine store could truncate it.
+        // This is the same rule as in the construction and escape chapters.
+        boolean priv = mem()._type instanceof TypeMem tm && tm._one;
         // Value is automatically truncated by narrow store
-        if( _size!=0 && val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
+        if( !priv && _size!=0 && val() instanceof AndNode and && and.in(2)._type.isConstant()  ) {
             int log = log_size();
             if( log<3 ) {       // And-mask vs narrow store
                 long mask = ((TypeInteger)and.in(2)._type).value();
@@ -198,7 +202,7 @@ public class StoreNode extends MemOpNode {
         }
 
         // Store will chop high order bits off; math to change those bits can be dropped.
-        if( _size!=0 && val() instanceof SarNode shr &&
+        if( !priv && _size!=0 && val() instanceof SarNode shr &&
             shr.in(1) instanceof ShlNode shl &&
             shr.in(2)._type.isConstant() &&
             shl.in(2)._type.isConstant() ) {
@@ -253,7 +257,7 @@ public class StoreNode extends MemOpNode {
         return switch( use ) {
         case MemOpNode mem -> mem._alias;
         case MemPhiNode phi -> phi._alias;
-        case EscapeNode esc -> throw Utils.TODO("Untested"); // esc.pub()==this ? esc.fld()._alias : 0;
+        case EscapeNode esc -> esc.pub()==this ? esc.fld()._alias : 0;
         default -> 0;
         };
     }

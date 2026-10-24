@@ -1,6 +1,6 @@
-# 第25章の文法
+# Grammar for Chapter 28b
 
-[English](25-grammar.md) | 日本語
+English | [日本語](28b-grammar.ja.md)
 
 ```antlrv4
 grammar SimpleLanguage;

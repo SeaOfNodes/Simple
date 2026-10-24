@@ -1,267 +1,177 @@
-# Chapter 25: Modules, Separate Compilation, and SSA Construction
+# Chapter 28b: Separate Compilation
 
 English | [日本語](README.ja.md)
 
-[Previous: Chapter 24](../chapter24/README.md) |
-[Chapter index](../README.md#chapters)
+[Previous: Chapter 28a](../chapter28a/README.md)
 
-This chapter compiles Simple source files into reusable object files, loads
-their types and ideal IR into later compilations, and links native programs
-against a separately built system library. It also contains a substantial
-parser, type, and memory-SSA redesign to support incomplete information.
+The previous chapter compiled every discovered source file together.  This
+chapter lets a library and other code compile separately, and have full type
+information.  The client needs the library's *object* file, but not its source.
+In spirit this is similar to Java's *class* file, with its full execution and
+type semantics stored in the file; we happen to be using an ELF file for the
+same reason.  The ahead-of-time compiled code is *also* available for the
+linking step.
 
-You can also read [this chapter](https://github.com/SeaOfNodes/Simple/tree/linear-chapter25)
-in the [linear history](https://github.com/SeaOfNodes/Simple/tree/linear) and
-[compare it with Chapter 24](https://github.com/SeaOfNodes/Simple/compare/linear-chapter24...linear-chapter25).
+An ordinary native object contains machine code, data, symbols, and
+relocations.  Simple adds a `.simple` section with types and the ideal IR.
+Importing `.simple` lets the client check types and optimize calls into the
+library.  Calls that remain out of line use the library's machine code at
+native link time.
 
-Here is the [complete language grammar](docs/25-grammar.md) for this chapter.
+## A library and a client
 
-## Compilation units and names
-
-`CompUnit` represents a source or object file. `ParseAll` discovers dependencies,
-parses needed sources, and loads previously compiled units. Source and build
-trees use corresponding relative paths; class names use dotted paths. For
-example, `a/b/foo.smp` supplies the namespace `a.b.foo`.
-
-Each unit has Start/Stop nodes. A function's ownership by a compilation unit is
-distinct from an edge representing unknown external callers: retaining code
-for emission must not imply that arbitrary callers can reach it.
-
-The driver infers the project root from the input path and accepts `-o` for
-output and `-L` for external Simple object search paths, including an object
-file or a directory. Its help advertises `--root`, but this numbered snapshot
-does not yet parse that option; the named modules snapshot does.
-The compiler also resolves external C symbols for native linking. Names beginning
-with `_` control the public interface; enclosing names also affect which
-entries are exposed to unknown callers.
-
-Explicit numeric C declarations bind directly to mutable native storage:
-
-```java
-i32 counter = "C";
-counter += 1;
-return counter;
-```
-
-The native linker resolves `counter`. Reads and writes access that C variable;
-the declaration neither copies nor initializes it. Repeated declarations and
-module imports share the same storage alias. Integer and floating-point data
-bindings are supported; pointer and aggregate data bindings are not yet supported.
-External fields carry a storage flag and occupy no bytes in their declaring
-class. Layout resolves their field offsets to `ExternOffset` symbols; instruction
-selection replaces class-base-plus-offset with the native symbol address.
-Native object output uses the existing AMD64 ELF writer; ARM and RISC-V support
-these addresses through the in-memory linker. Thread-local variables and C macros
-need accessor functions: the system library exposes `libc.errno()` through a small
-native runtime accessor.
-
-Native function pointers still occupy four bytes. A native library can live
-above that address range, so the AMD64 ELF writer gives each address-taken
-native function a small entry in Simple's low-address code. The entry tail-jumps
-through the native symbol's PLT entry; arguments and the return address pass
-through unchanged. Direct calls still use the native symbol directly.
-
-Static class fields and addresses computed in code both refer to that entry.
-Its stable weak symbol, `__simple_native$<name>`, lets separately compiled
-objects agree on one pointer when linked into an executable. The class image
-uses a four-byte relocation to this defined entry, instead of a four-byte
-relocation to a dynamic native symbol in writable data, which GNU ld rejects.
-Constant field Stores can still fold away. The entry is a Simple function
-identity; it need not equal the raw address obtained by native code.
-
-`StaticDataTest.testNativeFunctionIdentity` reads two separately compiled class
-images before their initializers run, compares their stored and computed
-addresses, and calls the native function. It checks both object-link orders.
-
-## Object files contain ideal IR
-
-The ELF writer stores native code and a `.simple` section containing canonical
-types, ideal graph nodes, and dependencies. The reader reconstructs that graph
-so imported functions can participate in optimization, including inlining.
-Calls that remain out of line are resolved by native linking.
-
-`GlobalBits` maps file identities and per-file indices to local dense indices
-for aliases, function targets, and return points. Equal local numbers from
-independent compilations must not be mistaken for equal identities. Types are
-closed and upgraded after loading, including cross-unit cyclic references.
-
-Serialization preserves declaration types separately from sharpened flow types.
-Every semantic node/type field needs matching read/write support. The source's
-expensive serialization bijection check is currently disabled, and the larger
-incremental-rebuild test `testModule0` is ignored. Neither is an active
-validation guarantee.
-
-The external-field flag and symbolic offsets change the serialized layout.
-The magic remains `C0DE`; there is no separate format version yet. Rebuild all
-Simple object files before importing them with this compiler.
-
-## Constructing SSA before types are complete
-
-Simple still parses directly to SSA without an AST. Forward references mean an
-expression's eventual type may be unavailable while parsing it. Syntax and
-resolved lexical binding therefore choose topology; types subsequently refine,
-optimize, and validate the graph.
-
-- Arithmetic nodes defer integer versus floating-point mode selection, including
-  resolution through recursive graph components after SCCP.
-- Calls preserve their syntactic receiver slot before the callee kind is settled.
-  Symbolic field information defers layout-dependent decisions.
-- Loads and ordinary Phis no longer carry parser-supplied lower-bound types.
-- `TypeScalar` represents integer, float, memory-pointer, and function-pointer
-  values separately from global control/memory bottom.
-- `TypeStruct._open` describes an incomplete field set; `_fref` records the
-  absence of an authoritative definition. Discovering fields does not define a type.
-- Guards carry branch-proven zero/nonzero facts before the input family is known.
-  `FunPtrNode` retains an explicit edge to its function's return graph.
-
-The driver separates optimization from lowering:
+The runnable example has two separate source roots:
 
 ```text
-Parse -> Iter -> Opto -> IterPostOpto -> FinalizeIR -> TypeCheck
-      -> Serialize (when producing an object) -> Lower -> LoopTree
-      -> Unlink -> Select -> Schedule -> LocalSched -> RegAlloc -> Encoding
+src/test/smp/separate/library/Counters.smp
+src/test/smp/separate/client/Main.smp
 ```
 
-`Opto` runs SCCP and resolves numeric modes. `IterPostOpto` applies peepholes
-and inlining using those results; `FinalizeIR` settles field layouts and offsets.
-Type checking sees the optimized ideal graph. Serialization saves that graph
-before lowering introduces implementation details such as initialization guards.
-For machine compilation, `Unlink` detaches imported function bodies before
-instruction selection; calls retain the symbols needed for linking. Ideal-IR
-evaluation keeps those bodies available and skips machine selection.
+`Counters.smp` declares shared state and an instance constructor:
 
-## Memory and construction
+```simple
+int calls=0;
+val next_noInline = { -> calls++; return calls; };
 
-The parser carries ordinary bulk memory. The optimizer recovers precise aliases
-using `MemMerge`, `MemPhi`, and `BulkMemPhi`. A bulk Phi covers all aliases
-except its exclusions, represented by parallel precise Phis. Every slice must
-be covered exactly once.
-
-User constructors are declared and called as follows:
-
-```java
-struct Box {
-    i64[] values;
-    new Box = { i64[] initial -> values = initial; };
+struct Counter {
+    val value=1;
+    new Counter = { int n ->
+        value=0;
+        for( int i=0; i<n; i++ ) value=value*2+1;
+    };
+    val get = { -> value; };
 };
-return new Box(new i64[1]);
 ```
 
-An allocation helper is generated at the declaration. It allocates, calls the
-hidden `<init>` and then the user constructor, and publishes initialized private
-memory through `EscapeNode`s. Parser `Var` metadata detects early field reads
-and missing initialization on constructor exits. Store widths come from target
-declarations, not from the values being stored.
+`Main.smp` uses both parts of the library:
 
-## Lazy class initialization
-
-File-level code is represented by a class initializer (`<clinit>`), distinct
-from instance initialization. An active class-field access ensures that the
-class is initialized. Taking a class reference is passive: it identifies the
-class without running its body. Initialization runs once, on the path that
-first needs it, and a parent initializes before its child.
-
-For example, if `B.smp` computes `value`, then this code initializes B only
-when `take` is true; the second access reuses the initialized class:
-
-```java
-return take ? B.value + B.value : 0;
+```simple
+val run = { int n ->
+    if( !n ) return 0;
+    val c = new Counters.Counter(n);
+    return c.get()+100*Counters.next_noInline();
+};
+return run(arg);
 ```
 
-The compiler represents the obligation with an opaque `CLInit` node. It carries
-control, whole-memory effects, the class pointer, and a load of the hidden
-`$init` flag. Its results include a memory slice where that flag is known true.
-Ordinary memory SSA and load simplification can therefore remove repeated
-checks, including after a merge when every incoming path has initialized the
-class. Calls conservatively account for arbitrary memory effects.
+At runtime, `run(0)` returns without reaching or initializing `Counters`.
 
-After optimization, the compiler builds a graph containing function calls,
-class touches, and parent requirements. A strongly connected component with
-more than one class initializer is an error. Ordinary recursion and helper
-cycles involving just one initializer are allowed. Checking after optimization
-means eliminated branches and call targets do not create false dependencies.
-Diagnostics show the cyclic edges and their source locations, including calls
-through helpers and imported code.
+For `run(3)`, `Counters` initializes, the constructor computes 7 and
+`calls`==1, so we get `(7+100*1)` or 107.
 
-Object files preserve opaque initialization nodes and their source locations.
-Imported ideal bodies participate in the combined cycle check before lowering.
-Lower then expands each remaining obligation into a flag test, a conditional
-initializer call, and control/memory merges. The initializer owns the flag store;
-the store is at body entry to support permitted same-class reentry. Cross-class
-cycles have already been rejected. This is a single-threaded protocol.
+Calling `run(3)`, then `run(5)`, in one process increments the shared `calls`
+twice.  The first call gives `(7+100*1)`, or 107; the second gives
+`(31+100*2)`, or 231.
 
-The selected entry class receives the current integer `arg`; other initializers
-receive zero. Planned argument arrays and further initialization optimizations
-are described in the [roadmap](ROADMAP.md).
+(The `_noInline` suffix prevents inlining, so the example exercises native
+linking as well as imported IR.)
 
-## System library and examples
+From this chapter directory, build the compiler and compile the library:
 
-The former single `sys.smp` library is organized into units for libc bindings,
-I/O, characters, scanners, arrays, growable buffers, and bitsets. The native
-driver supports real program arguments. Examples in `docs/examples` include
-Bubble Sort, Capitalize, Dijkstra, and FileIO.
+```sh
+make lib
+make build/classes/test/.ttag
+java -ea -cp "build/classes/main:build/classes/test:lib/*" \
+  com.seaofnodes.simple.Simple --norun -o build/separate-example/lib/ \
+  src/test/smp/separate/library/Counters.smp
+```
 
-`Chapter25Test` exercises library loading and native linking, including a Hello
-World call deliberately kept out of line. That test checks the client's external
-symbol before linking against `sys.o`. Other tests cover forward constructors,
-field updates through calls, literal escapes, and reduced compiler failures.
-Independent regressions are candidates for earlier chapters.
+Then compile and evaluate the client using that object:
+
+```sh
+java -ea -cp "build/classes/main:build/classes/test:lib/*" \
+  com.seaofnodes.simple.Simple --eval \
+  -L build/separate-example/lib/Counters.o \
+  src/test/smp/separate/client/Main.smp 3
+```
+
+
+## What crosses the separate compilation boundary
+
+The optimized IR owned by the object is compactly encoded in the `.simple`
+section and fully reconstructed when read back in.  The saved state includes
+canonical declarations as well as optimized flow types.  E.g. `int x=7` has
+declared type `int` and initial value `7`.  Struct field types (both declared
+and optimized), function argument types (both declared and optimized), numeric
+modes, store widths, and source locations also survive serialization.
+
+Each loaded `.simple` section restores its units into the shared `CompUnit`
+tree, mirroring the original code layout.  A dependency shared by several
+objects uses the same `CompUnit`.  Loaded aliases and function indices are
+renumbered to avoid collisions; all the dense indices end up in the same
+namespace.  `GlobalBits` has the mapping from the imported file indices to the
+local compilation indices; this remapping extends everywhere through the loaded
+code, including recursive types that span several files.  Importing skips
+parsing the original source, but it still analysed and type checked with its
+new callers.
+
+`ParseAll` is the workhorse that discovers source and object dependencies.  It
+tracks missing symbol references, looking them up in the search path one by one,
+and loading the matching files.
+
+The end result combines locally parsed and imported IR in one graph, while
+keeping their separate `CompUnit`s.  This combined compilation can take
+advantage of e.g. constants in the library, or inline library code using the
+normal inlining heuristics.  The combined graph goes through the normal
+compilation phases, including peepholes, Opto and TypeCheck.
+
+Dependencies between `CompUnit`s are recorded.  An explicitly requested source
+file is always compiled.  Other source files are recompiled if their object is
+missing, their source is newer, or a recorded dependency's object in the build
+directory is newer.  These timestamp checks are not yet a complete incremental
+build system, there is some modest future work needed to finish this.
+
+Loading currently works at the object granularity.  Unrelated objects can stay
+unloaded, but selecting an object loads its entire saved graph and follows its
+recorded dependencies.  Future work will look at loading sub-parts more
+incrementally.
+
+
+
+## Analysis, ownership, and initialization
+
+An imported function can participate in analysis without belonging to the
+client's output.  Loading the `io` library, with its `p` print function, means
+that `p` is part of the analysis - but when writing out the `helloWorld` app,
+`p` will not end up in the `helloWorld.o` file directly.  It might be inlined
+fully, or called out of line, but there won't be a stand-alone copy of it.
+
+After optimization, `Serialize` saves ideal IR before `Lower` expands class
+initialization.  `Unlink` then detaches imported bodies for machine compilation
+and removes analysis call edges.  The client emits its own bodies and any code
+copied into them by inlining; the
+remaining calls refer to symbols supplied by the library object.
+
+Class initialization follows the previous chapter's rules.  Importing a type
+does not initialize its class.  Active uses retain `CLInit` checks until
+lowering (unless optimization clears them out).  The library supplies its
+shared class object and flag.  Initialization checks appear at all the active-touch
+locations, whether local or remote; including source locations for error
+reporting.
+
 
 ## Building and checking
 
-From this directory, `make lib` supplies Java test dependencies and `make tests`
-runs the raw chapter suites, standalone suites, system tests, and fuzzer
-regressions. `make release` builds the compiler jar and native library artifacts;
-`make tags` builds editor tags. Native tools and the selected CPU/ABI must match
-the environment; the Makefile currently defaults to x86-64/win64.
+From the repository root:
 
-Serialized IR uses the `C0DE` header; pointer types include an independent
-read-only access bit. The format is not versioned yet, so rebuild object files
-after format changes. Backward compatibility is not currently supported.
+```sh
+make tests CHAPTERS=chapter28b
+```
 
-Compiler changes can invalidate both serialized IR and native code in `sys.o`.
-Rebuild it before interpreting linked-program test results. A source-only subset
-is not equivalent to this chapter's full `make tests`.
+The suite includes the preceding constructor and escape regressions, imported
+constructors, initialization cycles across objects, shared static data, native
+function thunks, and native library/client execution. Make also builds the
+modular `sys` object used by the library tests. Clients can import that object
+with `-L`; they do not need to parse the standard library's source again.
+`make release` builds the launcher jar and standard library; `make view`
+starts the shared graph viewer.
 
-## RegAlloc improvements: live-range area and split cost
+The serialized format is internal and currently unversioned beyond its `C0DE`
+magic. Rebuild Simple objects when the compiler or layout changes. The expensive
+serialization bijection check remains disabled, and `testModule0`, the older
+incremental-rebuild experiment, remains ignored. They are not validation
+guarantees for this snapshot.
 
-Chapter 24 tried cold copies before splitting a loop Phi's hot edges.  This
-chapter also estimates how much scheduled code a spill frees from register
-pressure, divided by the estimated cost of the new copies.  Callee-save ranges
-cover a whole function.  Cloneable constants can be rebuilt nearer their uses.
-Copies inside loops cost more: the estimate weights them by `8^loopDepth`.
-These are inexpensive approximations, especially for values with many uses.
-
-A single-use function address in the same block gets priority for
-rematerialization when it is separated from its use.  Moving that address
-calculation next to the use adds no instruction and avoids preserving a
-callee-save register merely to hold the constant.  Adjacent uses and multi-use
-addresses retain the area/cost ranking.
-
-Rows are fixed test cohorts; columns are compiler chapters. Each cell gives
-**Ops / RA / X**: executed ARM+RISC-V instructions, the subset emitted for
-allocator copies/rematerializations, and x86's loop-weighted split-move estimate.
-**Cases D / X** counts measured dynamic program/target cases and x86 compilations;
-membership and inputs stay fixed across columns. Native-library work is excluded.
-Chapter 20 has no encoder, hence no dynamic counts. Lower is better within each
-metric; see the [measurement details](../docs/regalloc-spills.md) for coverage.
-
-<!-- spill-matrix:start -->
-| Test cohort | Cases D / X | Ch 20: Ops / RA / X | Ch 21: Ops / RA / X | Ch 22: Ops / RA / X | Ch 23: Ops / RA / X | Ch 24: Ops / RA / X | Ch 25: Ops / RA / X |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Ch 20 | 22 / 13 | — / — / 161 | 55,173 / 5,407 / 174 | 58,751 / 9,099 / 175 | 58,736 / 9,084 / 184 | 58,720 / 9,068 / 183 | 58,965 / 9,076 / 208 |
-| Ch 21 | 20 / 18 |  | 6,207 / 261 / 461 | 6,324 / 379 / 475 | 6,326 / 381 / 475 | 6,325 / 380 / 470 | 6,196 / 219 / 534 |
-| Ch 22 | 14 / 8 |  |  | 198 / 60 / 7 | 194 / 56 / 7 | 194 / 56 / 7 | 252 / 92 / 11 |
-| Ch 23 | 14 / 8 |  |  |  | 630 / 160 / 36 | 630 / 160 / 36 | 864 / 358 / 36 |
-| Ch 24 | 36 / 20 |  |  |  |  | 4,923 / 1,341 / 790 | 4,646 / 1,335 / 609 |
-| Ch 25 | 2 / 12 |  |  |  |  |  | 20 / 0 / 1,856 |
-<!-- spill-matrix:end -->
-
-
-Chapter 25 introduces several features, which when run on the older tests
-generate a lot more code, which in turn generates more spills.
-
-Class initialization, inlining, escape analysis, and library adaptations
-all change the graphs.  To help with this, we adjust the inlining
-heuristics to try to inline and optimize the boilerplate.
-
+This completes the seven main snapshots in the [approved split](../docs/chapter-split.md).
+See the appendices on [native libraries](../docs/appendices/native-libraries.md)
+and [optimizer/backend tuning](../docs/appendices/optimizer-tuning.md).

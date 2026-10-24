@@ -412,7 +412,7 @@ public class Chapter25Test {
     @Test
     public void testHelloWorldDriver() throws Exception {
         String out = "build/objs/helloWorldDriver/";
-        Simple.main(new String[]{"-L",SYS_BLDDIR,"-o",out,"--norun","docs/examples/A_helloWorld.smp"});
+        Simple.main(new String[]{"-L",SYS_BLDDIR,"-o",out,"--norun","src/test/smp/examples/A_helloWorld.smp"});
         assertTrue(Files.isRegularFile(Path.of(out,"A_helloWorld.o")));
     }
 
@@ -423,7 +423,7 @@ public class Chapter25Test {
         try( PrintStream capture = new PrintStream(output,true,StandardCharsets.UTF_8) ) {
             System.setOut(capture);
             Simple.main(new String[]{"-L",SYS_FILE.toString(),"-o","build/objs/helloWorldDriverLibFile/",
-                                    "docs/examples/A_helloWorld.smp"});
+                                    "src/test/smp/examples/A_helloWorld.smp"});
         } finally {
             System.setOut(saved);
         }
@@ -471,7 +471,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testBubbles() throws IOException {
-        String src = Files.readString( Path.of("docs/examples/BubbleSort.smp"));
+        String src = Files.readString( Path.of("src/test/smp/examples/BubbleSort.smp"));
         String exe = TestC.compile(src,"BubbleSort",new Ary<>(new String[]{SYS_BLDDIR}),
                                    TestC.CALL_CONVENTION,null,null,-1);
         assertEquals("[-17, 2, 3, 999]\n",
@@ -492,7 +492,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testCapitalize() throws IOException {
-        String src = Files.readString(Path.of("docs/examples/Capitalize.smp"));
+        String src = Files.readString(Path.of("src/test/smp/examples/Capitalize.smp"));
         String exe = TestC.compile(src,"Capitalize",new Ary<>(new String[]{SYS_BLDDIR}),
                                    TestC.CALL_CONVENTION,null,null,-1);
         assertEquals("Hello world\n",TestC.exec(exe,"hello world"));
@@ -505,7 +505,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testDijkstra() throws IOException {
-        String src = Files.readString(Path.of("docs/examples/Dijkstra.smp"));
+        String src = Files.readString(Path.of("src/test/smp/examples/Dijkstra.smp"));
         String matrix = "[0, 2, 0, 6, 0, 2, 0, 3, 8, 5, 0, 3, 0, 0, 7, 6, 8, 0, 0, 9, 0, 5, 7, 9, 0]";
         String exe = TestC.compile(src,"Dijkstra",new Ary<>(new String[]{SYS_BLDDIR}),
                                    TestC.CALL_CONVENTION,null,null,-1);
@@ -520,7 +520,7 @@ return  rez < buf# ? 0 : sys.libc._exit(-2);
 
     @Test
     public void testFileIO() throws IOException {
-        String src = Files.readString(Path.of("docs/examples/FileIO.smp"));
+        String src = Files.readString(Path.of("src/test/smp/examples/FileIO.smp"));
         String exe = TestC.compile(src,"FileIO",new Ary<>(new String[]{SYS_BLDDIR}),
                                    TestC.CALL_CONVENTION,null,null,-1);
         assertEquals("File I/O succeeded\n",TestC.exec(exe));

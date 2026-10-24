@@ -22,7 +22,7 @@ public class CallNode extends CFGNode {
     // Source location for late reported errors
     public final Parser.Lexer _loc;
 
-    public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc=loc; }
+    public CallNode(Parser.Lexer loc, Node... nodes) { super(nodes); _loc=loc; CodeGen.CODE._calls.add(this); }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
     @Override public Tag serialTag() { return Tag.Call; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
@@ -67,7 +67,25 @@ public class CallNode extends CFGNode {
     public TypeFunPtr tfp() { return (TypeFunPtr)fptr()._type; }
 
     // Call is to an externally supplied code
-    public boolean external() { return false; }
+    public boolean external() {
+        if( !(fptr()._type instanceof TypeFunPtr tfp) ) return false;
+        if( XInt.isHigh(tfp.fidxs()) ) return true;
+        for( int fidx=XInt.next(tfp.fidxs(),-1); fidx>=0; fidx=XInt.next(tfp.fidxs(),fidx) )
+            if( CodeGen.CODE.externFunc(fidx)!=null ) return true;
+        return false;
+    }
+
+    // As in the escape chapter, native code may retain an argument even if
+    // this path never returns. StopCU reads this independently of CallEnd.
+    TypeMem exposed(Node dep) {
+        dep.addDepForwards(this);
+        dep.addDepForwards(fptr());
+        if( _type!=Type.CONTROL || !external() ) return TypeMem.START;
+        Type input=dep.addDepForwards(mem())._type;
+        TypeMem escaped=input instanceof TypeMem m ? m : input.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+        for( int i=2; i<nIns()-1; i++ ) escaped=escaped.escapes(dep.addDepForwards(arg(i))._type);
+        return TypeMem.make(1,Type.BOTTOM,false,false,false,escaped._escFs,escaped._escAs);
+    }
 
 
     // Find the Call End from the Call

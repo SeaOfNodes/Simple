@@ -79,6 +79,11 @@ public class StopCUNode extends StopNode {
             // here as its effects are not visible to the outside world.
             addDepForwards(start); // Check again if function escapes
             if( pub || start.escapedFIDX(sig.fidx()) ) {
+                // External callers already hold their object arguments, so
+                // writes through those arguments expose addresses too.
+                for( Node use : fun._outputs )
+                    if( use instanceof ParmNode p && p._idx>=2 )
+                        xmem=publicBottom(xmem.escapes(addDepForwards(p)._type));
                 if( tret.ctl().isHigh() ) continue; // Return not reachable
                 // Capture (precisely?) all escaping pointer aliases and fidxs.
                 // Escaped fidxs means the linked world can call that function;
@@ -88,6 +93,10 @@ public class StopCUNode extends StopNode {
                 xmem = (TypeMem)xmem.meet(publicBottom(tret.mem(),xmem));
             }
         }
+        // Native retention is shared by the whole program, including calls
+        // on paths with no Return. A class boundary must not hide it.
+        for( CallNode call : CodeGen.CODE._calls )
+            if( !call.isDead() ) xmem=publicBottom(xmem.escapes(call.exposed(this)));
         assert xmem._alias==1 && !xmem._one;
         return TypeTuple.make(Type.CONTROL,xmem,Type.BOTTOM);
     }

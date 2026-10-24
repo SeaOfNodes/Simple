@@ -8,9 +8,9 @@
         <artifactId>simple</artifactId>
         <version>1.0</version>
     </parent>
-    <artifactId>chapter25</artifactId>
+    <artifactId>chapter28b</artifactId>
     <packaging>jar</packaging>
-    <name>Chapter 25</name>
+    <name>Separate Compilation</name>
     <properties>
         <simple.graph.directory>${project.basedir}/../graph</simple.graph.directory>
         <simple.print.directory>${project.basedir}/../print</simple.print.directory>

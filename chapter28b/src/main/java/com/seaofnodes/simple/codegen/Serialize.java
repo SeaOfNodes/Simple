@@ -110,9 +110,12 @@ abstract public class Serialize {
         stopType.gather(types);
         startType.gather(types);
         // A defined class remains importable even when its initializer body dies.
+        // Nested structs also need their class declaration: <new> and <ctor>
+        // can be absent from graph types even while their function bodies live.
+        // Keep the nearest file owner, so an imported child is not re-exported
+        // merely because its parent was compiled here.
         for( TypeStruct ts : pubTypes )
-            if( Parser.startsClzPrefix(ts._name) &&
-                Arrays.binarySearch(units,ts._name.substring(Parser.CLZ.length()).replace('.','/'))>=0 )
+            if( ownedClass(ts,units) )
                 ts.gather(types);
 
         // Only record canonical declarations already reachable from this
@@ -262,6 +265,18 @@ abstract public class Serialize {
     }
 
     // Returned array of *public* strings only.
+    private static boolean ownedClass(TypeStruct ts, String[] units) {
+        if( !Parser.startsClzPrefix(ts._name) ) return false;
+        String name=ts._name.substring(Parser.CLZ.length()).replace('.','/');
+        while( true ) {
+            if( CodeGen.CODE._compunits.containsKey(name) )
+                return Arrays.binarySearch(units,name)>=0;
+            int slash=name.lastIndexOf('/');
+            if( slash<0 ) return false;
+            name=name.substring(0,slash);
+        }
+    }
+
     static void read_public_strs(ElfReader elf) {
         BAOS bais = elf._bais;
         Type.TAGOFFS();

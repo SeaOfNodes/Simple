@@ -318,7 +318,7 @@ public class CodeGen {
     }
 
     public String entryClinitName() {
-        return Parser.addClzPrefix(_srcName==null ? "Test" : _srcName)+".<clinit>";
+        return Parser.addClzPrefix(_srcName==null ? "Test" : _srcName.replace('/','.'))+".<clinit>";
     }
 
     // Verbose printing during compilation
@@ -463,6 +463,8 @@ public class CodeGen {
 
     // ---------------------------
     // Parser object
+    public final Ary<CallNode> _calls = new Ary<>(CallNode.class);
+
     public final Parser P;
 
     // Parse ASCII text into Sea-of-Nodes IR

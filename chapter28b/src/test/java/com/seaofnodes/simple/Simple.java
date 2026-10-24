@@ -13,7 +13,6 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.stream.Collectors;
 
 public class Simple {
     static void usage() {
@@ -83,7 +82,11 @@ Options:
 
     static String getInput() {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        return reader.lines().collect(Collectors.joining("\n"));
+        StringBuilder text=new StringBuilder();
+        try {
+            for( String line; (line=reader.readLine())!=null; ) text.append(line).append('\n');
+        } catch( IOException e ) { throw new RuntimeException(e); }
+        return text.toString();
     }
 
     public static void main(String[] args) throws Exception {
@@ -140,6 +143,9 @@ Options:
             case "-o":                        if (out != null || i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
                                               out = args[++i];  do_codegen=true;
                                               break;
+            case "--root":                    if( root!=null || i+1>=args.length ) bad_usage();
+                                              root=args[++i];
+                                              break;
             case "-L":                        if (i + 1 >= args.length || args[i + 1].charAt(0) == '-') bad_usage();
                                               libPaths.add(args[++i]);
                                               break;
@@ -175,7 +181,8 @@ Options:
             if( modPath == null )
                 modPath = Path.of(".");
         } else {
-            throw Utils.TODO();
+            modPath=Path.of(root);
+            inPath=modPath.resolve(inPath);
         }
 
         // Compute the module-relative paths for all sources
@@ -184,7 +191,8 @@ Options:
         Path relPath = n==1 ? null : srcRelPath.subpath(0,n-1);
         // Compute source/class name
         String srcNameExt = srcRelPath.getName(n-1).toString();
-        String srcName = srcNameExt.substring(0,srcNameExt.length()-4);
+        String srcName = srcRelPath.toString().replace('\\','/');
+        srcName=srcName.substring(0,srcName.length()-4);
 
         // Compute the build path.
         Path outPath;
@@ -219,15 +227,14 @@ Options:
         if( simpleHome != null && !simpleHome.isEmpty() )
             libPaths.add(Path.of(simpleHome,cpu+"_"+abi).toString());
 
-        // Read input file
-        try {
-            src = input_filename.isEmpty() ? getInput() : Files.readString(Path.of(input_filename));
-        } catch( IOException e ) { throw bad("Cannot read input file: "+input_filename);  }
+        // Keep file-backed units so discovery sees parents and siblings.
+        src = input_filename.isEmpty() ? getInput() : null;
 
         // Compilation pipeline
         Ary<String> externPaths = libPaths.isEmpty() ? null : new Ary<>(libPaths.toArray(new String[0]));
         CodeGen code = new CodeGen(modPath.toString(), outPath.toString(), externPaths, srcName, src, 456, true, TypeInteger.BOT );
-        code.driver(Phase.LastPhase,cpu,abi, false, emit_main || do_run || do_eval, dump);
+        code.driver(do_eval && !do_codegen ? Phase.TypeCheck : Phase.LastPhase,
+                    cpu,abi, false, emit_main || do_run || do_eval, dump);
 
         if( do_codegen && print_asm )
             System.out.println(code.asm());

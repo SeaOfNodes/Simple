@@ -383,9 +383,9 @@ val _hashCodeString = { !String self ->
     return hash;
 };
 """;
-        testCPU(src,"x86_64_v2", "SystemV",21,null);
-        testCPU(src,"riscv"    , "SystemV",8,null);
-        testCPU(src,"arm"      , "SystemV",8,null);
+        testCPU(src,"x86_64_v2", "SystemV",12,null);
+        testCPU(src,"riscv"    , "SystemV",6,null);
+        testCPU(src,"arm"      , "SystemV",6,null);
     }
 
     @Test public void testStringExport() throws IOException {
@@ -422,7 +422,7 @@ val _hashCodeString = { !String self ->
     return hash;
 };
 """;
-        TestC.runC(src, "stringHash", "",21);
+        TestC.runC(src, "stringHash", "",12);
     }
 
     @Test public void testLoop2() {

@@ -213,7 +213,6 @@ public class Parser {
     }
 
 
-
     /**
      *  Parses a function body, assuming the header is parsed.
      */
@@ -255,12 +254,14 @@ public class Parser {
     }
 
     private ReturnNode _parseFunctionBody( String funName, TypeFunPtr sig, Lexer loc, java.util.BitSet finals, String[] ids) {
+        Constructor outerCtor=_pendingCtor;
+        _pendingCtor=null;
         boolean isInit = FunNode.isInit(funName);
         boolean isCtor = isInit || isExplicitConstructorName(funName);
         String typeName = isCtor ? ((TypeMemPtr)sig._sig[0])._obj._name : null;
 
         // Stack parser state on the local Java stack, and unstack it later
-        _scope.push(new Kind.Func(funName));
+        _scope.push(new Kind.Func(funName,isCtor && !funName.endsWith(".<clinit>")));
         ScopeNode    breakScope =    _breakScope;    _breakScope = null;
         ScopeNode continueScope = _continueScope; _continueScope = null;
         ScopeNode   returnScope =   _returnScope;   _returnScope = null;
@@ -290,6 +291,20 @@ public class Parser {
             _scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole(), loc);
         }
 
+        if( isCtor && !isInit ) {
+            int lex=_scope.klast()._lexSize;
+            TypeStruct shape=(TypeStruct)TYPES.get(typeName);
+            for( Field fld : shape._fields ) {
+                int idx=fieldVarIdxBefore(lex,fld._fname);
+                if( idx<0 ) continue;
+                Var v=_scope.var(idx);
+                if( v._fref || v._extern!=0 || v._uninit || _scope.in(v)._type.isConstant() ) continue;
+                Node value=convertExpr(
+                    new LoadNode(loc,fld._fname,fld._alias,ctrl(),fun.parm(3),fun.parm(2),off(shape,fld._fname)).peephole(),v.type());
+                _scope.update(v,value);
+            }
+        }
+
         // The initializer owns its run-once flag store. Parent initialization
         // is a structural requirement, executed before this body by CLInit lowering.
         if( fun.isClz() ) {
@@ -315,6 +330,9 @@ public class Parser {
             if( isInit )
                 nvar = updateSelfAsFieldsDiscovered( typeName, nvar );
         }
+
+        if( isInit ) finishConstructor();
+        _pendingCtor=outerCtor;
 
         ParmNode self = fun.parm(2);
         // Last expression is the return
@@ -456,6 +474,10 @@ public class Parser {
             Node val = _returnScope.in(vidx);
             if( upgrade && v._uninit &&
                 !initialized(val._type) ) continue;
+            // A numeric merge can still be untyped while parsing. Retain its
+            // declared conversion at the helper boundary, as assignments do.
+            if( fld._t instanceof TypeInteger || fld._t instanceof TypeFloat )
+                val=convertExpr(val,fld._t);
             // Store value into extended struct
             Node prior = mmm.keep();
             Node st = peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, prior, self, off(tself,fld._fname), val, fld._final));
@@ -597,6 +619,9 @@ public class Parser {
     }
 
     // Constructor declaration: new TypeName = { args -> body };
+    private record Constructor(String name, Lexer body) {}
+    private Constructor _pendingCtor;
+
     private Node parseConstructorDeclaration() {
         TypeStruct self = _scope.constructorSelf();
         assert self != null;
@@ -605,6 +630,43 @@ public class Parser {
         if( name != expect )
             throw error("Constructor name '" + name + "' must match type name '" + expect + "'");
         require("=");
+        if( _pendingCtor!=null ) throw error("Redefining constructor '"+name+"'");
+        _pendingCtor=new Constructor(name,loc());
+        // Parse the body after all field declarations are known, so self.x
+        // and x share a local slot even when x is declared below this body.
+        require("{");
+        int depth=1;
+        while( depth>0 ) {
+            _lexer.skipWhiteSpace();
+            if( _lexer.isEOF() ) throw error("Unclosed constructor body");
+            char ch=_lexer.nextChar();
+            if( ch=='{' ) depth++;
+            else if( ch=='}' ) depth--;
+            else if( ch=='"' || ch=='\'' ) {
+                char quote=ch;
+                while( !_lexer.isEOF() ) {
+                    ch=_lexer.nextChar();
+                    if( ch=='\\' ) _lexer.nextChar();
+                    else if( ch==quote ) break;
+                }
+            }
+        }
+        require(";");
+        return _code.ZERO;
+    }
+
+    private void finishConstructor() {
+        if( _pendingCtor==null ) return;
+        Constructor ctor=_pendingCtor;
+        _pendingCtor=null;
+        Lexer after=_lexer;
+        _lexer=new Lexer(ctor.body());
+        defineConstructor(ctor.name());
+        _lexer=after;
+    }
+
+    private void defineConstructor(String name) {
+        TypeStruct self=_scope.constructorSelf();
         Node ctor = constructorFunc(name);
         TypeFunPtr sig = (TypeFunPtr)ctor._type;
         String clzName = addClzPrefix(self._name);
@@ -614,7 +676,7 @@ public class Parser {
             throw error("Redefining constructor '" + name + "'");
         Field fld = Field.make("<ctor>",sig,_code.alias(_ref._cname),true);
         TYPES.put(clzName,clz==null ? TypeStruct.make(clzName,true,fld) : clz.add(fld));
-        return require(ctor,";");
+        require(ctor,";");
     }
 
     /**
@@ -1006,9 +1068,9 @@ public class Parser {
         if( _scope.in(def._idx)._type!=Type.TOP && def._final &&
             // Inside an allocation, final assign is OK, outside nope.
             // The alloc() call added the allocation scope
-            !(_scope.inConstructor() && def._idx >= _scope.klast()._lexSize) &&
-            !inExplicitConstructor() )
+            !_scope.canInit(def) )
             throw error("Cannot reassign final '"+name+"'");
+        checkSharedFunction(def);
 
         // Parse assignment expression
         Node expr = parseAsgn();
@@ -1080,6 +1142,15 @@ public class Parser {
         case TypeScalar  ts -> TypeScalar.BOT;
         default             -> t;
         };
+    }
+
+    private Type constructorFieldType(Type t) {
+        if( t instanceof TypeMemPtr ptr && ptr._obj.isConAry() ) {
+            TypeStruct declared=(TypeStruct)TYPES.get(ptr._obj._name);
+            TypeStruct shape=typeAry(declared._fields[1]._t,ptr._obj._fields[1]._final);
+            return TypeMemPtr.make((byte)2,shape,false).withAccess(ptr._ro);
+        }
+        return mutableInferredType(t);
     }
 
     // Seed an inferred return merge with the declared numeric family instead
@@ -1163,6 +1234,11 @@ public class Parser {
                     throw error("a not-null/non-zero expression");
                 t = expr._type;
                 if( !xfinal ) t = mutableInferredType(t);
+                // Instance fields may change until the constructor finishes.
+                // Keep the declared family/access, not the default's constant
+                // value or string contents. Class constants remain static.
+                else if( _scope.klast() instanceof Kind.Func fun && FunNode.isInstance(fun._name) && !(t instanceof TypeFunPtr) )
+                    t = constructorFieldType(t);
             }
 
             // expr is a constant function
@@ -1212,7 +1288,6 @@ public class Parser {
         _scope.lookup(name)._uninit = uninit;
         return lift;
     }
-
 
 
     /**
@@ -1744,7 +1819,6 @@ public class Parser {
     }
 
 
-
     /**
      * Parse an eq/ne expression
      */
@@ -1789,8 +1863,8 @@ public class Parser {
             return cmp.unkeep();
         }
 
-        // rhs is keeped() and becomes lhs
-        // cmp is NOT keeped() and is the last test
+        // Keep the middle operand separately from the boolean result.
+        // The next test compares adjacent operands, not that boolean.
         Node ifNode = new IfNode(ctrl(), cmp.unkeep()).peephole();
         Node ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
         Node ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
@@ -1806,9 +1880,9 @@ public class Parser {
                 throw error("Mixing relational directions in a chained relational test");
             // True side parses next arm of test
             ctrl(ifT.unkeep());
-            lhs = rhs;          // lhs is keeped() and is old RHS
+            lhs = rhs;          // Reuse the previous RHS exactly once
             rhs = parseShift().keep();
-            cmp = makeCompBool(dir,lhs.unkeep(),rhs); // Convert to a bool
+            cmp = makeCompBool(dir0,lhs.unkeep(),rhs); // Convert to a bool
             ifNode = new IfNode(ctrl(), cmp).peephole();
             ifT = new CProjNode(ifNode.  keep(), 0, "True" ).peephole().keep();
             ifF = new CProjNode(ifNode.unkeep(), 1, "False").peephole();
@@ -1822,7 +1896,7 @@ public class Parser {
         ctrl(ifT.unkeep());
         RegionNode r = fail.mergeScopes(_scope, loc()).init();
         _scope = fail;
-        return new PhiNode("", r,_code.ZERO,con(1)).peephole();
+        return new PhiNode("", r,con(0),con(1)).peephole();
     }
 
     private int parseCompDir() {
@@ -1833,12 +1907,11 @@ public class Parser {
         return 0;
     }
 
-    private Node makeCompBool( int dir0, Node lhs, Node rhs ) {
-        // Convert to a bool
-        if( Math.abs(dir0)==2 ) // Swap direction
-            { Node tmp = lhs; lhs = rhs; rhs = tmp; }
-        lhs = peep(dir0 < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs));
-        return peep(lhs);
+    private Node makeCompBool( int dir, Node lhs, Node rhs ) {
+        if( Math.abs(dir)==2 )
+            { Node tmp=lhs; lhs=rhs; rhs=tmp; }
+        Node cmp = dir < 0 ? new BoolNode.LE(lhs,rhs) : new BoolNode.LT(lhs,rhs);
+        return peep(cmp);
     }
 
     /**
@@ -1927,9 +2000,10 @@ public class Parser {
                 if( n != null && !(n.type() instanceof TypeMemPtr) ) {
                     if( n._extern!=0 )
                         return parsePostfixName(_scope.in(n),name,delta);
-                    if( n._final )
+                    if( n._final && !_scope.canInit(n) )
                         throw error("Cannot reassign final '"+n._name+"'");
-                    Node expr = zsMask(peep(new AddNode(_scope.in(n),con(delta))),n.type());
+                    checkSharedFunction(n);
+                    Node expr = convertExpr(peep(new AddNode(_scope.in(n),con(delta))),n.type());
                     _scope.update(n,expr);
                     return expr;
                 }
@@ -2015,12 +2089,10 @@ public class Parser {
             return parsePostfixName(rvalue,id,0);
         if( var._fref )
             return parsePostfix(rvalue);
-        // Required constructor fields begin as their declared pointer type
-        // widened to include null.  Inside the explicit constructor, any read
-        // before all paths replace that value observes a partially initialized
-        // object.  Ordinary methods run only after construction is complete;
-        // their enclosing declaration scope still carries the same Var marker.
-        if( inExplicitConstructor() && var._uninit && rvalue._type instanceof TypeNil tn && tn.nullable() )
+        // A constructor may read the unfinished object, but each field it
+        // reads must already be initialized on every path. Read the current
+        // local value; other fields may still be waiting for their first write.
+        if( inExplicitConstructor() && var._uninit && missingInit(rvalue,new BitSet()) )
             throw error("Field '"+id+"' might not be initialized",var._loc);
 
         // Check for an instance field load
@@ -2029,13 +2101,13 @@ public class Parser {
         Kind kk = _scope._kinds.at(kx);
         Kind fk = _scope._kinds.at(fx);
         // Access instance field from 'self'
-        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method )
+        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method && !inExplicitConstructor() )
             return parsePostfixName(_scope.in(method._lexSize),id,0);
 
         // Check for a function-escaping variable; these require true
         // closures.  Final constants are OK; final vars require a hidden var
         // argument; not-final fields can just use an explicit struct arg.
-        if( kx < fx &&          // Out of scope
+        if( kx < fx && !inExplicitConstructor() && // Out of scope
             !(var._final && rvalue._type.isConstant()) ) { // Not a final constant
             if( kx > 0  ) // Global scope is OK, only ever one of these (not one per function invoke)
                 throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
@@ -2062,8 +2134,9 @@ public class Parser {
             return parsePostfixMethod(rvalue,_scope.in(_scope.update(_scope.var(selfx),null)));
         }
         // Assign-update direct into Scope
-        if( var._final )
+        if( var._final && !_scope.canInit(var) )
             throw error("Cannot reassign final '"+var._name+"'");
+        checkSharedFunction(var);
         Node op = opAssign(ch,rvalue, var.type() );
         _scope.update(var,op);
         return postfix(ch) ? rvalue.unkeep() : op;
@@ -2261,6 +2334,58 @@ public class Parser {
         return parsePostfixName(expr,name,0,site);
     }
 
+    private boolean privateSelf(Node ptr) {
+        while( ptr instanceof ConvertNode || ptr instanceof ReadOnlyNode || ptr instanceof GuardNode ) ptr=ptr.in(1);
+        Node self=defaultSelf();
+        while( self instanceof ConvertNode || self instanceof ReadOnlyNode || self instanceof GuardNode ) self=self.in(1);
+        return ptr==self;
+    }
+
+    // An explicit self.x read sees the same current value as bare x. Loading
+    // the allocation here would miss updates still held in local SSA values.
+    private Node privateField(String name, int pre) {
+        int idx=fieldVarIdxBefore(_scope._kinds.at(_scope.enclosingFuncOrDecl())._lexSize,name);
+        if( idx<0 ) throw error("Cannot resolve field '"+name+"'");
+        Var v=_scope.var(idx);
+        if( pre==0 && matchOpx('=','=') ) {
+            checkSharedFunction(v);
+            Node value=parseAsgn().keep();
+            _scope.update(v,convertExpr(value,v.type()));
+            return value.unkeep();
+        }
+        Node value=_scope.in(_scope.update(v,null));
+        if( v._uninit && missingInit(value,new BitSet()) )
+            throw error("Field '"+name+"' might not be initialized",v._loc);
+        char ch=pre==0 ? _lexer.matchOperAssign() : (char)pre;
+        if( ch!=0 ) {
+            checkSharedFunction(v);
+            Node op=opAssign(ch,value,v.type());
+            _scope.update(v,op);
+            if( pre!=0 && postfix(ch) ) value.unkeep();
+            return pre==0 && postfix(ch) ? value.unkeep() : op;
+        }
+        return parsePostfixMethod(value,defaultSelf());
+    }
+
+    private void checkSharedFunction(Var v) {
+        if( _scope.canInit(v) && v._final && v.type() instanceof TypeFunPtr t && t.isConstant() )
+            throw error("Cannot reassign shared function '"+v._name+"'");
+    }
+
+    // A loop Phi is temporarily bottom before its backedge is parsed. That is
+    // not an unwritten field: follow its live inputs to the actual defaults.
+    private boolean missingInit(Node value, BitSet seen) {
+        if( value==null || seen.get(value._nid) ) return false;
+        seen.set(value._nid);
+        if( value instanceof PhiNode phi && !(value instanceof ParmNode) ) {
+            for( int i=1; i<phi.nIns(); i++ )
+                if( phi.region().in(i)!=null && phi.region().in(i)._type!=Type.XCONTROL && missingInit(phi.in(i),seen) )
+                    return true;
+            return false;
+        }
+        return !initialized(value._type);
+    }
+
     private Node defaultSelf() {
         int selfx = _scope._kinds.at(_scope.enclosingFuncOrDecl())._lexSize;
         return _scope.in(_scope.update(_scope.var(selfx),null));
@@ -2283,6 +2408,7 @@ public class Parser {
     }
 
     private Node parsePostfixName(Node expr, String name, int pre, Lexer site) {
+        if( inExplicitConstructor() && privateSelf(expr) ) return privateField(name,pre);
         // Keep expr across possible updates
         expr.keep();
 
@@ -2781,6 +2907,7 @@ public class Parser {
             _cu = cu;
             _position = pos;
         }
+
 
         public static void gather(Lexer loc, HashMap<String,Integer> strs) {
             if( loc==null || loc._cu==null ) return;

@@ -127,7 +127,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
 
         // A linked function for every concrete function
         TypeTuple state = hasExtern
-            ? TypeTuple.make(Type.CONTROL,TypeMem.BOT,tfp.ret())
+            ? TypeTuple.make(Type.CONTROL,call.exposed(this),tfp.ret())
             : TypeTuple.STATE.dual();
         for( int i=1; i<nIns(); i++ )
             state = (TypeTuple)state.meet(in(i)._type);

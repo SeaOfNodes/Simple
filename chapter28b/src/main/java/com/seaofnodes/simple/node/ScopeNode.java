@@ -39,7 +39,12 @@ public class ScopeNode extends MemMergeNode {
             public final TypeStruct _self;
         }
         // Function scope
-        public static class Func  extends Kind { public Func(String name) { _name=name;} public final String _name; }
+        public static class Func extends Kind {
+            public final String _name;
+            public final boolean _constructor;
+            public Func(String name) { this(name,false); }
+            public Func(String name, boolean constructor) { _name=name; _constructor=constructor; }
+        }
 
         public int _lexSize;     // Number of Vars in this scope
     }
@@ -184,10 +189,7 @@ public class ScopeNode extends MemMergeNode {
     }
 
     // Which lexical scope contains this Var?
-    public Kind kind( Var v ) {
-        int kx = kindx(v);
-        return kx == -1 ? null : _kinds.at(kx);
-    }
+
 
     public int kindFcnx( Var v ) {
         for( int i=depth()-1; i>=0; i-- )
@@ -200,6 +202,21 @@ public class ScopeNode extends MemMergeNode {
     public Kind kindFcn( Var v ) {
         int kx = kindFcnx(v);
         return kx == -1 ? null : _kinds.at(kx);
+    }
+
+    // Final fields are writable local values inside their own initializer or
+    // constructor. Final parameters, local variables, and captured bindings
+    // remain final. Use the same rule when deciding which loop Phis to build.
+    public boolean canInit(Var v) {
+        int fx=enclosingFuncOrDecl();
+        Kind.Func fun=(Kind.Func)_kinds.at(fx);
+        if( !fun._constructor || v._extern!=0 ) return false;
+        int dx=FunNode.isInstance(fun._name) ? fx : fx-1;
+        return dx>=0 && kindx(v)==dx && v._idx>=_kinds.at(dx)._lexSize+2;
+    }
+
+    private boolean loopVar(Var v) {
+        return !v._final || (canInit(v) && !v.type().isHighOrConst());
     }
 
     // Find name in reverse, return an index into _vars or -1.  Linear scan
@@ -346,7 +363,7 @@ public class ScopeNode extends MemMergeNode {
         for( int i=2; i<nIns(); i++ )
             // For lazy phis on loops we use a sentinel
             // that will trigger phi creation on update
-            dup.addDef(loop && !var(i)._final ? this : in(i));
+            dup.addDef(loop && loopVar(var(i)) ? this : in(i));
         return dup;
     }
 
@@ -431,7 +448,7 @@ public class ScopeNode extends MemMergeNode {
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
         for( int i=1; i<nIns(); i++ ) {
-            if( var(i)._final ) continue; // Final vars did not get modified in the loop
+            if( !loopVar(var(i)) ) continue;
             Node n = in(i);
             if( var(i).type().isHighOrConst() && !(n instanceof PhiNode phi && phi.inProgress()) ) { // Cannot lift higher than a constant, so no Phi
                 Node con = ConstantNode.make(var(i).type()).init();

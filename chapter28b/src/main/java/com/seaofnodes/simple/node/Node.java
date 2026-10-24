@@ -715,6 +715,7 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
         n._outputs = new Ary<>(Node.class);
         n._deps = null;
         n._hash = 0;
+        if( n instanceof CallNode call ) CODE._calls.add(call);
         return n;
     }
 

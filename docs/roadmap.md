@@ -1,6 +1,16 @@
+# Compiler roadmap and design notebook
+
+This notebook preserves the design discussion from the former combined Chapter
+25. Early sections include alternatives considered while implementing features
+now taught in Chapters 25–28b; they are not all pending tasks. The
+[stage audit](stage-audit.md) distinguishes current behavior from remaining gaps.
+The [incremental-build design](incremental-builds.md) is a separate future item.
+The final section records the outstanding class-initialization and compiler
+follow-ups. Keep speculative language/library designs as proposals.
+
 ## Separate Compilation
 
-English | [日本語](ROADMAP.ja.md)
+English | [日本語](roadmap.ja.md)
 
 
 How to handle unknown forward ref?
