@@ -251,6 +251,10 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 
 ## Tutorial backports
 
+- Chapter 18 is the evaluator cutover: use `Eval2` and the compiler's schedule
+  from that chapter onward. The old `evaluator/Evaluator` and its private
+  `Scheduler` remain only in Chapters 10-17b; do not forward-port or revive them.
+
 - Shared ISA encoding lives in `isa/` for Chapters 21-25: x86 bytes behind
   `CodeSink`, ARM/RISC-V word packing, and test-only evaluators. Chapter code still
   owns machine nodes, register masks, operand/type interpretation, layouts and

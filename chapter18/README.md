@@ -363,7 +363,9 @@ belong at entry and control transfers at exit.  There is room for all sorts of
 improvements - there is no machine timing model here, but this is out of scope
 for this chapter.  The goal remains a legal execution order.
 
-[Eval2](src/test/java/com/seaofnodes/simple/Eval2.java) executes that schedule,
+[Eval2](src/test/java/com/seaofnodes/simple/Eval2.java) replaces the earlier
+`Evaluator` and its separate test scheduler starting in this chapter. It executes
+the compiler's schedule,
 treating IR operations as instructions with an unlimited supply of value
 slots. Each invocation has its own frame, so recursive invocations of the same
 nodes keep distinct values. At a call it saves the caller's frame and return

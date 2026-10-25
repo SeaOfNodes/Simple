@@ -9,6 +9,42 @@ import static org.junit.Assert.fail;
 import org.junit.Ignore;
 
 public class Chapter19Test {
+    @Test public void testNarrowStores() {
+        // Return the allocation so Load forwarding cannot hide a bad Store.
+        for( String type : new String[]{"u8","i8","u16","i16","u32","i32","int","f32","flt"} ) {
+            boolean flt = type.equals("f32") || type.equals("flt");
+            String init = flt ? "flt v=arg; " : "";
+            if( type.equals("f32") ) init+="f32 w=v; ";
+            String value = type.equals("f32") ? "w" : flt ? "v" : "arg";
+            for( boolean array : new boolean[]{false,true} ) {
+                String src = array
+                    ? "var a=new "+type+"[1]; a[0]="+value+"; return a;"
+                    : "struct S { "+type+" x; }; var s=new S; s.x="+value+"; return s;";
+                CodeGen code = new CodeGen(init+src).driver(CodeGen.Phase.TypeCheck);
+                long[] args = flt ? new long[]{0,1,-1,16777217,-16777217}
+                    : new long[]{0,1,-1,0x180,0x18000,0x180000000L,Long.MIN_VALUE,Long.MAX_VALUE};
+                for( long arg : args ) {
+                    Object expected = switch( type ) {
+                    case "u8"  -> arg & 0xffL;
+                    case "i8"  -> (long)(byte)arg;
+                    case "u16" -> arg & 0xffffL;
+                    case "i16" -> (long)(short)arg;
+                    case "u32" -> arg & 0xffffffffL;
+                    case "i32" -> (long)(int)arg;
+                    case "f32" -> (double)(float)arg;
+                    case "flt" -> (double)arg;
+                    default    -> arg;
+                    };
+                    String msg = type+" array="+array+" arg="+arg;
+                    String printed = array
+                        ? (type.equals("u8") ? ""+(char)(long)(Long)expected : type+"[ "+expected+"]")
+                        : "S{x="+expected+"}";
+                    assertEquals(msg,printed,Eval2.eval(code,arg));
+                }
+            }
+        }
+    }
+
     @Test public void testPrintingFunctionLookup() {
         var code = new CodeGen("return 0;").parse();
         var tfp = TypeFunPtr.make((byte)2,TypeTuple.make(TypeInteger.constant(987654)),TypeInteger.constant(123456),1L<<30);

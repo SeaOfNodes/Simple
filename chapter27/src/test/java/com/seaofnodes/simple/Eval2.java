@@ -410,6 +410,14 @@ public abstract class Eval2 {
             ? offToIdx(x(st.off()),tmp._obj)
             : tmp._obj.find(st._name);
         Object val = val(st.val());
+        // Idealization can remove conversions already performed by the store.
+        Type type = st._declaredType;
+        if( type instanceof TypeInteger ti ) {
+            int shift = 64-(8 << type.log_size());
+            long x = (Long)val << shift;
+            val = ti._min < 0 ? x >> shift : x >>> shift;
+        } else if( type instanceof TypeFloat && type.log_size()==2 )
+            val = (double)(float)(double)(Double)val;
         fs[idx] = val;
         return "$mem";
     }

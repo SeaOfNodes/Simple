@@ -9,11 +9,14 @@ design decisions and chapter boundaries.
 
 ## Correctness
 
-### Narrow stores in the ideal evaluator
+### Narrow field results after method updates
 
-Chapter 23's `Eval2.store` stores the raw value in its Java object array,
-without the truncation performed by a machine Store. This example still
-returns 25710 in the evaluator instead of 110:
+Chapters 25-27 can return an untruncated increment when a method updates a
+narrow field and then reads it. With evaluator stores corrected, this example
+returns 366 instead of 110. Chapter 25's generated RISC-V code also returns
+366: the method's optimized Return uses the raw Add with range `[1-256]`,
+although the Store writes a byte. Chapters 23, 24a/24b, and 28a/28b return 110
+with the corrected evaluator.
 
 ```simple
 struct C { u8 x=255; val next_noInline={ -> x++; return x; }; };
@@ -23,10 +26,9 @@ val b=c.next_noInline();
 return a+10*b+100*c.x;
 ```
 
-Find the earliest affected evaluator, reproduce the failure there, and carry
-the correction through affected snapshots. Check signed fields and floating
-rounding as well as unsigned bytes. Generated code must not be changed to
-match an incorrect evaluator.
+Find where the field read loses its narrowing during parsing or optimization,
+and preserve the converted result independently of the Store. Check both
+signed and unsigned fields and compare ideal evaluation with generated code.
 
 ## Compilation and optimization
 
