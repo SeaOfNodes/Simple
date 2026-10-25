@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/chapter01/chapter01.iml" filepath="$PROJECT_DIR$/chapter01/chapter01.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter02/chapter02.iml" filepath="$PROJECT_DIR$/chapter02/chapter02.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter03/chapter03.iml" filepath="$PROJECT_DIR$/chapter03/chapter03.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter04/chapter04.iml" filepath="$PROJECT_DIR$/chapter04/chapter04.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter05/chapter05.iml" filepath="$PROJECT_DIR$/chapter05/chapter05.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter06/chapter06.iml" filepath="$PROJECT_DIR$/chapter06/chapter06.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter07/chapter07.iml" filepath="$PROJECT_DIR$/chapter07/chapter07.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter08/chapter08.iml" filepath="$PROJECT_DIR$/chapter08/chapter08.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter09/chapter09.iml" filepath="$PROJECT_DIR$/chapter09/chapter09.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter10/chapter10.iml" filepath="$PROJECT_DIR$/chapter10/chapter10.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter11/chapter11.iml" filepath="$PROJECT_DIR$/chapter11/chapter11.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter12/chapter12.iml" filepath="$PROJECT_DIR$/chapter12/chapter12.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter13/chapter13.iml" filepath="$PROJECT_DIR$/chapter13/chapter13.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter14/chapter14.iml" filepath="$PROJECT_DIR$/chapter14/chapter14.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter15/chapter15.iml" filepath="$PROJECT_DIR$/chapter15/chapter15.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter16/chapter16.iml" filepath="$PROJECT_DIR$/chapter16/chapter16.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter17a/chapter17a.iml" filepath="$PROJECT_DIR$/chapter17a/chapter17a.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter17b/chapter17b.iml" filepath="$PROJECT_DIR$/chapter17b/chapter17b.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter18/chapter18.iml" filepath="$PROJECT_DIR$/chapter18/chapter18.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter19/chapter19.iml" filepath="$PROJECT_DIR$/chapter19/chapter19.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter20/chapter20.iml" filepath="$PROJECT_DIR$/chapter20/chapter20.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter21/chapter21.iml" filepath="$PROJECT_DIR$/chapter21/chapter21.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter22/chapter22.iml" filepath="$PROJECT_DIR$/chapter22/chapter22.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter23/chapter23.iml" filepath="$PROJECT_DIR$/chapter23/chapter23.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter24a/chapter24a.iml" filepath="$PROJECT_DIR$/chapter24a/chapter24a.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter24b/chapter24b.iml" filepath="$PROJECT_DIR$/chapter24b/chapter24b.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter25/chapter25.iml" filepath="$PROJECT_DIR$/chapter25/chapter25.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter26/chapter26.iml" filepath="$PROJECT_DIR$/chapter26/chapter26.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter27/chapter27.iml" filepath="$PROJECT_DIR$/chapter27/chapter27.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter28a/chapter28a.iml" filepath="$PROJECT_DIR$/chapter28a/chapter28a.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chapter28b/chapter28b.iml" filepath="$PROJECT_DIR$/chapter28b/chapter28b.iml" />
+      <module fileurl="file://$PROJECT_DIR$/print/print.iml" filepath="$PROJECT_DIR$/print/print.iml" />
+      <module fileurl="file://$PROJECT_DIR$/graph/graph.iml" filepath="$PROJECT_DIR$/graph/graph.iml" />
+      <module fileurl="file://$PROJECT_DIR$/isa/isa.iml" filepath="$PROJECT_DIR$/isa/isa.iml" />
+      <module fileurl="file://$PROJECT_DIR$/isa/src/test-support/isa-eval.iml" filepath="$PROJECT_DIR$/isa/src/test-support/isa-eval.iml" />
+      <module fileurl="file://$PROJECT_DIR$/transpile-tests/transpile-tests.iml" filepath="$PROJECT_DIR$/transpile-tests/transpile-tests.iml" />
+    </modules>
+  </component>
+</project>

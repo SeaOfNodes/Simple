@@ -11,7 +11,7 @@ The [completed split](../docs/chapter-split.md) maps the former combined 24/25
 to 24a/24b (SCCP), 25 (incomplete types), 26 (construction), 27 (escape), and
 28a/28b (modules/separate compilation). The old combined snapshots are retired.
 Earlier entries below retain historical chapter numbers and test names; old
-Chapter 25 implementation references describe the lineage now in 25–28b, with
+Chapter 25 implementation references describe the lineage now in 25â€“28b, with
 the complete implementation in 28b. Use current paths and teaching boundaries.
 The construction/escape border remains open to semantic review.
 Future work belongs in the [roadmap](../docs/roadmap.md), including the separate
@@ -64,6 +64,12 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   findings, the current check, and any blocker.
 
 ## Mutability and chapter boundaries
+
+- Prefix updates must share ordinary name resolution: a method's bare field
+  name denotes memory, while constructor fields may still be local SSA values.
+  Do not update the declaration's scope slot before resolving that distinction.
+  Keep the returned value alive across Store folding; a narrow Store can remove
+  a conversion it does not need, while the prefix expression still needs it.
 
 - Separate compilation retains the Modules parser's constructor local values
   and escape fixes while adding saved IR and import ownership. Save owned nested

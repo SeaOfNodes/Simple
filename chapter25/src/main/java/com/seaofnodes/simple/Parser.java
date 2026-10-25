@@ -1228,17 +1228,17 @@ public class Parser {
         // Pre-dec/pre-inc
         int old = pos();
         if( match("--") || match("++") ) {
-            int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Pre vs post
+            int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Inc vs Dec
+            int start = pos();
             String name = _lexer.matchId();
-            if( name!=null ) {
-                Var n = _scope.lookup(name);
-                if( n != null && !(n.type() instanceof TypeMemPtr) ) {
-                    if( n._final )
-                        throw error("Cannot reassign final '"+n._name+"'");
-                    Node expr = liftExpr(peep(new AddNode(_scope.in(n),con(delta))),n.type(),true);
-                    _scope.update(n,expr);
-                    return expr;
-                }
+            Var var = name==null ? null : _scope.lookup(name);
+            if( var!=null && !(var.type() instanceof TypeMemPtr) ) {
+                if( var._final )
+                    throw error("Cannot reassign final '"+var._name+"'");
+                // Resolve fields just as a read or postfix update does. Updating
+                // their declaration's local slot would silently lose the Store.
+                pos(start);
+                return parsePrimary(delta);
             }
             // Reset, try again
             pos(old);
@@ -1259,7 +1259,10 @@ public class Parser {
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */
-    private Node parsePrimary() {
+    private Node parsePrimary() { return parsePrimary(0); }
+
+    // pre is +/-1 for a prefix update of a known name, zero otherwise.
+    private Node parsePrimary(int pre) {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
         if( _lexer.peek('"') ) return newString(parseString());
         if( matchx("true" ) ) return con(1);
@@ -1307,7 +1310,7 @@ public class Parser {
         if( instance(var) ) {
             Var selfVar = _scope.lookup("self");
             Node self = liftExpr(_scope.in(selfVar),selfVar.type(),true);
-            return parsePostfixName(self,id);
+            return parsePostfixName(self,id,pre);
         }
 
         // Load local value
@@ -1322,7 +1325,7 @@ public class Parser {
             else throw error("Cannot read uninitialized field '"+id+"'");
 
         // Check for assign-update, x += e0;
-        char ch = _lexer.matchOperAssign();
+        char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
         if( ch==0  )            // Normal primary, check for postfix updates
             return parsePostfix(rvalue);
         // Assign-update direct into Scope
@@ -1330,7 +1333,8 @@ public class Parser {
             throw error("Cannot reassign final '"+var._name+"'");
         Node op = opAssign(ch,rvalue, var.type() );
         _scope.update(var,op);
-        return postfix(ch) ? rvalue.unkeep() : op;
+        if( postfix(ch) ) rvalue.unkeep();
+        return pre==0 && postfix(ch) ? rvalue : op;
     }
 
     // true if instance variable lookup (var is in any number of nested blocks,
@@ -1573,14 +1577,16 @@ public class Parser {
      *     expr ('[' expr ']')* [ [op]= expr ] // Array reference
      * </pre>
      */
-    private Node parsePostfixName(Node expr, String name) {
+    private Node parsePostfixName(Node expr, String name) { return parsePostfixName(expr,name,0); }
+
+    private Node parsePostfixName(Node expr, String name, int pre) {
 
         if( expr._type==Type.NIL )
             throw error("Accessing unknown field '" + name + "' from 'null'");
 
         // Sanity check expr for being a reference
         if( !(expr._type instanceof TypeMemPtr ptr) )
-            return parseUnknownField(expr,name);
+            return parseUnknownField(expr,name,pre);
 
         // Find the field from the Type.  Lookup in the base object field names.
         TypeMemPtr ptr2 = (TypeMemPtr)TYPES.get(ptr._obj._name);
@@ -1588,7 +1594,7 @@ public class Parser {
             ptr = ptr.makeFrom(ptr2._obj); // The declaration fixes the field shape; retain this view's access.
         TypeStruct base = ptr._obj;
         int fidx = base.find(name);
-        if( fidx==-1 && base._open ) return parseUnknownField(expr,name);
+        if( fidx==-1 && base._open ) return parseUnknownField(expr,name,pre);
         if( fidx == -1 )
             throw error("Accessing unknown field '" + name + "' from '" + ptr.str() + "'");
 
@@ -1609,7 +1615,7 @@ public class Parser {
             : off(base,name)).keep();
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
-        if( matchOpx('=','=') ) {
+        if( pre==0 && matchOpx('=','=') ) {
             Node val = parseAsgn().keep();
             Node lift = liftExpr( val, tf, false );
 
@@ -1628,14 +1634,16 @@ public class Parser {
         load = peep(load);
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
-        char ch = _lexer.matchOperAssign();
+        char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
             Node op = opAssign(ch,load,tf);
+            // A narrow Store may drop its conversion; prefix still returns it.
+            if( pre!=0 ) op.keep();
             store(name,f._alias,tf,expr.unkeep(),off.unkeep(),op,false,base.isAry() ? ctrl() : null);
-            load = postfix(ch) ? load.unkeep() : op;
-            // And use the original loaded value as the result
-            return load;
-            //throw Utils.TODO(); // NO POSTFIX AFTER STORE, JUST RETURN
+            if( pre!=0 ) op.unkeep();
+            if( postfix(ch) ) load.unkeep();
+            // Prefix returns the new value; postfix returns the old load.
+            return pre==0 && postfix(ch) ? load : op;
         } else {
             off.unkill();
             // Method call: Loaded a function from a named field, AND the base
@@ -1660,7 +1668,7 @@ public class Parser {
 
     // Syntax fixes the access even when a forward definition or a loop
     // leaves the receiver untyped. Resolve its alias and layout in the graph.
-    private Node parseUnknownField(Node expr, String name) {
+    private Node parseUnknownField(Node expr, String name, int pre) {
         expr.keep();
         Node off = new FldOffNode(expr,name).peephole();
         if( name.equals("[]") ) {
@@ -1669,7 +1677,7 @@ public class Parser {
             off = peep(new AddNode(off,peep(new ShlNode(loc(),index,scale))));
         }
         off.keep();
-        if( matchOpx('=','=') ) {
+        if( pre==0 && matchOpx('=','=') ) {
             Node value = parseAsgn().keep();
             Node st = new StoreNode(loc(),name,1,Type.BOTTOM,mem(),expr,off,value,false);
             st.setDef(0,ctrl());
@@ -1681,7 +1689,7 @@ public class Parser {
         Node load = new LoadNode(loc(),name,1,mem(),expr,off);
         load.setDef(0,ctrl());
         load = peep(load);
-        char ch = _lexer.matchOperAssign();
+        char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
             Node op = opAssign(ch,load,Type.BOTTOM).keep();
             Node st = new StoreNode(loc(),name,1,Type.BOTTOM,mem(),expr,off,op,false);
@@ -1691,7 +1699,7 @@ public class Parser {
             // the stored value after conversion; postfix returns the old load.
             // Reading our own Store folds once its alias and width are known.
             if( postfix(ch) ) load.unkeep();
-            else {
+            if( pre!=0 || !postfix(ch) ) {
                 load = new LoadNode(loc(),name,1,mem(),expr,off);
                 load.setDef(0,ctrl());
                 load = peep(load);
@@ -1701,7 +1709,7 @@ public class Parser {
         } else load.keep();
         expr.unkill();
         off.unkill();
-        return parsePostfix(load.unkeep());
+        return pre==0 ? parsePostfix(load.unkeep()) : load.unkeep();
     }
 
     // zero/sign extend.  "i" is limited to either classic unsigned (min==0) or

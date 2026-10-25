@@ -22,12 +22,38 @@ regression identities; they do not identify current chapter boundaries.
   and the former roadmap is now [docs/roadmap.md](roadmap.md).
 - The recursive-return diagnostic already passed. It remains enabled in the
   earlier snapshots and is enabled again in 28a/28b. The mutual-recursion test had an obsolete graph-string
-  expectation; it now checks its existing four execution results in 24b–28b.
+  expectation; it now checks its existing four execution results in 24bÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“28b.
   In 24a, local SCCP cannot infer the recursive return type; the same example
   checks that conservative diagnostic instead. This makes the boundary explicit.
 - Allocation/runtime measurement runs passed after the comparison correction;
   the changed spill goldens record the resulting smaller graphs. Historical
   published tables retain their original compiler labels and dates.
+
+## Prefix-update follow-up
+
+Prefix `++` and `--` now use the same name lookup as ordinary reads and postfix
+updates in Chapters 23 through 28b. A method's field goes through memory; a
+constructor-local field stays in SSA. Previously, the prefix path updated the
+field declaration's parser slot and silently lost the write. The two-call
+reproducer now returns 21 instead of 11. Narrow update results stay alive while
+Store folding drops a redundant conversion from its own input.
+
+`PrefixUpdateTest` covers increment/decrement, integer/float/byte fields,
+multiple worklist seeds, local shadowing, final-field errors, native byte
+wraparound, and module fields where supported. Existing final-constructor
+coverage includes prefix updates in loops.
+
+The focused Linux checks pass in all eight affected chapters, including native
+SystemV byte-wraparound execution and the existing final-constructor tests.
+The early final-field rejection is retained so an illegal prefix update never
+enters the optimizer as a Store; native data bindings still update their writable
+contents despite having a fixed address.
+
+The Windows full suites cover 4,169 tests plus eight fuzzer regression runs;
+shared printer and ISA checks pass. Focused reruns cover the final diagnostic
+and prefix-result lifetime adjustments. The full Chapter 27 suite was rerun
+after restricting the temporary keep to prefix results; its existing spill
+expectations remain unchanged. No allocator goldens were updated.
 
 ## Implemented, with narrower limits than earlier prose suggested
 
@@ -47,10 +73,9 @@ regression identities; they do not identify current chapter boundaries.
 
 ## Existing failures and deferred validation
 
-- Prefix update of a field from a method can lose the write, starting in
-  Chapter 23 (confirmed by two calls to `inc={ -> ++x; }`). The enclosing
-  module-field reproducer and the worklist failure below are retained in the
-  [queue](chapter-backports.md), rather than hidden by the split.
+- The ideal evaluator does not truncate narrow stores in Chapter 23. A byte
+  update can therefore disagree with generated code; the postfix-only
+  reproducer is retained in the [queue](chapter-backports.md).
 - A constructor loop with both break and continue still reproduces a worklist
   assertion in Chapter 26. It is not caused by final-field mutability.
 - `testModule0` is an ignored historical incremental-build experiment. It

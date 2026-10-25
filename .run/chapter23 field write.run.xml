@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="chapter23 field write" type="JUnit" factoryName="JUnit">
+    <module name="chapter23" />
+    <option name="PACKAGE_NAME" value="com.seaofnodes.simple" />
+    <option name="TEST_OBJECT" value="method" />
+    <option name="VM_PARAMETERS" value="-ea" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/chapter23" />
+    <option name="MAIN_CLASS_NAME" value="com.seaofnodes.simple.PrefixUpdateTest" />
+    <option name="METHOD_NAME" value="testMethodFieldWrites" />
+    <TEST_SEARCH_SCOPE>
+      <value defaultName="singleModule" />
+    </TEST_SEARCH_SCOPE>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

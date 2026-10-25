@@ -111,32 +111,26 @@ language restriction into Chapters 10-24 or the named pre-module snapshots.
 
 Establish an earlier-chapter failure before changing compiler behavior.
 
-### Prefix update of an enclosing class field
+### Narrow stores in the ideal evaluator
 
-The following returns 11 instead of 21 in numbered Chapter 25, Modules, and
-Separate Compilation:
-
-```simple
-int calls=0;
-val next_noInline={ -> ++calls; };
-return next_noInline()+10*next_noInline();
-```
-
-The prefix path updates an enclosing parser slot instead of class memory.
-Postfix `calls++; return calls;` works and is used in the new chapter example.
-This is independent of importing IR. The stage audit also reproduced the
-instance-method form in Chapter 23, where methods first appear:
+The prefix-update regression exposed an independent evaluator bug. In Chapter
+23, this postfix-only example returns 25710 in Eval2 instead of 110:
 
 ```simple
-struct C { int x=0; val inc={ -> ++x; }; };
+struct C { u8 x=255; val next_noInline={ -> x++; return x; }; };
 var c=new C;
-return c.inc()+10*c.inc();
+val a=c.next_noInline();
+val b=c.next_noInline();
+return a+10*b+100*c.x;
 ```
 
-It returns 11 instead of 21 in Chapters 23 and 26. Prefix lookup bypasses the
-ordinary field-access path. A fix should share name resolution with other
-reads/updates while preserving constructor locals, and propagate from 23
-through 28b. No fix is included in the numbering change.
+`Eval2.store` copies the raw value into its Java object array. It does not
+truncate to the field width, even though Store optimization removes masks that
+machine stores perform implicitly. The native prefix-update regression checks
+that the stored byte wraps and the expression returns the converted value.
+Establish the first affected evaluator and check signed fields and floating
+rounding before propagating a fix. Do not change valid generated code to match
+an incorrect ideal evaluator.
 
 ### Constructor loop with break/continue: worklist assertion
 

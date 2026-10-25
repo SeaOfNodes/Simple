@@ -117,6 +117,7 @@ To build and test just the memory chapters:
 make lib tests release CHAPTERS="chapter10 chapter11 chapter12"
 ```
 
-The root Maven reactor includes every chapter. Chapters 10-14 have portable
-IDEA module descriptors depending on the shared `graph` and `print` modules.
+Every chapter has an IntelliJ module with its own compiler and test classpath.
+See [the IntelliJ setup](docs/intellij.md) to open and debug any chapter's tests.
+The root Maven reactor also includes every chapter.
 Make and the linear-history workflow discover the numbered chapter directories.

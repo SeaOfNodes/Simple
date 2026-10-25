@@ -11,7 +11,9 @@ build/
 *.log
 
 # Idea
-.idea/
+.idea/*
+!.idea/modules.xml
+!.idea/compiler.xml
 target/
 *.iml
 .vscode/
@@ -25,17 +27,10 @@ TAGS
 # Libs
 */lib/*jar
 
-# Portable IDEA descriptors for the memory, scheduling and numeric chapters
-!chapter10/chapter10.iml
-!chapter11/chapter11.iml
-!chapter12/chapter12.iml
-!chapter13/chapter13.iml
-!chapter14/chapter14.iml
+# Portable IDEA descriptors; personal IDE settings stay ignored.
+!chapter*/*.iml
 !graph/graph.iml
 !print/print.iml
 !isa/isa.iml
 !isa/src/test-support/isa-eval.iml
-
-# Portable descriptors for the mutability / syntax-sugar split
-!chapter17a/chapter17a.iml
-!chapter17b/chapter17b.iml
+!transpile-tests/transpile-tests.iml

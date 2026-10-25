@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="chapter01 tests" type="JUnit" factoryName="JUnit">
+    <module name="chapter01" />
+    <option name="PACKAGE_NAME" value="com.seaofnodes.simple" />
+    <option name="TEST_OBJECT" value="package" />
+    <option name="VM_PARAMETERS" value="-ea" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/chapter01" />
+    <TEST_SEARCH_SCOPE>
+      <value defaultName="singleModule" />
+    </TEST_SEARCH_SCOPE>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

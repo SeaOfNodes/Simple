@@ -1993,19 +1993,16 @@ public class Parser {
         int old = pos();
         if( match("--") || match("++") ) {
             int delta = _lexer.peek(-1)=='+' ? 1 : -1; // Inc vs Dec
+            int start = pos();
             String name = _lexer.matchId();
-            if( name!=null ) {
-                Var n = _scope.lookup(name);
-                if( n != null && !(n.type() instanceof TypeMemPtr) ) {
-                    if( n._extern!=0 )
-                        return parsePostfixName(_scope.in(n),name,delta);
-                    if( n._final && !_scope.canInit(n) )
-                        throw error("Cannot reassign final '"+n._name+"'");
-                    checkSharedFunction(n);
-                    Node expr = convertExpr(peep(new AddNode(_scope.in(n),con(delta))),n.type());
-                    _scope.update(n,expr);
-                    return expr;
-                }
+            Var var = name==null ? null : _scope.lookup(name);
+            if( var!=null && !(var.type() instanceof TypeMemPtr) ) {
+                if( var._extern==0 && var._final && !_scope.canInit(var) )
+                    throw error("Cannot reassign final '"+var._name+"'");
+                // Resolve fields just as a read or postfix update does. Updating
+                // their declaration's local slot would silently lose the Store.
+                pos(start);
+                return parsePrimary(delta);
             }
             // Reset, try again
             pos(old);
@@ -2026,7 +2023,10 @@ public class Parser {
      * </pre>
      * @return a primary {@link Node}, never {@code null}
      */
-    private Node parsePrimary() {
+    private Node parsePrimary() { return parsePrimary(0); }
+
+    // pre is +/-1 for a prefix update of a known name, zero otherwise.
+    private Node parsePrimary(int pre) {
         if( _lexer.isNumber(_lexer.peek()) ) return parseLiteral();
         if( _lexer.peek('"') ) return parsePostfix(newString(parseString()));
         if( matchx("true" ) ) return con(1);
@@ -2085,7 +2085,7 @@ public class Parser {
         // Load local value
         Node rvalue = _scope.in(var);
         if( var._extern!=0 )
-            return parsePostfixName(rvalue,id,0);
+            return parsePostfixName(rvalue,id,pre);
         if( var._fref )
             return parsePostfix(rvalue);
         // A constructor may read the unfinished object, but each field it
@@ -2101,7 +2101,7 @@ public class Parser {
         Kind fk = _scope._kinds.at(fx);
         // Access instance field from 'self'
         if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method && !inExplicitConstructor() )
-            return parsePostfixName(_scope.in(method._lexSize),id,0);
+            return parsePostfixName(_scope.in(method._lexSize),id,pre);
 
         // Check for a function-escaping variable; these require true
         // closures.  Final constants are OK; final vars require a hidden var
@@ -2119,13 +2119,13 @@ public class Parser {
                 // Get the most recent sharpen global
                 TypeStruct clz = (TypeStruct) TYPES.get( ((TypeMemPtr) clzptr.type())._obj._name );
                 TypeMemPtr clztmp = TypeMemPtr.make( (byte) 2, clz, true );
-                return parsePostfixName( con( clztmp ), id,0 );
+                return parsePostfixName( con( clztmp ), id,pre );
                 //return parsePostfixName(_scope.in(2),id);
             }
         }
 
         // Check for assign-update, x += e0;
-        char ch = _lexer.matchOperAssign();
+        char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
         if( ch==0  ) {          // Normal primary, check for postfix updates
             int selfx = _scope.kindFcn(var)._lexSize;
             // Might be a method call from inside a method, so no explicit "self".
@@ -2138,7 +2138,8 @@ public class Parser {
         checkSharedFunction(var);
         Node op = opAssign(ch,rvalue, var.type() );
         _scope.update(var,op);
-        return postfix(ch) ? rvalue.unkeep() : op;
+        if( postfix(ch) ) rvalue.unkeep();
+        return pre==0 && postfix(ch) ? rvalue : op;
     }
 
     // Check for assign-update, "x += e0".
