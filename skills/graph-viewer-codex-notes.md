@@ -4,8 +4,8 @@ Updated 2026-09-26. Read graph/README.md for the current design and protocol.
 These are AI-facing continuity notes, not a new task list or authority to change
 compiler semantics. Cliff declared the viewer task complete on 2026-09-26.
 Peephole animations, inlining display, TypeCheck diagnostics, and arrow-key
-playback are committed. Resume the independent bug-fix backport review from
-docs/chapter-backports.md when requested.
+playback are committed. Unfinished compiler work is tracked in
+docs/roadmap.md.
 
 ## Working tree and latest change
 

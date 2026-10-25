@@ -80,7 +80,7 @@ The Simple language is styled after a subset of C or Java.
 
 Appendices: [Native libraries](docs/appendices/native-libraries.md),
 [optimizer and backend tuning](docs/appendices/optimizer-tuning.md).
-The [split record](docs/chapter-split.md) maps the old chapters to this sequence.
+Future compiler and language work is collected in the [roadmap](docs/roadmap.md).
 
 ## Building across chapters
 
@@ -105,11 +105,9 @@ CI runs `make lib tests CTAGS=` on Linux with JDK 21. The Make targets also buil
 Chapter 28b's native runtime and `sys` library before running the tests that use
 them; Maven's Java build alone does not produce those prerequisites.
 
-The [chapter backport queue](docs/chapter-backports.md) records proposed small
-corrections and the per-chapter test/review workflow. Larger architectural moves
-are tracked separately there. Chapters 10-14 now group whole memory,
+Chapters 10-14 cover whole memory,
 lazy alias splitting, references, GCM, and numeric types in that order.
-The memory representation is forwarded through Chapter 28b.
+Later chapters build on this memory representation.
 
 To build and test just the memory chapters:
 

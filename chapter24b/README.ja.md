@@ -4,7 +4,6 @@
 
 [Previous: Chapter 24a](../chapter24a/README.ja.md) |
 [Next: Chapter 25](../chapter25/README.ja.md)
-[章の分割案](../docs/chapter-split.md)
 
 前の章では関数ごとに保守的な呼び出し境界で解析しました。この章では
 呼び出し辺を発見しながら、同じワークリストで関数間の値を伝播します。

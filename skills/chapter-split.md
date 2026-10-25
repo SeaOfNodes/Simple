@@ -24,8 +24,8 @@ their historical identities across snapshots. They are regression cohorts,
 not an index of the current teaching sequence. Historical allocator tables
 also retain their original labels and dates.
 
-Native library construction and optimizer tuning are now [appendices](appendices/README.md).
-The [roadmap](roadmap.md) and [backport queue](chapter-backports.md) own future work.
+Native library construction and optimizer tuning are now [appendices](../docs/appendices/README.md).
+The [roadmap](../docs/roadmap.md) owns future work.
 
 The teaching pattern is to introduce a difficult idea, then show how to make
 it useful in a larger setting. Each chapter must remain a complete, runnable
@@ -128,7 +128,7 @@ Keeping a function for emission must not imply arbitrary callers can reach it.
 This split organizes implemented behavior. Deterministic inlining, argument
 arrays, static pre-initialization of classes, CFG frequency estimates, and
 constant instance-field storage remain future work. See the
-[backport queue](chapter-backports.md) and [roadmap](roadmap.md).
+[roadmap](../docs/roadmap.md).
 
 ## Renumbering and validation
 

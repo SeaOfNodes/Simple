@@ -270,5 +270,5 @@ and x86/ARM/RISC-V code generation. `make view` starts the shared graph viewer.
 The next chapter will keep this language behavior while allowing a client to
 compile without the library's sources. That requires saving types and ideal IR,
 remapping identities on import, and extending the same initialization checks
-across imported bodies. Library construction and optimizer tuning remain
-appendix topics in the [approved split](../docs/chapter-split.md).
+across imported bodies. The [appendices](../docs/appendices/README.md) cover
+library construction and optimizer tuning.

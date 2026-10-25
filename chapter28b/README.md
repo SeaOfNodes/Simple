@@ -172,6 +172,5 @@ serialization bijection check remains disabled, and `testModule0`, the older
 incremental-rebuild experiment, remains ignored. They are not validation
 guarantees for this snapshot.
 
-This completes the seven main snapshots in the [approved split](../docs/chapter-split.md).
 See the appendices on [native libraries](../docs/appendices/native-libraries.md)
 and [optimizer/backend tuning](../docs/appendices/optimizer-tuning.md).

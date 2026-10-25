@@ -1,6 +1,6 @@
 # Simple
 
-[English](README.md) | 日本語 | [翻訳について](docs/japanese-translation.md)
+[English](README.md) | 日本語 | [翻訳について](skills/japanese-translation.md)
 
 この文書は [Simple の README](README.md) の日本語訳です。
 
@@ -71,7 +71,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 
 付録：[ネイティブライブラリ](docs/appendices/native-libraries.md)、
 [最適化とバックエンドの調整](docs/appendices/optimizer-tuning.ja.md)。
-旧章と現在の章の対応は[分割記録](docs/chapter-split.md)にあります。
+今後のコンパイラと言語の計画は[ロードマップ](docs/roadmap.ja.md)を参照してください。
 
 ## 章をまたぐビルド
 
@@ -95,8 +95,6 @@ CI は Linux と JDK 21 で `make lib tests CTAGS=` を実行します。
 Make のターゲットは、それらを使うテストの実行前に、第28b章のネイティブランタイムと
 `sys` ライブラリもビルドします。Maven の Java ビルドだけでは、これらの前提となる成果物は生成されません。
 
-[章へのバックポート一覧（英語）](docs/chapter-backports.md)には、提案された小さな修正と
-各章のテスト・レビューワークフローを記録しています。大規模なアーキテクチャ変更は、そこで別に管理します。
 第10〜14章は現在、メモリ全体、必要時のエイリアス分割、参照、GCM、数値型の順に構成されています。
 このメモリ表現は第28b章まで引き継がれています。
 

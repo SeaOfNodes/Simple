@@ -18,8 +18,8 @@ regression identities; they do not identify current chapter boundaries.
   comparisons using the former left-associative grammar. It is retained as an
   ignored `testJigFuzzer`, consistent with the scratch-test policy; its mixed
   directions are no longer valid source. Later snapshots already omitted it.
-- Native-library and tuning material is preserved in [appendices](appendices/README.md),
-  and the former roadmap is now [docs/roadmap.md](roadmap.md).
+- Native-library and tuning material is preserved in [appendices](../docs/appendices/README.md),
+  and unfinished work is collected in the [roadmap](../docs/roadmap.md).
 - The recursive-return diagnostic already passed. It remains enabled in the
   earlier snapshots and is enabled again in 28a/28b. The mutual-recursion test had an obsolete graph-string
   expectation; it now checks its existing four execution results in 24bÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“28b.
@@ -83,7 +83,7 @@ the corresponding earlier-chapter probes pass in 23/24a/24b.
 
 - The ideal evaluator does not truncate narrow stores in Chapter 23. A byte
   update can therefore disagree with generated code; the postfix-only
-  reproducer is retained in the [queue](chapter-backports.md).
+  reproducer is retained in the [roadmap](../docs/roadmap.md#narrow-stores-in-the-ideal-evaluator).
 - `testModule0` is an ignored historical incremental-build experiment. It
   assumes per-source output objects and unchanged explicit-input builds, neither
   of which matches the present compiler's contract.

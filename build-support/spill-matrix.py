@@ -144,7 +144,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--log-dir", type=Path, default=ROOT / "build/spill-stats")
     parser.add_argument("--reuse", action="store_true", help="read completed logs without rerunning tests")
-    parser.add_argument("--update-docs", action="store_true", help="refresh the marked tables in docs and READMEs")
+    parser.add_argument("--update-docs", action="store_true", help="refresh the allocator report in skills/current-spill-matrix.md")
     args = parser.parse_args()
     args.log_dir.mkdir(parents=True, exist_ok=True)
     if not args.reuse:
@@ -166,7 +166,7 @@ def main():
     (args.log_dir / "matrix.md").write_text(matrix + "\n", encoding="utf-8", newline="\n")
     if args.update_docs:
         # Preserve the dated pre-split measurements in the original READMEs.
-        paths = [(ROOT / "docs/appendices/current-spill-matrix.md", matrix)]
+        paths = [(ROOT / "skills/current-spill-matrix.md", matrix)]
         # Validate all destinations before changing any document.
         for path, _ in paths:
             text = path.read_text(encoding="utf-8")

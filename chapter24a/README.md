@@ -13,9 +13,6 @@ functions whose return types need inference across calls can still fail with
 `No defined return type`; Chapter 24b solves those recursive return cycles.
 
 
-This is an independent compiler snapshot. The [split record](../docs/chapter-split.md)
-explains how the former combined SCCP chapter became Chapters 24a and 24b.
-
 ## Sparse Conditional Constant Propagation
 
 [SCCP](https://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation)

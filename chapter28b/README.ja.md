@@ -85,7 +85,7 @@ java -ea -cp "build/classes/main:build/classes/test:lib/*" \
 コンストラクタのフィールド更新はローカル値と Phi のままで、ヘルパーの出口に Store を
 置きます。未完成のオブジェクトでも初期化済みフィールドは読めます。
 アンダースコアは公開インターフェースの選択に使いますが、ソースのアクセス制限は
-[レビュー待ち](../docs/chapter-backports.md)です。
+まだ実装されていません。
 
 ## 検証と今後
 
@@ -104,5 +104,4 @@ make tests CHAPTERS=chapter28b
 オブジェクトを再構築してください。高コストの往復一致検査は無効のままで、古い増分
 ビルドの実験 `testModule0` も実行対象外です。
 
-[分割計画](../docs/chapter-split.md)の主要な七つのスナップショットはこれで揃います。
 ネイティブライブラリの構築と最適化の調整は[付録](../docs/appendices/README.md)にまとめています。

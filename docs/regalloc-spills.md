@@ -3,7 +3,7 @@
 This is the dated **pre-split** comparison. Its Ch 24/25 columns describe the
 retired combined snapshots, not today's Chapter 25 (incomplete types). Current
 measurement tools target 24b/28b and publish a
-[separate table](appendices/current-spill-matrix.md). The historical numbers
+[separate table](../skills/current-spill-matrix.md). The historical numbers
 below remain unchanged.
 
 Read a row left to right to follow a fixed cohort through successive compilers.

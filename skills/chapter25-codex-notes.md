@@ -4,18 +4,18 @@ This file is intentionally AI-facing. It records durable invariants, debugging
 habits, and project-owner preferences that are easy to miss when reading only
 the implementation. Check current code and Git state rather than treating old
 session handoffs as live status.
-For cross-chapter work, read [the backport queue](../docs/chapter-backports.md).
-It owns pending work; these notes capture reusable lessons. Completed work and
-superseded validation history remain in Git.
-The [completed split](../docs/chapter-split.md) maps the former combined 24/25
+The [roadmap](../docs/roadmap.md) owns unfinished compiler work and language
+proposals. These notes capture reusable lessons. Completed work and superseded
+validation history remain in Git.
+The [completed split](chapter-split.md) maps the former combined 24/25
 to 24a/24b (SCCP), 25 (incomplete types), 26 (construction), 27 (escape), and
 28a/28b (modules/separate compilation). The old combined snapshots are retired.
 Earlier entries below retain historical chapter numbers and test names; old
 Chapter 25 implementation references describe the lineage now in 25â€“28b, with
 the complete implementation in 28b. Use current paths and teaching boundaries.
 The construction/escape border remains open to semantic review.
-Future work belongs in the [roadmap](../docs/roadmap.md), including the separate
-[incremental build design](../docs/incremental-builds.md).
+The [incremental build design](incremental-builds.md) expands the roadmap's
+dependency and output-ownership requirements.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
 ## Collaboration preferences
@@ -79,9 +79,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   library/client example checks three seeds and repeated native calls; native
   callback exposure is also checked after saving and loading the library.
 
-- The four README intention questions are kept in
-  [the review agenda](../docs/chapter-backports.md#four-readme-intentions-to-review).
-  Final data fields are writable constructor locals, including in loops; final
+- Final data fields are writable constructor locals, including in loops; final
   local bindings and shared function declarations stay fixed. Do not classify
   a constant instance default as a shared field or skip its loop Phi merely
   because the published field is final. Class constants keep their static image.
@@ -438,9 +436,9 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   top-level runner, e.g. `make -k tests CHAPTERS="chapter10 chapter11 chapter12"`, with all
   affected directories explicitly listed. Establish the destination baseline
   before changing it; older Makefiles may need a forced rebuild after API changes.
-- Keep unrelated discoveries separate in `docs/chapter-backports.md`. Completed
-  fixes leave the pending queue; record validation in the change description.
-  Keep unresolved discoveries in the actual queue. A green suite
+- Record confirmed unresolved bugs and future work in `docs/roadmap.md`.
+  Remove completed items and record validation in the change description.
+  Do not turn an unconfirmed textual difference into a backport task. A green suite
   after changing graph/test order does not prove an intermittent failure fixed.
 - Store disposable probes/logs under an appropriate ignored build directory.
   Preserve durable reproducers in tests or the review record, not only scratch
@@ -829,6 +827,13 @@ Consequences:
 
 ## Types and monotonicity
 
+- Chapters 24a/24b retain typed fallback results for erroneous or unresolved
+  Loads and arithmetic. Chapter 25 introduces the surrounding Convert nodes
+  and removes parser-supplied bounds. Do not backport BOTTOM-on-error in
+  isolation: parser, conversions, loop bounds, and diagnostics must agree.
+  Preserve `testBrainFuck`, `testWhileWithNullInside`, `testNullGuardErrors`,
+  `testLinkedList0`, and `testCoRecur`, including their expected errors.
+
 - Integer widening starts in Chapter 24. `nonZero()` preserves `_widen` when
   narrowing a range. B10's correction is in 24, with `TypeTest.testNonZeroWidening`
   in 24-25. Both now use widening 0-3 and dual widening `3-widen`, preserve
@@ -1071,8 +1076,8 @@ serialize/deserialization bijection after persisted graph changes
 Default fuzzer wrappers use explicit regression seed lists; exploratory fuzzing
 is opt-in. A passing wrapper with an empty list is not exploratory coverage, and
 `OPEN_FAILING_SEEDS` remain unresolved until explicitly verified and promoted.
-For dated suite counts and known failures, consult the backport validation record
-rather than treating an old count as the current baseline.
+For dated suite counts, consult the validation record in Git history; current
+known work is in the roadmap. Do not treat an old count as the current baseline.
 
 Peepholes are always enabled in every chapter, by Cliff's request on 2026-09-26.
 Do not reintroduce an unoptimized compiler mode. Incomplete Loop/Phi nodes still
@@ -1093,7 +1098,7 @@ comparisons as equal runtime results.
   the SUB, not copy its inputs. ARM register 31 is XZR for load destinations,
   so narrow loads use WMASK, never RMASK. Logical-not uses CMP to XZR followed
   by CSET to its result register. Shared emulator fixes and Chapter 21-25
-  backports are recorded in `docs/chapter-backports.md`.
+  backports are recorded in Git history.
 - Cohort 23's dynamic increase from compiler 24 to 25 is primarily class-field
   initialization: Ops 630->1106. RA 160->442 includes 224 extra pointer-address
   and 56 integer rematerialization instructions, but only two extra splits.

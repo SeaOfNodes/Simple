@@ -1,521 +1,78 @@
-# Compiler roadmap and design notebook
-
-This notebook preserves the design discussion from the former combined Chapter
-25. Early sections include alternatives considered while implementing features
-now taught in Chapters 25–28b; they are not all pending tasks. The
-[stage audit](stage-audit.md) distinguishes current behavior from remaining gaps.
-The [incremental-build design](incremental-builds.md) is a separate future item.
-The final section records the outstanding class-initialization and compiler
-follow-ups. Keep speculative language/library designs as proposals.
-
-## Separate Compilation
+# Compiler roadmap
 
 English | [日本語](roadmap.ja.md)
 
+Open compiler work and language proposals, reviewed against the current
+snapshots on 2026-10-25. These are future changes, not promises about the
+language implemented by the tutorial. Language changes still need their own
+design decisions and chapter boundaries.
 
-How to handle unknown forward ref?
-No H-M, so no unification.
-Demand no forward refs beyond functions... which will provide immediate signatures when def'd.
+## Correctness
 
-Plan A: Remove FRefNode; fix all my bugs.
-Fail A: I want mutual co-recurusion to work
-Example: `val even = { int x -> x ? odd(x-1) : true; }; val odd = { int x -> x ? even(x-1) : false; };`
+### Narrow stores in the ideal evaluator
 
-Plan B: Require types ordered, but not any other fcn.  `new T` can complain,
-but not `fref.field` or `fref()` or `fref op fref` or `fref[]`
+Chapter 23's `Eval2.store` stores the raw value in its Java object array,
+without the truncation performed by a machine Store. This example still
+returns 25710 in the evaluator instead of 110:
 
-Requires "lifting" Type.BOTTOM to the parser requirements everywhere.
-So loading a field from an FRef requires: lift the FREF to a
-TMP-to-TSTRUCT-with-FIELD... actually, just locally assume FREF will become
-correct.  Can't Lift it, no access, since type comes from random code.
-TMP might be nullable (should error later).
-TSTRUCT can/will be unnamed.  Implies ALL TSTRUCT is unnamed.
-
-Issue is some unknown/remote/external/forward-ref.
-
-Allowing an FRef *at all* means everybody has to deal with seeing an FRef Type.
-Allowing it for functions in same scope allow the above odd/even case .
-Allowing it for structs in the same scope allows for co-recursive structs.
-Promoting out-of-scope attempts the external lookup, then fails.
-
-Random junk usage: `sys.fld`.  Looking up `sys` fails, now has to
-guess: fref is ok, will be defined shortly... OR extern lookup now.
-Then some usage delays trouble:
-```java
-// Extern or Future `sys` being returned.
-val foo { -> return sys; }
-
-// foo() returns FRef, so Bottom, so the `.bar` has no type
-// to do field lookups
-val main { arg -> foo().bar }
-
-// HERE: Parser finds `sys` OR NOT?!?!?!
-val sys??? = user_stuff....;
-
+```simple
+struct C { u8 x=255; val next_noInline={ -> x++; return x; }; };
+var c=new C;
+val a=c.next_noInline();
+val b=c.next_noInline();
+return a+10*b+100*c.x;
 ```
 
-Which gets to: parser never complains, builds SSA like a blind AST,
-just wires up a graph with bad types all around.  Requires: No Types
-to guide parser!  Just Syntax!
-
-  (Obvious minor fail: widen floats- or-not) Fix: insert e.g. int-oper, return
-  type is MEET of Int,Float until both inputs are isa-Int and cannot lift to be
-  isa-Float
-
-  Possible method call fail:
-  UNKNOWN_STRUCT_BOT.UNKNOWN_FIELD ( ARGS ); // Insert SELF OR NOT?
-  Possible fix: always assume a SELF arg, which is null for provable statics.
-  Optimization: constant parms get dropped from sig?  *Constant* parms
-  must be constant from *Parser*, or else no unknown callers (so local opts).
-  Possible fix: SELF arg is *last* not *first*, easier to drop if dead?
-
-  Load drops ConFldOff, keeps name.
-  Load keeps index unscaled, has index input, which is null for structs.
-  After Ptr Base is *closed*, base layout can happen, can fold index math.
-  -  Load(ctrl, base, null );       // field name internal
-  -  Load(ctrl, base, index_math ); // field name=='[]'
-  - Store(ctrl, base, null      , val);
-
-  FAIL: No Alias Info!
-
-
-Plan C:
-  FRefs allowed for direct calls `odd()`, and for Types.
-  All other cases must *lift*.
-
-
-## Unifying Structs and Arrays
-
-The idea is that structs have fields indexed by names, and arrays have fields
-indexed by numbers, and these ideas are compatible with each other.  This idea
-has been used by the C language for a long time - an array can follow a normal
-struct C and can index it with the usual array syntax.
-
-The alternative, using a field to hold a pointer to an array, exchanges some
-flexibility for an extra indirection.  The obvious flexibility allows swapping
-the array out (generally for a larger one) and this is the basis of very common
-`Vector` or `ArrayList` generic containers.
-
-
-```java
-struct str {
-    int  hash; // A cache of the strings hash code
-    u32  #;    // The array length
-    u8   [];   // Array of bytes
-};
-
-str X = "abc";
-print(X.hash); // Read the hash field
-X[0]=='a';     // Read array element 0
-X#;            // Length of the array
-
-```
-
-Here, the field named `#` holds the array length and the field named `[]` is
-the actual array, which follows the other fields directly in memory.
-Here is another example for variable length array:
-
-```java
-struct vecInt {
-    u32  size; // Actual number of elements
-    u32  #;    // The array length or capacity
-    int  [];   // Array of integers.
-};
-```
-
-The obvious limit here is that the array cannot be directly resized; it is
-literally in the same memory block as the leading fields.  Such a `vecInt` can
-be *re-allocated* to a new larger `vecInt`, but the original `vecInt` will be
-reclaimed - you cannot use the same `vecInt` reference forever.
-
-Any number of named fields are allowed:
-
-```java
-struct Class {
-    !str     !className;
-    !str     !professor;
-    int     time;
-    int     credits;
-    !Class   !prerequisite;
-    u16     #; // Limit of 65535 students per class
-    Student [];
-};
-```
-
-Or self-reference:
-
-```java
-struct NTree {
-    Some   val;
-    u8     #;   // Length is 0-255
-    NTree  [];  // More NTrees
-};
-```
-
-The syntax rules are:
-- the last field is named `[]` and can be of any type.
-- the second-to-last field is named `#` and must be some unsigned integer type
-  representing the maximum array length.
-- may require a leading space in front of ` []`
-  
-  
-  
-### Constructors and Arrays
-
-The allocation includes the array length, and can include a constructor:
-`new NTree{val=17;}[2];`
-
-The constructor is optional, the array length is not.
-
-Optional function for initializing arrays, allows for write-once final arrays:
-`new u8[buffer#,{ u32 idx -> buffer[idx].toUpperCase() }]`
-
-
-
-### Changing array max length
-
-An issue for large numbers of range-checked small arrays is that reserving a
-full 4 bytes for array length can substantially increase the array overhead.
-Simple allows for arrays to have smaller max lengths, although these are
-treated as a different type than arrays with different max lengths.
-
-```java
-struct x0 { u8  #; u8[]; }; // Array limited to 0-255 length
-struct x1 { u16 #; u8[]; }; // Array limited to 0-65535 length
-struct x2 { u32 #; u8[]; }; // 
-struct x3 { u64 #; u8[]; }; // 
-
-x0 x = "abc"; // 4 bytes total: [3, 'a', 'b', 'c']
-x1 y = "def"; // 6 bytes total: [3,  0 , 'd', 'e', 'f', 0,]; 1 pad byte to acheieve 2-byte alignment
-x = y;  // ERROR, "x1 is not x0", no auto-widening
-x += y; // OK, 7 bytes total: [6, 'a', 'b', 'c', 'd', 'e', 'f']
-y += x; // OK, 8 bytes total: [6,  0 , 'd', 'e', 'f', 'a', 'b', 'c']
-
-x += "VeryLongString.... ....255_chars"; // Runtime RangeCheck
-
-// Explicit conversion to widen string
-y = "" + x;
-```
-
-
-### Two flavors of extendable arrays/strings: an extra indirection or not
-
-With an extra indirection you get e.g. Java `ArrayList` or C++ `Vector`.
-
-Without, then any call which extends the extendable array return a potentially 
-new object, only growing as needed.
-
-```java
-val vec1 = new vecInt[0].add(2); // len=1, capacity=1
-val vec2 = vec1.add(3); // NEW !vecInt !returned, only is deleted; len=2; capacity=2;
-vec1[0]; // ERROR, vec1 has been freed by call to `vec1.add(3)`
-vec2[0]; // OK
-vec2[1]; // OK
-vec2[2]; // Runtime error, AIOOBE
-```
-
-
-## A String Implementation
-
-Default strings have names like "str", "cstr", "ustr" or such.
-
-Always unicode8 with explicit u8 manipulations.  Unicode "characters" will come
-as function calls over the base implementation, probably in another string class.
-
-## Default string
-
-Efficiently growable via concantenation.  Supports a variety of IO/printf functions.
-The underlying array can be shared mutable if you ask for this.
-The defaults will always be private mutable and read-only shared.
-
-```java
-struct str {
-
-    // Add a string to the string, possibly growing
-    val add = { str str ->
-        val self = this;
-        for( int i=0; i<str#; i++ )
-            self = self.add(str[i]);
-        return self;
-    };
-
-    // Add an char to the string, possibly growing
-    val add = { u8 e ->
-        if( len >= # ) return copy(# ? #*2 : 1).add(e);
-        [size++] = e; 
-        return this;
-    };
-    
-    // Copy 'this' to a new larger size
-    val copy = { int sz2 -> 
-        val v2 = new str[sz2];
-        for( int i=0; i<len; i++ )
-            v2[i] = [i];
-        v2.len = len;
-        sys.libc.free(this); // Needs a better Mem Management solution
-        return v2;
-    };
-
-    val print { -> sys.libc.write(1/*stdout*/,[]/*array base as argument to C*/,len); return this; }
-
-    u32 len; // In-use size
-    u32 #;   // Max length is 4Gig, although variants can request smaller lengths
-    u8  [];  // Character data
-};
-```
-
-
-### A Final String
-
-Intended to be a **immutable** string, possibly used as a base for a **secure**
-string.  This needs to be created all at once, and probably requires a
-defensive copy.
-
-```java
-struct sstr {
-    // Possible static call syntax; no references to "this"
-    val make { str str -> new sstr[str#,str.at] };
-    
-    // Array contents are immutable.
-    // Still figuring out good syntax for this.
-    u8 #;
-    u8 [~]; // Middlin '~'?  Makes primitive array contents *immutable* and requires constructor syntax
-};
-
-// Construction requires a function that produces the array contents.
-// Here we are defining a defensive copy over `buf`.
-sstr safe = new sstr[buf.len,{ int idx -> buf[idx]; }];
-sstr safe = sstr.make("abc"); // Defensive copy is made
-```
-
-
-### A Extendable String (aka StringBuilder or StringBuffer)
-
-This API is intended to be a drop-in for a `StringBuilder` style, and takes an
-extra indirection with each usage.
-
-```java
-struct xstr {
-    !str !_str; // The extra indirection is here
-    val add = { str str -> _str = str.add2(str); };
-    val write = { int fd -> _str.write(fd); };
-};
-```
-
-### A Unicode String
-
-This API is intended to support unicode character manipulation over a plain `str`
-
-```java
-struct ustr {
-    // Assuming idx is at the start of a character, return the character
-    // as a 32b integer.  Returns junk integer if not at a character start.
-    // For all ASCII strings this will amount to a simple byte load.
-    // For bytes with high order bits set, this may read 1-4 characters.
-    val at = { int idx -> ... };
-};
-// Unicode character iterator
-struct ucharator { 
-// Return successive unicode character codes
-};
-```
-
-### A "C" string
-
-A zero-terminated string, but the length has to be available directly
-
-```java
-struct cstr {
-    u8 #; // length including the trailing zero
-    u8[]; // always ends in a zero byte; suitable for direct passing to C string functions
-};
-```
-
-### A "german string": a very short string that can exist in a register
-
-Length in memory is 1 byte (3 bits?) of length, then 0-7 chars; max 8 chars.
-Fits in a 64 bit register.
-
-```java
-struct gstr { // aka germanString, or blend string and register "streg"
-    u3 #;   // Size is 0-7 bytes???
-    u8 [];  // Up to 7 bytes
-}
-// Using inlined object (see below).  All these strings are short and are
-// represented as packed integers in a 64b register.
-*gstr prize1 = "gold";
-*gstr prize2 = "silver";
-*gstr prize3 = "bronze";
-
-```
-
-### Main becomes `val main = { str[] args -> ...}`
-
-
-## Structs can be inlined
-
-Structs are normally by-reference, but can be converted to by-value by using
-the `*` operator, pronounced "contents of" (this name might be changed to
-e.g. `inline`).
-
-This is a name-space change only, you cannot take the address of the internal
-struct without entirely consuming its lifetime.  No "escaping".
-
-```java
-// 2 64-bit words, no other overheads
-struct Complex { f64 x,y; val len = { ->Math.sqrt(x*x+y*y); }; };
-
-// Current Simple rules: always by-reference
-struct ByRef {
-    !Complex !c;          // 4-byte pointer to a Complex
-};
-print(new ByRef.c.y);   // Lookup requires 1 extra memory load from ref to c
-
-// New behavior: by value (inlining a struct)
-// The '*' syntax indicator can be something else, e.g. a keyword "inline"
-// I am pronouncing '*' as "contents of"
-struct ByValue {
-    *!Complex !c;         // c is inlined, full 16 bytes into ByValue
-};
-print(new ByValue.c.y); // x,y inlined into ByValue, no extra memory load
-
-// Mixing Refs and Struct Values.  Basically, a ref can be converted
-// to a value by taking the "contents of" the ref, and values cannot
-// be *converted* to a ref, although they can be copied over a ref.
-ref. c =  val.c; // Error, mixing refs and values
-ref.*c =  val.c; // Allowed, whole structure copy.  Does not allocate, requires ref.c not-null
-val. c =  ref.c; // Error, mixing refs and values
-val. c = *ref.c; // Allowed, whole structure copy
-ref. c =  ref.c; // Allowed, pointer copy
-val. c =  val.c; // Allowed, whole structure copy.
-val *c =  val.c; // Error, cannot take "contents of" a value
-
-// Alternative syntax, to avoid the "contents of" being on LHS and field applying to being on RHS:
-ref.c = val.*c; // Assign into ref.c the "contents of" val.c
-
-// Arrays of inlined structures
-var ary = new *Complex[99]; // Array of 99 !Complex !objects, inlined
-
-// Calling methods has the same syntax
-ref.c.len();
-val.c.len();
-
-// Function arguments use the same typing, so can pass-by-value
-val math.sin = { *Complex c -> ... }; // Passes a complex by value
-math.sin(ref.*c); // Requires de-reference to pass by value
-math.sin(val. c); // Pass by value
-
-```
-
-
-
-## RoadMap for other chapters
-
-`&&` and `||`
-Drop `int` to `i32`.
-Drop `TypeMemPtr` to 4 bytes; using `mmap` to make heap in low 4G.
-Default parser for-loop construction, or partial peel.
-    `for( init; test; next ) body`
-becomes:
-```java
-{ init;       // Normal scope entry to bound lifetime of index variable
-if( !test ) { // Zero-trip count test
-    do {
-        body;
-        next;
-    } while( test ); // Exit test at loop bottom by default
-} };
-```
-
-## `&&` and `||` 
-
-The logical operators && (AND) and || (OR) are short-circuiting, meaning they may skip evaluating the second condition if the first one already determines the result:
-
-- `&&` stops if the first operand is false. 
-- `||` stops if the first operand is true.
-
-They are syntactic sugar—used for cleaner control flow—but they don't create new nodes in the execution model.
-
-The `&&` and `||` constructs are simple syntactic sugars that only modify the control flow and do not 
-introduce new nodes.
-
-Consider this example:
-```java
-int a = 1;
-int b = 0;
-
-if(a++ || b++ ) {
-    if(b == 0 && a == 2) {
-        sys.io.p("Or");
-    }
-} else{
-    sys.io.p("And");
-}
-return 0;
-```
-- `a++` evaluates to 1 (true), so `b++` is not evaluated.
-- As a result, `b` stays 0, `a` becomes 2, and "Or" is printed.
-
-```java
-int a = 1;
-int b = 1;
-
-int x=1;
-int y=1;
-int z=0;
-
-int g = x++ && y++ && z++;
-...
-```
-Here:
-- `x++` is true (1), so it evaluates `y++`, which is also true.
-- Then it evaluates `z++`, which is false (0).
-- Since `&&` requires all conditions to be true, the final result `g` is 0.
-- All operands up to the false one are evaluated, so `x`, `y`, and `z` are all incremented.
-
-## Class initialization and compiler follow-ups
-
-### Entry arguments
-
-Replace the integer initializer argument with an argument array. The selected
-entry class receives a non-null array, empty when there are no arguments;
-other class initializers receive null. Coordinate the parser, entry signature,
-runtime driver, and separately compiled interfaces.
-
-### Pre-initialize classes from ELF data
-
-Prove when a class's entire initialization can be represented by ELF static
-data and relocations, with no remaining runtime effects. Emit its initial
-contents and start its `$init` flag as true, so no initializer call is needed.
-Carry that fact through separate compilation so importing compilers can remove
-checks too. A constant field alone is not proof that the whole class can be
-pre-initialized; I/O, argument-dependent work, and other observable effects
-still require execution. Preserve any dynamic parent requirement, and do not
-let cyclic dependencies justify their own pre-initialization.
-
-Mutable fields may have static initial contents without becoming constants.
-Choose read-only storage only when no runtime writes remain. Static reference
-cycles can use relocations without requiring a dynamic initialization cycle.
-
-For a wholly immutable, pre-initialized class, eliminate the mutable `$init`
-state as well as the checks so the class image can reside in ROM. The native
-function thunks preserve static initialization of function fields.
-
-### Compact code and data arenas
-
-Keep four-byte Simple references into bounded code and data arenas; the arenas
-need not overlap or live near zero. Choose absolute addresses versus offsets
-from an arena base when implementing placement and indirect calls. Native
-function thunks can occupy the code arena while native libraries live elsewhere.
-The current thunk implementation uses the existing low-address executable;
-ordinary data pointers still occupy eight bytes.
-
-Give full-width native pointers separate types and foreign lifetime contracts.
-Opaque device addresses may need to be passed through without CPU dereference.
-Simple object lifetimes should be managed automatically without a GC;
-ownership, borrowing, cycles, and native retention still need design. Compact
-storage alone does not establish those rules. Preserve static class images and
-explicit native boundary conversions when choosing the arena representation.
+Find the earliest affected evaluator, reproduce the failure there, and carry
+the correction through affected snapshots. Check signed fields and floating
+rounding as well as unsigned bytes. Generated code must not be changed to
+match an incorrect evaluator.
+
+## Compilation and optimization
+
+### Reliable incremental builds
+
+`CompUnit` checks source and dependency-object timestamps when a unit is
+discovered. It can accept A's saved IR before discovering that B, whose body
+was inlined into A, needs rebuilding. An unchanged public signature does not
+make A current: optimization imports bodies and constants too.
+
+Discover the dependency graph and propagate rebuild decisions to a fixed
+point before accepting saved IR. Handle cycles together, bundled source units,
+missing inputs, and objects resolved through library search paths. Record
+compiler/serialization versions, target, ABI, and relevant options; content
+hashes can cover preserved timestamps. Distinguish rebuildable source from
+incompatible source-free libraries.
+
+An unchanged build should do no compilation or linking. Publish outputs only
+after successful compilation, and relink when an object or other link input
+changes. Start with a small build driver and conservative rebuilding of every
+dependent; finer interface/body fingerprints can follow. The
+[incremental-build design](../skills/incremental-builds.md) records the input
+ownership rules and validation cases.
+
+### Selective loading of library IR
+
+Importing `sys.io.p` currently loads all ten units bundled in `sys.o`.
+Independent, unrelated objects can remain unloaded, but selecting an object
+reconstructs all its saved IR and follows its recorded dependencies.
+
+Design member-level IR loading and dependency discovery together. Splitting
+objects alone is insufficient while reexports and unused function bodies
+still pull in their dependencies. Preserve type identity, initialization rules,
+and imported escape summaries. Loading, initializing, and emitting a class
+are separate decisions. This optimization is independent of making
+incremental rebuilding correct.
+
+### Deterministic inlining
+
+The current inliner has a bounded exception for small initializer boilerplate,
+but still uses parse-size estimates and worklist order. After shrinking
+rewrites converge, choose one growing inline using current body sizes and a
+deterministic ranking. Cache sizes per convergence round and use stable
+call-site provenance to break ties, rather than newly allocated node IDs.
+Avoid repeated whole-body scans and per-node dependencies while a large
+function gradually shrinks.
 
 ### CFG frequency estimates
 
@@ -525,9 +82,204 @@ bounded loop-trip estimates and branch probabilities when no profile is
 available. Keep estimates consistent with control flow and shared between
 scheduling and layout. These are backend estimates, not ideal-IR types.
 
+### Loop rotation
+
+Consider lowering `for` loops with a zero-trip entry test and a bottom-tested
+loop, or adding partial peeling. Preserve condition side effects, loop-local
+scope, and the destinations of `break` and `continue`. The current parser
+constructs a loop with its test at the head.
+
 ### Constant instance-field storage
 
 When a final instance field has the same constant value in every instance,
 fold accesses or store the value on the class object and omit the instance
 slot. Preserve field-access semantics and public function reachability:
 externally accessible function fields remain callable regardless of storage.
+Existing static images for class constants do not implement this general
+instance-layout optimization.
+
+## Language boundaries
+
+### Source privacy
+
+Underscores already select the public interface, but source access to another
+class's private fields is not rejected. The proposal is to enforce privacy
+starting in Chapter 28a, then preserve it across imports in 28b. This language
+change still needs review; it is not a correction to impose on earlier chapters.
+
+- A field or method beginning with `_` is accessible only from its declaring
+  class, including constructors and methods. Enclosing, nested, and sibling
+  classes gain no special access. Same-class code may access another instance.
+- A private class name is available in its declaring scope and inside the
+  class itself. Naming `App._Cache` must not grant access to `_Cache._data`.
+  Dotted lookup cannot bypass access rules, and private ancestors keep their
+  descendants out of the public interface. Distinguish naming a private class
+  from using a public value returned by a factory.
+- Reads, writes, updates, method references, type names, and class-value
+  references must follow the same rule. Preserve source owner and location
+  through unresolved receiver types, inlining, and imports. Folding away a
+  Load or an unused result must not erase an illegal source access.
+- Native declarations follow the same rules. Public wrappers may deliberately
+  expose private bindings; `sys` has no special exemption.
+
+The bundled `sys/io.smp` calls `libc._exit` directly. Keep that native binding
+private, add a public `exit` wrapper in `sys/libc.smp`, and change IO to call
+the wrapper. Bitset and array helpers access their own private fields and
+remain legal. String spill fixtures with helpers outside `_String` accessing
+`_hashCode` need explicit adaptation; do not grant file-wide access merely to
+keep those fixtures unchanged. Validate native execution and imported source
+ownership alongside the access diagnostics.
+
+### Constructor helpers and completion
+
+Local SSA field updates, including final fields, repeated assignments, and
+loops, are implemented. The remaining question is broader: should constructors
+be allowed to pass unfinished `self` to helpers that become safe after
+inlining, and should completion checks wait until SCCP?
+
+Decide those rules before changing the current parser-time completion checks
+and early-publication restrictions. Separate reading an initialized field of
+an unfinished object from exposing that object to arbitrary code. The
+construction/escape teaching boundary can then be reviewed against the chosen
+semantics.
+
+### ELF visibility and unknown callers
+
+Escape analysis tracks functions reachable by unknown callers, while the ELF
+writer exports retained named functions owned by the compilation unit. Decide
+which symbols should be public, local, or hidden across separate compilations.
+Keep source privacy, ownership for emission, and unknown-caller edges distinct;
+keeping a body for linking must not imply arbitrary callers can reach it.
+
+## Initialization and runtime
+
+### Entry arguments
+
+Replace the integer class-initializer argument with an argument array. The
+selected entry class receives a non-null array, empty when there are no
+arguments; other class initializers receive null. Coordinate the parser,
+entry signature, runtime driver, and separately compiled interfaces.
+
+The native runtime already adapts process arguments for an explicit
+`simple_main` function. That does not implement argument arrays for class
+initializers.
+
+### Pre-initialize classes from ELF data
+
+Prove when a class's entire initialization can be represented by static data
+and relocations, without remaining runtime effects. Emit those contents and
+start its `$init` flag as true. Carry that fact through separate compilation
+so importing compilers can remove checks too.
+
+Constant final fields already have static images; that alone does not prove
+the whole class can be pre-initialized. I/O and argument-dependent work still
+require execution. Preserve dynamic parent requirements, and do not let cyclic
+dependencies justify their own pre-initialization. Static reference cycles
+can use relocations without requiring a dynamic initialization cycle.
+
+Mutable fields may have static initial contents without becoming constants.
+For a wholly immutable, pre-initialized class, eliminate the mutable `$init`
+state as well as the checks so the class image can reside in ROM. Native
+function thunks already preserve static initialization of function fields.
+
+### Compact code and data arenas
+
+Use four-byte Simple references into bounded code and data arenas. The arenas
+need not overlap or live near zero; choose absolute addresses or offsets from
+an arena base when implementing placement and indirect calls. Native function
+thunks can occupy the code arena while native libraries live elsewhere.
+Currently function pointers occupy four bytes and use low-address thunks;
+ordinary data pointers still occupy eight bytes.
+
+Give full-width native pointers separate types and foreign lifetime contracts.
+Opaque device addresses may need to pass through without CPU dereference.
+Automatic Simple object lifetimes without a GC still need a design for
+ownership, borrowing, cycles, and native retention. Compact storage alone
+does not establish those rules. Preserve static class images and explicit
+native boundary conversions when choosing the representation.
+
+## Data and library proposals
+
+These are language-design alternatives. The sketches below are not executable
+examples of the current Simple grammar.
+
+### Structs with trailing arrays
+
+Allow named fields followed by an array length and inline element storage:
+
+```simple
+struct vecInt {
+    u32 size; // Used elements
+    u32 #;    // Capacity
+    int [];  // Trailing elements in the same allocation
+};
+```
+
+The final field would be named `[]`, with an unsigned length field `#`
+immediately before it. Element types could include references to the same
+struct. Current arrays have a fixed `u32` length and a special two-field
+layout; supporting arbitrary leading fields requires parser and layout work.
+
+Consider `u8`, `u16`, `u32`, or `u64` length fields to reduce small-array
+overhead. Arrays with different length representations would be distinct
+types, with explicit conversions and capacity checks. The spelling and
+alignment rules remain to be decided.
+
+Growing such an object requires a replacement allocation. An extra level of
+indirection, as in a growable-buffer wrapper, instead preserves the wrapper's
+identity. Specify ownership before treating a growing call as consuming or
+freeing its receiver.
+
+### Array initialization
+
+Allow an element-producing function at allocation, for example
+`new u8[buffer#, { u32 idx -> buffer[idx] }]`. This would support final arrays
+and fully initialized non-null reference arrays. Define when each element is
+evaluated and when the array can be published. Existing zero-filled array
+allocation does not provide this constructor operation.
+
+### String libraries
+
+Design a family of byte-based strings with UTF-8 decoding supplied by library
+functions. Consider these distinct representations and interfaces:
+
+- A growable string with inline bytes and cached metadata, returning a
+  potentially new receiver when capacity increases.
+- An immutable string constructed all at once, with defensive copying where
+  necessary. Read-only access alone does not establish exclusive ownership.
+- A StringBuilder-style wrapper holding a replaceable pointer to its buffer.
+- Unicode decoding and iteration over the byte representation, including
+  behavior at invalid character boundaries.
+- A C-compatible string with a trailing zero and directly available length.
+- A short string packed with its length into a machine word, passed by value.
+
+Keep mutable storage private by default and specify sharing, concatenation,
+capacity growth, and native I/O contracts. Existing `sys` byte-array and
+buffer helpers are a starting point, not this complete string design.
+
+### Struct values
+
+Allow a struct to be stored inline in another object, array, or argument list
+rather than always through a reference. A proposed `*Complex` or `inline`
+spelling would place both coordinates of `struct Complex { f64 x,y; };`
+directly in the containing value.
+
+Define whole-value copying, reference-to-value conversion, and assignment
+through an existing reference. A value must not silently become a reference
+or expose an interior address with an invalid lifetime. Decide how consuming
+an enclosing object's lifetime could permit such an address. Keep method
+syntax uniform and define the calling convention for by-value arguments.
+
+### Default integer width
+
+Consider making `int` mean `i32` instead of the current `i64`. This changes
+overflow behavior, layouts, APIs, and native interfaces, so it needs a language
+decision and a deliberate compatibility boundary.
+
+### Parser Cleanup
+
+Get the Parsers' structure closer to an ideal R-D parser, and matching the
+grammer doc.  Move TYPES to CodeGen, and generally restructure for readability.
+Ponder using try-w-resources to do the keep/unkeep pairing (do NOT do any
+allocation in the `try`, just bring up an object w/auto-closable which tracks
+the unkeeps) - see if that looks any cleaner.
