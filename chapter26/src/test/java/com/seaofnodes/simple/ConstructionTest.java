@@ -7,6 +7,23 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ConstructionTest {
+    @Test public void testConditionalConstructorLoop() {
+        String[] bodies = {
+            "while(n--) if(n) x=1;",
+            "for(int i=0;i<n;i++) { if(i==1) continue; if(i==3) break; x+=i+1; }"
+        };
+        int[][] expected = {{0,0,1,1,1,1}, {0,1,1,4,4,4}};
+        for( int i=0; i<bodies.length; i++ )
+            for( long seed : new long[]{123,456,789} ) {
+                String src = "struct C { int x; new C={int n -> "+bodies[i]+"}; }; return new C(arg).x;";
+                var code = new CodeGen(src,com.seaofnodes.simple.type.TypeInteger.BOT,seed,true)
+                    .driver(CodeGen.Phase.TypeCheck);
+                for( int arg=0; arg<expected[i].length; arg++ )
+                    assertEquals("case="+i+" seed="+seed+" arg="+arg,
+                        Integer.toString(expected[i][arg]),Eval2.eval(code,arg));
+            }
+    }
+
     private static final String CONSTRUCT = """
         struct Box {
             int x=7;

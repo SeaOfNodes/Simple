@@ -57,6 +57,14 @@ expectations remain unchanged. No allocator goldens were updated.
 
 ## Implemented, with narrower limits than earlier prose suggested
 
+The constructor-loop assertion is fixed in Chapters 25–27. Load forwarding now
+waits for a stored loop Phi to acquire a type at least as precise as the Load,
+and records a dependency to retry. The reduced case needs only a conditional
+assignment in a loop; break/continue and final fields are not required.
+Regressions cover the reduced case and the original constructor loop across
+worklist seeds and execution inputs. Chapters 28a/28b already had the guard;
+the corresponding earlier-chapter probes pass in 23/24a/24b.
+
 - Separate compilation imports types and optimized IR without source parsing;
   it reruns analysis and type checking with the new callers.
 - Loading is by object and recorded dependencies, not individual used members.
@@ -76,8 +84,6 @@ expectations remain unchanged. No allocator goldens were updated.
 - The ideal evaluator does not truncate narrow stores in Chapter 23. A byte
   update can therefore disagree with generated code; the postfix-only
   reproducer is retained in the [queue](chapter-backports.md).
-- A constructor loop with both break and continue still reproduces a worklist
-  assertion in Chapter 26. It is not caused by final-field mutability.
 - `testModule0` is an ignored historical incremental-build experiment. It
   assumes per-source output objects and unchanged explicit-input builds, neither
   of which matches the present compiler's contract.

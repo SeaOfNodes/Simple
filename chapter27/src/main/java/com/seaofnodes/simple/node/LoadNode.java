@@ -208,7 +208,12 @@ public class LoadNode extends MemOpNode {
                 // skipping it can make a compound assignment read the old value.
                 if( st._alias==1 ) return null;
                 addDep(st.ptr());
-                if( _alias==st._alias && ptr==address(st.ptr()) && off()==st.off() ) return st;
+                if( _alias==st._alias && ptr==address(st.ptr()) && off()==st.off() ) {
+                    // A full-width load cannot narrow the forwarded value.
+                    if( _declaredType instanceof TypeInteger ti && ti.log_size()==3 &&
+                        !addDep(st.val())._type.isa(_type) ) return null;
+                    return st;
+                }
                 if( _alias==st._alias && !neverAlias(ptr,address(st.ptr())) &&
                     !addDep(off())._type.join(addDep(st.off())._type).isHigh() ) return null;
                 mem=st.mem();
@@ -313,8 +318,15 @@ public class LoadNode extends MemOpNode {
         // Signed extension
         int shift = Long.numberOfLeadingZeros(ti._max)-1;
         Node shf = con(shift);
-        if( shf._type==TypeInteger.ZERO )
+        if( shf._type==TypeInteger.ZERO ) {
+            // A constructor's loop Phi may still have an unsettled type.
+            // Wait for it instead of weakening the typed Load's users.
+            if( !val._type.isa(_type) ) {
+                addDep(val);
+                return null;
+            }
             return val;
+        }
         Node shl = new ShlNode(null,val,shf.keep()).peephole();
         return new SarNode(null,shl,shf.unkeep());
     }

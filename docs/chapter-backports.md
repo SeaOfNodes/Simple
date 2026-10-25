@@ -132,30 +132,6 @@ Establish the first affected evaluator and check signed fields and floating
 rounding before propagating a fix. Do not change valid generated code to match
 an incorrect ideal evaluator.
 
-### Constructor loop with break/continue: worklist assertion
-
-This fails in construction and in the unchanged escape compiler before the
-final-field fix, even with a mutable field:
-
-```simple
-struct C {
-    int x=0;
-    new C={int n ->
-        for(int i=0;i<n;i++) {
-            if(i==1) continue;
-            if(i==3) break;
-            x+=i+1;
-        }
-    };
-};
-return new C(arg).x;
-```
-
-`IterPeeps.progressOnList` asserts during Iter with seed 123. The expected value
-for arg 3 is 4. This is independent of final-field mutability; retain the
-reproducer while reviewing constructor coverage. Scratch probe:
-`build/readme-review/mutable_break.smp`.
-
 ### SCCP function revival: Chapter 24
 
 `Opto.linkCG` uses `code.link(fidx)`, which clears a linker entry when its

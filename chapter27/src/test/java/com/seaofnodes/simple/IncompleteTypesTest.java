@@ -6,6 +6,19 @@ import com.seaofnodes.simple.type.TypeInteger;
 import static org.junit.Assert.assertEquals;
 
 public class IncompleteTypesTest {
+    @Test public void testLoadFromUnsettledLoopPhi() {
+        String src = """
+            struct C { int x; };
+            val f={int n -> return new C { while(n--) if(n) x=1; }; };
+            return f(arg).x;
+            """;
+        for( long seed : new long[]{123,456,789} ) {
+            var code = new CodeGen(src,TypeInteger.BOT,seed,true).driver(CodeGen.Phase.TypeCheck);
+            for( int arg=0; arg<6; arg++ )
+                assertEquals("seed="+seed+" arg="+arg,arg<2 ? "0" : "1",Eval2.eval(code,arg));
+        }
+    }
+
     @Test public void testForwardFieldAndNumericMode() {
         // At the addition, neither the field's type nor its offset is known.
         String src = """
