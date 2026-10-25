@@ -258,12 +258,10 @@ public abstract class ParseAll {
     }
 
     private static File depObj(CodeGen code, CompUnit cunit, String fname) {
-        if( cunit._smp != null )
-            return null;
-        ElfReader elf = code.findExternalSimple(Parser.addClzPrefix(fname.replace('/','.')));
-        if( elf == null )
-            throw new RuntimeException("Cannot find external Simple dependency '"+fname+"'");
-        return elf._file;
+        File obj = CompUnit.dependencyObj(fname,cunit._smp!=null);
+        if( obj == null )
+            throw new RuntimeException("Cannot find Simple dependency '"+fname+"'");
+        return cunit._smp!=null && obj.equals(new File(code._buildDir+"/"+fname+".o")) ? null : obj;
     }
 
     private static File externalObj(CodeGen code, CompUnit par, String name) {

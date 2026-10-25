@@ -116,10 +116,18 @@ normal inlining heuristics.  The combined graph goes through the normal
 compilation phases, including peepholes, Opto and TypeCheck.
 
 Dependencies between `CompUnit`s are recorded.  An explicitly requested source
-file is always compiled.  Other source files are recompiled if their object is
-missing, their source is newer, or a recorded dependency's object in the build
-directory is newer.  These timestamp checks are not yet a complete incremental
-build system, there is some modest future work needed to finish this.
+file is always compiled.  Before reusing another local object, `CompUnit` walks
+its recorded dependencies and checks every source bundled into each local
+object.  A missing input or a newer source or dependency object forces parsing
+again, before saved types or IR are imported.  This includes transitive
+dependencies: if A has inlined B, editing B's source invalidates A even while
+B's object is unchanged.  A visited set lets this check follow cycles.
+
+Library dependencies use the same search paths for checking and loading.
+Object-only libraries must be supplied as a coherent build; timestamps alone
+cannot establish their compatibility.  These checks are not a complete build
+driver: explicit requests still compile, and input hashes, compiler/ABI
+versions, and automatic relinking remain future work.
 
 Loading currently works at the object granularity.  Unrelated objects can stay
 unloaded, but selecting an object loads its entire saved graph and follows its
@@ -163,6 +171,9 @@ constructors, initialization cycles across objects, shared static data, native
 function thunks, and native library/client execution. Make also builds the
 modular `sys` object used by the library tests. Clients can import that object
 with `-L`; they do not need to parse the standard library's source again.
+`IncrementalBuildTest` checks reuse, transitive edits, bundled cycles, missing
+inputs, and changed library objects using controlled timestamps. It also
+compares native execution after an edit with a clean build.
 `make release` builds the launcher jar and standard library; `make view`
 starts the shared graph viewer.
 

@@ -34,17 +34,17 @@ signed and unsigned fields and compare ideal evaluation with generated code.
 
 ### Reliable incremental builds
 
-`CompUnit` checks source and dependency-object timestamps when a unit is
-discovered. It can accept A's saved IR before discovering that B, whose body
-was inlined into A, needs rebuilding. An unchanged public signature does not
-make A current: optimization imports bodies and constants too.
+Chapter 28b now checks the reachable source-backed inputs before reusing saved
+IR, including transitive dependencies, bundled sources, and missing inputs.
+The remaining work is a build driver with recorded input identities, beyond
+those conservative timestamp checks. An unchanged public signature does not
+establish compatibility: optimization imports bodies and constants too.
 
-Discover the dependency graph and propagate rebuild decisions to a fixed
-point before accepting saved IR. Handle cycles together, bundled source units,
-missing inputs, and objects resolved through library search paths. Record
-compiler/serialization versions, target, ABI, and relevant options; content
-hashes can cover preserved timestamps. Distinguish rebuildable source from
-incompatible source-free libraries.
+Record the actual resolved input paths and versions, compiler/serialization
+versions, target, ABI, and relevant options. Content hashes can cover preserved
+timestamps and changed library search paths. Distinguish rebuildable source
+from incompatible source-free libraries; their installation timestamps alone
+cannot validate a set of objects compiled against one another.
 
 An unchanged build should do no compilation or linking. Publish outputs only
 after successful compilation, and relink when an object or other link input

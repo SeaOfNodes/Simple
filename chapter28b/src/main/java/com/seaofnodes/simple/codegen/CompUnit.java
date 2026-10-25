@@ -60,7 +60,7 @@ public class CompUnit {
             ( fname.equals(CODE._srcName) ||   // Explicit input is a compilation request
               !_obj.exists() ||                // No object file
               _smp.lastModified() > _obj.lastModified() || // Out-of-date with source?
-              checkDependentObjs() );                      // Out-of-date with other objs?
+              !current(_obj,new HashSet<>()) ); // Out-of-date anywhere in its inputs?
         _src  = mustCompile ? new String(Files.readAllBytes(_smp.toPath())) : null;
     }
 
@@ -101,16 +101,42 @@ public class CompUnit {
         _src  = null;
     }
 
-    // Return true if _obj is out-of-date relative to dependents.
-    private boolean checkDependentObjs() {
-        ElfReader elf = CODE.getElf(_obj);
+    // Check source-backed inputs before importing any saved types or IR.
+    // A dependency's source can be newer while its object is unchanged.
+    // Use a fresh visited set for each root: encountering a cycle is safe, but
+    // caching a provisional "current" answer from inside it would not be.
+    private static boolean current(File obj, HashSet<File> visit) {
+        if( obj==null || !obj.isFile() ) return false;
+        if( !visit.add(obj.getAbsoluteFile()) ) return true;
+        ElfReader elf = CODE.getElf(obj);
+        if( elf==null ) return false;
         elf.loadPublicSymbols();
-        for( String dep : elf._deps ) {
-            File obj = new File(CODE._buildDir+"/"+dep+".o");
-            if( obj.lastModified() > _obj.lastModified() ) // Out-of-date with deps?
-                return true;
+        if( elf._units==null ) return false;
+        long time = obj.lastModified();
+        for( String unit : elf._units ) {
+            // Never import another copy of a unit explicitly being compiled.
+            CompUnit cu = CODE._compunits.get(unit);
+            if( unit.equals(CODE._srcName) || (cu!=null && cu._src!=null) ) return false;
+            File src = new File(CODE._modDir+"/"+unit+".smp");
+            if( !src.isFile() || src.lastModified()>time ) return false;
         }
-        return false;
+        for( String dep : elf._deps ) {
+            if( Arrays.asList(elf._units).contains(dep) ) continue; // Owned by this object.
+            File file = dependencyObj(dep,true);
+            if( file==null || !file.isFile() || file.lastModified()>time ) return false;
+            // Object-only libraries are supplied as a coherent build. Their
+            // input versions cannot be inferred from installation timestamps.
+            if( file.equals(new File(CODE._buildDir+"/"+dep+".o")) && !current(file,visit) ) return false;
+        }
+        return true;
+    }
+
+    // Resolve dependencies the same way for freshness checks and actual loads.
+    static File dependencyObj(String fname, boolean local) {
+        File obj = new File(CODE._buildDir+"/"+fname+".o");
+        if( local && (obj.isFile() || new File(CODE._modDir+"/"+fname+".smp").isFile()) ) return obj;
+        ElfReader elf = CODE.findExternalSimple(Parser.addClzPrefix(fname.replace('/','.')));
+        return elf==null ? null : elf._file;
     }
 
     // Add a discovered dependency, for later writing out in an ELF file, ".simple" section

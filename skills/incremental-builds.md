@@ -1,35 +1,47 @@
-# Incremental builds: future work
+# Incremental builds
 
-Recorded after the Separate Compilation README review, 2026-10-24. This is a
-design outline, not a description of implemented incremental builds.
+Implementation notes and remaining build-driver work, reviewed 2026-10-25.
 
-## Current gap
+## Current reuse check
 
-`CompUnit` decides whether to reuse an object when the unit is discovered. It
-checks its source timestamp and its dependencies' existing object timestamps.
-It does not settle the whole dependency graph before accepting saved IR.
+Chapter 28b's `CompUnit` decides whether to reuse a local object by walking its
+recorded dependencies before loading saved types or IR. It checks all sources
+owned by each local object, missing inputs, and dependency object timestamps.
+Dependencies use the same local/library resolution for checking and loading.
 
 For example:
 
 1. A depends on B and has inlined some of B.
 2. B's source changes, leaving B's object unchanged.
-3. A client discovers A. A's check sees the old B object and accepts A's object.
-4. Later discovery notices that B needs rebuilding, without reconsidering A.
+3. A client discovers A. The check follows A's recorded dependency to B and
+   finds B's newer source, even though B's object has not changed.
+4. A is reparsed, so its saved inlined copy of B is never accepted.
 
-The compiler can therefore reuse code based on stale bodies or constants.
+Use a fresh visited set for each candidate object. Cycles terminate safely,
+but a provisional success inside a cycle must not be cached for another root.
+Dependencies owned by the same object are checked through its bundled sources.
 An unchanged public signature is insufficient: Simple imports implementation
 details for optimization as well as declarations for type checking.
 
+Object-only libraries are still supplied as a coherent build. Do not reject
+them merely because one dependency has a newer installation timestamp: existing
+tests compile cyclic libraries against stubs and then combine their real
+objects. Validating those combinations requires saved input versions, not a
+guess from file times. A newer library object does invalidate a source-backed
+local dependent that can be rebuilt.
+
+`IncrementalBuildTest` covers unchanged reuse, transitive source edits, bundled
+cycles, missing inputs, library dependencies, and clean/incremental native
+execution parity. It sets file times directly, without sleeps.
+
 ## Required pieces
 
-- Discover dependencies, mark changed units, and propagate that decision to
-  dependents until it settles. Handle cycles as groups. Do this before loading
-  IR that may be stale; newly discovered dependencies must also join the plan.
-- Record actual inputs. An object can own several source units, so track all
-  of their sources and the objects resolved through library search paths.
-  The current check assumes `buildDir/name.o`; a missing file has timestamp
-  zero and does not trigger rebuilding. Missing inputs must invalidate or
-  produce a useful error rather than silently accepting an old result.
+- Plan object targets and rebuilds across invocations. Handle cycles as groups
+  and newly discovered dependencies. The compiler's per-object reuse check is
+  not a complete scheduling or linking policy.
+- Record actual input identities. An object can own several source units, so
+  track all of their sources and resolved library paths and versions. A search
+  path change can select a different library even with an older timestamp.
 - Record compiler and serialization versions, target, ABI, and relevant
   options. Content hashes would also detect changes with preserved timestamps.
   Specify which changes require rebuilding source and which reject an
