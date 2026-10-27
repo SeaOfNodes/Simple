@@ -305,9 +305,18 @@ public class Parser {
             }
         }
 
-        // The initializer owns its run-once flag store. Parent initialization
-        // is a structural requirement, executed before this body by CLInit lowering.
+        // Each initializer establishes its parent before setting its own
+        // run-once flag. Keep this in the body so every execution strategy
+        // shares the same ordering, including direct entry into a child.
         if( fun.isClz() ) {
+            if( _ref._par!=null ) {
+                String pname = addClzPrefix(_ref._par._cname);
+                TypeStruct parent = (TypeStruct)TYPES.get(pname);
+                if( parent==null ) parent=TypeStruct.make(pname,true);
+                Node ptr = con(TypeMemPtr.make((byte)2,parent,true)).keep();
+                classInit(loc,ptr);
+                ptr.unkeep();
+            }
             Node self = fun.parm(2);
             Field flag = ((TypeMemPtr)self._type)._obj.field("$init");
             Node prior = mem().keep();
