@@ -12,14 +12,14 @@ import java.util.*;
 
 // Build the inits-graph, a call-graph plus CLInits plus class parents.
 
-// (1) Scan all functions f, building _edges[f][]: the set of <cinit> fcns from
-// CompUnits from CLInitNodes, and the set of fcn call targets in f and the
-// class parent.  These are all reported as fidxs (ints).
+// (1) Scan all functions f, building _edges[f][]: the set of <clinit> fcns
+// from CompUnits from CLInitNodes, and the set of fcn call targets in f and
+// the class parent.  These are all reported as fidxs (ints).
 //
-// (2) Walk the _edges graph using Tarjans SCC. Reject cycles containing more
+// (2) Walk the _edges graph using Tarjans SCC.  Reject cycles containing more
 // than one <clinit>.
 //
-// (3) Report on <clinit> cycles
+// (3) Report on <clinit> cycles, if any
 //
 public class ClassInitDependencies {
     private final CodeGen _code;
@@ -56,12 +56,14 @@ public class ClassInitDependencies {
     // Return the outgoing init edge set for this function
     private static int[] walk( CodeGen code, FunNode fun, Ary<CFGNode> work, IntHashMap iset, BitSet visit,
                               Ary<Parser.Lexer> sites) {
+        if( fun.summary()!=null ) return fun.summary()._classDependencyFIDXs;
         // Walk function body, looking for outgoing init edges
         assert iset .isEmpty(); // int hash set for de-dup
         assert visit.isEmpty(); // needs a visit set, because loops
         assert work .isEmpty(); // needs a worklist, because DAG, parallel explore paths
 
-        // Children classes always dependent on parents
+        // Keep the structural parent prerequisite even if a known-true flag
+        // folds the check in the child's body. Cycles still require diagnosis.
         if( fun.isClz() && fun._compunit._par != null )
             iset.put(code.link(fun._compunit._par).sig().fidx(),1);
 
@@ -121,6 +123,16 @@ public class ClassInitDependencies {
                 (idx = scc(fidx)) != -1 ) // And found a cycle
                 return report(idx);       // Report cycle
         return null;
+    }
+
+    // A condition-producing helper outside the SCC can eliminate a cycle.
+    // Before reporting one, restore the full-IR precision of the original check.
+    Ary<CompUnit> cycleImports() {
+        Ary<CompUnit> units = new Ary<>(CompUnit.class);
+        if( check()==null ) return units;
+        for( FunNode fun : _code._linker )
+            if( fun!=null && fun.summary()!=null && units.find(fun._compunit)==-1 ) units.add(fun._compunit);
+        return units;
     }
 
     // Every internal edge of an SCC belongs to a cycle. Print all of them:

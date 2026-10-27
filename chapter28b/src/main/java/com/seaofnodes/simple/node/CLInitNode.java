@@ -115,24 +115,8 @@ public class CLInitNode extends CFGNode implements MultiNode {
         Node ctrl = in(0);
         Node memory = mem();
 
-        // A child body may assume its parent has finished. Establish that
-        // requirement first, then test the child's flag in the resulting memory.
-        CompUnit parent = cu()._par;
-        if( parent!=null ) {
-            Node ptr = CodeGen.CODE.con(TypeMemPtr.make((byte)2,parent._clz,true));
-            Field flag = parent._clz.field("$init");
-            Node off = CodeGen.CODE.con(parent._clz.offset(parent._clz.find("$init")));
-            Node parentReady = CodeGen.CODE.add(new LoadNode(_loc,"$init",flag._alias,ctrl,memory,ptr,off).init());
-            CLInitNode init = CodeGen.CODE.add(new CLInitNode(_loc,ctrl,memory,ptr,parentReady).init());
-            ctrl = CodeGen.CODE.add(new CProjNode(init,0,ScopeNode.CTRL).init());
-            memory = CodeGen.CODE.add(new ProjNode(init,1,ScopeNode.MEM0).init());
-        }
-
-        Node childOff = CodeGen.CODE.con(cu()._clz.offset(cu()._clz.find("$init")));
-        // Read the child's flag after establishing its parent's memory effects.
-        Node ready = CodeGen.CODE.add(new LoadNode(_loc,"$init",flag()._alias,ctrl,memory,ptr(),childOff).init());
-
-        IfNode iff = CodeGen.CODE.add(new IfNode(ctrl,ready).init());
+        // The callee establishes its parent before setting its own flag.
+        IfNode iff = CodeGen.CODE.add(new IfNode(ctrl,ready()).init());
         Node done = CodeGen.CODE.add(new CProjNode(iff,0,"True").init());
         Node cold = CodeGen.CODE.add(new CProjNode(iff,1,"False").init());
 

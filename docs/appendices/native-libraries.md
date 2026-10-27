@@ -13,15 +13,18 @@ make lib release
 ```
 
 Make builds `build/release/Simple.jar` and, under the selected CPU/ABI directory,
-`sys.o` and `simple_crt.o`. The default CPU is x86-64; the default calling
+`sys.o`, the child objects under `sys/`, and `simple_crt.o`. The default CPU is x86-64; the default calling
 convention is win64 on Windows and SystemV elsewhere. Rebuild serialized
 objects after changing the compiler or object format.
 
 `src/main/smp/sys.smp` exposes child units for native libc bindings, I/O,
 characters, scanners, arrays, growable buffers, and bitsets. These compile into
-one `sys.o`. Clients import its declarations and ideal IR and link calls that
-remain out of line. Currently selecting that object loads all its saved IR;
-member-selective loading and reliable incremental rebuilding remain future work.
+one object per compilation unit. Clients read declarations and function
+summaries first, then request an object's IR when considering inlining.
+Native linking follows recorded object dependencies even when the optimizer
+never loads their bodies. Install the complete object tree alongside `sys.o`;
+there is no runtime object loading. Function-level IR loading within an object
+and a complete incremental build driver remain future work.
 
 The `simple.sh`, `simple.ps1`, and `simple.bat` launchers set `SIMPLE_HOME` so
 the compiler can find the release library. The CLI accepts `-L` for additional

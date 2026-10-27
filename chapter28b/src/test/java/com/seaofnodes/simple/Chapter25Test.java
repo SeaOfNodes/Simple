@@ -198,7 +198,8 @@ public class Chapter25Test {
             new CodeGen(root.toString(),root.toString(),imported ? paths : null,"Main",src,126,true,TypeInteger.BOT)
                 .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
             assertEquals("",TestC.gcc(root+"/Main.o","",TestC.C_DRIVERS_DIR+"extern_data_import.c",
-                (String)null,new Ary<>(new String[]{dir+"/Globals.o"}),root+"/program"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
+                (String)null,new Ary<>(new String[]{imported ? dir+"/Globals.o" : root+"/Main/Globals.o"}),
+                root+"/program"+(TestC.OS.startsWith("Windows") ? ".exe" : "")));
         }
     }
 
@@ -389,8 +390,9 @@ public class Chapter25Test {
         // Elf files are sane
 
         // Sys depends on io, libc, char, collections, and array utilities.
-        assertArrayEquals(new String[]{"sys", "sys/adt", "sys/adt/bitset", "sys/ary",
+        assertArrayEquals(new String[]{"sys/adt", "sys/ary",
             "sys/aryi64", "sys/aryu8", "sys/char", "sys/io", "sys/libc", "sys/scan"},sys_elf._deps);
+        assertArrayEquals(new String[]{"sys"},sys_elf._units);
         assertSame("class:sys" ,sys_elf._clz._name);
     }
 
@@ -422,7 +424,7 @@ public class Chapter25Test {
         PrintStream saved = System.out;
         try( PrintStream capture = new PrintStream(output,true,StandardCharsets.UTF_8) ) {
             System.setOut(capture);
-            Simple.main(new String[]{"-L",SYS_FILE.toString(),"-o","build/objs/helloWorldDriverLibFile/",
+            Simple.main(new String[]{"-L",SYS_BLDDIR,"-o","build/objs/helloWorldDriverLibFile/",
                                     "src/test/smp/examples/A_helloWorld.smp"});
         } finally {
             System.setOut(saved);
@@ -444,8 +446,7 @@ public class Chapter25Test {
         String syms = TestC.exec(TestC.TEST_TIMEOUT_SECONDS,"nm",obj);
         assertTrue(syms, syms.contains(" U sys.io.p_noInline"));
 
-        TestC.linkExe(obj,null,null,new Ary<>(new String[]{SYS_FILE.toString()}),exe);
-        String rez = TestC.exec(TestC.TEST_TIMEOUT_SECONDS,exe);
+        String rez = TestC.gcc(code,null,null,null,exe);
         assertEquals(expected,rez);
     }
 

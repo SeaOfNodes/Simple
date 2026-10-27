@@ -45,7 +45,7 @@ public class LoopNode extends RegionNode {
             x = x.idom();
         }
         // Found a no-exit loop.  Insert an exit
-        NeverNode iff = (NeverNode)new NeverNode(1.2f,back()).peephole(); // Ideal never-branch
+        NeverNode iff = new NeverNode(1.2f,back()).init(); // Ideal never-branch
         CProjNode t = new CProjNode(iff,0,"True" ).init();
         CProjNode f = new CProjNode(iff,1,"False").init();
         setDef(2,t);            // True continues loop, False (never) exits loop
@@ -55,7 +55,10 @@ public class LoopNode extends RegionNode {
 
         // Now fold control into the exit.  Might have 1 valid exit, or an
         // XCtrl or a bunch of prior NeverNode exits.
-        Node top = ConstantNode.make(Type.TOP).peephole();
+        // Scheduling can prepare a newly loaded object while other code is
+        // executing. Keep synthetic nodes local; do not GVN into that graph.
+        Node top = ConstantNode.raw(Type.TOP);
+        top.setDef(0,fun);
         Node memout = new MemMergeNode();
         memout.addDef(f); // placeholder for control
         memout.addDef(top);

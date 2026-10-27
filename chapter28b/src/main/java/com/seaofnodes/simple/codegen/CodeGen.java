@@ -259,6 +259,7 @@ public class CodeGen {
 
     // The Generic driver
     public CodeGen driver( Phase target, String cpu, String callingConv, boolean inMemory, boolean emitEntrySymbol, int dump ) {
+        _splitObjects = target.ordinal()>=Phase.Export.ordinal() && !inMemory;
         // Parse a Simple file, and for mentioned external symbols either load
         // from .o or recursively parse
         step(target, Phase.Parse,        this::parse,        dump);
@@ -272,6 +273,8 @@ public class CodeGen {
         step(target, Phase.FinalizeIR,   this::finalizeIR,   dump);
         // Final error check - bad programs fail here
         step(target, Phase.TypeCheck,    this::typeCheck,    dump);
+        if( cpu==null && target.ordinal()>=Phase.Lower.ordinal() && _phase.ordinal()<Phase.Lower.ordinal() )
+            loadAllIR(); // Ideal evaluation needs code for calls left out of line.
         // Save reloadable ideal IR for a later seperate compilation
         step(target, Phase.Serialize, () -> Serialize.forTarget(this,target,inMemory), dump);
         // Replace "fat" nodes with their exploded explicit IR; this can
@@ -456,9 +459,12 @@ public class CodeGen {
         return externFunc(fidx);
     }
 
-    public boolean owns(FunNode fun) {
-        return fun._compunit != null && fun._compunit._src != null;
-    }
+    // Select which source CompUnit's object this encoding pass emits.
+    CompUnit _emitUnit;
+    boolean emits(CompUnit cu) { return cu!=null && cu._src!=null && (_emitUnit==null || _emitUnit==cu); }
+    boolean emits(FunNode fun) { return emits(fun._compunit); }
+    private boolean _splitObjects;
+    final LinkedHashMap<CompUnit,Encoding> _encodings = new LinkedHashMap<>();
 
 
     // ---------------------------
@@ -490,6 +496,82 @@ public class CodeGen {
     public CodeGen opto() { return phase(Phase.Opto, _phase==Phase.Iter, () -> Opto.opto(this)); }
 
     public CodeGen iterPostOpto() { return phase(Phase.IterPostOpto, _phase==Phase.Opto, () -> _iter.iterate(this)); }
+
+    // Materialize a requested inline candidate at an empty worklist, then
+    // reanalyze before CallEnd decides whether the real body should inline.
+    public void loadForInline(CompUnit cu) {
+        assert _phase==Phase.IterPostOpto && _iter._work.isEmpty();
+        ParseAll.loadCompUnit(this,cu);
+        analyzeImports();
+    }
+
+    private void analyzeImports() {
+        Phase prior = _phase;
+        try {
+            _phase=Phase.Iter;
+            // Newly loaded calls can revive previously uncalled summaries.
+            // Restore their pessimistic inputs before solving; SCCP removes
+            // the unknown-caller edges again once all calls are available.
+            for( FunNode fun : _linker )
+                if( fun!=null && fun.summary()!=null ) {
+                    Opto.linkStart(this,fun);
+                    for( Node use : fun._outputs )
+                        if( use instanceof ParmNode parm ) parm._type=parm._declaredType;
+                }
+            for( CompUnit cu : _compunits.values() ) {
+                ProjNode mem = cu._start.proj(1);
+                if( mem!=null && mem.iskeep() ) mem.unkeep();
+            }
+            Iter.run(this);
+            _phase=Phase.Opto;
+            Opto.opto(this);
+        } finally { _phase=prior; }
+    }
+
+    // Evaluation needs implementations even for calls left out of line.  E.g.,
+    // this code is being run by the evaluator, and so doesn't get a link step.
+    // If, instead, the code was going to run natively, it would first go
+    // through a link step which would resolve all these call sites to code
+    // generated in other object files.  Since no link step, we need acess to
+    // that other code right now.
+    public void loadAllIR() {
+        boolean loaded = false;
+        for( CompUnit cu : _compunits.values() ) {
+            if( cu._src!=null || cu._obj==null ) continue;
+            ElfReader elf = getElf(cu._obj);
+            if( elf._nodes!=null ) continue;
+            ParseAll.loadCompUnit(this,cu);
+            loaded=true;
+        }
+        if( !loaded ) return;
+        analyzeImports();
+        if( _phase.ordinal()<Phase.FinalizeIR.ordinal() ) return;
+        Phase prior = _phase;
+        try {
+            _phase=Phase.IterPostOpto;
+            _iter.iterate(this);
+            _phase=Phase.FinalizeIR;
+            FinalizeIR.run(this);
+            _phase=Phase.TypeCheck;
+            TypeCheck.run(this);
+        } finally { _phase=prior; }
+    }
+
+    void resolveInitCycles() {
+        while( true ) {
+            Ary<CompUnit> units = new ClassInitDependencies(this).cycleImports();
+            if( units.isEmpty() ) return;
+            for( CompUnit cu : units ) ParseAll.loadCompUnit(this,cu);
+            analyzeImports();
+            Phase prior = _phase;
+            try {
+                _phase=Phase.IterPostOpto;
+                _iter.iterate(this);
+                _phase=Phase.FinalizeIR;
+                FinalizeIR.run(this);
+            } finally { _phase=prior; }
+        }
+    }
 
     public CodeGen finalizeIR() { return phase(Phase.FinalizeIR, _phase==Phase.IterPostOpto, () -> FinalizeIR.run(this)); }
 
@@ -529,6 +611,7 @@ public class CodeGen {
 
     // ---------------------------
     public BAOS _serial;
+    final LinkedHashMap<CompUnit,BAOS> _serials = new LinkedHashMap<>();
     public void serialize() {
         phase(Phase.Serialize, _phase==Phase.TypeCheck, () -> Serialize.serialize(this));
     }
@@ -576,6 +659,13 @@ public class CodeGen {
         return phase(Phase.Schedule, (_phase==Phase.Unlink || _phase==Phase.Select), () -> GlobalCodeMotion.buildCFG(this));
     }
 
+    // Evaluation branches from checked ideal IR directly to scheduling.
+    // CLInit remains an executable ideal operation; no Lower or Select pass.
+    public CodeGen scheduleForEval() {
+        return phase(Phase.Schedule, (_phase==Phase.TypeCheck || _phase==Phase.Serialize),
+                     () -> _cfg=GlobalCodeMotion.forEval(this,_start,_stop));
+    }
+
     // ---------------------------
     // Local (basic block) scheduler phase, a classic list scheduler
     public CodeGen localSched() { return phase(Phase.LocalSched, _phase==Phase.Schedule, () -> ListScheduler.sched(this)); }
@@ -604,7 +694,17 @@ public class CodeGen {
     // ---------------------------
     // Encoding
     public Encoding _encoding;
-    public CodeGen encode() { return phase(Phase.Encoding, _phase==Phase.RegAlloc, () -> _encoding = new Encoding(this).encode()); }
+    public CodeGen encode() { return phase(Phase.Encoding, _phase==Phase.RegAlloc, () -> {
+        if( !_splitObjects ) { _encoding = new Encoding(this).encode(); return; }
+        try {
+            for( CompUnit cu : _serials.keySet() ) {
+                _emitUnit = cu;
+                Encoding enc = new Encoding(this).encode();
+                _encodings.put(cu,enc);
+                if( cu._fname.equals(_srcName) ) _encoding = enc;
+            }
+        } finally { _emitUnit = null; }
+    }); }
 
     // ---------------------------
     // Exporting to external formats
@@ -612,7 +712,31 @@ public class CodeGen {
     public CodeGen exportELF( boolean inMemory, boolean emitEntrySymbol ) {
         return phase(Phase.Export, _phase==Phase.Encoding, () -> {
             if( inMemory ) new LinkMem(this).link(_encoding);
-            else           _elf = new ElfWriter(this).export(emitEntrySymbol);
+            else {
+                if( _serials.isEmpty() )
+                    throw new IllegalStateException("ELF export needs ideal IR: request Export from the driver, or Serialize before Lower");
+                Encoding entry = _encoding;
+                BAOS serial = _serial;
+                try {
+                    if( _encodings.isEmpty() ) for( CompUnit cu : _serials.keySet() ) {
+                        _emitUnit=cu;
+                        _encodings.put(cu,new Encoding(this).encode());
+                    }
+                    for( var e : _encodings.entrySet() ) {
+                        _emitUnit = e.getKey();
+                        _encoding = e.getValue();
+                        _serial = _serials.get(_emitUnit);
+                        _elf = new ElfWriter(this).export(emitEntrySymbol && _emitUnit._fname.equals(_srcName));
+                    }
+                    // Mutually dependent units built together must not become
+                    // stale merely because their files were written in sequence.
+                    long time = System.currentTimeMillis();
+                    for( CompUnit cu : _encodings.keySet() ) {
+                        File obj = new File(_buildDir+"/"+cu._fname+".o");
+                        if( !obj.setLastModified(time) ) throw new IllegalStateException("Cannot timestamp "+obj);
+                    }
+                } finally { _emitUnit=null; _encoding=entry; _serial=serial; }
+            }
         });
     }
 
@@ -631,6 +755,7 @@ public class CodeGen {
     // State machine elements; the outermost element is _externPaths
     private int _extPathIdx;    // Search index into the extern path list
     private final Ary<File> _files = new Ary<>(File.class);   // Files in the current extern path being searched
+    private final HashSet<File> _seenFiles = new HashSet<>();
     private int _extFileIdx;    // Index into _files
 
     public ElfReader findExternalSimple( String name ) {
@@ -685,6 +810,12 @@ public class CodeGen {
                 // Publish definitions only; referenced classes belong to other objects.
                 for( String fname : elf._units )
                     _externSymbols.putIfAbsent(Parser.addClzPrefix(fname.replace('/','.')),elf);
+                // A -L object can name dependencies alongside itself. They
+                // need metadata discovery even when no directory was supplied.
+                for( String dep : elf._deps ) {
+                    File file = elf.dependencyFile(dep);
+                    if( file.isFile() ) addExtFile(file);
+                }
                 break;
 
             default: throw Utils.TODO("should not reach here");
@@ -709,12 +840,17 @@ public class CodeGen {
             for( File f : dir.listFiles() )
                 fillExtFiles(f);
         else if( dir.getName().endsWith(".o") )
-            _files.add(dir);
+            addExtFile(dir);
+    }
+
+    private void addExtFile(File file) {
+        file=file.toPath().toAbsolutePath().normalize().toFile();
+        if( _seenFiles.add(file) ) _files.add(file);
     }
 
     // Map from object file names to ElfReaders
     public final HashMap<String,ElfReader> _elfs = new HashMap<>();
-    ElfReader getElf(File f) {
+    public ElfReader getElf(File f) {
         ElfReader elf = _elfs.get(f.getPath());
         if( elf != null )
             return elf;

@@ -165,6 +165,7 @@ $(RELEASE_SYS):	$(OBJS)/lib_$(CPU_ABI)/sys.o
 	@echo "copying " $@
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@cp $< $@
+	@cp -r $(dir $<)sys $(dir $@)
 
 $(RELEASE_CRT): src/main/c/simple_crt.c
 	@echo "compiling " $@

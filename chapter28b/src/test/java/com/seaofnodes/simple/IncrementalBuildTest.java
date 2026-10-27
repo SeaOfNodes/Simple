@@ -42,23 +42,26 @@ public class IncrementalBuildTest {
         assertNotNull("Reparse A before loading its stale inlined body",code._compunits.get("App/A")._src);
         assertNotNull(code._compunits.get("App/B")._src);
         compile(src,obj,"App/Main");
-        checkNative(obj,new Ary<>(new String[]{obj.resolve("App.o").toString()}));
+        checkNative(obj);
 
         Path clean=Files.createDirectory(root.resolve("clean"));
         assertEquals("9",Eval2.eval(client(src,clean),0));
         compile(src,clean,"App/Main");
-        checkNative(clean,null);
+        checkNative(clean);
     }
 
-    @Test public void testBundledSourceChangeAndCycle() throws Exception {
+    @Test public void testSourceChangeAndCycle() throws Exception {
         Path root=fixture("bundle-");
         Path src=root.resolve("src"), obj=root.resolve("obj");
         write(src,"App/A","val value={int n -> n ? B.value(n-1) : 1; };",1000);
         write(src,"App/B","val value={int n -> n ? A.value(n-1) : 5; };",1000);
         write(src,"App/Main","return A.value(1);",1000);
         compile(src,obj,"App/A");
+        assertEquals("One build timestamp for the cycle",Files.getLastModifiedTime(obj.resolve("App/A.o")),
+                     Files.getLastModifiedTime(obj.resolve("App/B.o")));
         stamp(obj.resolve("App/A.o"),3000);
-        assertFalse("A owns both sides of the cycle",Files.exists(obj.resolve("App/B.o")));
+        assertTrue("Each side of the cycle owns an object",Files.exists(obj.resolve("App/B.o")));
+        stamp(obj.resolve("App/B.o"),3000);
         CodeGen code=client(src,obj);
         assertEquals("5",Eval2.eval(code,0));
         assertNull(code._compunits.get("App/A")._src);
@@ -125,13 +128,15 @@ public class IncrementalBuildTest {
             .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
     }
 
-    private static void checkNative(Path obj, Ary<String> libs) throws Exception {
+    private static void checkNative(Path obj) throws Exception {
         Path driver=obj.resolve("driver.c");
         Files.writeString(driver,"""
             __attribute__((CALL_CONV)) extern long long run(void) __asm__("App.Main.run");
             int main(void) { return run()==9 ? 0 : 1; }
             """);
         String exe=obj.resolve(TestC.OS.startsWith("Windows")?"test.exe":"test").toString();
+        Ary<String> libs = new Ary<>(new String[]{obj.resolve("App.o").toString(),
+            obj.resolve("App/A.o").toString(),obj.resolve("App/B.o").toString(),obj.resolve("App/C.o").toString()});
         TestC.linkExe(obj.resolve("App/Main.o").toString(),
             TestC.CALL_CONVENTION.equals("win64")?"ms_abi":"sysv_abi",driver.toString(),libs,exe);
         assertEquals("",TestC.exec(TestC.TEST_TIMEOUT_SECONDS,exe));

@@ -36,10 +36,16 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   Static `_spillScaled` also counts each inlined loop copy separately, without
   credit for eliminated calls; inspect the optimized call graph before calling
   a higher cross-chapter score an allocator regression.
-- Prefer concrete ArrayList to List, common base classes to unnecessary
-  interfaces, and short names (`pred`, `proj`, `def`, `use`). Avoid redundant
+- Use concrete JDK collection types in fields, parameters, and return types:
+  ArrayList, HashMap, HashSet, etc., rather than List, Map, or Set interfaces.
+  Prefer common base classes to unnecessary interfaces, and short names
+  (`pred`, `proj`, `def`, `use`). Avoid redundant
   Objects.requireNonNull. Prefer int[]/AryInt to List<Integer>; avoid large boxed
   ID collections (use arrays/BitSet or NBHML as appropriate). Node ID 0 means null.
+- When both branches assign the same field or variable, prefer one assignment
+  with a ternary expression over an if/else.
+- Space declaration initializers as `Type name = expression;`. Preserve
+  deliberate column alignment when it makes related declarations easier to read.
 - Do not introduce Java streams. Use loops and explicit sorts; ask Cliff before
   making any exception.
 - Cliff often debugs the same failure in parallel. If asked to work in a side
@@ -64,6 +70,31 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   findings, the current check, and any blocker.
 
 ## Mutability and chapter boundaries
+
+- Chapter 28b emits one object per source CompUnit. Imported functions have
+  Fun/Summary/Return graphs until an object is materialized. SummaryNodes are
+  never inlineable bodies. Only local calls request speculative IR; an unused
+  imported function must not recursively fetch its callees. Function identity
+  survives materialization through GlobalBits and rewired call/return edges.
+- Initialization summaries retain direct call/touch edges and parent edges.
+  A potential cycle requires full IR refinement before diagnosis: a helper
+  outside the SCC can provide the constant that removes an internal edge.
+  Native linking uses the compiler's resolved CompUnit object paths when
+  available. Object-only tests without a CodeGen list all link inputs explicitly;
+  TestC does no dependency search. Eval2 trusts TypeCheck and a coherent set of
+  library objects; it does not revalidate cross-object compatibility.
+  SummaryNode.load uses CodeGen.getElf directly;
+  Eval2 needs no extra byte snapshot or protection from rewritten object files.
+  Tests must isolate output paths to avoid writer/reader races.
+  Eval2 materializes one object's checked IR on demand and schedules it
+  independently; never reoptimize graphs with active evaluation frames. Eval2
+  executes CLInit directly using shared run-once flags. The child's clinit
+  body checks its parent before setting its own flag, so Eval2 and Lower need
+  only the requested class's flag-test/call at each active use.
+- Summary escape information must include retention on nonreturning paths and
+  references passed by new callers. Result types alone do not capture this.
+  Import reanalysis releases prior SCCP memory keeps before starting another
+  solve; freshly deserialized nodes need parser-like construction semantics.
 
 - Prefix updates must share ordinary name resolution: a method's bare field
   name denotes memory, while constructor fields may still be local SSA values.
@@ -153,8 +184,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
 - CLInit lowering (2026-10-17): TypeCheck queues surviving markers; optional
   Serialize saves opaque ideal IR, then Lower runs Iter before LoopTree.
   Serialization includes disconnected Returns and filters cross-object links
-  without mutating the live graph. Parent initialization precedes the child's
-  flag test/call; the true flag store remains inside the initializer. Runtime
+  without mutating the live graph. In Chapter 28b the child's initializer owns
+  both its parent-init check and its subsequent true flag store. Runtime
   flag reads follow ordinary Load idealization, including removing control.
   Handle x86 condition-flag lifetime constraints in the backend, not by pinning
   ideal Loads. Generated calls remain unlinked and

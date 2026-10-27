@@ -82,6 +82,13 @@ public class FunNode extends RegionNode {
     }
     public ParmNode rpc() { return parm(0); }
 
+    // An unloaded body's Summary is constructed before every other user.
+    public SummaryNode summary() { return nOuts()>0 && out(0) instanceof SummaryNode summary ? summary : null; }
+
+    // This invocation compiles the defining CompUnit from source. Imported
+    // functions still belong to a CompUnit, but its _src is null.
+    public boolean isFromSource() { return _compunit!=null && _compunit._src!=null; }
+
     // Cannot create the Return and Fun at the same time; one has to be first.
     // So setting the return requires a second step.
     public void setRet(ReturnNode ret) { _ret=ret; }

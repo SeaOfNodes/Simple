@@ -142,7 +142,7 @@ abstract public class Opto {
 
     // Function is now reachable by unknown callers through Start.  The
     // default inputs must therefore use conservative declared types.
-    private static void linkStart( CodeGen code, FunNode fun ) {
+    static void linkStart( CodeGen code, FunNode fun ) {
         assert !fun.isDead();
         StartCUNode start = fun._compunit._start;
         if( !fun.unknownCallers() ) {

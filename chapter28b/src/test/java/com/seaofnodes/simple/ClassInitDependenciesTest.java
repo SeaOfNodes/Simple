@@ -443,7 +443,7 @@ public class ClassInitDependenciesTest {
                 "Main",src,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
             assertNotNull(code._stop.walk(n -> n instanceof CLInitNode ? n : null));
             assertEquals("0",Eval2.eval(code,0));
-            assertNull(code._stop.walk(n -> n instanceof CLInitNode ? n : null));
+            assertNotNull("Eval executes CLInit without lowering it",code._stop.walk(n -> n instanceof CLInitNode ? n : null));
             assertEquals("134",Eval2.eval(code,1));
         }
 
@@ -468,8 +468,13 @@ public class ClassInitDependenciesTest {
     @Test public void testParentInitializationExecution() throws Exception {
         Path dir=tempDir("execution-");
         object(dir,dir,"State","int count=0;");
-        module(dir,dir,"P",Map.of("P","val C=C; State.count=State.count*10+1;",
-            "P/C","State.count=State.count*10+2; int value=arg;"));
+        CodeGen library = module(dir,dir,"P",Map.of("P","val C=C; State.count=State.count*10+1;",
+            "P/C","State.count=State.count*10+2; int value=arg; return State.count;"));
+        // Direct entry into the child has no surrounding CLInit call/check.
+        // Its body must establish the parent itself, including an imported parent.
+        CodeGen child = new CodeGen(library._modDir,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+            "P/C",null,123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("12",Eval2.eval(child,99));
         for( long seed : new long[]{1,123,987654321} ) {
             CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
                 "Main","return P.C.value+State.count;",seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
@@ -484,7 +489,8 @@ public class ClassInitDependenciesTest {
             """);
         String exe=dir.resolve(TestC.OS.startsWith("Windows") ? "check.exe" : "check").toString();
         TestC.linkExe(dir.resolve("Main.o").toString(),TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",
-            cfile.toString(),new Ary<>(new String[]{dir.resolve("P.o").toString(),dir.resolve("State.o").toString()}),exe);
+            cfile.toString(),new Ary<>(new String[]{dir.resolve("P.o").toString(),dir.resolve("P/C.o").toString(),
+                dir.resolve("State.o").toString()}),exe);
         assertEquals("",TestC.exec(exe));
     }
 

@@ -35,7 +35,7 @@ signed and unsigned fields and compare ideal evaluation with generated code.
 ### Reliable incremental builds
 
 Chapter 28b now checks the reachable source-backed inputs before reusing saved
-IR, including transitive dependencies, bundled sources, and missing inputs.
+IR, including transitive dependencies and missing inputs.
 The remaining work is a build driver with recorded input identities, beyond
 those conservative timestamp checks. An unchanged public signature does not
 establish compatibility: optimization imports bodies and constants too.
@@ -46,6 +46,11 @@ timestamps and changed library search paths. Distinguish rebuildable source
 from incompatible source-free libraries; their installation timestamps alone
 cannot validate a set of objects compiled against one another.
 
+Native separate compilation should also detect a library changing between
+reading its types and linking the executable. One possible mechanism is a
+SHA-256-named symbol that callers require and the matching library defines.
+This remains future link-time validation; Eval2 assumes a coherent build.
+
 An unchanged build should do no compilation or linking. Publish outputs only
 after successful compilation, and relink when an object or other link input
 changes. Start with a small build driver and conservative rebuilding of every
@@ -53,17 +58,19 @@ dependent; finer interface/body fingerprints can follow. The
 [incremental-build design](../skills/incremental-builds.md) records the input
 ownership rules and validation cases.
 
-### Selective loading of library IR
+### Function-level loading of library IR
 
-Importing `sys.io.p` currently loads all ten units bundled in `sys.o`.
-Independent, unrelated objects can remain unloaded, but selecting an object
-reconstructs all its saved IR and follows its recorded dependencies.
+Chapter 28b emits one object per compilation unit and reads declarations and
+`SummaryNode` information without loading bodies. Optimization can request an
+object's IR for inlining; Eval2 resolves its object dependencies before
+execution, then materializes bodies on executed calls. Suspected
+initialization cycles request full loading before type checking completes.
+A requested object still reconstructs all of its functions.
 
-Design member-level IR loading and dependency discovery together. Splitting
-objects alone is insufficient while reexports and unused function bodies
-still pull in their dependencies. Preserve type identity, initialization rules,
+Further selectivity would require a function-body index within each object
+and narrower metadata discovery. Preserve type identity, initialization rules,
 and imported escape summaries. Loading, initializing, and emitting a class
-are separate decisions. This optimization is independent of making
+remain separate decisions. This optimization is independent of making
 incremental rebuilding correct.
 
 ### Deterministic inlining

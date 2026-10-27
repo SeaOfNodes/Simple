@@ -1,23 +1,5 @@
 package com.seaofnodes.simple;
 
-//
-//import com.seaofnodes.simple.codegen.CodeGen;
-//import com.seaofnodes.simple.codegen.RegAllocTestSupport.CheckedCodeGen;
-//import com.seaofnodes.simple.codegen.ElfReader;
-//import com.seaofnodes.simple.codegen.ParseAll;
-//import com.seaofnodes.simple.node.CallNode;
-//import com.seaofnodes.simple.node.FunNode;
-//import com.seaofnodes.simple.node.LoopNode;
-//import com.seaofnodes.simple.type.TypeInteger;
-//import com.seaofnodes.simple.util.Ary;
-//import java.io.File;
-//import java.io.FileWriter;
-//import java.io.IOException;
-//import java.io.ByteArrayOutputStream;
-//import java.io.PrintStream;
-//import java.nio.charset.StandardCharsets;
-//import java.nio.file.Files;
-//import java.nio.file.Path;
 import com.seaofnodes.simple.codegen.CodeGen;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -39,9 +21,9 @@ struct C {
 };
 return new C(arg).x;
 """;
-        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.Encoding,"riscv","SystemV");
-        assertEquals("return (arg+3);", code.print());
-        assertEquals("3",Eval2.eval(code,0));
+        CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("Stop[ return Phi(Loop,0,Phi(Region,1,Phi_x)); return MEM[ 2:___ 3:.x=Phi(Loop,0,Phi(Region,1,Phi_x));]; return MEM[ 2:___ 3:.x=0;]; return Test.C; ]", code.print());
+        assertEquals("1",Eval2.eval(code,3));
     }
 
 }

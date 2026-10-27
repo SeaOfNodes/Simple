@@ -30,6 +30,7 @@ public class SeparateCompilationTest {
         CodeGen code=new CodeGen(null,null,new Ary<>(new String[]{lib.toString()}),
             "Client","return Callbacks.run(arg);",123,true,TypeInteger.BOT)
             .driver(CodeGen.Phase.Opto);
+        code.loadAllIR(); // This assertion inspects a body, not just its saved summary.
         assertNull(code._compunits.get("Callbacks")._src);
         ParmNode base=code._start.walk(n -> n instanceof ParmNode p && p._label.equals("base") ? p : null);
         assertNotNull(base);

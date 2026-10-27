@@ -9,31 +9,47 @@ import java.util.*;
 
 public abstract class GlobalCodeMotion {
 
+    // Ideal execution needs a schedule, but neither CLInit lowering nor
+    // interprocedural optimization. Each loaded object is prepared once.
+    public static Ary<CFGNode> forEval(CodeGen code, StartNode start, StopNode stop) {
+        Ary<FunNode> funs = Unlink.forEval(start,stop);
+        start.buildLoopTree(funs,stop);
+        return buildCFG(code,start,stop);
+    }
+
     // Arrange that the existing isCFG() Nodes form a valid CFG.  The
     // Node.use(0) is always a block tail (either IfNode or head of the
     // following block).  There are no unreachable infinite loops.
     public static void buildCFG( CodeGen code ) {
+        code._cfg = buildCFG(code,code._start,code._stop);
+    }
+
+    // Schedule one graph, including an object loaded while Eval2 is running.
+    // Other graphs (and their active evaluation frames) are left untouched.
+    public static Ary<CFGNode> buildCFG(CodeGen code, StartNode start, StopNode stop) {
         Ary<CFGNode> rpo = new Ary<>(CFGNode.class);
-        _rpo_cfg(null, code._start, code.visit(), rpo);
+        _rpo_cfg(null, start, code.visit(), rpo);
         // Reverse in-place
         for( int i=0; i< rpo.size()>>1; i++ )
             rpo.swap(i,rpo.size()-1-i);
-        // Set global CFG
-        code._cfg = rpo;
-
-        schedEarly(code);
+        schedEarly(code,start,rpo);
 
         // Break up shared global constants by functions
-        breakUpGlobalConstants(code._start);
+        breakUpGlobalConstants(start);
 
         code._visit.clear();
-        schedLate(code);
+        schedLate(code,stop);
+        return rpo;
     }
 
     // Post-Order of CFG
     private static void _rpo_cfg(CFGNode def, Node use, BitSet visit, Ary<CFGNode> rpo) {
         if( !(use instanceof CFGNode cfg) || visit.get(cfg._nid) )
             return;             // Been there, done that
+        // A shared dead-control node can also reach an unloaded function's
+        // Return. Its wrapper is a dispatch target, not executable code.
+        if( cfg instanceof FunNode fun && fun.summary()!=null ||
+            cfg instanceof ReturnNode ret && ret.fun().summary()!=null ) return;
         assert !( def instanceof ReturnNode && use instanceof CallEndNode ); // All calls unwired now
         assert !( def instanceof   CallNode && use instanceof     FunNode ); // All calls unwired now
         visit.set(cfg._nid);
@@ -59,8 +75,8 @@ public abstract class GlobalCodeMotion {
             for( Node use : con._outputs.asAry() ) {
                 if( use==null || globals.containsKey(use) ) continue;
                 FunNode fun = useFun(use);
-                if( fun==null ) continue; // Global metadata has no function owner.
-                assert CodeGen.CODE._mach==null || CodeGen.CODE.owns(fun); // Ideal evaluation includes imported bodies.
+                if( fun==null || fun.summary()!=null ) continue; // Metadata has no executable owner.
+                assert CodeGen.CODE._mach==null || fun.isFromSource(); // Ideal evaluation includes imported bodies.
                 var local = copies.computeIfAbsent(fun,f -> new IdentityHashMap<>());
                 Node copy = cloneGlobal(con,fun,globals,local);
                 for( int i=0; i<use.nIns(); i++ )
@@ -98,36 +114,36 @@ public abstract class GlobalCodeMotion {
     // (except at loops).  Since defs are visited first - and hoisted as early
     // as possible, when we come to a use we place it just after its deepest
     // input.
-    private static void schedEarly(CodeGen code) {
+    private static void schedEarly(CodeGen code, StartNode start, Ary<CFGNode> cfgs) {
         // Reverse Post-Order on CFG
-        for( CFGNode cfg : code._cfg ) {
+        for( CFGNode cfg : cfgs ) {
             cfg.loopDepth();
             for( Node n : cfg._inputs )
-                _schedEarly(n,code );
+                _schedEarly(n,code,start );
             // In dead infinite loops, entire code blocks may be unreachable
             // from below.  Reach down from the CFG to their Phis so their
             // inputs are scheduled too.
             if( cfg instanceof RegionNode )
                 for( Node phi : cfg._outputs )
                     if( phi instanceof PhiNode )
-                        _schedEarly(phi,code );
+                        _schedEarly(phi,code,start );
         }
     }
 
-    private static void _schedEarly(Node n, CodeGen code) {
+    private static void _schedEarly(Node n, CodeGen code, StartNode start) {
         if( n==null || code._visit.get(n._nid) ) return; // Been there, done that
-        assert !(n instanceof CFGNode);
+        assert !(n instanceof CFGNode) : n.getClass().getSimpleName()+"#"+n._nid+" outside scheduled CFG";
         code._visit.set(n._nid);
         // Schedule inputs first, except Phis: following their backedges would
         // enter a data cycle before its control has been scheduled.
         for( Node def : n._inputs )
             if( def!=null && !(def instanceof PhiNode) )
-                _schedEarly(def,code);
+                _schedEarly(def,code,start);
 
         // An existing edge 0 already supplies control (or a Phi/Proj binding).
         if( n.in(0)==null ) {
             // Schedule at deepest input
-            CFGNode early = code._start; // Maximally early, lowest idepth
+            CFGNode early = start; // Maximally early, lowest idepth
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
@@ -136,7 +152,7 @@ public abstract class GlobalCodeMotion {
     }
 
     // ------------------------------------------------------------------------
-    private static void schedLate( CodeGen code ) {
+    private static void schedLate( CodeGen code, StopNode stop ) {
         CFGNode[] late = new CFGNode[code.UID()];
         Node[] ns = new Node[code.UID()];
         // Record Load NIDs at all their CFG block choices, then check against
@@ -144,7 +160,7 @@ public abstract class GlobalCodeMotion {
         int[] anti = new int[code.UID()];
         Ary<Node> antideps = new Ary<>(Node.class);
         // Breadth-first scheduling
-        breadth(code._stop,ns,late,anti, antideps);
+        breadth(stop,ns,late,anti, antideps);
 
         // Copy the best placement choice into the control slot
         for( int i=0; i<late.length; i++ )

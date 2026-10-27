@@ -97,6 +97,9 @@ public class StopCUNode extends StopNode {
         // on paths with no Return. A class boundary must not hide it.
         for( CallNode call : CodeGen.CODE._calls )
             if( !call.isDead() ) xmem=publicBottom(xmem.escapes(call.exposed(this)));
+        for( FunNode fun : CodeGen.CODE._linker )
+            if( fun!=null && fun.summary()!=null && !fun.summary().isDead() )
+                xmem=publicBottom(xmem.escapes(fun.summary().exposed(this)));
         assert xmem._alias==1 && !xmem._one;
         return TypeTuple.make(Type.CONTROL,xmem,Type.BOTTOM);
     }

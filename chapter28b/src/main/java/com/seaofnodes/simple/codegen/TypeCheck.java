@@ -9,6 +9,7 @@ import com.seaofnodes.simple.util.Ary;
 // obligations. Queue surviving CLInits during the same walk for Lower's Iter.
 abstract class TypeCheck {
     static void run(CodeGen code) {
+        code.resolveInitCycles();
         // Check for class-init cycles first; such a cycle can prevent other
         // things from resolving types. The dependency graph is temporary.
         String clzInitCycle = new ClassInitDependencies(code).check();

@@ -1,20 +1,66 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.util.Ary;
 
 // Discard call-graph edges after LoopTree. Machine selection keeps only this
 // object's bodies; ideal evaluation keeps imports so their calls can execute.
 abstract class Unlink {
+    // Disconnect compiler-only interprocedural edges before scheduling. Keep
+    // signatures in the linker; runtime calls resolve FIDXs, not graph edges.
+    static Ary<FunNode> forEval(StartNode start, StopNode stop) {
+        Ary<Node> nodes = new Ary<>(Node.class);
+        start.walk(n -> { nodes.add(n); return null; });
+        Ary<FunNode> funs = new Ary<>(FunNode.class);
+        for( Node n : nodes )
+            if( n instanceof FunNode fun ) {
+                fun.ret().keep();
+                if( fun.summary()==null ) funs.add(fun);
+            }
+        for( Node n : nodes ) {
+            if( n instanceof CallNode call ) call.unlink_all();
+            if( n instanceof FunPtrNode ptr && ptr.ret()!=null ) ptr.setDef(1,null);
+        }
+        for( FunNode fun : funs ) {
+            // Keep bodies rooted for scheduling after their callers detach.
+            if( fun.nIns()==1 ) {
+                fun.addDef(fun._compunit._start);
+                for( Node use : fun._outputs )
+                    if( use instanceof ParmNode parm ) {
+                        ConstantNode con = ConstantNode.raw(parm._type);
+                        con.setDef(0,start);
+                        parm.addDef(con);
+                    }
+            }
+            restoreRPC(fun);
+        }
+        // A summary is a dispatch target, not a schedulable implementation.
+        // Retain its own wrapper graph without including it in this schedule.
+        for( int i = 0; i<stop.nIns(); i++ ) {
+            StopCUNode unit = (StopCUNode)stop.in(i);
+            boolean summary = false;
+            for( Node r : unit._inputs )
+                summary |= ((ReturnNode)r).fun().summary()!=null;
+            if( summary ) {
+                unit.start().setDef(0,null);
+                stop.delDef(i--);
+            }
+        }
+        for( Node n : nodes )
+            if( n instanceof FunNode fun ) fun.ret().unkeep();
+        return funs;
+    }
+
     private static void unlinkImports(CodeGen code) {
         // Imported function constants keep their symbolic identity, not an
         // embedded copy of the other object's Return and body.
         for( Node n : code._start._outputs.asAry() )
-            if( n instanceof FunPtrNode ptr && ptr.ret()!=null && !code.owns(ptr.fun()) ) {
+            if( n instanceof FunPtrNode ptr && ptr.ret()!=null && !ptr.fun().isFromSource() ) {
                 ptr.liftType(ptr._type);
                 ptr.setDef(1,null);
             }
         for( FunNode fun : code._linker ) {
-            if( fun==null || fun.isDead() || code.owns(fun) )
+            if( fun==null || fun.isDead() || fun.isFromSource() )
                 continue;
             for( int i=1; i<fun.nIns(); i++ )
                 if( fun.in(i) instanceof CallNode call )
@@ -43,7 +89,7 @@ abstract class Unlink {
 
             // Imported functions are not emitted by this object. Ideal
             // evaluation retains them so their calls can actually execute.
-            if( removeImports && !code.owns(fun) ) {
+            if( removeImports && !fun.isFromSource() ) {
                 while( fun.nIns() > 1 ) {
                     if( fun.in(1) instanceof CallNode call )
                         call.unlink(fun,1);
@@ -88,15 +134,7 @@ abstract class Unlink {
             // Unlink from Call
             for( int i=2; i<fun.nIns(); i++ )
                 ((CallNode)fun.in(i)).unlink(fun,i--);
-            if( fun.rpc()==null ) { // Ensure valid RPC
-                // First make sure a valid RPC; single-call into multi-fun will have each
-                // function having a single call site, so the RPC becomes a constant and
-                // folds - but since multiple targets, the Call never inlines.  Recreate a
-                // valid RPC so codegen (and Eval2) understands the calling convention.
-                ParmNode rpc = new ParmNode( "$rpc", 0, ret.rpc()._type, fun );
-                rpc.addDef(ret.rpc());
-                ret.setDef( 3, rpc.init() );
-            }
+            restoreRPC(fun);
         }
 
         code._stop.walk(n -> {
@@ -108,5 +146,16 @@ abstract class Unlink {
                 call.unlink_all();
             return null;
         });
+    }
+
+    private static void restoreRPC(FunNode fun) {
+        if( fun.rpc()!=null ) return;
+        // A single-call target can have a folded RPC even when a multi-target
+        // call cannot inline it. Restore the parameter for codegen and for
+        // Eval2's continuation, now that calls no longer supply graph edges.
+        ReturnNode ret = fun.ret();
+        ParmNode rpc = new ParmNode("$rpc",0,ret.rpc()._type,fun);
+        rpc.addDef(ret.rpc());
+        ret.setDef(3,rpc.init());
     }
 }

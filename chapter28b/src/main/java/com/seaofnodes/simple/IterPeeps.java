@@ -78,6 +78,7 @@ public class IterPeeps {
             CallEndNode cend;
             while( (cend=_workInline.pop()) != null) {
                 if( cend.isDead() ) continue;
+                if( cend.loadForInline() ) { inlined=true; break; }
                 byte inline = cend.maybeInline();
                 if( inline == -1 ) defer.add(cend);
                 if( inline > 0 ) {

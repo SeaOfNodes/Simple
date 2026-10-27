@@ -103,7 +103,7 @@ public abstract class ParseAll {
 
         // Load all pre-compiled CompUnits
         for( CompUnit cu : NEEDS_LOAD )
-            loadCompUnit(code,cu);
+            loadSummaries(code,cu);
 
         // Many types will have been declared cyclically either internally or
         // across multiple compilation units.
@@ -239,7 +239,7 @@ public abstract class ParseAll {
         try {
             NEEDS_LOAD.add(cunit);
             // Load dependent classes
-            ElfReader elf = ElfReader.load(cunit._obj,cunit);
+            ElfReader elf = code.getElf(cunit._obj);
             elf.loadPublicSymbols();
             // Register bundled definitions before resolving dependencies or IR.
             for( String fname : elf._units )
@@ -270,12 +270,26 @@ public abstract class ParseAll {
         return elf == null ? null : elf._file;
     }
 
-    private static void loadCompUnit(CodeGen code, CompUnit cunit) {
+    private static void loadSummaries(CodeGen code, CompUnit cu) {
+        ElfReader elf = code.getElf(cu._obj);
+        elf.loadPublicTypes(code);
+        cu._clz = elf._clz;
+        cu.setStart(code);
+        new ProjNode(cu._start,1,"$mem").init();
+        for( FunctionSummary summary : elf._functions ) summary.install(code,cu);
+    }
+
+    public static void loadCompUnit(CodeGen code, CompUnit cunit) {
         // Expecting a previously compiled object file
         assert cunit._obj != null;
         // Extract published symbols and put them in the internal tables;
         // cross-references will pick them up there.
-        ElfReader elf = ElfReader.load(cunit._obj,cunit);
+        ElfReader elf = code.getElf(cunit._obj);
+        if( elf._nodes!=null ) return;
+        StartCUNode oldStart = cunit._start;
+        StopCUNode oldStop = cunit._stop;
+        ProjNode oldMem = oldStart==null ? null : oldStart.proj(1);
+        if( oldMem!=null && oldMem.iskeep() ) oldMem.unkeep();
         elf.loadSimple(code);
         cunit._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cunit._cname));
         StartNode lstart = (StartNode)elf._nodes.at(0);
@@ -291,7 +305,17 @@ public abstract class ParseAll {
 
             for( Node ret : stop._inputs ) {
                 FunNode fun = ((ReturnNode)ret).fun();
+                FunNode old = code._link(fun.sig().fidx());
                 code.link(fun);
+                if( old!=null && old.summary()!=null && !old.isDead() ) {
+                    old.ret().keep();
+                    for( int i = 1; i<old.nIns(); i++ )
+                        if( old.in(i) instanceof CallNode call ) {
+                            call.unlink(old,i--);
+                            call.link(fun);
+                        }
+                    old.ret().unkeep().subsume(fun.ret());
+                }
             }
         }
 
@@ -299,6 +323,12 @@ public abstract class ParseAll {
         for( Node lstopcu : lstop._inputs )
             code._stop.addDef(lstopcu);
         lstart.subsume(code._start);
+        if( oldStart!=null && oldStart!=cunit._start ) {
+            int idx = code._stop._inputs.find(oldStop);
+            if( idx!=-1 ) code._stop.delDef(idx);
+            oldStart.subsume(cunit._start);
+        }
+        code.addAll(elf._nodes);
 
         // Add the new top-level loaded class
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
@@ -401,7 +431,7 @@ public abstract class ParseAll {
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
         }
-        ElfReader typedElf = ElfReader.load(cunit._obj,cunit);
+        ElfReader typedElf = code.getElf(cunit._obj);
         if( typedElf != null ) typedElf.loadPublicTypes(code);
         TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
         if( clz == null )

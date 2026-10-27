@@ -16,28 +16,30 @@ abstract public class Serialize {
     }
 
     static void serialize( CodeGen code ) {
-
-        // Get all Nodes in a sane order
-        Ary<Node> nodes = nodeOrder(code);
-
-        // Array of dependent file names
-        HashSet<String> xdeps = new HashSet<>();
-        for( CompUnit cu : code._compunits.values() ) {
-            if( cu._deps != null )
-                for( CompUnit cudep : cu._deps )
-                    xdeps.add(cudep._fname);
+        // Anonymous functions also need names when another object refers to them.
+        for( FunNode fun : code._linker )
+            if( fun!=null && !fun.isDead() && fun._name==null )
+                fun._name=code._fidxs.symbol(fun.sig().fidx());
+        ArrayList<CompUnit> units = new ArrayList<>(code._compunits.values());
+        units.sort(Comparator.comparing(cu -> cu._fname));
+        for( CompUnit cu : units ) {
+            if( cu._src==null ) continue;
+            BAOS serial = serialize(code,cu);
+            code._serials.put(cu,serial);
+            if( cu._fname.equals(code._srcName==null ? "Test" : code._srcName) ) code._serial=serial;
         }
-        String[] deps = xdeps.toArray(new String[xdeps.size()]);
-        Arrays.sort(deps);
-        Ary<String> owned = new Ary<>(String.class);
-        for( CompUnit cu : code._compunits.values() )
-            if( cu._src!=null ) owned.add(cu._fname);
-        String[] units = owned.asAry();
-        Arrays.sort(units);
+    }
 
-        // Top-level clazz being reported
-        String topName = code._srcName == null ? "Test" : code._srcName;
-        CompUnit top = code._compunits.get(topName);
+    private static BAOS serialize(CodeGen code, CompUnit top) {
+        Ary<Node> nodes = nodeOrder(code,top);
+        HashSet<String> xdeps = new HashSet<>();
+        // Retain build dependencies even when their calls were inlined away.
+        if( top._deps!=null ) for( CompUnit dep : top._deps )
+            if( dep!=top ) xdeps.add(dep._fname);
+        if( top._par!=null ) xdeps.add(top._par._fname);
+        String[] deps = xdeps.toArray(new String[0]);
+        Arrays.sort(deps);
+        String[] units = {top._fname};
         TypeStruct clz = top._clz;
 
         // Preserve which same-named structs are the source-level declarations.
@@ -67,7 +69,7 @@ abstract public class Serialize {
         // --- Expensive bijection assert
 
         // Record serialized IR for later ELF writing
-        code._serial = baos;
+        return baos;
     }
 
     // --------------------------------------------------
@@ -90,6 +92,7 @@ abstract public class Serialize {
 
         // Count unique Types
         var types = new HashMap<Type,Integer>();
+        IdentityHashMap<FunNode,TypeTuple> summaries = new IdentityHashMap<>();
         // Count published types *first*, so can align with published strings
         types.put(Type.TOP,0);
         types.put( clz, types.size() );
@@ -103,7 +106,18 @@ abstract public class Serialize {
         for( Node n : nodes ) {
             n._type.gather(types);
             if( n instanceof CallEndNode cend ) cend._rpc.gather(types);
-            if( n instanceof  FunNode fun ) fun.sig().gather(types);
+            if( n instanceof FunNode fun ) {
+                fun.sig().gather(types);
+                TypeTuple state = (TypeTuple)fun.ret()._type;
+                TypeMem mem = (TypeMem)state.mem();
+                // Retention can happen on a path that never returns. The
+                // unit's escape summary includes those native-call effects.
+                TypeMem escaped = (TypeMem)((TypeTuple)fun._compunit._stop._type).mem();
+                mem=mem.makeFrom(XInt.meet(mem._escFs,escaped._escFs),XInt.meet(mem._escAs,escaped._escAs));
+                state=state.makeFrom(1,mem);
+                summaries.put(fun,state);
+                state.gather(types);
+            }
             if( n instanceof ParmNode parm ) parm._declaredType.gather(types);
             if( n instanceof TypeNode con ) con._con .gather(types);
         }
@@ -204,6 +218,22 @@ abstract public class Serialize {
                 baos.packed4(types.get(t.at(i)));
         }
 
+
+        // Function summaries precede the graph, so declarations and call
+        // behavior are available without allocating the implementation nodes.
+        ClassInitDependencies init = new ClassInitDependencies(CodeGen.CODE);
+        int nfuncs = 0;
+        for( Node n : nodes ) if( n instanceof FunNode ) nfuncs++;
+        baos.packed4(nfuncs);
+        for( Node n : nodes ) if( n instanceof FunNode fun ) {
+            baos.packed2(types.get(fun.sig()));
+            baos.packed2(types.get(summaries.get(fun)));
+            baos.packed2(fun._name==null ? 0 : strs.get(fun._name));
+            baos.packed4(fun._approxUIDs);
+            int[] edges = init._edgess[fun.sig().fidx()];
+            baos.packed4(edges==null ? 0 : edges.length);
+            if( edges!=null ) for( int edge : edges ) baos.packed4(edge);
+        }
 
         // D - Write the nodes.  Since this is expected to be the bulk of the
         // data, we might want to explore various options.
@@ -306,6 +336,7 @@ abstract public class Serialize {
     record TypeRead(Type[] types, String[] strs, GlobalBits fileAliases, GlobalBits fileFidxs, GlobalBits fileRpcs) {}
 
     static TypeRead readTypes( CodeGen code, ElfReader elf, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {
+        if( elf._types!=null ) return elf._types;
         BAOS bais = elf._bais;
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
@@ -384,7 +415,17 @@ abstract public class Serialize {
             TypeStruct ts = elf._pubTypes[i] = (TypeStruct)types[pubTypeIds[i]];
             Parser.TYPES.put(ts._name,ts);
         }
-        return new TypeRead(types,strs,fileAliases,fileFidxs,fileRpcs);
+        elf._functions = new FunctionSummary[bais.packed4()];
+        for( int i = 0; i<elf._functions.length; i++ ) {
+            TypeFunPtr sig = (TypeFunPtr)types[bais.packed2()];
+            TypeTuple state = (TypeTuple)types[bais.packed2()];
+            String name = strs[bais.packed2()];
+            int size = bais.packed4();
+            int[] edges = new int[bais.packed4()];
+            for( int j = 0; j<edges.length; j++ ) edges[j]=fidxs.map(fileFidxs,bais.packed4());
+            elf._functions[i]=new FunctionSummary(sig,state,name.isEmpty() ? fidxs.symbol(sig.fidx()) : name,size,edges);
+        }
+        return elf._types = new TypeRead(types,strs,fileAliases,fileFidxs,fileRpcs);
     }
 
     static void readAll( CodeGen code, ElfReader elf, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {
@@ -394,76 +435,83 @@ abstract public class Serialize {
         String[] strs = tread.strs();
         GlobalBits fileAliases = tread.fileAliases();
 
-        // D - Read the nodes
+        CodeGen.Phase prior = code._phase;
+        code._phase=CodeGen.Phase.Parse; // Constructors must tolerate an incomplete graph.
+        try {
+            // D - Read the nodes
 
-        // Number of nodes
-        int num = bais.packed4();
-        // Packed array of nodes
-        Ary<Node> nodes = new Ary<>(Node.class);
-        CompUnit cu = null;
-        for( int i=0; i<num; i++ ) {
-            Node.Tag tag = Node.Tag.VALS[bais.packed1()];
-            Type t = types[bais.packed2()];
-            Node n = tag.make(bais,strs,types,fileAliases,aliases);
-            n._type = t;
-            nodes.push(n);
-            // A little extra for FunNodes
-            if( n instanceof StartCUNode startcu ) {
-                cu = code._compunits.get(startcu._fname==null ? (code._srcName==null ? "Test" : code._srcName) : startcu._fname);
-                assert cu != null;
-            }
-            if( n instanceof StopCUNode stopcu ) {
-                cu = null;
-            }
-            if( n instanceof FunNode fun ) {
-                assert cu != null;
-                fun._compunit = cu;
-            }
-            if( n instanceof ExternNode ext && ext._con instanceof TypeFunPtr tfp && tfp.isConstant() ) {
-                String old = code.externFunc(tfp.fidx());
-                if( old == null )
-                    code.externFunc(tfp.fidx(), ext._extern);
-                else
-                    assert old.equals(ext._extern);
-            }
-        }
-
-        // Node edges
-        for( Node n : nodes ) {
-            int len = n.nIns();
-            for( int i=0; i<len; i++ ) {
-                int idx = bais.packed2();
-                Node def = idx==0 ? null : nodes.at(idx-1);
-                // MemMerge precise aliases are encoded by their input slot.
-                // Remap populated file-local slots into this compilation's
-                // local alias numbering; null holes carry no identity.
-                int local = i;
-                if( n instanceof MemMergeNode && i >= GlobalBits.RESERVED ) {
-                    if( def == null )  continue;
-                    local = aliases.map(fileAliases,i);
+            // Number of nodes
+            int num = bais.packed4();
+            // Packed array of nodes
+            Ary<Node> nodes = new Ary<>(Node.class);
+            CompUnit cu = null;
+            for( int i = 0; i<num; i++ ) {
+                Node.Tag tag = Node.Tag.VALS[bais.packed1()];
+                Type t = types[bais.packed2()];
+                Node n = tag.make(bais,strs,types,fileAliases,aliases);
+                n._type = t;
+                nodes.push(n);
+                // A little extra for FunNodes
+                if( n instanceof StartCUNode startcu ) {
+                    cu = code._compunits.get(startcu._fname==null ? (code._srcName==null ? "Test" : code._srcName) : startcu._fname);
+                    assert cu != null;
                 }
-                n.setDefX(local,def);
-                // Call's output[0] is always the CallEnd
-                if( n instanceof CallEndNode cend && i==0 ) {
-                    var outs = cend.call()._outputs;
-                    outs.swap(0,outs._len-1);
+                if( n instanceof StopCUNode stopcu ) {
+                    cu = null;
+                }
+                if( n instanceof FunNode fun ) {
+                    assert cu != null;
+                    fun._compunit = cu;
+                    if( fun._name==null || fun._name.isEmpty() ) fun._name=fidxs.symbol(fun.sig().fidx());
+                }
+                if( n instanceof ExternNode ext && ext._con instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+                    String old = code.externFunc(tfp.fidx());
+                    if( old == null )
+                        code.externFunc(tfp.fidx(), ext._extern);
+                    else
+                        assert old.equals(ext._extern);
                 }
             }
-            // A little extra for FunNodes
-            if( n instanceof FunNode fun ) {
-                // Return is hooked like an edge
-                ReturnNode ret = (ReturnNode)nodes.at(bais.packed2()-1);
-                fun.setRet(ret);
-                ret._fun = fun;
-            }
-        }
-        // Add edge from Start to Stop
-        StartNode start = (StartNode)nodes.at(0);
-        StopNode stop = (StopNode)nodes.last();
-        start.setDef(1,stop);
 
-        assert check(code,nodes);
-        elf._nodes = nodes;
+            // Node edges
+            for( Node n : nodes ) {
+                int len = n.nIns();
+                for( int i = 0; i<len; i++ ) {
+                    int idx = bais.packed2();
+                    Node def = idx==0 ? null : nodes.at(idx-1);
+                    // MemMerge precise aliases are encoded by their input slot.
+                    // Remap populated file-local slots into this compilation's
+                    // local alias numbering; null holes carry no identity.
+                    int local = i;
+                    if( n instanceof MemMergeNode && i >= GlobalBits.RESERVED ) {
+                        if( def == null )  continue;
+                        local = aliases.map(fileAliases,i);
+                    }
+                    n.setDefX(local,def);
+                    // Call's output[0] is always the CallEnd
+                    if( n instanceof CallEndNode cend && i==0 ) {
+                        var outs = cend.call()._outputs;
+                        outs.swap(0,outs._len-1);
+                    }
+                }
+                // A little extra for FunNodes
+                if( n instanceof FunNode fun ) {
+                    // Return is hooked like an edge
+                    ReturnNode ret = (ReturnNode)nodes.at(bais.packed2()-1);
+                    fun.setRet(ret);
+                    ret._fun = fun;
+                }
+            }
+            // Add edge from Start to Stop
+            StartNode start = (StartNode)nodes.at(0);
+            StopNode stop = (StopNode)nodes.last();
+            start.setDef(1,stop);
+
+            // A body materialized after SCCP joins a different analysis context.
+            // Its saved types are reset and checked by the ensuing fixed-point solve.
+            assert prior!=CodeGen.Phase.Parse || check(code,nodes);
+            elf._nodes = nodes;
+        } finally { code._phase=prior; }
     }
 
     // Check loaded types and nodes are consistent
@@ -501,16 +549,22 @@ abstract public class Serialize {
         BitSet visit = code.visit();
         Ary<Node> nodes = new Ary<>(Node.class);
         visit.set(code._stop._nid);
+        // Return-linked function constants are global. Do not walk through
+        // them from one function into stores or calls in a different unit.
+        for( Node n : code._start._outputs ) if( n!=null && n.isConst() ) visit.set(n._nid);
         // Walk all listed functions, in this single compilation unit
         for( FunNode fun : code._linker )
             if( fun!=null && !fun.isDead() && fun._compunit == cu )
                 _funWalk(fun,nodes,visit);
 
+        for( Node n : code._start._outputs ) if( n!=null && n.isConst() ) visit.clear(n._nid);
+
         // Just constants used by the listed functions
         Ary<Node> cons = new Ary<>(Node.class);
         cons.add(code._start);
         for( Node n : code._start._outputs ) {
-            if( n instanceof ConstantNode con && !visit.get(con._nid) ) {
+            Node con = n;
+            if( con.isConst() && !visit.get(con._nid) ) {
                 for( Node use : con.outs() ) {
                     // PtrToInt is another zero-code value rooted at a global
                     // constant.  Its array-body Add is the value used by the

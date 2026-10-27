@@ -14,8 +14,9 @@ abstract class Iter {
         // can only be removed, never added.  Seed the complete graph once.
         boolean hasImports = code._externPaths != null;
         code._start.walk(n -> {
-            if( !(n instanceof ConstantNode) )
-                n._type = hasImports ? iterImportReset(n._type) : iterEscapeReset(n._type);
+            // Type import can reconcile a constant's declaration.
+            n._type = n instanceof ConstantNode ? n.compute()
+                : hasImports ? iterImportReset(n._type) : iterEscapeReset(n._type);
             code.add(n);
             return null;
         });

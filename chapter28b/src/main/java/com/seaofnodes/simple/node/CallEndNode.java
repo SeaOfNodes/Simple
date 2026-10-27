@@ -160,7 +160,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
     }
 
     public byte maybeInline() {
-        byte inline = inlineCandidate();
+        byte inline = inlineCandidate(false);
         if( CodeGen.CODE._midAssert )
             return inline;
         _inline = inline;
@@ -170,8 +170,23 @@ public class CallEndNode extends CFGNode implements MultiNode {
         return _inline;
     }
 
-    // Check if candidate right now, sets no flags
-    private byte inlineCandidate() {
+    // This CallEnd might be an inline candidate, but the actual code is in
+    // another CompUnit and needs loading to decide. Called at an empty worklist.
+    public boolean loadForInline() {
+        CodeGen code = CodeGen.CODE;
+        if( code._phase!=CodeGen.Phase.IterPostOpto || nIns()!=2 ||
+            !(in(1) instanceof ReturnNode ret) || ret.fun().summary()==null ) return false;
+        // Fetch bodies only for calls in functions compiled from source here.
+        // Calls inside imported functions become eligible when inlined into one.
+        if( !(in(0) instanceof CallNode call) || !call.fun().isFromSource() ||
+            inlineCandidate(true)<=0 ) return false;
+        code.loadForInline(ret.fun()._compunit);
+        return true;
+    }
+
+    // Check if candidate right now, sets no flags. Loading uses the same
+    // policy, but can only estimate the size of a summarized body.
+    private byte inlineCandidate(boolean loading) {
         if( _inline < -2 ) return -2; // Never
         if( _folding ) return -2;     // No, and will collapse anyways
         if( !(in(0) instanceof CallNode call) ) return -2; // malformed because mid-death
@@ -210,9 +225,11 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // A large parse can leave only a tiny initializer.  Recognize that
         // and await cleanup to shrink the body.
         if( fun._approxUIDs >= maxSize ) {
-            if( !smallBody(fun) ) return -1;
-        } else if( fun.body().cardinality() >= maxSize ) // Expensive size check
+            if( fun.summary()!=null || !smallBody(fun) ) return -1;
+        } else if( fun.summary()==null && fun.body().cardinality() >= maxSize ) // Expensive size check
             return -1;          // Try later (if cleanup makes the real body small enough)
+
+        if( fun.summary()!=null ) return loading ? (byte)1 : (byte)-1;
 
         // Can be cloned but not trivial
         if( fun.nIns() > 2 ) { addDep(fun); return 2; }

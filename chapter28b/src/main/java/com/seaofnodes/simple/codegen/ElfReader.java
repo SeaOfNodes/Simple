@@ -38,6 +38,8 @@ public class ElfReader {
     public TypeStruct[] _pubTypes;
     // Nodes read in this Elf
     public Ary<Node> _nodes;
+    Serialize.TypeRead _types;
+    FunctionSummary[] _functions;
 
     // Load an Elf file (mostly lazily)
     public static ElfReader load( File f, CompUnit cu ) {
@@ -67,7 +69,7 @@ public class ElfReader {
             if( ".simple".equals(sec._name) )
                 simple = sec;
         _simple = simple;
-        _bais = new BAOS(_buf, (int)_simple._offset);
+        _bais = _simple==null ? null : new BAOS(_buf, (int)_simple._offset);
     }
 
     // For Serialize self-test
@@ -90,6 +92,12 @@ public class ElfReader {
             // few of them.  i.e. optimizing (prematurely?) for the traditional
             // case of linking a small file against a large library
             Serialize.read_public_strs(this);
+    }
+
+    File dependencyFile(String unit) {
+        File root = _file;
+        for( String part : _units[0].split("/") ) root=root.getParentFile();
+        return new File(root,unit+".o");
     }
 
     // Loads the entire IR

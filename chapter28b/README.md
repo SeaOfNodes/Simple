@@ -5,8 +5,10 @@ English | [日本語](README.ja.md)
 [Previous: Chapter 28a](../chapter28a/README.md)
 
 The previous chapter compiled every discovered source file together.  This
-chapter lets a library and other code compile separately, and have full type
-information.  The client needs the library's *object* file, but not its source.
+chapter lets a program and the libraries it uses compile separately, with
+full type information.  To compile a program that uses a library, we need the
+library's *object* file, but not its source.
+
 In spirit this is similar to Java's *class* file, with its full execution and
 type semantics stored in the file; we happen to be using an ELF file for the
 same reason.  The ahead-of-time compiled code is *also* available for the
@@ -14,11 +16,11 @@ linking step.
 
 An ordinary native object contains machine code, data, symbols, and
 relocations.  Simple adds a `.simple` section with types and the ideal IR.
-Importing `.simple` lets the client check types and optimize calls into the
+Importing `.simple` lets the compiler check types and optimize calls into the
 library.  Calls that remain out of line use the library's machine code at
 native link time.
 
-## A library and a client
+## A program that uses a library
 
 The runnable example has two separate source roots:
 
@@ -76,7 +78,7 @@ java -ea -cp "build/classes/main:build/classes/test:lib/*" \
   src/test/smp/separate/library/Counters.smp
 ```
 
-Then compile and evaluate the client using that object:
+Then compile and evaluate the program using that object:
 
 ```sh
 java -ea -cp "build/classes/main:build/classes/test:lib/*" \
@@ -88,22 +90,27 @@ java -ea -cp "build/classes/main:build/classes/test:lib/*" \
 
 ## What crosses the separate compilation boundary
 
-The optimized IR owned by the object is compactly encoded in the `.simple`
-section and fully reconstructed when read back in.  The saved state includes
-canonical declarations as well as optimized flow types.  E.g. `int x=7` has
-declared type `int` and initial value `7`.  Struct field types (both declared
-and optimized), function argument types (both declared and optimized), numeric
-modes, store widths, and source locations also survive serialization.
+Each source compilation unit gets its own object file: compiling `sys.smp`
+produces `sys.o`, `sys/io.o`, `sys/libc.o`, and any other discovered classes.
+Mutually dependent sources are compiled together and they output to separate
+files with a common build timestamp.
 
-Each loaded `.simple` section restores its units into the shared `CompUnit`
-tree, mirroring the original code layout.  A dependency shared by several
-objects uses the same `CompUnit`.  Loaded aliases and function indices are
-renumbered to avoid collisions; all the dense indices end up in the same
-namespace.  `GlobalBits` has the mapping from the imported file indices to the
-local compilation indices; this remapping extends everywhere through the loaded
-code, including recursive types that span several files.  Importing skips
-parsing the original source, but it still analysed and type checked with its
-new callers.
+The object file has a compact encoding of the optimized IR in the `.simple`
+section.  Declarations and function summaries come first so they can be read
+without reading all of the IR.  The saved state includes canonical declarations
+as well as optimized flow types.  E.g. `int x=7` has declared type `int` and
+initial value `7`.  Struct field types (both declared and optimized), function
+argument types (both declared and optimized), numeric modes, store widths, and
+source locations also survive serialization.
+
+Each loaded `.simple` section restores `CompUnit`s into the shared tree,
+mirroring the original code layout.  A dependency shared by several objects
+uses the same `CompUnit`.  Loaded aliases and function indices are renumbered
+to avoid collisions; all the dense indices end up in the same namespace.
+`GlobalBits` has the mapping from the imported file indices to the local
+compilation indices; this remapping extends everywhere through the loaded code,
+including recursive types that span several files.  Importing skips parsing the
+original source, but loaded IR is still analyzed within its new context.
 
 `ParseAll` is the workhorse that discovers source and object dependencies.  It
 tracks missing symbol references, looking them up in the search path one by one,
@@ -117,8 +124,8 @@ compilation phases, including peepholes, Opto and TypeCheck.
 
 Dependencies between `CompUnit`s are recorded.  An explicitly requested source
 file is always compiled.  Before reusing another local object, `CompUnit` walks
-its recorded dependencies and checks every source bundled into each local
-object.  A missing input or a newer source or dependency object forces parsing
+its recorded dependencies and checks each local object's source.
+A missing input or a newer source or dependency object forces parsing
 again, before saved types or IR are imported.  This includes transitive
 dependencies: if A has inlined B, editing B's source invalidates A even while
 B's object is unchanged.  A visited set lets this check follow cycles.
@@ -129,33 +136,70 @@ cannot establish their compatibility.  These checks are not a complete build
 driver: explicit requests still compile, and input hashes, compiler/ABI
 versions, and automatic relinking remain future work.
 
-Loading currently works at the object granularity.  Unrelated objects can stay
-unloaded, but selecting an object loads its entire saved graph and follows its
-recorded dependencies.  Future work will look at loading sub-parts more
-incrementally.
+An unloaded function has a `FunNode`, `SummaryNode`, and `ReturnNode`. Its
+summary supplies result, memory, and escape information; calls keep the usual
+graph structure without requiring the body. Summaries cannot be inlined.
+At an empty optimization worklist, an interesting local call can request its
+callee's object using saved size information. The compiler loads the bodies,
+reconciles identities, and analyzes them before deciding whether to inline.
+
+For `sys.io.p`, the compiler can leave `p` out of line without loading `io` IR.
+Loading `io.o` makes its functions available, but references inside them carry
+types without automatically loading other bodies. An unused imported function
+does not cause speculative loading of its callees. Metadata discovery remains
+conservative, and a requested object still loads all of its function bodies.
 
 
 
-## Analysis, ownership, and initialization
+## Using library code and shared state
 
-An imported function can participate in analysis without belonging to the
-client's output.  Loading the `io` library, with its `p` print function, means
-that `p` is part of the analysis - but when writing out the `helloWorld` app,
-`p` will not end up in the `helloWorld.o` file directly.  It might be inlined
-fully, or called out of line, but there won't be a stand-alone copy of it.
+The compiler can use library IR to optimize a program while leaving the
+library's functions and shared data in their own object files.  Separate
+compilation must also preserve when each class is initialized, even when
+several files use it.
 
-After optimization, `Serialize` saves ideal IR before `Lower` expands class
-initialization.  `Unlink` then detaches imported bodies for machine compilation
-and removes analysis call edges.  The client emits its own bodies and any code
-copied into them by inlining; the
-remaining calls refer to symbols supplied by the library object.
+For example, compiling `helloWorld` may load the body of `sys.io.p` to decide
+whether to inline it or not.  Inlined code becomes part of `helloWorld.o`.
+Ifif it was not inlined that call remains using the function in `sys/io.o`.
+Loading did not add another stand-alone copy of `p` to `helloWorld.o`.
 
-Class initialization follows the previous chapter's rules.  Importing a type
-does not initialize its class.  Active uses retain `CLInit` checks until
-lowering (unless optimization clears them out).  The library supplies its
-shared class object and flag.  Initialization checks appear at all the active-touch
-locations, whether local or remote; including source locations for error
-reporting.
+In any case, loaded or not, inlined or not, the initialization semantics of
+`sys.io` is unchanged; this means we might need CLInit checks in the inlined
+code, or where we load `p` from `sys.io`.
+
+If we did load a bunch of IR, but then chose not to inline, that imported code
+is still in our compiled graph.  We use `Unlink` before code-gen to remove the
+imported bodies.  The not-inlined call sites will keep the target names around
+for the system linker to eventually connect all the code.
+
+Shared state follows the same idea as function calls.  In the earlier example,
+all calls within the program use the same `Counters.calls` field.  The library
+also supplies a shared `$init` flag so its class initializer runs once.
+Importing types or loading IR does not run that initializer: execution must
+reach a use that needs the class.
+
+A nested class's initializer first ensures that its enclosing class is
+initialized, then sets its own flag and runs its body.
+
+The IR represents an initialization check with a `CLInit` node.  Simple saves
+this form in the object file so the compiler can analyze it when compiling
+a program that uses the library.  For machine code, `Lower` turns the check
+into a flag test and a conditional call; Eval2 performs the same steps
+directly.  Optimization can remove a check when the class is
+already known to be initialized.
+
+The compiler must also reject cycles in which class initializers depend on one
+another.  Simple keeps *function summaries* that list calls and classes that
+may need initialization, so the compiler can check for cycles before loading
+bodies.  If a possible cycle appears, it loads all remaining bodies, optimizes,
+and checks again.  A constant returned by a some other code outside the cycle
+can make a branch disappear and remove the cycle.
+
+All required object files must be found before execution.  Native code is
+linked before the program starts.  Eval2 can wait until a call needs a body
+to decode its IR, but the object's types and dependencies have already been
+read.  These choices change when code is prepared; both execution paths use
+the same shared state and class-initialization rules.
 
 
 ## Building and checking
@@ -168,12 +212,14 @@ make tests CHAPTERS=chapter28b
 
 The suite includes the preceding constructor and escape regressions, imported
 constructors, initialization cycles across objects, shared static data, native
-function thunks, and native library/client execution. Make also builds the
-modular `sys` object used by the library tests. Clients can import that object
-with `-L`; they do not need to parse the standard library's source again.
-`IncrementalBuildTest` checks reuse, transitive edits, bundled cycles, missing
+function thunks, and native programs linked with libraries. Make also builds
+the modular `sys` objects used by the library tests. Programs can import
+`sys.o` with `-L`, without parsing the standard library's source again.
+`IncrementalBuildTest` checks reuse, transitive edits, cycles across objects, missing
 inputs, and changed library objects using controlled timestamps. It also
 compares native execution after an edit with a clean build.
+`SelectiveLoadingTest` checks summarized calls, loading for inlining, native
+link dependencies, and refinement of a potential initialization cycle.
 `make release` builds the launcher jar and standard library; `make view`
 starts the shared graph viewer.
 
