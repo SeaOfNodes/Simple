@@ -10,6 +10,25 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class SelectiveLoadingTest {
+    @Test public void testSharedConstantsInSeparateObjects() throws Exception {
+        Path root = library("shared-constants-");
+        Path src = Files.createDirectory(root.resolve("src"));
+        Path obj = Files.createDirectory(root.resolve("obj"));
+        write(src,"Lib","val sum_noInline = { int n -> Left.at_noInline(n)+Right.at_noInline(n); };");
+        write(src,"Lib/Left","val at_noInline = { int n -> n+1000000000000; };");
+        write(src,"Lib/Right","val at_noInline = { int n -> n*2+1000000000000; };");
+        // Both bodies share a constant in the compiling graph. Each saved
+        // object must contain it without pulling in the other unit's body.
+        new CodeGen(src.toString(),obj.toString(),null,"Lib",null,123,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+        CodeGen code = new CodeGen(null,null,new Ary<>(new String[]{obj.toString()}),
+            "Use","return Lib.sum_noInline(arg);",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertNull(code._compunits.get("Lib/Left")._src);
+        assertNull(code._compunits.get("Lib/Right")._src);
+        assertEquals("2000000000000",Eval2.eval(code,0));
+        assertEquals("2000000000003",Eval2.eval(code,1));
+    }
+
     @Test public void testUnreachableImportIsNotARoot() throws Exception {
         Path root = library("dead-import-");
         Ary<String> paths = new Ary<>(new String[]{root.toString()});

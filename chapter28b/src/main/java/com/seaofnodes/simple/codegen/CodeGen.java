@@ -145,10 +145,12 @@ public class CodeGen {
     private int[] _publicFIDXs, _publicAliases;
 
     /**
-     * Freeze the externally visible portion of the program after ParseAll has
-     * loaded every compilation unit and closed/upgraded all types.  Later
-     * optimization can remove linker entries and create inline-only fidxs;
-     * neither operation changes this interface.
+     * Collect every possible public escape - after ParseAll is done - in case
+     * some code calls a generic function.  Example:
+     *     var apply = = { {int->int} f, int x -> f(x); };  // Generic apply() call
+     * The CallEnd from `f(x)` has to use generic TypeMem.BOT, which
+     * immediately escapes *everything* including known private functions.
+     * As weak as this is, its still sharper than "everything".
      */
     void freezePublicInterface() {
         assert _publicFIDXs==null && _publicAliases==null;

@@ -6,7 +6,28 @@ import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
 import java.util.*;
 
-abstract public class Serialize {
+public class Serialize {
+
+    // Shared by all objects in this serialization pass.  The graph and its
+    // declarations stay unchanged while each compilation unit is written.
+    private final ClassInitDependencies _init;
+    private final HashSet<TypeStruct> _pubTypes = new HashSet<>();
+    private final HashMap<CompUnit,Ary<TypeStruct>> _classes = new HashMap<>();
+
+    private Serialize(CodeGen code) {
+        _init = new ClassInitDependencies(code);
+        // Preserve the canonical declarations, distinct from sharper graph
+        // types with the same names.  Gather/sort them once for all objects.
+        TreeMap<String,TypeStruct> named = new TreeMap<>();
+        for( Type type : Parser.TYPES.values() )
+            if( type instanceof TypeStruct ts ) named.put(ts._name,ts);
+        for( TypeStruct ts : named.values() ) {
+            _pubTypes.add(ts);
+            CompUnit cu = classOwner(code,ts);
+            if( cu!=null && cu._src!=null )
+                _classes.computeIfAbsent(cu,k -> new Ary<>(TypeStruct.class)).add(ts);
+        }
+    }
 
     // Encoding/emulation need only machine code. File export also needs ideal
     // IR for a later compiler to import; an explicit Serialize request stops here.
@@ -22,15 +43,16 @@ abstract public class Serialize {
                 fun._name=code._fidxs.symbol(fun.sig().fidx());
         ArrayList<CompUnit> units = new ArrayList<>(code._compunits.values());
         units.sort(Comparator.comparing(cu -> cu._fname));
+        Serialize writer = new Serialize(code);
         for( CompUnit cu : units ) {
             if( cu._src==null ) continue;
-            BAOS serial = serialize(code,cu);
+            BAOS serial = writer.serialize(code,cu);
             code._serials.put(cu,serial);
             if( cu._fname.equals(code._srcName==null ? "Test" : code._srcName) ) code._serial=serial;
         }
     }
 
-    private static BAOS serialize(CodeGen code, CompUnit top) {
+    private BAOS serialize(CodeGen code, CompUnit top) {
         Ary<Node> nodes = nodeOrder(code,top);
         HashSet<String> xdeps = new HashSet<>();
         // Retain build dependencies even when their calls were inlined away.
@@ -42,24 +64,16 @@ abstract public class Serialize {
         String[] units = {top._fname};
         TypeStruct clz = top._clz;
 
-        // Preserve which same-named structs are the source-level declarations.
-        // Optimized graph types can carry sharper field states (e.g. len==0),
-        // and cannot be used to reconstruct this mapping during loading.
-        TreeMap<String,TypeStruct> named = new TreeMap<>();
-        for( Type type : Parser.TYPES.values() )
-            if( type instanceof TypeStruct ts )
-                named.put(ts._name,ts);
-        TypeStruct[] pubTypes = named.values().toArray(new TypeStruct[0]);
-
         // Compress into bytes
-        BAOS baos = write(nodes, clz, pubTypes, deps, units, code._aliases, code._fidxs, code._rpcs, code._externFunc);
+        Ary<TypeStruct> classes = _classes.get(top);
+        BAOS baos = write(nodes, clz, classes, deps, units, code._aliases, code._fidxs, code._rpcs, code._externFunc);
 
         // --- Expensive bijection assert
         if( false ) {
             // Inflate into POJOs; renumbers everything
             ElfReader elf = new ElfReader(new BAOS(baos.toByteArray()));
             readAll(code,elf, code._aliases, code._fidxs, code._rpcs);
-            BAOS baos2 = write(elf._nodes,elf._clz,elf._pubTypes,elf._deps,elf._units, code._aliases, code._fidxs, code._rpcs, code._externFunc);
+            BAOS baos2 = write(elf._nodes,elf._clz,classes,elf._deps,elf._units, code._aliases, code._fidxs, code._rpcs, code._externFunc);
 
             // Bi-jection
             for( int i=0; i<baos.size(); i++ )
@@ -73,7 +87,7 @@ abstract public class Serialize {
     }
 
     // --------------------------------------------------
-    static BAOS write(Ary<Node> nodes, TypeStruct clz, TypeStruct[] pubTypes, String[] depobjs, String[] units, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs, HashMap<Integer,String> externFunc) {
+    private BAOS write(Ary<Node> nodes, TypeStruct clz, Ary<TypeStruct> classes, String[] depobjs, String[] units, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs, HashMap<Integer,String> externFunc) {
         // Initialize the mapping from bits/tags to types
         Type.TAGOFFS();
 
@@ -128,17 +142,18 @@ abstract public class Serialize {
         // can be absent from graph types even while their function bodies live.
         // Keep the nearest file owner, so an imported child is not re-exported
         // merely because its parent was compiled here.
-        for( TypeStruct ts : pubTypes )
-            if( ownedClass(ts,units) )
+        if( classes!=null )
+            for( TypeStruct ts : classes )
                 ts.gather(types);
 
         // Only record canonical declarations already reachable from this
         // object's graph.  Pulling unrelated parser types into this closure
         // can include open or partially built types from other units.
         Ary<TypeStruct> writtenPubs = new Ary<>(TypeStruct.class);
-        for( TypeStruct ts : pubTypes )
-            if( types.containsKey(ts) )
+        for( Type type : types.keySet() )
+            if( type instanceof TypeStruct ts && _pubTypes.contains(ts) )
                 writtenPubs.add(ts);
+        Arrays.sort(writtenPubs._es,0,writtenPubs._len,Comparator.comparing(ts -> ts._name));
         // Radix sort by Type ID#
         Type[] atypes = new Type[types.size()];
         for( Type t : types.keySet() )
@@ -221,7 +236,6 @@ abstract public class Serialize {
 
         // Function summaries precede the graph, so declarations and call
         // behavior are available without allocating the implementation nodes.
-        ClassInitDependencies init = new ClassInitDependencies(CodeGen.CODE);
         int nfuncs = 0;
         for( Node n : nodes ) if( n instanceof FunNode ) nfuncs++;
         baos.packed4(nfuncs);
@@ -230,7 +244,7 @@ abstract public class Serialize {
             baos.packed2(types.get(summaries.get(fun)));
             baos.packed2(fun._name==null ? 0 : strs.get(fun._name));
             baos.packed4(fun._approxUIDs);
-            int[] edges = init._edgess[fun.sig().fidx()];
+            int[] edges = _init._edgess[fun.sig().fidx()];
             baos.packed4(edges==null ? 0 : edges.length);
             if( edges!=null ) for( int edge : edges ) baos.packed4(edge);
         }
@@ -294,16 +308,16 @@ abstract public class Serialize {
         }
     }
 
-    // Returned array of *public* strings only.
-    private static boolean ownedClass(TypeStruct ts, String[] units) {
-        if( !Parser.startsClzPrefix(ts._name) ) return false;
-        String name=ts._name.substring(Parser.CLZ.length()).replace('.','/');
+    // A nested declaration belongs to its nearest enclosing file.
+    private static CompUnit classOwner(CodeGen code, TypeStruct ts) {
+        if( !Parser.startsClzPrefix(ts._name) ) return null;
+        String name = ts._name.substring(Parser.CLZ.length()).replace('.','/');
         while( true ) {
-            if( CodeGen.CODE._compunits.containsKey(name) )
-                return Arrays.binarySearch(units,name)>=0;
-            int slash=name.lastIndexOf('/');
-            if( slash<0 ) return false;
-            name=name.substring(0,slash);
+            CompUnit cu = code._compunits.get(name);
+            if( cu!=null ) return cu;
+            int slash = name.lastIndexOf('/');
+            if( slash<0 ) return null;
+            name = name.substring(0,slash);
         }
     }
 
@@ -549,38 +563,26 @@ abstract public class Serialize {
         BitSet visit = code.visit();
         Ary<Node> nodes = new Ary<>(Node.class);
         visit.set(code._stop._nid);
-        // Return-linked function constants are global. Do not walk through
-        // them from one function into stores or calls in a different unit.
-        for( Node n : code._start._outputs ) if( n!=null && n.isConst() ) visit.set(n._nid);
-        // Walk all listed functions, in this single compilation unit
-        for( FunNode fun : code._linker )
-            if( fun!=null && !fun.isDead() && fun._compunit == cu )
-                _funWalk(fun,nodes,visit);
+        // FinalizeIR attached every surviving function to its unit's Stop.
+        for( Node ret : cu._stop._inputs )
+            _funWalk(((ReturnNode)ret).fun(),nodes,visit);
 
-        for( Node n : code._start._outputs ) if( n!=null && n.isConst() ) visit.clear(n._nid);
-
-        // Just constants used by the listed functions
+        // Gather constants and shared expressions through this unit's inputs.
+        // Walking their users instead would search other units and miss new
+        // kinds of shared expressions unless we special-cased each one.
         Ary<Node> cons = new Ary<>(Node.class);
         cons.add(code._start);
-        for( Node n : code._start._outputs ) {
-            Node con = n;
-            if( con.isConst() && !visit.get(con._nid) ) {
-                for( Node use : con.outs() ) {
-                    // PtrToInt is another zero-code value rooted at a global
-                    // constant.  Its array-body Add is the value used by the
-                    // function, so include that extra link in the ownership
-                    // test as well.
-                    if( use instanceof PtrToIntNode ptr )
-                        for( Node add : ptr.outs() ) {
-                            for( Node addUse : add.outs() )
-                                conUsed(add,addUse,visit,cons);
-                            conUsed(ptr,add,visit,cons);
-                        }
-                    // Constant used by somebody, so flag for output
-                    conUsed(con,use,visit,cons);
-                }
+        visit.set(code._start._nid);
+        visit.set(cu._start._nid);
+        for( Node n : cu._start._outputs )
+            if( n instanceof ProjNode ) visit.set(n._nid);
+        for( Node n : nodes )
+            for( int i = 0; i<n.nIns(); i++ ) {
+                // Parameters omit arguments from callers in other objects,
+                // just as writeInput omits those call-graph edges.
+                if( n instanceof ParmNode parm && i>0 && !visit.get(parm.fun().in(i)._nid) ) continue;
+                constantInputs(n.in(i),cons,visit);
             }
-        }
         // StartCU and memory projection
         cons.add(cu._start);
         for( Node n : cu._start._outputs )
@@ -594,10 +596,15 @@ abstract public class Serialize {
         return cons;
     }
 
-    private static void conUsed( Node con, Node use, BitSet visit, Ary<Node> cons ) {
-        if( use == null || !visit.get(use._nid) || visit.get(con._nid) ) return;
-        cons.add(con);
-        visit.set(con._nid);
+    private static void constantInputs(Node n, Ary<Node> cons, BitSet visit) {
+        if( n==null || visit.get(n._nid) ) return;
+        // Call graph edges lead to other functions, not shared values.
+        if( n instanceof CFGNode && !n.isConst() ) return;
+        visit.set(n._nid);
+        cons.add(n);
+        // A FunPtr's Return edge must not pull in the callee's body.
+        if( !n.isConst() )
+            for( Node def : n._inputs ) constantInputs(def,cons,visit);
     }
 
     // --------------------------------------------------
@@ -665,6 +672,8 @@ abstract public class Serialize {
 
     // Walk and gather RPO nodes.
     private static void _funRPO(Node n, Ary<Node> rpo, BitSet visit ) {
+        // Return-linked constants can have users in other compilation units.
+        if( n.isConst() ) return;
         if( visit.get(n._nid) ) return; // Been there, done that
         visit.set(n._nid);              // Stop recursion
         // Walk outputs ordered
