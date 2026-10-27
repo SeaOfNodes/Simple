@@ -25,6 +25,31 @@ import org.junit.runners.model.Statement;
 import static org.junit.Assert.*;
 
 public class ClassInitDependenciesTest {
+    @Test public void testPrivateInitializerCallEdges() throws Exception {
+        for( long seed : new long[]{1,123,987654321} ) {
+            Path root = tempDir("private-roots-");
+            Path classes = Files.createDirectories(root.resolve("Root"));
+            Files.writeString(root.resolve("Root.smp"),"val _dead = _Dead; val read = { -> _Live.value; }; return 0;");
+            Files.writeString(classes.resolve("_Live.smp"),"int value = 17+arg;");
+            Files.writeString(classes.resolve("_Dead.smp"),"val child = Child; int value = 99;");
+            Path children = Files.createDirectories(classes.resolve("_Dead"));
+            Files.writeString(children.resolve("Child.smp"),"int value = 42;");
+            CodeGen code = new CodeGen(root.toString(),root.resolve("obj").toString(),null,
+                "Root",null,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            FunNode live = code.link(code._compunits.get("Root/_Live"));
+            assertNotNull(live);
+            assertFalse("A local init call is not an unknown caller",live.unknownCallers());
+            assertTrue(live.in(1) instanceof CProjNode call && call.in(0) instanceof CLInitNode);
+            for( FunNode fun : code._linker )
+                assertTrue(fun==null || fun.isDead() ||
+                    fun._compunit!=code._compunits.get("Root/_Dead") &&
+                    fun._compunit!=code._compunits.get("Root/_Dead/Child"));
+            assertEquals("0",Eval2.eval(code,99));
+            new CodeGen(root.toString(),root.resolve("obj").toString(),null,
+                "Root",null,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.Encoding,"x86_64_v2","SystemV");
+        }
+    }
+
     private final ArrayList<Path> dirs = new ArrayList<>();
 
     @Rule public final TestRule cleanup = (test, description) -> new Statement() {

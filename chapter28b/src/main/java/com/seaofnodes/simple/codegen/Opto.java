@@ -56,9 +56,8 @@ abstract public class Opto {
     }
 
 
-    // If wholeWorld, remove the Start inputs to functions - they are not
-    // called unless they get linked (hence go dead and can be removed).  If
-    // not wholeWorld, keep only public methods (and not the std lib).
+    // Only entry initializers start with unknown callers. Discover every
+    // other function through calls or escaping values during SCCP.
     private static void unlinkStart(CodeGen code) {
         // Keep the Start & Start.ProjMem alive even as we remove all uses
         for( CompUnit cu : code._compunits.values() ) {
@@ -66,18 +65,13 @@ abstract public class Opto {
             if( mem!=null ) mem.keep();
         }
 
-        // Iterate the Stop-of-Stops
+        // Iterate all functions.
+        // TODO: use CodeGen _link list
         for( Node stop : code._stop._inputs ) {
             for( int i=0; i<stop.nIns(); i++ ) {
                 ReturnNode ret = (ReturnNode)stop.in(i);
                 FunNode fun = ret.fun();
-                // Start is a semantic unknown-caller edge.  Public functions
-                // keep it; closed-world functions must be reached by a
-                // concrete Call edge discovered during SCCP. Initializers,
-                // including private/imported ones, are called by opaque CLInit
-                // obligations whose Call edges are introduced only in Lower.
-                if( !fun.isClz() &&
-                    !code.publicFIDX(fun.sig().fidx()) &&
+                if( !fun.isRoot() &&
                     fun.in(1) instanceof StartNode ) {
                     fun.removeDeadPath(1);
                     // Unhook from Stop without treating the ReturnNode as
@@ -171,6 +165,7 @@ abstract public class Opto {
             if( n.isDead() ) continue;
             count++;
             Type oval = n._type, nval = n.compute();
+            if( n instanceof CLInitNode init ) init.link();
             if( oval == nval ) continue;
             assert oval.isa(nval) : "Non-monotonic SCCP: "+n.getClass().getSimpleName()+"#"+n._nid+" "+n+" old="+oval+" new="+nval;    // Types start high and always fall
             Type pesiVal = oldTypes.atX(n._nid);

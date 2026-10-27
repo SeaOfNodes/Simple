@@ -32,6 +32,30 @@ signed and unsigned fields and compare ideal evaluation with generated code.
 
 ## Compilation and optimization
 
+### Phase ordering and incremental analysis
+
+Import loading now repairs the new graph's types and propagates changed bounds
+through affected callers before resuming peepholes. It no longer restarts Iter
+and Opto over the combined graph. Unknown calls retain conservative effects
+and escaping callbacks. Entry initializers seed reachability; live calls,
+including CLInit and the callees recorded in summaries, discover other targets.
+
+Smaller follow-ups:
+
+- Try queuing only nodes whose types changed during Opto, plus affected
+  neighbors and nodes whose edges or numeric modes changed, for IterPostOpto.
+- Remove the deserializer's temporary `Parse` phase. Node construction should
+  express its needs without changing the driver's progress marker.
+- Have Eval2 require checked input in a supported phase. Prepare each newly
+  loaded graph once, without changing the running program's phase. Remove
+  scheduling scratch costs proportional to all previously allocated node IDs.
+- Keep field-offset cleanup on the worklist. Repeated peepholes are fine when
+  driven by changes; avoid repeating global finalization bookkeeping.
+
+Whole-program TypeCheck is acceptable for now; incremental checking is an
+optional later improvement. Expensive assertion walks are outside this
+performance work. Review the encoding fallback inside Export separately.
+
 ### Reliable incremental builds
 
 Chapter 28b now checks the reachable source-backed inputs before reusing saved

@@ -313,6 +313,10 @@ public abstract class ParseAll {
                         if( old.in(i) instanceof CallNode call ) {
                             call.unlink(old,i--);
                             call.link(fun);
+                        } else if( old.in(i) instanceof CProjNode proj && proj.in(0) instanceof CLInitNode init ) {
+                            init.unlink();
+                            init.link();
+                            i--;
                         }
                     old.ret().unkeep().subsume(fun.ret());
                 }
@@ -324,11 +328,17 @@ public abstract class ParseAll {
             code._stop.addDef(lstopcu);
         lstart.subsume(code._start);
         if( oldStart!=null && oldStart!=cunit._start ) {
+            if( oldStart.iskeep() ) oldStart.unkeep();
             int idx = code._stop._inputs.find(oldStop);
             if( idx!=-1 ) code._stop.delDef(idx);
             oldStart.subsume(cunit._start);
         }
-        code.addAll(elf._nodes);
+        // Saved types describe the library's original compilation.  Repair
+        // only the newly loaded graph; ordinary dependencies carry changes
+        // into its callers without restarting whole-program analysis.
+        ProjNode startMem = cunit._start.proj(1);
+        if( startMem!=null && !startMem.iskeep() ) startMem.keep();
+        Iter.imports(code,elf._nodes);
 
         // Add the new top-level loaded class
         Parser.TYPES.put(cunit._clz._name,cunit._clz);

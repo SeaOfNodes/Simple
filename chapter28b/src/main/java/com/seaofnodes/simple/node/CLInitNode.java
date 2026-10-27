@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
+import com.seaofnodes.simple.codegen.Iter;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import java.util.*;
@@ -16,7 +17,7 @@ public class CLInitNode extends CFGNode implements MultiNode {
     public Parser.Lexer _loc;          // For error reporting
 
     // Inputs: control, whole memory, class pointer, loaded $init flag
-    // Results: control, whole memory, known-true flag alias memory.
+    // Results: control, whole memory, known-true flag alias memory, call control.
     // For field references, the ptr might be the dst clz ptr or not.
     public CLInitNode(Parser.Lexer loc, Node ctrl, Node mem, Node ptr, Node ready) {
         super(ctrl,mem,ptr,ready);
@@ -75,19 +76,21 @@ public class CLInitNode extends CFGNode implements MultiNode {
 
     @Override public Type compute() {
         if( in(0)._type.isHigh() || ptr()._type.isHigh() )
-            return TypeTuple.make(Type.XCONTROL,TypeMem.TOP,TypeMem.TOP);
+            return TypeTuple.make(Type.XCONTROL,TypeMem.TOP,TypeMem.TOP,Type.XCONTROL);
         if( instance() )
-            return TypeTuple.make(in(0)._type,mem()._type,mem()._type);
+            return TypeTuple.make(in(0)._type,mem()._type,mem()._type,Type.XCONTROL);
         Field flag = flag();
         Type slice = flag==null ? TypeMem.BOT : TypeMem.make(flag._alias,TypeInteger.TRUE);
         // The initializer may write arbitrary public memory. Only its flag
         // has a guaranteed value on the normal continuation.
         Type bulk = ready()._type.isHigh() ? TypeMem.TOP :
             ready()._type==TypeInteger.TRUE ? mem()._type : TypeMem.BOT;
-        return TypeTuple.make(in(0)._type,bulk,slice);
+        Type call = ready()._type.isHigh() || ready()._type==TypeInteger.TRUE ? Type.XCONTROL : in(0)._type;
+        return TypeTuple.make(in(0)._type,bulk,slice,call);
     }
 
     @Override public Node pcopy(int idx, Node dep) {
+        if( idx==3 ) return null; // Analysis call edge, removed before scheduling.
         dep.addDep(ptr());
         dep.addDep(ready());
         if( instance() ) return idx==0 ? in(0) : mem();
@@ -100,10 +103,58 @@ public class CLInitNode extends CFGNode implements MultiNode {
     }
 
     @Override public Node idealize() {
+        if( CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ) return null;
+        if( CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Lower.ordinal() ) return link() ? this : null;
         if( CodeGen.CODE._phase!=CodeGen.Phase.Lower || bypass() || in(0)._type.isHigh() ) return null;
         if( CodeGen.CODE._midAssert ) return this;
         // Until entry arguments become arrays, ordinary initializers receive zero.
         return expand(CodeGen.CODE.con(TypeInteger.ZERO));
+    }
+
+    // Before lowering, expose the conditional call to interprocedural analysis.
+    // No Return edge is needed: CLInit already conservatively models its effects.
+    public boolean link() {
+        if( in(0)._type.isHigh() || ptr()._type.isHigh() || ready()._type.isHigh() || bypass() ) return false;
+        FunNode target = CodeGen.CODE.link(cu());
+        if( target==null ) return false; // Forward class reference during parsing.
+        assert !target.isDead() : "dead initializer "+target._name;
+        CProjNode call = cproj(3);
+        if( call!=null && target._inputs.find(call)!=-1 ) return false;
+        if( CodeGen.CODE._midAssert ) return true;
+        if( call==null ) call = CodeGen.CODE.add(new CProjNode(this,3,"InitCall").init());
+        CodeGen.CODE.keepInCompUnit(target);
+        CodeGen.CODE.add(target).addDef(call);
+        for( Node use : target._outputs )
+            if( use instanceof ParmNode parm ) {
+                Node arg = switch( parm._idx ) {
+                case 0 -> CodeGen.CODE.con(TypeRPC.BOT);
+                case 1 -> mem();
+                case 2 -> ptr();
+                case 3 -> CodeGen.CODE.con(TypeInteger.ZERO);
+                default -> throw new IllegalStateException("initializer parameter");
+                };
+                CodeGen.CODE.add(parm).addDef(arg);
+            }
+        if( CodeGen.CODE._phase.ordinal()>CodeGen.Phase.Opto.ordinal() ) {
+            boolean repair = !target.compute().isa(target._type);
+            for( Node use : target._outputs )
+                if( use instanceof ParmNode && !use.compute().isa(use._type) ) repair = true;
+            if( repair ) Iter.repair(CodeGen.CODE);
+        }
+        return true;
+    }
+
+    public void unlink() {
+        CProjNode call = cproj(3);
+        if( call==null ) return;
+        keep();
+        for( Node use : call._outputs.asAry() )
+            if( use instanceof FunNode target ) {
+                CodeGen.CODE.add(target);
+                target.removeDeadPath(target._inputs.find(call));
+            }
+        call.isKill();
+        unkeep();
     }
 
     // Called only after cycle/type checking. The initialized arm skips the
@@ -123,9 +174,11 @@ public class CLInitNode extends CFGNode implements MultiNode {
         Node fptr = new FunPtrNode(target.sig(),CodeGen.CODE._start,target.ret()).peephole();
         CallNode call = CodeGen.CODE.add(new CallNode(_loc,cold,memory,ptr(),arg,fptr).init());
         CallEndNode end = new CallEndNode(call,TypeRPC.constant(CodeGen.CODE.rpc(_loc._cu._cname)));
-        // This is a lowered call, after interprocedural analysis. Do not add
-        // new parameter flows to a body already optimized by SCCP.
         CodeGen.CODE.add(end.init());
+        // Replace the analysis edge with the ordinary call. Its arguments
+        // are the same ones already analyzed before lowering.
+        call.link(target);
+        unlink();
         Node called = CodeGen.CODE.add(new CProjNode(end,0,ScopeNode.CTRL).init());
         Node after = CodeGen.CODE.add(new ProjNode(end,1,ScopeNode.MEM0).init());
         RegionNode region = CodeGen.CODE.add(new RegionNode(_loc,null,done,called).init());

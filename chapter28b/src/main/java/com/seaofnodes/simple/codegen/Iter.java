@@ -2,10 +2,11 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
 
 // Establish a pessimistic fixed point after parsing/loading. Later Iter runs
 // reuse the worklist and types produced by the preceding phase.
-abstract class Iter {
+public abstract class Iter {
     static void run(CodeGen code) {
         // The phase shift closes all parser-in-progress states and freezes
         // unknown external inputs.  Imported nodes carry post-Opto escape
@@ -57,5 +58,41 @@ abstract class Iter {
             return rez;
         }
         return t;
+    }
+
+    // Saved types belong to a different caller context. Reset only the new
+    // graph, then repair any affected bounds before peepholes consume them.
+    static void imports(CodeGen code, Ary<Node> nodes) {
+        for( Node n : nodes )
+            if( !n.isDead() )
+                n._type = n instanceof ConstantNode ? n.compute() : iterImportReset(n._type);
+        // Stop normalizes unknown memory into the unit's visible escapes.
+        // Do not publish a transient FULL Stop merely because we reset its body.
+        for( Node n : nodes )
+            if( n instanceof StopCUNode && !n.isDead() ) n._type = n.compute();
+        code.addAll(nodes);
+        repair(code);
+    }
+
+    // Repair the monotonicity assert after loading new nodes (from a file via
+    // Serialize).  Only widening types here makes it safe to resume the usual
+    // lifting peeps.  The worklist already contains changed edges and their
+    // neighbors.
+    public static void repair(CodeGen code) {
+        // Gather changes for a normal IterPeeps once the graph has its
+        // monotonicity property back.
+        Ary<Node> peeps = new Ary<>(Node.class);
+        Node n;
+        while( (n = code._iter._work.pop())!=null ) {
+            if( n.isDead() ) continue;
+            peeps.add(n);
+            // Meet over existing and new; only drops
+            Type t = n._type.meet(n.compute());
+            if( t==n._type ) continue;
+            n._type = t;
+            code.addAll(n._outputs);
+            n.moveDepsToWorklist();
+        }
+        code.addAll(peeps);
     }
 }

@@ -497,35 +497,11 @@ public class CodeGen {
 
     public CodeGen iterPostOpto() { return phase(Phase.IterPostOpto, _phase==Phase.Opto, () -> _iter.iterate(this)); }
 
-    // Materialize a requested inline candidate at an empty worklist, then
-    // reanalyze before CallEnd decides whether the real body should inline.
+    // Materialize an inline candidate at an empty worklist. Loading queues
+    // the new body and affected callers before CallEnd considers inlining.
     public void loadForInline(CompUnit cu) {
         assert _phase==Phase.IterPostOpto && _iter._work.isEmpty();
         ParseAll.loadCompUnit(this,cu);
-        analyzeImports();
-    }
-
-    private void analyzeImports() {
-        Phase prior = _phase;
-        try {
-            _phase=Phase.Iter;
-            // Newly loaded calls can revive previously uncalled summaries.
-            // Restore their pessimistic inputs before solving; SCCP removes
-            // the unknown-caller edges again once all calls are available.
-            for( FunNode fun : _linker )
-                if( fun!=null && fun.summary()!=null ) {
-                    Opto.linkStart(this,fun);
-                    for( Node use : fun._outputs )
-                        if( use instanceof ParmNode parm ) parm._type=parm._declaredType;
-                }
-            for( CompUnit cu : _compunits.values() ) {
-                ProjNode mem = cu._start.proj(1);
-                if( mem!=null && mem.iskeep() ) mem.unkeep();
-            }
-            Iter.run(this);
-            _phase=Phase.Opto;
-            Opto.opto(this);
-        } finally { _phase=prior; }
     }
 
     // Evaluation needs implementations even for calls left out of line.  E.g.,
@@ -544,7 +520,6 @@ public class CodeGen {
             loaded=true;
         }
         if( !loaded ) return;
-        analyzeImports();
         if( _phase.ordinal()<Phase.FinalizeIR.ordinal() ) return;
         Phase prior = _phase;
         try {
@@ -562,7 +537,6 @@ public class CodeGen {
             Ary<CompUnit> units = new ClassInitDependencies(this).cycleImports();
             if( units.isEmpty() ) return;
             for( CompUnit cu : units ) ParseAll.loadCompUnit(this,cu);
-            analyzeImports();
             Phase prior = _phase;
             try {
                 _phase=Phase.IterPostOpto;
@@ -576,7 +550,7 @@ public class CodeGen {
     public CodeGen finalizeIR() { return phase(Phase.FinalizeIR, _phase==Phase.IterPostOpto, () -> FinalizeIR.run(this)); }
 
     // Root a surviving function without claiming that it has unknown callers.
-    void keepInCompUnit(FunNode fun) {
+    public void keepInCompUnit(FunNode fun) {
         StopCUNode stop = fun._compunit._stop;
         if( stop._inputs.find(fun.ret()) == -1 )
             add(stop).addDef(fun.ret());

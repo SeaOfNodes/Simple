@@ -19,6 +19,7 @@ abstract class Unlink {
             }
         for( Node n : nodes ) {
             if( n instanceof CallNode call ) call.unlink_all();
+            if( n instanceof CLInitNode init ) init.unlink();
             if( n instanceof FunPtrNode ptr && ptr.ret()!=null ) ptr.setDef(1,null);
         }
         for( FunNode fun : funs ) {
@@ -34,6 +35,8 @@ abstract class Unlink {
             }
             restoreRPC(fun);
         }
+        for( Node n : nodes )
+            if( n instanceof StartCUNode unitStart ) releaseStart(unitStart);
         // A summary is a dispatch target, not a schedulable implementation.
         // Retain its own wrapper graph without including it in this schedule.
         for( int i = 0; i<stop.nIns(); i++ ) {
@@ -41,7 +44,7 @@ abstract class Unlink {
             boolean summary = false;
             for( Node r : unit._inputs )
                 summary |= ((ReturnNode)r).fun().summary()!=null;
-            if( summary ) {
+            if( summary || unit.nIns()==0 ) {
                 unit.start().setDef(0,null);
                 stop.delDef(i--);
             }
@@ -136,6 +139,8 @@ abstract class Unlink {
                 ((CallNode)fun.in(i)).unlink(fun,i--);
             restoreRPC(fun);
         }
+        for( CompUnit cu : code._compunits.values() )
+            if( cu._start!=null && !cu._start.isDead() ) releaseStart(cu._start);
 
         code._stop.walk(n -> {
             if( n instanceof CallEndNode cend )
@@ -146,6 +151,13 @@ abstract class Unlink {
                 call.unlink_all();
             return null;
         });
+    }
+
+    private static void releaseStart(StartCUNode start) {
+        if( start.iskeep() ) start.unkeep();
+        // An unused unit can lose its outer Stop edge during optimization.
+        // Detach its empty wrapper from the scheduling root as well.
+        if( start.in(1) instanceof StopCUNode stop && stop.nIns()==0 ) start.setDef(0,null);
     }
 
     private static void restoreRPC(FunNode fun) {

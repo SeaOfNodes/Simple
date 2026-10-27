@@ -4,6 +4,7 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.GlobalBits;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.XInt;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
 
@@ -202,6 +203,13 @@ public class BulkMemPhiNode extends PhiNode {
         // duplicate for the same Region/alias pair.
         Node mem = precisePhi(alias);
         assert ((TypeMem)mem._type)._alias==alias;
+        // A parallel Phi may still be waiting for its inputs' type changes.
+        // Do not replace this memory with slices carrying weaker escape facts.
+        if( !readySlice(mem) ) return null;
+        for( int old = _aliases.nextSetBit(0); old>=0; old = _aliases.nextSetBit(old+1) ) {
+            Node prior = precisePhi(old);
+            if( !readySlice(prior) ) return null;
+        }
 
         BitSet aliases = ((BitSet)_aliases.clone());
         aliases.set(alias);
@@ -220,6 +228,16 @@ public class BulkMemPhiNode extends PhiNode {
         CodeGen.CODE.add(bulk);
         CodeGen.CODE.add(mem);
         return aggregate(bulk,alias,mem);
+    }
+
+    private boolean readySlice(Node precise) {
+        TypeMem mem = (TypeMem)_type;
+        TypeMem part = (TypeMem)precise._type;
+        if( !XInt.bit(mem._escAs,part._alias) || mem.meet(part).isa(mem) ) return true;
+        precise.setType(precise.compute());
+        if( mem.meet(precise._type).isa(mem) ) return true;
+        addDep(precise);
+        return false;
     }
 
     // Build aggregate memory over a bulk Phi, preserving every precise slice

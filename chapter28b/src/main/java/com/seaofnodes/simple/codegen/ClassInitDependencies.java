@@ -29,6 +29,7 @@ public class ClassInitDependencies {
     private final int[] _lows;
     private final int[] _stk ;
     private int _sp;
+    private int _pre;
 
 
     // Build once; tests can inspect the graph independently of cycle checking.
@@ -50,6 +51,24 @@ public class ClassInitDependencies {
             if( fun!=null && !fun.isDead() )
                 // Visit function and collect direct class touches and callees
                 _edgess[fun.sig().fidx()] = walk(code,fun,work,iset,visit,null);
+
+        // FIDX zero represents escapees - an unknown callee, including a
+        // callback supplied by another compilation.  Its code can call any
+        // exposed function.  Keep this edge in saved summaries so later
+        // applications contribute their callbacks too.
+
+        // Filter escapees by dead and not a class (class initializers are
+        // reached through bodies, not directly callable function pointers).
+        int[] escaped = ((TypeTuple)code._stop._type).mem()._escFs;
+        AryInt callees = new AryInt();
+        // An imported Stop can still carry FULL (only local bodies have edges)
+        // so limit by existing FIDXs.
+        int limit = code._linker._len;
+        for( int fidx = XInt.next(escaped,0,limit); fidx >= 0; fidx = XInt.next(escaped,fidx,limit) ) {
+            FunNode fun = code.link(fidx); // Discard dead bodies and external C functions.
+            if( fun!=null && !fun.isClz() ) callees.push(fidx);
+        }
+        _edgess[0] = callees.isEmpty() ? null : callees.asAry();
         visit.clear();
     }
 
@@ -62,8 +81,8 @@ public class ClassInitDependencies {
         assert visit.isEmpty(); // needs a visit set, because loops
         assert work .isEmpty(); // needs a worklist, because DAG, parallel explore paths
 
-        // Keep the structural parent prerequisite even if a known-true flag
-        // folds the check in the child's body. Cycles still require diagnosis.
+        // Children require their parents to init first;
+        // add child->parent edge
         if( fun.isClz() && fun._compunit._par != null )
             iset.put(code.link(fun._compunit._par).sig().fidx(),1);
 
@@ -86,9 +105,12 @@ public class ClassInitDependencies {
 
             // Calls union all their fptr fidxs into the callee set
             if( cfg instanceof CallNode call && call.fptr()._type instanceof TypeFunPtr fp ) {
-                assert !XInt.isHigh(fp.fidxs()) && fp.nfcns()>0; // Call is alive with valid targets
+                if( XInt.isHigh(fp.fidxs()) ) {
+                    iset.put(0,1);
+                    if( sites!=null && sites.atX(0)==null ) sites.setX(0,call._loc);
+                }
                 // Union call targets into the callee set
-                for( int dstx = XInt.next(fp.fidxs(),0); dstx>=0; dstx=XInt.next(fp.fidxs(),dstx) ) {
+                else for( int dstx = XInt.next(fp.fidxs(),0); dstx>=0; dstx=XInt.next(fp.fidxs(),dstx) ) {
                     iset.put(dstx,1);
                     if( sites!=null && sites.atX(dstx)==null ) sites.setX(dstx,call._loc);
                 }
@@ -115,10 +137,10 @@ public class ClassInitDependencies {
     public String check() {
         Arrays.fill(_pres,0);
         _sp = 0;
-        _pres[0] = 1;           // Preorders stored in pres[0] and start at 1
+        _pre = 1;
 
         int idx = -1;
-        for( int fidx = 1; fidx < _edgess.length; fidx++ )
+        for( int fidx = 0; fidx < _edgess.length; fidx++ )
             if( _pres[fidx] == 0 &&       // Already visited
                 (idx = scc(fidx)) != -1 ) // And found a cycle
                 return report(idx);       // Report cycle
@@ -155,7 +177,7 @@ public class ClassInitDependencies {
             FunNode fun = _code.link(src);
             Arrays.fill(sites._es,null);
             sites.clear();
-            walk(_code,fun,work,iset,visit,sites);
+            if( fun!=null ) walk(_code,fun,work,iset,visit,sites);
             if( _edgess[src]!=null )
                 for( int dst : _edgess[src] )
                     if( members.get(dst) ) {
@@ -163,7 +185,7 @@ public class ClassInitDependencies {
                         Parser.Lexer loc = sites.atX(dst);
                         if( loc!=null && loc._cu!=null )
                             sb.p('\n').p(SourceError.format(loc._cu,loc.pos(),"cyclic class initialization"));
-                        else if( fun.isClz() && fun._compunit._par==_code.link(dst)._compunit )
+                        else if( fun!=null && fun.isClz() && dst!=0 && fun._compunit._par==_code.link(dst)._compunit )
                             sb.p("\n    parent initialization requirement");
                     }
         }
@@ -171,6 +193,7 @@ public class ClassInitDependencies {
     }
 
     private String name(int fidx) {
+        if( fidx==0 ) return "unknown call";
         FunNode fun = _code.link(fidx);
         String owner=fun._compunit._cname;
         if( fun.isClz() ) return owner;
@@ -181,7 +204,7 @@ public class ClassInitDependencies {
     // Tarjan SCC
     int scc( int fidx ) {
         // Assign pre-order number
-        _lows[fidx] = _pres[fidx] = _pres[0]++;
+        _lows[fidx] = _pres[fidx] = _pre++;
         _stk[_sp++] = fidx;
         // walk outbound edges
         if( _edgess[fidx]!=null ) {

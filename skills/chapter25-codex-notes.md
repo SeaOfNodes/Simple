@@ -57,7 +57,7 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   printer/accessor side effect is immediately high priority.
 - Keep edited text files LF-only, including on Windows.
 - When mixing `||` and `&&` in one expression, always parenthesize the groups
-  explicitly rather than relying on operator precedence.
+  explicitly rather than relying on operator precedence: `x || (y && z)`.
 - For any node consuming or producing both control and memory, control belongs
   in slot 0 and memory in slot 1; other inputs/results follow. This applies to
   Start, Return, and future forward ports of Call, CallEnd, and other such nodes.

@@ -32,8 +32,11 @@ abstract class FinalizeIR {
                 code.keepInCompUnit(fun);
             }
         for( CompUnit cu : code._compunits.values() ) {
+            // A private unit may have no unknown callers, hence no Fun using
+            // its Start. Keep the wrapper until Unlink installs scheduling hooks.
+            if( !cu._start.iskeep() ) cu._start.keep();
             ProjNode mem = cu._start.proj(1);
-            if( mem != null ) code.add(mem.unkeep());
+            if( mem!=null && mem.iskeep() ) code.add(mem.unkeep());
         }
         // Stable print order: initializers first, then other Returns by NID.
         for( Node stop : code._stop._inputs )

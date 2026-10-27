@@ -213,11 +213,17 @@ public abstract class XInt {
     // for( int bit = XInt.next(bits,0); bit >=0; bit = XInt.next(bits,bit) ) {...bit...}
     public static int next(int[] xs, int x) {
         assert !isHigh(xs);     // No iterating infinite bitsets
-        x++;                    // Skip current
-        for( ; !bit(xs,x); x++ )
+        return next(xs,x,Integer.MAX_VALUE);
+    }
+
+    // Next set bit below limit, or -1. Allows bounded walks of infinite sets.
+    public static int next(int[] xs, int x, int limit) {
+        while( ++x < limit ) {
+            if( bit(xs,x) ) return x;
             if( idx(x)>=xs.length )
                 return -1;
-        return x;
+        }
+        return -1;
     }
 
     // Remap all bits

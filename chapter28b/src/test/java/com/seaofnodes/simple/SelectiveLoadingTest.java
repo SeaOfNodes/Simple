@@ -10,6 +10,137 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class SelectiveLoadingTest {
+    @Test public void testUnreachableImportIsNotARoot() throws Exception {
+        Path root = library("dead-import-");
+        Ary<String> paths = new Ary<>(new String[]{root.toString()});
+        object(root,paths,"Unused","val run_noInline = { int n -> n+1; };");
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code = new CodeGen(null,root.toString(),paths,"Main","""
+                val _false_noInline = { -> false; };
+                if( _false_noInline() ) return Unused.run_noInline(arg);
+                return 7;
+                """,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            CompUnit unused = code._compunits.get("Unused");
+            assertNotNull("Parsing loaded the declaration",unused);
+            for( FunNode fun : code._linker )
+                assertTrue(fun==null || fun.isDead() || fun._compunit!=unused);
+            assertEquals("7",Eval2.eval(code,0));
+        }
+    }
+
+    private static Path library(String prefix) throws IOException {
+        Path base = Files.createDirectories(Path.of("build/objs/selective"));
+        return Files.createTempDirectory(base,prefix);
+    }
+
+    @Test public void testImportedCallbackChain() throws Exception {
+        Path root = library("callback-chain-");
+        Ary<String> paths = new Ary<>(new String[]{root.toString()});
+        object(root,paths,"L0","val relay_noInline = { {int->int} f -> f; };");
+        for( int i = 1; i<6; i++ )
+            object(root,paths,"L"+i,"val relay_noInline = { {int->int} f -> L"+(i-1)+".relay_noInline(f); };");
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code = new CodeGen(null,root.toString(),paths,"Main","""
+                val _increment_noInline = { int n -> n+1; };
+                val _decrement_noInline = { int n -> n-1; };
+                val f = L5.relay_noInline(arg ? _increment_noInline : _decrement_noInline);
+                return f(41);
+                """,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            assertNotNull(function(code,"relay_noInline").summary());
+            assertEquals("42",Eval2.eval(code,1));
+            assertEquals("40",Eval2.eval(code,0));
+        }
+    }
+
+    @Test public void testImportedCallbackReturn() throws Exception {
+        Path root = library("callback-return-");
+        Ary<String> paths = new Ary<>(new String[]{root.toString()});
+        object(root,paths,"Relay","val relay = { {int->int} f -> f; };");
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code = new CodeGen(null,root.toString(),paths,"Main","""
+                val _increment_noInline = { int n -> n+1; };
+                val f = Relay.relay(_increment_noInline);
+                return f(arg);
+                """,seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            assertNull(function(code,"relay").summary());
+            assertEquals("42",Eval2.eval(code,41));
+            assertEquals("1",Eval2.eval(code,0));
+        }
+    }
+
+    @Test public void testImportedFunctionField() throws Exception {
+        Path root = library("function-field-");
+        Ary<String> paths = new Ary<>(new String[]{root.toString()});
+        object(root,paths,"Targets","var chosen = { int n -> n+1; };");
+        object(root,paths,"Apply","val run = { int n -> val f = Targets.chosen; return f(n); };");
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code = new CodeGen(null,root.toString(),paths,"Main",
+                "return Apply.run(arg);",seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            assertNull(function(code,"run").summary());
+            assertEquals("42",Eval2.eval(code,41));
+            assertEquals("1",Eval2.eval(code,0));
+        }
+    }
+
+    @Test public void testImportedUnknownCallback() throws Exception {
+        Path root = library("unknown-callback-");
+        Ary<String> paths = new Ary<>(new String[]{root.toString()});
+        object(root,paths,"Apply","""
+            val apply = { {int->int} f,int n -> f(n); };
+            val apply_noInline = { {int->int} f,int n -> f(n); };
+            """);
+        for( String target : new String[]{"apply","apply_noInline","forward_noInline"} )
+            for( long seed : new long[]{1,123,987654321} ) {
+                CodeGen code = new CodeGen(null,root.toString(),paths,"Main",
+                    "val _increment_noInline = { int n -> n+1; }; "+
+                    "val forward_noInline = { {int->int} f,int n -> Apply.apply_noInline(f,n); }; return "+
+                    (target.equals("forward_noInline") ? target : "Apply."+target)+"(_increment_noInline,arg);",
+                    seed,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+                assertEquals("42",Eval2.eval(code,41));
+                assertEquals("1",Eval2.eval(code,0));
+            }
+        CodeGen nativeCode = new CodeGen(null,root.toString(),paths,"NativeCallback","""
+            val _increment_noInline = { int n -> n+1; };
+            val run = { int n -> Apply.apply_noInline(_increment_noInline,n); };
+            """,123,true,TypeInteger.BOT).driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+        Path driver = root.resolve("driver.c");
+        Files.writeString(driver,"""
+            __attribute__((CALL_CONV)) extern long long run(long long);
+            int main(void) { return run(41)==42 && run(0)==1 ? 0 : 1; }
+            """);
+        String exe = root.resolve(TestC.OS.startsWith("Windows") ? "test.exe" : "test").toString();
+        assertEquals("",TestC.gcc(nativeCode,
+            TestC.CALL_CONVENTION.equals("win64") ? "ms_abi" : "sysv_abi",driver.toString(),null,exe));
+    }
+
+    @Test public void testUnknownCallbackEncoding() {
+        for( String cpu : new String[]{"x86_64_v2","arm","riscv"} )
+            new CodeGen("val apply = { {int->int} f,int n -> f(n); };")
+                .driver(CodeGen.Phase.Encoding,cpu,"SystemV");
+    }
+
+    @Test public void testImportedCallbackInitCycle() throws Exception {
+        Path root = library("callback-cycle-");
+        Path src = Files.createDirectory(root.resolve("src"));
+        Ary<String> paths = new Ary<>(new String[]{root.toString()});
+        object(root,paths,"Apply","val apply_noInline = { {int->int} f,int n -> f(n); };");
+        write(src,"Root","val entry = A.value;");
+        write(src,"Root/A","val callback = { int n -> B.value; }; int value = Apply.apply_noInline(callback,1);");
+        write(src,"Root/B","int value = A.value;");
+        for( long seed : new long[]{1,123,987654321} ) {
+            try {
+                new CodeGen(src.toString(),root.toString(),paths,"Root",null,seed,true,TypeInteger.BOT)
+                    .driver(CodeGen.Phase.TypeCheck);
+                fail("The unknown callback can close an initialization cycle");
+            } catch( Parser.ParseException ex ) {
+                assertTrue(ex.getMessage(),ex.getMessage().startsWith("Cyclic class initialization:"));
+                assertTrue(ex.getMessage(),ex.getMessage().contains("Root.A"));
+                assertTrue(ex.getMessage(),ex.getMessage().contains("Root.B"));
+                assertTrue(ex.getMessage(),ex.getMessage().contains("unknown call"));
+            }
+        }
+    }
+
     @Test public void testCycleRefinementLoadsConditionHelper() throws Exception {
         Path base = Path.of("build/objs/selective");
         Files.createDirectories(base);

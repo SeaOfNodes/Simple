@@ -288,6 +288,7 @@ public abstract class CFGNode extends Node {
         // Do not walk from a Call to linked Fun's.
         return usecfg instanceof XCtrlNode ||
                 (this instanceof CallNode && usecfg instanceof FunNode) ||
+                (this instanceof CProjNode proj && proj._idx==3 && proj.in(0) instanceof CLInitNode && usecfg instanceof FunNode) ||
                 (this instanceof ReturnNode && usecfg instanceof CallEndNode);
     }
 

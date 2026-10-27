@@ -100,6 +100,8 @@ public class FunNode extends RegionNode {
         assert sig.isa(_sig) || resolvesForwardSelf(sig,_sig);
         if( _sig != sig ) {
             CODE.add(this);
+            // Return uses the signature to bound recursive-result widening.
+            CODE.add(_ret);
             // Changing the signature can allow more inlining
             if( _ret != null )
                 for( Node use : ret().outs() )
@@ -178,8 +180,7 @@ public class FunNode extends RegionNode {
         //   through class-field loads and other initially imprecise values.
         // - FIDX is not in the escape set
         // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
-        // Opaque CLInit obligations need their bodies even without Call edges.
-        if( !isClz() && in(1) instanceof StartCUNode start ) {
+        if( !isRoot() && in(1) instanceof StartCUNode start ) {
             boolean preOpto = CodeGen.CODE._phase == null ||
                 CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
             if( !preOpto && !start.escapedFIDX(_sig.fidx()) && nIns()<=2 && _ret!=null ) {
@@ -218,6 +219,12 @@ public class FunNode extends RegionNode {
 
     // Always in-progress until we run out of unknown callers
     public boolean unknownCallers() { return nIns()>=2 && in(1) instanceof StartNode; }
+
+    // The starting initializer and public source classes are external entry
+    // points. Privacy stops at the first private class in the name's path.
+    public boolean isRoot() {
+        return isClz() && (CODE.entryClinitName().equals(_name) || (isFromSource() && isPublic()));
+    }
 
     public boolean isModInit( ) {
         // The one top-level <clinit> with no internal dots:

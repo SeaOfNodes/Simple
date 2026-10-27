@@ -55,16 +55,10 @@ public class StartNode extends LoopNode implements MultiNode {
     }
 
     boolean escapedFIDX(int fidx) {
-        // Public class fields are callable by the unknown external world
-        // regardless of the current SCCP approximation of Start memory.
-        if( CodeGen.CODE.publicFIDX(fidx) ) return true;
         if( !(_type instanceof TypeTuple tt) )
             return !_type.isHigh(); // TOP never escapes, BOTTOM always escapes
         TypeMem tmem = (TypeMem)tt._types[1];
-        if( tmem == TypeMem.BOT ) return false;
         if( tmem == TypeMem.TOP ) return false;
-        if( XInt.isHigh(tmem._escFs) )
-            return false;
         return XInt.bit(tmem._escFs,fidx);
     }
 

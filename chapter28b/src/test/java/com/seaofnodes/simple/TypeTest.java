@@ -7,6 +7,20 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
+    @Test public void testBoundedBits() {
+        int[] sparse = XInt.make(XInt.make(2),65);
+        for( int[] bits : new int[][]{XInt.EMPTY,XInt.FULL,sparse,XInt.dual(sparse)} )
+            for( int limit : new int[]{0,1,32,65,66,100} ) {
+                int next = XInt.next(bits,-1,limit);
+                for( int bit=0; bit<limit; bit++ )
+                    if( XInt.bit(bits,bit) ) {
+                        Assert.assertEquals(bit,next);
+                        next = XInt.next(bits,next,limit);
+                    }
+                Assert.assertEquals(-1,next);
+            }
+    }
+
     // Removing zero must not reset the widening history of a remaining range.
     @Test public void testNonZeroWidening() {
         for( byte widen=0; widen<=3; widen++ ) {
