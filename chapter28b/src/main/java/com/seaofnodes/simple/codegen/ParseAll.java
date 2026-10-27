@@ -198,13 +198,9 @@ public abstract class ParseAll {
     }
 
     private static void addRequiredTypes(CodeGen code, CompUnit cunit) {
-        LinkedHashSet<String> required = new LinkedHashSet<>();
-        code._stop.walk(n -> {
-            TypeStruct ts = CodeGen.requiredStruct(n);
-            if( ts!=null && ts._fref ) required.add(ts._name);
-            return null;
-        });
-        for( String typeName : required ) {
+        for( String typeName : code.P._requiredTypes ) {
+            // A forward use can have been resolved later in this source file.
+            if( Parser.TYPES.get(typeName) instanceof TypeStruct ts && !ts._fref ) continue;
             try {
                 CompUnit xcunit = findRequiredType(code,cunit,typeName);
                 if( xcunit != null )

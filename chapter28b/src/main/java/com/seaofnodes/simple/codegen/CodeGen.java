@@ -625,14 +625,6 @@ public class CodeGen {
     // Last check for bad programs
     public CodeGen typeCheck() { return phase(Phase.TypeCheck, _phase==Phase.FinalizeIR, () -> TypeCheck.run(this)); }
 
-    public static TypeStruct requiredStruct(Node n) {
-        // CNC: remove? cleanup?
-        if( n instanceof NewNode alloc )  return alloc._ts;
-        if( n instanceof ConFldOffNode off ) return off._ts;
-        if( n instanceof FldOffNode off && off.in(0)._type instanceof TypeMemPtr ptr ) return ptr._obj;
-        return null;
-    }
-
     // ---------------------------
     // TypeCheck queued surviving CLInits during its existing error walk.
     public CodeGen lower() {

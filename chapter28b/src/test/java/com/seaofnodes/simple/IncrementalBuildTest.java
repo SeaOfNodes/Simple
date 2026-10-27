@@ -10,6 +10,21 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class IncrementalBuildTest {
+    @Test public void testRequiredTypesBelongToTheirSource() throws Exception {
+        Path base = Path.of("build/objs/incremental");
+        Files.createDirectories(base);
+        Path root = Files.createTempDirectory(base,"required-types-");
+        Path src = Files.createDirectory(root.resolve("src")), obj = Files.createDirectory(root.resolve("obj"));
+        write(src,"App","val marker = 0;",1000);
+        write(src,"App/Main","return A.x+C.y;",1000);
+        write(src,"App/A","int x = 0; val readB = { B b -> b.x; };",1000);
+        write(src,"App/B","int x = 0;",1000);
+        write(src,"App/C","int y = 0;",1000);
+        CodeGen code = new CodeGen(src.toString(),obj.toString(),null,"App/Main",null,123,true,TypeInteger.BOT)
+            .parse();
+        ParseAllTestSupport.checkRequiredTypes(code);
+    }
+
     @Test public void testTransitiveSourceChange() throws Exception {
         Path base=Path.of("build/objs/incremental");
         Files.createDirectories(base);

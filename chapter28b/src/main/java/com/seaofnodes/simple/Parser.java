@@ -101,6 +101,9 @@ public class Parser {
     ScopeNode _continueScope;   // Merge all the while-continues here
     ScopeNode _returnScope;     // Merge all the function exits  here
     Ary<FRefNode> _frefs;       // Forward refs created during this parse
+    // Layouts needed by field accesses in this source file.  Resolve after
+    // parsing, since a later local struct declaration can satisfy the use.
+    public final LinkedHashSet<String> _requiredTypes = new LinkedHashSet<>();
     TypeStruct _ctorOpenStruct; // Open struct being initialized by an allocation constructor block.
     // Constructor exit types survive scope teardown until all fields are known.
     // A null entry denotes a constructor with no returning path.
@@ -171,6 +174,7 @@ public class Parser {
         assert _frefs == null;
         _lexer = new Lexer(ref);
         _frefs = new Ary<>(FRefNode.class);
+        _requiredTypes.clear();
         // Starting Scope has control, memory, initial arguments
         _scope = new ScopeNode();
         _scope.define(ScopeNode.CTRL, Type.CONTROL   , false, null, _lexer);
@@ -2751,6 +2755,8 @@ public class Parser {
     }
     // Field offset for an unknown type
     public Node fldoff( Node n, String name ) {
+        if( n._type instanceof TypeMemPtr ptr && ptr._obj._fref )
+            _requiredTypes.add(ptr._obj._name);
         return new FldOffNode(n,name,loc()).peephole();
     }
     public Node peep( Node n ) {
