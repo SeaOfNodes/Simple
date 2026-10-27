@@ -8,7 +8,7 @@ import com.seaofnodes.simple.util.Ary;
 abstract class Unlink {
     // Disconnect compiler-only interprocedural edges before scheduling. Keep
     // signatures in the linker; runtime calls resolve FIDXs, not graph edges.
-    static Ary<FunNode> forEval(StartNode start, StopNode stop) {
+    static Ary<FunNode> forEval(CodeGen code, StartNode start, StopNode stop) {
         Ary<Node> nodes = new Ary<>(Node.class);
         start.walk(n -> { nodes.add(n); return null; });
         Ary<FunNode> funs = new Ary<>(FunNode.class);
@@ -35,8 +35,9 @@ abstract class Unlink {
             }
             restoreRPC(fun);
         }
+        code.releaseUnlinkedNodes();
         for( Node n : nodes )
-            if( n instanceof StartCUNode unitStart ) releaseStart(unitStart);
+            if( n instanceof StartCUNode unitStart ) detachEmptyStart(unitStart);
         // A summary is a dispatch target, not a schedulable implementation.
         // Retain its own wrapper graph without including it in this schedule.
         for( int i = 0; i<stop.nIns(); i++ ) {
@@ -139,8 +140,9 @@ abstract class Unlink {
                 ((CallNode)fun.in(i)).unlink(fun,i--);
             restoreRPC(fun);
         }
+        code.releaseUnlinkedNodes();
         for( CompUnit cu : code._compunits.values() )
-            if( cu._start!=null && !cu._start.isDead() ) releaseStart(cu._start);
+            if( cu._start!=null && !cu._start.isDead() ) detachEmptyStart(cu._start);
 
         code._stop.walk(n -> {
             if( n instanceof CallEndNode cend )
@@ -153,8 +155,7 @@ abstract class Unlink {
         });
     }
 
-    private static void releaseStart(StartCUNode start) {
-        if( start.iskeep() ) start.unkeep();
+    private static void detachEmptyStart(StartCUNode start) {
         // An unused unit can lose its outer Stop edge during optimization.
         // Detach its empty wrapper from the scheduling root as well.
         if( start.in(1) instanceof StopCUNode stop && stop.nIns()==0 ) start.setDef(0,null);

@@ -549,6 +549,68 @@ public class CodeGen {
 
     public CodeGen finalizeIR() { return phase(Phase.FinalizeIR, _phase==Phase.IterPostOpto, () -> FinalizeIR.run(this)); }
 
+    // Cross-phase `keep()`s belong here!  We have a few nodes which we can
+    // lose all uses of, but later find them and want to re-add output edges.
+    // If we don't `keep()` them, they'll dead-code-elimnate.
+
+    // These are mostly around adding and removal functions from other
+    // compilation units.  E.g. a StartCU, when all his functions are exactly
+    // called with no escapes and no default input.  Those functions will still
+    // go out in their own ELF, and will later hook on to the StartCU during
+    // code emission.  Between e.g. Opto and code emission the StartCU has no
+    // direct users - but we're going to want the StartCU at elf-writer time!
+
+    // The Parser and `idealize()` `keep()`s remain locally balanced.
+
+    // We make a few collections of these cross-phase `keep()`s.
+
+    // A few more cross-phase example lifetimes:
+
+    // Until FinalizeIR: Opto and import loading retain StartCU's memory
+    // projection while unknown-caller edges disappear and may be rebuilt.
+    // CompUnit._start.proj(1) finds it; Opto.linkStart uses it for the memory
+    // Parm, found by scanning fun._outputs. FinalizeIR first holds the StartCU
+    // itself, then releases these projections and queues ordinary dead cleanup.
+
+    // Until Unlink: FinalizeIR retains StartCU even if it has no users left.
+    // CompUnit._start is the non-graph reference used by Serialize and Unlink.
+    // Unlink.run/forEval install scheduling edges before releasing these holds.
+    // A Java reference alone does not protect a node from graph deletion.
+    //
+    // Replacement is the exception to those release points: ParseAll must
+    // release our old wrapper/projection holds before subsuming the wrapper.
+    // It registers the replacement projection for the next FinalizeIR call.
+    private final Ary<Node> _keptUntilFinalize = new Ary<>(Node.class);
+    private final Ary<Node> _keptUntilUnlink = new Ary<>(Node.class);
+
+    void keepUntilFinalize(Node n) { keepOnce(_keptUntilFinalize,n); }
+    void keepUntilUnlink  (Node n) { keepOnce(_keptUntilUnlink  ,n); }
+    private static void keepOnce(Ary<Node> kept, Node n) {
+        if( kept.find(n)==-1 ) kept.add(n.keep());
+    }
+
+    // FinalizeIR has retained the wrappers; unused projections may now die.
+    void releaseFinalizedNodes() {
+        for( Node n : _keptUntilFinalize ) add(n.unkeep());
+        _keptUntilFinalize.clear();
+    }
+
+    // Unlink has installed the scheduling edges. No optimization is needed.
+    void releaseUnlinkedNodes() {
+        for( Node n : _keptUntilUnlink ) n.unkeep();
+        _keptUntilUnlink.clear();
+    }
+
+    // Only release our holds. A caller's temporary keep is a separate owner.
+    void releaseReplacedNode(Node n) {
+        releaseReplacedNode(_keptUntilFinalize,n);
+        releaseReplacedNode(_keptUntilUnlink,n);
+    }
+    private static void releaseReplacedNode(Ary<Node> kept, Node n) {
+        int idx = kept.find(n);
+        if( idx!=-1 ) kept.del(idx).unkeep();
+    }
+
     // Root a surviving function without claiming that it has unknown callers.
     public void keepInCompUnit(FunNode fun) {
         StopCUNode stop = fun._compunit._stop;

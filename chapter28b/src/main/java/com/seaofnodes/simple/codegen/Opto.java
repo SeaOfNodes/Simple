@@ -59,10 +59,10 @@ abstract public class Opto {
     // Only entry initializers start with unknown callers. Discover every
     // other function through calls or escaping values during SCCP.
     private static void unlinkStart(CodeGen code) {
-        // Keep the Start & Start.ProjMem alive even as we remove all uses
+        // CodeGen owns these until FinalizeIR; linkStart may need them again.
         for( CompUnit cu : code._compunits.values() ) {
             ProjNode mem = cu._start.proj(1);
-            if( mem!=null ) mem.keep();
+            if( mem!=null ) code.keepUntilFinalize(mem);
         }
 
         // Iterate all functions.

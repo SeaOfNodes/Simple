@@ -289,7 +289,7 @@ public abstract class ParseAll {
         StartCUNode oldStart = cunit._start;
         StopCUNode oldStop = cunit._stop;
         ProjNode oldMem = oldStart==null ? null : oldStart.proj(1);
-        if( oldMem!=null && oldMem.iskeep() ) oldMem.unkeep();
+        if( oldMem!=null ) code.releaseReplacedNode(oldMem);
         elf.loadSimple(code);
         cunit._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cunit._cname));
         StartNode lstart = (StartNode)elf._nodes.at(0);
@@ -328,7 +328,7 @@ public abstract class ParseAll {
             code._stop.addDef(lstopcu);
         lstart.subsume(code._start);
         if( oldStart!=null && oldStart!=cunit._start ) {
-            if( oldStart.iskeep() ) oldStart.unkeep();
+            code.releaseReplacedNode(oldStart);
             int idx = code._stop._inputs.find(oldStop);
             if( idx!=-1 ) code._stop.delDef(idx);
             oldStart.subsume(cunit._start);
@@ -337,7 +337,7 @@ public abstract class ParseAll {
         // only the newly loaded graph; ordinary dependencies carry changes
         // into its callers without restarting whole-program analysis.
         ProjNode startMem = cunit._start.proj(1);
-        if( startMem!=null && !startMem.iskeep() ) startMem.keep();
+        if( startMem!=null ) code.keepUntilFinalize(startMem);
         Iter.imports(code,elf._nodes);
 
         // Add the new top-level loaded class

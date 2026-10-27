@@ -12,7 +12,7 @@ public abstract class GlobalCodeMotion {
     // Ideal execution needs a schedule, but neither CLInit lowering nor
     // interprocedural optimization. Each loaded object is prepared once.
     public static Ary<CFGNode> forEval(CodeGen code, StartNode start, StopNode stop) {
-        Ary<FunNode> funs = Unlink.forEval(start,stop);
+        Ary<FunNode> funs = Unlink.forEval(code,start,stop);
         start.buildLoopTree(funs,stop);
         return buildCFG(code,start,stop);
     }
