@@ -218,6 +218,25 @@ public class Chapter25Test {
         code.driver(CodeGen.Phase.TypeCheck);
     }
 
+    @Test public void testTypeOnlyFileReference() throws IOException {
+        Path base = Path.of("build/objs");
+        Files.createDirectories(base);
+        Path root = Files.createTempDirectory(base,"type-only-");
+        Files.createDirectory(root.resolve("A"));
+        Files.writeString(root.resolve("A/B.smp"),"int x = 0;");
+        // B declares only a class initializer.  Using its name as a type
+        // must not publish a nonexistent instance initializer during Opto.
+        for( String src : new String[]{
+            "B? b = null; return 0;",
+            "val readB = { B b -> 0; }; return 0;"
+        } ) {
+            Files.writeString(root.resolve("A.smp"),src);
+            CodeGen code = new CodeGen(root.toString(),root.resolve("obj").toString(),null,
+                "A",null,123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+            assertEquals("0",Eval2.eval(code,0));
+        }
+    }
+
 
     @Test
     public void testPostfixFieldUpdate() {

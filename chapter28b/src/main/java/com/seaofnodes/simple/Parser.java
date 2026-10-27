@@ -1486,11 +1486,6 @@ public class Parser {
         return TypeFunPtr.make1((byte)2, true, targs, tret, _code.fidx(clzBare,order));
     }
 
-    // A class type carries the constructor function as a required final field.
-    private TypeStruct classStruct( String typeName, TypeFunPtr init, boolean open ) {
-        return TypeStruct.make(addClzPrefix(typeName),open,Field.make(initFieldName(typeName),init,_code.alias(_ref._cname),true));
-    }
-
     private static String initFieldName( String typeName ) {
         if( startsClzPrefix(typeName) )
             typeName = typeName.substring(clzPrefix.length());
@@ -1702,7 +1697,10 @@ public class Parser {
     private TypeMemPtr forwardRefType( String tname, TypeStruct tself ) {
         TYPES.put(tname,tself);
         String clzName = addClzPrefix( tname );
-        TYPES.put(clzName, classStruct(tname,structInitSig(false,tself),true));
+        // Only a struct declaration publishes an instance initializer.  A
+        // forward type may name a file with just <clinit>, so do not invent
+        // a constructor field (or overwrite an already parsed class).
+        TYPES.putIfAbsent(clzName,TypeStruct.make(clzName,true));
         return TypeMemPtr.make(tself);
     }
 
