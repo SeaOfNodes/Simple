@@ -643,6 +643,8 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
     // probed to see if it can be inserted.  His edges are "locked", because
     // hacking his edges will change his hash.
     int _hash;
+    // Edge and mode edits remove the node from GVN, even if its type is unchanged.
+    public boolean isUnlocked() { return _hash==0; }
 
     // If the _hash is set, then the Node is in the GVN table; remove it.
     void unlock() {

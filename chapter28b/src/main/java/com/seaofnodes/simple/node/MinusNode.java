@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node;
 
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.util.Utils;
@@ -33,28 +32,27 @@ public class MinusNode extends Node implements ModeNode {
     @Override
     public Type compute() {
         Type t = in(1)._type;
+        // Constant array payloads lie below their element ranges in the lattice.
+        if( t instanceof TypeConAry ary ) t = ary.elem();
         if( t==null )
             return Type.TOP;
         if( t.isHigh() )
             return _mode==0 ? Type.TOP :
                 _mode==1 ? TypeInteger.TOP :
                 t instanceof TypeFloat ? t : TypeFloat.F64.dual();
-        byte mode = _mode;
-        if( mode==0 ) {
-            if( t instanceof TypeFloat   ) mode=2;
-            if( t instanceof TypeInteger ) mode=1;
-        }
-        if( mode==0 )
-            return CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal() ? Type.BOTTOM : Type.TOP;
-        if( mode==1 ) {
-            if( t instanceof TypeInteger i0 &&
-                i0._min != Long.MIN_VALUE && i0._max != Long.MIN_VALUE )
+        if( t instanceof TypeInteger i0 ) {
+            if( _mode==2 ) return TypeFloat.F64;
+            if( i0._min != Long.MIN_VALUE && i0._max != Long.MIN_VALUE )
                 return TypeInteger.make(-i0._max,-i0._min,i0._widen);
             return TypeInteger.BOT;
         }
-        if( t instanceof TypeFloat f )
+        if( t instanceof TypeFloat f ) {
+            if( _mode==1 ) return TypeInteger.BOT;
             return f.isConstant() ? TypeFloat.constant(-f.value()) : f;
-        return TypeFloat.F64;
+        }
+        // No numeric family is known. This must be below both integer and
+        // float results, in either analysis direction and with any mode.
+        return Type.BOTTOM;
     }
 
     @Override
