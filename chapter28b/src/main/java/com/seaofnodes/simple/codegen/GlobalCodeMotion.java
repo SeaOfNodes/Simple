@@ -4,6 +4,7 @@ import com.seaofnodes.simple.IterPeeps.WorkList;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
+import com.seaofnodes.simple.util.AryInt;
 import com.seaofnodes.simple.util.Utils;
 import java.util.*;
 
@@ -152,25 +153,53 @@ public abstract class GlobalCodeMotion {
     }
 
     // ------------------------------------------------------------------------
+    // Scheduling is not recursive. Retain scratch capacity between objects,
+    // but release graph references and reset only the entries we used.
+    private static CFGNode[] LATE = new CFGNode[1];
+    // Load NIDs at their CFG block choices, checked against Store blocks.
+    private static int[] ANTI = new int[1];
+    private static final AryInt TOUCHED = new AryInt();
+    private static final Ary<Node> PLACED = new Ary<>(Node.class);
+    private static final Ary<Node> ANTIDEPS = new Ary<>(Node.class);
+    private static final WorkList<Node> WORK = new WorkList<>();
+
     private static void schedLate( CodeGen code, StopNode stop ) {
-        CFGNode[] late = new CFGNode[code.UID()];
-        Node[] ns = new Node[code.UID()];
-        // Record Load NIDs at all their CFG block choices, then check against
-        // Store block choices to force a Load above an anti-dependent Store.
-        int[] anti = new int[code.UID()];
-        Ary<Node> antideps = new Ary<>(Node.class);
+        assert TOUCHED.isEmpty() && PLACED.isEmpty() && WORK.isEmpty();
+        if( code.UID() > LATE.length ) {
+            int len = Math.max(code.UID(),LATE.length<<1);
+            LATE = new CFGNode[len];
+            ANTI = new int[len];
+        }
+        WORK.clear();
         // Breadth-first scheduling
-        breadth(stop,ns,late,anti, antideps);
+        // Early scheduling has released the shared visit bits.
+        breadth(stop,PLACED,LATE,ANTI,ANTIDEPS,code.visit());
 
         // Copy the best placement choice into the control slot
-        for( int i=0; i<late.length; i++ )
-            if( ns[i] != null && !(ns[i] instanceof ProjNode) )
-                ns[i].setDef(0,late[i]);
+        for( Node n : PLACED )
+            if( !(n instanceof ProjNode) )
+                n.setDef(0,LATE[n._nid]);
+        for( int i=0; i<TOUCHED.len(); i++ )
+            LATE[TOUCHED.at(i)] = null;
+        TOUCHED.clear();
+        clear(PLACED);
+        clear(ANTIDEPS);
     }
 
-    private static void breadth(Node stop, Node[] ns, CFGNode[] late, int[] anti, Ary<Node> antideps) {
+    // Ary.clear retains references; static scratch must release them as well.
+    private static void clear(Ary<Node> nodes) {
+        Arrays.fill(nodes._es,0,nodes._len,null);
+        nodes.clear();
+    }
+
+    private static Ary<Node> antiDeps(MemOpNode load, Ary<Node> antideps) {
+        clear(antideps);
+        return load.antiDeps(antideps);
+    }
+
+    private static void breadth(Node stop, Ary<Node> placed, CFGNode[] late, int[] anti, Ary<Node> antideps, BitSet visit) {
         // Things on the worklist have some (but perhaps not all) uses done.
-        WorkList<Node> work = new WorkList<>();
+        WorkList<Node> work = WORK;
         work.push(stop);
         Node n;
         outer:
@@ -189,21 +218,23 @@ public abstract class GlobalCodeMotion {
 
                 // Loads need their memory inputs' uses also done
                 if( n instanceof MemOpNode ld && ld._isLoad )
-                    for( Node memuse : ld.antiDeps(antideps) )
+                    for( Node memuse : antiDeps(ld,antideps) )
                         if( late[memuse._nid]==null )
                             continue outer;
 
                 // All uses done, schedule
-                _doSchedLate(n,ns,late,anti,antideps);
+                _doSchedLate(n,placed,late,anti,antideps);
             }
+            TOUCHED.push(n._nid);
 
             // A use just finished; reconsider its inputs and waiting loads,
             // even when the shared memory input was already scheduled.
             for( Node def : n._inputs ) {
                 if( def==null ) continue;
                 if( late[def._nid]==null ) work.push(def);
-                wakeLoads(def,late,work,new BitSet());
+                wakeLoads(def,late,work,visit);
             }
+            visit.clear();
             if( n instanceof LoopNode loop )
                 for( Node phi : loop._outputs )
                     if( phi instanceof PhiNode && late[phi._nid]==null )
@@ -211,7 +242,7 @@ public abstract class GlobalCodeMotion {
         }
     }
 
-    private static void _doSchedLate(Node n, Node[] ns, CFGNode[] late, int[] anti, Ary<Node> antideps) {
+    private static void _doSchedLate(Node n, Ary<Node> placed, CFGNode[] late, int[] anti, Ary<Node> antideps) {
         // Walk uses, gathering the LCA (Least Common Ancestor) of uses
         CFGNode early = n.in(0) instanceof CFGNode cfg ? cfg : n.in(0).cfg0();
         assert early != null;
@@ -233,7 +264,7 @@ public abstract class GlobalCodeMotion {
             if( better(lca,best) )
                 best = lca;
         assert !(best instanceof IfNode);
-        ns  [n._nid] = n;
+        placed.push(n);
         late[n._nid] = best;
     }
 
@@ -276,10 +307,11 @@ public abstract class GlobalCodeMotion {
     private static CFGNode find_anti_dep(CFGNode lca, MemOpNode load, CFGNode early, CFGNode[] late, int[] anti, Ary<Node> antideps) {
         // We could skip final-field loads here.
         // Walk LCA->early, flagging Load's block location choices
-        for( CFGNode cfg=lca; cfg!=early.idom(); cfg = cfg.idom() )
+        CFGNode marked = lca;
+        for( CFGNode cfg = marked; cfg!=early.idom(); cfg = cfg.idom() )
             anti[cfg._nid] = load._nid;
         // Walk load->mem uses, looking for Stores causing an anti-dep
-        for( Node mem : load.antiDeps(antideps) ) {
+        for( Node mem : antiDeps(load,antideps) ) {
             if( mem instanceof PhiNode phi ) {
                 // Inputs carrying different memory might overwrite this alias.
                 // Raise the LCA for those paths; the unchanged-memory paths
@@ -295,6 +327,10 @@ public abstract class GlobalCodeMotion {
                 lca = anti_dep(load,late[mem._nid],mem.cfg0(),lca,mem,anti);
             }
         }
+        // This load's marks are no longer needed; leave scratch clean even
+        // when the next compilation reuses these node IDs.
+        for( CFGNode cfg = marked; cfg!=early.idom(); cfg = cfg.idom() )
+            anti[cfg._nid] = 0;
         return lca;
     }
 

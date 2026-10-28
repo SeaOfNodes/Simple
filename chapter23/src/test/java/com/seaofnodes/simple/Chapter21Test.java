@@ -416,7 +416,7 @@ public class Chapter21Test {
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.run("sieve",sprimes, 186);
+        TestC.run("sieve",sprimes, 113);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.

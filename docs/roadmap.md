@@ -13,9 +13,10 @@ design decisions and chapter boundaries.
 
 Remaining work:
 
-- Remove Eval2 scheduling scratch costs proportional to all previously
-  allocated node IDs. Scheduling a newly loaded object should cost only for
-  that graph and any affected existing nodes.
+- Review the remaining node-ID bitset costs in Eval2 scheduling. Scratch
+  arrays now retain capacity and reset only touched entries, but bitsets
+  still span previously allocated node IDs. Scheduling a newly loaded
+  object should cost only for that graph and any affected existing nodes.
 - Reduce repeated scans of all calls and unloaded function summaries in
   `StopCUNode.compute()`. Review its phase-dependent escape normalization and
   reliance on the previous result before changing propagation.

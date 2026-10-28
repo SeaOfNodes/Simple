@@ -100,9 +100,13 @@ public abstract class CFGNode extends Node {
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start contains the function bodies at depth 0; real loops add depth.
+    private static final BitSet POST = new BitSet();
+
     public void buildLoopTree(StopNode stop) {
         _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
-        _bltWalk(2,null,stop, new BitSet());
+        BitSet post = POST;
+        _bltWalk(2,null,stop, post);
+        post.clear();
     }
     int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post ) {
         // Pre-walked?

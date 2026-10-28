@@ -147,7 +147,9 @@ public abstract class CFGNode extends Node {
         }
 
         _ltree = stop._ltree = Parser.XCTRL._ltree = new LoopTree((StartNode)this);
-        _bltWalk(2,null,stop, new BitSet());
+        BitSet post = CodeGen.CODE.visit();
+        _bltWalk(2,null,stop, post);
+        post.clear();
     }
     int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post ) {
         // Pre-walked?

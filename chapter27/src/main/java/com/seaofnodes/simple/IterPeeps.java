@@ -216,11 +216,13 @@ public class IterPeeps {
             int idx = _R.nextInt(_len);
             E x = (E)_es[idx];
             _es[idx] = _es[--_len]; // Compress array
+            _es[_len] = null;
             _on.clear(x._nid);
             return x;
         }
 
         public void clear() {
+            Arrays.fill(_es,0,_len,null);
             _len = 0;
             _on.clear();
             _R.setSeed(_seed);

@@ -134,7 +134,10 @@ public class SelectiveLoadingTest {
 
     @Test public void testUnknownCallbackEncoding() {
         for( String cpu : new String[]{"x86_64_v2","arm","riscv"} )
-            new CodeGen("val apply = { {int->int} f,int n -> f(n); };")
+            new CodeGen("""
+                val apply = { {int->int} f,int n -> f(n); };
+                val apply_noInline = { {int->int} f,int n -> f(n); };
+                """)
                 .driver(CodeGen.Phase.Encoding,cpu,"SystemV");
     }
 

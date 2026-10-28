@@ -333,17 +333,18 @@ public class IterPeeps {
             int idx = _R.nextInt(_len);
             E x = (E)_es[idx];
             _es[idx] = _es[--_len]; // Compress array
+            _es[_len] = null;
             _on.clear(x._nid);
             return x;
         }
 
         public boolean isEmpty() { return _len==0; }
-        //Node[] asAry() { return Arrays.copyOf(_es,_len); }
-        //public void clear() {
-        //    _len = 0;
-        //    _on.clear();
-        //    _R.setSeed(_seed);
-        //    _totalWork = 0;
-        //}
+        public void clear() {
+            Arrays.fill(_es,0,_len,null);
+            _len = 0;
+            _on.clear();
+            _R.setSeed(_seed);
+            _totalWork = 0;
+        }
     }
 }

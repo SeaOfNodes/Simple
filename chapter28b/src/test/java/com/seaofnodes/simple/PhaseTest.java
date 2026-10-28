@@ -42,6 +42,29 @@ public class PhaseTest {
         }
     }
 
+    @Test public void testSchedulingScratchAcrossCompilations() {
+        String src = """
+            int[] !xs = new int[2];
+            xs[0] = arg;
+            int sum = 0;
+            for( int i=0; i<5; i++ ) {
+                int old = xs[arg&1];
+                xs[0] = i;
+                sum += old;
+            }
+            return sum;
+            """;
+        for( int round=0; round<3; round++ ) {
+            CodeGen code = new CodeGen(src).driver(Phase.TypeCheck);
+            // A small graph after many earlier node allocations, then fresh
+            // compilations which reuse its IDs and scheduling scratch.
+            if( round==0 ) code._uid += 100_000;
+            assertEquals("6",Eval2.eval(code,0));
+            assertEquals("0",Eval2.eval(code,1));
+            assertEquals("8",Eval2.eval(code,2));
+        }
+    }
+
     @Test public void testExplicitSerializationAndMemoryExport() {
         CodeGen code = new CodeGen(SRC).driver(Phase.Serialize);
         assertNotNull(code._serial);

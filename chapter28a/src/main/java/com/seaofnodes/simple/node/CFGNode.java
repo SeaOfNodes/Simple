@@ -203,7 +203,7 @@ public abstract class CFGNode extends Node {
         _ltree = stop._ltree = CodeGen.CODE.XCTRL._ltree = new LoopTree((StartNode)this);
         Ary<FunNode> work = new Ary<>(FunNode.class);
 
-        BitSet post = new BitSet();
+        BitSet post = CodeGen.CODE.visit();
         int pre = 1;
         _pre = pre++;
         for( FunNode fun : funs ) {
@@ -219,6 +219,7 @@ public abstract class CFGNode extends Node {
 
         for( int i=0; i<work._len; i++ )
             pre = work.at(i)._bltWalk(pre,work.at(i),stop, post, work);
+        post.clear();
     }
 
     int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post, Ary<FunNode> work ) {
