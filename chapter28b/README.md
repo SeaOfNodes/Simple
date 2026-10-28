@@ -191,9 +191,10 @@ already known to be initialized.
 The compiler must also reject cycles in which class initializers depend on one
 another.  Simple keeps *function summaries* that list calls and classes that
 may need initialization, so the compiler can check for cycles before loading
-bodies.  If a possible cycle appears, it loads all remaining bodies, optimizes,
-and checks again.  A constant returned by a some other code outside the cycle
-can make a branch disappear and remove the cycle.
+bodies.  After ordinary optimization, any remaining possible cycle is an
+error; the compiler does not load more bodies to try to disprove it.  Inlining
+and other optimizations can remove a dependency, so changing optimization
+decisions can change whether a program passes this check.
 
 All required object files must be found before execution.  Native code is
 linked before the program starts.  Eval2 can wait until a call needs a body
@@ -219,7 +220,8 @@ the modular `sys` objects used by the library tests. Programs can import
 inputs, and changed library objects using controlled timestamps. It also
 compares native execution after an edit with a clean build.
 `SelectiveLoadingTest` checks summarized calls, loading for inlining, native
-link dependencies, and refinement of a potential initialization cycle.
+link dependencies, and rejection of a possible initialization cycle without
+loading more bodies.
 `make release` builds the launcher jar and standard library; `make view`
 starts the shared graph viewer.
 

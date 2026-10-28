@@ -15,7 +15,8 @@ public class StopNode extends CFGNode {
 
     public StopNode() {
         super();
-        _type = compute();
+        // Edges may still be missing, including when loading a StopCU.
+        _type = TypeTuple.STATE;
     }
     public StopNode(StopNode stop) { super(stop); }
     @Override public Tag serialTag() { return Tag.Stop; }

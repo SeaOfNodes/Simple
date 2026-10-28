@@ -450,113 +450,76 @@ public class Serialize {
         String[] strs = tread.strs();
         GlobalBits fileAliases = tread.fileAliases();
 
-        CodeGen.Phase prior = code._phase;
-        code._phase=CodeGen.Phase.Parse; // Constructors must tolerate an incomplete graph.
-        try {
-            // D - Read the nodes
+        // D - Read the nodes
 
-            // Number of nodes
-            int num = bais.packed4();
-            // Packed array of nodes
-            Ary<Node> nodes = new Ary<>(Node.class);
-            CompUnit cu = null;
-            for( int i = 0; i<num; i++ ) {
-                Node.Tag tag = Node.Tag.VALS[bais.packed1()];
-                Type t = types[bais.packed2()];
-                Node n = tag.make(bais,strs,types,fileAliases,aliases);
-                n._type = t;
-                nodes.push(n);
-                // A little extra for FunNodes
-                if( n instanceof StartCUNode startcu ) {
-                    cu = code._compunits.get(startcu._fname==null ? (code._srcName==null ? "Test" : code._srcName) : startcu._fname);
-                    assert cu != null;
-                }
-                if( n instanceof StopCUNode stopcu ) {
-                    cu = null;
-                }
-                if( n instanceof FunNode fun ) {
-                    assert cu != null;
-                    fun._compunit = cu;
-                    if( fun._name==null || fun._name.isEmpty() ) fun._name=fidxs.symbol(fun.sig().fidx());
-                }
-                if( n instanceof ExternNode ext && ext._con instanceof TypeFunPtr tfp && tfp.isConstant() ) {
-                    String old = code.externFunc(tfp.fidx());
-                    if( old == null )
-                        code.externFunc(tfp.fidx(), ext._extern);
-                    else
-                        assert old.equals(ext._extern);
-                }
+        // Number of nodes
+        int num = bais.packed4();
+        // Packed array of nodes
+        Ary<Node> nodes = new Ary<>(Node.class);
+        CompUnit cu = null;
+        for( int i = 0; i<num; i++ ) {
+            Node.Tag tag = Node.Tag.VALS[bais.packed1()];
+            Type t = types[bais.packed2()];
+            Node n = tag.make(bais,strs,types,fileAliases,aliases);
+            n._type = t;
+            nodes.push(n);
+            // A little extra for FunNodes
+            if( n instanceof StartCUNode startcu ) {
+                cu = code._compunits.get(startcu._fname==null ? (code._srcName==null ? "Test" : code._srcName) : startcu._fname);
+                assert cu != null;
             }
-
-            // Node edges
-            for( Node n : nodes ) {
-                int len = n.nIns();
-                for( int i = 0; i<len; i++ ) {
-                    int idx = bais.packed2();
-                    Node def = idx==0 ? null : nodes.at(idx-1);
-                    // MemMerge precise aliases are encoded by their input slot.
-                    // Remap populated file-local slots into this compilation's
-                    // local alias numbering; null holes carry no identity.
-                    int local = i;
-                    if( n instanceof MemMergeNode && i >= GlobalBits.RESERVED ) {
-                        if( def == null )  continue;
-                        local = aliases.map(fileAliases,i);
-                    }
-                    n.setDefX(local,def);
-                    // Call's output[0] is always the CallEnd
-                    if( n instanceof CallEndNode cend && i==0 ) {
-                        var outs = cend.call()._outputs;
-                        outs.swap(0,outs._len-1);
-                    }
-                }
-                // A little extra for FunNodes
-                if( n instanceof FunNode fun ) {
-                    // Return is hooked like an edge
-                    ReturnNode ret = (ReturnNode)nodes.at(bais.packed2()-1);
-                    fun.setRet(ret);
-                    ret._fun = fun;
-                }
+            if( n instanceof StopCUNode stopcu ) {
+                cu = null;
             }
-            // Add edge from Start to Stop
-            StartNode start = (StartNode)nodes.at(0);
-            StopNode stop = (StopNode)nodes.last();
-            start.setDef(1,stop);
-
-            // A body materialized after SCCP joins a different analysis context.
-            // Its saved types are reset and checked by the ensuing fixed-point solve.
-            assert prior!=CodeGen.Phase.Parse || check(code,nodes);
-            elf._nodes = nodes;
-        } finally { code._phase=prior; }
-    }
-
-    // Check loaded types and nodes are consistent
-    private static boolean check( CodeGen code, Ary<Node> nodes ) {
-        // Loaded nodes are complete, unlike nodes still being built by the
-        // parser.  Recompute them with post-parse semantics.  The compilation-
-        // unit Stop is the exception: its escape type depends on the complete
-        // program's public interface, which ParseAll freezes only after every
-        // compilation unit has been loaded.
-        boolean good = true;
-        CodeGen.Phase phase = code._phase;
-        code._phase = CodeGen.Phase.Opto;
-        try {
-            for( Node n : nodes ) {
-                if( n instanceof StopCUNode && !code.publicInterfaceFrozen() )
-                    continue;
-                // Cross-object calls are relinked only after every body has
-                // loaded. Their saved return types cannot be recomputed yet.
-                if( n instanceof CallEndNode end && end.call().fptr()._type instanceof TypeFunPtr fp &&
-                    end.nIns()<=fp.nfcns() ) continue;
-                Type nval = n.compute();
-                if( nval != n._type ) {
-                    System.err.println("Node "+n+" read in as "+n._type+" but computes as "+nval);
-                    good = false;
-                }
+            if( n instanceof FunNode fun ) {
+                assert cu != null;
+                fun._compunit = cu;
+                if( fun._name==null || fun._name.isEmpty() ) fun._name=fidxs.symbol(fun.sig().fidx());
             }
-        } finally {
-            code._phase = phase;
+            if( n instanceof ExternNode ext && ext._con instanceof TypeFunPtr tfp && tfp.isConstant() ) {
+                String old = code.externFunc(tfp.fidx());
+                if( old == null )
+                    code.externFunc(tfp.fidx(), ext._extern);
+                else
+                    assert old.equals(ext._extern);
+            }
         }
-        return good;
+
+        // Node edges
+        for( Node n : nodes ) {
+            int len = n.nIns();
+            for( int i = 0; i<len; i++ ) {
+                int idx = bais.packed2();
+                Node def = idx==0 ? null : nodes.at(idx-1);
+                // MemMerge precise aliases are encoded by their input slot.
+                // Remap populated file-local slots into this compilation's
+                // local alias numbering; null holes carry no identity.
+                int local = i;
+                if( n instanceof MemMergeNode && i >= GlobalBits.RESERVED ) {
+                    if( def == null )  continue;
+                    local = aliases.map(fileAliases,i);
+                }
+                n.setDefX(local,def);
+                // Call's output[0] is always the CallEnd
+                if( n instanceof CallEndNode cend && i==0 ) {
+                    var outs = cend.call()._outputs;
+                    outs.swap(0,outs._len-1);
+                }
+            }
+            // A little extra for FunNodes
+            if( n instanceof FunNode fun ) {
+                // Return is hooked like an edge
+                ReturnNode ret = (ReturnNode)nodes.at(bais.packed2()-1);
+                fun.setRet(ret);
+                ret._fun = fun;
+            }
+        }
+        // Add edge from Start to Stop
+        StartNode start = (StartNode)nodes.at(0);
+        StopNode stop = (StopNode)nodes.last();
+        start.setDef(1,stop);
+
+        elf._nodes = nodes;
     }
 
     // --------------------------------------------------

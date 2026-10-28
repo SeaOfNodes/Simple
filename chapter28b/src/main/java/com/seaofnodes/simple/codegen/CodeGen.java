@@ -523,27 +523,8 @@ public class CodeGen {
     }
 
     // TypeCheck saves its successful analysis for Serialize. Loading bodies
-    // or entering another graph-changing phase discards it; no stale edges
-    // survive a later Iter/FinalizeIR/TypeCheck sequence.
+    // or entering another graph-changing phase discards it.
     ClassInitDependencies _classInitDependencies;
-
-    ClassInitDependencies resolveInitCycles() {
-        while( true ) {
-            ClassInitDependencies deps = new ClassInitDependencies(this);
-            String cycle = deps.check();
-            if( cycle==null ) return deps;
-            Ary<CompUnit> units = deps.cycleImports();
-            if( units.isEmpty() ) throw Parser.error(cycle,null);
-            for( CompUnit cu : units ) ParseAll.loadCompUnit(this,cu);
-            Phase prior = _phase;
-            try {
-                _phase=Phase.IterPostOpto;
-                _iter.iterate(this);
-                _phase=Phase.FinalizeIR;
-                FinalizeIR.run(this);
-            } finally { _phase=prior; }
-        }
-    }
 
     public CodeGen finalizeIR() { return phase(Phase.FinalizeIR, _phase==Phase.IterPostOpto, () -> FinalizeIR.run(this)); }
 

@@ -150,16 +150,6 @@ public class ClassInitDependencies {
         return null;
     }
 
-    // A condition-producing helper outside the SCC can eliminate a cycle.
-    // Before reporting one, restore the full-IR precision of the original check.
-    // Called only after check() has found a cycle.
-    Ary<CompUnit> cycleImports() {
-        Ary<CompUnit> units = new Ary<>(CompUnit.class);
-        for( FunNode fun : _code._linker )
-            if( fun!=null && fun.summary()!=null && units.find(fun._compunit)==-1 ) units.add(fun._compunit);
-        return units;
-    }
-
     // Every internal edge of an SCC belongs to a cycle. Print all of them:
     // stack order is not a path, and enumerating all cycle paths can explode.
     // This bookkeeping and formatting are only needed on an error.

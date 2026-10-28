@@ -160,29 +160,35 @@ public class SelectiveLoadingTest {
         }
     }
 
-    @Test public void testCycleRefinementLoadsConditionHelper() throws Exception {
+    @Test public void testPossibleCycleDoesNotLoadConditionHelper() throws Exception {
         Path base = Path.of("build/objs/selective");
         Files.createDirectories(base);
         Path root = Files.createTempDirectory(base,"cycle-");
-        Path stubs = Files.createDirectory(root.resolve("stubs"));
+        Path src = Files.createDirectory(root.resolve("src"));
         Path lib = Files.createDirectory(root.resolve("lib"));
-        object(stubs,null,"A","int value=arg;");
-        object(stubs,null,"B","int value=arg;");
         StringBuilder helper = new StringBuilder("val test={bool n -> ");
         // Large parse, small final body: it will not request speculative loading.
         for( int i = 0; i<80; i++ ) helper.append("val x").append(i).append("=n+0;");
         helper.append("return n;};");
         object(lib,null,"Predicate",helper.toString());
-        Ary<String> inputs = new Ary<>(new String[]{stubs.toString(),lib.toString()});
-        object(lib,inputs,"A","int value=1; if(Predicate.test(false)) value=B.value;");
-        object(lib,inputs,"B","int value=A.value;");
-        CodeGen code = new CodeGen(null,root.toString(),new Ary<>(new String[]{lib.toString()}),
-            "Main","return A.value;",123,true,TypeInteger.BOT).driver(CodeGen.Phase.FinalizeIR);
+        // All sources and objects agree. The summary cannot express test(n)==n.
+        write(src,"Root","val entry=A;");
+        write(src,"Root/A","int value=1; if(Predicate.test(false)) value=B.value;");
+        write(src,"Root/B","int value=A.value;");
+        CodeGen code = new CodeGen(src.toString(),root.toString(),new Ary<>(new String[]{lib.toString()}),
+            "Root",null,123,true,TypeInteger.BOT).driver(CodeGen.Phase.FinalizeIR);
         assertNotNull(function(code,"test").summary());
         assertNotNull("Summaries alone report a potential cycle",new ClassInitDependencies(code).check());
-        code.driver(CodeGen.Phase.TypeCheck);
-        assertNull("The helper is outside A/B's apparent cycle",function(code,"test").summary());
-        assertEquals("1",Eval2.eval(code,0));
+        try {
+            code.driver(CodeGen.Phase.TypeCheck);
+            fail("Reject the possible cycle without loading the condition helper");
+        } catch( Parser.ParseException ex ) {
+            assertTrue(ex.getMessage(),ex.getMessage().startsWith("Cyclic class initialization:"));
+            assertTrue(ex.getMessage(),ex.getMessage().contains("Root.A -> Root.B"));
+            assertTrue(ex.getMessage(),ex.getMessage().contains("Root.B -> Root.A"));
+        }
+        assertNotNull(function(code,"test").summary());
+        assertNull(code.getElf(code._compunits.get("Predicate")._obj)._nodes);
     }
 
     private static void object(Path dir, Ary<String> paths, String name, String source) {
