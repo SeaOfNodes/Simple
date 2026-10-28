@@ -97,37 +97,21 @@ public class CodeGen {
         return null;
     }
 
-    // True when fidx is published through a public class or instance field.
+    // Frozen after ParseAll: public initializers and function-valued fields.
     public boolean publicFIDX(int fidx) {
-        if( fidx < GlobalBits.RESERVED ) return false;
-        // A public class initializer is itself an external root; unlike
-        // constructors and methods, it is not reached through a class field.
-        FunNode fun = _linker.atX(fidx);
-        if( fun != null && fun.isClz() && fun.isPublic() )
-            return true;
-        // Include instance methods even while their constant function fields
-        // are stored in each instance rather than on the class object.
-        for( Type t : Parser.TYPES.values() )
-            if( t instanceof TypeStruct clz &&
-                Parser.startsClzPrefix(clz._name) &&
-                Parser.isPublicClassName(clz._name) &&
-                resolvedClass(clz) ) {
-                if( publicFieldFIDX(clz,fidx) ) return true;
-                Type self = Parser.TYPES.get(clz._name.substring(Parser.CLZ.length()));
-                if( self instanceof TypeStruct ts && publicFieldFIDX(ts,fidx) ) return true;
-            }
-        return false;
+        return fidx >= GlobalBits.RESERVED && XInt.bit(publicFIDXs(),fidx);
     }
 
-    private static boolean publicFieldFIDX(TypeStruct clz, int fidx) {
+    private void gatherPublicFields(TypeStruct clz, boolean classFields) {
         boolean hasCtor = clz.field("<ctor>") != null;
-        for( Field fld : clz._fields )
-            if( fld._fname.charAt(0)!='_' && fld._t instanceof TypeFunPtr tfp &&
-                // With a user constructor, class:N.N is the private <init>.
-                !(hasCtor && clz.hiddenInit(fld)) &&
-                XInt.bit(tfp._fidxs,fidx) )
-                return true;
-        return false;
+        for( Field fld : clz._fields ) {
+            // With a user constructor, class:N.N is the private <init>.
+            if( fld._fname.charAt(0)=='_' || fld._t==Type.TOP ||
+                (hasCtor && clz.hiddenInit(fld)) ) continue;
+            if( classFields ) _publicAliases = XInt.make(_publicAliases,fld._alias);
+            if( fld._t instanceof TypeFunPtr tfp )
+                _publicFIDXs = XInt.meet(_publicFIDXs,tfp._fidxs);
+        }
     }
 
     public static boolean hasUserConstructor(TypeStruct self) {
@@ -135,8 +119,7 @@ public class CodeGen {
         return t instanceof TypeStruct clz && clz.field("<ctor>") != null;
     }
 
-    // A forward reference gets a class object and constructor signature so
-    // parsing can proceed, but it has no callable definition yet.
+    // A forward reference has a placeholder class, not a definition yet.
     private static boolean resolvedClass(TypeStruct clz) {
         Type t = Parser.TYPES.get(clz._name.substring(Parser.CLZ.length()));
         return !(t instanceof TypeStruct ts) || !ts._fref;
@@ -154,24 +137,27 @@ public class CodeGen {
      */
     void freezePublicInterface() {
         assert _publicFIDXs==null && _publicAliases==null;
-        int[] fidxs = XInt.EMPTY;
-        for( int fidx=GlobalBits.RESERVED; fidx<_linker._len; fidx++ )
-            if( publicFIDX(fidx) )
-                fidxs = XInt.make(fidxs,fidx);
-        int[] aliases = XInt.EMPTY;
+        _publicFIDXs = _publicAliases = XInt.EMPTY;
         for( Type t : Parser.TYPES.values() )
             if( t instanceof TypeStruct clz &&
                 Parser.startsClzPrefix(clz._name) &&
                 Parser.isPublicClassName(clz._name) &&
                 resolvedClass(clz) ) {
-                boolean hasCtor = clz.field("<ctor>") != null;
-                for( Field fld : clz._fields )
-                    if( fld._fname.charAt(0)!='_' && fld._t!=Type.TOP &&
-                        !(hasCtor && clz.hiddenInit(fld)) )
-                        aliases = XInt.make(aliases,fld._alias);
+                // Gather function pointers from public fields of both class
+                // and instance objects.
+                gatherPublicFields(clz,true);
+                Type self = Parser.TYPES.get(clz._name.substring(Parser.CLZ.length()));
+                if( self instanceof TypeStruct ts ) gatherPublicFields(ts,false);
             }
+        // Limit broad function types to known FIDXs, excluding reserved bits.
+        // Public class initializers are roots without needing a field reference.
+        int[] fidxs = XInt.EMPTY;
+        for( int fidx = GlobalBits.RESERVED; fidx<_linker._len; fidx++ ) {
+            FunNode fun = _linker.atX(fidx);
+            if( XInt.bit(_publicFIDXs,fidx) || (fun!=null && fun.isClz() && fun.isPublic()) )
+                fidxs = XInt.make(fidxs,fidx);
+        }
         _publicFIDXs = fidxs;
-        _publicAliases = aliases;
     }
 
     public int[] publicFIDXs()  { assert _publicFIDXs !=null; return _publicFIDXs;  }
@@ -314,6 +300,8 @@ public class CodeGen {
     // Record elapsed time even on failure, but report completion only on success.
     CodeGen phase(Phase next, boolean ordered, Runnable work) {
         assert ordered : "Cannot run "+next+" after "+_phase;
+        // Serialize reads the checked graph; other phases can change it.
+        if( next!=Phase.Serialize ) _classInitDependencies = null;
         _phase = next;
         long t0 = System.currentTimeMillis();
         work.run();             // Do The Phase
@@ -534,10 +522,18 @@ public class CodeGen {
         } finally { _phase=prior; }
     }
 
-    void resolveInitCycles() {
+    // TypeCheck saves its successful analysis for Serialize. Loading bodies
+    // or entering another graph-changing phase discards it; no stale edges
+    // survive a later Iter/FinalizeIR/TypeCheck sequence.
+    ClassInitDependencies _classInitDependencies;
+
+    ClassInitDependencies resolveInitCycles() {
         while( true ) {
-            Ary<CompUnit> units = new ClassInitDependencies(this).cycleImports();
-            if( units.isEmpty() ) return;
+            ClassInitDependencies deps = new ClassInitDependencies(this);
+            String cycle = deps.check();
+            if( cycle==null ) return deps;
+            Ary<CompUnit> units = deps.cycleImports();
+            if( units.isEmpty() ) throw Parser.error(cycle,null);
             for( CompUnit cu : units ) ParseAll.loadCompUnit(this,cu);
             Phase prior = _phase;
             try {

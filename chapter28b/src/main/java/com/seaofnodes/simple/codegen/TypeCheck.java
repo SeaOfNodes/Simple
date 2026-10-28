@@ -9,12 +9,9 @@ import com.seaofnodes.simple.util.Ary;
 // obligations. Queue surviving CLInits during the same walk for Lower's Iter.
 abstract class TypeCheck {
     static void run(CodeGen code) {
-        code.resolveInitCycles();
         // Check for class-init cycles first; such a cycle can prevent other
-        // things from resolving types. The dependency graph is temporary.
-        String clzInitCycle = new ClassInitDependencies(code).check();
-        if( clzInitCycle != null )
-            throw Parser.error(clzInitCycle,null);
+        // things from resolving types. Serialize can reuse the final graph.
+        code._classInitDependencies = code.resolveInitCycles();
 
         Ary<Node> errs = new Ary<>(Node.class);
         code._stop.walk( n -> {

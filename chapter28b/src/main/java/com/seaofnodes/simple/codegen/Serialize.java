@@ -15,7 +15,8 @@ public class Serialize {
     private final HashMap<CompUnit,Ary<TypeStruct>> _classes = new HashMap<>();
 
     private Serialize(CodeGen code) {
-        _init = new ClassInitDependencies(code);
+        _init = code._classInitDependencies;
+        assert _init!=null; // TypeCheck checked this same, still-unmodified graph.
         // Preserve the canonical declarations, distinct from sharper graph
         // types with the same names.  Gather/sort them once for all objects.
         TreeMap<String,TypeStruct> named = new TreeMap<>();

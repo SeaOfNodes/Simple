@@ -12,6 +12,7 @@ import com.seaofnodes.simple.node.CallNode;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.LoopNode;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.XInt;
 import com.seaofnodes.simple.util.Ary;
 import java.io.File;
 import java.io.FileWriter;
@@ -91,6 +92,34 @@ public class Chapter25Test {
             assertEquals(TypeInteger.U8,visible.parm(3)._type);
             assertEquals("0",Eval2.eval(code,0));
         }
+    }
+
+    @Test public void testPublicFunctionAlias() {
+        CodeGen code = new CodeGen("""
+            val _hidden = { int x -> x; };
+            val visible = _hidden;
+            val _private = { int x -> x+1; };
+            return 0;
+            """).parse();
+        int checked = 0;
+        for( FunNode fun : code._linker ) {
+            if( fun==null || fun._name==null ) continue;
+            if( fun._name.equals("_hidden") ) {
+                // A public field can publish a privately named function.
+                assertTrue(code.publicFIDX(fun.sig().fidx()));
+                checked++;
+            }
+            if( fun._name.equals("_private") ) {
+                assertFalse(code.publicFIDX(fun.sig().fidx()));
+                checked++;
+            }
+        }
+        assertEquals(2,checked);
+        var clz = code.compunit()._clz;
+        assertTrue(XInt.bit(code.publicAliases(),clz.field("visible")._alias));
+        assertFalse(XInt.bit(code.publicAliases(),clz.field("_hidden")._alias));
+        assertFalse(XInt.bit(code.publicAliases(),clz.field("_private")._alias));
+        code.driver(CodeGen.Phase.TypeCheck);
     }
 
     @Test public void testNeverReturnPointerRiscV() {

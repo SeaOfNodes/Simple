@@ -577,5 +577,9 @@ public class ClassInitDependenciesTest {
                    forward!=null && reverse!=null);
         assertCycle(forward,"Root.A -> Root.B -> Root.A");
         assertCycle(reverse,"Root.A -> Root.B -> Root.A");
+        // A failed check leaves an SCC on the stack. A later check must start
+        // fresh, and must not treat edges into completed SCCs as back edges.
+        deps._edgess[b]=null;
+        assertNull(deps.check());
     }
 }

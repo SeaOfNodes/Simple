@@ -28,6 +28,7 @@ public class ClassInitDependencies {
     private final int[] _pres;
     private final int[] _lows;
     private final int[] _stk ;
+    private final int[] _spos; // Stack position; FIDX -> stack slot + 1, or 0 when absent.
     private int _sp;
     private int _pre;
 
@@ -39,6 +40,7 @@ public class ClassInitDependencies {
         _pres = new int[code._linker._len];
         _lows = new int[code._linker._len];
         _stk  = new int[code._linker._len];
+        _spos = new int[code._linker._len];
 
         //
         BitSet visit = code.visit();                   // Visit set per-fcn
@@ -136,7 +138,8 @@ public class ClassInitDependencies {
     // Return an error string, or null if no cycle contains multiple clinits.
     public String check() {
         Arrays.fill(_pres,0);
-        _sp = 0;
+        // A prior check may have stopped with a cycle still on the stack.
+        while( _sp>0 ) _spos[_stk[--_sp]] = 0;
         _pre = 1;
 
         int idx = -1;
@@ -149,9 +152,9 @@ public class ClassInitDependencies {
 
     // A condition-producing helper outside the SCC can eliminate a cycle.
     // Before reporting one, restore the full-IR precision of the original check.
+    // Called only after check() has found a cycle.
     Ary<CompUnit> cycleImports() {
         Ary<CompUnit> units = new Ary<>(CompUnit.class);
-        if( check()==null ) return units;
         for( FunNode fun : _code._linker )
             if( fun!=null && fun.summary()!=null && units.find(fun._compunit)==-1 ) units.add(fun._compunit);
         return units;
@@ -205,6 +208,7 @@ public class ClassInitDependencies {
     int scc( int fidx ) {
         // Assign pre-order number
         _lows[fidx] = _pres[fidx] = _pre++;
+        _spos[fidx] = _sp+1;
         _stk[_sp++] = fidx;
         // walk outbound edges
         if( _edgess[fidx]!=null ) {
@@ -214,27 +218,21 @@ public class ClassInitDependencies {
                     int idx = scc(edge);
                     if( idx != -1 ) return idx; // Found a cycle
                     _lows[fidx] = Math.min(_lows[fidx],_lows[edge]);
-                } else if( _edgess[edge]!=null && onStk(edge) ) {
+                } else if( _edgess[edge]!=null && _spos[edge]!=0 ) {
                     _lows[fidx] = Math.min(_lows[fidx],_pres[edge]);
                 }
             }
         }
         // Found a cycle
         if( _lows[fidx] == _pres[fidx] ) {
-            int idx = find(fidx);
+            int idx = _spos[fidx]-1;
             if( hasClzCycle(idx) )
                 return idx;     // Found a class cycle
-            // Pop stack, including fidx
-            _sp = idx;
+            // Pop stack, including fidx, should be a really short loop
+            while( _sp>idx ) _spos[_stk[--_sp]] = 0;
         }
         return -1;              // No cycle
     }
-
-    private int find(int e) {
-        for( int i=0; i<_sp; i++ )  if( _stk[i] == e ) return i;
-        return -1;
-    }
-    private boolean onStk(int e) { return find(e) != -1; }
 
     private boolean hasClzCycle(int idx) {
         int clinits = 0;
