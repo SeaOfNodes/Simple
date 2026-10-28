@@ -23,6 +23,8 @@ public abstract class ArithFNode extends Node {
             t2 instanceof TypeFloat f2 ) {
             if( f1.isConstant() && f2.isConstant() )
                 return TypeFloat.constant(doOp(f1.value(),f2.value()));
+            // Two f32 inputs can still produce a result needing f64 precision.
+            return TypeFloat.F64;
         }
         return t1.meet(t2);
     }

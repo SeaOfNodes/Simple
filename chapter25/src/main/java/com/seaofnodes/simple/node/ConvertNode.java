@@ -3,7 +3,6 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 
 import java.util.HashMap;
@@ -29,14 +28,15 @@ public class ConvertNode extends Node {
         return p.p(label()).open().n(val()).close();
     }
 
-    // The declaration fixes the result family during pessimistic parsing.
-    // From SCCP onward, preserve dead inputs and stronger facts in that family.
+    // The declaration bounds the result; preserve dead inputs and stronger
+    // scalar facts so SCCP can propagate constants through loop conversions.
+    // Managed pointers keep the declared type until idealize checks access:
+    // array element access must agree in both directions, so it cannot gate
+    // precision in this monotone transfer function.
     @Override public Type compute() {
         Type src = val()._type;
-        if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() ) {
-            if( src.isHigh() ) return Type.TOP;
-            if( (src.isa(_dst) && src.accessISA(_dst)) ) return src;
-        }
+        if( src.isHigh() ) return Type.TOP;
+        if( !(_dst instanceof TypeMemPtr) && src.isa(_dst) ) return src;
         return _dst;
     }
 

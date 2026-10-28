@@ -14,10 +14,13 @@ public class AddFNode extends Node {
 
     @Override
     public Type compute() {
+        if( in(1)._type.isHigh() || in(2)._type.isHigh() ) return Type.TOP;
         if (in(1)._type instanceof TypeFloat i0 &&
             in(2)._type instanceof TypeFloat i1) {
             if (i0.isConstant() && i1.isConstant())
                 return TypeFloat.constant(i0.value()+i1.value());
+            // Two f32 inputs can still produce a result needing f64 precision.
+            return TypeFloat.BOT;
         }
         return in(1)._type.meet(in(2)._type);
     }

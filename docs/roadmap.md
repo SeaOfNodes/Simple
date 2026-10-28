@@ -13,9 +13,6 @@ design decisions and chapter boundaries.
 
 Remaining work:
 
-- Remove phase-dependent transfer rules from `ArithNode.compute()` and
-  `ConvertNode.compute()`. Keep the same monotone rule in both pessimistic
-  and optimistic analysis.
 - Remove Eval2 scheduling scratch costs proportional to all previously
   allocated node IDs. Scheduling a newly loaded object should cost only for
   that graph and any affected existing nodes.

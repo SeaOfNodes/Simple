@@ -111,12 +111,16 @@ public abstract class ArithNode extends Node implements ModeNode {
     @Override
     public final Type compute() {
         Type t1 = in(1)._type, t2 = in(2)._type;
+        // Constant array payloads lie below their element ranges in the lattice.
+        if( t1 instanceof TypeConAry ary ) t1 = ary.elem();
+        if( t2 instanceof TypeConAry ary ) t2 = ary.elem();
         if( t1==null || t2==null )        return Type.TOP;
         if( t1.isHigh() || t2.isHigh() )  return Type.TOP;
-        if( t1==Type.BOTTOM || t2==Type.BOTTOM ) return Type.BOTTOM;
+        // Without numeric inputs, stay below both possible result families.
+        // Pointer modes belong to comparisons, not arithmetic.
+        if( !(t1 instanceof TypeInteger || t1 instanceof TypeFloat) ||
+            !(t2 instanceof TypeInteger || t2 instanceof TypeFloat) ) return Type.BOTTOM;
         byte mode = _mode==0 ? mode(t1,t2) : _mode;
-        if( mode==0 )
-            return CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal() ? Type.BOTTOM : Type.TOP;
         if( mode==1 ) {
             if( t1 instanceof TypeInteger x &&
                 t2 instanceof TypeInteger y )
@@ -126,12 +130,10 @@ public abstract class ArithNode extends Node implements ModeNode {
             return TypeInteger.BOT;
         }
         // FP handling
-        if( t1 instanceof TypeFloat f1 &&
-            t2 instanceof TypeFloat f2 ) {
-            if( f1.isConstant() && f2.isConstant() )
-                return TypeFloat.constant(doOp(f1.value(),f2.value()));
-            return t1.meet(t2);
-        }
+        if( t1 instanceof TypeFloat f1 && t2 instanceof TypeFloat f2 &&
+            f1.isConstant() && f2.isConstant() )
+            return TypeFloat.constant(doOp(f1.value(),f2.value()));
+        // Two f32 inputs can still produce a result needing f64 precision.
         return TypeFloat.F64;
     }
 

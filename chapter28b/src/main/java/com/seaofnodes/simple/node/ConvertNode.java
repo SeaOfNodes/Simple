@@ -3,13 +3,17 @@ package com.seaofnodes.simple.node;
 import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.Parser;
-import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.*;
 
 import java.util.HashMap;
 
-// Convert a value to an authoritative destination type.  The destination is
-// known structurally from a declaration; the source family might sharpen later.
+// Convert the incoming value; actual conversion depends on the _dst type.
+// Convert ints to floats, ptrs to ints, nullable to not-null, etc.  Once the
+// input type is known precisely enough, the idealize() call triggers and
+// replaces the Convert with a concrete conversion (e.g. toFloatNode).
+//
+// Convert has no runtime dynamic behavior; it must *always* get replaced with
+// some concrete behavior (or its an error).
 public class ConvertNode extends Node {
     private Type _dst;
 
@@ -29,14 +33,13 @@ public class ConvertNode extends Node {
         return p.p(label()).open().n(val()).close();
     }
 
-    // The declaration fixes the result family during pessimistic parsing.
-    // From SCCP onward, preserve dead inputs and stronger facts in that family.
+
+    // Not much to do here, if the input type is not sharp enough to fold into
+    // the proper conversion, its not sharp enough to do much else.
     @Override public Type compute() {
         Type src = val()._type;
-        if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() ) {
-            if( src.isHigh() ) return Type.TOP;
-            if( (src.isa(_dst) && src.accessISA(_dst)) ) return src;
-        }
+        if( src.isHigh() ) return Type.TOP;
+        if( !(_dst instanceof TypeMemPtr) && src.isa(_dst) ) return src;
         return _dst;
     }
 
