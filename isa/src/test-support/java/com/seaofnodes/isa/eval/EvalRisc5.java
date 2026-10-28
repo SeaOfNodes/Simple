@@ -176,7 +176,7 @@ public class EvalRisc5 {
                     case 3: rval = ld8 ( rsval ); break;
                     case 4: rval = ld1z( rsval ); break;
                     case 5: rval = ld2z( rsval ); break;
-                    case 6: rval = ld4s( rsval ); break;
+                    case 6: rval = ld4s( rsval ) & 0xFFFFFFFFL; break;
                     default: trap = (2+1);
                     }
                 }

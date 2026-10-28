@@ -253,7 +253,7 @@ public class LoadNode extends MemOpNode {
     }
 
     private Node folded(Node win) {
-        return win instanceof StoreNode st ? extend(castRO(st.val())) : zero((NewNode)win);
+        return win instanceof StoreNode st ? extend(castRO(st.val()),st._declaredType) : zero((NewNode)win);
     }
 
     // Materialize only after the profitability search succeeds. The value Phi
@@ -311,8 +311,10 @@ public class LoadNode extends MemOpNode {
 
     // When a load bypasses a store, the store might truncate bits - and the
     // load will need to zero/sign-extend.
-    private Node extend(Node val) {
-        if( !(_declaredType instanceof TypeInteger ti) ) return val;
+    // Use the matching Store's width: while a class is open, this Load may
+    // already know its alias but not yet have recorded its storage type.
+    private Node extend(Node val, Type storage) {
+        if( !(storage instanceof TypeInteger ti) ) return val;
         if( ti._min==0 )        // Unsigned
             return new AndNode(null,val,con(ti._max));
         // Signed extension

@@ -44,6 +44,16 @@ public class RiscTest {
             assert unsigned.step(1)==0;
             assert unsigned.regs[3]==(value==0 ? 1 : 0);
         }
+        for( int value : new int[]{0,1,Integer.MAX_VALUE,Integer.MIN_VALUE,-1} ) {
+            var loads = new EvalRisc5(new byte[1024],512);
+            loads.st4(4,0x00012183); // lw x3,0(x2)
+            loads.st4(8,0x00016203); // lwu x4,0(x2)
+            loads.st4(512,value);
+            loads._pc = 4;
+            assert loads.step(2)==0;
+            assert loads.regs[3]==value;
+            assert loads.regs[4]==(value & 0xFFFFFFFFL);
+        }
         var logical=new EvalArm64(new byte[1024],512);
         logical.st4(4,0xB27F0020); // orr x0,x1,#2
         logical.st4(8,0x9A9F17E2); // cset x2,eq; false must not retain prior result

@@ -3,58 +3,31 @@
 English | [日本語](roadmap.ja.md)
 
 Open compiler work and language proposals, reviewed against the current
-snapshots on 2026-10-25. These are future changes, not promises about the
+snapshots on 2026-10-28. These are future changes, not promises about the
 language implemented by the tutorial. Language changes still need their own
 design decisions and chapter boundaries.
-
-## Correctness
-
-### Narrow field results after method updates
-
-Chapters 25-27 can return an untruncated increment when a method updates a
-narrow field and then reads it. With evaluator stores corrected, this example
-returns 366 instead of 110. Chapter 25's generated RISC-V code also returns
-366: the method's optimized Return uses the raw Add with range `[1-256]`,
-although the Store writes a byte. Chapters 23, 24a/24b, and 28a/28b return 110
-with the corrected evaluator.
-
-```simple
-struct C { u8 x=255; val next_noInline={ -> x++; return x; }; };
-var c=new C;
-val a=c.next_noInline();
-val b=c.next_noInline();
-return a+10*b+100*c.x;
-```
-
-Find where the field read loses its narrowing during parsing or optimization,
-and preserve the converted result independently of the Store. Check both
-signed and unsigned fields and compare ideal evaluation with generated code.
 
 ## Compilation and optimization
 
 ### Phase ordering and incremental analysis
 
-Import loading now repairs the new graph's types and propagates changed bounds
-through affected callers before resuming peepholes. It no longer restarts Iter
-and Opto over the combined graph. Unknown calls retain conservative effects
-and escaping callbacks. Entry initializers seed reachability; live calls,
-including CLInit and the callees recorded in summaries, discover other targets.
+Remaining work:
 
-Smaller follow-ups:
-
-- Try queuing only nodes whose types changed during Opto, plus affected
-  neighbors and nodes whose edges or numeric modes changed, for IterPostOpto.
-- Remove the deserializer's temporary `Parse` phase. Node construction should
-  express its needs without changing the driver's progress marker.
-- Have Eval2 require checked input in a supported phase. Prepare each newly
-  loaded graph once, without changing the running program's phase. Remove
-  scheduling scratch costs proportional to all previously allocated node IDs.
-- Keep field-offset cleanup on the worklist. Repeated peepholes are fine when
-  driven by changes; avoid repeating global finalization bookkeeping.
+- Remove phase-dependent transfer rules from `ArithNode.compute()` and
+  `ConvertNode.compute()`. Keep the same monotone rule in both pessimistic
+  and optimistic analysis.
+- Remove Eval2 scheduling scratch costs proportional to all previously
+  allocated node IDs. Scheduling a newly loaded object should cost only for
+  that graph and any affected existing nodes.
+- Reduce repeated scans of all calls and unloaded function summaries in
+  `StopCUNode.compute()`. Review its phase-dependent escape normalization and
+  reliance on the previous result before changing propagation.
+- Move the remaining encoding fallback out of Export so Encoding prepares
+  all objects that Export will write.
 
 Whole-program TypeCheck is acceptable for now; incremental checking is an
 optional later improvement. Expensive assertion walks are outside this
-performance work. Review the encoding fallback inside Export separately.
+performance work.
 
 ### Reliable incremental builds
 
@@ -86,10 +59,10 @@ ownership rules and validation cases.
 
 Chapter 28b emits one object per compilation unit and reads declarations and
 `SummaryNode` information without loading bodies. Optimization can request an
-object's IR for inlining; Eval2 resolves its object dependencies before
-execution, then materializes bodies on executed calls. Suspected
-initialization cycles request full loading before type checking completes.
-A requested object still reconstructs all of its functions.
+object's IR for inlining; Eval2 materializes bodies on executed calls and
+assumes a coherent build. Initialization checks reject possible cycles using
+the available graph and summaries, without loading more bodies to disprove
+them. A requested object still reconstructs all of its functions.
 
 Further selectivity would require a function-body index within each object
 and narrower metadata discovery. Preserve type identity, initialization rules,
