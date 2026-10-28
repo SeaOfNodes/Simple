@@ -261,17 +261,16 @@ public class CodeGen {
         step(target, Phase.FinalizeIR,   this::finalizeIR,   dump);
         // Final error check - bad programs fail here
         step(target, Phase.TypeCheck,    this::typeCheck,    dump);
-        if( cpu==null && target.ordinal()>=Phase.Lower.ordinal() && _phase.ordinal()<Phase.Lower.ordinal() )
-            loadAllIR(); // Ideal evaluation needs code for calls left out of line.
         // Save reloadable ideal IR for a later seperate compilation
         step(target, Phase.Serialize, () -> Serialize.forTarget(this,target,inMemory), dump);
-        // Replace "fat" nodes with their exploded explicit IR; this can
-        // introduce CFG diamonds
-        step(target, Phase.Lower,        this::lower,        dump);
+        // Eval2 executes ideal operations, including CLInit, directly. Only
+        // machine compilation expands them before scheduling.
+        step(target, Phase.Lower, () -> { if( cpu!=null ) lower(); }, dump);
         // Compute the loop-tree, used for approximating exec frequencies for
         // scheduling and register allocation
         step(target, Phase.LoopTree,     this::loopTree,     dump);
-        // Drop imports for machine selection, retain them for ideal evaluation.
+        // Detach call-graph edges; ideal execution retains unloaded summaries
+        // as dispatch targets and schedules their bodies on first use.
         step(target, Phase.Unlink, () -> unlink(cpu!=null), dump);
         // Instruction selection
         step(target, Phase.Select, () -> instSelect(cpu,callingConv), dump);
@@ -494,34 +493,6 @@ public class CodeGen {
         ParseAll.loadCompUnit(this,cu);
     }
 
-    // Evaluation needs implementations even for calls left out of line.  E.g.,
-    // this code is being run by the evaluator, and so doesn't get a link step.
-    // If, instead, the code was going to run natively, it would first go
-    // through a link step which would resolve all these call sites to code
-    // generated in other object files.  Since no link step, we need acess to
-    // that other code right now.
-    public void loadAllIR() {
-        boolean loaded = false;
-        for( CompUnit cu : _compunits.values() ) {
-            if( cu._src!=null || cu._obj==null ) continue;
-            ElfReader elf = getElf(cu._obj);
-            if( elf._nodes!=null ) continue;
-            ParseAll.loadCompUnit(this,cu);
-            loaded=true;
-        }
-        if( !loaded ) return;
-        if( _phase.ordinal()<Phase.FinalizeIR.ordinal() ) return;
-        Phase prior = _phase;
-        try {
-            _phase=Phase.IterPostOpto;
-            _iter.iterate(this);
-            _phase=Phase.FinalizeIR;
-            FinalizeIR.run(this);
-            _phase=Phase.TypeCheck;
-            TypeCheck.run(this);
-        } finally { _phase=prior; }
-    }
-
     // TypeCheck saves its successful analysis for Serialize. Loading bodies
     // or entering another graph-changing phase discards it.
     ClassInitDependencies _classInitDependencies;
@@ -613,7 +584,8 @@ public class CodeGen {
     // ---------------------------
     // Build the loop tree; break never-exit loops
     public CodeGen loopTree() {
-        return phase(Phase.LoopTree, _phase==Phase.Lower, () -> _start.buildLoopTree(_linker,_stop));
+        return phase(Phase.LoopTree, (_phase==Phase.Lower || _phase==Phase.TypeCheck || _phase==Phase.Serialize),
+                     () -> _start.buildLoopTree(_linker,_stop));
     }
 
     // ---------------------------
@@ -654,7 +626,10 @@ public class CodeGen {
         unlink(true);
     }
     private void unlink(boolean removeImports) {
-        phase(Phase.Unlink, _phase==Phase.LoopTree, () -> Unlink.run(this,removeImports));
+        phase(Phase.Unlink, _phase==Phase.LoopTree, () -> {
+            if( removeImports ) Unlink.run(this,true);
+            else Unlink.forEval(this,_start,_stop);
+        });
     }
 
     // ---------------------------
@@ -664,13 +639,6 @@ public class CodeGen {
     // Global schedule (code motion) nodes
     public CodeGen GCM() {
         return phase(Phase.Schedule, (_phase==Phase.Unlink || _phase==Phase.Select), () -> GlobalCodeMotion.buildCFG(this));
-    }
-
-    // Evaluation branches from checked ideal IR directly to scheduling.
-    // CLInit remains an executable ideal operation; no Lower or Select pass.
-    public CodeGen scheduleForEval() {
-        return phase(Phase.Schedule, (_phase==Phase.TypeCheck || _phase==Phase.Serialize),
-                     () -> _cfg=GlobalCodeMotion.forEval(this,_start,_stop));
     }
 
     // ---------------------------

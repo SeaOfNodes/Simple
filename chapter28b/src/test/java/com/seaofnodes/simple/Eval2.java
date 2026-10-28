@@ -118,9 +118,8 @@ public abstract class Eval2 {
         SB trace = null; // new SB(); // TRACE, set to null for off, new SB() for on
         // Set global, so don't have to pass everywhere
         CODE = code;
-        // Eval uses checked ideal IR, including CLInit, and does not run Lower.
-        // Objects loaded later are scheduled independently of this graph.
-        if( code._phase.ordinal()<CodeGen.Phase.Schedule.ordinal() ) code.scheduleForEval();
+        // The normal driver schedules ideal IR without Lower or instruction
+        // selection. Objects loaded later are scheduled independently.
         code.driver(CodeGen.Phase.LocalSched);
         CLASSES.clear();
 

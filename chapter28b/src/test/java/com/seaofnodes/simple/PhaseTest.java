@@ -21,12 +21,12 @@ public class PhaseTest {
         };
         code.driver(Phase.TypeCheck);
         code.driver(Phase.TypeCheck); // A repeated request does not rerun anything.
+        assertEquals("45",Eval2.eval(code,10));
         code.driver(Phase.LocalSched);
-        assertEquals("Parse Iter Opto IterPostOpto FinalizeIR TypeCheck Lower LoopTree Unlink Schedule LocalSched",
+        assertEquals("Parse Iter Opto IterPostOpto FinalizeIR TypeCheck LoopTree Unlink Schedule LocalSched",
                      String.join(" ",phases));
         assertNull(code._serial);
         assertNull(code._mach);
-        assertEquals("45",Eval2.eval(code,10));
     }
 
     @Test public void testEncodingWithoutSerialization() {
