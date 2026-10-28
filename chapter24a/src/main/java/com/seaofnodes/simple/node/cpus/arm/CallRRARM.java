@@ -1,16 +1,19 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.isa.Arm64;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
 
 public class CallRRARM extends CallNode implements MachNode {
-    CallRRARM(CallNode call) { super(call); }
+    final TypeFunPtr _tfp;
+    CallRRARM( CallNode call ) { super(call); _tfp = call.tfp(); }
+    @Override public TypeFunPtr tfp() { return _tfp; }
     @Override public String op() { return "callr"; }
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
-        return i==_inputs._len
+        return i==_inputs._len-1
             ? arm.RMASK                // Function call target
             : arm.callInMask(tfp(),i,fun()._maxArgSlot); // Normal argument
     }
@@ -19,7 +22,7 @@ public class CallRRARM extends CallNode implements MachNode {
     @Override public void encoding( Encoding enc ) {
         // Needs a register, typically a jump-and-link-register opcode
         // blr
-        short self = enc.reg(this);
+        short self = enc.reg(fptr());
         enc.add4(Arm64.blr(Arm64.OP_CALLRARM, self));
     }
 

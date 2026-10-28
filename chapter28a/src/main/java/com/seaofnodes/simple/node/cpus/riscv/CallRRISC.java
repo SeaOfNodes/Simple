@@ -1,12 +1,15 @@
 package com.seaofnodes.simple.node.cpus.riscv;
 
+import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.isa.RiscV;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
 
 public class CallRRISC extends CallNode implements MachNode {
-    CallRRISC( CallNode call ) { super(call); }
+    final TypeFunPtr _tfp;
+    CallRRISC( CallNode call ) { super(call); _tfp = call.tfp(); }
+    @Override public TypeFunPtr tfp() { return _tfp; }
     @Override public String op() { return "callr"; }
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {

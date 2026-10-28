@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.node.cpus.arm;
 
+import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.*;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.RegMask;
@@ -7,12 +8,14 @@ import com.seaofnodes.simple.node.*;
 import java.io.ByteArrayOutputStream;
 
 public class CallRRARM extends CallNode implements MachNode {
-    CallRRARM(CallNode call) {super(call);}
+    final TypeFunPtr _tfp;
+    CallRRARM( CallNode call ) { super(call); _tfp = call.tfp(); }
+    @Override public TypeFunPtr tfp() { return _tfp; }
     @Override public String op() { return "callr"; }
     @Override public String label() { return op(); }
     @Override public RegMask regmap(int i) {
         // Todo: float or int?
-        return i==_inputs._len
+        return i==_inputs._len-1
             ? arm.RMASK                // Function call target
             : arm.callInMask(tfp(),i); // Normal argument
     }
