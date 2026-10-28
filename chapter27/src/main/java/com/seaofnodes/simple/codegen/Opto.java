@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.IterPeeps.WorkList;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 import java.util.BitSet;
@@ -26,8 +27,11 @@ abstract public class Opto {
     public static void opto(CodeGen code) {
 
         // Reset Types before running the worklist algorithm
-        Ary<Type> oldTypes = new Ary<>(Type.class); // Used for asserts only
-        resetToTop(code,oldTypes);
+        Ary<Type> oldTypes = new Ary<>(Type.class);
+        WorkList<Node> deps = new WorkList<>();
+        WorkList<Node> changes = new WorkList<>();
+        Ary<Node> modes = new Ary<>(Node.class);
+        resetToTop(code,oldTypes,modes);
 
         // Main seeds a whole program. Without main, named exported functions
         // seed discovery. Either way, escaping addresses can add more unknown
@@ -42,24 +46,30 @@ abstract public class Opto {
 
 
         // OPTIMISTIC INTERPROCEDURAL SCCP
-        sccp(code, oldTypes);
-        resolveNumericModes(code);
-        if( !code._iter._work.isEmpty() ) sccp(code, oldTypes);
+        sccp(code, oldTypes, changes, deps);
+        // Settle modes, then resume SCCP on affected nodes without resetting types.
+        // Any further type changes must still fall; BOTTOM results stay BOTTOM.
+        resolveNumericModes(code,modes);
+        if( !code._iter._work.isEmpty() ) sccp(code, oldTypes, changes, deps);
 
         ProjNode startMem=code._start.proj(1);
         if( startMem!=null ) { startMem.unkeep(); code.add(startMem); }
 
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
-        moveChangesToWorklist(code, oldTypes);
+        Node dep;
+        while( (dep=deps.pop())!=null ) code.add(dep);
+        moveChangesToWorklist(code, oldTypes, changes);
 
 
     }
 
     // Reset Types before running the worklist algorithm
-    private static void resetToTop(CodeGen code, Ary<Type> oldTypes ) {
+    private static void resetToTop(CodeGen code, Ary<Type> oldTypes, Ary<Node> modes ) {
         code._start.walk( x -> {
-                oldTypes.setX(x._nid,x._type); // Record original types for asserts
+                // SCCP adds call edges and default arguments, not numeric operations.
+                if( x instanceof ModeNode mode && mode.mode()==0 ) modes.push(x);
+                oldTypes.setX(x._nid,x._type); // Compare the final SCCP type with Iter's type
                 x._type = Type.TOP;            // Reset all Nodes to TOP
                 code._iter.add(x); // Visit everybody at least once; most Nodes produce better than TOP
                 // Unlink all existing (conservative) linkages.
@@ -145,7 +155,7 @@ abstract public class Opto {
     }
 
     // The core SCCP algorithm
-    private static void sccp( CodeGen code, Ary<Type> oldTypes ) {
+    private static void sccp( CodeGen code, Ary<Type> oldTypes, WorkList<Node> changes, WorkList<Node> deps ) {
         // Iter workList is empty at this point
         // OPTIMISTIC PASS
         Node n;
@@ -154,6 +164,8 @@ abstract public class Opto {
             if( n.isDead() ) continue;
             count++;
             Type oval = n._type, nval = n.compute();
+            // Filter candidates against the final SCCP type after convergence.
+            if( nval!=oldTypes.atX(n._nid) || n.isUnlocked() ) changes.push(n);
             if( oval == nval ) continue;
             assert oval.isa(nval) : n.label()+"#"+n._nid+" old="+oval+" new="+nval; // Types start high and always fall
             Type pesiVal = oldTypes.atX(n._nid);
@@ -175,6 +187,9 @@ abstract public class Opto {
 
             // Since n._type changed, visit all output neighbors
             code._iter.addAll(n._outputs);
+            // SCCP consumes these without running peepholes. Save them for
+            // the following Iter pass before moving clears the dependency list.
+            for( int i=0; i<n.nDeps(); i++ ) deps.push(n.dep(i));
             n.moveDepsToWorklist(code._iter);
             // Quadratic (expensive) small-step assert
             assert check(code);
@@ -194,22 +209,28 @@ abstract public class Opto {
 
     // After SCCP add everything changed to the worklist and see if peepholes
     // can make more progress.
-    private static void moveChangesToWorklist(CodeGen code, Ary<Type> oldTypes) {
-        code._start.walk( x -> {
-                assert x.compute() == x._type;      // Hit the fixed point
-                assert x._nid >= oldTypes._len || x._type.isa(oldTypes.at(x._nid)); // Hit at least the bottom-up type
-                code._iter.add(x);
-                return null;
-            });
+    private static void moveChangesToWorklist(CodeGen code, Ary<Type> oldTypes, WorkList<Node> changes) {
+        Node n;
+        while( (n=changes.pop())!=null ) {
+            if( n.isDead() ) continue;
+            assert n.compute() == n._type; // Hit the fixed point.
+            Type old = oldTypes.atX(n._nid);
+            assert old==null || n._type.isa(old);
+            if( n._type!=old || n.isUnlocked() ) {
+                code.add(n);
+                code.addAll(n._inputs);
+                code.addAll(n._outputs);
+                n.moveDepsToWorklist();
+            }
+        }
     }
 
-    // Resolve arithmetic modes which are ambiguous only because they belong to
-    // a recursive component.  Float wins because integer operands can be
-    // converted to float.
-    private static void resolveNumericModes(CodeGen code) {
+    // Resolve modes left undecided by SCCP, following recursive inputs for
+    // evidence. Float wins because integer operands can be converted to float.
+    private static void resolveNumericModes(CodeGen code, Ary<Node> modes) {
         final BitSet visited = new BitSet();
-        code._stop.walk(n -> {
-            if( n instanceof ModeNode modeNode && modeNode.mode()==0 ) {
+        for( Node n : modes ) {
+            if( !n.isDead() && n instanceof ModeNode modeNode && modeNode.mode()==0 ) {
                 visited.clear();
                 visited.set(n._nid); // Inspect inputs, not Bool's integer result
                 int mode = 0;
@@ -218,17 +239,11 @@ abstract public class Opto {
                 // A closed recursive numeric component can have no remaining
                 // concrete evidence after SCCP, e.g. dead all-integer loops.
                 // With no float evidence, settle to integer.
-                if( mode == 0 )
-                    mode = 1;
-                if( mode != 0 )  {
-                    // If both evidence, FP wins
-                    modeNode.setMode((byte)((mode&2)==2 ? 2 : 1));
-                    code.add(n);
-                    code.addAll(n.outs());
-                }
+                modeNode.setMode((byte)((mode&2)==2 ? 2 : 1));
+                code.add(n);
+                code.addAll(n.outs());
             }
-            return null;
-        });
+        }
     }
 
     // Gather numeric evidence through Phi and interprocedural return cycles.

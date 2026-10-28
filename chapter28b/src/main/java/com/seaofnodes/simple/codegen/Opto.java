@@ -30,7 +30,7 @@ abstract public class Opto {
         WorkList<Node> deps = new WorkList<>();
         WorkList<Node> changes = new WorkList<>();
         Ary<Node> modes = new Ary<>(Node.class);
-        resetToTop(code,oldTypes,modes);
+        resetToTop(code,oldTypes,modes,deps);
         unlinkStart(code);
 
         // OPTIMISTIC INTERPROCEDURAL SCCP
@@ -53,8 +53,11 @@ abstract public class Opto {
     }
 
     // Reset Types before running the worklist algorithm
-    private static void resetToTop(CodeGen code, Ary<Type> oldTypes, Ary<Node> modes ) {
+    private static void resetToTop(CodeGen code, Ary<Type> oldTypes, Ary<Node> modes, WorkList<Node> deps ) {
         code._start.walk( x -> {
+                // Opto ends Parm.inProgress(), enabling constant folding even
+                // when a parameter's type was already constant before SCCP.
+                if( x instanceof ParmNode && x._type.isHighOrConst() ) deps.push(x);
                 // SCCP adds call edges and default arguments, not numeric
                 // operations. Gather unresolved modes on this required walk.
                 if( x instanceof ModeNode mode && mode.mode()==0 ) modes.push(x);

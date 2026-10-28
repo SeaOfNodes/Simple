@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.IterPeeps.WorkList;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 
@@ -9,6 +10,8 @@ abstract public class Opto {
 
     public static void opto(CodeGen code) {
         Ary<Type> oldTypes = new Ary<>(Type.class);
+        WorkList<Node> deps = new WorkList<>();
+        WorkList<Node> changes = new WorkList<>();
         code._start.walk(n -> {
             oldTypes.setX(n._nid,n._type);
             if( n instanceof CallEndNode cend ) cend.freezeResult();
@@ -26,20 +29,37 @@ abstract public class Opto {
         while( (n = code._iter._work.pop()) != null ) {
             if( n.isDead() ) continue;
             Type old = n._type, next = n.compute();
+            if( next!=oldTypes.atX(n._nid) || n.isUnlocked() ) changes.push(n);
             if( old == next ) continue;
             assert old.isa(next); // Optimistic types only fall.
             assert next.isa(oldTypes.at(n._nid)) : n.getClass().getSimpleName()+"#"+n._nid+" old="+oldTypes.at(n._nid)+" next="+next;
             n._type = next;
             code.addAll(n._outputs);
+            // SCCP consumes these without running peepholes. Save them for
+            // the following Iter pass before moving clears the dependency list.
+            for( int i=0; i<n.nDeps(); i++ ) deps.push(n.dep(i));
             n.moveDepsToWorklist(code._iter);
             assert check(code);
         }
-        code._start.walk(x -> {
-            assert x.compute() == x._type;
-            assert x._type.isa(oldTypes.at(x._nid));
-            code.add(x); // Run the rewrites enabled by the new types.
-            return null;
-        });
+        Node dep;
+        while( (dep=deps.pop())!=null ) code.add(dep);
+        moveChangesToWorklist(code, oldTypes, changes);
+    }
+
+    private static void moveChangesToWorklist(CodeGen code, Ary<Type> oldTypes, WorkList<Node> changes) {
+        Node n;
+        while( (n=changes.pop())!=null ) {
+            if( n.isDead() ) continue;
+            assert n.compute() == n._type; // Hit the fixed point.
+            Type old = oldTypes.atX(n._nid);
+            assert old==null || n._type.isa(old);
+            if( n._type!=old || n.isUnlocked() ) {
+                code.add(n);
+                code.addAll(n._inputs);
+                code.addAll(n._outputs);
+                n.moveDepsToWorklist();
+            }
+        }
     }
 
     private static boolean check(CodeGen code) {

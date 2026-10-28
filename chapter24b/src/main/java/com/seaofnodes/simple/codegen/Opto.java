@@ -2,6 +2,7 @@ package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.IterPeeps.WorkList;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
 
@@ -25,7 +26,9 @@ abstract public class Opto {
     public static void opto(CodeGen code) {
 
         // Reset Types before running the worklist algorithm
-        Ary<Type> oldTypes = new Ary<>(Type.class); // Used for asserts only
+        Ary<Type> oldTypes = new Ary<>(Type.class);
+        WorkList<Node> deps = new WorkList<>();
+        WorkList<Node> changes = new WorkList<>();
         resetToTop(code,oldTypes);
 
         // The whole-world assumption: we use it if compiling `main`, and not otherwise.
@@ -49,11 +52,13 @@ abstract public class Opto {
 
 
         // OPTIMISTIC INTERPROCEDURAL SCCP
-        sccp(code, oldTypes);
+        sccp(code, oldTypes, changes, deps);
 
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
-        moveChangesToWorklist(code, oldTypes);
+        Node dep;
+        while( (dep=deps.pop())!=null ) code.add(dep);
+        moveChangesToWorklist(code, oldTypes, changes);
 
 
     }
@@ -61,7 +66,7 @@ abstract public class Opto {
     // Reset Types before running the worklist algorithm
     private static void resetToTop(CodeGen code, Ary<Type> oldTypes ) {
         code._start.walk( x -> {
-                oldTypes.setX(x._nid,x._type); // Record original types for asserts
+                oldTypes.setX(x._nid,x._type); // Compare the final SCCP type with Iter's type
                 x._type = Type.TOP;            // Reset all Nodes to TOP
                 code._iter.add(x); // Visit everybody at least once; most Nodes produce better than TOP
                 // Unlink all existing (conservative) linkages.
@@ -124,7 +129,7 @@ abstract public class Opto {
     }
 
     // The core SCCP algorithm
-    private static void sccp( CodeGen code, Ary<Type> oldTypes ) {
+    private static void sccp( CodeGen code, Ary<Type> oldTypes, WorkList<Node> changes, WorkList<Node> deps ) {
         // Iter workList is empty at this point
         // OPTIMISTIC PASS
         Node n;
@@ -133,6 +138,8 @@ abstract public class Opto {
             if( n.isDead() ) continue;
             count++;
             Type oval = n._type, nval = n.compute();
+            // Filter candidates against the final SCCP type after convergence.
+            if( nval!=oldTypes.atX(n._nid) || n.isUnlocked() ) changes.push(n);
             if( oval == nval ) continue;
             assert oval.isa(nval);    // Types start high and always fall
             Type pesiVal = oldTypes.at(n._nid);
@@ -152,6 +159,9 @@ abstract public class Opto {
 
             // Since n._type changed, visit all output neighbors
             code._iter.addAll(n._outputs);
+            // SCCP consumes these without running peepholes. Save them for
+            // the following Iter pass before moving clears the dependency list.
+            for( int i=0; i<n.nDeps(); i++ ) deps.push(n.dep(i));
             n.moveDepsToWorklist(code._iter);
             // Quadratic (expensive) small-step assert
             assert check(code);
@@ -170,13 +180,20 @@ abstract public class Opto {
 
     // After SCCP add everything changed to the worklist and see if peepholes
     // can make more progress.
-    private static void moveChangesToWorklist(CodeGen code, Ary<Type> oldTypes) {
-        code._start.walk( x -> {
-                assert x.compute() == x._type;      // Hit the fixed point
-                assert x._nid >= oldTypes._len || x._type.isa(oldTypes.at(x._nid)); // Hit at least the bottom-up type
-                code._iter.add(x);
-                return null;
-            });
+    private static void moveChangesToWorklist(CodeGen code, Ary<Type> oldTypes, WorkList<Node> changes) {
+        Node n;
+        while( (n=changes.pop())!=null ) {
+            if( n.isDead() ) continue;
+            assert n.compute() == n._type; // Hit the fixed point.
+            Type old = oldTypes.atX(n._nid);
+            assert old==null || n._type.isa(old);
+            if( n._type!=old || n.isUnlocked() ) {
+                code.add(n);
+                code.addAll(n._inputs);
+                code.addAll(n._outputs);
+                n.moveDepsToWorklist();
+            }
+        }
     }
 
 }

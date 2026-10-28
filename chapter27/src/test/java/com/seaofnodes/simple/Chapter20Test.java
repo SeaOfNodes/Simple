@@ -243,7 +243,7 @@ s.cs[0] =  67; // C
 s.cs[1] = 108; // l
 hashCode(s);
 """;
-        testTarget(src,"x86_64_v2", "SystemV",9,null);
+        testTarget(src,"x86_64_v2", "SystemV",0,null);
         testTarget(src,"riscv"    , "SystemV",1,null);
         testTarget(src,"arm"      , "SystemV",1,null);
     }
