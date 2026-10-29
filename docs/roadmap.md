@@ -3,7 +3,7 @@
 English | [日本語](roadmap.ja.md)
 
 Open compiler work and language proposals, reviewed against the current
-snapshots on 2026-10-28. These are future changes, not promises about the
+snapshots on 2026-10-29. These are future changes, not promises about the
 language implemented by the tutorial. Language changes still need their own
 design decisions and chapter boundaries.
 
@@ -21,8 +21,6 @@ Remaining work:
   unit Stops now reuse its result, but updating that result still scans all
   calls and unloaded summaries. Review the phase-dependent escape normalization
   and reliance on the previous result before changing propagation further.
-- Move the remaining encoding fallback out of Export so Encoding prepares
-  all objects that Export will write.
 
 Whole-program TypeCheck is acceptable for now; incremental checking is an
 optional later improvement. Expensive assertion walks are outside this

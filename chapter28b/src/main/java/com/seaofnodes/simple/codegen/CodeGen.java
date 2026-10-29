@@ -227,7 +227,8 @@ public class CodeGen {
 
     // Run requested phases. File export must request Serialize before Lower;
     // requesting Export up front does that automatically. Encoding alone does
-    // not retain reloadable ideal IR.
+    // not retain reloadable ideal IR. Choose combined in-memory output before
+    // Encoding; otherwise saved IR requests separate object encodings.
 
     // No code emission, just IR generation
     public CodeGen driver( Phase phase ) { return driver(phase,null,null,false,false,0); }
@@ -247,7 +248,6 @@ public class CodeGen {
 
     // The Generic driver
     public CodeGen driver( Phase target, String cpu, String callingConv, boolean inMemory, boolean emitEntrySymbol, int dump ) {
-        _splitObjects = target.ordinal()>=Phase.Export.ordinal() && !inMemory;
         // Parse a Simple file, and for mentioned external symbols either load
         // from .o or recursively parse
         step(target, Phase.Parse,        this::parse,        dump);
@@ -281,7 +281,7 @@ public class CodeGen {
         // Register allocation
         step(target, Phase.RegAlloc,     this::regAlloc,     dump);
         // Encode machine instructions into bits
-        step(target, Phase.Encoding,     this::encode,       dump);
+        step(target, Phase.Encoding, () -> encode(inMemory), dump);
         // Export bits (and serialized IR) into ELF files
         step(target, Phase.Export, () -> exportELF(inMemory,emitEntrySymbol), dump);
         return this;
@@ -456,7 +456,6 @@ public class CodeGen {
     CompUnit _emitUnit;
     boolean emits(CompUnit cu) { return cu!=null && cu._src!=null && (_emitUnit==null || _emitUnit==cu); }
     boolean emits(FunNode fun) { return emits(fun._compunit); }
-    private boolean _splitObjects;
     final LinkedHashMap<CompUnit,Encoding> _encodings = new LinkedHashMap<>();
 
 
@@ -674,16 +673,19 @@ public class CodeGen {
     // ---------------------------
     // Encoding
     public Encoding _encoding;
-    public CodeGen encode() { return phase(Phase.Encoding, _phase==Phase.RegAlloc, () -> {
-        if( !_splitObjects ) { _encoding = new Encoding(this).encode(); return; }
-        try {
-            for( CompUnit cu : _serials.keySet() ) {
-                _emitUnit = cu;
-                Encoding enc = new Encoding(this).encode();
-                _encodings.put(cu,enc);
-                if( cu._fname.equals(_srcName) ) _encoding = enc;
-            }
-        } finally { _emitUnit = null; }
+    public CodeGen encode() { return encode(false); }
+    private CodeGen encode(boolean inMemory) { return phase(Phase.Encoding, _phase==Phase.RegAlloc, () -> {
+        // Saved ideal IR requests one object per unit, including when the
+        // driver stopped at Serialize and resumed later. In-memory linking
+        // explicitly requests one combined image instead.
+        if( inMemory || _serials.isEmpty() ) { _encoding = new Encoding(this).encode(); return; }
+        for( CompUnit cu : _serials.keySet() ) {
+            _emitUnit = cu;
+            Encoding enc = new Encoding(this).encode();
+            _encodings.put(cu,enc);
+            if( cu._fname.equals(_srcName==null ? "Test" : _srcName) ) _encoding = enc;
+        }
+        _emitUnit = null;
     }); }
 
     // ---------------------------
@@ -691,17 +693,17 @@ public class CodeGen {
     ElfWriter _elf;
     public CodeGen exportELF( boolean inMemory, boolean emitEntrySymbol ) {
         return phase(Phase.Export, _phase==Phase.Encoding, () -> {
-            if( inMemory ) new LinkMem(this).link(_encoding);
+            if( inMemory ) {
+                assert _encodings.isEmpty() : "In-memory output must be selected before Encoding";
+                new LinkMem(this).link(_encoding);
+            }
             else {
                 if( _serials.isEmpty() )
                     throw new IllegalStateException("ELF export needs ideal IR: request Export from the driver, or Serialize before Lower");
+                assert !_encodings.isEmpty() : "File output must be selected before Encoding";
                 Encoding entry = _encoding;
                 BAOS serial = _serial;
                 try {
-                    if( _encodings.isEmpty() ) for( CompUnit cu : _serials.keySet() ) {
-                        _emitUnit=cu;
-                        _encodings.put(cu,new Encoding(this).encode());
-                    }
                     for( var e : _encodings.entrySet() ) {
                         _emitUnit = e.getKey();
                         _encoding = e.getValue();
