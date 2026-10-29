@@ -395,6 +395,9 @@ public class CodeGen {
     // Start and Stop; end points of the generated IR
     public StartNode _start;
     public StopNode  _stop;
+    // Iter creates this shared analysis result. Start's unused backedge slot
+    // roots it until Unlink; serialized Stops retain its escape facts instead.
+    public GlobalEscapeNode _globalEscapes;
 
     // Global Value Numbering.  Hash over opcode and inputs; hits in this table
     // are structurally equal.
@@ -427,6 +430,7 @@ public class CodeGen {
     public void link(FunNode fun) {
         int fidx = fun.sig().fidx();
         _linker.setX(fidx,fun);
+        add(_globalEscapes); // A new or replacement summary may expose escapes.
     }
 
     // "Linker" mapping from constant TypeFunPtrs to heads of function.  These
@@ -627,6 +631,7 @@ public class CodeGen {
     }
     private void unlink(boolean removeImports) {
         phase(Phase.Unlink, _phase==Phase.LoopTree, () -> {
+            _start.setDef(2,null); // Releases the compiler-only escape analysis.
             if( removeImports ) Unlink.run(this,true);
             else Unlink.forEval(this,_start,_stop);
         });

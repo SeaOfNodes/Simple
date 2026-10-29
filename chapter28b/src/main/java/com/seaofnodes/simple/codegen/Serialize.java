@@ -270,6 +270,8 @@ public class Serialize {
                 Integer idx = def==null ? Integer.valueOf(0) : anodes.get(def);
                 // Imported function constants retain their symbol, not a body.
                 if( idx==null && n instanceof FunPtrNode && j==1 ) idx=0;
+                // Shared escape analysis belongs to this compilation only.
+                if( def instanceof GlobalEscapeNode ) idx=0;
                 assert idx != null : "Missing serialized input for "+n+" input "+j+" def "+def;
                 baos.packed2(idx);
             }

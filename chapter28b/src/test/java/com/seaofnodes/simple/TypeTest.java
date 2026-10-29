@@ -7,6 +7,23 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
+    // Refining an unknown pointer must remove possible escapes, not add them.
+    // Inlining can expose the abstract self pointer before its concrete class.
+    @Test public void testAbstractPointerEscapes() {
+        TypeMemPtr object = TypeMemPtr.make(TypeStruct.make("EscapingCallback",false,
+            Field.make("callback",TypeFunPtr.TEST,2,false)));
+        for( Type precise : new Type[]{object,TypeFunPtr.TEST} )
+            for( Type broad : new Type[]{Type.BOTTOM,TypeScalar.BOT,TypePtr.PTR,TypePtr.NPTR} ) {
+                Assert.assertTrue(precise.isa(broad));
+                TypeMem unknown = TypeMem.START.escapes(broad);
+                assertSame(XInt.FULL,unknown._escFs);
+                assertSame(XInt.FULL,unknown._escAs);
+                Assert.assertTrue(TypeMem.START.escapes(precise).isa(unknown));
+            }
+        for( Type empty : new Type[]{Type.TOP,TypeScalar.TOP,TypePtr.XPTR,TypePtr.XNPTR,TypeNil.NIL} )
+            assertSame(TypeMem.START,TypeMem.START.escapes(empty));
+    }
+
     @Test public void testBoundedBits() {
         int[] sparse = XInt.make(XInt.make(2),65);
         for( int[] bits : new int[][]{XInt.EMPTY,XInt.FULL,sparse,XInt.dual(sparse)} )

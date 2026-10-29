@@ -17,9 +17,10 @@ Remaining work:
   arrays now retain capacity and reset only touched entries, but bitsets
   still span previously allocated node IDs. Scheduling a newly loaded
   object should cost only for that graph and any affected existing nodes.
-- Reduce repeated scans of all calls and unloaded function summaries in
-  `StopCUNode.compute()`. Review its phase-dependent escape normalization and
-  reliance on the previous result before changing propagation.
+- Make `GlobalEscapeNode`'s shared call/summary scan incremental. Compilation
+  unit Stops now reuse its result, but updating that result still scans all
+  calls and unloaded summaries. Review the phase-dependent escape normalization
+  and reliance on the previous result before changing propagation further.
 - Move the remaining encoding fallback out of Export so Encoding prepares
   all objects that Export will write.
 

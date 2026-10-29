@@ -8,6 +8,9 @@ import com.seaofnodes.simple.util.Ary;
 // reuse the worklist and types produced by the preceding phase.
 public abstract class Iter {
     static void run(CodeGen code) {
+        assert code._globalEscapes==null;
+        code._globalEscapes = new GlobalEscapeNode();
+        code._start.setDef(2,code._globalEscapes);
         // The phase shift closes all parser-in-progress states and freezes
         // unknown external inputs.  Imported nodes carry post-Opto escape
         // precision, but Iter is a fresh pessimistic solve: memory escape

@@ -236,7 +236,10 @@ public class TypeMem extends Type {
                 : XInt.meet(xs,ts.fidxs());
         case TypeFunPtr tfp -> XInt.meet(xs,tfp.fidxs());
         case TypeMem    mem -> XInt.meet(xs,mem._escFs);
-        case Type tt -> tt == BOTTOM ? XInt.FULL : xs;
+        // An abstract pointer or scalar can refine to a concrete escaped
+        // object or function. Until then it must allow all of their bits.
+        case TypePtr ptr -> ptr.isHigh() ? xs : XInt.FULL;
+        case Type tt -> tt == BOTTOM || tt == TypeScalar.BOT ? XInt.FULL : xs;
         };
     }
 
@@ -247,7 +250,8 @@ public class TypeMem extends Type {
             ? XInt.FULL         // Open structs can have any fields
             : XInt.meet(xs,ts.aliases());
         case TypeMem    mem -> XInt.meet(xs,mem._escAs);
-        case Type tt -> tt == BOTTOM ? XInt.FULL : xs;
+        case TypePtr ptr -> ptr.isHigh() ? xs : XInt.FULL;
+        case Type tt -> tt == BOTTOM || tt == TypeScalar.BOT ? XInt.FULL : xs;
         };
     }
 }

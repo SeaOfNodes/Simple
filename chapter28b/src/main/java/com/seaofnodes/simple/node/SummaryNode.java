@@ -16,6 +16,7 @@ public class SummaryNode extends CFGNode implements MultiNode {
         super(inputs);
         _state = state;
         _classDependencyFIDXs = classDependencyFIDXs;
+        CodeGen.CODE.add(CodeGen.CODE._globalEscapes);
     }
 
     @Override public String label() { return "Summary"; }
