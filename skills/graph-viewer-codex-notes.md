@@ -1,28 +1,20 @@
 # Shared graph viewer: restart notes
 
-Updated 2026-09-26. Read graph/README.md for the current design and protocol.
+Updated 2026-10-29. Read graph/README.md for the current design and protocol.
 These are AI-facing continuity notes, not a new task list or authority to change
 compiler semantics. Cliff declared the viewer task complete on 2026-09-26.
 Peephole animations, inlining display, TypeCheck diagnostics, and arrow-key
 playback are committed. Unfinished compiler work is tracked in
 docs/roadmap.md.
 
-## Working tree and latest change
+## Playback and diagnostics
 
-The working tree was clean when checked on 2026-09-26; the viewer changes,
-including peep.js and arrow-key playback, are in a32e83c9. Preserve any later
-unrelated dirty files.
+Left/Right arrow keys perform Previous/Next actions, including animation stages,
+outside editable content and without modifiers. Preserve slider navigation and
+focus during source cursor updates so repeated playback keys keep working.
 
-Latest request: Left/Right arrow keys perform the same actions as the Previous/Next
-buttons, including animation stages. Added outside inputs/editable content with
-no modifiers; slider and source-editing keys keep their existing behavior.
-Source cursor updates preserve focus so repeated playback keys keep working.
-Disposable headless check build/check-viewer-keys.py passed forward/back mouse
-equivalence, input/modifier exclusions, slider navigation, and the first-frame
-boundary. These changes need only a browser refresh.
-
-Previous request: run TypeCheck after optimization and end playback on a visible
-diagnostic. Implemented in chapters 10-25 (the chapters with a TypeCheck pass):
+Run TypeCheck after optimization and end playback on a visible diagnostic.
+Historical chapter numbers below predate the split recorded in chapter-split.md.
 
 - Chapters 10-17: SimpleGraphObserver calls STOP.typeCheck() after Iter; the
   previously package-private method is now public. Chapters 18-25 call
@@ -43,12 +35,19 @@ diagnostic. Implemented in chapters 10-25 (the chapters with a TypeCheck pass):
   clears the diagnostic. Node-free errors show the message without centering.
 - Restart make view for Java changes; refreshing is enough for JS-only changes.
 
-Validation on 2026-09-25: all 25 chapters built with Make. Headless browser checks
-passed for real TypeCheck errors in chapters 10, 17, 18, 25, including final Next,
-folded error nodes, backward playback, direct jump, and a subsequent valid compile.
-Dead erroneous code was removed before TypeCheck. Existing JUnit checks passed:
-chapter10 Chapter10Test (27), chapter18 Chapter13Test + Chapter18Test (39),
-chapter28b Chapter13Test (16). This was NOT an all-chapter full test-suite run.
+## Analysis-flow diagrams
+
+Normal viewer edges do not show `addDepForwards` analysis dependencies. For a
+type-flow explanation, distinguish those reads from ordinary node inputs and
+from lifetime-only edges. Label a hand-built diagram as a schematic, not a live
+IR capture. Type flow runs def-to-use, opposite the usual input-pointer arrows.
+
+For example, chapter28b's GlobalEscapeNode has no ordinary inputs: it reads
+calls/summaries through dependencies, and StopCU reads its result. Root Start
+slot 2 keeps the helper alive without consuming its type. The disposable
+`chapter28b/build/global-escape-flow.svg` illustrates this distinction; its DOT
+source is a standalone schematic, not restored compiler DOT support.
+`graph/render_docs.py` renders saved viewer JSON when a real snapshot is needed.
 
 ## Durable design and owner preferences
 

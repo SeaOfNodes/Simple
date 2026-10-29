@@ -18,6 +18,21 @@ The [incremental build design](incremental-builds.md) expands the roadmap's
 dependency and output-ownership requirements.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
+## Reset checkpoint (2026-10-29)
+
+Chapter 28b's Encoding/Export cleanup is committed as `f47c7d1f`; the tree
+was clean before this notes update. All 570 chapter tests passed on Windows
+and Linux. Encoding prepares per-unit objects; Export only writes/links them.
+Select combined in-memory output before Encoding, and request Serialize before
+Lower for file output. There is no Export fallback that re-encodes the graph.
+
+Cliff wants to pivot to new language work and a new chapter. The next project
+has not been chosen: discuss it before implementing. His goals are readable,
+simple, usable; type variables/generics for real collections and low-annotation
+automatic memory reclamation are major priorities. Privacy and subclassing
+are smaller candidates. The roadmap owns remaining cleanup work; do not resume
+it automatically or create a chapter merely because a reset happened.
+
 ## Collaboration preferences
 
 - For densely keyed integer maps, use indexed `Ary<T>` storage rather than
@@ -44,6 +59,8 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   ID collections (use arrays/BitSet or NBHML as appropriate). Node ID 0 means null.
 - When both branches assign the same field or variable, prefer one assignment
   with a ternary expression over an if/else.
+- Do not wrap normal compiler algorithms in try/finally when no exceptions are
+  expected. Keep the lifetime and phase transitions explicit.
 - Space declaration initializers as `Type name = expression;`. Preserve
   deliberate column alignment when it makes related declarations easier to read.
 - Do not introduce Java streams. Use loops and explicit sorts; ask Cliff before
@@ -77,8 +94,10 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   imported function must not recursively fetch its callees. Function identity
   survives materialization through GlobalBits and rewired call/return edges.
 - Initialization summaries retain direct call/touch edges and parent edges.
-  A potential cycle requires full IR refinement before diagnosis: a helper
-  outside the SCC can provide the constant that removes an internal edge.
+  Check cycles using available IR and summaries; do not load additional bodies
+  just to disprove a possible cycle. Rejecting such a program is intentional.
+  Cliff accepts optimization-dependent errors as a language experiment and
+  prefers this simpler compiler to a more accepting late-loading cycle check.
   Native linking uses the compiler's resolved CompUnit object paths when
   available. Object-only tests without a CodeGen list all link inputs explicitly;
   TestC does no dependency search. Eval2 trusts TypeCheck and a coherent set of
@@ -93,8 +112,9 @@ For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.m
   only the requested class's flag-test/call at each active use.
 - Summary escape information must include retention on nonreturning paths and
   references passed by new callers. Result types alone do not capture this.
-  Import reanalysis releases prior SCCP memory keeps before starting another
-  solve; freshly deserialized nodes need parser-like construction semantics.
+  Keep imported boundaries conservative; do not restore the old whole-graph
+  analyzeImports Iter/Opto repair pass. Deserialization must establish its
+  construction invariants directly, without temporarily setting phase Parse.
 
 - Prefix updates must share ordinary name resolution: a method's bare field
   name denotes memory, while constructor fields may still be local SSA values.
@@ -983,6 +1003,44 @@ Consequences:
 - Escape summaries are monotone discovery facts. If a later SCCP state widens
   to FULL/public-only, it must not forget precise private bits discovered from
   the same Return earlier.
+
+## Shared escape analysis and the rejected phase-hook experiment
+
+Chapter 28b shares one `GlobalEscapeNode` across compilation units. It scans
+calls and unloaded summaries, registers reads with `addDepForwards`, and wakes
+StopCUs when its type changes. New calls/functions/summaries must also queue it:
+they were not present to register dependencies during an earlier compute.
+StopCU combines its local facts with this shared result. The shared scan still
+walks all contributors; a future incremental version must handle contributions
+shrinking or disappearing, not just accumulate unions.
+
+The helper has no ordinary inputs. Root Start slot 2 keeps it alive but does
+not read its type; Unlink removes that edge. Serialize omits the helper, saving
+the combined StopCU facts instead. Do not replace dependency edges with ordinary
+inputs merely to make a graph drawing convenient.
+
+The experiment after `f7fcac0a` did NOT remove `priorEscapes`/`publicBottom`:
+FULL conflates unknown external values and unresolved local values. Public
+function `#self` can have generic pointer type; passing it to native code can
+yield FULL beside a precise private callback. Mapping FULL to public functions
+then loses that callback, so the retained private bits currently matter.
+Remembering all old facts instead would trap pessimistic Iter at its initial
+FULL. Bounding only CallEnd/CLInit memory effects did not fix generic arguments
+and returns. Treating FULL as every local function broadened escapes and caused
+precision, worklist, and lifetime failures. All trial code was restored.
+
+A cleaner solution likely needs external escape bounds carried through value
+flow, or a deliberate acceptance of broader escapes with the resulting issues
+fixed. This is larger than moving a phase test to another node. Keep the hook
+until that design is chosen. Disposable patches/logs are under
+`chapter28b/build/escape-boundary-*`; do not rely on their survival or reapply
+them as fixes. Useful regressions include BoundaryTest's recursive callback
+and native exposure, plus private initializer and separate-compilation tests.
+
+Scheduling scratch arrays retain capacity and clear touched entries/references;
+remaining node-ID bitset costs need measurement. Use isolated fixture/output
+directories for concurrent Windows/Linux tests: Eval2 trusts coherent objects,
+and should not defend against tests racing to overwrite them.
 
 ## Serialization and code generation
 
