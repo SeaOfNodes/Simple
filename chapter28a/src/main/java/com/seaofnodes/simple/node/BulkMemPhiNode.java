@@ -208,13 +208,6 @@ public class BulkMemPhiNode extends PhiNode {
         mmm.alias(alias,precise);
         assert checkMerge(mmm);
         mmm.init();
-        // Slicing changes representation, not the set of values in memory.
-        // Newly exposed precise inputs can carry conservative bulk escape
-        // summaries; do not let those invent escapes absent from this Phi.
-        TypeMem old = (TypeMem)_type;
-        TypeMem mem = (TypeMem) mmm._type;
-        mmm._type = TypeMem.make(mem._alias,mem._t,mem._one,mem._clz,
-                                 mem._final,old._escFs,old._escAs);
         return mmm;
     }
 
@@ -226,7 +219,10 @@ public class BulkMemPhiNode extends PhiNode {
         mphi = new MemPhiNode("$"+alias,alias);
         mphi.addDef(region());
         // Due to cycles, must set before calling peephole
-        mphi.setType(TypeMem.BOT.makeFrom(alias));
+        // Splitting preserves the bulk Phi's established escape bound. Starting
+        // at BOT would temporarily invent escapes when the new slice is merged.
+        TypeMem old = (TypeMem)_type;
+        mphi.setType(TypeMem.make(alias,old._t,old._one,old._clz,false,old._escFs,old._escAs));
         for( int i=1; i<nIns(); i++ )
             mphi.addDef(CodeGen.CODE.add(preciseInput(in(i),alias)));
         return CodeGen.CODE.add(mphi);
