@@ -37,11 +37,10 @@ public class TypeMem extends Type {
         _t = t;
         _one = one;
         _clz = clz;
-        // Public bulk memory is an aggregate of otherwise-unsplit aliases;
-        // a single final bit cannot describe it.  Keep the lattice-dual high
-        // form distinct, and retain finality for private singleton memory and
-        // precise alias slices.
-        _final = t!=null && alias==1 && !one && !t.isHigh() ? false : xfinal;
+        // Alias 1 represents an aggregate, including a private object's fields.
+        // Its fields carry finality individually. Canonicalize the unused bit
+        // with _one so normalization commutes with dual, including named structs.
+        _final = alias==1 ? one : xfinal;
 
         assert _escFs == null && _escAs == null;
         _escFs = XInt.intern(fidxs);
@@ -126,9 +125,10 @@ public class TypeMem extends Type {
         int[] fidxs  = XInt.meet( _escFs, that._escFs );
         int[] aliases= XInt.meet( _escAs, that._escAs );
         // Singleton and class facts are kept only when both sides agree.
-        // Finality is a low-side fact, and flips on the dual side.
-        boolean highAlias1 = (this._alias==1 && this._t.isHigh()) || (that._alias==1 && that._t.isHigh());
-        boolean xfinal = highAlias1 ? (_final & that._final) : (_final | that._final);
+        // An aggregate has no field-wide finality. If meeting with it selects
+        // a precise alias, retain that slice's finality without mixing in the
+        // aggregate's canonical placeholder bit.
+        boolean xfinal = _alias==1 ? that._final : that._alias==1 ? _final : (_final | that._final);
         return make(alias, mt, _one & that._one, _clz & that._clz, xfinal, fidxs, aliases);
     }
 
@@ -141,7 +141,6 @@ public class TypeMem extends Type {
         TypeMem d = malloc(_alias,null,!_one,!_clz,!_final, XInt.dual(_escFs), XInt.dual(_escAs));
         (_dual = d)._dual = this; // Cross link duals
         d._t = _t._terned ? _t.dual() : _t.rdual();
-        if( d._alias==1 && !d._one ) { assert !d._t.isHigh(); d._final = false; }
         return d;
     }
 
@@ -166,6 +165,7 @@ public class TypeMem extends Type {
     }
 
     @Override boolean cycle_eq(Type t) {
+        if( t._type!=TMEM ) return false;
         TypeMem that = (TypeMem) t; // Invariant
         return _alias == that._alias && _one == that._one && _clz == that._clz && _final == that._final && _escFs == that._escFs && _escAs == that._escAs && _t.cycle_eq(that._t);
     }

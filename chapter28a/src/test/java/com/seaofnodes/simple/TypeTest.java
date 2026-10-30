@@ -7,6 +7,32 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
+    // Aggregate finality is carried by its fields. Canonicalizing the unused
+    // aggregate bit must commute with dual, even for named (non-high) structs.
+    @Test public void testAggregateMemoryDual() {
+        TypeStruct obj = TypeStruct.make("AggregateDual",false,
+            Field.make("x",TypeInteger.BOT,2,false),
+            Field.make("y",TypeInteger.ZERO,3,true));
+        for( Type t : new Type[]{Type.BOTTOM,Type.TOP,TypeStruct.BOT,TypeStruct.TOP,obj,obj.dual()} )
+            for( boolean one : new boolean[]{false,true} ) {
+                TypeMem mem = TypeMem.make(1,t,one,false,false,XInt.EMPTY,XInt.EMPTY);
+                assertSame(mem,TypeMem.make(1,t,one,false,true,XInt.EMPTY,XInt.EMPTY));
+                assertSame(mem,mem.dual().dual());
+                assertSame(mem.dual(),TypeMem.make(1,t.dual(),!one,true,true,XInt.FULL,XInt.FULL));
+            }
+        // Precise field slices still distinguish final and mutable storage.
+        Assert.assertNotEquals(TypeMem.make(2,TypeInteger.BOT,false,false,false,XInt.EMPTY,XInt.EMPTY),
+                               TypeMem.make(2,TypeInteger.BOT,false,false,true ,XInt.EMPTY,XInt.EMPTY));
+        for( boolean one : new boolean[]{false,true} )
+            for( boolean fin : new boolean[]{false,true} ) {
+                TypeMem bulk = TypeMem.make(1,Type.TOP,one,false,false,XInt.EMPTY,XInt.EMPTY);
+                TypeMem slice = TypeMem.make(2,TypeInteger.BOT,false,false,fin,XInt.EMPTY,XInt.EMPTY);
+                assertSame(slice,bulk.meet(slice));
+                check_symmetric(bulk,slice);
+                check_symmetric(bulk.dual(),slice.dual());
+            }
+    }
+
     // Removing zero must not reset the widening history of a remaining range.
     @Test public void testNonZeroWidening() {
         for( byte widen=0; widen<=3; widen++ ) {

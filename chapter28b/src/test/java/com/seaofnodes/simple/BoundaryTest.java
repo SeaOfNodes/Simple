@@ -9,6 +9,16 @@ import static org.junit.Assert.*;
 // The new module boundary must preserve the preceding chapters' examples.
 public class BoundaryTest {
     @Test public void testLocalConstruction() throws java.io.IOException {
+        // Nested factories must preserve memory duals during construction,
+        // for both direct fields and getters on the returned instance.
+        for( String body : new String[]{"int x=7;", "int _x=7; val get={ -> _x; };" } )
+            for( long seed : new long[]{1,13,123} ) {
+                String src = "struct Outer { struct _Hidden { "+body+
+                    " }; val make={ -> new _Hidden(); }; }; return new Outer().make().";
+                CodeGen factory = new CodeGen(src+(body.startsWith("int x") ? "x;" : "get();"),seed,true)
+                    .driver(CodeGen.Phase.TypeCheck);
+                assertEquals("7",Eval2.eval(factory,0));
+            }
         String src="struct Counter { int x; int y; int z; new Counter={int n -> while(x<n) { int old=x; y=x+1; x=y+1; z=old; }}; }; val c=new Counter(arg); return c.x*100+c.z;";
         CodeGen code=new CodeGen(src).driver(CodeGen.Phase.LocalSched);
         assertEquals("2018",Eval2.eval(code,19));
