@@ -504,7 +504,7 @@ public class Chapter25Test {
 u8[] buf = new u8[10];
 i64 ptr = buf;
 int rez = sys.libc.read(0,ptr,buf#);
-return  rez < buf# ? 0 : sys.libc._exit(-2);
+return  rez < buf# ? 0 : sys.libc.exit(-2);
 """;
         TestC.run(src,"redirectedRead",new Ary<>(new String[]{SYS_BLDDIR}),
                   TestC.CALL_CONVENTION, null, null,

@@ -1,7 +1,7 @@
 // -*- mode: java;  -*-
 struct _String {
     u8[] cs;
-    int _hashCode;
+    int cachedHash; // External helpers deliberately use public storage.
     new _String = { u8[] data -> cs=data; };
 };
 
@@ -17,9 +17,9 @@ val equals = { !_String !self, !_String s ->
 
 // Return the String hashCode (cached, and never 0)
 val hashCode = { !_String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
+    self.cachedHash
+    ?  self.cachedHash
+    : (self.cachedHash = _hashCodeString(self));
 };
 
 val _hashCodeString = { !_String self ->

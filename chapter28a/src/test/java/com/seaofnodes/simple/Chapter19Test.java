@@ -85,7 +85,7 @@ return 0;
 """
 struct String {
     u8[~] !cs;
-    int _hashCode;
+    int cachedHash; // Public fixture storage: hashing helpers are outside String.
     new String = { u8[~] s -> cs=s; };
 };
 
@@ -110,15 +110,15 @@ val _hashCodeString = { !String self ->
 
 // Return the String hashCode (cached, and never 0)
 val hashCode = { !String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
+    self.cachedHash
+    ?  self.cachedHash
+    : (self.cachedHash = _hashCodeString(self));
 };
 
 hashCode(new String("Hello, World!"));
 """;
         CodeGen code = new CodeGen(src).driver(Phase.LocalSched);
-        assertEquals("Stop[ return Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return MEM[ 2:___ 3:___ 4:___ 5:.cs=Parm_s(Test.String.String,*[]u8[final]); 6:._hashCode=0;]; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:._hashCode=0;]; return Test.String; return Phi(Region,0,1,0,1); return Phi(Region,(!=0)._hashCode,Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code.print());
+        assertEquals("Stop[ return Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash)))); return MEM[ 2:___ 3:___ 4:___ 5:.cs=Parm_s(Test.String.String,*[]u8[final]); 6:.cachedHash=0;]; return MEM[ 2:___ 3:___ 4:___ 5:___ 6:.cachedHash=0;]; return Test.String; return Phi(Region,0,1,0,1); return Phi(Region,(!=0).cachedHash,Phi(Region,123456789,(!=0)Phi(Loop,0,(.[]+((Phi_hash<<5)-Phi_hash))))); ]", code.print());
         assertEquals("4029215624828139541", Eval2.eval(code,  2));
     }
 
@@ -128,16 +128,16 @@ hashCode(new String("Hello, World!"));
 """
 struct String {
     u8[~] !cs;
-    int _hashCode;
+    int cachedHash; // Public fixture storage: hashing helpers are outside String.
     new String = { u8[~] s -> cs=s; };
 };
 
 val f = { !String self -> 7; };
 
 val hashCode = { !String self ->
-    self._hashCode
+    self.cachedHash
     ? 3
-    : (self._hashCode = f(self));
+    : (self.cachedHash = f(self));
 };
 
 hashCode(new String("Hello"));

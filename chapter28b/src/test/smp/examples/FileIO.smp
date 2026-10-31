@@ -44,7 +44,7 @@ val main = { u8[~][] args ->
 val _error2 = { i32 errno ->
     sys.io.remove(FILE);
     new sys.aryu8().addAry("Failed with error code ").num(errno).add('\n').write(sys.libc.STDERR);
-    sys.libc._exit(errno);
+    sys.libc.exit(errno);
 };
 
 val _error = { -> _error2(sys.libc.errno()); };

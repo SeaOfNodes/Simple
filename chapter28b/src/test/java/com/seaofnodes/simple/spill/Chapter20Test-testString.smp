@@ -1,7 +1,7 @@
 struct _String {
     u8[] cs;
     new _String={ u8[] b -> cs=b; };
-    int _hashCode;
+    int cachedHash; // External helpers deliberately use public storage.
 };
 
 val _equals = { !_String !self, !_String s ->
@@ -14,9 +14,9 @@ val _equals = { !_String !self, !_String s ->
 };
 
 val _hashCode = { !_String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
+    self.cachedHash
+    ?  self.cachedHash
+    : (self.cachedHash = _hashCodeString(self));
 };
 
 val _hashCodeString = { !_String self ->

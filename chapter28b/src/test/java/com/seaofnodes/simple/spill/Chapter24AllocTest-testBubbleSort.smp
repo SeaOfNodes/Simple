@@ -16,7 +16,8 @@
         i32 MAP_PRIVATE = 2;
         i32 MAP_ANON = 32;
 
-        val _copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
+        // Shared by the module and its nested collection classes.
+        val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
             for( int i=0; i<len; i++ )
                 dst[i+doff] = src[i+soff];
             return dst;
@@ -31,7 +32,7 @@
             int newlen = buf# * 2;
             while( len+len2 >= newlen ) newlen *= 2;
             u8[] !buf2 = new u8[newlen];
-            _copy(buf2,0,buf,0,buf#);
+            copy(buf2,0,buf,0,buf#);
             buf = buf2;
             self;
         };
@@ -45,7 +46,7 @@
         // Add a plain array to the aryu8
         val addAry = { u8[~] ary ->
             _grow(ary#);
-            _copy(buf,len,ary,0,ary#);
+            copy(buf,len,ary,0,ary#);
             len += ary#;
             self;
         };
@@ -176,7 +177,7 @@ struct _aryi64 {
             }
             // Compress
             var dst = new u8[len];
-            return _copy(dst,0,buf,0,len);
+            return copy(dst,0,buf,0,len);
         };
     // -*- mode: java;  -*-
 

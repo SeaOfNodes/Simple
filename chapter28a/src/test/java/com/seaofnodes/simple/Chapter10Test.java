@@ -245,8 +245,9 @@ if (arg) bar = null;
 if( bar ) bar.a = 1;
 return bar.a;
 """);
-        code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,1,.a);", code.print());
+        // An erroneous load stays intact instead of partially forwarding it.
+        try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
+        catch( Parser.ParseException e ) { assertEquals("Might be null accessing 'a'",e.getMessage()); }
     }
 
     @Test

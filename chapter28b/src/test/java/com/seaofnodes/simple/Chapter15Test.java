@@ -221,15 +221,15 @@ return rez;""");
         CodeGen code = new CodeGen(
 """
 // Can we define a forward-reference array?
-struct _Tree { !_Tree?[]? !_kids; };
+struct _Tree { !_Tree?[]? !kids; };
 !_Tree !root = new _Tree;
-root._kids = new !_Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
-root._kids[0] = new _Tree;
+root.kids = new !_Tree?[2]; // NO BANG SO ARRAY IS OF IMMUTABLE TREES????
+root.kids[0] = new _Tree;
 return root;
 """);
         code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Test._Tree;", code.print());
-        assertEquals("Test._Tree{_kids=*Test._Tree {*[]*Test._Tree?[mutable]? !_kids; }?[ Test._Tree{_kids=null},null]}", Eval2.eval(code,  0));
+        assertEquals("Test._Tree{kids=*Test._Tree {*[]*Test._Tree?[mutable]? !kids; }?[ Test._Tree{kids=null},null]}", Eval2.eval(code,  0));
     }
 
     @Test

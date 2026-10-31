@@ -227,7 +227,7 @@ return ary[1] * 1000 + ary[3]; // 1 * 1000 + 6
 """
 struct String {
     u8[] !cs;
-    int _hashCode;
+    int cachedHash; // Public fixture storage: hashing helpers are outside String.
     new String = { u8[] data -> cs=data; };
 };
 
@@ -243,9 +243,9 @@ val equals = { !String !self, !String s ->
 
 // Return the String hashCode (cached, and never 0)
 val hashCode = { !String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
+    self.cachedHash
+    ?  self.cachedHash
+    : (self.cachedHash = _hashCodeString(self));
 };
 
 val _hashCodeString = { !String self ->
