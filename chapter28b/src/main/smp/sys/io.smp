@@ -12,11 +12,11 @@ val read = { i32 fd ->
     int len = 0;
     while( true ) {
         i32 rez = libc.read(fd,ptr,buf#);
-        if( rez > buf# ) libc._exit(libc.errno());
+        if( rez > buf# ) libc.exit(libc.errno());
         len += rez;
         if( rez < buf# )
             break;
-        libc._exit(-2); // Need to implement for more than 8K input
+        libc.exit(-2); // Need to implement for more than 8K input
     }
     var out = new u8[len];
     ary.copy(out,0,buf,0,len);

@@ -29,7 +29,7 @@ i32 STDOUT = 1;
 i32 STDERR = 2;
 
 // status
-{  i32 -> i32 } _exit = "C";
+{  i32 -> i32 } exit = "C";
 // errno is not an ordinary C data symbol; read it through the native runtime.
 { i32 } simple_errno = "C";
 val errno = { -> simple_errno(); };
