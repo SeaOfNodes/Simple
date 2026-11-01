@@ -13,9 +13,10 @@ design decisions and chapter boundaries.
 components, with `Var` in `parser/` and `IterPeeps` in `codegen/`. It is the
 workspace for further cleanup; Chapter 28b retains the preceding compiler.
 
+Constructor completion now checks the helper Returns after parsing, with missing
+fields retained in private memory instead of separate exit maps.
 Keep the recursive-descent path aligned with the grammar. Review moving `TYPES`
-to `CodeGen`, and simplify constructor completion using the already-merged
-return scope without losing uninitialized-field information. Consider whether
+to `CodeGen`. Consider whether
 an allocation-free use of try-with-resources makes keep/unkeep pairing clearer;
 this remains an experiment, not a new resource-management convention.
 

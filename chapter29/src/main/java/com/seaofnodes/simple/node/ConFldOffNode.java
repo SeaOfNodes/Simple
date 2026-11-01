@@ -21,6 +21,12 @@ public class ConFldOffNode extends ConstantNode {
     public TypeStruct _ts;      // Struct holding field
     public final String _fname; // Field name
     public ConFldOffNode( TypeStruct ts, String fname ) { super(TypeInteger.BOT); _ts = ts; _fname = fname; }
+
+    // Field offset for a known type (but unknown offset).
+    public static ConFldOffNode make( TypeStruct ts, String fname ) {
+        return (ConFldOffNode)new ConFldOffNode(ts,fname).peephole();
+    }
+
     @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
 
     @Override public String label() {

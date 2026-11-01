@@ -26,6 +26,10 @@ public class ScopeNode extends MemMergeNode {
     public static final String ARG0 = "arg";
     public static final String MEM0 = "$mem";
 
+    // Structural label for a precise memory alias. The '$' prefix cannot be
+    // referenced in Simple source.
+    public static String memName(int alias) { return ("$"+alias).intern(); }
+
     // All active/live variables in all nested scopes, all run together.
     // Maps 1-to-1 to the _inputs array.
     public final Ary<Var> _vars;

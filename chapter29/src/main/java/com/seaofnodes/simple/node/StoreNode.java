@@ -97,7 +97,7 @@ public class StoreNode extends MemOpNode {
         // A constant runtime value alone is not enough: mutable fields (notably
         // $init) still need their writes, and instance fields need allocation.
         Field fld = ptr._obj.field(_name);
-        if( _alias!=1 && ptr._one && Parser.startsClzPrefix(ptr._obj._name) &&
+        if( _alias!=1 && ptr._one && TypeStruct.startsClzPrefix(ptr._obj._name) &&
             fld!=null && fld._final && decl.isConstant() )
             return TypeMem.make(_alias,val,true,true,true,mem._escFs,mem._escAs).escapesFrom(val);
 

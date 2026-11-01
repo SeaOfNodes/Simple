@@ -126,9 +126,9 @@ public class TypeStruct extends Type {
     // With a user constructor, the same-named function field is the hidden
     // default <init> allocation helper, not part of the public class surface.
     public boolean hiddenInit(Field fld) {
-        if( field("<ctor>") == null || !_name.startsWith("class:") ) return false;
+        if( field("<ctor>") == null || !startsClzPrefix(_name) ) return false;
         int idx = _name.lastIndexOf('.');
-        String name = _name.substring(idx<0 ? "class:".length() : idx+1);
+        String name = _name.substring(idx<0 ? CLZ.length() : idx+1);
         return fld._fname.equals(name);
     }
 
@@ -653,4 +653,19 @@ public class TypeStruct extends Type {
         return is;
     }
 
+
+    // Class-object name, distinct from its instance type.
+    public static final String CLZ = "class:";
+
+    public static String addClzPrefix( String x ) {
+        assert !x.startsWith(CLZ);
+        return (CLZ+x).intern();
+    }
+    public static boolean startsClzPrefix( String s ) {
+        return s.startsWith(CLZ);
+    }
+    public static boolean isPublicClassName( String name ) {
+        if( startsClzPrefix(name) ) name = name.substring(CLZ.length());
+        return !name.isEmpty() && name.charAt(0)!='_' && name.indexOf("._")==-1;
+    }
 }

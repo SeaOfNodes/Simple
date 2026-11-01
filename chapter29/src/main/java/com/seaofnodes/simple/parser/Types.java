@@ -86,7 +86,7 @@ final class Types {
 
     TypeMemPtr forwardRefType( String tname, TypeStruct tself ) {
         Parser.TYPES.put(tname,tself);
-        String clzName = Parser.addClzPrefix( tname );
+        String clzName = TypeStruct.addClzPrefix( tname );
         // Only a struct declaration publishes an instance initializer.  A
         // forward type may name a file with just <clinit>, so do not invent
         // a constructor field (or overwrite an already parsed class).

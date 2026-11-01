@@ -46,7 +46,7 @@ final class References {
             CompUnit cu = ParseAll.findCompUnit(P._code,P._ref,id);
             if( cu!=null ) {
                 // Must be a final class-type
-                String clzName = Parser.addClzPrefix(cu._cname);
+                String clzName = TypeStruct.addClzPrefix(cu._cname);
                 TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
                 if( clz == null )
                     Parser.TYPES.put(clzName,clz = TypeStruct.make(clzName,true));
@@ -113,8 +113,8 @@ final class References {
         checkSharedFunction(var);
         Node op = P.expressions.opAssign(ch,rvalue, var.type() );
         P._scope.update(var,op);
-        if( Parser.postfix(ch) ) rvalue.unkeep();
-        return pre==0 && Parser.postfix(ch) ? rvalue : op;
+        if( Lexer.postfix(ch) ) rvalue.unkeep();
+        return pre==0 && Lexer.postfix(ch) ? rvalue : op;
     }
 
     void checkAssignment(Var def) {
@@ -210,8 +210,8 @@ final class References {
         }
 
         Field fld = ts==null ? null : ts.field(name);
-        if( fld==null && ts!=null && !Parser.startsClzPrefix(ts._name) ) {
-            Type clz0 = Parser.TYPES.get(Parser.addClzPrefix(ts._name));
+        if( fld==null && ts!=null && !TypeStruct.startsClzPrefix(ts._name) ) {
+            Type clz0 = Parser.TYPES.get(TypeStruct.addClzPrefix(ts._name));
             if( clz0 instanceof TypeStruct clz && (fld = P.types.latestStruct(clz).field(name)) != null ) {
                 expr.unkeep();
                 ts = P.types.latestStruct(clz);
@@ -227,7 +227,7 @@ final class References {
         // need to force class initialization.  Basically, we insert an CLInit,
         // and if it does not fold away it'll turn into a runtime check.
         Kind.Func func = (Kind.Func)P._scope._kinds.at(P._scope.enclosingFuncOrDecl());
-        if( (ts==null || ts==TypeStruct.BOT || ts.isHigh() || Parser.startsClzPrefix(ts._name)) &&
+        if( (ts==null || ts==TypeStruct.BOT || ts.isHigh() || TypeStruct.startsClzPrefix(ts._name)) &&
             !(ts!=null && (ts._name+".<clinit>").equals(func._name)) )
             P.classInit(site,expr);
 
@@ -287,8 +287,8 @@ final class References {
             mem.unkeep();
 
             op.unkeep(); // A narrow Store may have folded away the expression's conversion.
-            if( Parser.postfix(ch) ) load.unkeep();
-            return pre==0 && Parser.postfix(ch) ? load : op;
+            if( Lexer.postfix(ch) ) load.unkeep();
+            return pre==0 && Lexer.postfix(ch) ? load : op;
         }
         off.unkill();
         // Might be a method call, so pass expr as 'self'
@@ -327,8 +327,8 @@ final class References {
             checkSharedFunction(v);
             Node op = P.expressions.opAssign(ch,value,v.type());
             P._scope.update(v,op);
-            if( pre!=0 && Parser.postfix(ch) ) value.unkeep();
-            return pre==0 && Parser.postfix(ch) ? value.unkeep() : op;
+            if( pre!=0 && Lexer.postfix(ch) ) value.unkeep();
+            return pre==0 && Lexer.postfix(ch) ? value.unkeep() : op;
         }
         return P.expressions.parsePostfixMethod(value,defaultSelf());
     }
@@ -360,7 +360,7 @@ final class References {
         for( FRefNode fref : _frefs ) {
             if( fref.nIns() != 1 && fref._con == FRefNode.FREF_TYPE ) continue;
             CompUnit cu = ParseAll.findCompUnitOrThrow(P._code,P._ref,fref._name);
-            fref._con = TypeMemPtr.make((byte)2,TypeStruct.make(Parser.addClzPrefix(cu._cname),true),true);
+            fref._con = TypeMemPtr.make((byte)2,TypeStruct.make(TypeStruct.addClzPrefix(cu._cname),true),true);
             frefs.push(fref);
         }
 

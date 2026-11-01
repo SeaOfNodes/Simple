@@ -298,6 +298,11 @@ public class Lexer {
     // Distinct tags for the multi-character compound operators.
     static final char SHL = 2, SAR = 3, SHR = 4;
 
+    // ch is +/- 1, means oper++ or oper-- means postfix.
+    static boolean postfix(char ch) {
+        return (byte)ch== 1 || (byte)ch== -1;
+    }
+
     public char matchOperAssign() {
         skipWhiteSpace();
         if( match("<<=" ) ) return SHL;

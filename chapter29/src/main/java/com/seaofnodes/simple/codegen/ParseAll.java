@@ -117,7 +117,7 @@ public abstract class ParseAll {
             Parser.TYPES.put(ts._name,ts);
         for( CompUnit cu : code._compunits.values() )
             if( cu._ext==null )
-                cu._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cu._cname));
+                cu._clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(cu._cname));
 
         // Walk over all Nodes, and upgrade the internal constants to the
         // closed-over types.
@@ -135,8 +135,8 @@ public abstract class ParseAll {
                     if( alloc ) {
                         Field ctor = clz.field("<new>");
                         if( ctor == null || !(ctor._t instanceof TypeFunPtr tfp) ) {
-                            String name = clzName.startsWith(Parser.CLZ)
-                                ? clzName.substring(Parser.CLZ.length()) : clzName;
+                            String name = clzName.startsWith(TypeStruct.CLZ)
+                                ? clzName.substring(TypeStruct.CLZ.length()) : clzName;
                             int dot = name.lastIndexOf('.');
                             throw Parser.error("Unknown struct type '"+(dot==-1 ? name : name.substring(dot+1))+"'",fref._loc);
                         }
@@ -184,7 +184,7 @@ public abstract class ParseAll {
                     xcunit = findCUnitExternalSimple(code,fref._name);
                 if( xcunit != null ) {
                     // Replace the FRef with the discovered class name.
-                    fref._name = Parser.addClzPrefix(xcunit._cname);
+                    fref._name = TypeStruct.addClzPrefix(xcunit._cname);
                     cunit.addDep(xcunit);
                 } else {
                     throw new RuntimeException("Undefined name '" + fref._name +"'");
@@ -261,7 +261,7 @@ public abstract class ParseAll {
 
     private static File externalObj(CodeGen code, CompUnit par, String name) {
         String cname = par==null ? name : par._cname + "." + name;
-        ElfReader elf = code.findExternalSimple(Parser.addClzPrefix(cname));
+        ElfReader elf = code.findExternalSimple(TypeStruct.addClzPrefix(cname));
         return elf == null ? null : elf._file;
     }
 
@@ -286,7 +286,7 @@ public abstract class ParseAll {
         ProjNode oldMem = oldStart==null ? null : oldStart.proj(1);
         if( oldMem!=null ) code.releaseReplacedNode(oldMem);
         elf.loadSimple(code);
-        cunit._clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(cunit._cname));
+        cunit._clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(cunit._cname));
         StartNode lstart = (StartNode)elf._nodes.at(0);
         StopNode  lstop  = ( StopNode)elf._nodes.last();
 
@@ -419,8 +419,8 @@ public abstract class ParseAll {
     // Search external Simple objects only.  C linkage uses explicit "C"
     // declarations, which produce ExternNodes and are resolved by the linker.
     public static CompUnit findCUnitExternalSimple( CodeGen code, String symbol ) {
-        String clzName = symbol.startsWith(Parser.CLZ) ? symbol : Parser.addClzPrefix(symbol);
-        String cname = clzName.substring(Parser.CLZ.length());
+        String clzName = symbol.startsWith(TypeStruct.CLZ) ? symbol : TypeStruct.addClzPrefix(symbol);
+        String cname = clzName.substring(TypeStruct.CLZ.length());
         String fname = cname.replace('.','/');
 
         CompUnit cunit = code._compunits.get(fname);

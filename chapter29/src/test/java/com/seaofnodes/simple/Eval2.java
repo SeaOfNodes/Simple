@@ -1,6 +1,5 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.IRPrinter;
@@ -372,7 +371,7 @@ public abstract class Eval2 {
                     yield new Object[0];
                 }
 
-            } else if( Parser.startsClzPrefix(tmp._obj._name) ) {
+            } else if( TypeStruct.startsClzPrefix(tmp._obj._name) ) {
                 yield classObject(tmp._obj);
             } else {
                 // Constant object with all zeros

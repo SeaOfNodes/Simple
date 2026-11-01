@@ -52,7 +52,7 @@ public class ConvertNode extends Node {
         // the address of the first element.  The representation cast itself is
         // zero-code; the Add skips the array header.
         if( _dst==TypeInteger.BOT && src instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            return new AddNode(new PtrToIntNode(val()).peephole(),Parser.off(tmp._obj,"[]"));
+            return new AddNode(new PtrToIntNode(val()).peephole(),ConFldOffNode.make(tmp._obj,"[]"));
 
         // Integer (and nil-as-zero) to floating point.
         if( (src instanceof TypeInteger || src==Type.NIL) && _dst instanceof TypeFloat )

@@ -1,6 +1,5 @@
 package com.seaofnodes.simple.codegen;
 
-import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.print.IRPrinter;
 import com.seaofnodes.simple.type.*;
@@ -66,7 +65,7 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
             // Class initializers still write their fields, even when every
             // final value is constant.  Their storage must remain writable.
             return !(t instanceof TypeStruct ts) ||
-                (!Parser.startsClzPrefix(ts._name) && ts.isConstant());
+                (!TypeStruct.startsClzPrefix(ts._name) && ts.isConstant());
         }
     }
 
@@ -201,7 +200,7 @@ public class Encoding implements com.seaofnodes.isa.CodeSink {
     // addressing to load it.  Type is stored in either the .rodata or .data.
     public void largeConstant( Node relo, Type t, int off, int elf ) {
         // TODO: Any-old struct in the cpool
-        assert t.isConstant() || (t instanceof TypeStruct ts && Parser.startsClzPrefix(ts._name));
+        assert t.isConstant() || (t instanceof TypeStruct ts && TypeStruct.startsClzPrefix(ts._name));
         assert (byte)off == off;
         assert (byte)elf == elf;
         _bigCons.put(relo,new Relo(relo,t,(byte)off,(byte)elf));

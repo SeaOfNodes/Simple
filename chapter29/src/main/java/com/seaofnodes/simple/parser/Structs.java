@@ -3,16 +3,10 @@ package com.seaofnodes.simple.parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
 import com.seaofnodes.simple.type.*;
-import com.seaofnodes.simple.util.Ary;
-import java.util.IdentityHashMap;
 
 /** Struct and constructor declarations, field discovery, and initialization checks. */
 final class Structs {
     private final Parser P;
-
-    // Constructor exit types survive scope teardown until all fields are
-    // known.  A null entry denotes a constructor with no returning path.
-    Ary<IdentityHashMap<Var,Type>> _ctorExits;
 
     // Constructor declaration: new TypeName = { args -> body };
     record Constructor(String name, Lexer body) {}
@@ -39,12 +33,12 @@ final class Structs {
 
         ReturnNode ret = parseInitializer( false, fullName );
 
-        P._nestedType = old;
+        P._nestedType = old;    // Pop nested stack
 
         // Insert a field into class:NESTED.typeName of "val typeName = fcn-ptr-to-init"
         // Function does malloc internally.
         // Future self: means subtyping has to deal with "who does the malloc"
-        String clzName = Parser.addClzPrefix(fullName);
+        String clzName = TypeStruct.addClzPrefix(fullName);
         TypeFunPtr sig = ret.fun().sig();
         TypeStruct ts = (TypeStruct)Parser.TYPES.get(clzName);
         String initName = initFieldName(fullName);
@@ -109,7 +103,7 @@ final class Structs {
         TypeStruct self = P._scope.constructorSelf();
         Node ctor = P.functions.parseConstructor(name);
         TypeFunPtr sig = (TypeFunPtr)ctor._type;
-        String clzName = Parser.addClzPrefix(self._name);
+        String clzName = TypeStruct.addClzPrefix(self._name);
         TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
         Field old = clz==null ? null : clz.field("<ctor>");
         if( old != null )
@@ -122,8 +116,6 @@ final class Structs {
     // Parse a struct declaration (not an allocation); file-level is a
     // class-init, and scope structs are normal
     ReturnNode parseInitializer( boolean isClz, String typeName ) {
-        var oldExits = _ctorExits;
-        _ctorExits = new Ary(IdentityHashMap.class);
         // Record & restore global state set during parsing the <init> code
         Node oldCtrl= P._scope.ctrl().keep();
         Node oldMem = P._scope.mem ().keep();
@@ -147,7 +139,7 @@ final class Structs {
 
         // Struct decls look like function bodies.  Parse function body normally.
         ReturnNode ret = P.functions.parseBody(fname,sig,P.loc(),ids);
-        _ctorExits = oldExits;
+        if( !isClz ) checkInitFields(ret);
         // Unwind global state.
         P.ctrl(oldCtrl.unkeep());
         P.mem (oldMem .unkeep());
@@ -168,8 +160,8 @@ final class Structs {
         String clzBare = tself._name;
         int order = 3; // 3 is always the <init> order, 2nd in the file just behind the <clinit>
         if( isClz ) {
-            assert Parser.startsClzPrefix( clzBare );
-            clzBare = clzBare.substring(Parser.CLZ.length()).intern();
+            assert TypeStruct.startsClzPrefix( clzBare );
+            clzBare = clzBare.substring(TypeStruct.CLZ.length()).intern();
             order = 2; // 2 is always the <clinit> order, first in file and skipping reserved #1
         }
         return TypeFunPtr.make1((byte)2, true, targs, tret, P._code.fidx(clzBare,order));
@@ -232,20 +224,6 @@ final class Structs {
                 smem._declaredType = smem._type = TypeMem.makePrivate(tself);
         }
 
-        if( !upgrade ) {
-            IdentityHashMap<Var,Type> exit = null;
-            if( P.functions._returnScope!=null && !P.functions._returnScope.ctrl()._type.isHigh() ) {
-                exit = new IdentityHashMap<>();
-                int first = P._scope._kinds.at(P._scope.depth()-2)._lexSize+2;
-                for( int i = first; i<lex; i++ )
-                    exit.put(P._scope.var(i),P.functions._returnScope.in(i)._type);
-            }
-            _ctorExits.add(exit);
-        } else if( !isClz ) {
-            // Check that all fields are initialized
-            checkInitFields(tself,base);
-        }
-
         // When can _returnScope be null here? A never-exit constructor will
         // not have any returns, and thus no need to gather values and store
         // them into the (never) constructed object
@@ -267,19 +245,22 @@ final class Structs {
                 continue;
             Var v = P._scope.var(vidx);
             if( v._fref || v._extern!=0 ) continue; // C storage has no Simple initializer
-            // NewNode's TOP field is the zero-code poison for a required
-            // field. Leave it alone unless the declaration body supplied a
-            // value; otherwise a user constructor must initialize it.
             Node val = P.functions._returnScope.in(vidx);
-            if( upgrade && v._uninit &&
-                !initialized(val._type) ) continue;
+            // Preserve a missing field in the returned private memory. A
+            // numeric conversion would turn BOTTOM into an ordinary number
+            // type, hiding a path that never assigned the field.
+            if( !isClz && v._uninit && !initialized(val._type) ) {
+                TypeStruct missing = (TypeStruct)((TypeMem)smem._declaredType)._t;
+                smem._declaredType = smem._type = TypeMem.makePrivate(missing.addOrUpdate(fld.makeFrom(Type.TOP)));
+                continue;
+            }
             // A numeric merge can still be untyped while parsing. Retain its
             // declared conversion at the helper boundary, as assignments do.
             if( fld._t instanceof TypeInteger || fld._t instanceof TypeFloat )
                 val = P.conversions.convertExpr(val,fld._t);
             // Store value into extended struct
             Node prior = mmm.keep();
-            Node st = P.peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, prior, self, Parser.off(tself,fld._fname), val, fld._final));
+            Node st = P.peep(new StoreNode(null, fld._fname, fld._alias, fld._t, null, prior, self, ConFldOffNode.make(tself,fld._fname), val, fld._final));
             mmm = P.mergeAlias(prior,fld._alias,st);
             prior.unkeep();
         }
@@ -295,24 +276,34 @@ final class Structs {
             //_code.add(mmm);
     }
 
-    // Check that all fields are initialized on all constructor exit paths.
-    private void checkInitFields(TypeStruct ts, int base) {
-        if( P.functions._returnScope==null || P.functions._returnScope.ctrl()._type.isHigh() ) return;
-        boolean implicit = _ctorExits.isEmpty();
-        if( implicit ) _ctorExits.add(new IdentityHashMap<>());
-        for( IdentityHashMap<Var,Type> exit : _ctorExits ) {
-            if( exit==null ) continue;
-            for( Field fld : ts._fields ) {
-                int idx = fieldVarIdx(base,fld._fname);
-                if( idx == -1 ) continue;
-                Var v = P._scope.var(idx);
-                if( !v._uninit || v._fref ) continue;
-                Type t = exit.getOrDefault(v,P.functions._returnScope.in(idx)._type);
-                if( !initialized(t) )
-                    throw Parser.error("'"+ts._name+"' is not fully initialized, field '"+fld._fname+
-                                (implicit ? "' needs to be set in a constructor" :
-                                            "' is only partially set in the constructor"),v._loc);
-            }
+    // addReturn already merged every exit. Inspect the completed helpers,
+    // after parsing has discovered all fields and torn down their scopes.
+    private void checkInitFields(ReturnNode init) {
+        if( init.ctrl()._type.isHigh() || init.expr()._type.isHigh() ) return;
+        TypeStruct ts = ((TypeMemPtr)init.fun().sig().arg(0))._obj;
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(ts._name));
+        Field ctor = clz==null ? null : clz.field("<ctor>");
+        // The older same-named function binding is parsed immediately, so
+        // fields declared after it are supplied by the declaration initializer.
+        Field legacy = ts.field(initFieldName(ts._name));
+        if( ctor!=null ) checkInitFields(ts,init,P._code.link((TypeFunPtr)ctor._t).ret());
+        if( legacy!=null && legacy._t instanceof TypeFunPtr sig )
+            checkInitFields(ts,init,P._code.link(sig).ret());
+        else if( ctor==null ) checkInitFields(ts,init,init);
+    }
+
+    private void checkInitFields(TypeStruct ts, ReturnNode init, ReturnNode ret) {
+        if( ret.ctrl()._type.isHigh() || ret.expr()._type.isHigh() ) return;
+        TypeStruct fields = (TypeStruct)((TypeMem)ret.expr()._type)._t;
+        TypeStruct defaults = (TypeStruct)((TypeMem)init.expr()._type)._t;
+        for( Field fld : ts._fields ) {
+            if( fld._extern ) continue;
+            Field actual = fields.field(fld._fname);
+            if( actual==null ) actual = defaults.field(fld._fname);
+            if( actual._t==Type.TOP )
+                throw Parser.error("'"+ts._name+"' is not fully initialized, field '"+fld._fname+
+                                   (ret==init ? "' needs to be set in a constructor" :
+                                                "' is only partially set in the constructor"),ret.fun()._loc);
         }
     }
 
@@ -326,7 +317,7 @@ final class Structs {
             Var v = P._scope.var(idx);
             if( v._fref || v._extern!=0 || v._uninit || P._scope.in(v)._type.isConstant() ) continue;
             Node value = P.conversions.convertExpr(
-                new LoadNode(loc,fld._fname,fld._alias,P.ctrl(),fun.parm(3),fun.parm(2),Parser.off(shape,fld._fname)).peephole(),v.type());
+                new LoadNode(loc,fld._fname,fld._alias,P.ctrl(),fun.parm(3),fun.parm(2),ConFldOffNode.make(shape,fld._fname)).peephole(),v.type());
             P._scope.update(v,value);
         }
     }
@@ -336,7 +327,7 @@ final class Structs {
         // run-once flag. Keep this in the body so every execution strategy
         // shares the same ordering, including direct entry into a child.
         if( P._ref._par!=null ) {
-            String pname = Parser.addClzPrefix(P._ref._par._cname);
+            String pname = TypeStruct.addClzPrefix(P._ref._par._cname);
             TypeStruct parent = (TypeStruct)Parser.TYPES.get(pname);
             if( parent==null ) parent = TypeStruct.make(pname,true);
             Node ptr = P.con(TypeMemPtr.make((byte)2,parent,true)).keep();
@@ -352,8 +343,7 @@ final class Structs {
         prior.unkeep();
     }
 
-    // Validate each user constructor, or an implicit empty one, before the
-    // declaration scope goes away. Later fields use their declaration defaults.
+    // Required-field values must be initialized before conversion for storage.
     static boolean initialized(Type t) {
         // Can't be BOTTOM, that means explicit not initialized.
         // Can't be high (initialized to an error)
@@ -403,8 +393,8 @@ final class Structs {
     }
 
     private static String initFieldName( String typeName ) {
-        if( Parser.startsClzPrefix(typeName) )
-            typeName = typeName.substring(Parser.CLZ.length());
+        if( TypeStruct.startsClzPrefix(typeName) )
+            typeName = typeName.substring(TypeStruct.CLZ.length());
         int idx = typeName.lastIndexOf('.');
         return (idx == -1 ? typeName : typeName.substring(idx+1)).intern();
     }

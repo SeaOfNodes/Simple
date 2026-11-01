@@ -22,7 +22,7 @@ final class Conversions {
             return expr;
         // Auto-widen array to i64 (cast ptr to raw int bits)
         if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            return P.peep(new AddNode(P.peep(new PtrToIntNode(expr)),Parser.off(tmp._obj,"[]")));
+            return P.peep(new AddNode(P.peep(new PtrToIntNode(expr)),ConFldOffNode.make(tmp._obj,"[]")));
         // Widen ints to floats, narrow wide types
         return P.peep(new ConvertNode(t,expr));
     }

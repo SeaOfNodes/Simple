@@ -33,14 +33,25 @@ are parsed after their bodies, and declared constructors after field discovery.
 The [source layout](src/main/java/com/seaofnodes/simple/README.md) describes the
 other packages. `IterPeeps` now lives in `codegen/` beside the compilation passes.
 
-## Cleanup still to do
+## Checking constructor completion
 
-Constructor completion is a useful next target. `addReturn` already merges field
-values across exit paths, but `_ctorExits` saves those types until all fields
-are known. Checking the final `Return` alone is insufficient today: field
-conversions can erase uninitialized state, and the declaration initializer is
-separate from the user constructor. Simplify that bookkeeping without weakening
-the initialization checks.
+`addReturn` merges field values across exit paths. After `parseBody` finishes,
+`Structs.parseInitializer` checks the completed helper Returns; no separate exit
+maps survive scope teardown. Required fields without an assignment on every
+returning path retain `TOP` in private memory. They emit no Store, so numeric
+conversions cannot hide the missing assignment.
+
+The declaration initializer and user constructor have separate Returns. Check
+the user constructor when present, or the declaration initializer for the default
+constructor. The older same-named constructor binding can precede field
+declarations; fields absent from its Return use the declaration initializer's
+result. Nonreturning helpers require no completed object. Completion errors
+point to the relevant helper's source location.
+
+`ConstructorCompletionTest` covers partial numeric assignments, early returns,
+nonreturning paths, declaration defaults, and fields declared after constructors.
+
+## Further cleanup
 
 Source privacy is deferred. Leading underscores retain the existing export
 filtering behavior; this chapter does not yet enforce access restrictions on

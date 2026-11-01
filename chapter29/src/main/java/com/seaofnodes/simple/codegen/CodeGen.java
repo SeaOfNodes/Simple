@@ -114,13 +114,13 @@ public class CodeGen {
     }
 
     public static boolean hasUserConstructor(TypeStruct self) {
-        Type t = Parser.TYPES.get(Parser.addClzPrefix(self._name));
+        Type t = Parser.TYPES.get(TypeStruct.addClzPrefix(self._name));
         return t instanceof TypeStruct clz && clz.field("<ctor>") != null;
     }
 
     // A forward reference has a placeholder class, not a definition yet.
     private static boolean resolvedClass(TypeStruct clz) {
-        Type t = Parser.TYPES.get(clz._name.substring(Parser.CLZ.length()));
+        Type t = Parser.TYPES.get(clz._name.substring(TypeStruct.CLZ.length()));
         return !(t instanceof TypeStruct ts) || !ts._fref;
     }
 
@@ -139,13 +139,13 @@ public class CodeGen {
         _publicFIDXs = _publicAliases = XInt.EMPTY;
         for( Type t : Parser.TYPES.values() )
             if( t instanceof TypeStruct clz &&
-                Parser.startsClzPrefix(clz._name) &&
-                Parser.isPublicClassName(clz._name) &&
+                TypeStruct.startsClzPrefix(clz._name) &&
+                TypeStruct.isPublicClassName(clz._name) &&
                 resolvedClass(clz) ) {
                 // Gather function pointers from public fields of both class
                 // and instance objects.
                 gatherPublicFields(clz,true);
-                Type self = Parser.TYPES.get(clz._name.substring(Parser.CLZ.length()));
+                Type self = Parser.TYPES.get(clz._name.substring(TypeStruct.CLZ.length()));
                 if( self instanceof TypeStruct ts ) gatherPublicFields(ts,false);
             }
         // Limit broad function types to known FIDXs, excluding reserved bits.
@@ -309,7 +309,7 @@ public class CodeGen {
     }
 
     public String entryClinitName() {
-        return Parser.addClzPrefix(_srcName==null ? "Test" : _srcName.replace('/','.'))+".<clinit>";
+        return TypeStruct.addClzPrefix(_srcName==null ? "Test" : _srcName.replace('/','.'))+".<clinit>";
     }
 
     // Verbose printing during compilation
@@ -790,7 +790,7 @@ public class CodeGen {
 
                 // Publish definitions only; referenced classes belong to other objects.
                 for( String fname : elf._units )
-                    _externSymbols.putIfAbsent(Parser.addClzPrefix(fname.replace('/','.')),elf);
+                    _externSymbols.putIfAbsent(TypeStruct.addClzPrefix(fname.replace('/','.')),elf);
                 // A -L object can name dependencies alongside itself. They
                 // need metadata discovery even when no directory was supplied.
                 for( String dep : elf._deps ) {

@@ -314,7 +314,7 @@ final class Expressions {
             (byte)ch ==  1 ? P.con( 1) : // var++
             (byte)ch == -1 ? P.con(-1) : // var--
             parseAssignment();               // var op= rhs
-        if( !Parser.postfix(ch) ) lhs.unkeep();   // Allow to die in next peep
+        if( !Lexer.postfix(ch) ) lhs.unkeep();   // Allow to die in next peep
         // 4 cases:
         // int + int ==>> narrow int
         // int + flt ==>> error, caller must fail assigning flt into int

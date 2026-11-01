@@ -24,3 +24,8 @@ productions to their entry points.
 Start with `Statements.parseStatement` or `Expressions.parseAssignment` to follow
 the grammar. Loop updates are parsed after their bodies, and declared constructor
 bodies after field discovery; `Lexer.skipTo` scans these deferred fragments.
+
+`Parser` keeps the short cursor, scope/memory, IR-building, and diagnostic helpers
+used by these components. Independent helpers live with their data: class-object
+names in `TypeStruct`, postfix operator encoding in `Lexer`, known field-offset
+creation in `ConFldOffNode.make`, and memory-alias labels in `ScopeNode.memName`.

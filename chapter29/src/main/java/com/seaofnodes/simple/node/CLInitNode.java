@@ -2,7 +2,6 @@ package com.seaofnodes.simple.node;
 
 import com.seaofnodes.simple.parser.Lexer;
 import com.seaofnodes.print.ExprPrinter;
-import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.CompUnit;
 import com.seaofnodes.simple.codegen.Iter;
@@ -43,14 +42,14 @@ public class CLInitNode extends CFGNode implements MultiNode {
 
     // The field/alias can be unresolved until forward references are loaded.
     public Field flag() {
-        return ptr()._type instanceof TypeMemPtr tmp && Parser.startsClzPrefix(tmp._obj._name)
+        return ptr()._type instanceof TypeMemPtr tmp && TypeStruct.startsClzPrefix(tmp._obj._name)
             ? tmp._obj.field("$init") : null;
     }
     @Override public String label() { return "CLInit"; }
 
     // Best effort dst compunit, based on ptr - or null
     public CompUnit cu() {
-        if( !(ptr()._type instanceof TypeMemPtr ptr && Parser.startsClzPrefix(ptr._obj._name)) )
+        if( !(ptr()._type instanceof TypeMemPtr ptr && TypeStruct.startsClzPrefix(ptr._obj._name)) )
             return null;
         // Convert "class:sys.ary" into "sys/ary" and lookup CompUnit
         String fname = ptr._obj._name.substring(6).replace(".","/");
@@ -70,7 +69,7 @@ public class CLInitNode extends CFGNode implements MultiNode {
         return ptr()._type==Type.NIL ||
             (ptr()._type instanceof TypeMemPtr tmp && tmp._obj!=TypeStruct.BOT &&
              !tmp._obj.isHigh() && !tmp._obj._open && !tmp._obj._fref &&
-             !Parser.startsClzPrefix(tmp._obj._name));
+             !TypeStruct.startsClzPrefix(tmp._obj._name));
     }
 
     public boolean bypass() { return instance() || ready()._type==TypeInteger.TRUE; }
@@ -205,6 +204,6 @@ public class CLInitNode extends CFGNode implements MultiNode {
         dep.addDep(init.ptr());
         Field flag = init.flag();
         if( flag==null || flag._alias!=alias ) return mem;
-        return new ProjNode(init,2,Parser.memName(alias)).peephole();
+        return new ProjNode(init,2,ScopeNode.memName(alias)).peephole();
     }
 }

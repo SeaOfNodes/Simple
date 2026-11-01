@@ -30,12 +30,14 @@ Source privacy is deferred. `ai_priv` retains the earlier implementation,
 preserves the combined working state before the split. Do not reintroduce
 privacy checks or fixture adaptations as incidental parser cleanup.
 
-Constructor completion remains open. `addReturn` merges field states already,
-but final helper memory can hide missing initialization after conversions.
-`parseInitializer` returns the declaration initializer, not the user constructor.
-Prefer simplifying around the merged scope before stores; consider the older
-same-named constructor binding, parsed before later fields, when removing
-`_ctorExits`. No constructor semantics were changed by the chapter split.
+Chapter 29 checks constructor completion after `parseBody` returns to
+`parseInitializer`. Required fields missing on any merged exit retain `TOP`
+in private memory and emit no Store; numeric conversions must not hide that
+state. Check the user constructor's Return separately from the declaration
+initializer. The older same-named binding is parsed before later fields and
+uses the declaration initializer for fields absent from its Return. There is
+no `_ctorExits` snapshot list. Completion diagnostics now use the relevant
+helper's location, since the field's lexical scope has been torn down.
 
 The roadmap retains language candidates, including automatic memory management
 and a small game with graphics, keyboard input, and sound.

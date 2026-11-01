@@ -313,8 +313,8 @@ public class Serialize {
 
     // A nested declaration belongs to its nearest enclosing file.
     private static CompUnit classOwner(CodeGen code, TypeStruct ts) {
-        if( !Parser.startsClzPrefix(ts._name) ) return null;
-        String name = ts._name.substring(Parser.CLZ.length()).replace('.','/');
+        if( !TypeStruct.startsClzPrefix(ts._name) ) return null;
+        String name = ts._name.substring(TypeStruct.CLZ.length()).replace('.','/');
         while( true ) {
             CompUnit cu = code._compunits.get(name);
             if( cu!=null ) return cu;
@@ -418,9 +418,9 @@ public class Serialize {
             if( type instanceof TypeStruct ts )
                 Parser.TYPES.put(ts._name,ts);
         for( Type type : types ) {
-            if( !(type instanceof TypeStruct ts) || !Parser.startsClzPrefix(ts._name) )
+            if( !(type instanceof TypeStruct ts) || !TypeStruct.startsClzPrefix(ts._name) )
                 continue;
-            String cname = ts._name.substring(Parser.CLZ.length());
+            String cname = ts._name.substring(TypeStruct.CLZ.length());
             int dot = cname.lastIndexOf('.');
             String name = dot == -1 ? cname : cname.substring(dot+1);
             Field inst = ts.field(name.intern());

@@ -41,11 +41,11 @@ public final class StaticData {
     }
 
     static boolean isClass(Type t) {
-        return t instanceof TypeStruct ts && Parser.startsClzPrefix(ts._name);
+        return t instanceof TypeStruct ts && TypeStruct.startsClzPrefix(ts._name);
     }
 
     static CompUnit owner(CodeGen code,TypeStruct ts) {
-        return owner(code,ts._name.substring(Parser.CLZ.length()));
+        return owner(code,ts._name.substring(TypeStruct.CLZ.length()));
     }
     static CompUnit owner(CodeGen code,String name) {
         if(name==null) return null;
@@ -65,7 +65,7 @@ public final class StaticData {
         if( clz && Parser.TYPES.get(((TypeStruct)t)._name) instanceof TypeStruct canonical ) t=canonical;
         CompUnit owner=clz ? owner(enc._code,(TypeStruct)t)
             : t instanceof TypeFunPtr fp ? owner(enc._code,enc._code._fidxs.owner(fp.fidx())) : null;
-        String symbol=clz ? ((TypeStruct)t)._name.substring(Parser.CLZ.length())+".$class"
+        String symbol=clz ? ((TypeStruct)t)._name.substring(TypeStruct.CLZ.length())+".$class"
             : t instanceof TypeFunPtr fp ? functionSymbol(fp) : prefix+objects.size();
         ObjectData obj=new ObjectData(t,symbol,!clz && (!(t instanceof TypeStruct ts) || ts.isConstant()),
                                       owner!=null && !enc._code.emits(owner));

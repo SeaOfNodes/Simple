@@ -43,7 +43,7 @@ final class Allocations {
         String typeName = ts._name.indexOf('.') == -1 ? P.types.fullTypeName(ts._name) : ts._name;
         Type resolved = Parser.TYPES.get(typeName);
         if( resolved instanceof TypeStruct rts ) ts = rts;
-        TypeStruct clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(typeName));
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(typeName));
         if( clz==null )
             throw P.error("Unknown struct type '" + ts._name + "'");
         Field afld = clz.field("<new>");
@@ -52,7 +52,7 @@ final class Allocations {
             TypeFunPtr tfp = (TypeFunPtr)afld._t;
             FunNode fun = P._code.link(tfp);
             alloc = fun==null
-                ? new FRefNode((Parser.addClzPrefix(typeName)+".<new>").intern(),P.loc())
+                ? new FRefNode((TypeStruct.addClzPrefix(typeName)+".<new>").intern(),P.loc())
                 : new FunPtrNode(tfp,P._code._start,fun.ret()).peephole();
         } else {
             if( !ts._fref )
@@ -60,7 +60,7 @@ final class Allocations {
             Type[] sig = new Type[ctorArgs._len];
             for( int i = 0; i<ctorArgs._len; i++ )
                 sig[i] = ctorArgs.at(i)._type;
-            alloc = new FRefNode((Parser.addClzPrefix(typeName)+".<new>").intern(),P.loc(),
+            alloc = new FRefNode((TypeStruct.addClzPrefix(typeName)+".<new>").intern(),P.loc(),
                                  TypeFunPtr.make(false,sig,TypeMemPtr.make(ts)));
         }
         Ary<Node> args = new Ary<>(Node.class);
@@ -83,7 +83,7 @@ final class Allocations {
         Field  lenFld = ts.field("#" );
         Field bodyFld = ts.field("[]");
 
-        ConFldOffNode base = Parser.off(ts, "[]");
+        ConFldOffNode base = ConFldOffNode.make(ts, "[]");
         int scale = ts.aryScale();
         Node size = P.peep(new AddNode(base,P.peep(new ShlNode(null,len,P.con(scale)))));
 
@@ -95,7 +95,7 @@ final class Allocations {
         // Store length.  Rest of array is zero'd via CALLOC during CodeGen.
         // Length is casted to sanity.
         // TODO: Needs runtime check.
-        Node st = P.peep(new StoreNode(null, "#", 1, TypeInteger.U32, null, smem, self, Parser.off(ts,"#"), len.unkeep(), true));
+        Node st = P.peep(new StoreNode(null, "#", 1, TypeInteger.U32, null, smem, self, ConFldOffNode.make(ts,"#"), len.unkeep(), true));
 
         // TODO: Allow add-on "constructor" to init the array elements
 
@@ -145,7 +145,7 @@ final class Allocations {
         for( int i = 0; i<nargs; i++ )
             parms[i] = new ParmNode("arg"+i,i+2,atypes[i],fun,ConstantNode.seed(atypes[i]).peephole()).peephole();
 
-        NewNode nnn = new NewNode(ts,fun,Parser.off(ts," len")).init();
+        NewNode nnn = new NewNode(ts,fun,ConFldOffNode.make(ts," len")).init();
         Node self = new ProjNode(nnn,0,ts.str()).init();
         Node priv = new ProjNode(nnn,1,"#selfMem").init();
         Node[] initArgs = new Node[]{fun,pub,self,priv,
