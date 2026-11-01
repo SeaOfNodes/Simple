@@ -4,6 +4,8 @@ English | [日本語](README.ja.md)
 
 [Previous: Chapter 28a](../chapter28a/README.md)
 
+[Next: Chapter 29 — Tech Debt Cleanup](../chapter29/README.md)
+
 The previous chapter compiled every discovered source file together.  This
 chapter lets a program and the libraries it uses compile separately, with
 full type information.  To compile a program that uses a library, we need the

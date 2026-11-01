@@ -1,0 +1,4 @@
+struct _Person { i32 age;};
+!_Person !p = new _Person;
+p.age = (arg<<17)>>17;
+return 0;

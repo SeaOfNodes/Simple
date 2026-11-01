@@ -3,9 +3,24 @@
 English | [日本語](roadmap.ja.md)
 
 Open compiler work and language proposals, reviewed against the current
-snapshots on 2026-10-29. These are future changes, not promises about the
+snapshots on 2026-11-01. These are future changes, not promises about the
 language implemented by the tutorial. Language changes still need their own
 design decisions and chapter boundaries.
+
+## Current chapter: tech debt cleanup
+
+[Chapter 29](../chapter29/README.md) carries the parser split into grammar-sized
+components, with `Var` in `parser/` and `IterPeeps` in `codegen/`. It is the
+workspace for further cleanup; Chapter 28b retains the preceding compiler.
+
+Keep the recursive-descent path aligned with the grammar. Review moving `TYPES`
+to `CodeGen`, and simplify constructor completion using the already-merged
+return scope without losing uninitialized-field information. Consider whether
+an allocation-free use of try-with-resources makes keep/unkeep pairing clearer;
+this remains an experiment, not a new resource-management convention.
+
+Source privacy is deferred until after this initial cleanup. The archived
+implementation and tests are experiments, not part of Chapter 29's behavior.
 
 ## Compilation and optimization
 
@@ -106,9 +121,9 @@ instance-layout optimization.
 ### Source privacy
 
 Underscores already select the public interface, but source access to another
-class's private fields is not rejected. The proposal is to enforce privacy
-starting in Chapter 28a, then preserve it across imports in 28b. This language
-change still needs review; it is not a correction to impose on earlier chapters.
+class's private fields is not rejected. Revisit source enforcement and its
+preservation across imports after the Chapter 29 cleanup. This language change
+still needs review; it is not a correction to impose on earlier chapters.
 
 - A field or method beginning with `_` is accessible only from its declaring
   class, including constructors and methods. Enclosing, nested, and sibling
@@ -206,6 +221,20 @@ native boundary conversions when choosing the representation.
 These are language-design alternatives. The sketches below are not executable
 examples of the current Simple grammar.
 
+### Automatic memory management
+
+Explore automatic memory reclamation with few explicit lifetime annotations,
+using Rust and [Goose](https://github.com/aardappel/goose/blob/master/docs/tutorial.md)
+as design references. Decide ownership, borrowing, sharing, cycles, and native
+retention together with the existing object and array model. This is a language
+design candidate, independent of compact pointer storage.
+
+### A small interactive game
+
+Build a small game in Simple with 2-D graphics, keyboard input, and sound.
+Use it to exercise practical library APIs and native bindings; choose the game
+and supporting graphics/audio library when this project is taken up.
+
 ### Structs with trailing arrays
 
 Allow named fields followed by an array length and inline element storage:
@@ -278,11 +307,3 @@ syntax uniform and define the calling convention for by-value arguments.
 Consider making `int` mean `i32` instead of the current `i64`. This changes
 overflow behavior, layouts, APIs, and native interfaces, so it needs a language
 decision and a deliberate compatibility boundary.
-
-### Parser Cleanup
-
-Get the Parsers' structure closer to an ideal R-D parser, and matching the
-grammer doc.  Move TYPES to CodeGen, and generally restructure for readability.
-Ponder using try-w-resources to do the keep/unkeep pairing (do NOT do any
-allocation in the `try`, just bring up an object w/auto-closable which tracks
-the unkeeps) - see if that looks any cleaner.

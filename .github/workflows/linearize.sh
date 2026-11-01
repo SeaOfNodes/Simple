@@ -44,6 +44,7 @@ while read -r chapter; do
     chapter27)  history_paths+=(chapter-escape chapter25) ;;
     chapter28a) history_paths+=(chapter-modules chapter25) ;;
     chapter28b) history_paths+=(chapter-separate-compilation chapter25) ;;
+    chapter29)  history_paths+=(chapter28b chapter-separate-compilation chapter25) ;;
   esac
 
   if [[ ! -f "$repo/$chapter/README.md" ]]; then
@@ -91,7 +92,11 @@ while read -r chapter; do
     [[ -f "$doc" ]] || continue
     sed -Ei 's,\(\.\./README(\.ja)?\.md([#)]),(README\1.md\2,g' "$doc"
     sed -Ei 's,\(\.\./\.\./(chapter[0-9]+[a-z]?)/docs/,(../\1/,g' "$doc"
+    # Grammar maps move one directory deeper; sources stay at the root.
+    sed -Ei 's,\(\.\./src/,(../../src/,g' "$doc"
   done
+  # Source-package READMEs link back to their chapter's grammar document.
+  find src -name '*.md' -exec sed -Ei "s,docs/([0-9]+[a-z]?-grammar),docs/$chapter/\1,g" {} +
   # Keep the READMEs and supporting notes together, including Japanese copies.
   mv *.md docs/
   mv docs chapter_docs

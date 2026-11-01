@@ -4,6 +4,12 @@ Cliff approved the seven-part split on 2026-10-19 and the final numbering on
 2026-10-24. The old combined Chapters 24 and 25 are retired; their history is
 available in Git. Every new directory is a complete compiler snapshot.
 
+On 2026-11-01, Cliff added [Chapter 29: Tech Debt Cleanup](../chapter29/README.md).
+It starts from Chapter 28b with the parser split into `parser/` components,
+`Var` in that package, and `IterPeeps` in `codegen/`. Keep Chapter 28b's original
+parser as the preceding snapshot. Source privacy is deferred; the privacy
+experiments and test-fixture adaptations are not part of the new chapter.
+
 | Previous directory | Final chapter |
 |---|---|
 | chapter-sccp | 24a: SCCP within a function |

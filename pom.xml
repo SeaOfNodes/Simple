@@ -50,6 +50,7 @@
         <module>chapter27</module>
         <module>chapter28a</module>
         <module>chapter28b</module>
+        <module>chapter29</module>
     </modules>
 
     <properties>

@@ -18,20 +18,27 @@ The [incremental build design](incremental-builds.md) expands the roadmap's
 dependency and output-ownership requirements.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
-## Reset checkpoint (2026-10-29)
+## Current workspace (2026-11-01)
 
-Chapter 28b's Encoding/Export cleanup is committed as `f47c7d1f`; the tree
-was clean before this notes update. All 570 chapter tests passed on Windows
-and Linux. Encoding prepares per-unit objects; Export only writes/links them.
-Select combined in-memory output before Encoding, and request Serialize before
-Lower for file output. There is no Export fallback that re-encodes the graph.
+Chapter 29 is **Tech Debt Cleanup**. Cliff approved keeping the parser split
+and moving it into this new snapshot; continue parser work there. Chapter 28b
+retains the original parser. The new `parser/` package follows the grammar;
+`Var` belongs there and `IterPeeps` belongs in `codegen/`.
 
-Cliff wants to pivot to new language work and a new chapter. The next project
-has not been chosen: discuss it before implementing. His goals are readable,
-simple, usable; type variables/generics for real collections and low-annotation
-automatic memory reclamation are major priorities. Privacy and subclassing
-are smaller candidates. The roadmap owns remaining cleanup work; do not resume
-it automatically or create a chapter merely because a reset happened.
+Source privacy is deferred. `ai_priv` retains the earlier implementation,
+`cc_priv` the tests, and local branch `archive/cc_priv-parser-before-ch29`
+preserves the combined working state before the split. Do not reintroduce
+privacy checks or fixture adaptations as incidental parser cleanup.
+
+Constructor completion remains open. `addReturn` merges field states already,
+but final helper memory can hide missing initialization after conversions.
+`parseInitializer` returns the declaration initializer, not the user constructor.
+Prefer simplifying around the merged scope before stores; consider the older
+same-named constructor binding, parsed before later fields, when removing
+`_ctorExits`. No constructor semantics were changed by the chapter split.
+
+The roadmap retains language candidates, including automatic memory management
+and a small game with graphics, keyboard input, and sound.
 
 ## Collaboration preferences
 
@@ -61,8 +68,10 @@ it automatically or create a chapter merely because a reset happened.
   with a ternary expression over an if/else.
 - Do not wrap normal compiler algorithms in try/finally when no exceptions are
   expected. Keep the lifetime and phase transitions explicit.
-- Space declaration initializers as `Type name = expression;`. Preserve
-  deliberate column alignment when it makes related declarations easier to read.
+- Space assignments and declaration initializers as `x = expression` and
+  `Type name = expression;`. Preserve deliberate column alignment across rows.
+- Name the shared parser reference `P`, including in parser components, to match
+  `CodeGen.P`.
 - Do not introduce Java streams. Use loops and explicit sorts; ask Cliff before
   making any exception.
 - Cliff often debugs the same failure in parallel. If asked to work in a side

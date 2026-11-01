@@ -1,0 +1,12 @@
+// -*- mode: java;  -*-
+
+// Child module
+
+// Same field name as child2
+val kid1 = 7;
+
+// Can read parent directly
+val kid2 = par0;
+
+// Error to reference a later sibling
+// val kid3 = par.child2.kid1;

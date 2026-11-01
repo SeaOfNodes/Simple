@@ -35,9 +35,9 @@ class names occur in many chapters, so a class name alone cannot identify the
 intended snapshot.
 
 Tests that compile native code still need the C toolchain on IntelliJ's PATH.
-Tests using Chapter 28b's native runtime or saved `sys` library also need the
-Make prerequisites: run `make -C chapter28b release CTAGS=` before debugging
-those tests. IntelliJ's Java build does not build the native runtime or library.
+Tests using the native runtime or saved `sys` library in Chapters 28b and 29
+also need the Make prerequisites. Run `make -C chapter29 release CTAGS=`
+(or `chapter28b` for that snapshot) before debugging those tests. IntelliJ's Java build does not build the native runtime or library.
 
 For the JUnit working directory and module classpath settings, see
 [JetBrains' JUnit configuration reference](https://www.jetbrains.com/help/idea/run-debug-configuration-junit.html).
