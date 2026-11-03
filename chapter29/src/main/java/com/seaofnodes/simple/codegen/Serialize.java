@@ -38,6 +38,7 @@ public class Serialize {
     }
 
     static void serialize( CodeGen code ) {
+        code.P.checkConstructionSerializable();
         // Anonymous functions also need names when another object refers to them.
         for( FunNode fun : code._linker )
             if( fun!=null && !fun.isDead() && fun._name==null )
@@ -421,11 +422,9 @@ public class Serialize {
             if( !(type instanceof TypeStruct ts) || !TypeStruct.startsClzPrefix(ts._name) )
                 continue;
             String cname = ts._name.substring(TypeStruct.CLZ.length());
-            int dot = cname.lastIndexOf('.');
-            String name = dot == -1 ? cname : cname.substring(dot+1);
-            Field inst = ts.field(name.intern());
-            if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMem mem && mem._t instanceof TypeStruct its )
-                Parser.TYPES.put(cname,its);
+            Field inst = ts.field("<new>");
+            if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMemPtr ptr )
+                Parser.TYPES.put(cname,ptr._obj);
         }
         elf._pubTypes = new TypeStruct[npubTypes];
         for( int i=0; i<npubTypes; i++ ) {

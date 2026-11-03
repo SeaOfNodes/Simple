@@ -15,6 +15,11 @@ workspace for further cleanup; Chapter 28b retains the preceding compiler.
 
 Constructor completion now checks the helper Returns after parsing, with missing
 fields retained in private memory instead of separate exit maps.
+The [construction-group prototype](../chapter29/docs/construction-groups.md)
+adds unfinished constructor parameters and inferred field requirements. Remaining
+work includes contracts for reference paths, exported contracts for separate
+compilation, and forward calls with unfinished arguments. A disabled completion
+test records the existing `TOP`-marker/inlining failure beside nullable defaults.
 Keep the recursive-descent path aligned with the grammar. Review moving `TYPES`
 to `CodeGen`. Consider whether
 an allocation-free use of try-with-resources makes keep/unkeep pairing clearer;

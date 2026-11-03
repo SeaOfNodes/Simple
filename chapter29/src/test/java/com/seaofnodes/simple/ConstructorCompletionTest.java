@@ -6,6 +6,48 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ConstructorCompletionTest {
+    @Test public void testFieldMemoryDuringInitialization() {
+        CodeGen code = new CodeGen("""
+            struct A {
+                int x = 1;
+                x = 2;
+                int y = self.x;
+                new A = { -> self.x = 3; y += x; };
+            };
+            val a = new A; return a.x*10+a.y;
+            """).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("35",Eval2.eval(code,0));
+        code = new CodeGen("""
+            struct A {
+                int[] data = new int[3];
+                new A = { -> for(int i = 0; i < 3; i++) data[i] = i+1; };
+            };
+            return new A().data[2];
+            """).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("3",Eval2.eval(code,0));
+        for( String body : new String[]{
+            "int~ x; int y = x; new A = { -> x = 7; };",
+            "int~ x; int y = x*0; new A = { -> x = 7; };",
+            // Constructor entry includes the initializer's early return.
+            // Its later Store of 2 must not excuse the earlier read of x.
+            "int~ x; if(arg) return 0; x = 1; new A = { -> int y = x; x = 2; };"
+        } )
+            try {
+                new CodeGen("struct A { "+body+" }; return 0;").parse();
+                fail("Read a field before its constructor wrote it");
+            } catch( Parser.ParseException e ) {
+                assertTrue(e.getMessage(),e.getMessage().contains("might not be initialized"));
+            }
+    }
+
+    @Test public void testRequiredNumberBesideNullableDefault() {
+        CodeGen code = new CodeGen("""
+            struct A { int~ x; A? p; new A = { -> x = 10; }; };
+            return new A().x;
+            """).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("10",Eval2.eval(code,0));
+    }
+
     private void rejects(String fields, String field, boolean explicit) {
         String src = "struct B {}; struct A { "+fields+" }; return 0;";
         try {

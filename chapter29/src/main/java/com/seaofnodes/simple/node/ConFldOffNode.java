@@ -23,8 +23,8 @@ public class ConFldOffNode extends ConstantNode {
     public ConFldOffNode( TypeStruct ts, String fname ) { super(TypeInteger.BOT); _ts = ts; _fname = fname; }
 
     // Field offset for a known type (but unknown offset).
-    public static ConFldOffNode make( TypeStruct ts, String fname ) {
-        return (ConFldOffNode)new ConFldOffNode(ts,fname).peephole();
+    public static Node make( TypeStruct ts, String fname ) {
+        return new ConFldOffNode(ts,fname).peephole();
     }
 
     @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
@@ -37,20 +37,22 @@ public class ConFldOffNode extends ConstantNode {
         return p.p(label());
     }
 
-    @Override public Node idealize() {
+    @Override public boolean isConst() { return false; }
+
+    @Override public Type compute() {
         // Some array offsets are known early
         if( _ts.isAry() ) {
             // Length always at offset zero
             if( _fname==" len" )
-                return CodeGen.CODE.ZERO;
+                return TypeInteger.ZERO;
             // The shift depends on the element
             if( _fname=="<<" )
-                return Node.con(_ts.aryScale());
+                return TypeInteger.constant(_ts.aryScale());
             // The base depends on the layout (alignment for large elements may
             // involve padding) and MAY depend on the length if I go for
             // smaller array lengths.
         }
-        return null;
+        return _con;
     }
 
     // Convert field offset to an integer

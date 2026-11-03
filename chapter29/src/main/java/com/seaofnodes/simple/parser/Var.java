@@ -16,9 +16,6 @@ public class Var {
     private Type _type;          // Declared type
     public boolean _final;       // Final field
     public boolean _fref;        // Forward ref
-    // Parser-only definite-initialization marker.  The current binding's
-    // nullable type carries the path-sensitive state through SSA merges.
-    public boolean _uninit;
     public int _extern;         // C storage alias; zero for ordinary variables
     public Lexer _loc;    // Source location
 
@@ -49,6 +46,6 @@ public class Var {
     }
 
     @Override public String toString() {
-        return (_fref ? "FREF " : "")+(_uninit ? "UNINIT " : "")+_type.toString()+(_final ? " ": " !")+_name;
+        return (_fref ? "FREF " : "")+_type.toString()+(_final ? " ": " !")+_name;
     }
 }

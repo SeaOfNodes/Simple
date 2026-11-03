@@ -61,6 +61,8 @@ final class Structs {
         // This is basically sugar for "val CLZNAME = <init>"
         // and is a nicer version of updateSelfAsFieldsDiscovered.
         P._scope.define(typeName, sig, true, new FunPtrNode(sig,P._code._start,ret).peephole(), P.loc());
+        Var binding = P._scope.lookup(typeName);
+        declareField(binding,P._scope.in(binding),false);
 
         P.require("}");
         return P.require(P._code.ZERO,";");
@@ -81,7 +83,7 @@ final class Structs {
         if( _pendingCtor!=null ) throw P.error("Redefining constructor '"+name+"'");
         _pendingCtor = new Constructor(name,P.loc());
         // Parse the body after all field declarations are known, so self.x
-        // and x share a local slot even when x is declared below this body.
+        // and x resolve the same field even when x is declared below this body.
         P.require("{");
         P._lexer.skipTo('{','}',"constructor body");
         P.require("}");
@@ -101,7 +103,7 @@ final class Structs {
 
     private void defineConstructor(String name) {
         TypeStruct self = P._scope.constructorSelf();
-        Node ctor = P.functions.parseConstructor(name);
+        Node ctor = P.functions.parseConstructor(name,true);
         TypeFunPtr sig = (TypeFunPtr)ctor._type;
         String clzName = TypeStruct.addClzPrefix(self._name);
         TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
@@ -139,7 +141,6 @@ final class Structs {
 
         // Struct decls look like function bodies.  Parse function body normally.
         ReturnNode ret = P.functions.parseBody(fname,sig,P.loc(),ids);
-        if( !isClz ) checkInitFields(ret);
         // Unwind global state.
         P.ctrl(oldCtrl.unkeep());
         P.mem (oldMem .unkeep());
@@ -149,13 +150,13 @@ final class Structs {
     // <cl/init> signature: { self arg/selfMem -> BOT/selfMem }
     // Self-memory is the rare *private* (never aliased) memory for the new object.
     private TypeFunPtr structInitSig( boolean isClz, TypeStruct tself ) {
-        // Private uninitialized memory from new object, no escaped values.
-        TypeMem privMem = isClz ? null : TypeMem.make(1,tself,true,isClz,false,null,null);
-        Type targ = isClz ? TypeInteger.BOT : privMem;
+        // One object, unknown contents. The signature must not promise that
+        // its declared field values have already been supplied.
+        Type targ = isClz ? TypeInteger.BOT : TypeMem.makePrivate(Type.BOTTOM);
         // Return for private memory has to name all escaped fields, which are not known yet.
         // Escape ALL fields, and sharpen later.
-        Type tret = isClz ? Type.BOTTOM     : TypeMem.makePrivate(tself);
-        Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz), targ };
+        Type tret = isClz ? Type.BOTTOM     : TypeMem.makePrivate(Type.BOTTOM);
+        Type[] targs = new Type[]{ TypeMemPtr.make((byte)2,tself,isClz).withPartial(!isClz), targ };
         // FIDX for FREFs is in the global namespace, needs the correct clz name.
         String clzBare = tself._name;
         int order = 3; // 3 is always the <init> order, 2nd in the file just behind the <clinit>
@@ -188,41 +189,37 @@ final class Structs {
         return nvar;
     }
 
-    void upgradeSelfTypeAndStoreFields( String typeName, boolean isClz, ParmNode self, ParmNode smem, boolean upgrade ) {
+    void finishInitializer( String typeName, boolean isClz, ParmNode self ) {
         int lex = P._scope.klast()._lexSize;
         assert P._scope.var(lex)._name=="self";
         TypeStruct tself = (TypeStruct)Parser.TYPES.get(typeName);
         int base = lex+2;       // Skip ctrl, mem
-        if( upgrade ) {
-            // Default <init>/<clinit> defines the struct and can sharpen fields.
-            // A named constructor only initializes the already-closed struct.
-            for( int i = 0; i<tself.nkids(); i++ ) {
-                Field tfld = tself._fields[i];
-                int vidx = fieldVarIdx(base,tfld._fname);
-                if( vidx == -1 )
-                    continue;
-                Var v = P._scope.var(vidx);
-                // Forward-ref fields where placed in tself but will get promoted
-                // to an outer scope - and should not be in tself.
-                if( v._fref )
-                    tself = tself.remove(i--);
-                else if( v.type() != tfld._t ) {
-                    assert v.type().isa(tfld._t);
-                    tself = tself.replace( tfld.makeFrom( v.type() ) );
-                }
+        // Default <init>/<clinit> defines the struct and can sharpen fields.
+        // A named constructor only initializes the already-closed struct.
+        for( int i = 0; i<tself.nkids(); i++ ) {
+            Field tfld = tself._fields[i];
+            int vidx = fieldVarIdx(base,tfld._fname);
+            if( vidx == -1 )
+                continue;
+            Var v = P._scope.var(vidx);
+            // Forward-ref fields where placed in tself but will get promoted
+            // to an outer scope - and should not be in tself.
+            if( v._fref )
+                tself = tself.remove(i--);
+            else if( v.type() != tfld._t ) {
+                assert v.type().isa(tfld._t);
+                tself = tself.replace( tfld.makeFrom( v.type() ) );
             }
-
-            // Close Struct type after parsing struct body.
-            Parser.TYPES.put( tself._name, tself = tself.close() );
-            // Improve self, selfMem types in scope.
-            // Class self-type is a singleton pointer.  Instance <init> receives the
-            // broad allocation pointer, while private memory tracks initialized fields.
-            self._declaredType = self._type = isClz ? TypeMemPtr.make((byte)2,tself,true) : TypeMemPtr.make(constructorRecv(tself));
-            FunNode fun = self.fun();
-            fun.setSig(fun.sig().makeFrom(self._type,0));
-            if( !isClz )        // <init> returns upgraded private memory
-                smem._declaredType = smem._type = TypeMem.makePrivate(tself);
         }
+
+        // Close Struct type after parsing struct body.
+        Parser.TYPES.put( tself._name, tself = tself.close() );
+        // Improve the receiver type in scope.
+        // Class self-type is a singleton pointer.  Instance <init> receives the
+        // broad allocation pointer, while private memory tracks initialized fields.
+        self._declaredType = self._type = isClz ? TypeMemPtr.make((byte)2,tself,true) : TypeMemPtr.make(constructorRecv(tself)).withPartial(true);
+        FunNode fun = self.fun();
+        fun.setSig(fun.sig().makeFrom(self._type,0));
 
         // When can _returnScope be null here? A never-exit constructor will
         // not have any returns, and thus no need to gather values and store
@@ -230,30 +227,20 @@ final class Structs {
         if( P.functions._returnScope==null )
             return;
 
-        // A MemMerge to gather field updates as stores.  Classes update the
-        // normal public memory.  <init> updates the private memory that got
-        // passed in - is treated like a normal argument and not like memory.
-        Node mmm = isClz ? P.functions._returnScope.mem(1) : smem;
+        // Class singleton fields retain their store-at-exit path. Instance
+        // initializers already returned their current private memory.
+        if( !isClz ) return; // Instance fields already have their Stores.
+        Node mmm = P.functions._returnScope.mem(1);
 
         // Store constructor results into fields
         for( int i = 0; i<tself.nkids(); i++ ) {
             Field fld = tself._fields[i];
-            int vidx = upgrade
-                ? fieldVarIdx(base,fld._fname)
-                : fieldVarIdxBefore(lex,fld._fname);
+            int vidx = fieldVarIdx(base,fld._fname);
             if( vidx == -1 )
                 continue;
             Var v = P._scope.var(vidx);
             if( v._fref || v._extern!=0 ) continue; // C storage has no Simple initializer
             Node val = P.functions._returnScope.in(vidx);
-            // Preserve a missing field in the returned private memory. A
-            // numeric conversion would turn BOTTOM into an ordinary number
-            // type, hiding a path that never assigned the field.
-            if( !isClz && v._uninit && !initialized(val._type) ) {
-                TypeStruct missing = (TypeStruct)((TypeMem)smem._declaredType)._t;
-                smem._declaredType = smem._type = TypeMem.makePrivate(missing.addOrUpdate(fld.makeFrom(Type.TOP)));
-                continue;
-            }
             // A numeric merge can still be untyped while parsing. Retain its
             // declared conversion at the helper boundary, as assignments do.
             if( fld._t instanceof TypeInteger || fld._t instanceof TypeFloat )
@@ -266,18 +253,18 @@ final class Structs {
         }
         mmm = mmm.peephole();
 
-        if( !isClz )
-            // Stuff private mem into normal expression return value.
-            P.functions._returnScope.setDef(P.functions._returnScope.nIns()-1,mmm);
-        else
-            // Parser memory is one opaque whole-memory edge.  Publish the
-            // completed class-field aggregate as the <clinit> return memory.
-            P.functions._returnScope.mem(mmm);
-            //_code.add(mmm);
+        P.functions._returnScope.mem(mmm);
     }
 
     // addReturn already merged every exit. Inspect the completed helpers,
     // after parsing has discovered all fields and torn down their scopes.
+    void checkInitFields() {
+        P._code._stop.walk(n -> {
+            if( n instanceof ReturnNode ret && ret.fun().isInstance() ) checkInitFields(ret);
+            return null;
+        });
+    }
+
     private void checkInitFields(ReturnNode init) {
         if( init.ctrl()._type.isHigh() || init.expr()._type.isHigh() ) return;
         TypeStruct ts = ((TypeMemPtr)init.fun().sig().arg(0))._obj;
@@ -294,32 +281,33 @@ final class Structs {
 
     private void checkInitFields(TypeStruct ts, ReturnNode init, ReturnNode ret) {
         if( ret.ctrl()._type.isHigh() || ret.expr()._type.isHigh() ) return;
-        TypeStruct fields = (TypeStruct)((TypeMem)ret.expr()._type)._t;
-        TypeStruct defaults = (TypeStruct)((TypeMem)init.expr()._type)._t;
         for( Field fld : ts._fields ) {
             if( fld._extern ) continue;
-            Field actual = fields.field(fld._fname);
-            if( actual==null ) actual = defaults.field(fld._fname);
-            if( actual._t==Type.TOP )
+            Type mem = ret.expr()._type;
+            Field actual = mem instanceof TypeMem tm && tm._t instanceof TypeStruct shape ? shape.field(fld._fname) : null;
+            if( actual==null || actual._t==TypeScalar.BOT || actual._t==Type.BOTTOM )
                 throw Parser.error("'"+ts._name+"' is not fully initialized, field '"+fld._fname+
                                    (ret==init ? "' needs to be set in a constructor" :
                                                 "' is only partially set in the constructor"),ret.fun()._loc);
         }
     }
 
-    // Seed the constructor-local SSA slots from the declaration initializer.
-    void constructorDefaults(String typeName, FunNode fun, Lexer loc) {
-        int lex = P._scope.klast()._lexSize;
-        TypeStruct shape = (TypeStruct)Parser.TYPES.get(typeName);
-        for( Field fld : shape._fields ) {
-            int idx = fieldVarIdxBefore(lex,fld._fname);
-            if( idx<0 ) continue;
-            Var v = P._scope.var(idx);
-            if( v._fref || v._extern!=0 || v._uninit || P._scope.in(v)._type.isConstant() ) continue;
-            Node value = P.conversions.convertExpr(
-                new LoadNode(loc,fld._fname,fld._alias,P.ctrl(),fun.parm(3),fun.parm(2),ConFldOffNode.make(shape,fld._fname)).peephole(),v.type());
-            P._scope.update(v,value);
-        }
+    // Instance declarations establish field metadata and emit their default
+    // Stores immediately. Required fields emit no Store until assigned.
+    void declareField(Var var, Node value, boolean uninit) {
+        if( !(P._scope.klast() instanceof Kind.Func kind) || !FunNode.isInstance(kind._name) ) return;
+        TypeStruct self = P._scope.constructorSelf();
+        TypeStruct shape = (TypeStruct)Parser.TYPES.get(self._name);
+        Field old = shape.field(var._name);
+        Field fld = old==null ? Field.make(var._name,var.type(),P._code.alias(P._ref._cname),var._final) : old.makeFrom(var.type());
+        Parser.TYPES.put(shape._name,shape = shape.addOrUpdate(fld));
+        if( uninit || var._extern!=0 ) return;
+        Node ptr = P.references.defaultSelf();
+        Node mem = P.construction.selfMem().keep();
+        Node st = new StoreNode(var._loc,fld._fname,fld._alias,fld._t,P.ctrl(),mem,ptr,
+                                ConFldOffNode.make(shape,fld._fname),value,true).peephole();
+        P.construction.store(ptr,fld._alias,st,mem);
+        mem.unkeep();
     }
 
     void beginClassInit(FunNode fun, Lexer loc) {
@@ -343,26 +331,8 @@ final class Structs {
         prior.unkeep();
     }
 
-    // Required-field values must be initialized before conversion for storage.
-    static boolean initialized(Type t) {
-        // Can't be BOTTOM, that means explicit not initialized.
-        // Can't be high (initialized to an error)
-        // Can't be left null and declared not-null.
-        return t!=Type.BOTTOM && !t.isHigh() && (!(t instanceof TypeNil tn) || tn.notNull());
-    }
-
     private int fieldVarIdx( int base, String name ) {
         for( int i = base; i<P._scope.nIns(); i++ )
-            if( P._scope.var(i)._name == name )
-                return i;
-        return -1;
-    }
-
-    // Named constructors update field Vars from the enclosing initializer
-    // scope.  Constructor arguments and locals begin at limit and must not
-    // shadow the field state gathered into private memory.
-    int fieldVarIdxBefore( int limit, String name ) {
-        for( int i = limit-1; i>=0; i-- )
             if( P._scope.var(i)._name == name )
                 return i;
         return -1;

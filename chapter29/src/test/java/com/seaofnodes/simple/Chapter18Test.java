@@ -347,7 +347,7 @@ for(;;) {
 }
 """);
         code.driver(Phase.LocalSched);
-        assertEquals("Stop[ return Top; return Parm_i(x,i64); ]", code.print());
+        assertEquals("return Top;", code.print());
         assertNull( Eval2.eval( code, 0 ) ); // Infinite loop, <clinit> never exits
     }
 

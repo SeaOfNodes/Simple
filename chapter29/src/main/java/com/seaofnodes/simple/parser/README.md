@@ -15,11 +15,12 @@ productions to their entry points.
 | `Types.java` | Type syntax, qualified-name lookup, arrays, function types, and forward types. |
 | `Functions.java` | Function expressions, parameters, arguments, calls, and function entry/return graphs. |
 | `Structs.java` | Struct and constructor declarations, field discovery, and initialization checks. |
+| `Construction.java` | Source checks for field initialization and incomplete references; its comment explains BOT fields, the TypeMemPtr qualifier, and allocation boundaries. |
 | `References.java` | Bare-name and field resolution, implicit receivers, assignments, and forward references. |
 | `Allocations.java` | Allocation expressions, strings, and declaration-side allocation helpers. |
 | `ControlFlow.java` | Guarded scope merging shared by `if`, `?:`, `&&`, and `||`. |
 | `Conversions.java` | Shared binding, field, and result conversions. |
-| `Var.java` | Lexical binding metadata: name, type, scope slot, mutability, and initialization state. |
+| `Var.java` | Lexical binding metadata: name, type, scope slot, and mutability. |
 
 Start with `Statements.parseStatement` or `Expressions.parseAssignment` to follow
 the grammar. Loop updates are parsed after their bodies, and declared constructor
@@ -29,3 +30,7 @@ bodies after field discovery; `Lexer.skipTo` scans these deferred fragments.
 used by these components. Independent helpers live with their data: class-object
 names in `TypeStruct`, postfix operator encoding in `Lexer`, known field-offset
 creation in `ConFldOffNode.make`, and memory-alias labels in `ScopeNode.memName`.
+
+Instance constructor fields live in ordinary memory, with one hidden `#selfMem`
+binding per activation. Forward field types use `TypeScalar.BOT` for missing
+initialization; there are no per-field snapshots or store-all constructor exits.

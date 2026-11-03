@@ -47,12 +47,12 @@ public class MinusNode extends Node implements ModeNode {
             return TypeInteger.BOT;
         }
         if( t instanceof TypeFloat f ) {
-            if( _mode==1 ) return TypeInteger.BOT;
+            if( _mode==1 ) return TypeScalar.BOT;
             return f.isConstant() ? TypeFloat.constant(-f.value()) : f;
         }
         // No numeric family is known. This must be below both integer and
         // float results, in either analysis direction and with any mode.
-        return Type.BOTTOM;
+        return t.isa(TypeScalar.BOT) ? TypeScalar.BOT : Type.BOTTOM;
     }
 
     @Override

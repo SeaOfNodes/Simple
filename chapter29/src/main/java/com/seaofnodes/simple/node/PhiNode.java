@@ -19,6 +19,13 @@ public class PhiNode extends Node {
         _label = label;
     }
     public static PhiNode make(String label, Type minType, Node... inputs) {
+        if( minType instanceof TypeMem mem && mem._one ) {
+            // One object's memory travels as one value. Its unfinished loop
+            // Phi still belongs to the private-memory family.
+            PhiNode phi = new PhiNode(label,inputs);
+            phi._type = TypeMem.makePrivate(Type.BOTTOM);
+            return phi;
+        }
         return minType instanceof TypeMem mem
             ? mem._alias==1
                 ? new BulkMemPhiNode(label,inputs)
@@ -67,7 +74,7 @@ public class PhiNode extends Node {
             return Type.TOP;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() || in(nIns()-1)==null )
-            return Type.BOTTOM;
+            return _type instanceof TypeMem mem && mem._one ? TypeMem.makePrivate(Type.BOTTOM) : Type.BOTTOM;
         // Set type to local top of the starting type
         Type t = Type.TOP;
         for( int i = 1; i < nIns(); i++ ) {
@@ -94,7 +101,7 @@ public class PhiNode extends Node {
             return ti.same_but_slightly_wider_than();
         }
 
-        return t;
+        return r instanceof LoopNode && t instanceof TypeMem mem ? mem.widen() : t;
     }
 
     @Override
@@ -208,7 +215,7 @@ public class PhiNode extends Node {
                     t = t.meet(ins[i]._type);
                 }
                 // Do not introduce an operand Phi mixing incompatible type families.
-                if( t==Type.BOTTOM ) {
+                if( t==Type.BOTTOM || t==TypeScalar.BOT ) {
                     for( int i=1; i<ins.length; i++ ) addDep(ins[i]);
                     cp.kill();
                     return null;

@@ -65,7 +65,7 @@ final class Declarations {
                 expr = externDecl(name,t);
                 t = expr._type; // Upgrade declared type to the exact extern decl type
             } else if( P.structs.isConstructorDecl(name) ) {
-                expr = P.functions.parseConstructor(name);
+                expr = P.functions.parseConstructor(name,false);
             } else {
                 expr = P.expressions.parseAssignment();
             }
@@ -126,7 +126,7 @@ final class Declarations {
         // Define a new name
         if( !P._scope.define(name,t,xfinal || fld_final,lift, loc) )
             throw P.error("Redefining name '" + name + "'", loc);
-        P._scope.lookup(name)._uninit = uninit;
+        P.structs.declareField(P._scope.lookup(name),lift,uninit);
         return lift;
     }
 

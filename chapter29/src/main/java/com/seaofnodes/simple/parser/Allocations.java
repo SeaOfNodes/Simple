@@ -47,6 +47,7 @@ final class Allocations {
         if( clz==null )
             throw P.error("Unknown struct type '" + ts._name + "'");
         Field afld = clz.field("<new>");
+        P.construction.allocation(afld==null ? null : (TypeFunPtr)afld._t,ctorArgs,P.loc());
         Node alloc;
         if( afld != null ) {
             TypeFunPtr tfp = (TypeFunPtr)afld._t;
@@ -67,7 +68,9 @@ final class Allocations {
         args.add(P.ctrl()); args.add(P.mem());
         for( Node arg : ctorArgs ) args.add(arg.unkeep());
         args.add(alloc);
-        return P.functions.functionCall(args);
+        Node result = P.functions.functionCall(args);
+        if( P.ctrl()._type==Type.XCONTROL ) return result;
+        return new ConstructNode(result,ctorArgs).peephole();
     }
 
     private Ary<Node> constructorArgs() {
@@ -83,7 +86,7 @@ final class Allocations {
         Field  lenFld = ts.field("#" );
         Field bodyFld = ts.field("[]");
 
-        ConFldOffNode base = ConFldOffNode.make(ts, "[]");
+        Node base = ConFldOffNode.make(ts, "[]");
         int scale = ts.aryScale();
         Node size = P.peep(new AddNode(base,P.peep(new ShlNode(null,len,P.con(scale)))));
 
@@ -127,6 +130,11 @@ final class Allocations {
     // call this function; all layout, initialization and publication choices
     // are made here, where the complete struct and constructor are known.
     TypeFunPtr makeAllocator(TypeStruct ts, ReturnNode initRet, Field ctorFld) {
+        if( ctorFld==null ) {
+            Field legacy = ts.field(ts._name.substring(ts._name.lastIndexOf('.')+1).intern());
+            if( legacy!=null && legacy._t instanceof TypeFunPtr sig && sig.nargs()>=2 && sig.arg(1) instanceof TypeMem )
+                ctorFld = legacy;
+        }
         TypeFunPtr ctor = ctorFld==null ? null : (TypeFunPtr)ctorFld._t;
         int nargs = ctor==null ? 0 : ctor.nargs()-2; // Hide self and selfMem
         Type[] atypes = new Type[nargs];

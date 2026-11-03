@@ -4,6 +4,7 @@ import com.seaofnodes.print.ExprPrinter;
 
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.codegen.Serialize;
+import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.util.BAOS;
 
 import java.util.HashMap;
@@ -64,13 +65,18 @@ public class ParmNode extends PhiNode {
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_declaredType instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        if( r.inProgress() || in(nIns()-1)==null )
+        boolean privateMem = _idx==3 && _declaredType instanceof TypeMem mem && mem._one && !mem._clz;
+        if( privateMem && fun().unknownCallers() && nIns()==2 && CodeGen.CODE._phase!=CodeGen.Phase.Parse )
+            return TypeMem.TOP;
+        if( (!privateMem && r.inProgress()) || in(nIns()-1)==null || (privateMem && fun().unknownCallers() && nIns()==2) )
             return _declaredType;
         // Set type to local top of the starting type
         Type t = Type.TOP;
-        for( int i = 1; i < nIns(); i++ ) {
+        // Internal construction memory is supplied by allocation/initializer
+        // calls, not by the fictitious external caller used to keep a body live.
+        for( int i = privateMem && fun().unknownCallers() ? 2 : 1; i < nIns(); i++ ) {
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
             Type ctrl = addDep(r.in(i))._type;
@@ -87,7 +93,12 @@ public class ParmNode extends PhiNode {
         // widening this Parm alone cannot stop f(x-1)+1 from growing its result.
         if( t instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
             t = ti.same_but_slightly_wider_than();
-        return t.join(_declaredType);
+        t = t.join(_declaredType);
+        // ^ is a restriction inside the constructor even if every currently
+        // known caller passes a complete object. Inlining may later remove it.
+        if( t instanceof TypeMemPtr ptr && _declaredType instanceof TypeMemPtr decl && decl._partial )
+            t = ptr.withPartial(true);
+        return t==Type.TOP && _declaredType instanceof TypeMem ? TypeMem.TOP : t;
     }
 
     @Override

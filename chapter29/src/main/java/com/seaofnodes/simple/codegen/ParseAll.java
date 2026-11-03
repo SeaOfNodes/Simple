@@ -164,6 +164,7 @@ public abstract class ParseAll {
         // The complete public interface is now known.  Keep this independent
         // of later graph/linker liveness so SCCP computations remain local and
         // monotonic.
+        code.P.checkConstruction();
         code.freezePublicInterface();
     }
 
@@ -337,9 +338,11 @@ public abstract class ParseAll {
 
         // Add the new top-level loaded class
         Parser.TYPES.put(cunit._clz._name,cunit._clz);
-        Field inst = cunit._clz.field(cunit._name);
-        if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMem mem )
-            Parser.TYPES.put(cunit._cname,mem._t);
+        // Layout belongs to the allocator's object result. An initializer's
+        // private-memory return no longer promises initialized field values.
+        Field inst = cunit._clz.field("<new>");
+        if( inst != null && inst._t instanceof TypeFunPtr tfp && tfp._ret instanceof TypeMemPtr ptr )
+            Parser.TYPES.put(cunit._cname,ptr._obj);
     }
 
     // Symbol not found in source code (or we would not be here).

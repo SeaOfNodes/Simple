@@ -76,6 +76,7 @@ public class LoadNode extends MemOpNode {
             return Type.BOTTOM; // Error in is error out
         if( !(ptr0 instanceof TypeMemPtr tmp) )
             return scalar(mem._t);
+        if( tmp._partial && (!mem._one || mem._clz) ) return TypeScalar.BOT;
         if( tmp.nullable() )
             return Type.BOTTOM; // Load from nil-able is error
 
@@ -91,13 +92,19 @@ public class LoadNode extends MemOpNode {
         // Load member of constant array
         if( t instanceof TypeConAry ary )
             t = ary.elem();     // TODO: if offset is known, can peek the constant
-        if( mem._alias==_alias )
+        if( mem._one && !mem._clz && !tmp._obj.isAry() ) {
+            Field actual = mem._t instanceof TypeStruct ts ? ts.field(_name) : null;
+            t = mem._alias==_alias ? mem._t : actual==null ? TypeScalar.BOT : actual._t;
+        } else if( mem._alias==_alias )
             t = t.join(mem._t);
 
         // A deeply read-only base produces a deeply read-only value.  The
         // generic declared field type must not cast this information away.
         if( ptr0.isFinal() || readonly )
             t = t.makeRO();
+        // A completed receiver gives a completed view of its reachable fields.
+        // Through self, keep object references restricted until the root new.
+        if( t instanceof TypeMemPtr value ) t = value.withPartial(tmp._partial && !value._obj.isAry());
         return scalar(t);
     }
 
@@ -110,6 +117,7 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        if( _type==TypeScalar.BOT ) return null;
         Node mem = mem();
         Node ptr = ptr();
 
@@ -169,7 +177,9 @@ public class LoadNode extends MemOpNode {
         //   if( pred ) ptr.x = e0;         val = pred ? e0
         //   else       ptr.x = e1;                    : e1;
         //   val = ptr.x;                   ptr.x = val;
-        if( mem() instanceof MemPhiNode memphi && memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
+        if( mem() instanceof PhiNode memphi && !(memphi instanceof ParmNode) &&
+            (memphi instanceof MemPhiNode || (memphi._type instanceof TypeMem tm && tm._one)) &&
+            memphi.region()._type == Type.CONTROL && memphi.nIns()== 3 &&
             // Retain control on both copies only if it dominates both paths.
             // The Region itself, or a later range check, cannot move to its inputs.
             (in(0)==null || cfg0().domLCA(memphi.region().idom(this),this)==cfg0()) &&
@@ -203,6 +213,9 @@ public class LoadNode extends MemOpNode {
 
     // Load a flavored zero from a New
     private Node zero(NewNode nnn) {
+        // Object fields acquire values from their initializer's Stores.
+        // Only arrays expose calloc's zero-fill as a language-level default.
+        if( !nnn._ts.isAry() ) return new ConstantNode(TypeScalar.BOT).peephole();
         Type zero = declaredType().makeZero();
         assert zero.isa(_type); // Catch an uninitialized non-null field
         return castRO(new ConstantNode(zero).peephole());
@@ -246,7 +259,8 @@ public class LoadNode extends MemOpNode {
                 if( esc.self()==ptr ) { mem=esc.priv(); break; }
                 if( neverAlias(ptr,esc.self()) ) { mem=esc.pub(); break; }
                 return null;
-            case MemPhiNode phi:
+            case PhiNode phi:
+                if( phi instanceof ParmNode || (!(phi instanceof MemPhiNode) && !(phi._type instanceof TypeMem tm && tm._one)) ) return null;
                 addDep(phi.region());
                 // Only the original loop closes a successful cycle. Another
                 // loop or an unfinished merge needs a separate proof.
@@ -273,7 +287,7 @@ public class LoadNode extends MemOpNode {
         Node win=find(mem,ptr,stop,new BitSet());
         if( win!=null ) {
             if( win==stop ) return value;
-            if( win instanceof MemPhiNode mp ) {
+            if( win instanceof PhiNode mp ) {
                 PhiNode phi=new PhiNode(_name,mp.region()).keep();
                 for( int i=1; i<mp.nIns(); i++ ) phi.addDef(load(mp.in(i),ptr,stop,value));
                 return CodeGen.CODE.add(phi.unkeep().peephole());
@@ -309,6 +323,15 @@ public class LoadNode extends MemOpNode {
 
         // Dunno without a longer walk
         return false;
+    }
+
+    @Override public Parser.ParseException err() {
+        Parser.ParseException err = super.err();
+        if( err!=null ) return err;
+        if( (in(0)==null || !in(0)._type.isHigh()) && _type==TypeScalar.BOT &&
+            mem()._type instanceof TypeMem mem && mem._one && !mem._clz )
+            return Parser.error("Field '"+_name+"' might not be initialized",_loc);
+        return null;
     }
 
     // Read-Only is a deep property, and cannot be cast-away

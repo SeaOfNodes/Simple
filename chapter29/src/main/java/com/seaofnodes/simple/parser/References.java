@@ -6,7 +6,6 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.node.ScopeNode.Kind;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
-import java.util.BitSet;
 
 /** Name and field access, receiver selection, and lvalue checks. */
 final class References {
@@ -63,20 +62,10 @@ final class References {
             return parseField(rvalue,id,pre);
         if( var._fref )
             return P.expressions.parsePostfix(rvalue);
-        // A constructor may read the unfinished object, but each field it
-        // reads must already be initialized on every path. Read the current
-        // local value; other fields may still be waiting for their first write.
-        if( P.structs.inExplicitConstructor() && var._uninit && missingInit(rvalue,new BitSet()) )
-            throw Parser.error("Field '"+id+"' might not be initialized",var._loc);
-
-        // Check for an instance field load
-        int kx = P._scope.kindx(var); // Declaration scope
-        int fx = P._scope.enclosingFunction(); // Enclosing function scope
-        Kind kk = P._scope._kinds.at(kx);
-        Kind fk = P._scope._kinds.at(fx);
-        // Access instance field from 'self'
-        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method && !P.structs.inExplicitConstructor() )
-            return parseField(P._scope.in(method._lexSize),id,pre);
+        Node fieldSelf = fieldSelf(var);
+        if( fieldSelf!=null ) return parseField(fieldSelf,id,pre);
+        int kx = P._scope.kindx(var);
+        int fx = P._scope.enclosingFunction();
 
         // Check for a function-escaping variable; these require true
         // closures.  Final constants are OK; final vars require a hidden var
@@ -130,6 +119,19 @@ final class References {
     }
 
     Node assign(Var def, Node expr) {
+        Node self = fieldSelf(def);
+        if( self!=null ) {
+            TypeStruct ts = P.types.latestStruct(((TypeMemPtr)self._type)._obj);
+            Field fld = ts.field(def._name);
+            Node val = expr.keep();
+            Node lift = P.conversions.convertExpr(val,def.type());
+            Node mem = P.construction.storeMemory(self).keep();
+            Node st = new StoreNode(P.loc(),fld._fname,fld._alias,fld._t,P.ctrl(),mem,self,
+                                    ConFldOffNode.make(ts,fld._fname),lift,P.construction.own(self)).peephole();
+            P.construction.store(self,fld._alias,st,mem);
+            mem.unkeep();
+            return val.unkeep();
+        }
         String name = def._name;
         // Lift expression, based on type
         Type decl = def.type(); // Declared type
@@ -141,23 +143,9 @@ final class References {
         int kx = P._scope.kindx(def); // Declaration scope
         int fx = P._scope.enclosingFunction(); // Enclosing function scope
         Kind kk = P._scope._kinds.at(kx);
-        Kind fk = P._scope._kinds.at(fx);
-        // Access instance field from 'self'
-        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) &&
-            fk instanceof Kind.Func method && !P.structs.inExplicitConstructor() ) {
-            // Named field offset on an unknown struct type
-            TypeMemPtr self = (TypeMemPtr)P._scope.var(fk._lexSize).type();
-            TypeStruct sobj = (TypeStruct)Parser.TYPES.get(self._obj._name);
-            Field fld = sobj.field(name);
-            int alias = fld._alias;
-            Node ptr = P._scope.in(method._lexSize);
-            Node off = P.fldoff(ptr,name);
-            Node prior = P.mem().keep();
-            Node st = new StoreNode(P.loc(), name, alias, decl, P.ctrl(), prior, ptr, off, lift, P.structs.inExplicitConstructor()).peephole().keep();
-            P.storeMem(st,alias,prior);
-            st.unkeep();
-            prior.unkeep();
-        }
+        if( kx<fx && !(P.structs.inExplicitConstructor() && kx+1==fx &&
+                       kk instanceof Kind.Func owner && FunNode.isInstance(owner._name)) )
+            P.construction.complete(lift,"store outside the construction group",P.loc());
         lift.unkill();
 
         // Return un-lifted expr
@@ -181,7 +169,6 @@ final class References {
     }
 
     Node parseField(Node expr, String name, int pre, Lexer site) {
-        if( P.structs.inExplicitConstructor() && privateSelf(expr) ) return privateField(name,pre);
         // Keep expr across possible updates
         expr.keep();
 
@@ -246,16 +233,20 @@ final class References {
         if( pre==0 && P.matchOpx('=','=') ) {
             // Field assignment
             Node val = P.expressions.parseAssignment().keep();
+            if( !P.construction.own(expr) ) {
+                P.construction.complete(expr,"write through an unfinished reference",site);
+                P.construction.complete(val,"store into an ordinary object",site);
+            }
             // Lift value for store
             Node lift = fld==null ? val : new ConvertNode(fld._t,val).peephole();
             // Memory for store, post assignment expression
-            Node mem = P.mem();
+            Node mem = P.construction.storeMemory(expr);
             // Store to field
             mem.keep();
-            if( expr._type instanceof TypeMemPtr view && view._ro && P.ctrl()._type!=Type.XCONTROL )
+            if( !P.construction.own(expr) && expr._type instanceof TypeMemPtr view && view._ro && P.ctrl()._type!=Type.XCONTROL )
                 throw P.error("Cannot modify final field '"+name+"'");
-            Node st = new StoreNode(P.loc(), name, alias, decl, P.ctrl(), mem, expr.unkeep(), off.unkeep(), lift, false).peephole().keep();
-            P.storeMem(st,alias,mem);
+            Node st = new StoreNode(P.loc(), name, alias, decl, P.ctrl(), mem, expr.unkeep(), off.unkeep(), lift, P.construction.own(expr)).peephole().keep();
+            P.construction.store(expr,alias,st,mem);
             st.unkeep();
             mem.unkeep();
 
@@ -263,26 +254,27 @@ final class References {
         }
 
         // Memory for load
-        Node mem = P.mem();
+        Node mem = P.construction.memory(expr,name,site);
         // Loading from a constant array, the declared type is the
         // meet-over-elements and not the array itself.
         if( name=="[]" && decl instanceof TypeConAry conary )
             decl = conary.elem();
 
         // Load field
-        Node load = P.peep(new LoadNode(P.loc(),name, alias, P.ctrl(), mem, expr, off));
+        Node load = P.construction.loaded(new LoadNode(P.loc(),name,alias,P.ctrl(),mem,expr,off));
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
         char ch = pre==0 ? P._lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
+            if( !P.construction.own(expr) ) P.construction.complete(expr,"write through an unfinished reference",site);
             if( fld!=null && decl==Type.BOTTOM )
                 throw P.error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
             Node op = P.expressions.opAssign(ch,load, decl ).keep();
             mem.keep();
-            if( expr._type instanceof TypeMemPtr view && view._ro && P.ctrl()._type!=Type.XCONTROL )
+            if( !P.construction.own(expr) && expr._type instanceof TypeMemPtr view && view._ro && P.ctrl()._type!=Type.XCONTROL )
                 throw P.error("Cannot modify final field '"+name+"'");
-            Node st = new StoreNode(P.loc(), name, alias, decl, P.ctrl(), mem, expr.unkeep(), off.unkeep(), op, false).peephole().keep();
-            P.storeMem(st,alias,mem);
+            Node st = new StoreNode(P.loc(), name, alias, decl, P.ctrl(), mem, expr.unkeep(), off.unkeep(), op, P.construction.own(expr)).peephole().keep();
+            P.construction.store(expr,alias,st,mem);
             st.unkeep();
             mem.unkeep();
 
@@ -300,56 +292,19 @@ final class References {
         return P._scope.in(P._scope.update(P._scope.var(selfx),null));
     }
 
-    private boolean privateSelf(Node ptr) {
-        while( ptr instanceof ConvertNode || ptr instanceof ReadOnlyNode || ptr instanceof GuardNode ) ptr = ptr.in(1);
-        Node self = defaultSelf();
-        while( self instanceof ConvertNode || self instanceof ReadOnlyNode || self instanceof GuardNode ) self = self.in(1);
-        return ptr==self;
-    }
-
-    // An explicit self.x read sees the same current value as bare x. Loading
-    // the allocation here would miss updates still held in local SSA values.
-    private Node privateField(String name, int pre) {
-        int idx = P.structs.fieldVarIdxBefore(P._scope._kinds.at(P._scope.enclosingFuncOrDecl())._lexSize,name);
-        if( idx<0 ) throw P.error("Cannot resolve field '"+name+"'");
-        Var v = P._scope.var(idx);
-        if( pre==0 && P.matchOpx('=','=') ) {
-            checkSharedFunction(v);
-            Node value = P.expressions.parseAssignment().keep();
-            P._scope.update(v,P.conversions.convertExpr(value,v.type()));
-            return value.unkeep();
-        }
-        Node value = P._scope.in(P._scope.update(v,null));
-        if( v._uninit && missingInit(value,new BitSet()) )
-            throw Parser.error("Field '"+name+"' might not be initialized",v._loc);
-        char ch = pre==0 ? P._lexer.matchOperAssign() : (char)pre;
-        if( ch!=0 ) {
-            checkSharedFunction(v);
-            Node op = P.expressions.opAssign(ch,value,v.type());
-            P._scope.update(v,op);
-            if( pre!=0 && Lexer.postfix(ch) ) value.unkeep();
-            return pre==0 && Lexer.postfix(ch) ? value.unkeep() : op;
-        }
-        return P.expressions.parsePostfixMethod(value,defaultSelf());
+    // Fields are lvalues in memory, including inside their initializer and
+    // explicit constructor. Scope slots retain declaration metadata only.
+    private Node fieldSelf(Var var) {
+        int kx = P._scope.kindx(var), fx = P._scope.enclosingFuncOrDecl();
+        ScopeNode.Kind kind = P._scope._kinds.at(kx);
+        if( !(kind instanceof Kind.Func inst) || !FunNode.isInstance(inst._name) || var._idx<inst._lexSize+2 ) return null;
+        if( kx==fx || kx+1==fx ) return defaultSelf();
+        return null;
     }
 
     private void checkSharedFunction(Var v) {
         if( P._scope.canInit(v) && v._final && v.type() instanceof TypeFunPtr t && t.isConstant() )
             throw P.error("Cannot reassign shared function '"+v._name+"'");
-    }
-
-    // A loop Phi is temporarily bottom before its backedge is parsed. That is
-    // not an unwritten field: follow its live inputs to the actual defaults.
-    private boolean missingInit(Node value, BitSet seen) {
-        if( value==null || seen.get(value._nid) ) return false;
-        seen.set(value._nid);
-        if( value instanceof PhiNode phi && !(value instanceof ParmNode) ) {
-            for( int i = 1; i<phi.nIns(); i++ )
-                if( phi.region().in(i)!=null && phi.region().in(i)._type!=Type.XCONTROL && missingInit(phi.in(i),seen) )
-                    return true;
-            return false;
-        }
-        return !Structs.initialized(value._type);
     }
 
     Ary<FRefNode> resolve() {

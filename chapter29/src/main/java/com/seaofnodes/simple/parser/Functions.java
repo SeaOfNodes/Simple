@@ -35,32 +35,32 @@ final class Functions {
         // Parse other arguments
         P._lexer.skipWhiteSpace();
         Lexer loc = P.loc();      // First argument location
-        parameters(ts,ids,finals);
+        parameters(ts,ids,finals,false);
         // Make a concrete function type, with a fidx
         TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),Type.BOTTOM,P._code.fidx(P._ref._cname));
         ReturnNode ret = parseFunctionBody(tfp,loc,finals,ids.asAry());
         return new FunPtrNode(tfp,P._code._start,ret).peephole();
     }
 
-    Node parseConstructor(String name) {
+    Node parseConstructor(String name, boolean explicit) {
         P.require("{");
         Ary<Type> ts = new Ary<>(Type.class);
         Ary<String> ids = new Ary<>(String.class);
         BitSet finals = new BitSet();
         TypeStruct self = P._scope.constructorSelf();
         assert self != null;
-        ts.push(TypeMemPtr.make(Structs.constructorRecv(self)));
+        ts.push(TypeMemPtr.make(Structs.constructorRecv(self)).withPartial(true));
         ids.push("self");
         // Explicit constructors use the same hidden allocation arguments as
         // <init>: public memory is the call memory edge (index 1), followed by
         // self (index 2) and the private, unescaped object memory (index 3).
-        ts.push(TypeMem.makePrivate(self));
+        ts.push(TypeMem.makePrivate(Type.BOTTOM));
         ids.push("#selfMem");
 
         P._lexer.skipWhiteSpace();
         Lexer loc = P.loc();
-        parameters(ts,ids,finals);
-        TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),TypeMem.makePrivate(self),P._code.fidx(P._ref._cname));
+        parameters(ts,ids,finals,explicit);
+        TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),TypeMem.makePrivate(Type.BOTTOM),P._code.fidx(P._ref._cname));
         Node[] preParse = P._scope.save();
         ReturnNode ret = parseBody((self._name+"."+name).intern(),tfp,loc,finals,ids.asAry());
         P._scope.restore(preParse);
@@ -69,10 +69,16 @@ final class Functions {
     }
 
     // parameterList followed by the function arrow; callers seed hidden parameters.
-    private void parameters(Ary<Type> ts, Ary<String> ids, BitSet finals) {
+    private void parameters(Ary<Type> ts, Ary<String> ids, BitSet finals, boolean constructor) {
         while( true ) {
             Type t = P.types.parseType();    // Arg type
             if( t==null ) break;
+            if( P.match("^") ) {
+                if( !constructor || !(t instanceof TypeMemPtr ptr) || ptr._obj.isAry() )
+                    throw P.error("'^' requires a struct parameter of a constructor");
+                t = ptr.withPartial(true);
+                P.construction._borrowed = true;
+            }
             finals.set(ids.size(),P.declarations.bindingFinal(t));
             String id = P.requireId();
             ts .push(t );       // Push type/arg pairs
@@ -108,6 +114,7 @@ final class Functions {
         // Unkeep them all
         for( Node arg : args )
             arg.unkeep();
+        P.construction.ordinaryCall(args,site);
         return functionCall(args,site);
     }
 
@@ -177,8 +184,8 @@ final class Functions {
     // - - If isInit, also incrementally extend the self-type.
     // If isInit
     // - upgrade and close the self-type
-    // - Gather fields and store values
-    // - <init> returns self, not last
+    // - Store class singleton fields; instance Stores already exist
+    // - <init> and user constructors return their current private memory
     // Unstack the {break,continue,return} scopes.
 
     ReturnNode parseBody( String funName, TypeFunPtr sig, Lexer loc, String[] ids) {
@@ -200,8 +207,8 @@ final class Functions {
 
         int oldUID = P._code.UID(); // Used to approximate function size
         FunNode fun = enterFunction(funName,sig,loc,finals,ids);
+        Construction.Frame outerConstruction = P.construction.enter(fun,isCtor && !fun.isClz());
         Node rpc = fun.parm(0);
-        if( isCtor && !isInit ) P.structs.constructorDefaults(typeName,fun,loc);
         if( fun.isClz() ) P.structs.beginClassInit(fun,loc);
 
         // Parse the function body.
@@ -228,13 +235,13 @@ final class Functions {
             if( fun.isClz() ) {
                 assert last!=null;
             } else if( isCtor ) {
-                last = fun.parm(3);
+                last = P.construction.selfMem();
             }
             addReturn(last);
             // exit path is now dead (nothing live after a "return")
         }
-        if( isCtor )
-            P.structs.upgradeSelfTypeAndStoreFields( typeName, fun.isClz(), self, fun.parm(3), isInit );
+        if( isInit )
+            P.structs.finishInitializer(typeName,fun.isClz(),self);
 
         // Build a return from the _returnScope.
         // Can be no returns for never-exit functions
@@ -258,6 +265,7 @@ final class Functions {
         P.statements._continueScope = continueScope;
         P.statements._breakScope    =    breakScope;
         P._scope.pop();
+        P.construction._frame = outerConstruction;
 
         return ret;
     }
@@ -290,17 +298,19 @@ final class Functions {
         return fun;
     }
     Node addReturn(Node expr) {
+        if( P.construction._frame._owner ) expr = P.construction.selfMem();
         expr.keep();
         // Force the pending lazy bulk-memory Phi.
         P.mem();                 // Force a pending lazy bulk-memory Phi
-        // For <init> and <clinit> - all fields in scope will be live-on-exit
-        // and stored into `self` and need to have lazy-phi's inserted.
+        // Class fields are still stored at exit. Instance fields already
+        // travel in expr's private memory; only their scope layout is retained.
         int lexN = P._scope.enclosingFuncOrDecl();
         Kind.Func k = (Kind.Func)P._scope._kinds.at(lexN);
         if( FunNode.isInit(k._name) ) {
             int nestedLexSize = lexN+1 < P._scope.depth() ? P._scope._kinds.at(lexN+1)._lexSize : P._scope.nIns();
-            for( int i = k._lexSize; i<nestedLexSize; i++ )
-                P._scope.update(P._scope.var(i),null);
+            if( k._name.endsWith(".<clinit>") )
+                for( int i = k._lexSize; i<nestedLexSize; i++ )
+                    P._scope.update(P._scope.var(i),null);
             if( _returnScope != null ) {
                 Var vexpr = _returnScope._vars.pop();
                 Node oldX = _returnScope.removeLast();
@@ -312,12 +322,6 @@ final class Functions {
                 _returnScope._vars.add(vexpr);
                 _returnScope.addDef(oldX);
             }
-        } else if( P.structs.isExplicitConstructorName(k._name) ) {
-            // Field bindings live in the enclosing declaration, not among the
-            // constructor's arguments/locals. Force lazy Phis on every exit.
-            int first = P._scope._kinds.at(lexN-1)._lexSize+2;
-            for( int i = first; i<k._lexSize; i++ )
-                P._scope.update(P._scope.var(i),null);
         }
 
         // No prior merge point?  Just clone and hang on to it
@@ -328,15 +332,12 @@ final class Functions {
             _returnScope.define("$expr", Conversions.inferredReturnType(expr._type), true, expr, null);
 
         } else {
-            // For <init> and <clinit> - ALL FIELDS IN LAST SCOPE are live
-            // and need to have lazy-phi's inserted.
-
-            // And fields might not match.... will need matching Var/define with default values
+            // The initializer scopes have already been aligned above.
             int rlen = _returnScope.nIns()-1;
             RegionNode r = P.ctrl(new RegionNode(null, null,_returnScope.ctrl(), P._scope.ctrl()).init().keep());
             _returnScope._merge(P._scope, r, rlen);
             Node oldExpr = _returnScope.in(rlen);
-            _returnScope.setDef(rlen,new PhiNode("$expr", r, oldExpr, expr).peephole());
+            _returnScope.setDef(rlen,PhiNode.make("$expr",expr._type, r, oldExpr, expr).peephole());
             P._code.add(r);
             _returnScope.ctrl(r.unkeep());
         }

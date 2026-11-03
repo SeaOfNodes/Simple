@@ -103,7 +103,7 @@ public class TypeStruct extends Type {
         for( Field f : _fields )
             if( f._fname.charAt(0) != '_' &&  // Skip private fields.
                 !hiddenInit(f) &&             // Skip private allocation helper.
-                f._t != Type.TOP )            // Skip uninit fields
+                f._t != Type.TOP && f._t != TypeScalar.TOP ) // Skip unreachable values
                 xs[XInt.idx(f._alias)] |= XInt.mask(f._alias);
         return (_aliases=XInt.intern(xs));
     }
@@ -116,10 +116,10 @@ public class TypeStruct extends Type {
         assert _terned;
         int[] xs = XInt.EMPTY;
         for( Field f : _fields )
-            if( f._fname.charAt(0) != '_' &&     // Skip private fields.
-                !hiddenInit(f) &&                // Skip private allocation helper.
-                f._t instanceof TypeFunPtr tfp ) // Looking for TFP
-                xs = XInt.meet(xs,tfp._fidxs);
+            if( f._fname.charAt(0) != '_' && !hiddenInit(f) ) {
+                if( f._t==TypeScalar.BOT || f._t==Type.BOTTOM ) return (_fidxs = XInt.FULL);
+                if( f._t instanceof TypeFunPtr tfp ) xs = XInt.meet(xs,tfp._fidxs);
+            }
         return (_fidxs = xs);
     }
 
@@ -156,8 +156,7 @@ public class TypeStruct extends Type {
         Field[] fs = new Field[_fields.length];
         for( int i=0; i<_fields.length; i++ ) {
             if( _fields[i]._extern ) { fs[i] = _fields[i]; continue; }
-            Type zero = _fields[i]._t.makeZero();
-            fs[i] = _fields[i].makeFrom(_fields[i]._t != Type.BOTTOM && zero.isa(_fields[i]._t) ? zero : Type.TOP);
+            fs[i] = _fields[i].makeFrom(TypeScalar.BOT);
         }
         return make(_name,_open,_fref,fs);
     }

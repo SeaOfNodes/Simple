@@ -41,7 +41,13 @@ structDeclaration : 'struct' IDENTIFIER '{' structMember* '}' ';' ;
 structMember : constructorDeclaration | methodDeclaration | statement ;
 
 // The constructor name must match the enclosing struct's name.
-constructorDeclaration : 'new' IDENTIFIER '=' functionExpression ';' ;
+constructorDeclaration : 'new' IDENTIFIER '=' constructorExpression ';' ;
+constructorExpression : '{' constructorParameterList? '->' statement* '}' ;
+constructorParameterList : (constructorParameter ','?)+ ;
+constructorParameter : type '^'? bindingModifier? IDENTIFIER ;
+// ^ accepts an unfinished struct reference; ? independently permits null.
+// Only self may be read while incomplete; ^ arguments may be stored/forwarded.
+// A new result is incomplete iff an actual argument is. See construction-groups.md.
 
 // A method is an ordinary fixed function binding in a struct definition.
 // The compiler supplies self; it is not written in parameterList.

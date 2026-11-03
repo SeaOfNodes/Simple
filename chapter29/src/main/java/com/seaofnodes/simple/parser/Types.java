@@ -73,6 +73,7 @@ final class Types {
         // Check valid forward ref, after parsing all the type extra bits.
         // Cannot check earlier, because cannot find required 'id' until after "[]?" syntax
         int old2 = P.pos();
+        P.match("^"); // Constructor parameter qualifier; parsed by Functions.
         if( !P.match("!") ) P.match("~");
         String id = P._lexer.matchId();
         if( !(P.peek(',') || P.peek(';') || P.peek('=') || P.match("->")) || id==null )

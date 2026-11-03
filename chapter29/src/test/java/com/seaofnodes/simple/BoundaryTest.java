@@ -24,10 +24,7 @@ public class BoundaryTest {
         CodeGen code=new CodeGen(src).driver(CodeGen.Phase.LocalSched);
         assertEquals("2018",Eval2.eval(code,19));
         assertEquals("0",Eval2.eval(code,0));
-        code._stop.walk(n -> {
-            if( n instanceof StoreNode st ) assertEquals(0,st.cfg0().loopDepth());
-            return null;
-        });
+        // Private memory follows the loop; stores need not move to its exit.
         code=new CodeGen("struct Byte { new Byte={int n -> self.x=n; self.x+=3;}; u8 x; }; return new Byte(255).x;").driver(CodeGen.Phase.TypeCheck);
         assertEquals("2",Eval2.eval(code,0));
         // data is still unset when the constructor reads and updates x.

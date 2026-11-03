@@ -4,8 +4,7 @@ English | [日本語](README.ja.md)
 
 [Previous: Chapter 28b — Separate Compilation](../chapter28b/README.md)
 
-This chapter makes the compiler easier to read and change while preserving
-Chapter 28b's language and separate-compilation behavior. It starts by breaking
+This chapter makes the compiler easier to read and change. It starts by breaking
 the parser into grammar-sized pieces. Further cleanup belongs here; earlier
 chapters retain their teaching snapshots.
 
@@ -35,21 +34,30 @@ other packages. `IterPeeps` now lives in `codegen/` beside the compilation passe
 
 ## Checking constructor completion
 
-`addReturn` merges field values across exit paths. After `parseBody` finishes,
-`Structs.parseInitializer` checks the completed helper Returns; no separate exit
-maps survive scope teardown. Required fields without an assignment on every
-returning path retain `TOP` in private memory. They emit no Store, so numeric
-conversions cannot hide the missing assignment.
+Instance fields use ordinary Loads and Stores during declaration initialization
+and constructor execution. One hidden private-memory value flows through scope
+merges and `addReturn`; field values are no longer copied into memory at exit.
 
-The declaration initializer and user constructor have separate Returns. Check
-the user constructor when present, or the declaration initializer for the default
-constructor. The older same-named constructor binding can precede field
-declarations; fields absent from its Return use the declaration initializer's
-result. Nonreturning helpers require no completed object. Completion errors
-point to the relevant helper's source location.
+Fresh fields start at `TypeScalar.BOT`, which preserves a missing live arm at a
+merge. Forward memory types supply the initialization proof at Loads and merged
+Returns. Checks run after parsing and an optimistic type solve; there is no
+separate initialization walk or field-state map. Class singleton initialization
+retains its existing store-at-exit path.
 
-`ConstructorCompletionTest` covers partial numeric assignments, early returns,
-nonreturning paths, declaration defaults, and fields declared after constructors.
+`ConstructorCompletionTest` covers partial assignments, early returns, loops,
+declaration defaults and immediate field access, and the formerly disabled
+required-number/nullable-default regression. The large comment on
+[`Construction`](src/main/java/com/seaofnodes/simple/parser/Construction.java)
+explains the type proof and the separate yes/no restriction on references.
+
+The [construction-group experiment](docs/construction-groups.md) adds `C ^arg`
+constructor parameters. A new result is incomplete iff an actual argument is
+incomplete. A `TypeMemPtr` qualifier propagates this through normal type flow;
+a temporary `ConstructNode` types each new result from that call's arguments.
+Only self may be read while incomplete; ordinary calls require completed
+objects. Field sharpening and inferred requirements are deferred,
+with their litmus tests preserved in `ConstructionRequirementsTest`. Separate
+compilation of constructors using `^` remains unsupported.
 
 ## Further cleanup
 

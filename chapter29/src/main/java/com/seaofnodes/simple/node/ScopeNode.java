@@ -209,9 +209,8 @@ public class ScopeNode extends MemMergeNode {
         return kx == -1 ? null : _kinds.at(kx);
     }
 
-    // Final fields are writable local values inside their own initializer or
-    // constructor. Final parameters, local variables, and captured bindings
-    // remain final. Use the same rule when deciding which loop Phis to build.
+    // Final fields are writable inside their own initializer or constructor.
+    // Final parameters, local variables, and captured bindings remain final.
     public boolean canInit(Var v) {
         int fx=enclosingFuncOrDecl();
         Kind.Func fun=(Kind.Func)_kinds.at(fx);
@@ -428,7 +427,6 @@ public class ScopeNode extends MemMergeNode {
             Var n = scope.var(i);
             if( n.isFRef() ) {  // Loop body has forward refs
                 Var v = new Var(nIns(),n._name,n.type(),n._final,n._loc,true);
-                v._uninit = n._uninit;
                 _vars.add(v);
                 addDef(scope.in(i));
             }

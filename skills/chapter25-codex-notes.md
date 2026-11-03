@@ -18,7 +18,7 @@ The [incremental build design](incremental-builds.md) expands the roadmap's
 dependency and output-ownership requirements.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
-## Current workspace (2026-11-01)
+## Current workspace (2026-11-02)
 
 Chapter 29 is **Tech Debt Cleanup**. Cliff approved keeping the parser split
 and moving it into this new snapshot; continue parser work there. Chapter 28b
@@ -30,14 +30,41 @@ Source privacy is deferred. `ai_priv` retains the earlier implementation,
 preserves the combined working state before the split. Do not reintroduce
 privacy checks or fixture adaptations as incidental parser cleanup.
 
-Chapter 29 checks constructor completion after `parseBody` returns to
-`parseInitializer`. Required fields missing on any merged exit retain `TOP`
-in private memory and emit no Store; numeric conversions must not hide that
-state. Check the user constructor's Return separately from the declaration
-initializer. The older same-named binding is parsed before later fields and
-uses the declaration initializer for fields absent from its Return. There is
-no `_ctorExits` snapshot list. Completion diagnostics now use the relevant
-helper's location, since the field's lexical scope has been torn down.
+Chapter 29 now emits ordinary instance-field Loads and Stores during declaration
+initialization and explicit constructors. One `#selfMem` binding carries private
+memory through normal scope merges and Returns; field Vars hold declaration
+metadata. No constructor-local field simulation, call-site snapshot Stores,
+`_ctorExits`, or store-all instance exit remains. Class singleton initialization
+still uses the old store-at-exit path.
+
+Fresh fields contain `TypeScalar.BOT`, independent of errors and physical calloc
+zeroes. It survives a missing live merge arm; an initialized unknown integer is
+`TypeInteger.BOT`. Ordinary TypeMem/TypeStruct flow proves initialization at
+Loads and merged Returns. `InitMemory` is removed. Checks retain source Loads
+and run after an optimistic solve of existing node types using the Iter worklist;
+a pessimistic BOT seed cannot prove an unchanged initialized loop field.
+Private-memory loop Phis widen numeric fields. Internal memory parameters use
+actual allocation/initializer callers, not their hypothetical external caller.
+Function fields retain declared signatures in private summaries to avoid
+unfolding a constructor whose returned memory includes its own function field.
+
+Incomplete references now have only a yes/no restriction. Constructor self and
+`C ^arg` / `C? ^arg` are incomplete; a new result is incomplete iff an actual
+argument is incomplete. Only self may be read while incomplete. Other calls and
+publication require complete references. `TypeMemPtr._partial` carries the
+restriction through ordinary type flow, including backedges; meet ORs it and
+dual complements it. `ConstructNode` qualifies each new result from its actual
+arguments and disappears after source checks. No provenance walk, root/result
+bitsets, group identities, inferred field sets, or hidden `^` memory arguments
+remain. Exact local self aliases use current private memory. A ^ formal stays
+restricted even with complete callers. The optimistic type solve proves a
+loop building a chain from null complete unless a backedge introduces self.
+Field sharpening is deferred; previous requirement litmus tests are retained in
+ignored `ConstructionRequirementsTest`. Serialization of `^` constructors is
+still rejected; pointer serialization now preserves the qualifier but imported
+construction contracts remain deferred. Rebuild chapter 29 objects after the
+type-format change. See `chapter29/docs/construction-groups.md` and the large comment
+on `parser/Construction.java`.
 
 The roadmap retains language candidates, including automatic memory management
 and a small game with graphics, keyboard input, and sound.
@@ -127,8 +154,9 @@ and a small game with graphics, keyboard input, and sound.
   analyzeImports Iter/Opto repair pass. Deserialization must establish its
   construction invariants directly, without temporarily setting phase Parse.
 
-- Prefix updates must share ordinary name resolution: a method's bare field
-  name denotes memory, while constructor fields may still be local SSA values.
+- Prefix updates must share ordinary name resolution. In Chapter 29, both
+  method and constructor field names denote memory; earlier snapshots keep
+  constructor-local SSA values.
   Do not update the declaration's scope slot before resolving that distinction.
   Keep the returned value alive across Store folding; a narrow Store can remove
   a conversion it does not need, while the prefix expression still needs it.
@@ -141,7 +169,7 @@ and a small game with graphics, keyboard input, and sound.
   library/client example checks three seeds and repeated native calls; native
   callback exposure is also checked after saving and loading the library.
 
-- Final data fields are writable constructor locals, including in loops; final
+- Final data fields are writable during construction, including in loops; final
   local bindings and shared function declarations stay fixed. Do not classify
   a constant instance default as a shared field or skip its loop Phi merely
   because the published field is final. Class constants keep their static image.
@@ -155,7 +183,8 @@ and a small game with graphics, keyboard input, and sound.
   field resolves it may write the queried alias. Skipping it can turn a byte
   compound assignment at 255 into a stale read of 255 instead of 2. Both
   incomplete-types and construction keep this barrier; exercise worklist seeds.
-- Constructor fields stay in local SSA values and ordinary Phis. Emit ordinary
+- In the construction/escape teaching snapshots (through Chapter 28b),
+  constructor fields stay in local SSA values and ordinary Phis. Emit ordinary
   initializing Stores at helper exits and package precise aliases in MemMerge.
   Private memory carries fields between helpers and into publication; it does
   not carry each loop update. Keep converted field values in private summaries
@@ -176,7 +205,7 @@ and a small game with graphics, keyboard input, and sound.
   Native calls are exposure roots even when their path has no live Return.
   FinalizeIR freezes this feedback before replacing call edges with emission
   roots; the analysis cycle is not runtime CFG. Keep construction's local SSA
-  representation and early-self restrictions for the planned boundary review.
+  representation in that teaching snapshot; Chapter 29 now uses field memory.
 
 - Native function addresses in AMD64 ELF use low-address tail-jump thunks.
   Static fields and computed addresses must name the same weak entry across

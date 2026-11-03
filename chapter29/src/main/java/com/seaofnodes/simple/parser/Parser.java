@@ -23,6 +23,10 @@ public class Parser {
     final Allocations allocations = new Allocations(this);
     final References references = new References(this);
     final Conversions conversions = new Conversions(this);
+    final Construction construction = new Construction(this);
+
+    public void checkConstruction() { construction.check(); }
+    public void checkConstructionSerializable() { construction.checkSerializable(); }
 
     // Compile driver
     public final CodeGen _code;

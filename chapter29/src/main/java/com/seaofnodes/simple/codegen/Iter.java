@@ -29,6 +29,25 @@ public abstract class Iter {
         assert !CodeGen.expensiveAssert() || Opto.fixedPointCheck(code);
     }
 
+    // Stabilize existing node types before releasing source error obligations.
+    // No rewrites: even an unused illegal Load must still be checked here.
+    public static void types(CodeGen code) {
+        // Definite initialization needs the optimistic solution around loops:
+        // an unchanged initialized field must not be stuck at its old BOT seed.
+        Ary<Node> typed = new Ary<>(Node.class);
+        code._start.walk(n -> { typed.add(n); n._type = Type.TOP; code.add(n); return null; });
+        Node n;
+        while( (n = code._iter._work.pop())!=null ) {
+            if( n.isDead() ) continue;
+            Type t = n._type.meet(n.compute());
+            if( t==n._type ) continue;
+            n._type = t;
+            code.addAll(n._outputs);
+            n.moveDepsToWorklist();
+        }
+        code.addAll(typed);
+    }
+
     private static Type iterEscapeReset(Type t) {
         if( t instanceof TypeMem mem )
             return mem._one ? mem : mem.makeFrom(XInt.FULL,XInt.FULL);

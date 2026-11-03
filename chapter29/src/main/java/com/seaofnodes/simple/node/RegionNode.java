@@ -142,7 +142,7 @@ public class RegionNode extends CFGNode {
                     { addDep(use); if( data!=null ) addDep(data); return true; }
                 }
             } else
-            { addDep(use);  return true; } // Control user
+            { if( use!=null ) addDep(use); return true; } // Control user, including an external keep
         }
         return false;
     }
