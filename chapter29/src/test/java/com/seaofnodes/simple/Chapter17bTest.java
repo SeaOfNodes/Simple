@@ -293,7 +293,9 @@ struct A { !B !b; new A = { ->
 A x = new A;
 """);
         try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Exception e ) { assertEquals("Field 'b' might not be initialized",e.getMessage()); }
+        // The unused constructor return value can die; its unwritten field
+        // still fails the completion check at TypeCheck.
+        catch( Exception e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
     }
 
     @Test
@@ -305,7 +307,7 @@ A x = new A;
             "new A = { -> }; !B !b;",              // Field declared later
         } ) {
             CodeGen code = new CodeGen("struct B {}; struct A { "+fields+" }; return 0;");
-            try { code.parse(); fail(fields); }
+            try { code.driver(CodeGen.Phase.TypeCheck); fail(fields); }
             catch( Parser.ParseException e ) { assertEquals("'Test.A' is not fully initialized, field 'b' is only partially set in the constructor",e.getMessage()); }
         }
     }
@@ -314,7 +316,7 @@ A x = new A;
     public void testDefaultConstructorFields() {
         for( String field : new String[] { "!B !b;", "!B !b;" } ) {
             CodeGen code = new CodeGen("struct B {}; struct A { "+field+" }; return new A;");
-            try { code.parse(); fail(field); }
+            try { code.driver(CodeGen.Phase.TypeCheck); fail(field); }
             catch( Parser.ParseException e ) { assertEquals("'Test.A' is not fully initialized, field 'b' needs to be set in a constructor",e.getMessage()); }
         }
         for( String fields : new String[] {
@@ -550,7 +552,7 @@ struct _A {
 };
 return new _A;
 """);
-        code.driver(CodeGen.Phase.FinalizeIR);
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Test._A;", code.print());
         assertEquals("Test._A{f1=null,f2=null}", Eval2.eval(code,0));
     }
@@ -565,7 +567,7 @@ struct _A {
 };
 return new _A(new !B?[0]).array_of_b;
 """);
-        code.driver(CodeGen.Phase.FinalizeIR);
+        code.driver(CodeGen.Phase.TypeCheck);
         assertEquals("return []*B?;", code.print());
         assertEquals("*B {}?[]", Eval2.eval(code,0));
     }

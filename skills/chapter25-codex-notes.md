@@ -40,13 +40,69 @@ still uses the old store-at-exit path.
 Fresh fields contain `TypeScalar.BOT`, independent of errors and physical calloc
 zeroes. It survives a missing live merge arm; an initialized unknown integer is
 `TypeInteger.BOT`. Ordinary TypeMem/TypeStruct flow proves initialization at
-Loads and merged Returns. `InitMemory` is removed. Checks retain source Loads
-and run after an optimistic solve of existing node types using the Iter worklist;
-a pessimistic BOT seed cannot prove an unchanged initialized loop field.
-Private-memory loop Phis widen numeric fields. Internal memory parameters use
-actual allocation/initializer callers, not their hypothetical external caller.
+Loads and merged Returns. `InitMemory` is removed. Checks now run at TypeCheck using the existing Iter/Opto passes; the extra
+Construction.check/Iter.types solve and source-use keeps are removed. Numeric
+operations and conversions preserve Scalar.BOT. Genuinely unused bad reads may
+die. A partial-only ConstructNode preserves self/^ body restrictions through
+inlining; Load alias comparisons look through that view without dropping its
+type restriction. Hidden initializer/constructor helpers have only allocator
+callers, and the visible constructor binding denotes the allocator. Parm typing
+is ordinary merging, without private-memory or forced-partial exceptions.
+See chapter29/docs/deferred-construction.md. Do not restore the early pass.
+Private-memory loop Phis widen numeric fields. SCCP retains Returns during its
+existing reset walk while rebuilding call edges, then releases those keeps.
 Function fields retain declared signatures in private summaries to avoid
 unfolding a constructor whose returned memory includes its own function field.
+Store waits at TOP when its memory is TOP; the optimistic singleton bit is not
+proof of private memory. StopCU must not expose a class initializer's synthetic
+self as a pre-existing external argument: that can revive dead local functions
+through broad function-valued field types. Chapter19's golden string omits dead
+helper Returns and follows Add's node-ID operand ordering. The String spill
+regression came from two-address operand order, not retained dead functions.
+RegAlloc's self-conflict splitter now reuses its failed-range traversal/scratch
+list to commute onto a single-use RHS in another live range before inserting
+copies. Exclude SplitNode RHS values: their apparent single use can conceal
+an earlier split of a longer-lived value. Normal coloring retries rebuild the
+ranges; no new whole-IR pass or analysis structure is needed.
+
+Chapter29 Iter setup no longer resets/reseeds the whole graph. `Node.init()`
+queues initialized nodes; Calls queue themselves to retry linking after imported
+targets are installed. Imports reset only newly loaded nodes and repair affected
+neighbors. Type upgrades and FRef resolution now share Opto's existing reset
+walk; do not restore a separate post-parse node walk. Setup must not peephole a
+partly reset graph. Resolved FRefs propagate their input type during SCCP;
+ConstructNode identities wait until closed declarations are installed. Old Iter
+types are change-detection snapshots, not upper bounds across recursive type
+closure; SCCP's own falling-type/worklist checks remain. Upgrade changes also
+register post-SCCP cleanup dependencies. Load forwarding must preserve the
+computed pointer shape and qualifiers; Escape retains the private value's
+escapes before declaration narrowing. StopCU/GlobalEscape preserve FULL escape
+bounds for unknown values; do not narrow them to public sets or accumulate
+previous results. Value refinement must only lift, including queued summaries.
+There is no escape-summary repair hook in IterPeeps. `Iter.repair` remains for
+structural changes from importing bodies and linking calls. FunNode depends on
+its Return's type; Calls waiting for an absent target depend on Start and are
+woken when a linker mapping is installed. FldOffNode's data base
+belongs in slot 1, not control slot 0;
+otherwise inliner body discovery can exclude an unresolved field offset.
+
+The FULL-escape experiment is not yet at test parity: the latest run passes
+590/594 tests (raw0 400/404). Chapter10 `testIfOrNull` is restored to its valid
+original `return bar;` and runs TypeCheck. Both Chapter17b forward tests now pass
+their original goldens: EscapeNode uses cached public FIDX and alias defaults
+for opaque external types, preserving prior input escapes. Before Opto installs
+closed IR types, the default remains FULL; only open `_fref` structs get the
+narrower fallback afterwards. Ordinary unknown values still require FULL.
+The four remaining failing programs pass TypeCheck but retain extra private
+constructors. In
+`Chapter12Test.testPrivateRecursiveReturn`, SCCP gives the root Return BOTTOM
+and FULL escapes. Post-SCCP forwarding fixes its value to `_B`, but FULL persists
+through Start's incoming-memory cycle. Do not bless those extra functions in
+the goldens or restore the nonmonotone public-only cap. The details and failing
+test names are in `chapter29/docs/deferred-construction.md`. Its escape audit
+also records concrete opaque Store/Return/native-argument precision losses,
+CLInit's unconditional worst-case effects, and unknown CallEnd effects. Do not
+blindly cap these at public sets: explicit private escapes must survive.
 
 Incomplete references now have only a yes/no restriction. Constructor self and
 `C ^arg` / `C? ^arg` are incomplete; a new result is incomplete iff an actual
@@ -54,7 +110,7 @@ argument is incomplete. Only self may be read while incomplete. Other calls and
 publication require complete references. `TypeMemPtr._partial` carries the
 restriction through ordinary type flow, including backedges; meet ORs it and
 dual complements it. `ConstructNode` qualifies each new result from its actual
-arguments and disappears after source checks. No provenance walk, root/result
+arguments and disappears after TypeCheck. No provenance walk, root/result
 bitsets, group identities, inferred field sets, or hidden `^` memory arguments
 remain. Exact local self aliases use current private memory. A ^ formal stays
 restricted even with complete callers. The optimistic type solve proves a

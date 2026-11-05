@@ -13,13 +13,13 @@ import java.util.HashMap;
 /**
  * A field offset.  This becomes a constant *after* other optimizations which
  * determine field sizes - some fields might be dead, or hold only zeros or
- * small values.
+ * small values. The base is data in slot 1; slot 0 is reserved for control.
  */
 
 public class FldOffNode extends TypeNode {
     public final String _fname; // Field name
     public final Lexer _loc;   //
-    public FldOffNode( Node base, String fname, Lexer loc ) { super(TypeInteger.BOT,base); _fname = fname; _loc=loc; }
+    public FldOffNode( Node base, String fname, Lexer loc ) { super(TypeInteger.BOT,null,base); _fname = fname; _loc = loc; }
     @Override public Tag serialTag() { throw Utils.TODO("should not reach here"); }
 
     @Override public String label() {
@@ -36,7 +36,7 @@ public class FldOffNode extends TypeNode {
 
     @Override public Node idealize() {
         // When base() gets typed, this xforms into a ConFldOffNode
-        if( in(0)._type instanceof TypeMemPtr tmp )
+        if( in(1)._type instanceof TypeMemPtr tmp )
             return new ConFldOffNode(tmp._obj,_fname);
         return null;
     }
@@ -48,7 +48,7 @@ public class FldOffNode extends TypeNode {
     @Override int hash() { return super.hash() * _fname.hashCode(); }
 
     @Override public Parser.ParseException err() {
-        if( in(0)._type instanceof TypeMemPtr tmp && tmp._obj._fref )
+        if( in(1)._type instanceof TypeMemPtr tmp && tmp._obj._fref )
             return Parser.error("Unknown struct type '"+tmp._obj._name+"'",null);
         return null;
     }

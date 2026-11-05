@@ -100,7 +100,9 @@ public class ClassInitDependencies {
 
             // CLInit adds a class init requirement to this function
             // (plus all parent classes)
-            if( cfg instanceof CLInitNode init ) {
+            // An invalid receiver can still be Scalar.BOT here. Its Load
+            // reports the error at TypeCheck; it does not name a class to init.
+            if( cfg instanceof CLInitNode init && init.cu()!=null ) {
                 FunNode clz = code.link(init.cu()); // <clinit> referred to
                 iset.put(clz.sig().fidx(),1);       // Add to edge set
                 if( sites!=null && sites.atX(clz.sig().fidx())==null ) sites.setX(clz.sig().fidx(),init._loc);

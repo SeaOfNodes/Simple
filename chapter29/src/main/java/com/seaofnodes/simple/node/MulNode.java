@@ -29,7 +29,7 @@ public class MulNode extends ArithNode {
 
         // Integer strength reductions require two integer operands. In
         // particular Scalar.BOT * 0 must retain its unresolved input.
-        if( _mode!=1 || !(t1 instanceof TypeInteger && t2 instanceof TypeInteger) )
+        if( _mode==2 || !(t1 instanceof TypeInteger && t2 instanceof TypeInteger) )
             return super.idealize();
 
         // Move constants to RHS: con*arg becomes arg*con

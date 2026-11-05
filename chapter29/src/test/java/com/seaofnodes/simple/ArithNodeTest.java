@@ -15,7 +15,8 @@ public class ArithNodeTest {
         Node zero = ConstantNode.seed(TypeInteger.ZERO);
         for( Node op : new Node[]{new MulNode(x,zero,(byte)1),new AndNode(null,x,zero),
                 new SubNode(x,x,(byte)1),new BoolNode.EQ(x,x,(byte)1),
-                new BoolNode.NE(x,x,(byte)1),new BoolNode.ULT(x,x),new NotNode(x)} ) {
+                new BoolNode.NE(x,x,(byte)1),new BoolNode.ULT(x,x),new NotNode(x),
+                new ConvertNode(TypeInteger.BOT,x),new ToIntegerNode(x),new ToFloatNode(x),new PtrToIntNode(x)} ) {
             assertSame(op.label(),TypeScalar.BOT,op.compute());
             Node replacement = op.idealize();
             assertTrue(op.label(),replacement==null || !replacement.compute().isConstant());

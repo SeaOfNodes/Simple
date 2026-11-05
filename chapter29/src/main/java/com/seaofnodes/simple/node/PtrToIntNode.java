@@ -5,6 +5,7 @@ import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeMemPtr;
+import com.seaofnodes.simple.type.TypeScalar;
 
 
 /**
@@ -22,6 +23,7 @@ public class PtrToIntNode extends Node {
     @Override protected String format() { return "(i64*)%1"; }
 
     @Override public Type compute() {
+        if( in(1)._type==Type.BOTTOM || in(1)._type==TypeScalar.BOT ) return in(1)._type;
         return in(1)._type.isHigh() ? TypeInteger.TOP : TypeInteger.BOT;
     }
 

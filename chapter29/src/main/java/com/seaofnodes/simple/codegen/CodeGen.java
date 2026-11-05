@@ -102,11 +102,10 @@ public class CodeGen {
     }
 
     private void gatherPublicFields(TypeStruct clz, boolean classFields) {
-        boolean hasCtor = clz.field("<ctor>") != null;
         for( Field fld : clz._fields ) {
-            // With a user constructor, class:N.N is the private <init>.
+            // Private-memory helpers are reached through their allocator.
             if( fld._fname.charAt(0)=='_' || fld._t==Type.TOP ||
-                (hasCtor && clz.hiddenInit(fld)) ) continue;
+                clz.hiddenInit(fld) ) continue;
             if( classFields ) _publicAliases = XInt.make(_publicAliases,fld._alias);
             if( fld._t instanceof TypeFunPtr tfp )
                 _publicFIDXs = XInt.meet(_publicFIDXs,tfp._fidxs);
@@ -125,14 +124,13 @@ public class CodeGen {
     }
 
     private int[] _publicFIDXs, _publicAliases;
+    private TypeMem _publicEscapes;
 
     /**
-     * Collect every possible public escape - after ParseAll is done - in case
-     * some code calls a generic function.  Example:
-     *     var apply = = { {int->int} f, int x -> f(x); };  // Generic apply() call
-     * The CallEnd from `f(x)` has to use generic TypeMem.BOT, which
-     * immediately escapes *everything* including known private functions.
-     * As weak as this is, its still sharper than "everything".
+     * Snapshot the public interface after ParseAll for interface checks and
+     * the default escapes of opaque external types. This is not an upper
+     * bound on all escapes: a public function can return a private object or
+     * callback. Escape flow preserves those actual values separately.
      */
     void freezePublicInterface() {
         assert _publicFIDXs==null && _publicAliases==null;
@@ -157,11 +155,20 @@ public class CodeGen {
                 fidxs = XInt.make(fidxs,fidx);
         }
         _publicFIDXs = fidxs;
+        _publicEscapes = TypeMem.START.makeFrom(_publicFIDXs,_publicAliases);
     }
 
     public int[] publicFIDXs()  { assert _publicFIDXs !=null; return _publicFIDXs;  }
     public int[] publicAliases(){ assert _publicAliases!=null; return _publicAliases; }
     public boolean publicInterfaceFrozen() { return _publicFIDXs != null; }
+
+    // Before Opto upgrades the IR, a forward reference might still name a
+    // local class. Afterwards, unresolved names describe external objects.
+    public TypeMem publicEscapes() {
+        if( _phase==null || _phase.ordinal()<Phase.Opto.ordinal() ) return TypeMem.BOT;
+        assert _publicEscapes!=null;
+        return _publicEscapes;
+    }
 
     // ---------------------------
 
@@ -428,7 +435,12 @@ public class CodeGen {
     // being called.
     public void link(FunNode fun) {
         int fidx = fun.sig().fidx();
+        FunNode old = _linker.atX(fidx);
+        if( old!=null && old!=fun ) old.moveDepsToWorklist();
         _linker.setX(fidx,fun);
+        // Calls waiting for an unloaded target depend on Start until there
+        // is a FunNode to depend on. Installing a body lets them retry.
+        if( _start!=null ) _start.moveDepsToWorklist();
         add(_globalEscapes); // A new or replacement summary may expose escapes.
     }
 

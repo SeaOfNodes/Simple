@@ -67,16 +67,11 @@ public class ParmNode extends PhiNode {
         if( !(region() instanceof RegionNode r) )
             return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_declaredType instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
-        boolean privateMem = _idx==3 && _declaredType instanceof TypeMem mem && mem._one && !mem._clz;
-        if( privateMem && fun().unknownCallers() && nIns()==2 && CodeGen.CODE._phase!=CodeGen.Phase.Parse )
-            return TypeMem.TOP;
-        if( (!privateMem && r.inProgress()) || in(nIns()-1)==null || (privateMem && fun().unknownCallers() && nIns()==2) )
+        if( r.inProgress() || in(nIns()-1)==null )
             return _declaredType;
         // Set type to local top of the starting type
         Type t = Type.TOP;
-        // Internal construction memory is supplied by allocation/initializer
-        // calls, not by the fictitious external caller used to keep a body live.
-        for( int i = privateMem && fun().unknownCallers() ? 2 : 1; i < nIns(); i++ ) {
+        for( int i = 1; i < nIns(); i++ ) {
             // If the region's control input is live, add this as a dependency
             // to the control because we can be peeped should it become dead.
             Type ctrl = addDep(r.in(i))._type;
@@ -94,10 +89,6 @@ public class ParmNode extends PhiNode {
         if( t instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
             t = ti.same_but_slightly_wider_than();
         t = t.join(_declaredType);
-        // ^ is a restriction inside the constructor even if every currently
-        // known caller passes a complete object. Inlining may later remove it.
-        if( t instanceof TypeMemPtr ptr && _declaredType instanceof TypeMemPtr decl && decl._partial )
-            t = ptr.withPartial(true);
         return t==Type.TOP && _declaredType instanceof TypeMem ? TypeMem.TOP : t;
     }
 

@@ -14,8 +14,8 @@ productions to their entry points.
 | `Declarations.java` | Bindings, initializers, mutability modifiers, and native declarations. |
 | `Types.java` | Type syntax, qualified-name lookup, arrays, function types, and forward types. |
 | `Functions.java` | Function expressions, parameters, arguments, calls, and function entry/return graphs. |
-| `Structs.java` | Struct and constructor declarations, field discovery, and initialization checks. |
-| `Construction.java` | Source checks for field initialization and incomplete references; its comment explains BOT fields, the TypeMemPtr qualifier, and allocation boundaries. |
+| `Structs.java` | Struct and constructor declarations, field discovery, and initialization Stores. |
+| `Construction.java` | Selects private self memory during parsing; its comment explains BOT fields, the TypeMemPtr qualifier, and checks deferred to TypeCheck. |
 | `References.java` | Bare-name and field resolution, implicit receivers, assignments, and forward references. |
 | `Allocations.java` | Allocation expressions, strings, and declaration-side allocation helpers. |
 | `ControlFlow.java` | Guarded scope merging shared by `if`, `?:`, `&&`, and `||`. |

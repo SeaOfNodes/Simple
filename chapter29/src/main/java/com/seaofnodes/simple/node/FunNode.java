@@ -170,7 +170,7 @@ public class FunNode extends RegionNode {
         }
 
         // Upgrade inferred or user-written return type to actual
-        if( _ret!=null && _ret._type instanceof TypeTuple tt &&
+        if( _ret!=null && addDep(_ret)._type instanceof TypeTuple tt &&
             tt.ret() != _sig.ret() && tt.ret().isa(_sig.ret()) ) {
             setSig(_sig.makeFrom(tt.ret()));
             return this;
@@ -180,12 +180,19 @@ public class FunNode extends RegionNode {
         // - Must be past pessimistic Iter, which discovers and links calls
         //   through class-field loads and other initially imprecise values.
         // - FIDX is not in the escape set
-        // - Not called anywhere else; post Opto called-not-escaped functions need to still be hooked to start
+        // Concrete callers keep the body alive; FinalizeIR retains surviving
+        // functions for emission without giving them unknown callers.
         if( !isRoot() && in(1) instanceof StartCUNode start ) {
             boolean preOpto = CodeGen.CODE._phase == null ||
                 CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal();
-            if( !preOpto && !start.escapedFIDX(_sig.fidx()) && nIns()<=2 && _ret!=null ) {
-                _compunit._stop.delDef(_compunit._stop._inputs.find(ret()));
+            if( !preOpto && !start.escapedFIDX(_sig.fidx()) && _ret!=null ) {
+                // CLInit has a call edge but no Return edge. Keep a called
+                // body's Return rooted even after dropping unknown callers.
+                if( !isClz() || nIns()<=2 ) {
+                    StopCUNode stop = _compunit._stop;
+                    CODE.add(stop).delDef(stop._inputs.find(ret()));
+                    CODE.addAll(stop._outputs); // The outer Stop can drop an empty unit.
+                }
                 return removeDeadPath(1);
             } else {
                 addDep(start);

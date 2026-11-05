@@ -25,7 +25,6 @@ public class Parser {
     final Conversions conversions = new Conversions(this);
     final Construction construction = new Construction(this);
 
-    public void checkConstruction() { construction.check(); }
     public void checkConstructionSerializable() { construction.checkSerializable(); }
 
     // Compile driver

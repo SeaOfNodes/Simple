@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.codegen;
 
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.IterPeeps.WorkList;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Ary;
@@ -30,7 +31,8 @@ abstract public class Opto {
         WorkList<Node> deps = new WorkList<>();
         WorkList<Node> changes = new WorkList<>();
         Ary<Node> modes = new Ary<>(Node.class);
-        resetToTop(code,oldTypes,modes,deps);
+        Ary<ReturnNode> returns = new Ary<>(ReturnNode.class);
+        resetToTop(code,oldTypes,modes,deps,returns);
         unlinkStart(code);
 
         // OPTIMISTIC INTERPROCEDURAL SCCP
@@ -50,22 +52,71 @@ abstract public class Opto {
         // After SCCP add everything changed to the worklist and see if
         // peepholes can make more progress.
         moveChangesToWorklist(code, oldTypes, changes);
+        // Unknown callers and concrete call edges have now been rediscovered.
+        for( ReturnNode ret : returns ) code.add(ret.unkeep());
     }
 
-    // Reset Types before running the worklist algorithm
-    private static void resetToTop(CodeGen code, Ary<Type> oldTypes, Ary<Node> modes, WorkList<Node> deps ) {
+    // Transition from Iter's pessimistic graph to SCCP's optimistic solve in
+    // one walk. Parsing has closed the named types; install them in the IR
+    // and resolve forward references before resetting each value to TOP.
+    // Do not run peepholes here: neighboring nodes may not yet be upgraded or
+    // reset. SCCP sees the completed setup, and IterPostOpto handles rewrites.
+    //
+    // The same walk preserves Returns while call edges are rebuilt, remembers
+    // old types for incremental cleanup, and gathers numeric modes and phase
+    // dependencies. These are setup duties, not separate graph passes.
+    private static void resetToTop(CodeGen code, Ary<Type> oldTypes, Ary<Node> modes, WorkList<Node> deps, Ary<ReturnNode> returns ) {
         code._start.walk( x -> {
+                // A snapshot for change detection, not an upper bound: closing
+                // recursive declarations can change types in either direction.
+                oldTypes.setX(x._nid,x._type);
+                if( x.upgradeType(Parser.TYPES) ) deps.push(x);
+                if( x instanceof FRefNode fref ) resolveForward(code,fref);
+                // Rebuilding call edges must not DCE a temporarily uncalled body.
+                // Type-level function references can rediscover it later in SCCP.
+                if( x instanceof ReturnNode ret ) returns.add(ret.keep());
                 // Opto ends Parm.inProgress(), enabling constant folding even
                 // when a parameter's type was already constant before SCCP.
                 if( x instanceof ParmNode && x._type.isHighOrConst() ) deps.push(x);
+                // Construction identities may fold after the optimistic solve.
+                // Adds may need sorting after imported node IDs were assigned.
+                if( x instanceof ConstructNode || x instanceof AddNode ) deps.push(x);
                 // SCCP adds call edges and default arguments, not numeric
                 // operations. Gather unresolved modes on this required walk.
                 if( x instanceof ModeNode mode && mode.mode()==0 ) modes.push(x);
-                oldTypes.setX(x._nid,x._type); // Compare the final SCCP type with Iter's type
                 x._type = Type.TOP;            // Reset all Nodes to TOP
                 code._iter.add(x); // Visit everybody at least once; most Nodes produce better than TOP
                 return null;
             } );
+    }
+
+    private static void resolveForward(CodeGen code, FRefNode fref) {
+        if( fref.nIns()!=1 ) return;
+        boolean alloc = fref._name.endsWith(".<new>");
+        String clzName = alloc
+            ? fref._name.substring(0,fref._name.length()-".<new>".length()).intern()
+            : fref._name;
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
+        if( clz==null ) return;
+        Node con;
+        if( alloc ) {
+            Field ctor = clz.field("<new>");
+            if( ctor==null || !(ctor._t instanceof TypeFunPtr tfp) ) {
+                String name = clzName.startsWith(TypeStruct.CLZ)
+                    ? clzName.substring(TypeStruct.CLZ.length()) : clzName;
+                int dot = name.lastIndexOf('.');
+                throw Parser.error("Unknown struct type '"+(dot==-1 ? name : name.substring(dot+1))+"'",fref._loc);
+            }
+            FunNode fun = code._link(tfp);
+            if( fun==null ) return;
+            con = new FunPtrNode(tfp,code._start,fun.ret());
+            con._type = Type.BOTTOM; // No Iter bound; the Return may already be reset.
+        } else {
+            con = new ConstantNode(TypeMemPtr.make((byte)2,clz,true));
+        }
+        // The new input is visited by the reset walk too. Let SCCP propagate
+        // its value; replacing the FRef is a later peephole.
+        fref.addDef(con);
     }
 
 
@@ -90,8 +141,9 @@ abstract public class Opto {
                     // Unhook from Stop without treating the ReturnNode as
                     // DEAD.  It stays in limbo until Opto links when a caller
                     // is discovered (or not, and the function is really dead).
-                    stop._inputs.del(i--);
-                    ret.delUse(stop);
+                    // The reset walk keeps Returns alive. Use normal edge
+                    // editing so cleanup also revisits an emptied StopCU.
+                    stop.delDef(i--);
                 }
                 // Unlink the existing conservative call linkages.
                 for( int j=1; j<fun.nIns(); j++ )
@@ -133,10 +185,10 @@ abstract public class Opto {
         TypeMem tmem = (TypeMem)tt._types[1];
         int[] fidxs = tmem._escFs;
         if( XInt.isHigh(fidxs) ) {
-            // A scalar BOTTOM can flow into memory while compiling an error
-            // program.  It exposes all public functions, not private fields.
+            // Unknown values can later refine to private callbacks too.
+            // FULL must cover every live target, just like the finite case.
             for( FunNode fun : code._linker )
-                if( fun != null && code.publicFIDX(fun.sig().fidx()) )
+                if( fun != null && !fun.isDead() )
                     linkStart(code,fun);
             return;
         }
@@ -184,8 +236,6 @@ abstract public class Opto {
             if( nval!=oldTypes.atX(n._nid) || n.isUnlocked() ) changes.push(n);
             if( oval == nval ) continue;
             assert oval.isa(nval) : "Non-monotonic SCCP: "+n.getClass().getSimpleName()+"#"+n._nid+" "+n+" old="+oval+" new="+nval;    // Types start high and always fall
-            Type pesiVal = oldTypes.atX(n._nid);
-            assert pesiVal==null || nval.isa(pesiVal) : "SCCP below pessimistic type: "+n.getClass().getSimpleName()+"#"+n._nid+" "+n+" pessimistic="+pesiVal+" new="+nval; // Never fall worse than the pessimistic pass
             n._type = nval;
 
             // Now we have a series of stanzas where we lazily create the Call
@@ -267,7 +317,6 @@ abstract public class Opto {
             if( n.isDead() ) continue;
             assert n.compute() == n._type; // Hit the fixed point.
             Type old = oldTypes.atX(n._nid);
-            assert old==null || n._type.isa(old);
             if( n._type!=old || n.isUnlocked() ) {
                 code.addAll(n);
                 code.addAll(n._outputs);

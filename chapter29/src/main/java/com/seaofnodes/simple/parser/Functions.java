@@ -114,7 +114,6 @@ final class Functions {
         // Unkeep them all
         for( Node arg : args )
             arg.unkeep();
-        P.construction.ordinaryCall(args,site);
         return functionCall(args,site);
     }
 
@@ -292,7 +291,9 @@ final class Functions {
         for( int i = 0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
             // Args take a default input if called from Start/external-world
-            P._scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole(), loc);
+            Node parm = new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole();
+            if( t instanceof TypeMemPtr ptr && ptr._partial ) parm = new ConstructNode(parm).peephole();
+            P._scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), parm, loc);
         }
 
         return fun;

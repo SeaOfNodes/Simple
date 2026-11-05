@@ -123,13 +123,11 @@ public class TypeStruct extends Type {
         return (_fidxs = xs);
     }
 
-    // With a user constructor, the same-named function field is the hidden
-    // default <init> allocation helper, not part of the public class surface.
+    // Hidden initializer/constructor helpers receive private memory. Only the
+    // allocator has a source-callable signature; TypeMem is not a source type.
     public boolean hiddenInit(Field fld) {
-        if( field("<ctor>") == null || !startsClzPrefix(_name) ) return false;
-        int idx = _name.lastIndexOf('.');
-        String name = _name.substring(idx<0 ? CLZ.length() : idx+1);
-        return fld._fname.equals(name);
+        return fld._t instanceof TypeFunPtr tfp && tfp.nargs()>=2 &&
+            tfp.arg(1) instanceof TypeMem;
     }
 
     // New open struct with no fields

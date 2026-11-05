@@ -40,8 +40,10 @@ merges and `addReturn`; field values are no longer copied into memory at exit.
 
 Fresh fields start at `TypeScalar.BOT`, which preserves a missing live arm at a
 merge. Forward memory types supply the initialization proof at Loads and merged
-Returns. Checks run after parsing and an optimistic type solve; there is no
-separate initialization walk or field-state map. Class singleton initialization
+Returns. Checks run at TypeCheck using the existing optimization passes; there
+is no extra construction solve, initialization walk, or field-state map.
+Known failures are recorded in [the late-check notes](docs/deferred-construction.md).
+Class singleton initialization
 retains its existing store-at-exit path.
 
 `ConstructorCompletionTest` covers partial assignments, early returns, loops,

@@ -54,13 +54,16 @@ final class Structs {
             : TypeStruct.make(clzName,false,fld,ctorFld);
         if( flag!=null ) ts = ts.add(flag);
         TypeFunPtr alloc = P.allocations.makeAllocator((TypeStruct)Parser.TYPES.get(fullName),ret,ctorFld);
+        // The visible constructor name denotes allocation, not the hidden initializer.
+        sig = alloc;
+        ts = ts.replace(fld.makeFrom(alloc));
         ts = ts.add(Field.make("<new>",alloc,P._code.alias(P._ref._cname),true));
         Parser.TYPES.put(clzName,ts);
 
         // Insert a field in the containing class with the nested class type.
-        // This is basically sugar for "val CLZNAME = <init>"
+        // This is basically sugar for "val CLZNAME = <new>"
         // and is a nicer version of updateSelfAsFieldsDiscovered.
-        P._scope.define(typeName, sig, true, new FunPtrNode(sig,P._code._start,ret).peephole(), P.loc());
+        P._scope.define(typeName, sig, true, new FunPtrNode(sig,P._code._start,P._code.link(alloc).ret()).peephole(), P.loc());
         Var binding = P._scope.lookup(typeName);
         declareField(binding,P._scope.in(binding),false);
 
@@ -254,42 +257,6 @@ final class Structs {
         mmm = mmm.peephole();
 
         P.functions._returnScope.mem(mmm);
-    }
-
-    // addReturn already merged every exit. Inspect the completed helpers,
-    // after parsing has discovered all fields and torn down their scopes.
-    void checkInitFields() {
-        P._code._stop.walk(n -> {
-            if( n instanceof ReturnNode ret && ret.fun().isInstance() ) checkInitFields(ret);
-            return null;
-        });
-    }
-
-    private void checkInitFields(ReturnNode init) {
-        if( init.ctrl()._type.isHigh() || init.expr()._type.isHigh() ) return;
-        TypeStruct ts = ((TypeMemPtr)init.fun().sig().arg(0))._obj;
-        TypeStruct clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(ts._name));
-        Field ctor = clz==null ? null : clz.field("<ctor>");
-        // The older same-named function binding is parsed immediately, so
-        // fields declared after it are supplied by the declaration initializer.
-        Field legacy = ts.field(initFieldName(ts._name));
-        if( ctor!=null ) checkInitFields(ts,init,P._code.link((TypeFunPtr)ctor._t).ret());
-        if( legacy!=null && legacy._t instanceof TypeFunPtr sig )
-            checkInitFields(ts,init,P._code.link(sig).ret());
-        else if( ctor==null ) checkInitFields(ts,init,init);
-    }
-
-    private void checkInitFields(TypeStruct ts, ReturnNode init, ReturnNode ret) {
-        if( ret.ctrl()._type.isHigh() || ret.expr()._type.isHigh() ) return;
-        for( Field fld : ts._fields ) {
-            if( fld._extern ) continue;
-            Type mem = ret.expr()._type;
-            Field actual = mem instanceof TypeMem tm && tm._t instanceof TypeStruct shape ? shape.field(fld._fname) : null;
-            if( actual==null || actual._t==TypeScalar.BOT || actual._t==Type.BOTTOM )
-                throw Parser.error("'"+ts._name+"' is not fully initialized, field '"+fld._fname+
-                                   (ret==init ? "' needs to be set in a constructor" :
-                                                "' is only partially set in the constructor"),ret.fun()._loc);
-        }
     }
 
     // Instance declarations establish field metadata and emit their default

@@ -30,10 +30,10 @@ public class ConstructorCompletionTest {
             "int~ x; int y = x*0; new A = { -> x = 7; };",
             // Constructor entry includes the initializer's early return.
             // Its later Store of 2 must not excuse the earlier read of x.
-            "int~ x; if(arg) return 0; x = 1; new A = { -> int y = x; x = 2; };"
+            "int~ x; int seen; if(arg) return 0; x = 1; new A = { -> seen = x; x = 2; };"
         } )
             try {
-                new CodeGen("struct A { "+body+" }; return 0;").parse();
+                new CodeGen("struct A { "+body+" }; return 0;").driver(CodeGen.Phase.TypeCheck);
                 fail("Read a field before its constructor wrote it");
             } catch( Parser.ParseException e ) {
                 assertTrue(e.getMessage(),e.getMessage().contains("might not be initialized"));
@@ -51,7 +51,7 @@ public class ConstructorCompletionTest {
     private void rejects(String fields, String field, boolean explicit) {
         String src = "struct B {}; struct A { "+fields+" }; return 0;";
         try {
-            new CodeGen(src).parse();
+            new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
             fail(src);
         } catch( Parser.ParseException e ) {
             assertEquals("'Test.A' is not fully initialized, field '"+field+
@@ -95,8 +95,8 @@ public class ConstructorCompletionTest {
     @Test public void testNonreturningPaths() {
         // An initializer parsed in dead enclosing code can have TOP memory
         // rather than a struct-shaped result.
-        new CodeGen("while(false) { struct A { int x; }; } return 0;").parse();
-        new CodeGen("struct A { int~ x; new A = { -> while(true) {} }; }; return 0;").parse();
+        new CodeGen("while(false) { struct A { int x; }; } return 0;").driver(CodeGen.Phase.TypeCheck);
+        new CodeGen("struct A { int~ x; new A = { -> while(true) {} }; }; return 0;").driver(CodeGen.Phase.TypeCheck);
         rejects("int~ x; new A = { -> if(arg) return 0; while(true) {} };","x",true);
         CodeGen code = new CodeGen("""
             struct A {
@@ -113,7 +113,7 @@ public class ConstructorCompletionTest {
         // Its Return lacks that field, so completion must consult <init> too.
         rejects("val A = { -> }; B b;","b",true);
         rejects("int~ x; val A = { -> if(arg) x = 1; };","x",true);
-        new CodeGen("struct B {}; struct A { val A = { -> }; B b = new B; }; return 0;").parse();
-        new CodeGen("struct A { val A = { -> while(true) {} }; int~ x; }; return 0;").parse();
+        new CodeGen("struct B {}; struct A { val A = { -> }; B b = new B; }; return 0;").driver(CodeGen.Phase.TypeCheck);
+        new CodeGen("struct A { val A = { -> while(true) {} }; int~ x; }; return 0;").driver(CodeGen.Phase.TypeCheck);
     }
 }

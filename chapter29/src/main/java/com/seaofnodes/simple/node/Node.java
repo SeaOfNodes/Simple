@@ -525,7 +525,7 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
     }
 
     @SuppressWarnings("unchecked")
-    public <N extends Node> N init() { _type = compute(); return (N)this; }
+    public <N extends Node> N init() { _type = compute(); CODE.add(this); return (N)this; }
 
     /**
      * This function rewrites the current Node into a more "idealized" form.
@@ -753,14 +753,16 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
 
     // If a Type upgrade happens, put on worklist
     boolean _upgradeType( HashMap<String,Type> TYPES ) { return false; }
-    public final void upgradeType( HashMap<String,Type> TYPES ) {
+    public final boolean upgradeType( HashMap<String,Type> TYPES ) {
         Type old = _type;  _type = _type.upgradeType(TYPES);
         boolean progress = _upgradeType(TYPES);
         if( progress || old != _type ) {
             CODE.add(this);
             CODE.addAll(_outputs);
             if( _deps!=null ) CODE.addAll(_deps);
+            return true;
         }
+        return false;
     }
 
     /**

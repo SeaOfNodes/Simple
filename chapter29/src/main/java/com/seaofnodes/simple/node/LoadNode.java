@@ -225,7 +225,7 @@ public class LoadNode extends MemOpNode {
     // the unchanged loop memory, or a merge whose every arm folds. Null fails.
     // Register dependencies so a later pointer/offset rewrite retries the query.
     private Node find(Node mem, Node ptr, Node stop, BitSet visit) {
-        if( ptr instanceof ReadOnlyNode ro ) ptr=ro.in(1);
+        ptr = address(ptr);
         Field fld;
         boolean external = ptr._type instanceof TypeMemPtr tmp &&
             (fld=tmp._obj.field(_name))!=null && fld._extern;
@@ -238,13 +238,21 @@ public class LoadNode extends MemOpNode {
                 // Alias 1 is still unresolved, not a proven different field.
                 if( st._alias==1 ) return null;
                 addDep(st.ptr());
-                if( _alias==st._alias && (ptr==st.ptr() || ptr==st.nnptr()) && off()==st.off() ) {
+                if( _alias==st._alias && (ptr==address(st.ptr()) || ptr==address(st.nnptr())) && off()==st.off() ) {
+                    // Forwarding must preserve the pointer type already seen
+                    // by users: completion, read-only view, and recursive shape.
+                    // Open declarations can disagree until Opto upgrades them.
+                    if( _type instanceof TypeMemPtr ) {
+                        Type value = addDep(st.val())._type;
+                        if( ptr()._type.isFinal() || declaredType().isFinal() ) value = value.makeRO();
+                        if( !value.isa(_type) ) return null;
+                    }
                     // A full-width load cannot narrow the forwarded value.
                     if( declaredType() instanceof TypeInteger ti && ti.log_size()==3 &&
                         !addDep(st.val())._type.isa(_type) ) return null;
                     return st;
                 }
-                if( (external || _alias==st._alias) && (external || !neverAlias(ptr,st.ptr())) &&
+                if( (external || _alias==st._alias) && (external || !neverAlias(ptr,address(st.ptr()))) &&
                     !addDep(off())._type.join(addDep(st.off())._type).isHigh() ) return null;
                 mem=st.mem();
                 break;
@@ -256,8 +264,8 @@ public class LoadNode extends MemOpNode {
             case EscapeNode esc:
                 if( external ) return null;
                 addDep(esc.self());
-                if( esc.self()==ptr ) { mem=esc.priv(); break; }
-                if( neverAlias(ptr,esc.self()) ) { mem=esc.pub(); break; }
+                if( address(esc.self())==ptr ) { mem=esc.priv(); break; }
+                if( neverAlias(ptr,address(esc.self())) ) { mem=esc.pub(); break; }
                 return null;
             case PhiNode phi:
                 if( phi instanceof ParmNode || (!(phi instanceof MemPhiNode) && !(phi._type instanceof TypeMem tm && tm._one)) ) return null;
@@ -297,6 +305,16 @@ public class LoadNode extends MemOpNode {
         }
         LoadNode ld=new LoadNode(_loc,_name,_alias,in(0),mem,ptr,off());
         return ld.peephole();
+    }
+
+    // Type views preserve the address. Keep the actual Load pointer qualified
+    // for compute/err; only alias comparisons see through these views.
+    private Node address(Node ptr) {
+        while( ptr instanceof ReadOnlyNode || ptr instanceof ConstructNode con && con._partial ) {
+            addDep(ptr);
+            ptr = ptr.in(1);
+        }
+        return ptr;
     }
 
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {

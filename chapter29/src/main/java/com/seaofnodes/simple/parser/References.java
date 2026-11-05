@@ -139,13 +139,6 @@ final class References {
         // Update
         P._scope.update(name,lift);
 
-        // Check for storing into an instance field instead of a local var
-        int kx = P._scope.kindx(def); // Declaration scope
-        int fx = P._scope.enclosingFunction(); // Enclosing function scope
-        Kind kk = P._scope._kinds.at(kx);
-        if( kx<fx && !(P.structs.inExplicitConstructor() && kx+1==fx &&
-                       kk instanceof Kind.Func owner && FunNode.isInstance(owner._name)) )
-            P.construction.complete(lift,"store outside the construction group",P.loc());
         lift.unkill();
 
         // Return un-lifted expr
@@ -200,7 +193,7 @@ final class References {
         if( fld==null && ts!=null && !TypeStruct.startsClzPrefix(ts._name) ) {
             Type clz0 = Parser.TYPES.get(TypeStruct.addClzPrefix(ts._name));
             if( clz0 instanceof TypeStruct clz && (fld = P.types.latestStruct(clz).field(name)) != null ) {
-                expr.unkeep();
+                expr.unkill();
                 ts = P.types.latestStruct(clz);
                 expr = P.con(TypeMemPtr.make((byte)2,ts,true)).keep();
             }
@@ -233,10 +226,6 @@ final class References {
         if( pre==0 && P.matchOpx('=','=') ) {
             // Field assignment
             Node val = P.expressions.parseAssignment().keep();
-            if( !P.construction.own(expr) ) {
-                P.construction.complete(expr,"write through an unfinished reference",site);
-                P.construction.complete(val,"store into an ordinary object",site);
-            }
             // Lift value for store
             Node lift = fld==null ? val : new ConvertNode(fld._t,val).peephole();
             // Memory for store, post assignment expression
@@ -254,19 +243,18 @@ final class References {
         }
 
         // Memory for load
-        Node mem = P.construction.memory(expr,name,site);
+        Node mem = P.construction.memory(expr);
         // Loading from a constant array, the declared type is the
         // meet-over-elements and not the array itself.
         if( name=="[]" && decl instanceof TypeConAry conary )
             decl = conary.elem();
 
         // Load field
-        Node load = P.construction.loaded(new LoadNode(P.loc(),name,alias,P.ctrl(),mem,expr,off));
+        Node load = P.peep(new LoadNode(P.loc(),name,alias,P.ctrl(),mem,expr,off));
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
         char ch = pre==0 ? P._lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
-            if( !P.construction.own(expr) ) P.construction.complete(expr,"write through an unfinished reference",site);
             if( fld!=null && decl==Type.BOTTOM )
                 throw P.error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor" );
             Node op = P.expressions.opAssign(ch,load, decl ).keep();
@@ -315,7 +303,10 @@ final class References {
         for( FRefNode fref : _frefs ) {
             if( fref.nIns() != 1 && fref._con == FRefNode.FREF_TYPE ) continue;
             CompUnit cu = ParseAll.findCompUnitOrThrow(P._code,P._ref,fref._name);
-            fref._con = TypeMemPtr.make((byte)2,TypeStruct.make(TypeStruct.addClzPrefix(cu._cname),true),true);
+            // Name lookup may already know this class's fields. Do not replace
+            // that information with an empty placeholder before Iter runs.
+            if( fref._con==FRefNode.FREF_TYPE )
+                fref.liftType(TypeMemPtr.make((byte)2,TypeStruct.make(TypeStruct.addClzPrefix(cu._cname),true),true));
             frefs.push(fref);
         }
 

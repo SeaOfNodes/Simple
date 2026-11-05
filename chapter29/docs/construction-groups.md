@@ -20,15 +20,18 @@ memory; the explicit constructor receives the declaration initializer's merged
 result, including early exits. There is no backwards initialization query,
 per-field parser state, call-site snapshot, or store-all instance exit.
 
-After parsing closes loops and resolves names, `Iter.types` computes an
-optimistic fixed point using the existing node types, compute methods, and
-worklist, without graph rewrites. Optimism matters: an initialized field carried
-unchanged around a loop must not remain stuck at a pessimistic BOT seed. Numeric
-fields in loop memory widen as scalar loop values do. Constructor Loads remain
-kept until checking, so an unused or folded result cannot hide an illegal read.
-BOT describes the incoming field contents, not a taint on later computations.
-Conversions and numeric Stores retain their existing declared-type bounds;
-their narrowing cannot excuse the original Load, which is checked independently.
+The existing Iter/Opto passes propagate these types; TypeCheck reports errors.
+There is no extra construction type solve or retained source-use list. An
+initialized field carried unchanged around a loop needs the optimistic SCCP
+solution. Numeric fields in loop memory widen as scalar loop values do.
+Arithmetic, conversions, and numeric Stores preserve Scalar.BOT, so a live bad
+read cannot disappear merely because it is multiplied by zero. Genuinely unused
+reads may be removed by DCE.
+
+The allocator's ConstructNode retains the constructor's final private memory
+for its completion check. TypeCheck gathers these nodes during its existing
+error walk and removes checked boundaries before lowering. The pass removal
+exposes known failures; see [the late-check notes](deferred-construction.md).
 
 Internal construction memory parameters use actual allocation/initializer call
 edges; the hypothetical external caller does not supply their memory. They
@@ -99,7 +102,7 @@ A small `ConstructNode` wraps each source `new`. Its runtime value is the
 allocator result; its type adds the OR of that call's actual argument qualifiers.
 This distinguishes `new Child(self)` from `new Child(null)` even when both call
 the same constructor. Looking only at the shared callee Return would lose this
-distinction. The node disappears after source checking, before lowering.
+distinction. The node disappears after TypeCheck, before lowering.
 
 A completed receiver gives a completed view of its pointer fields. Construction
 may retain incomplete references but cannot publish them, so reaching the root
@@ -108,13 +111,13 @@ There is no group identity or traversal to mark members complete. Conversely,
 object-reference fields read through incomplete self remain conservative, even
 if the particular stored reference was complete.
 
-The optimistic `Iter.types` solve also handles qualifier cycles. For
+The existing optimistic SCCP solve also handles qualifier cycles. For
 `p = null; while (n--) p = new Link(p);`, no input introduces incompleteness,
 so `p` stays complete and a subsequent field read is allowed. A backedge carrying
 self instead makes the Phi and its uses incomplete.
 
-`Construction` retains source operands and diagnostic sites until checking;
-it stores no flow facts and performs no recursive Load/Phi/Call query. The old
+`Construction` selects private self memory during parsing; it retains no
+source-use lists or flow facts and performs no recursive Load/Phi/Call query. The old
 root and allocation bitsets are gone. There are no field-requirement sets,
 hidden `^` memory arguments, or runtime group objects.
 

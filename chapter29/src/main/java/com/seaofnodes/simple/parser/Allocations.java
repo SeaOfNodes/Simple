@@ -47,13 +47,12 @@ final class Allocations {
         if( clz==null )
             throw P.error("Unknown struct type '" + ts._name + "'");
         Field afld = clz.field("<new>");
-        P.construction.allocation(afld==null ? null : (TypeFunPtr)afld._t,ctorArgs,P.loc());
         Node alloc;
         if( afld != null ) {
             TypeFunPtr tfp = (TypeFunPtr)afld._t;
             FunNode fun = P._code.link(tfp);
             alloc = fun==null
-                ? new FRefNode((TypeStruct.addClzPrefix(typeName)+".<new>").intern(),P.loc())
+                ? new FRefNode((TypeStruct.addClzPrefix(typeName)+".<new>").intern(),P.loc()).init()
                 : new FunPtrNode(tfp,P._code._start,fun.ret()).peephole();
         } else {
             if( !ts._fref )
@@ -62,7 +61,7 @@ final class Allocations {
             for( int i = 0; i<ctorArgs._len; i++ )
                 sig[i] = ctorArgs.at(i)._type;
             alloc = new FRefNode((TypeStruct.addClzPrefix(typeName)+".<new>").intern(),P.loc(),
-                                 TypeFunPtr.make(false,sig,TypeMemPtr.make(ts)));
+                                 TypeFunPtr.make(false,sig,TypeMemPtr.make(ts))).init();
         }
         Ary<Node> args = new Ary<>(Node.class);
         args.add(P.ctrl()); args.add(P.mem());
@@ -175,6 +174,13 @@ final class Allocations {
             priv = new ProjNode(cend,2,"#selfMem").peephole();
         }
 
+        // Hidden construction helpers have only allocator callers.
+        if( initRet.fun().unknownCallers() ) initRet.fun().removeDeadPath(1);
+        if( ctor!=null ) {
+            FunNode cfun = P._code.link(ctor);
+            if( cfun.unknownCallers() ) cfun.removeDeadPath(1);
+        }
+
         priv.keep();
         for( Field field : ts._fields ) {
             Type storage = field._t.makeStorage();
@@ -187,8 +193,9 @@ final class Allocations {
             pub.unkeep();
             pub = next;
         }
-        priv.unkill();
-        ReturnNode ret = (ReturnNode)new ReturnNode(ctl,pub,self,rpc,fun).peephole();
+        Node finished = new ConstructNode(self,priv,P.loc(),ctor!=null).peephole();
+        priv.unkeep();
+        ReturnNode ret = (ReturnNode)new ReturnNode(ctl,pub,finished,rpc,fun).peephole();
         fun.setRet(ret);
         fun._approxUIDs = P._code.UID() - oldUID;
         P._ref.addFun(P._code,fun);

@@ -34,6 +34,8 @@ public class FRefNode extends ConstantNode {
 
     @Override public String label() { return "FRef"+_name; }
 
+    @Override public Type compute() { return nIns()==1 ? _con : in(1)._type; }
+
 
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         return p.p("FRef_").p(_name);

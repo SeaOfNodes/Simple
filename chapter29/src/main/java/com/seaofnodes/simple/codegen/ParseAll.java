@@ -119,52 +119,9 @@ public abstract class ParseAll {
             if( cu._ext==null )
                 cu._clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(cu._cname));
 
-        // Walk over all Nodes, and upgrade the internal constants to the
-        // closed-over types.
-        code._stop.walk( (Node n) -> {
-                n.upgradeType(Parser.TYPES);
-                if( n instanceof FRefNode fref ) {
-                    boolean alloc = fref._name.endsWith(".<new>");
-                    String clzName = alloc
-                        ? fref._name.substring(0,fref._name.length()-".<new>".length()).intern()
-                        : fref._name;
-                    TypeStruct clz = (TypeStruct)Parser.TYPES.get(clzName);
-                    if( clz == null )
-                        return null;
-                    Node con;
-                    if( alloc ) {
-                        Field ctor = clz.field("<new>");
-                        if( ctor == null || !(ctor._t instanceof TypeFunPtr tfp) ) {
-                            String name = clzName.startsWith(TypeStruct.CLZ)
-                                ? clzName.substring(TypeStruct.CLZ.length()) : clzName;
-                            int dot = name.lastIndexOf('.');
-                            throw Parser.error("Unknown struct type '"+(dot==-1 ? name : name.substring(dot+1))+"'",fref._loc);
-                        }
-                        FunNode fun = code.link(tfp);
-                        if( fun == null ) return null;
-                        con = new FunPtrNode(tfp,code._start,fun.ret()).peephole();
-                    } else {
-                        // Class pointer constant:
-                        TypeMemPtr clzptr = TypeMemPtr.make((byte)2,clz,true);
-                        con = code.con(clzptr);
-                    }
-                    // Replace and optimize
-                    fref.addDef(con);
-                    code.add(fref);
-                }
-                // Adds sort by NIDs, which just got shuffled
-                if( n instanceof AddNode add )
-                    code.add(add);
-                // All imported bodies are loaded; link them before Iter checks types.
-                if( n instanceof CallNode call && !NEEDS_LOAD.isEmpty() )
-                    code.add(call).idealize();
-                return null;
-            } );
-
         // The complete public interface is now known.  Keep this independent
         // of later graph/linker liveness so SCCP computations remain local and
         // monotonic.
-        code.P.checkConstruction();
         code.freezePublicInterface();
     }
 

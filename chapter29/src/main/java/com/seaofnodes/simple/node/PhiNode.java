@@ -200,7 +200,7 @@ public class PhiNode extends Node {
     private Node drop_same_op() {
         Node op = in(1), cp = op.copyEmpty();
         cp._type = null;
-        cp.addDef(null);
+        cp._inputs.add(null);
         for( int j=1; j<op.nIns(); j++ ) {
             Node x = op.in(j);
             boolean different = false;
@@ -217,23 +217,50 @@ public class PhiNode extends Node {
                 // Do not introduce an operand Phi mixing incompatible type families.
                 if( t==Type.BOTTOM || t==TypeScalar.BOT ) {
                     for( int i=1; i<ins.length; i++ ) addDep(ins[i]);
-                    cp.kill();
+                    discardTrial(cp);
                     return null;
                 }
                 PhiNode phi = j==1 && op instanceof MemOpNode mem
-                    ? new MemPhiNode(_label,mem._alias,ins)
-                    : PhiNode.make(_label,t,ins);
-                x = phi.peephole();
+                    ? new MemPhiNode(_label,mem._alias)
+                    : PhiNode.make(_label,t);
+                // Compute the trial without changing any existing use lists.
+                // Rejecting and killing a wired trial would wake our own
+                // dependencies and retry the same unsuccessful fold forever.
+                for( Node in : ins ) phi._inputs.add(in);
+                phi._type = phi.compute();
+                x = phi;
             }
-            cp.addDef(x);
+            cp._inputs.add(x);
         }
         // Factoring must not widen the result (e.g. correlated And operands).
-        if( cp.compute().isa(compute()) ) return cp;
+        if( cp.compute().isa(compute()) ) {
+            for( int j=1; j<cp.nIns(); j++ ) {
+                Node x = cp.in(j);
+                if( x instanceof PhiNode && x.isUnused() ) {
+                    for( Node in : x._inputs )
+                        if( in!=null ) in.addUse(x);
+                    x = x.peephole();
+                    cp._inputs.set(j,x);
+                }
+                if( x!=null ) x.addUse(cp);
+            }
+            return cp;
+        }
         for( int i=1; i<nIns(); i++ )
             for( int j=1; j<in(i).nIns(); j++ )
                 if( in(i).in(j)!=null ) addDep(in(i).in(j));
-        cp.kill();
+        discardTrial(cp);
         return null;
+    }
+
+    // Trial inputs have no matching use edges yet, so ordinary kill is wrong.
+    private static void discardTrial(Node cp) {
+        for( Node x : cp._inputs )
+            if( x instanceof PhiNode && x.isUnused() ) {
+                x._inputs.clear();
+                x._type = null;
+            }
+        cp._inputs.clear();
     }
 
     /**

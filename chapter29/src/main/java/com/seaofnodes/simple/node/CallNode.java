@@ -7,6 +7,7 @@ import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.codegen.Iter;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeMemPtr;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeRPC;
@@ -28,6 +29,9 @@ public class CallNode extends CFGNode {
         super(nodes);
         _loc = loc;
         CodeGen.CODE._calls.add(this);
+        // Imported targets may be installed after this call is parsed.
+        // Retry linking when Iter drains the parser's worklist.
+        CodeGen.CODE.add(this);
         CodeGen.CODE.add(CodeGen.CODE._globalEscapes);
     }
     public CallNode(CallNode call) { super(call); _loc = call._loc; }
@@ -79,22 +83,6 @@ public class CallNode extends CFGNode {
         if( XInt.isHigh(tfp.fidxs()) ) return true;
         for( int fidx=XInt.next(tfp.fidxs(),-1); fidx>=0; fidx=XInt.next(tfp.fidxs(),fidx) )
             if( CodeGen.CODE.externFunc(fidx)!=null ) return true;
-        return false;
-    }
-
-    // Unknown callers contribute declared argument types to the parameters.
-    // Those broad types can hide a particular private callback supplied here.
-    // Expose actual arguments too, including calls through library summaries.
-    boolean exposesArguments(Node dep) {
-        if( external() ) return true;
-        if( !(fptr()._type instanceof TypeFunPtr tfp) ) return false;
-        for( int fidx = XInt.next(tfp.fidxs(),0); fidx>=0; fidx = XInt.next(tfp.fidxs(),fidx) ) {
-            FunNode fun = CodeGen.CODE._link(fidx);
-            if( fun!=null && !fun.isClz() ) {
-                dep.addDepForwards(fun);
-                if( fun.unknownCallers() ) return true;
-            }
-        }
         return false;
     }
 
@@ -165,7 +153,8 @@ public class CallNode extends CFGNode {
                 // Walk the bits and link
                 for( int fidx = XInt.next(fidxs,0); fidx > 0; fidx = XInt.next(fidxs,fidx) ) {
                     FunNode fun = CodeGen.CODE.link(fidx);
-                    if( fun!=null && !fun._folding && !linked(fun) )
+                    if( fun==null ) addDepForwards(CodeGen.CODE._start);
+                    if( fun!=null && !addDep(fun)._folding && !linked(fun) )
                         progress = link(fun);
                 }
             }
@@ -256,6 +245,9 @@ public class CallNode extends CFGNode {
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
             if( !arg(i+2)._type.isa(tfp.arg(i)) || !arg(i+2)._type.accessISA(tfp.arg(i)) ) {
+                if( arg(i+2)._type instanceof TypeMemPtr actual && actual._partial &&
+                    tfp.arg(i) instanceof TypeMemPtr formal && !formal._partial )
+                    return Parser.error("Cannot pass an incomplete object to a parameter without '^' (ordinary function or constructor)",_loc);
                 // Constructors return private memory and carry hidden self and
                 // selfMem arguments ahead of the source-level arguments.
                 int argno = i - (tfp.ret() instanceof TypeMem ? 2 : 0);

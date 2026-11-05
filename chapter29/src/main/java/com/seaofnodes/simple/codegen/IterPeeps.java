@@ -165,7 +165,7 @@ public class IterPeeps {
         Node changed = code._stop.walk( n -> {
             // Ignore most in-progress things
             if( n.iskeep() ) return null;
-            // Types must be forwards, even if on the worklist.
+            // Types must lift, even if on the worklist.
             Type nval = n.compute();
             assert nval.isa(n._type) : "Non-monotonic peep: "+n+"#"+n._nid+" old="+n._type+" new="+nval+" inputs="+inputTypes(n)+" peep="+n;
             if( list.on(n) )

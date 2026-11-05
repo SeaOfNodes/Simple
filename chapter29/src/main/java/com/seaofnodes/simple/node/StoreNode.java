@@ -80,7 +80,7 @@ public class StoreNode extends MemOpNode {
         Type mem0 = mem()._type;
         Type ptr0 = ptr()._type;
         // Validate argument types
-        if( ptr0.isHigh() )
+        if( ptr0.isHigh() || mem0.isHigh() )
             return TypeMem.TOP;
         if( !(mem0 instanceof TypeMem    mem) ||
             !(ptr0 instanceof TypeMemPtr ptr) )
@@ -88,16 +88,16 @@ public class StoreNode extends MemOpNode {
 
         // Sharpen memory value; required for narrowing stores where the parser
         // inserts zero/sign masking and somebody reads the TypeMem type.
-        // A source Load of an unwritten field is kept and checked separately;
-        // this declared bound does not excuse that earlier read.
+        // A declared bound must not turn an unwritten value into an
+        // initialized integer, float, or pointer.
         Type decl = declaredType();
         if( decl instanceof TypeMemPtr ptrType ) decl = ptrType.withPartial(TypeMemPtr.mayBePartial(val));
-        if( decl != Type.BOTTOM )
+        if( decl != Type.BOTTOM && val!=Type.BOTTOM && val!=TypeScalar.BOT )
             { assert decl != Type.TOP; val = val.join(decl); }
         // A constructor can itself be a field. Its result memory contains
         // that field again; retain the declared signature instead of unfolding
         // successively sharper copies of its private-memory return type.
-        if( mem._one && decl instanceof TypeFunPtr ) val = decl;
+        if( mem._one && decl instanceof TypeFunPtr && val instanceof TypeFunPtr ) val = decl;
         // A singleton class's final constant field lives in the static image.
         // Its precise memory slice is a constant too; ordinary peepholes can
         // replace this Store before scheduling or instruction selection.
@@ -107,7 +107,10 @@ public class StoreNode extends MemOpNode {
         if( fld==null && off() instanceof ConFldOffNode off ) fld = off._ts.field(_name);
         if( _alias!=1 && ptr._one && TypeStruct.startsClzPrefix(ptr._obj._name) &&
             fld!=null && fld._final && decl.isConstant() )
-            return TypeMem.make(_alias,val,true,true,true,mem._escFs,mem._escAs).escapesFrom(val);
+            // This singleton slice contains just the stored value. Copying
+            // bulk memory's escapes would freeze a transient FULL bound into
+            // the constant, permanently exposing unrelated private functions.
+            return TypeMem.make(_alias,val,true,true,true,null,null).escapesFrom(val);
 
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -

@@ -7,6 +7,26 @@ import static org.junit.Assert.assertSame;
 
 public class TypeTest {
 
+    @Test public void testOpaqueExternalEscapes() {
+        TypeMem defaults = TypeMem.START.makeFrom(XInt.make(2),XInt.make(3));
+        TypeMem prior = TypeMem.START.makeFrom(XInt.make(5),XInt.make(7));
+        TypeMemPtr opaque = TypeMemPtr.makeNullable(TypeStruct.forward("OpaqueExternal"));
+        TypeMem escaped = prior.escapesFrom(opaque,defaults);
+        assertSame(XInt.meet(prior._escFs,defaults._escFs),escaped._escFs);
+        assertSame(XInt.meet(prior._escAs,defaults._escAs),escaped._escAs);
+        // Before type closure the same name might still resolve locally.
+        assertSame(XInt.FULL,prior.escapesFrom(opaque,TypeMem.BOT)._escFs);
+        for( Type unknown : new Type[]{Type.BOTTOM,TypeScalar.BOT,TypePtr.PTR,
+                TypeMemPtr.make(TypeStruct.open("LocalStillOpen"))} ) {
+            TypeMem broad = prior.escapesFrom(unknown,defaults);
+            assertSame(XInt.FULL,broad._escFs);
+            assertSame(XInt.FULL,broad._escAs);
+        }
+        // Concrete private callbacks must not be restricted to public names.
+        TypeFunPtr callback = TypeFunPtr.make1((byte)2,true,TypeFunPtr.TEMPTY,TypeInteger.BOT,11);
+        assertSame(XInt.make(11),TypeMem.START.escapesFrom(callback,defaults)._escFs);
+    }
+
     // Aggregate finality is carried by its fields. Canonicalizing the unused
     // aggregate bit must commute with dual, even for named (non-high) structs.
     @Test public void testAggregateMemoryDual() {

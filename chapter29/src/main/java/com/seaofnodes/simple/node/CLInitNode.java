@@ -75,7 +75,10 @@ public class CLInitNode extends CFGNode implements MultiNode {
     public boolean bypass() { return instance() || ready()._type==TypeInteger.TRUE; }
 
     @Override public Type compute() {
-        if( in(0)._type.isHigh() || ptr()._type.isHigh() )
+        // The pointer family can be known before its object shape during
+        // SCCP. Do not commit to a class flag before it can become an instance.
+        if( in(0)._type.isHigh() || ptr()._type.isHigh() ||
+            (ptr()._type instanceof TypeMemPtr tmp && tmp._obj.isHigh()) )
             return TypeTuple.make(Type.XCONTROL,TypeMem.TOP,TypeMem.TOP,Type.XCONTROL);
         if( instance() )
             return TypeTuple.make(in(0)._type,mem()._type,mem()._type,Type.XCONTROL);

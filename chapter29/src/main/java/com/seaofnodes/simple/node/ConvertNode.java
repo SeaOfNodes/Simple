@@ -39,6 +39,7 @@ public class ConvertNode extends Node {
     @Override public Type compute() {
         Type src = val()._type;
         if( src.isHigh() ) return Type.TOP;
+        if( src==Type.BOTTOM || src==TypeScalar.BOT ) return src;
         if( _dst instanceof TypeMemPtr ptr ) return ptr.withPartial(TypeMemPtr.mayBePartial(src));
         if( !(_dst instanceof TypeMemPtr) && src.isa(_dst) ) return src;
         return _dst;

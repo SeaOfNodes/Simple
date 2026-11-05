@@ -21,7 +21,7 @@ public class ConstructionGroupTest {
 
     private void rejects(String src, String message) {
         try {
-            new CodeGen(src).parse();
+            new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
             fail("Accepted: "+src);
         } catch( Parser.ParseException e ) {
             assertTrue(e.getMessage(),e.getMessage().contains(message));
@@ -40,12 +40,25 @@ public class ConstructionGroupTest {
             .driver(CodeGen.Phase.Encoding,TestC.CPU_PORT,TestC.CALL_CONVENTION,true,false,0);
     }
 
-    @Test public void testNoIncompleteLookupOrEscape() {
+    @Test public void testIncompleteChildReadAfterInlining() {
         // This lookup supplies a live result. Inlining must not turn self
         // complete inside the body before checking the use of child.
         rejects(parent("child = new Child(self); payload = child.parent==null;")+
             "return new Parent(arg).payload;","incomplete object");
-        rejects(parent("payload = 1; child = new Child(self); int x = child.parent==null;")+"return 0;","incomplete object");
+    }
+
+    @Test public void testInitializerFeedsConstructor() {
+        // Private memory comes from the initializer's real call edge. An
+        // unknown-caller default must neither erase it nor poison its fields.
+        String src = "struct C { int !x = 7; new C = { -> x = x+1; }; }; return new C().x;";
+        for( long seed : new long[]{1,123,987654321} ) {
+            CodeGen code = new CodeGen(src,seed,true).driver(CodeGen.Phase.TypeCheck);
+            assertEquals("8",Eval2.eval(code,0));
+            assertEquals("Stop[ return 8; return Test.C; ]",code.print());
+        }
+    }
+
+    @Test public void testNoIncompleteLookupOrEscape() {
         rejects(parent("payload = 1; child = new Child(self); read(child);")+"return 0;","ordinary function");
         rejects(parent("payload = 1; child = new Child(self);").replace("parent = par;","parent = par; value = par.payload;")+
             "return 0;","incomplete object");
@@ -54,7 +67,7 @@ public class ConstructionGroupTest {
             struct C { int~ x; new C = { -> box.value = self; x = 1; }; };
             return 0;
             ""","ordinary object");
-        rejects("struct C { C next = self; int~ x; new C = { -> int y = next.x; x = 7; }; }; return 0;",
+        rejects("struct C { C next = self; int~ x; new C = { -> x = next.x; }; }; return new C().x;",
             "incomplete object");
     }
 
@@ -115,14 +128,16 @@ public class ConstructionGroupTest {
 
     @Test public void testDeclaredQualifierAndOwnReceiver() {
         // A complete caller does not grant permission to read a ^ formal.
-        rejects("""
+        for( String body : new String[]{"value = par.payload;", "value = par.payload*0;",
+                "int x = par.payload; value = x*0;", "value = par.payload==par.payload;"} )
+            rejects("""
             struct Parent { int payload = 7; };
             struct Child {
                 int value;
-                new Child = { Parent ^par -> value = par.payload; };
+                new Child = { Parent ^par -> BODY };
             };
             return new Child(new Parent).value;
-            ""","incomplete object");
+            """.replace("BODY",body),"incomplete object");
         // The self exception belongs to the receiver, not every pointer of its class.
         rejects("""
             struct C {
@@ -131,5 +146,16 @@ public class ConstructionGroupTest {
             };
             return new C(new C(null)).value;
             ""","incomplete object");
+    }
+
+    @Test public void testUnusedIncompleteReadCanDie() {
+        String src = """
+            struct Parent { int payload = 7; };
+            struct Child { int value = 5;
+                new Child = { Parent ^par -> int unused = par.payload; };
+            };
+            return new Child(new Parent).value;
+            """;
+        assertEquals("5",Eval2.eval(new CodeGen(src).driver(CodeGen.Phase.TypeCheck),0));
     }
 }

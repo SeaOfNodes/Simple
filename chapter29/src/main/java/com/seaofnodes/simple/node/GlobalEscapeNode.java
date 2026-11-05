@@ -16,19 +16,14 @@ public class GlobalEscapeNode extends Node {
     @Override public Node idealize() { return null; }
 
     @Override public TypeMem compute() {
-        TypeMem xmem = StopCUNode.priorEscapes(_type);
+        TypeMem xmem = TypeMem.START;
         for( CallNode call : CodeGen.CODE._calls )
             if( !call.isDead() ) {
-                xmem = StopCUNode.publicBottom(xmem.escapes(call.exposed(this)),xmem);
-                // FULL memory normalizes to public bits. Preserve precise
-                // private arguments independently of that normalization.
-                if( call._type==Type.CONTROL && call.exposesArguments(this) )
-                    for( int i = 0; i<call.nargs(); i++ )
-                        xmem = StopCUNode.publicBottom(xmem.escapes(addDepForwards(call.arg(i+2))._type),xmem);
+                xmem = xmem.escapes(call.exposed(this));
             }
         for( FunNode fun : CodeGen.CODE._linker )
             if( fun!=null && fun.summary()!=null && !fun.summary().isDead() ) {
-                xmem = StopCUNode.publicBottom(xmem.escapes(fun.summary().exposed(this)),xmem);
+                xmem = xmem.escapes(fun.summary().exposed(this));
                 // A reachable unloaded body can call these targets, including
                 // private initializers. Its arguments are unavailable here.
                 if( fun._type==Type.CONTROL )
