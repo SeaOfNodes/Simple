@@ -91,6 +91,25 @@ public class TypeMemPtr extends TypeNil {
         return partial==_partial ? this : make(_nil,_obj,_one,_pub,_ro,partial);
     }
 
+    // A partial declaration promises no initialized slots. Actual callers may
+    // supply a sharper shape; the declaration must not manufacture those facts.
+    public TypeMemPtr partialBound() { return _partial ? makeFrom(_obj.makeInit()) : this; }
+
+    // Project field initialization onto declared field types, not stored
+    // constants. A pointer field being set does not complete its referent.
+    public TypeMemPtr initialized(TypeStruct state) {
+        TypeStruct shape = _obj;
+        for( Field fld : _obj._fields ) {
+            Field actual = state.field(fld._fname);
+            Type t = actual==null ? TypeScalar.BOT : actual._t;
+            if( t==Type.BOTTOM || t==TypeScalar.BOT ) t = TypeScalar.BOT;
+            else if( t.isHigh() ) t = TypeScalar.TOP;
+            else t = fld._t==Type.BOTTOM ? TypeScalar.BOT : fld._t==Type.TOP ? TypeScalar.TOP : fld._t;
+            shape = shape.replace(fld.makeFrom(t));
+        }
+        return makeFrom(shape);
+    }
+
     // Conservative on unresolved scalar/pointer families; null is complete.
     public static boolean mayBePartial(Type t) {
         return t instanceof TypeMemPtr ptr ? ptr._partial

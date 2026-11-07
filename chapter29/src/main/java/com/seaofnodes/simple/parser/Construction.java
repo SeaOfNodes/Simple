@@ -2,6 +2,7 @@ package com.seaofnodes.simple.parser;
 
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
 
 /**
  * Field initialization is ordinary forward typing: New supplies Scalar.BOT
@@ -10,17 +11,18 @@ import com.seaofnodes.simple.type.*;
  * initialized integer. Loads and merged Returns inspect these types after the
  * parser closes loops and compute() stabilizes. No backwards initialization walk.
  *
- * References have just a yes/no restriction. Constructor self and ^ parameters
- * are incomplete. An allocation result is incomplete iff an actual argument is
- * incomplete. Copies and Phis preserve this restriction. Only self may be read
- * while incomplete; object-reference fields read from self conservatively remain
- * incomplete. Arrays are born initialized and cannot contain incomplete refs.
- * Ordinary calls and stores outside self require complete references.
+ * Constructor self and ^ parameters are incomplete. InitViewNode combines self
+ * with its current private memory: set fields carry their declared types and
+ * missing fields carry Scalar.BOT. Local ^ parameters meet these shapes through
+ * ordinary forward flow; unknown callers promise no initialized fields. Only
+ * the original constructor may write through an incomplete pointer.
  *
- * This permits cycles to be assembled but not traversed until the root new
- * returns. A new with only complete arguments, including null, returns complete.
- * A ^ formal is always restricted inside its constructor, even when a caller
- * passes a complete argument. No field requirements are inferred.
+ * Calls borrowing self receive its Stores on the ordinary public memory edge,
+ * using aliasable Escape slices without publishing its identity. Field values
+ * come from memory, not the pointer's initialization shape. Incomplete values
+ * may be retained only in private construction memory. Nested object references
+ * conservatively promise no initialized fields; arrays are born initialized.
+ * No field requirements are inferred and no extra memory arguments are added.
  *
  * Incompleteness lives in TypeMemPtr, not a parser provenance graph. Ordinary
  * Phis carry it around loops, conversions preserve it, and ConstructNode types
@@ -39,7 +41,7 @@ import com.seaofnodes.simple.type.*;
  * Reading a pointer field through a completed receiver gives a completed view
  * of that field too: its object's construction could only retain incomplete
  * references from the enclosing construction. There is no group ID to clear.
- * A read through incomplete self conservatively returns an incomplete reference
+ * A read through an incomplete pointer conservatively returns an incomplete reference
  * (except initialized arrays), even when the stored value happens to be complete.
  * Own-self access is identified by the receiver and its private memory, not by
  * the nominal class: a ^ argument of the same class cannot use that exception.
@@ -53,7 +55,8 @@ import com.seaofnodes.simple.type.*;
  * Hidden helpers have only allocator callers, while the public constructor
  * binding denotes the allocator. Private-memory Parms therefore need no
  * fictitious external default or constructor-specific transfer function.
- * There is no extra construction pass; see docs/deferred-construction.md.
+ * InitView and Construct are erased by the existing TypeCheck walk. There is
+ * no extra construction pass; see docs/construction-groups.md.
  */
 final class Construction {
     private final Parser P;
@@ -83,8 +86,33 @@ final class Construction {
         return P._scope.in(P._scope.update(mem,null));
     }
 
+    Node view(Node ptr) {
+        return own(ptr) ? new InitViewNode((TypeMemPtr)((ParmNode)_frame._self)._declaredType,ptr,selfMem()).peephole() : ptr;
+    }
+
+    // Carry the constructor's Stores on the call's ordinary memory edge.
+    // The borrowed receiver is read-only; this does not publish its identity.
+    Node callMemory(Ary<Node> args, Node pub) {
+        if( !_frame._owner ) return pub;
+        boolean lends = false;
+        for( int i=2; i<args.size()-1; i++ ) lends |= own(args.at(i));
+        if( !lends ) return pub;
+        Node self = _frame._self;
+        TypeStruct ts = (TypeStruct)Parser.TYPES.get(((TypeMemPtr)self._type)._obj._name);
+        Node priv = selfMem().keep();
+        for( Field fld : ts._fields ) {
+            pub.keep();
+            Node loan = new EscapeNode(fld,self,priv,pub,true).peephole();
+            Node next = P.mergeAlias(pub,fld._alias,loan);
+            pub.unkeep();
+            pub = next;
+        }
+        priv.unkeep();
+        return pub;
+    }
+
     boolean own(Node ptr) {
-        while( ptr instanceof ConvertNode || ptr instanceof ReadOnlyNode || ptr instanceof GuardNode || (ptr instanceof ConstructNode con && con._partial) ) ptr = ptr.in(1);
+        while( ptr instanceof InitViewNode || ptr instanceof ConvertNode || ptr instanceof ReadOnlyNode || ptr instanceof GuardNode || (ptr instanceof ConstructNode con && con._partial) ) ptr = ptr.in(1);
         return _frame._owner && ptr==_frame._self;
     }
 
@@ -97,6 +125,6 @@ final class Construction {
 
     void checkSerializable() {
         if( _borrowed )
-            throw P.error("Separate compilation of constructors with '^' parameters is not supported yet");
+            throw P.error("Separate compilation of functions with '^' parameters is not supported yet");
     }
 }

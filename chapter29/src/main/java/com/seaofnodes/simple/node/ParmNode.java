@@ -20,7 +20,7 @@ public class ParmNode extends PhiNode {
         super(label, inputs);
         _idx = idx;
         _declaredType = declaredType;
-        _type = declaredType;
+        _type = declaredBound();
     }
     public ParmNode(ParmNode parm) { super(parm, parm._label ); _idx = parm._idx; _declaredType = parm._declaredType; }
     @Override public Tag serialTag() { return Tag.Parm; }
@@ -49,6 +49,12 @@ public class ParmNode extends PhiNode {
 
     public FunNode fun() { return (FunNode)in(0); }
 
+    // The hidden constructor receiver has private memory for checking reads.
+    // Only borrowed source parameters need an initially empty field promise.
+    private Type declaredBound() {
+        return !(_idx==2 && "self".equals(_label)) && _declaredType instanceof TypeMemPtr ptr ? ptr.partialBound() : _declaredType;
+    }
+
     @Override
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         if( fun()._name!=null && fun()._name.endsWith("<clinit>") && _label.equals("arg") )
@@ -68,7 +74,7 @@ public class ParmNode extends PhiNode {
             return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_declaredType instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() || in(nIns()-1)==null )
-            return _declaredType;
+            return declaredBound();
         // Set type to local top of the starting type
         Type t = Type.TOP;
         for( int i = 1; i < nIns(); i++ ) {
@@ -93,7 +99,7 @@ public class ParmNode extends PhiNode {
         // widening this Parm alone cannot stop f(x-1)+1 from growing its result.
         if( t instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
             t = ti.same_but_slightly_wider_than();
-        t = t.join(_declaredType);
+        t = t.join(declaredBound());
         return t==Type.TOP && _declaredType instanceof TypeMem ? TypeMem.TOP : t;
     }
 

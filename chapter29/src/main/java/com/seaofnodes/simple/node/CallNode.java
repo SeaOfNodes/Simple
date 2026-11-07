@@ -246,7 +246,7 @@ public class CallNode extends CFGNode {
 
         // Check for args
         for( int i=0; i<tfp.nargs(); i++ )
-            if( !arg(i+2)._type.isa(tfp.arg(i)) || !arg(i+2)._type.accessISA(tfp.arg(i)) ) {
+            if( !arg(i+2)._type.isa(tfp.arg(i) instanceof TypeMemPtr p ? p.partialBound() : tfp.arg(i)) || !arg(i+2)._type.accessISA(tfp.arg(i)) ) {
                 if( arg(i+2)._type instanceof TypeMemPtr actual && actual._partial &&
                     tfp.arg(i) instanceof TypeMemPtr formal && !formal._partial )
                     return Parser.error("Cannot pass an incomplete object to a parameter without '^' (ordinary function or constructor)",_loc);

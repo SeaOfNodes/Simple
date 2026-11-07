@@ -123,7 +123,7 @@ public abstract class MemOpNode extends TypeNode {
         // Already an error, but better error messages come from elsewhere
         if( ptr == Type.BOTTOM ) return null;
         if( ptr.isHigh() ) return null; // Assume it will fall to not-null
-        if( ptr instanceof TypeMemPtr p && p._partial &&
+        if( !_isLoad && ptr instanceof TypeMemPtr p && p._partial &&
             !(mem()._type instanceof TypeMem m && m._one && !m._clz) )
             return Parser.error("Cannot access field '"+_name+"' through an incomplete object",_loc);
         // Better be a not-nil TMP

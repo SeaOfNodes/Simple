@@ -102,6 +102,8 @@ public class FunNode extends RegionNode {
     // uniform call syntax, including callbacks forwarded by another class.
     public Type defaultArg(int idx) {
         Type t = sig().arg(idx);
+        if( t instanceof TypeMemPtr ptr && ptr._partial &&
+            !(idx==0 && sig().nargs()>1 && sig().arg(1) instanceof TypeMem) ) return ptr.partialBound();
         if( idx!=0 || t!=TypePtr.PTR ) return t;
         TypeStruct clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(_compunit._cname));
         assert clz!=null;

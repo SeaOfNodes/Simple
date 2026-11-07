@@ -41,10 +41,11 @@ public class ConstructionGroupTest {
     }
 
     @Test public void testIncompleteChildReadAfterInlining() {
-        // This lookup supplies a live result. Inlining must not turn self
-        // complete inside the body before checking the use of child.
-        rejects(parent("child = new Child(self); payload = child.parent==null;")+
-            "return new Parent(arg).payload;","incomplete object");
+        // Child's own slots are initialized, even though its parent remains
+        // partial. Reading that slot does not complete the parent reference.
+        String src = parent("child = new Child(self); payload = child.parent==null;")+
+            "return new Parent(arg).payload;";
+        assertEquals("0",Eval2.eval(new CodeGen(src).driver(CodeGen.Phase.TypeCheck),0));
     }
 
     @Test public void testInitializerFeedsConstructor() {
@@ -61,14 +62,14 @@ public class ConstructionGroupTest {
     @Test public void testNoIncompleteLookupOrEscape() {
         rejects(parent("payload = 1; child = new Child(self); read(child);")+"return 0;","ordinary function");
         rejects(parent("payload = 1; child = new Child(self);").replace("parent = par;","parent = par; value = par.payload;")+
-            "return 0;","incomplete object");
+            "return 0;","Might be null");
         rejects("""
             struct Box { Test.C? value; }; val box = new Box;
             struct C { int~ x; new C = { -> box.value = self; x = 1; }; };
             return 0;
             ""","ordinary object");
         rejects("struct C { C next = self; int~ x; new C = { -> x = next.x; }; }; return new C().x;",
-            "incomplete object");
+            "might not be initialized");
     }
 
     @Test public void testAliasesAndLoopBackedges() {
@@ -82,8 +83,8 @@ public class ConstructionGroupTest {
             "return 0;","ordinary function");
     }
 
-    @Test public void testConstructorOnlyQualifier() {
-        rejects("struct C {}; val f = { C ^c -> return 0; }; return 0;","constructor");
+    @Test public void testPartialQualifier() {
+        new CodeGen("struct C {}; val f = { C ^c -> return 0; }; return 0;").driver(CodeGen.Phase.TypeCheck);
         rejects("struct C { new C = { int ^x -> }; }; return 0;","struct parameter");
         rejects(parent("payload = 1; child = new Child(self);").replace("^par","par")+"return 0;","without '^'");
         CodeGen code = new CodeGen(parent("payload = 1; child = new Child(self);")+"return 0;")
@@ -127,7 +128,7 @@ public class ConstructionGroupTest {
     }
 
     @Test public void testDeclaredQualifierAndOwnReceiver() {
-        // A complete caller does not grant permission to read a ^ formal.
+        // A public constructor's unknown callers promise no initialized slots.
         for( String body : new String[]{"value = par.payload;", "value = par.payload*0;",
                 "int x = par.payload; value = x*0;", "value = par.payload==par.payload;"} )
             rejects("""
@@ -137,7 +138,7 @@ public class ConstructionGroupTest {
                 new Child = { Parent ^par -> BODY };
             };
             return new Child(new Parent).value;
-            """.replace("BODY",body),"incomplete object");
+            """.replace("BODY",body),"might not be initialized");
         // The self exception belongs to the receiver, not every pointer of its class.
         rejects("""
             struct C {

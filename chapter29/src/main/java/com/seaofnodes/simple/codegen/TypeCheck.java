@@ -20,11 +20,13 @@ abstract class TypeCheck {
 
         Ary<Node> errs = new Ary<>(Node.class);
         Ary<ConstructNode> constructs = new Ary<>(ConstructNode.class);
+        Ary<InitViewNode> views = new Ary<>(InitViewNode.class);
         code._stop.walk( n -> {
                 if( n.err() != null )
                     errs.add(n);
                 if( n instanceof CLInitNode ) code.add(n);
                 if( n instanceof ConstructNode con ) constructs.add(con);
+                if( n instanceof InitViewNode view ) views.add(view);
                 return null;
             });
 
@@ -48,11 +50,13 @@ abstract class TypeCheck {
             if( code._obs != null ) code._obs.error(min, min.err().getMessage());
             throw min.err();
         }
-        // Checked construction boundaries have no runtime behavior. Gathered
+        // Checked construction boundaries and views have no runtime behavior. Gathered
         // above during the existing error walk; no separate graph pass/solve.
 
         for( ConstructNode con : constructs )
             if( !con.isDead() ) con.subsume(con.in(1));
+        for( InitViewNode view : views )
+            if( !view.isDead() ) view.subsume(view.in(1));
     }
 
     private static int errorRank(Node n) {

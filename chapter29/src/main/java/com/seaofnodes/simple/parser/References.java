@@ -94,7 +94,7 @@ final class References {
             int selfx = P._scope.kindFcn(var)._lexSize;
             // Might be a method call from inside a method, so no explicit "self".
             // Pass the in-scope "self"
-            return P.expressions.parsePostfixMethod(rvalue,P._scope.in(P._scope.update(P._scope.var(selfx),null)));
+            return P.expressions.parsePostfixMethod(P.construction.view(rvalue),P._scope.in(P._scope.update(P._scope.var(selfx),null)));
         }
         // Assign-update direct into Scope
         if( var._final && !P._scope.canInit(var) )

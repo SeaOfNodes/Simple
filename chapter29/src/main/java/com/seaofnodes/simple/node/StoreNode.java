@@ -331,6 +331,8 @@ public class StoreNode extends MemOpNode {
     public Parser.ParseException err() {
         Parser.ParseException err = super.err();
         if( err != null ) return err;
+        if( !_init && ptr()._type instanceof TypeMemPtr p && p._partial )
+            return Parser.error("Cannot modify a field through an incomplete object outside its constructor",_loc);
         if( TypeMemPtr.mayBePartial(val()._type) &&
             !(mem()._type instanceof TypeMem mem && mem._one && !mem._clz) )
             return Parser.error("Cannot store an incomplete object into an ordinary object",_loc);

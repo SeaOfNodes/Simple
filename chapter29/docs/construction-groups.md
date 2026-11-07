@@ -18,7 +18,7 @@ One `#selfMem` binding carries this memory through scopes and returns. A Load
 checks its incoming field type. Constructor completion checks the merged Return
 memory; the explicit constructor receives the declaration initializer's merged
 result, including early exits. There is no backwards initialization query,
-per-field parser state, call-site snapshot, or store-all instance exit.
+per-field parser state, or store-all instance exit.
 
 The existing Iter/Opto passes propagate these types; TypeCheck reports errors.
 There is no extra construction type solve or retained source-use list. An
@@ -40,22 +40,23 @@ fields retain their declared signatures in private summaries, avoiding repeated
 unfolding of a constructor whose returned memory contains its own function field.
 Class singleton initialization keeps its older store-at-exit implementation.
 
-## A yes/no rule for references
+## Partial references and readable fields
 
-`self` and incoming `C ^arg` constructor parameters are incomplete references.
-`C? ^arg` also accepts null. The qualifier is permitted only on struct parameters
-of explicit constructors, not on arrays or ordinary function parameters.
+`self` and incoming `C ^arg` parameters are incomplete references. `C? ^arg`
+also accepts null. Ordinary functions and constructors accept the qualifier on
+struct parameters; arrays cannot be qualified this way.
 
 - An allocation result is incomplete if any actual argument is incomplete.
 - With only completed arguments, including null, the result is complete.
 - An incomplete reference may be stored into self or passed to a `^` parameter.
 - Ordinary calls and stores into other objects require completed references.
-- Field lookup on an incomplete object is forbidden, except through self.
-  Exact local aliases of self share its current private memory.
-- An object-reference field read from incomplete self is conservatively
-  incomplete. There is no inference of initialized-field requirements on `^`
-  arguments, nor permission to traverse a constructed member before its root
-  construction finishes. Arrays are already initialized and cannot receive
+- A borrowed partial can read fields its incoming type proves initialized.
+  It cannot write fields, even non-finals. Exact local aliases of self retain
+  the original constructor's access to its current private memory.
+- An object-reference field read through a partial is conservatively
+  incomplete, with no initialized-field guarantees for its referent. There is
+  no inference of initialized-field requirements on `^` arguments.
+  Arrays are already initialized and cannot receive
   incomplete elements, so an initialized array field can be used normally.
 
 For example:
@@ -70,7 +71,7 @@ struct Parent {
     int~ payload;
     new Parent = { int n ->
         child = new Child(self); // Incomplete result: self is incomplete.
-        // child.parent is forbidden here.
+        // Retention does not authorize reading parent.payload through child.
         payload = n;
     };
 };
@@ -83,8 +84,59 @@ Here `Test` names the source unit. After the root Parent constructor completes,
 the entire cycle is usable: all members have initialized their own fields, and
 none could expose an incomplete reference to ordinary code during construction.
 The Child constructor still treats its `^par` as incomplete when the actual
-argument is complete; it may retain or forward it, but cannot read `par.payload`.
-Field sharpening and inferred contracts are deliberately deferred.
+argument is complete. This public constructor also has unknown callers, whose
+partial arguments promise no initialized fields, so `par.payload` is unreadable.
+
+## Forward field views
+
+At a use of self, `InitViewNode` combines the pointer with that program point's
+private memory. Its TypeMemPtr contains declared types for initialized fields
+and Scalar.BOT for missing fields. The node retains the declaration separately
+from the incoming flow shape, so an exact self alias captured before a Store
+can receive a fresh view afterward. Earlier calls retain their earlier views.
+
+For example, a private helper can read `x` while `y` is still unset:
+
+```simple
+struct _C {
+    int~ x;
+    int~ y;
+    new _C = { int n -> x=n; y=_read(self); };
+};
+val _read = { _C ^p -> return p.x; };
+return new _C(arg).y;
+```
+
+Parm meets the incoming shapes using the normal type flow. If any live caller
+lacks `x`, Scalar.BOT survives and the Load reports the missing initialization.
+Unknown callers supply an empty field promise. Parsing must also start borrowed
+parameters at that bound: otherwise early folding of `p.x*0` could hide a bad
+read before SCCP. The hidden constructor receiver retains its declaration;
+its private memory supplies its read checks and precise field updates.
+
+Values still come from normal memory. Before a call borrowing self, EscapeNode
+borrow slices carry the current constructor Stores onto the ordinary call
+memory edge. These slices are aliasable and do not publish the private identity
+or its fields into the global escape sets. No hidden partial-memory arguments,
+field bitsets, additional passes, or recursive flow queries are introduced.
+
+InitView folds before TypeCheck when its input already has the same type and
+retains a structural partial view. Nested partial-only Construct wrappers also
+collapse. A Parm's current partial type alone is insufficient: inlining may
+later substitute a complete actual argument, which must not grant the borrowed
+parameter permission to write or publish that object. The completion form of
+Construct already folds once its memory proves initialization and its result
+type matches its input.
+
+TypeCheck checks the consumers and erases remaining InitViews along with the
+checked Construct boundaries in its existing walk. A surviving field view is
+not necessarily erroneous: a reader may need only the initialized subset.
+Construct remains necessary for
+final-field completion and for the partial qualifier of each source `new`.
+Alias Phis and nested reference loads are conservative; they do not acquire
+the original constructor's write permission. This prototype adds no general
+ban on overlapping allocations of the same class: only the owning receiver
+uses private memory, while borrowed reads use aliasable memory.
 
 ## Aliases and loops
 
@@ -121,14 +173,69 @@ source-use lists or flow facts and performs no recursive Load/Phi/Call query. Th
 root and allocation bitsets are gone. There are no field-requirement sets,
 hidden `^` memory arguments, or runtime group objects.
 
-`ConstructionGroupTest` exercises cycles, complete/null arguments, prohibited
+`PartialReadTest` exercises field reads, missing fields, forwarding, merged
+callers, loops, exact aliases, constructor retention, and borrowed write and
+publication restrictions. `ConstructionGroupTest` exercises cycles, complete/null arguments, prohibited
 lookups/publication, aliases, branch merges, complete and incomplete loop
 backedges, and declared restrictions with only complete callers, including an
 uninlined constructor through machine encoding. `ConstructorCompletionTest`,
 `FinalConstructionTest`, and `BoundaryTest` exercise field-memory semantics.
 The former inferred-requirement litmus tests are preserved, explicitly deferred,
-in `ConstructionRequirementsTest`. Separate compilation of `^` constructors is
+in `ConstructionRequirementsTest`. Separate compilation of `^` functions is
 still deliberately unsupported. The pointer qualifier has an object-file
 representation, but importing and checking the full construction contract is
 outside this experiment. Rebuild chapter 29 object files after the type-format
 change.
+
+## Deferred field-aware contracts (2026-11-07)
+
+Decision: do not implement inferred contracts now. Cliff considers the required
+infrastructure too large for the feature alone; revisit when a general
+backwards/liveness flow is justified, potentially for memory management.
+The later forward-field-view prototype above does not implement this contract
+discovery proposal. Separate compilation of `^` interfaces remains rejected.
+
+The intended extension would let functions and constructors receive partially
+initialized objects, read initialized fields, retain partial references with
+their restrictions, and write non-final fields. Only the original constructor
+would retain permission to initialize/reassign its own final fields; passing a
+pointer must not pass that permission. Final-field reads during construction
+would not establish value stability against later writes by that constructor.
+
+The proposed contract representation uses normal types, not a separate field
+bitset. For a function reading only `P.pi`, its unknown-caller default would be
+schematically `Partial{pi:declared-pi-type, name:TypeScalar.BOT}`. Scalar.BOT
+means no initialization guarantee, not a requirement that the caller leave the
+field unset. Required fields receive their declared types, covering every legal
+external caller. MEET with actual arguments preserves those guarantees only
+when the callers satisfy them; extra initialized fields supplied by locals do
+not strengthen the body beyond the external contract. TypeStruct/Field already
+meet field contents, and nested/cyclic types can represent nested contracts.
+TOP is not the missing-initialization marker.
+
+Cliff proposed discovering conservative, context-insensitive requirements after
+Iter and before SCCP. Freeze the resulting default argument types on functions;
+SCCP consumes them without refining the contracts. Reads on branches SCCP later
+eliminates may still impose requirements, as may reads following assignments.
+That rejection of some valid programs is acceptable for an opt-in `^` feature.
+Combine compatible requirement shapes with JOIN; combine possible caller states
+with MEET. Keep the contract distinct from the merged Parm type, and check each
+actual argument against it for a call-site diagnostic such as
+"foo requires Partial.pi to be initialized". Serialize contracts with declaration
+metadata so checking imported calls does not require loading bodies.
+
+The complication is discovering and propagating those contracts. Local SSA
+aliases share values; Phi demands reach every input. A demand on a loaded field
+becomes a nested receiver requirement. Calls substitute actual arguments for
+formals, and recursive forwarding needs a convergent propagation rule. Cyclic
+types represent recursive requirements but do not by themselves prevent a
+discovery algorithm from unfolding progressively deeper paths. Indirect calls
+need contracts available through their callable interfaces; returns need usable
+guarantees without retroactively strengthening an exported contract for a client.
+Stored references and helper writes also require a coherent account of private
+construction memory and object identity; that discussion was deliberately left
+unfinished. None of this requires H-M or bidirectional type inference, but it
+does require a substantial backwards demand analysis to handle well.
+
+The ignored ConstructionRequirementsTest retains useful litmus cases, not an
+approved implementation plan. Do not restart this work without a new request.

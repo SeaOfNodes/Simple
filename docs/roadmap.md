@@ -3,7 +3,7 @@
 English | [日本語](roadmap.ja.md)
 
 Open compiler work and language proposals, reviewed against the current
-snapshots on 2026-11-01. These are future changes, not promises about the
+snapshots on 2026-11-07. These are future changes, not promises about the
 language implemented by the tutorial. Language changes still need their own
 design decisions and chapter boundaries.
 
@@ -13,13 +13,12 @@ design decisions and chapter boundaries.
 components, with `Var` in `parser/` and `IterPeeps` in `codegen/`. It is the
 workspace for further cleanup; Chapter 28b retains the preceding compiler.
 
-Constructor completion now checks the helper Returns after parsing, with missing
-fields retained in private memory instead of separate exit maps.
-The [construction-group prototype](../chapter29/docs/construction-groups.md)
-adds unfinished constructor parameters and inferred field requirements. Remaining
-work includes contracts for reference paths, exported contracts for separate
-compilation, and forward calls with unfinished arguments. A disabled completion
-test records the existing `TOP`-marker/inlining failure beside nullable defaults.
+Constructor completion now uses private-memory field types and the existing
+TypeCheck walk, after Iter/Opto propagation. The
+[incomplete-reference design](../chapter29/docs/construction-groups.md) uses a
+partial qualifier plus forward field views for local read-only borrowers.
+Inferred field requirements, nested guarantees, and imported construction
+contracts remain longer-term proposals.
 Keep the recursive-descent path aligned with the grammar. Review moving `TYPES`
 to `CodeGen`. Consider whether
 an allocation-free use of try-with-resources makes keep/unkeep pairing clearer;
@@ -29,6 +28,13 @@ Source privacy is deferred until after this initial cleanup. The archived
 implementation and tests are experiments, not part of Chapter 29's behavior.
 
 ## Compilation and optimization
+
+### Better error messages
+
+Improve compiler diagnostics: identify the offending source expression, explain
+what was expected and what was found, and point to relevant declarations or call
+sites. Preserve useful source locations through optimization and imports, and
+avoid cascading errors that obscure the original problem.
 
 ### Phase ordering and incremental analysis
 
@@ -161,19 +167,6 @@ remain legal. String spill fixtures with helpers outside `_String` accessing
 keep those fixtures unchanged. Validate native execution and imported source
 ownership alongside the access diagnostics.
 
-### Constructor helpers and completion
-
-Local SSA field updates, including final fields, repeated assignments, and
-loops, are implemented. The remaining question is broader: should constructors
-be allowed to pass unfinished `self` to helpers that become safe after
-inlining, and should completion checks wait until SCCP?
-
-Decide those rules before changing the current parser-time completion checks
-and early-publication restrictions. Separate reading an initialized field of
-an unfinished object from exposing that object to arbitrary code. The
-construction/escape teaching boundary can then be reviewed against the chosen
-semantics.
-
 ### ELF visibility and unknown callers
 
 Escape analysis tracks functions reachable by unknown callers, while the ELF
@@ -229,10 +222,26 @@ ownership, borrowing, cycles, and native retention. Compact storage alone
 does not establish those rules. Preserve static class images and explicit
 native boundary conversions when choosing the representation.
 
-## Data and library proposals
+## Longer-term language and library proposals
 
 These are language-design alternatives. The sketches below are not executable
 examples of the current Simple grammar.
+
+### Inferred partial-initialization contracts — deferred
+
+Allow partial arguments to expose initialized fields, retain partial references,
+and propagate nested initialization guarantees, while reserving final-field
+writes to the original constructor. Cliff decided against implementing this
+now (2026-11-07): tracing requirements through aliases, nested fields, forwarding,
+recursive calls, and returned/stored references adds more infrastructure than
+is justified for this feature alone.
+
+Revisit alongside a general backwards/liveness analysis, which may also serve
+future memory management. The normal-type contract proposal and its unresolved
+details are recorded in the
+[construction notes](../chapter29/docs/construction-groups.md#deferred-field-aware-contracts-2026-11-07).
+The forward-only prototype permits local reads of proven initialized fields;
+it adds no inferred contracts. Keep the separate-compilation restriction meanwhile.
 
 ### Automatic memory management
 

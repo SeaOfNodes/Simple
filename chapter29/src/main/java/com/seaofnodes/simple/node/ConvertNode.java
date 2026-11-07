@@ -46,7 +46,9 @@ public class ConvertNode extends Node {
             // Shape/access still follow the declaration: switching between
             // the entire source and destination types is not monotone.
             if( src instanceof TypeMemPtr actual && actual.notNull() ) ptr = (TypeMemPtr)ptr.nonZero();
-            return ptr.withPartial(TypeMemPtr.mayBePartial(src));
+            ptr = ptr.withPartial(TypeMemPtr.mayBePartial(src));
+            return src instanceof TypeMemPtr actual && actual._partial && actual._obj._name==ptr._obj._name
+                ? ptr.initialized(actual._obj) : ptr;
         }
         if( src.isa(_dst) ) return src;
         return _dst;

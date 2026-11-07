@@ -18,6 +18,19 @@ The [incremental build design](incremental-builds.md) expands the roadmap's
 dependency and output-ownership requirements.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
+## Partial-initialization decision (2026-11-07)
+
+Cliff declined inferred partial-initialization contracts for now. The normal-type,
+pre-SCCP contract proposal is recorded in
+[the construction notes](../chapter29/docs/construction-groups.md#deferred-field-aware-contracts-2026-11-07).
+Revisit alongside general backwards/liveness analysis, potentially for memory
+management; do not treat the discussion or ignored requirement tests as approval
+to implement it. The roadmap places it among longer-term proposals. Cliff later
+authorized the narrower forward-only prototype: InitView carries initialized
+field shapes, existing Iter/SCCP propagates them, and TypeCheck checks and erases
+the views. Borrowed partials can read proven fields but cannot write; unknown
+callers promise no initialized fields. No new passes or backward demand walks.
+
 ## Restart handoff (2026-11-06)
 
 Cliff requested this handoff before restarting. Active branch is `escape-flow`,

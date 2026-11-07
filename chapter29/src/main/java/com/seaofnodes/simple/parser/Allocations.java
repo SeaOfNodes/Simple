@@ -150,7 +150,7 @@ final class Allocations {
                                 new ProjNode(P._ref._start,1,ScopeNode.MEM0).peephole()).peephole();
         Node[] parms = new Node[nargs];
         for( int i = 0; i<nargs; i++ )
-            parms[i] = new ParmNode("arg"+i,i+2,atypes[i],fun,ConstantNode.seed(atypes[i]).peephole()).peephole();
+            parms[i] = new ParmNode("arg"+i,i+2,atypes[i],fun,ConstantNode.seed(fun.defaultArg(i)).peephole()).peephole();
 
         NewNode nnn = new NewNode(ts,fun,ConFldOffNode.make(ts," len")).init();
         Node self = new ProjNode(nnn,0,ts.str()).init();

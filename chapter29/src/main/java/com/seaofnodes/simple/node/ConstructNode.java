@@ -49,9 +49,16 @@ public class ConstructNode extends Node {
         return ptr.withPartial(partial);
     }
     @Override public Node idealize() {
-        // Wait for Opto to install closed field types. Afterwards, a proven
-        // identity with initialized fields has no remaining error obligation.
+        // Restricting an already restricted view is redundant, including after
+        // inlining. A partial Parm type alone can later sharpen to complete.
+        if( _partial && partialView(in(1)) ) return in(1);
+        // Wait for Opto to install closed field types.  Afterwards, a proven
+        // identity with initialized fields is good, and can be removed.
+        // Otherwise we're keeping this Node until we error report.
         return !_partial && CodeGen.CODE._phase.ordinal()>=CodeGen.Phase.Opto.ordinal() && _type==in(1)._type && err()==null ? in(1) : null;
+    }
+    static boolean partialView(Node n) {
+        return n instanceof InitViewNode || n instanceof ConstructNode con && con._partial;
     }
     @Override public Parser.ParseException err() {
         if( in(2)==null || in(2)._type.isHigh() || !(in(1)._type instanceof TypeMemPtr ptr) ) return null;

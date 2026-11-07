@@ -74,8 +74,8 @@ final class Functions {
             Type t = P.types.parseType();    // Arg type
             if( t==null ) break;
             if( P.match("^") ) {
-                if( !constructor || !(t instanceof TypeMemPtr ptr) || ptr._obj.isAry() )
-                    throw P.error("'^' requires a struct parameter of a constructor");
+                if( !(t instanceof TypeMemPtr ptr) || ptr._obj.isAry() )
+                    throw P.error("'^' requires a struct parameter");
                 t = ptr.withPartial(true);
                 P.construction._borrowed = true;
             }
@@ -131,6 +131,7 @@ final class Functions {
         }
 
         // Into the call
+        args.set(1,P.construction.callMemory(args,args.at(1)));
         CallNode call = (CallNode)new CallNode(site, args.asAry()).peephole();
         // Post-call setup
         CallEndNode cend = (CallEndNode)new CallEndNode(call,TypeRPC.constant(P._code.rpc(P._ref._cname))).peephole();

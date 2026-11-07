@@ -76,7 +76,6 @@ public class LoadNode extends MemOpNode {
             return Type.BOTTOM; // Error in is error out
         if( !(ptr0 instanceof TypeMemPtr tmp) )
             return scalar(mem._t);
-        if( tmp._partial && (!mem._one || mem._clz) ) return TypeScalar.BOT;
         if( tmp.nullable() )
             return Type.BOTTOM; // Load from nil-able is error
 
@@ -86,6 +85,8 @@ public class LoadNode extends MemOpNode {
         // closed objects with missing field are an error.
         if( pfld == null )
             return tmp.isHigh() || tmp._obj.isHigh() ? TypeScalar.TOP : TypeScalar.BOT;
+
+        if( tmp._partial && (!mem._one || mem._clz) && pfld._t==TypeScalar.BOT ) return TypeScalar.BOT;
 
         Type t = pfld._t;
         boolean readonly = t instanceof TypeMemPtr view && view._ro;
@@ -111,7 +112,10 @@ public class LoadNode extends MemOpNode {
             t = t.makeRO();
         // A completed receiver gives a completed view of its reachable fields.
         // Through self, keep object references restricted until the root new.
-        if( t instanceof TypeMemPtr value ) t = value.withPartial(tmp._partial && !value._obj.isAry());
+        if( t instanceof TypeMemPtr value ) {
+            value = value.withPartial(tmp._partial && !value._obj.isAry());
+            t = value._partial ? value.partialBound() : value;
+        }
         return scalar(t);
     }
 
@@ -338,7 +342,7 @@ public class LoadNode extends MemOpNode {
         if( ptr instanceof ConvertNode conv && addDep(conv.val())._type instanceof TypeMemPtr src &&
             src.isa(addDep(conv)._type) && src.accessISA(conv._type) )
             ptr = conv.val();
-        while( ptr instanceof ReadOnlyNode || ptr instanceof ConstructNode con && con._partial ) {
+        while( ptr instanceof InitViewNode || ptr instanceof ReadOnlyNode || ptr instanceof ConstructNode con && con._partial ) {
             addDep(ptr);
             ptr = ptr.in(1);
         }
@@ -375,7 +379,7 @@ public class LoadNode extends MemOpNode {
         Parser.ParseException err = super.err();
         if( err!=null ) return err;
         if( (in(0)==null || !in(0)._type.isHigh()) && _type==TypeScalar.BOT &&
-            mem()._type instanceof TypeMem mem && mem._one && !mem._clz )
+            mem()._type instanceof TypeMem mem && ((mem._one && !mem._clz) || (ptr()._type instanceof TypeMemPtr p && p._partial)) )
             return Parser.error("Field '"+_name+"' might not be initialized",_loc);
         return null;
     }

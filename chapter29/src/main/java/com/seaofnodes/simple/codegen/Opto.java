@@ -83,7 +83,7 @@ abstract public class Opto {
                 if( x instanceof ParmNode && x._type.isHighOrConst() ) deps.push(x);
                 // Construction identities may fold after the optimistic solve.
                 // Adds may need sorting after imported node IDs were assigned.
-                if( x instanceof ConstructNode || x instanceof AddNode ) deps.push(x);
+                if( x instanceof ConstructNode || x instanceof InitViewNode || x instanceof AddNode ) deps.push(x);
                 // SCCP adds call edges and default arguments, not numeric
                 // operations. Gather unresolved modes on this required walk.
                 if( x instanceof ModeNode mode && mode.mode()==0 ) modes.push(x);
