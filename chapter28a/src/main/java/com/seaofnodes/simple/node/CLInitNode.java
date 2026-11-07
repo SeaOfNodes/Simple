@@ -67,16 +67,27 @@ public class CLInitNode extends CFGNode implements MultiNode {
     public boolean bypass() { return instance() || ready()._type==TypeInteger.TRUE; }
 
     @Override public Type compute() {
-        if( in(0)._type.isHigh() || ptr()._type.isHigh() )
+        if( in(0)._type.isHigh() || ptr()._type.isHigh() ||
+            (ptr()._type instanceof TypeMemPtr tmp && tmp._obj.isHigh()) )
             return TypeTuple.make(Type.XCONTROL,TypeMem.TOP,TypeMem.TOP);
         if( instance() )
             return TypeTuple.make(in(0)._type,mem()._type,mem()._type);
         Field flag = flag();
         Type slice = flag==null ? TypeMem.BOT : TypeMem.make(flag._alias,TypeInteger.TRUE);
-        // The initializer may write arbitrary public memory. Only its flag
-        // has a guaranteed value on the normal continuation.
-        Type bulk = ready()._type.isHigh() ? TypeMem.TOP :
+        // Before Opto, the initializer has conservative effects. Once linked,
+        // its Return supplies them through the ordinary dependency worklist.
+        // Meet with incoming memory for the path that was already initialized.
+        Type bulk = ready()._type.isHigh() || mem()._type.isHigh() ? TypeMem.TOP :
             ready()._type==TypeInteger.TRUE ? mem()._type : TypeMem.BOT;
+        if( bulk==TypeMem.BOT && ready()._type!=TypeInteger.TRUE &&
+            CodeGen.CODE._phase.ordinal()>=CodeGen.Phase.Opto.ordinal() ) {
+            FunNode target = CodeGen.CODE.link(cu());
+            if( target!=null && target.ret()!=null ) {
+                Type result = addDepForwards(target.ret())._type;
+                Type effects = result instanceof TypeTuple tt ? tt.mem() : result.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+                bulk = mem()._type.meet(effects);
+            }
+        }
         return TypeTuple.make(in(0)._type,bulk,slice);
     }
 
@@ -132,9 +143,10 @@ public class CLInitNode extends CFGNode implements MultiNode {
         Node fptr = new FunPtrNode(target.sig(),CodeGen.CODE._start,target.ret()).peephole();
         CallNode call = CodeGen.CODE.add(new CallNode(_loc,cold,memory,ptr(),arg,fptr).init());
         CallEndNode end = new CallEndNode(call,TypeRPC.constant(CodeGen.CODE.rpc(_loc._cu._cname)));
-        // This is a lowered call, after interprocedural analysis. Do not add
-        // new parameter flows to a body already optimized by SCCP.
         CodeGen.CODE.add(end.init());
+        call.link(target);
+        // Publish the linked effects before constructing memory projections.
+        end.setType(end.compute());
         Node called = CodeGen.CODE.add(new CProjNode(end,0,ScopeNode.CTRL).init());
         Node after = CodeGen.CODE.add(new ProjNode(end,1,ScopeNode.MEM0).init());
         RegionNode region = CodeGen.CODE.add(new RegionNode(_loc,null,done,called).init());

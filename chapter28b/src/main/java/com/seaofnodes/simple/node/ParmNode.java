@@ -64,7 +64,7 @@ public class ParmNode extends PhiNode {
     @Override
     public Type compute() {
         if( !(region() instanceof RegionNode r) )
-            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_type instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
+            return region()._type==Type.XCONTROL || region()._type==Type.TOP ? (_declaredType instanceof TypeMem ? TypeMem.TOP : Type.TOP) : _type;
         // During parsing Phis have to be computed type pessimistically.
         if( r.inProgress() || in(nIns()-1)==null )
             return _declaredType;
@@ -77,7 +77,12 @@ public class ParmNode extends PhiNode {
             if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
                     return Type.BOTTOM;
-                t = t.meet(in(i)._type);
+                Type arg = in(i)._type;
+                // The unknown-caller callback input is Start's memory
+                // projection, interpreted using this parameter's signature.
+                if( i==1 && r.in(i) instanceof StartNode && _idx>1 && arg instanceof TypeMem outside )
+                    arg = outside.outside(_declaredType);
+                t = t.meet(arg);
             }
         }
         // Recursion is a loop in disguise. A Parm merges the first argument
@@ -87,7 +92,8 @@ public class ParmNode extends PhiNode {
         // widening this Parm alone cannot stop f(x-1)+1 from growing its result.
         if( t instanceof TypeInteger ti && !ti.isHigh() && !ti.isConstant() )
             t = ti.same_but_slightly_wider_than();
-        return t.join(_declaredType);
+        t = t.join(_declaredType);
+        return t==Type.TOP && _declaredType instanceof TypeMem ? TypeMem.TOP : t;
     }
 
     @Override

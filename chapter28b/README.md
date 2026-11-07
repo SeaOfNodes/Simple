@@ -114,6 +114,14 @@ compilation indices; this remapping extends everywhere through the loaded code,
 including recursive types that span several files.  Importing skips parsing the
 original source, but loaded IR is still analyzed within its new context.
 
+The outside escape state includes foreign identities as a cofinite set:
+all identities except a finite set of local exclusions. Serialization remaps
+those exclusions by owner and slot, then restores the complement. Treating
+this set as FULL would expose private library functions. Unknown callback
+arguments, results, and unloaded summaries use the evolving Start/Stop state;
+no frozen public-function list supplies their bounds. Hidden class receivers
+default to the defining class singleton even after import.
+
 `ParseAll` is the workhorse that discovers source and object dependencies.  It
 tracks missing symbol references, looking them up in the search path one by one,
 and loading the matching files.

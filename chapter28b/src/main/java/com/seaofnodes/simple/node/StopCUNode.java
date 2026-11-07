@@ -19,6 +19,10 @@ public class StopCUNode extends StopNode {
         return stop;
     }
 
+    // CompUnit owns this wrapper by identity. Even empty units must not share
+    // a Stop: doing so can merge their Starts and their kept memory projections.
+    @Override public boolean eq(Node n) { return false; }
+
     public StartCUNode start() {
         for( Node use : _outputs )
             if( use instanceof StartCUNode start )
@@ -34,8 +38,10 @@ public class StopCUNode extends StopNode {
             return TypeTuple.STATE;
 
         StartCUNode start = start();
-        // Memory start from all returns
-        TypeMem xmem = priorEscapes(_type instanceof TypeTuple old ? old.mem() : _type);
+        // Recompute from inputs, not our previous result. Unknown values carry
+        // FULL escape sets: restricting them to public names would lose private
+        // objects/functions which a later load-forwarding rewrite can reveal.
+        TypeMem xmem = TypeMem.START;
 
         for( Node def : _inputs ) {
             ReturnNode ret = (ReturnNode)def;
@@ -69,57 +75,21 @@ public class StopCUNode extends StopNode {
             // here as its effects are not visible to the outside world.
             addDepForwards(start); // Check again if function escapes
             if( pub || start.escapedFIDX(sig.fidx()) ) {
-                // External callers already hold their object arguments, so
-                // writes through those arguments expose addresses too.
-                for( Node use : fun._outputs )
-                    if( use instanceof ParmNode p && p._idx>=2 )
-                        xmem = publicBottom(xmem.escapes(addDepForwards(p)._type),xmem);
                 if( tret.ctl().isHigh() ) continue; // Return not reachable
                 // Capture (precisely?) all escaping pointer aliases and fidxs.
                 // Escaped fidxs means the linked world can call that function;
                 // escaped aliases means the linked world can R/W those aliases.
-                xmem = publicBottom(xmem.escapes(tret.ret()),xmem);
-                xmem = (TypeMem)xmem.meet(publicBottom(tret.mem(),xmem));
+                xmem = xmem.escapesFrom(tret.ret(),start.outside(this));
+                xmem = (TypeMem)xmem.meet(tret.mem());
             }
         }
         // All units share escapes from calls and unloaded bodies, including
         // paths with no Return. Revisit only when that shared result changes.
         GlobalEscapeNode global = CodeGen.CODE._globalEscapes;
         if( global!=null && !global.isDead() )
-            xmem = publicBottom(xmem.escapes(addDepForwards(global)._type),xmem);
+            xmem = xmem.escapes(addDepForwards(global)._type);
         assert xmem._alias==1 && !xmem._one;
         return TypeTuple.make(Type.CONTROL,xmem,Type.BOTTOM);
-    }
-
-    // FULL escape sets arise from global BOTTOM.  Across a compilation-unit
-    // boundary global BOTTOM exposes every public field, while retaining any
-    // private escapes already discovered precisely.
-    static TypeMem publicBottom(TypeMem mem, TypeMem prior) {
-        // The pessimistic Iter pass naturally lifts transient FULL inputs to
-        // precise finite sets.  Replacing FULL early there would let a later
-        // input refinement add bits, reversing Iter's monotonic direction.
-        // This normalization is needed only for Opto's optimistic grand cycle.
-        if( CodeGen.CODE._phase.ordinal() < CodeGen.Phase.Opto.ordinal() ||
-            CodeGen.CODE._phase.ordinal() > CodeGen.Phase.Lower.ordinal() ) return mem;
-        int[] escFs = XInt.isHigh(mem._escFs)
-            ? XInt.meet(prior._escFs,CodeGen.CODE.publicFIDXs())
-            : mem._escFs;
-        int[] escAs = XInt.isHigh(mem._escAs)
-            ? XInt.meet(prior._escAs,CodeGen.CODE.publicAliases())
-            : mem._escAs;
-        return escFs==mem._escFs && escAs==mem._escAs ? mem : mem.makeFrom(escFs,escAs);
-    }
-
-    // In Opto, a precise escape set can widen to FULL. Public-only
-    // normalization must retain private bits discovered on an earlier step.
-    static TypeMem priorEscapes(Type old) {
-        TypeMem mem = TypeMem.START;
-        if( CodeGen.CODE._phase.ordinal() >= CodeGen.Phase.Opto.ordinal() &&
-            CodeGen.CODE._phase.ordinal() <= CodeGen.Phase.Lower.ordinal() &&
-            old instanceof TypeMem prior )
-            mem = mem.makeFrom(XInt.meet(mem._escFs,prior._escFs),
-                               XInt.meet(mem._escAs,prior._escAs));
-        return mem;
     }
 
     @Override

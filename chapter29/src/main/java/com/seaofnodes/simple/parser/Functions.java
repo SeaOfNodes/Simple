@@ -291,7 +291,7 @@ final class Functions {
         for( int i = 0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
             // Args take a default input if called from Start/external-world
-            Node parm = new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole();
+            Node parm = new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(fun.defaultArg(i)).peephole()).peephole();
             if( t instanceof TypeMemPtr ptr && ptr._partial ) parm = new ConstructNode(parm).peephole();
             P._scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), parm, loc);
         }

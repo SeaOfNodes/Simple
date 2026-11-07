@@ -104,13 +104,22 @@ public class TypeMem extends Type {
     // private definitions here. The caller supplies FULL until local forward
     // types are resolved. Ordinary unknown values still require FULL.
     public TypeMem escapesFrom(Type t, TypeMem defaults) {
-        TypeStruct ts = t instanceof TypeMemPtr ptr ? ptr._obj : t instanceof TypeStruct obj ? obj : null;
-        if( ts!=null && ts._open && ts._fref && !ts.isAry() )
+        if( opaque(t) )
             return makeFrom(XInt.meet(_escFs,defaults._escFs),XInt.meet(_escAs,defaults._escAs));
         return escapesFrom(t);
     }
+    public static boolean opaque(Type t) {
+        TypeStruct ts = t instanceof TypeMemPtr ptr ? ptr._obj : t instanceof TypeStruct obj ? obj : null;
+        return ts!=null && ts._open && ts._fref && !ts.isAry();
+    }
     public TypeMem escapesAliases(Type t) {
         return make(_alias,_t,_one,_clz,_final, _escFs, escapeAlias(_escAs,t));
+    }
+
+    // A value supplied by the outside world, bounded by its declared family.
+    // Foreign identities remain possible even when no local function escapes.
+    public Type outside(Type declared) {
+        return declared instanceof TypeFunPtr fun ? fun.restrictFIDXs(_escFs) : declared;
     }
 
     public static final TypeMem TOP = make(1, Type.TOP   ,true ,true, true , XInt.EMPTY, XInt.EMPTY);

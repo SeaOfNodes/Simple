@@ -118,11 +118,6 @@ public abstract class ParseAll {
         for( CompUnit cu : code._compunits.values() )
             if( cu._ext==null )
                 cu._clz = (TypeStruct)Parser.TYPES.get(TypeStruct.addClzPrefix(cu._cname));
-
-        // The complete public interface is now known.  Keep this independent
-        // of later graph/linker liveness so SCCP computations remain local and
-        // monotonic.
-        code.freezePublicInterface();
     }
 
     // Parse one Simple source code file.  Add all the FRefs produced to the worklist.

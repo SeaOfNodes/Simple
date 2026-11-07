@@ -26,6 +26,9 @@ import java.util.HashSet;
 public class StartNode extends LoopNode implements MultiNode {
 
     final Type _arg;
+    // Immutable foreign identity seed, installed with Opto's reset. Actual
+    // local escapes arrive through Stop, not through a frozen public list.
+    public TypeMem _foreign = TypeMem.START;
 
     public StartNode(StartNode start, StopNode stop, Type arg) { super(null,start,stop); _arg = arg;  }
     public StartNode(StartNode start) { super(start); _arg = start==null ? null : start._arg; }
@@ -55,16 +58,10 @@ public class StartNode extends LoopNode implements MultiNode {
     }
 
     boolean escapedFIDX(int fidx) {
-        // Public class fields are callable by the unknown external world
-        // regardless of the current SCCP approximation of Start memory.
-        if( CodeGen.CODE.publicFIDX(fidx) ) return true;
         if( !(_type instanceof TypeTuple tt) )
             return !_type.isHigh(); // TOP never escapes, BOTTOM always escapes
         TypeMem tmem = (TypeMem)tt._types[1];
-        if( tmem == TypeMem.BOT ) return false;
         if( tmem == TypeMem.TOP ) return false;
-        if( XInt.isHigh(tmem._escFs) )
-            return false;
         return XInt.bit(tmem._escFs,fidx);
     }
 
@@ -73,11 +70,21 @@ public class StartNode extends LoopNode implements MultiNode {
         TypeMem tmem = stop._type instanceof TypeTuple tt
             ? tt.mem()
             : stop._type.isHigh() ? TypeMem.START : TypeMem.BOT;
+        if( !(this instanceof StartCUNode) ) tmem = tmem.escapes(_foreign);
+        else if( in(0) instanceof StartNode start ) tmem = tmem.escapes(start.outside(this));
         assert tmem._alias==1 && !tmem._one;
         return TypeTuple.make(Type.CONTROL,tmem,_arg);
     }
 
     @Override public Node idealize() { return null; }
+
+    // Consumers register against the value they read, even when their Call's
+    // control remains unchanged as more identities escape.
+    public TypeMem outside(Node dep) {
+        if( CodeGen.CODE._phase==null || CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ) return TypeMem.BOT;
+        Type t = dep.addDepForwards(this)._type;
+        return t instanceof TypeTuple tt ? tt.mem() : t.isHigh() ? _foreign : TypeMem.BOT;
+    }
 
     // No immediate dominator, and idepth==0
     @Override public int idepth() { return 0; }

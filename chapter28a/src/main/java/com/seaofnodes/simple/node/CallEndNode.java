@@ -73,6 +73,16 @@ public class CallEndNode extends CFGNode implements MultiNode {
             return tt.makeFrom(2,tt.ret());
         }
 
+        // The outside continuation reads Start directly: Call can remain
+        // CONTROL while its possible returned identities change.
+        if( XInt.isHigh(tfp.fidxs()) ) {
+            TypeMem outside = CodeGen.CODE._start.outside(this).escapes(call.exposed(this));
+            TypeTuple state = TypeTuple.make(Type.CONTROL,outside,outside.outside(tfp.ret()));
+            for( int i = 1; i<nIns(); i++ )
+                state = (TypeTuple)state.meet(in(i)._type);
+            return state;
+        }
+
         // Here, if I can figure out I've linked *all* callers, then I can meet
         // across the linked returns and join with the function return type.
 
@@ -93,7 +103,11 @@ public class CallEndNode extends CFGNode implements MultiNode {
                 bound = bound.meet(fun==null ? tfp.ret() : addDep(fun).sig().ret());
             }
         }
-        boolean hasExtern = externs != 0;
+        if( externs!=0 ) {
+            assert externs==tfp.nfcns();
+            TypeMem outside = CodeGen.CODE._start.outside(this).escapes(call.exposed(this));
+            return TypeTuple.make(Type.CONTROL,outside,outside.outside(tfp.ret()));
+        }
 
         // If we have an error-call, e.g. wrong args, then we never link.
         // Pre-Opto this looks like a missing target fcn, and we assume it will
@@ -111,9 +125,7 @@ public class CallEndNode extends CFGNode implements MultiNode {
         }
 
         // A linked function for every concrete function
-        TypeTuple state = hasExtern
-            ? TypeTuple.make(Type.CONTROL,call.exposed(this),tfp.ret())
-            : TypeTuple.STATE.dual();
+        TypeTuple state = TypeTuple.STATE.dual();
         for( int i=1; i<nIns(); i++ )
             state = (TypeTuple)state.meet(in(i)._type);
         // A reachable call whose presently linked exits are all unreachable

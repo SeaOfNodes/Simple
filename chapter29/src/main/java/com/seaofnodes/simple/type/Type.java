@@ -623,11 +623,12 @@ public class Type /*implements Cloneable*/ {
     private static int[] remapBits(GlobalBits fileBits, GlobalBits bits, int[] fileLocals, int firstMapped ) {
         if( fileLocals == XInt.EMPTY || fileLocals == XInt.FULL )
             return fileLocals;
-        assert !XInt.isHigh(fileLocals);
+        boolean complement = XInt.isHigh(fileLocals);
+        if( complement ) fileLocals = XInt.dual(fileLocals);
         int[] locals = XInt.EMPTY;
         for( int fileLocal = XInt.next(fileLocals,-1); fileLocal >=0; fileLocal = XInt.next(fileLocals,fileLocal) )
             locals = XInt.make(locals,fileLocal < firstMapped ? fileLocal : bits.map(fileBits,fileLocal));
-        return locals;
+        return complement ? XInt.dual(locals) : locals;
     }
 
 

@@ -69,10 +69,18 @@ public class CallNode extends CFGNode {
     TypeMem exposed(Node dep) {
         dep.addDepForwards(this);
         dep.addDepForwards(fptr());
-        if( _type!=Type.CONTROL || !external() ) return TypeMem.START;
-        Type input=dep.addDepForwards(mem())._type;
-        TypeMem escaped=input instanceof TypeMem m ? m : input.isHigh() ? TypeMem.TOP : TypeMem.BOT;
-        for( int i=2; i<nIns()-1; i++ ) escaped=escaped.escapes(dep.addDepForwards(arg(i))._type);
+        if( _type.isHigh() ) return TypeMem.START;
+        // A broad scalar target can refine to a function pointer during Iter.
+        // It cannot yet promise that the call exposes nothing.
+        if( _type!=Type.CONTROL ) return TypeMem.BOT;
+        if( !(fptr()._type instanceof TypeFunPtr) )
+            return fptr()._type.isHigh() ? TypeMem.START : TypeMem.BOT;
+        if( !external() ) return TypeMem.START;
+        Type input = dep.addDepForwards(mem())._type;
+        TypeMem escaped = input instanceof TypeMem m ? m : input.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+        TypeMem outside = CodeGen.CODE._start.outside(dep);
+        for( int i = 2; i<nIns()-1; i++ )
+            escaped = escaped.escapesFrom(dep.addDepForwards(arg(i))._type,outside);
         return TypeMem.make(1,Type.BOTTOM,false,false,false,escaped._escFs,escaped._escAs);
     }
 

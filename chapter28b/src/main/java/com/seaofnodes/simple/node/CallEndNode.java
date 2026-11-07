@@ -86,9 +86,15 @@ public class CallEndNode extends CFGNode implements MultiNode {
         // Mid-fold, just take the inlined callee's return.
         if( _folding ) return in(1)._type;
 
-        // Unknown targets can change any memory and return the declared type.
-        if( XInt.isHigh(tfp.fidxs()) )
-            return TypeTuple.make(Type.CONTROL,TypeMem.BOT,tfp.ret());
+        // The outside continuation reads Start directly: Call can remain
+        // CONTROL while its possible returned identities change.
+        if( XInt.isHigh(tfp.fidxs()) ) {
+            TypeMem outside = CodeGen.CODE._start.outside(this).escapes(call.exposed(this));
+            TypeTuple state = TypeTuple.make(Type.CONTROL,outside,outside.outside(tfp.ret()));
+            for( int i = 1; i<nIns(); i++ )
+                state = (TypeTuple)state.meet(in(i)._type);
+            return state;
+        }
 
         // Check for making a "C" call
         int externs = 0;
@@ -98,7 +104,8 @@ public class CallEndNode extends CFGNode implements MultiNode {
             // C calls have no Return edges. Simple calls have an extra self
             // argument, so the two cannot be targets of the same valid call.
             assert externs==tfp.nfcns();
-            return TypeTuple.make(Type.CONTROL,call.exposed(this),tfp.ret());
+            TypeMem outside = CodeGen.CODE._start.outside(this).escapes(call.exposed(this));
+            return TypeTuple.make(Type.CONTROL,outside,outside.outside(tfp.ret()));
         }
 
         // An unlinked target may have effects, so early conservative return.

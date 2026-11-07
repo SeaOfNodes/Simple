@@ -36,7 +36,12 @@ public class ConvertNode extends Node {
     @Override public Type compute() {
         Type src = val()._type;
         if( src.isHigh() ) return Type.TOP;
-        if( !(_dst instanceof TypeMemPtr) && src.isa(_dst) ) return src;
+        if( _dst instanceof TypeMemPtr ptr ) {
+            // Keep non-nullness before the identity rewrite; shape and access
+            // still follow the declaration so compute stays monotone.
+            return src instanceof TypeMemPtr actual && actual.notNull() ? ptr.nonZero() : ptr;
+        }
+        if( src.isa(_dst) ) return src;
         return _dst;
     }
 

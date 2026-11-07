@@ -26,6 +26,9 @@ abstract public class Opto {
     // get a fairly precise set of Call Graph edges between CallNodes and
     // FunNodes.
     public static void opto(CodeGen code) {
+        int[] foreign = code._fidxs.foreign();
+        for( int fidx : code._externFunc.keySet() ) foreign = XInt.make(foreign,fidx);
+        code._start._foreign = TypeMem.START.makeFrom(foreign,code._aliases.foreign());
         // Reset Types before running the worklist algorithm
         Ary<Type> oldTypes = new Ary<>(Type.class);
         WorkList<Node> deps = new WorkList<>();
@@ -158,11 +161,9 @@ abstract public class Opto {
     private static void linkCG(CodeGen code, TypeFunPtr tfp, CallNode call) {
         if( tfp.nargs() != call.nargs() ) return; // Error calls hit this
         int[] fidxs = tfp.fidxs();
-        // An unresolved forward call can still carry the infinite, inferred
-        // function set into Opto.  There is no finite call graph to link yet;
-        // type checking will report the unresolved reference afterwards.  This
-        // can yet be valid if the call is eventually dead.
-        //   `if( false ) frefCall(args);`
+        // An infinite target set uses the outside continuation. Escaped local
+        // callbacks are called through Start; their effects feed that same
+        // outside state. Do not attach unrelated same-arity function bodies.
         if( XInt.isHigh(fidxs) ) return;
         for( int fidx = XInt.next(fidxs,0); fidx >=0; fidx = XInt.next(fidxs,fidx) ) {
             // unlinkStart deliberately leaves uncalled functions in a
@@ -185,10 +186,10 @@ abstract public class Opto {
         TypeMem tmem = (TypeMem)tt._types[1];
         int[] fidxs = tmem._escFs;
         if( XInt.isHigh(fidxs) ) {
-            // Unknown values can later refine to private callbacks too.
-            // FULL must cover every live target, just like the finite case.
+            // A cofinite set includes foreign identities but can exclude local
+            // functions. Honor those exclusions just as in the finite case.
             for( FunNode fun : code._linker )
-                if( fun != null && !fun.isDead() )
+                if( fun != null && !fun.isDead() && XInt.bit(fidxs,fun.sig().fidx()) )
                     linkStart(code,fun);
             return;
         }
@@ -200,7 +201,8 @@ abstract public class Opto {
     }
 
     // Function is now reachable by unknown callers through Start.  The
-    // default inputs must therefore use conservative declared types.
+    // Memory and callback defaults read Start's changing outside state.
+    // Scalar defaults remain constants; hidden self uses the owning class.
     static void linkStart( CodeGen code, FunNode fun ) {
         assert !fun.isDead();
         StartCUNode start = fun._compunit._start;
@@ -212,7 +214,9 @@ abstract public class Opto {
             code._iter.add(fun);
             for( Node p : fun._outputs )
                 if( p instanceof ParmNode parm ) {
-                    Node defalt = parm._idx==1 ? start.proj(1) : ConstantNode.seed(parm._declaredType).peephole();
+                    Type t = parm._idx<2 ? parm._declaredType : fun.defaultArg(parm._idx-2);
+                    Node defalt = parm._idx==1 || parm._declaredType instanceof TypeFunPtr
+                        ? start.proj(1) : ConstantNode.seed(t).peephole();
                     parm.insertDef(1,defalt);
                     code.add(parm);
                 }

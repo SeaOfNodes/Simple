@@ -98,6 +98,7 @@ public class StoreNode extends MemOpNode {
         // that field again; retain the declared signature instead of unfolding
         // successively sharper copies of its private-memory return type.
         if( mem._one && decl instanceof TypeFunPtr && val instanceof TypeFunPtr ) val = decl;
+        TypeMem outside = TypeMem.opaque(val) ? CodeGen.CODE._start.outside(this) : TypeMem.BOT;
         // A singleton class's final constant field lives in the static image.
         // Its precise memory slice is a constant too; ordinary peepholes can
         // replace this Store before scheduling or instruction selection.
@@ -110,14 +111,14 @@ public class StoreNode extends MemOpNode {
             // This singleton slice contains just the stored value. Copying
             // bulk memory's escapes would freeze a transient FULL bound into
             // the constant, permanently exposing unrelated private functions.
-            return TypeMem.make(_alias,val,true,true,true,null,null).escapesFrom(val);
+            return TypeMem.make(_alias,val,true,true,true,null,null).escapesFrom(val,outside);
 
         // Allocation uses a private TypeMem and nothing else does.  This
         // memory is truly private; a temporary singleton until it escapes -
         // which is never does in a constructor.
         if( !_name.equals("[]") && mem._one )
             // Just track the stored value
-            return TypeMem.make(_alias,val,true,false,fld==null ? _init : fld._final,null,null).escapesFrom(val);
+            return TypeMem.make(_alias,val,true,false,fld==null ? _init : fld._final,null,null).escapesFrom(val,outside);
 
         // Normal aliasing Store.
         assert mem._alias==1 || mem._alias==_alias; // Perfect aliasing
@@ -132,7 +133,7 @@ public class StoreNode extends MemOpNode {
         // Bulk memory's final bit describes its conservative remainder, not
         // this newly precise slice.  Slice finality comes from the field.
         boolean xfinal = fld != null && fld._final;
-        return TypeMem.make(_alias,t,mem._one,mem._clz,xfinal,mem._escFs,mem._escAs).escapesFrom(val);
+        return TypeMem.make(_alias,t,mem._one,mem._clz,xfinal,mem._escFs,mem._escAs).escapesFrom(val,outside);
     }
 
     @Override

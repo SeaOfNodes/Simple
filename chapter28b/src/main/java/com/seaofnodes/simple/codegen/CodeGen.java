@@ -97,72 +97,10 @@ public class CodeGen {
         return null;
     }
 
-    // Frozen after ParseAll: public initializers and function-valued fields.
-    public boolean publicFIDX(int fidx) {
-        return fidx >= GlobalBits.RESERVED && XInt.bit(publicFIDXs(),fidx);
-    }
-
-    private void gatherPublicFields(TypeStruct clz, boolean classFields) {
-        boolean hasCtor = clz.field("<ctor>") != null;
-        for( Field fld : clz._fields ) {
-            // With a user constructor, class:N.N is the private <init>.
-            if( fld._fname.charAt(0)=='_' || fld._t==Type.TOP ||
-                (hasCtor && clz.hiddenInit(fld)) ) continue;
-            if( classFields ) _publicAliases = XInt.make(_publicAliases,fld._alias);
-            if( fld._t instanceof TypeFunPtr tfp )
-                _publicFIDXs = XInt.meet(_publicFIDXs,tfp._fidxs);
-        }
-    }
-
     public static boolean hasUserConstructor(TypeStruct self) {
         Type t = Parser.TYPES.get(Parser.addClzPrefix(self._name));
         return t instanceof TypeStruct clz && clz.field("<ctor>") != null;
     }
-
-    // A forward reference has a placeholder class, not a definition yet.
-    private static boolean resolvedClass(TypeStruct clz) {
-        Type t = Parser.TYPES.get(clz._name.substring(Parser.CLZ.length()));
-        return !(t instanceof TypeStruct ts) || !ts._fref;
-    }
-
-    private int[] _publicFIDXs, _publicAliases;
-
-    /**
-     * Collect every possible public escape - after ParseAll is done - in case
-     * some code calls a generic function.  Example:
-     *     var apply = = { {int->int} f, int x -> f(x); };  // Generic apply() call
-     * The CallEnd from `f(x)` has to use generic TypeMem.BOT, which
-     * immediately escapes *everything* including known private functions.
-     * As weak as this is, its still sharper than "everything".
-     */
-    void freezePublicInterface() {
-        assert _publicFIDXs==null && _publicAliases==null;
-        _publicFIDXs = _publicAliases = XInt.EMPTY;
-        for( Type t : Parser.TYPES.values() )
-            if( t instanceof TypeStruct clz &&
-                Parser.startsClzPrefix(clz._name) &&
-                Parser.isPublicClassName(clz._name) &&
-                resolvedClass(clz) ) {
-                // Gather function pointers from public fields of both class
-                // and instance objects.
-                gatherPublicFields(clz,true);
-                Type self = Parser.TYPES.get(clz._name.substring(Parser.CLZ.length()));
-                if( self instanceof TypeStruct ts ) gatherPublicFields(ts,false);
-            }
-        // Limit broad function types to known FIDXs, excluding reserved bits.
-        // Public class initializers are roots without needing a field reference.
-        int[] fidxs = XInt.EMPTY;
-        for( int fidx = GlobalBits.RESERVED; fidx<_linker._len; fidx++ ) {
-            FunNode fun = _linker.atX(fidx);
-            if( XInt.bit(_publicFIDXs,fidx) || (fun!=null && fun.isClz() && fun.isPublic()) )
-                fidxs = XInt.make(fidxs,fidx);
-        }
-        _publicFIDXs = fidxs;
-    }
-
-    public int[] publicFIDXs()  { assert _publicFIDXs !=null; return _publicFIDXs;  }
-    public int[] publicAliases(){ assert _publicAliases!=null; return _publicAliases; }
-    public boolean publicInterfaceFrozen() { return _publicFIDXs != null; }
 
     // ---------------------------
 

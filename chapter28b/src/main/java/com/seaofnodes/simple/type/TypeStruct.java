@@ -98,7 +98,7 @@ public class TypeStruct extends Type {
             maxAlias = Math.max(maxAlias,f._alias);
         int len = XInt.idx(maxAlias)+1;
         if( (maxAlias&31)==31 ) len++;
-        int[] xs = XInt.free(len);
+        int[] xs = XInt.alloc(len);
         for( Field f : _fields )
             if( f._fname.charAt(0) != '_' &&  // Skip private fields.
                 !hiddenInit(f) &&             // Skip private allocation helper.
@@ -122,13 +122,11 @@ public class TypeStruct extends Type {
         return (_fidxs = xs);
     }
 
-    // With a user constructor, the same-named function field is the hidden
-    // default <init> allocation helper, not part of the public class surface.
+    // Initializer/constructor helpers receive private memory. Only the
+    // allocator has a source-callable signature.
     public boolean hiddenInit(Field fld) {
-        if( field("<ctor>") == null || !_name.startsWith("class:") ) return false;
-        int idx = _name.lastIndexOf('.');
-        String name = _name.substring(idx<0 ? "class:".length() : idx+1);
-        return fld._fname.equals(name);
+        return fld._t instanceof TypeFunPtr tfp && tfp.nargs()>=2 &&
+            tfp.arg(1) instanceof TypeMem;
     }
 
     // New open struct with no fields

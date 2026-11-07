@@ -146,8 +146,8 @@ final class Types {
         Type t0 = parseType();       // Either return or first arg
         if( t0==null ) return P.posT(old); // Not a function
         Ary<Type> ts = new Ary<>(Type.class);
-        // Always reserve a receiver slot.  Outside constructor scopes it is
-        // broad and unused, so call sites can uniformly pass their self.
+        // Always reserve a receiver slot. Outside constructor scopes the
+        // broad signature also marks the hidden slot for the machine ABI.
         ts.push(implicitSelfType());
         if( P.match("}") )                 // No-arg function { -> type }
             return TypeFunPtr.make(P.match("?"),ts.asAry(),t0);

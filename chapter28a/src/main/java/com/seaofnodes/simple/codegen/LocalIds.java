@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.codegen;
 
+import com.seaofnodes.simple.type.XInt;
 import java.util.HashMap;
 import java.util.Arrays;
 
@@ -10,6 +11,19 @@ public class LocalIds {
     private int _next=RESERVED;
     private final com.seaofnodes.simple.util.Ary<String> _owners=new com.seaofnodes.simple.util.Ary<>(String.class);
     private final HashMap<String,int[]> _slots=new HashMap<>();
+
+    // All registered Simple identities are local; native storage and the
+    // unallocated tail belong to the outside world. Reserved IDs are excluded.
+    public int[] foreign() {
+        int[] foreign = XInt.alloc((_next>>>5)+2);
+        Arrays.fill(foreign,1,foreign.length,-1);
+        for( int i = 0; i<_next; i++ ) {
+            String owner = _owners.atX(i);
+            if( owner==null || !owner.startsWith("C:") )
+                foreign[(i>>>5)+1] &= ~(1<<i);
+        }
+        return XInt.intern(foreign);
+    }
 
     public int next(String owner) { return next(owner,-1); }
     public int next(String owner, int slot) {

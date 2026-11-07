@@ -40,8 +40,15 @@ public class ConvertNode extends Node {
         Type src = val()._type;
         if( src.isHigh() ) return Type.TOP;
         if( src==Type.BOTTOM || src==TypeScalar.BOT ) return src;
-        if( _dst instanceof TypeMemPtr ptr ) return ptr.withPartial(TypeMemPtr.mayBePartial(src));
-        if( !(_dst instanceof TypeMemPtr) && src.isa(_dst) ) return src;
+        if( _dst instanceof TypeMemPtr ptr ) {
+            // Assigning to a nullable field does not make a non-null value
+            // null. Keep this fact during SCCP, before idealize removes us.
+            // Shape/access still follow the declaration: switching between
+            // the entire source and destination types is not monotone.
+            if( src instanceof TypeMemPtr actual && actual.notNull() ) ptr = (TypeMemPtr)ptr.nonZero();
+            return ptr.withPartial(TypeMemPtr.mayBePartial(src));
+        }
+        if( src.isa(_dst) ) return src;
         return _dst;
     }
 

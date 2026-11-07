@@ -92,7 +92,7 @@ public abstract class XInt {
         int len = Math.max(xs.length,idx+1);
         if( (x&31)==31 && idx+1==len )
             len++;
-        int[] ys = free(len);
+        int[] ys = alloc(len);
         System.arraycopy(xs,1,ys,1,xs.length-1);
         ys[idx] |= mask(x);
         return intern(ys);
@@ -112,7 +112,7 @@ public abstract class XInt {
             len--;
         // Replace with trimmed
         if( len < xs.length ) {
-            var ys = free(len);
+            var ys = alloc(len);
             System.arraycopy(xs,1,ys,1,len-1);
             xs = _free(xs,ys);
         }
@@ -146,8 +146,9 @@ public abstract class XInt {
             FREES.setX(len, xss = new Ary<>(int[].class));
         return xss;
     }
-    // Pull free array from free list
-    static int[] free(int len) {
+    // Allocate a zeroed mutable array, reusing the free list.
+    // Pass it to intern after filling; do not retain a mutable reference.
+    public static int[] alloc(int len) {
         int[] xs = _xss(len).pop();
         if( xs==null )
             { NEWS++;  xs = new int[len];  }
@@ -176,7 +177,7 @@ public abstract class XInt {
         if( isX ) return xs;
         if( isY ) return ys;
         // Get a free one
-        int[] ms = free(max);
+        int[] ms = alloc(max);
         for( int i=1; i<min; i++ )
             ms[i] = xs[i] | ys[i];
         for( int i=min; i<ms.length; i++ ) {
@@ -189,7 +190,7 @@ public abstract class XInt {
 
     // Dual: flip all the bits
     public static int[] dual(int[] xs) {
-        int[] ds = free(xs.length);
+        int[] ds = alloc(xs.length);
         for( int i=1; i<xs.length; i++ )
             ds[i] = ~xs[i];
         return intern(ds);
@@ -203,7 +204,7 @@ public abstract class XInt {
     }
     public static int[] packed(BAOS bais) {
         int len = bais.packed1();
-        int[] xs = free(len);
+        int[] xs = alloc(len);
         for( int i=1; i<len; i++ )
             xs[i] = bais.packed4();
         return intern(xs);
@@ -230,7 +231,7 @@ public abstract class XInt {
     public static int[] remap( int[] xs, AryInt map ) {
         if( xs==FULL ) return xs;
         assert !isHigh(xs);
-        int[] ys = free(xs.length);
+        int[] ys = alloc(xs.length);
         for( int bit = next(xs,0); bit >=0; bit = next(xs,bit) ) {
             int bat = map.at(bit);
             ys[idx(bat)] |= mask(bat);

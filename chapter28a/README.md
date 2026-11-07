@@ -145,8 +145,8 @@ that private fields are visible only inside their declaring class, not to
 siblings or parents. A private enclosing class also keeps its children out of
 the public interface.
 
-The current compiler uses these names to choose the public interface and seed
-escape analysis, but does not yet enforce the source access rule. For example,
+The current compiler uses these names to select public fields and initializer
+roots for escape discovery, but does not yet enforce the source access rule. For example,
 a sibling can currently read `A._secret`. Rejecting that access is still needed;
 the underscore alone is not an enforced boundary in this snapshot.
 
@@ -234,6 +234,29 @@ After checking, `Lower` expands each remaining marker into a flag test and a
 call on the cold path.  Parent initialization comes first. The initializer itself
 sets the flag. Generated calls have conservative memory effects and do not
 reopen SCCP's analysis of the optimized bodies.
+
+
+### Escaping or the Start/Stop Cycle
+
+The semantics of Stop/CU are that execution has left the current compilation,
+and proceeded out into the unknown World.  The reverse happens at Start/CU: we
+enter the known code from the outside World.  This endless cycle, Start ->
+known code -> Stop -> Start, lets us model escaping local functions and aliases
+into the outside, and then seeing them again coming in as callbacks, or
+arguments or side-effects.  Tracking this exactly lets us know when we have
+"escaped" a otherwise private function to the World, which might then call it
+directly, or pass it back to us as an argument, or store it for later.
+
+`LocalIds` tracks foreign identities, excluding the local IDs. Calls and
+escaping values add local identities as SCCP converges. Unknown callback
+parameters and results read this state. A class function's hidden receiver
+defaults to its class singleton, while its signature keeps the generic hidden
+slot used by the calling convention.
+
+Public constructor fields expose the allocator. Initializers and constructor
+helpers that accept private memory stay internal. Class-init checks read their
+initializer's memory effects, and unknown callbacks participate in class-init
+cycle detection through the functions that have escaped.
 
 
 ## Emitting code and data

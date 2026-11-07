@@ -40,8 +40,15 @@ Remaining work:
   object should cost only for that graph and any affected existing nodes.
 - Make `GlobalEscapeNode`'s shared call/summary scan incremental. Compilation
   unit Stops now reuse its result, but updating that result still scans all
-  calls and unloaded summaries. Review the phase-dependent escape normalization
-  and reliance on the previous result before changing propagation further.
+  calls and unloaded summaries. Handle contributors changing or disappearing,
+  rather than only accumulating unions. The
+  [outside-world escape flow](../chapter29/docs/escape-flow.md), now in
+  Chapters 28a/28b/29, has removed the
+  frozen public inventory and previous-result escape normalization; the shared
+  scan remains.
+- Improve precision for identities discovered after Opto's foreign seed is
+  established. They currently remain in the cofinite foreign tail. Preserve
+  monotone propagation and imported callback behavior when refining this bound.
 
 Whole-program TypeCheck is acceptable for now; incremental checking is an
 optional later improvement. Expensive assertion walks are outside this

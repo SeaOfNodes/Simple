@@ -93,6 +93,14 @@ public class LoadNode extends MemOpNode {
         if( mem._alias==_alias )
             t = t.join(mem._t);
 
+        if( !mem._one ) t = mem.outside(t);
+        // Store forwarding is also a value fact during SCCP. Waiting for the
+        // later rewrite can turn a known non-null stored pointer into a
+        // nullable declaration, then BOTTOM at the next dereference.
+        if( t instanceof TypeMemPtr && pfld._alias>1 &&
+            find(mem(),ptr(),null,null,t) instanceof StoreNode st )
+            t = addDepForwards(st.val())._type;
+
         // A deeply read-only base produces a deeply read-only value.  The
         // generic declared field type must not cast this information away.
         if( ptr0.isFinal() || readonly )
@@ -211,30 +219,50 @@ public class LoadNode extends MemOpNode {
     // the unchanged loop memory, or a merge whose every arm folds. Null fails.
     // Register dependencies so a later pointer/offset rewrite retries the query.
     private Node find(Node mem, Node ptr, Node stop, BitSet visit) {
-        if( ptr instanceof ReadOnlyNode ro ) ptr=ro.in(1);
-        Field fld;
-        boolean external = ptr._type instanceof TypeMemPtr tmp &&
-            (fld=tmp._obj.field(_name))!=null && fld._extern;
+        return find(mem,ptr,stop,visit,_type);
+    }
+
+    private Node find(Node mem, Node ptr, Node stop, BitSet visit, Type expected) {
+        ptr = address(ptr);
+        Field fld = ptr._type instanceof TypeMemPtr owner ? owner._obj.field(_name) : null;
+        int alias = fld==null ? _alias : fld._alias;
+        boolean external = fld!=null && fld._extern;
         while( mem!=null ) {
             addDep(mem);
             if( mem==stop ) return mem;
             switch( mem ) {
-            case MemMergeNode merge: mem=merge.alias(_alias); break;
+            case MemMergeNode merge: mem=merge.alias(alias); break;
             case StoreNode st:
                 // Alias 1 is still unresolved, not a proven different field.
                 if( st._alias==1 ) return null;
                 addDep(st.ptr());
-                if( _alias==st._alias && (ptr==st.ptr() || ptr==st.nnptr()) && off()==st.off() ) {
+                if( alias==st._alias && (ptr==address(st.ptr()) || ptr==address(st.nnptr())) &&
+                    ((!_name.equals("[]") && _name.equals(st._name)) || off()==st.off() ||
+                     (addDep(off())._type.isConstant() && off()._type==addDep(st.off())._type)) ) {
+                    // Forwarding must preserve the pointer type already seen
+                    // by users: completion, read-only view, and recursive shape.
+                    // Open declarations can disagree until Opto upgrades them.
+                    if( expected instanceof TypeMemPtr ) {
+                        Type value = addDep(st.val())._type;
+                        if( ptr()._type.isFinal() || declaredType().isFinal() ) value = value.makeRO();
+                        if( !value.isa(expected) ) return null;
+                    }
                     // A full-width load cannot narrow the forwarded value.
                     if( declaredType() instanceof TypeInteger ti && ti.log_size()==3 &&
-                        !addDep(st.val())._type.isa(_type) ) return null;
+                        !addDep(st.val())._type.isa(expected) ) return null;
                     return st;
                 }
-                if( (external || _alias==st._alias) && (external || !neverAlias(ptr,st.ptr())) &&
+                if( (external || alias==st._alias) && (external || !neverAlias(ptr,address(st.ptr()))) &&
                     !addDep(off())._type.join(addDep(st.off())._type).isHigh() ) return null;
                 mem=st.mem();
                 break;
             case ProjNode proj:
+                if( proj._idx==1 && proj.in(0) instanceof CLInitNode init ) {
+                    Node prior = init.pcopy(1,this);
+                    if( prior==null ) return null;
+                    mem = prior;
+                    break;
+                }
                 // New's memory is private; public memory is joined at Escape.
                 if( external || !(proj.in(0) instanceof NewNode nnn) ) return null;
                 if( declaredType()==Type.BOTTOM ) return null;
@@ -242,8 +270,8 @@ public class LoadNode extends MemOpNode {
             case EscapeNode esc:
                 if( external ) return null;
                 addDep(esc.self());
-                if( esc.self()==ptr ) { mem=esc.priv(); break; }
-                if( neverAlias(ptr,esc.self()) ) { mem=esc.pub(); break; }
+                if( address(esc.self())==ptr ) { mem=esc.priv(); break; }
+                if( neverAlias(ptr,address(esc.self())) ) { mem=esc.pub(); break; }
                 return null;
             case MemPhiNode phi:
                 addDep(phi.region());
@@ -282,6 +310,25 @@ public class LoadNode extends MemOpNode {
         }
         LoadNode ld=new LoadNode(_loc,_name,_alias,in(0),mem,ptr,off());
         return ld.peephole();
+    }
+
+    // Type views preserve the address. Keep the actual Load pointer qualified
+    // for compute/err; only alias comparisons see through these views.
+    private Node address(Node ptr) {
+        // A pointer Load with a proven reaching Store denotes the stored
+        // address even before the later peephole replaces the Load itself.
+        if( ptr instanceof LoadNode ld && addDepForwards(ld)._type instanceof TypeMemPtr &&
+            ld.ptr()._type instanceof TypeMemPtr base && base.notNull() && ld.err()==null &&
+            ld.find(ld.mem(),ld.ptr(),null,null) instanceof StoreNode st )
+            ptr = addDepForwards(st.val());
+        if( ptr instanceof ConvertNode conv && addDep(conv.val())._type instanceof TypeMemPtr src &&
+            src.isa(addDep(conv)._type) && src.accessISA(conv._type) )
+            ptr = conv.val();
+        while( ptr instanceof ReadOnlyNode ) {
+            addDep(ptr);
+            ptr = ptr.in(1);
+        }
+        return ptr;
     }
 
     private static boolean neverAlias( Node ptr1, Node ptr2 ) {

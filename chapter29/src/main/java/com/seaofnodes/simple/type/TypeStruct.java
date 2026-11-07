@@ -99,7 +99,7 @@ public class TypeStruct extends Type {
             maxAlias = Math.max(maxAlias,f._alias);
         int len = XInt.idx(maxAlias)+1;
         if( (maxAlias&31)==31 ) len++;
-        int[] xs = XInt.free(len);
+        int[] xs = XInt.alloc(len);
         for( Field f : _fields )
             if( f._fname.charAt(0) != '_' &&  // Skip private fields.
                 !hiddenInit(f) &&             // Skip private allocation helper.

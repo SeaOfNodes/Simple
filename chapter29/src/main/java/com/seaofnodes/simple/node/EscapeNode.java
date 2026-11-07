@@ -79,7 +79,7 @@ public class EscapeNode extends TypeNode {
         // Keep escapes from the actual private value before narrowing it to
         // the declaration. Selecting its Store from a MemMerge must preserve
         // this result, including Scalar.BOT's unknown pointer escapes.
-        TypeMem defaults = CodeGen.CODE.publicEscapes();
+        TypeMem defaults = CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ? TypeMem.BOT : mpub;
         return TypeMem.make(fld._alias, t, false, false, fld._final, fidxes, aliases)
             .escapesFrom(tpriv,defaults).escapesFrom(t,defaults);
     }

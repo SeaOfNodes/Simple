@@ -26,7 +26,8 @@ public class SummaryNode extends CFGNode implements MultiNode {
         // A library summary does not forget escapes already present in the caller.
         TypeMem mem = in(1)._type instanceof TypeMem m ? m : in(1)._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
         mem = (TypeMem)mem.meet(_state.mem());
-        for( int i = 2; i<nIns(); i++ ) mem=mem.escapes(in(i)._type);
+        TypeMem outside = CodeGen.CODE._start.outside(this);
+        for( int i = 2; i<nIns(); i++ ) mem = mem.escapesFrom(in(i)._type,outside);
         return TypeTuple.make(_state.ctl(),mem,_state.ret());
     }
     @Override public Node idealize() { return null; }
@@ -34,7 +35,8 @@ public class SummaryNode extends CFGNode implements MultiNode {
         dep.addDepForwards(this);
         if( dep.addDepForwards(in(0))._type.isHigh() ) return TypeMem.START;
         TypeMem mem = (TypeMem)_state.mem();
-        for( int i = 2; i<nIns(); i++ ) mem=mem.escapes(dep.addDepForwards(in(i))._type);
+        TypeMem outside = CodeGen.CODE._start.outside(dep);
+        for( int i = 2; i<nIns(); i++ ) mem = mem.escapesFrom(dep.addDepForwards(in(i))._type,outside);
         return TypeMem.make(1,Type.BOTTOM,false,false,false,mem._escFs,mem._escAs);
     }
     @Override boolean _upgradeType(HashMap<String,Type> types) {

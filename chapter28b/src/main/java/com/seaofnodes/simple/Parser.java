@@ -292,7 +292,7 @@ public class Parser {
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
             // Args take a default input if called from Start/external-world
-            _scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(t).peephole()).peephole(), loc);
+            _scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(fun.defaultArg(i)).peephole()).peephole(), loc);
         }
 
         if( isCtor && !isInit ) {
@@ -1343,13 +1343,16 @@ public class Parser {
             : TypeStruct.make(clzName,false,fld,ctorFld);
         if( flag!=null ) ts=ts.add(flag);
         TypeFunPtr alloc = makeAllocator((TypeStruct)TYPES.get(fullName),ret,ctorFld);
+        // Publish the source-callable allocator, not the private-memory helper.
+        sig = alloc;
+        ts = ts.replace(fld.makeFrom(alloc));
         ts = ts.add(Field.make("<new>",alloc,_code.alias(_ref._cname),true));
         TYPES.put(clzName,ts);
 
         // Insert a field in the containing class with the nested class type.
-        // This is basically sugar for "val CLZNAME = <init>"
+        // This is basically sugar for "val CLZNAME = <new>"
         // and is a nicer version of updateSelfAsFieldsDiscovered.
-        _scope.define(typeName, sig, true, new FunPtrNode(sig,_code._start,ret).peephole(), loc());
+        _scope.define(typeName, sig, true, new FunPtrNode(sig,_code._start,_code.link(alloc).ret()).peephole(), loc());
 
         require("}");
         return require(_code.ZERO,";");

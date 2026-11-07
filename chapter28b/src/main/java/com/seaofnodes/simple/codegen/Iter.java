@@ -69,8 +69,7 @@ public abstract class Iter {
         for( Node n : nodes )
             if( !n.isDead() )
                 n._type = n instanceof ConstantNode ? n.compute() : iterImportReset(n._type);
-        // Stop normalizes unknown memory into the unit's visible escapes.
-        // Do not publish a transient FULL Stop merely because we reset its body.
+        // Recompute each imported unit's contribution from its reset inputs.
         for( Node n : nodes )
             if( n instanceof StopCUNode && !n.isDead() ) n._type = n.compute();
         code.addAll(nodes);

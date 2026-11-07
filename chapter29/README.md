@@ -42,7 +42,11 @@ Fresh fields start at `TypeScalar.BOT`, which preserves a missing live arm at a
 merge. Forward memory types supply the initialization proof at Loads and merged
 Returns. Checks run at TypeCheck using the existing optimization passes; there
 is no extra construction solve, initialization walk, or field-state map.
-Known failures are recorded in [the late-check notes](docs/deferred-construction.md).
+The earlier experiments are recorded in [the late-check notes](docs/deferred-construction.md).
+The [outside-world escape flow](docs/escape-flow.md) now restores the four
+recursive-class IR expectations and gives hidden class receivers their owning
+singleton as the unknown-caller default. The frozen public-interface inventory
+is removed; late imported identities remain a precision follow-up.
 Class singleton initialization
 retains its existing store-at-exit path.
 

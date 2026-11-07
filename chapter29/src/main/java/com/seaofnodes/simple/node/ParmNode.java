@@ -78,7 +78,12 @@ public class ParmNode extends PhiNode {
             if( ctrl != Type.XCONTROL && ctrl != Type.TOP ) {
                 if( in(i)._type==Type.BOTTOM )
                     return Type.BOTTOM;
-                t = t.meet(in(i)._type);
+                Type arg = in(i)._type;
+                // The unknown-caller callback input is Start's memory
+                // projection, interpreted using this parameter's signature.
+                if( i==1 && r.in(i) instanceof StartNode && _idx>1 && arg instanceof TypeMem outside )
+                    arg = outside.outside(_declaredType);
+                t = t.meet(arg);
             }
         }
         // Recursion is a loop in disguise. A Parm merges the first argument

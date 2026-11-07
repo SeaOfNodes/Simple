@@ -81,22 +81,6 @@ public class CallNode extends CFGNode {
         return false;
     }
 
-    // Unknown callers contribute declared argument types to the parameters.
-    // Those broad types can hide a particular private callback supplied here.
-    // Expose actual arguments too, including calls through library summaries.
-    boolean exposesArguments(Node dep) {
-        if( external() ) return true;
-        if( !(fptr()._type instanceof TypeFunPtr tfp) ) return false;
-        for( int fidx = XInt.next(tfp.fidxs(),0); fidx>=0; fidx = XInt.next(tfp.fidxs(),fidx) ) {
-            FunNode fun = CodeGen.CODE._link(fidx);
-            if( fun!=null && !fun.isClz() ) {
-                dep.addDepForwards(fun);
-                if( fun.unknownCallers() ) return true;
-            }
-        }
-        return false;
-    }
-
     // As in the escape chapter, native code may retain an argument even if
     // this path never returns. StopCU reads this independently of CallEnd.
     TypeMem exposed(Node dep) {
@@ -111,7 +95,9 @@ public class CallNode extends CFGNode {
         if( !external() ) return TypeMem.START;
         Type input = dep.addDepForwards(mem())._type;
         TypeMem escaped = input instanceof TypeMem m ? m : input.isHigh() ? TypeMem.TOP : TypeMem.BOT;
-        for( int i = 2; i<nIns()-1; i++ ) escaped = escaped.escapes(dep.addDepForwards(arg(i))._type);
+        TypeMem outside = CodeGen.CODE._start.outside(dep);
+        for( int i = 2; i<nIns()-1; i++ )
+            escaped = escaped.escapesFrom(dep.addDepForwards(arg(i))._type,outside);
         return TypeMem.make(1,Type.BOTTOM,false,false,false,escaped._escFs,escaped._escAs);
     }
 

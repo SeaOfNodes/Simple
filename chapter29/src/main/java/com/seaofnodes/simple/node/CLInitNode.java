@@ -84,10 +84,20 @@ public class CLInitNode extends CFGNode implements MultiNode {
             return TypeTuple.make(in(0)._type,mem()._type,mem()._type,Type.XCONTROL);
         Field flag = flag();
         Type slice = flag==null ? TypeMem.BOT : TypeMem.make(flag._alias,TypeInteger.TRUE);
-        // The initializer may write arbitrary public memory. Only its flag
-        // has a guaranteed value on the normal continuation.
-        Type bulk = ready()._type.isHigh() ? TypeMem.TOP :
+        // Before Opto, the initializer has conservative effects. Once linked,
+        // its Return supplies them through the ordinary dependency worklist.
+        // Meet with incoming memory for the path that was already initialized.
+        Type bulk = ready()._type.isHigh() || mem()._type.isHigh() ? TypeMem.TOP :
             ready()._type==TypeInteger.TRUE ? mem()._type : TypeMem.BOT;
+        if( bulk==TypeMem.BOT && ready()._type!=TypeInteger.TRUE &&
+            CodeGen.CODE._phase.ordinal()>=CodeGen.Phase.Opto.ordinal() ) {
+            FunNode target = CodeGen.CODE.link(cu());
+            if( target!=null && target.ret()!=null ) {
+                Type result = addDepForwards(target.ret())._type;
+                Type effects = result instanceof TypeTuple tt ? tt.mem() : result.isHigh() ? TypeMem.TOP : TypeMem.BOT;
+                bulk = mem()._type.meet(effects);
+            }
+        }
         Type call = ready()._type.isHigh() || ready()._type==TypeInteger.TRUE ? Type.XCONTROL : in(0)._type;
         return TypeTuple.make(in(0)._type,bulk,slice,call);
     }
@@ -181,6 +191,10 @@ public class CLInitNode extends CFGNode implements MultiNode {
         // Replace the analysis edge with the ordinary call. Its arguments
         // are the same ones already analyzed before lowering.
         call.link(target);
+        // Publish the linked effects before projections can feed callers.
+        // The unlinked CallEnd's pessimistic seed is not the replacement for
+        // the precise initializer effects already analyzed above.
+        end.setType(end.compute());
         unlink();
         Node called = CodeGen.CODE.add(new CProjNode(end,0,ScopeNode.CTRL).init());
         Node after = CodeGen.CODE.add(new ProjNode(end,1,ScopeNode.MEM0).init());

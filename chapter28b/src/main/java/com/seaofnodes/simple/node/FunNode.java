@@ -96,6 +96,17 @@ public class FunNode extends RegionNode {
 
     // Signature can improve over time
     public TypeFunPtr sig() { return _sig; }
+    // A class function's hidden receiver defaults to its owning singleton.
+    // Keep PTR in the signature: it marks the hidden ABI slot and permits
+    // uniform call syntax, including callbacks forwarded by another class.
+    public Type defaultArg(int idx) {
+        Type t = sig().arg(idx);
+        if( idx!=0 || t!=TypePtr.PTR ) return t;
+        TypeStruct clz = (TypeStruct)Parser.TYPES.get(Parser.addClzPrefix(_compunit._cname));
+        assert clz!=null;
+        return TypeMemPtr.make((byte)2,clz,true);
+    }
+
     public void setSig( TypeFunPtr sig ) {
         assert sig.isa(_sig) || resolvesForwardSelf(sig,_sig);
         if( _sig != sig ) {

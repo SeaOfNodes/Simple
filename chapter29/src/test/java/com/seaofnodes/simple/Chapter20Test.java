@@ -242,13 +242,6 @@ val equals = { !String !self, !String s ->
     return true;
 };
 
-// Return the String hashCode (cached, and never 0)
-val hashCode = { !String self ->
-    self._hashCode
-    ?  self._hashCode
-    : (self._hashCode = _hashCodeString(self));
-};
-
 val _hashCodeString = { !String self ->
     int hash=0;
     for( int i=0; i< self.cs#; i++ )
@@ -256,11 +249,19 @@ val _hashCodeString = { !String self ->
     if( !hash ) hash = 123456789;
     return hash;
 };
+
+// Return the String hashCode (cached, and never 0)
+val hashCode = { !String self ->
+    self._hashCode
+    ?  self._hashCode
+    : (self._hashCode = _hashCodeString(self));
+};
+
 """;
-        // The implicit return exposes _hashCodeString, so retain its body too.
-        testCPU(src,"x86_64_v2", "SystemV",21,null);
-        testCPU(src,"riscv"    , "SystemV",9,null);
-        testCPU(src,"arm"      , "SystemV",7,null);
+        // Return the public hashCode wrapper; keep its helper private.
+        testCPU(src,"x86_64_v2", "SystemV",12,null);
+        testCPU(src,"riscv"    , "SystemV",8,null);
+        testCPU(src,"arm"      , "SystemV",6,null);
     }
 
     @Test

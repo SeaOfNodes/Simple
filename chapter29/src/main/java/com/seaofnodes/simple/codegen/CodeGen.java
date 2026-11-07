@@ -96,78 +96,9 @@ public class CodeGen {
         return null;
     }
 
-    // Frozen after ParseAll: public initializers and function-valued fields.
-    public boolean publicFIDX(int fidx) {
-        return fidx >= GlobalBits.RESERVED && XInt.bit(publicFIDXs(),fidx);
-    }
-
-    private void gatherPublicFields(TypeStruct clz, boolean classFields) {
-        for( Field fld : clz._fields ) {
-            // Private-memory helpers are reached through their allocator.
-            if( fld._fname.charAt(0)=='_' || fld._t==Type.TOP ||
-                clz.hiddenInit(fld) ) continue;
-            if( classFields ) _publicAliases = XInt.make(_publicAliases,fld._alias);
-            if( fld._t instanceof TypeFunPtr tfp )
-                _publicFIDXs = XInt.meet(_publicFIDXs,tfp._fidxs);
-        }
-    }
-
     public static boolean hasUserConstructor(TypeStruct self) {
         Type t = Parser.TYPES.get(TypeStruct.addClzPrefix(self._name));
         return t instanceof TypeStruct clz && clz.field("<ctor>") != null;
-    }
-
-    // A forward reference has a placeholder class, not a definition yet.
-    private static boolean resolvedClass(TypeStruct clz) {
-        Type t = Parser.TYPES.get(clz._name.substring(TypeStruct.CLZ.length()));
-        return !(t instanceof TypeStruct ts) || !ts._fref;
-    }
-
-    private int[] _publicFIDXs, _publicAliases;
-    private TypeMem _publicEscapes;
-
-    /**
-     * Snapshot the public interface after ParseAll for interface checks and
-     * the default escapes of opaque external types. This is not an upper
-     * bound on all escapes: a public function can return a private object or
-     * callback. Escape flow preserves those actual values separately.
-     */
-    void freezePublicInterface() {
-        assert _publicFIDXs==null && _publicAliases==null;
-        _publicFIDXs = _publicAliases = XInt.EMPTY;
-        for( Type t : Parser.TYPES.values() )
-            if( t instanceof TypeStruct clz &&
-                TypeStruct.startsClzPrefix(clz._name) &&
-                TypeStruct.isPublicClassName(clz._name) &&
-                resolvedClass(clz) ) {
-                // Gather function pointers from public fields of both class
-                // and instance objects.
-                gatherPublicFields(clz,true);
-                Type self = Parser.TYPES.get(clz._name.substring(TypeStruct.CLZ.length()));
-                if( self instanceof TypeStruct ts ) gatherPublicFields(ts,false);
-            }
-        // Limit broad function types to known FIDXs, excluding reserved bits.
-        // Public class initializers are roots without needing a field reference.
-        int[] fidxs = XInt.EMPTY;
-        for( int fidx = GlobalBits.RESERVED; fidx<_linker._len; fidx++ ) {
-            FunNode fun = _linker.atX(fidx);
-            if( XInt.bit(_publicFIDXs,fidx) || (fun!=null && fun.isClz() && fun.isPublic()) )
-                fidxs = XInt.make(fidxs,fidx);
-        }
-        _publicFIDXs = fidxs;
-        _publicEscapes = TypeMem.START.makeFrom(_publicFIDXs,_publicAliases);
-    }
-
-    public int[] publicFIDXs()  { assert _publicFIDXs !=null; return _publicFIDXs;  }
-    public int[] publicAliases(){ assert _publicAliases!=null; return _publicAliases; }
-    public boolean publicInterfaceFrozen() { return _publicFIDXs != null; }
-
-    // Before Opto upgrades the IR, a forward reference might still name a
-    // local class. Afterwards, unresolved names describe external objects.
-    public TypeMem publicEscapes() {
-        if( _phase==null || _phase.ordinal()<Phase.Opto.ordinal() ) return TypeMem.BOT;
-        assert _publicEscapes!=null;
-        return _publicEscapes;
     }
 
     // ---------------------------

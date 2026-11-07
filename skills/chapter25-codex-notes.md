@@ -18,7 +18,100 @@ The [incremental build design](incremental-builds.md) expands the roadmap's
 dependency and output-ownership requirements.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
-## Current workspace (2026-11-02)
+## Restart handoff (2026-11-06)
+
+Cliff requested this handoff before restarting. Active branch is `escape-flow`,
+tracking `origin/escape-flow`; HEAD is `8f460340c`. `ch29-cleanup` was previously
+fast-forwarded into local `main`, then this branch was created. The escape-flow
+implementation is still **uncommitted and unstaged**. Preserve all working-tree
+changes, including untracked `chapter29/docs/escape-flow.md` and
+`chapter29/src/test/java/com/seaofnodes/simple/EscapeFlowTest.java`. No commit,
+push, or chapter split is currently requested. Cliff thinks this may deserve
+its own chapter; keep working in Chapter29 until that decision is made.
+
+Read [the escape-flow design](../chapter29/docs/escape-flow.md) first. It is the
+current account; the later sections of deferred-construction.md retain older
+failed experiments and are explicitly superseded. The implementation is a
+tested first pass, not a claim that all outside-value precision is solved.
+
+Important implementation choices for review/resumption:
+
+- The frozen public function/alias inventory and `freezePublicInterface` have
+  been removed. Public-method and public-alias tests now check the converged
+  Start escape sets, including private exclusions.
+- Cliff requested the escape-flow backport to 28a/28b. Both now use the same
+  outside-value bounds and singleton hidden-receiver defaults. Keep their
+  existing parser and construction model. 28a retains its initializer roots
+  through lowering and uses LocalIds; 28b remaps cofinite saved escape sets.
+- `GlobalBits.foreign()` builds the complement of registered owned identities;
+  Opto installs it on outer Start, adding known native function IDs. StartCU
+  merges the shared outside state. Infinite sets must preserve local exclusions.
+- Callback default Parms use Start's existing memory Proj, interpreted through
+  their declared signature. Other scalar defaults remain constants. CallEnd
+  reads Start with `addDepForwards`, because changes to escapes need not change
+  Call's CONTROL type. No new CallEnd slot or synthetic Fun/Return was added.
+- An infinite call uses the outside continuation. Do not directly link every
+  same-arity local function: incompatible parameter/result families caused
+  generic-scalar errors in imported callback tests during that experiment.
+- CLInit depends on its initializer Return. It must wait when incoming memory
+  is high; otherwise SCCP can lift from START back to TOP. Lowering computes the
+  linked replacement CallEnd type before constructing its output projections.
+- Convert keeps input non-nullness, not the entire source pointer type: the
+  latter failed ConvertNodeTest.testMonotoneCompute. Load reuses its forwarding
+  search during compute; resolved named-field aliases and already-bypassed
+  CLInit memory must work before post-SCCP rewrites/layout.
+
+The hidden class receiver default is now the owning class singleton, supplied
+by `FunNode.defaultArg` during parsing and when Opto reconnects unknown callers.
+Keep TypePtr.PTR in the signature: backends recognize it as the hidden ABI
+slot, and callback annotations must not acquire the annotating class's receiver
+type. Explicit calls still pass their actual receiver. The printed-IR assertion
+in EscapeFlowTest.testUnknownCallerCallback now proves that only `<clinit>` and
+`apply_noInline` escape, excluding `_hidden_noInline`. A private local
+object/callback merge can also have an abstract pointer type, so do not cap
+arbitrary TypePtr values at outside escapes.
+
+Validation saved under ignored `build/`:
+
+- `xint-alloc-build.log` and `xint-alloc-chapter*.log`: all five XInt chapters
+  (26/27/28a/28b/29) rebuild; 134 focused type, escape, module, and import tests
+  pass after renaming the pooled allocator to `XInt.alloc` and using it for
+  the three foreign-set builders. It returns zeroed mutable storage to fill
+  and pass to `intern`; `_free` still returns storage to the pool.
+- `escape-string-reorder-final.log`: full 28a/28b/29 suites pass after the
+  String declaration reorder and measured spill expectations (538/578/601
+  active tests), plus shared printer and ISA checks.
+- `escape-backport-final.log`: combined full Make run for 28a/28b/29,
+  respectively 538/578/601 active tests pass with assertions, plus shared
+  printer and ISA checks. Added allocator, unknown-callback cycle, and saved
+  private-function exclusion coverage. Destination baselines are recorded in
+  `escape-backport-baseline.log` (531 in 28a, 571 in 28b).
+- `remove-public-interface-tests.log`: full Chapter29 `make -k tests CTAGS=`,
+  all 598 active tests pass after removing the frozen public-interface inventory
+  and moving its test coverage to the converged escape sets.
+- `class-self-default-tests.log`: full Chapter29 `make -k tests CTAGS=`, all
+  598 active tests pass after sharpening the hidden receiver default, including
+  the retained escape-exclusion assertion. No printed-IR golden changed.
+- `escape-flow-complete.log`: full Chapter29 `make -k tests`, all 598 active
+  tests pass with assertions (404 raw0, 38 raw1, 13 standalone, 29 system,
+  1 fuzzer, 113 aggregate).
+- `escape-flow-last-check.log`: 26 tests pass after the final small CLInit guard
+  cleanup: ClassInitDependenciesTest, ConvertNodeTest, EscapeFlowTest.
+- `EscapeSeeds.java` / `.class`: four recursive programs across four worklist
+  seeds, 16 checks pass against unchanged expected IR. Sources are in
+  `build/remaining-failures/*.smp`. The four are Chapter12 testCoRecur,
+  testCoRecur2, testCoRecur3, and testPrivateRecursiveReturn.
+- `EscapeLoads.java` and `OutsideCallback.java` are disposable diagnostic
+  harnesses; `escape-flow-*.log` includes intermediate failures. Use the final
+  logs above, not an earlier trial, as the validation baseline.
+
+Run Make from `chapter29`; use the existing JUnit classpath
+`build/classes/main;build/classes/test;lib/*`. No tests/JVMs are left running.
+Do not recreate tmp/* experiment directories. No new whole-IR passes, side IR,
+IterPeeps escape-repair hooks, or relaxed goldens were introduced. There is no
+need to rerun unchanged checks merely because the conversation restarted.
+
+## Current workspace (2026-11-06)
 
 Chapter 29 is **Tech Debt Cleanup**. Cliff approved keeping the parser split
 and moving it into this new snapshot; continue parser work there. Chapter 28b
@@ -86,23 +179,25 @@ woken when a linker mapping is installed. FldOffNode's data base
 belongs in slot 1, not control slot 0;
 otherwise inliner body discovery can exclude an unresolved field offset.
 
-The FULL-escape experiment is not yet at test parity: the latest run passes
-590/594 tests (raw0 400/404). Chapter10 `testIfOrNull` is restored to its valid
-original `return bar;` and runs TypeCheck. Both Chapter17b forward tests now pass
-their original goldens: EscapeNode uses cached public FIDX and alias defaults
-for opaque external types, preserving prior input escapes. Before Opto installs
-closed IR types, the default remains FULL; only open `_fref` structs get the
-narrower fallback afterwards. Ordinary unknown values still require FULL.
-The four remaining failing programs pass TypeCheck but retain extra private
-constructors. In
-`Chapter12Test.testPrivateRecursiveReturn`, SCCP gives the root Return BOTTOM
-and FULL escapes. Post-SCCP forwarding fixes its value to `_B`, but FULL persists
-through Start's incoming-memory cycle. Do not bless those extra functions in
-the goldens or restore the nonmonotone public-only cap. The details and failing
-test names are in `chapter29/docs/deferred-construction.md`. Its escape audit
-also records concrete opaque Store/Return/native-argument precision losses,
-CLInit's unconditional worst-case effects, and unknown CallEnd effects. Do not
-blindly cap these at public sets: explicit private escapes must survive.
+On branch `escape-flow`, Chapter29 uses a cofinite foreign-identity seed on
+Start and discovers local escapes through the Start/Stop cycle. Frozen public
+sets have been removed; tests check converged escape sets. Callback defaults read
+Start's memory projection; unknown/native CallEnds depend directly on Start.
+Opaque external values use the dynamic bound; arbitrary local unknowns still
+require FULL. Cofinite linking honors exclusions; serialization remaps them.
+CLInit reads its initializer Return's effects and preserves those effects when
+lowering to a linked CallEnd. Do not restore unconditional MemBot there.
+
+All four recursive-class goldens now pass unchanged. Convert retains non-null
+pointer facts during compute without conditionally returning the whole source
+shape (which is nonmonotone). Load reuses its Store-forwarding search during
+compute, including resolved field names and bypassed CLInit memory. The change
+adds no whole-program pass. Hidden class `#self` defaults to its owning
+singleton while the signature retains the generic hidden ABI slot. Do not
+globally cap abstract local values at the outside bound.
+See `chapter29/docs/escape-flow.md` for the design and remaining limitations.
+The full Chapter29 suite passes 601 active tests with assertions; the 28a/28b
+backports pass 538/578 active tests respectively.
 
 Incomplete references now have only a yes/no restriction. Constructor self and
 `C ^arg` / `C? ^arg` are incomplete; a new result is incomplete iff an actual
@@ -345,8 +440,10 @@ and a small game with graphics, keyboard input, and sound.
   Precise alias recovery can still be deferred. See `chapter28a/README.md`.
   Runtime lowering is implemented above; argument arrays remain deferred. Public function fields
   on instances of public classes must retain Start, just like class-object
-  fields. publicFIDX now checks both; this fixes sys.scan.match losing Start
-  while building sys.o and subsequently widening after import.
+  fields. The earlier publicFIDX check covered both, fixing sys.scan.match
+  losing Start while building sys.o and subsequently widening after import.
+  Chapter29 now derives that reachability from Start/Stop escape flow instead
+  of a frozen public-interface inventory.
   Do not weaken assertions or reset imported types
   to conceal incorrect public classification.
   Future optimization: move final, always-constant instance fields to the class
@@ -397,6 +494,24 @@ and a small game with graphics, keyboard input, and sound.
   objects after format changes. Backward compatibility is not required yet.
 
 ## Tutorial backports
+
+- The escape-flow replacement is backported to 28a/28b at Cliff's request.
+  LocalIds supplies the foreign seed in 28a; GlobalBits remaps finite exclusions
+  in 28b. Neither uses `publicFIDX`, `freezePublicInterface`, `publicBottom`, or
+  previous-result escape accumulation. Visible constructor fields now publish
+  allocators, allowing their private-memory helpers to inline. Unknown callback
+  edges participate in 28a's class-init cycle detection. Keep the earlier
+  constructor model and parser layout; Chapter27 is unchanged.
+  The old testIfOrNull read a nullable pointer without TypeCheck; its port uses
+  Chapter29's valid nullable-result case. Printed goldens drop private helper
+  Returns and a never-published loop-local function. The String fixture's old
+  implicit return exposed `_hashCodeString`: its standalone body added two
+  register moves weighted 8+1 on x86, raising 12 to 21. Cliff reordered the
+  declarations to return the public `hashCode` wrapper instead; the allocation,
+  encoding, and native-export fixtures in 28a/28b/29 now follow that order and
+  use measured expectations of 12/8/6 (x86/RISC-V/ARM), with 12 for native x86
+  export. RISC-V also measures 8 with this declaration order before the
+  backport, so restoring its old 6 would fail independently of escape-flow.
 
 - Chapter 18 is the evaluator cutover: use `Eval2` and the compiler's schedule
   from that chapter onward. The old `evaluator/Evaluator` and its private
@@ -1093,14 +1208,23 @@ Consequences:
 - Unknown-caller Start edges and post-Opto compilation-unit ownership are
   separate concepts. Do not overload Start edges merely to keep surviving
   functions attached to a compilation unit.
-- A global escape fallback means all public functions, not all functions.
+- In the older snapshots, a global escape fallback means all public functions,
+  not all functions. Chapter29 instead propagates the outside value's bound;
+  arbitrary unknown local values still require FULL.
   Public `<clinit>` functions escape when their class and all ancestor names
   are public (no direct name component begins with `_`).
-- Escape summaries are monotone discovery facts. If a later SCCP state widens
+- In those older snapshots, escape summaries are monotone discovery facts. If a later SCCP state widens
   to FULL/public-only, it must not forget precise private bits discovered from
   the same Return earlier.
 
 ## Shared escape analysis and the rejected phase-hook experiment
+
+The phase-hook warning below records the historical Chapter28b experiment.
+The [escape-flow replacement](../chapter29/docs/escape-flow.md), now in 28a/28b/29,
+carries outside bounds through values, removes `priorEscapes`/`publicBottom`
+and the frozen public inventory, and supplies a class-singleton `#self` default.
+Its remaining scan and late-import precision work are in the roadmap. The old
+warning to retain the hooks is superseded by this complete value-flow change.
 
 Chapter 28b shares one `GlobalEscapeNode` across compilation units. It scans
 calls and unloaded summaries, registers reads with `addDepForwards`, and wakes

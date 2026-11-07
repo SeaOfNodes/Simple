@@ -157,6 +157,28 @@ public class ClassInitDependenciesTest {
         assertTrue(touches(code,deps,"Root/B","Root"));
     }
 
+    @Test public void testUnknownCallbackCycle() throws Exception {
+        for( long seed : new long[]{1,123,987654321} ) {
+            try {
+                compile("A",Map.of(
+                    "A", """
+                        { {int->int} -> {int->int} } bounce="C";
+                        val callback_noInline={int n -> B.value;};
+                        val f=bounce(callback_noInline);
+                        int value=f(1);
+                        """,
+                    "B", "int value=A.value;"),seed);
+                fail("Expected callback initialization cycle");
+            } catch( Parser.ParseException ex ) {
+                String message=ex.getMessage();
+                assertTrue(message,message.startsWith("Cyclic class initialization:"));
+                assertTrue(message,message.contains(" -> unknown call"));
+                assertTrue(message,message.contains("unknown call -> "));
+                assertTrue(message,message.contains("Root.B -> Root.A"));
+            }
+        }
+    }
+
     @Test public void testCycles() throws Exception {
         cycle("A",Map.of("A","val get_noInline={ ->\n  B.value;\n};\nint value=get_noInline();",
                           "B","int value=A.value;"),"A -> B -> A");

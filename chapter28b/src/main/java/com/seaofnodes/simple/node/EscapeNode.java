@@ -1,6 +1,7 @@
 package com.seaofnodes.simple.node;
 
 import com.seaofnodes.print.ExprPrinter;
+import com.seaofnodes.simple.codegen.CodeGen;
 
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.*;
@@ -75,7 +76,12 @@ public class EscapeNode extends TypeNode {
         Type t = tpriv.meet(tpub).join(fld._t);
         int[] fidxes  = XInt.meet(mpriv._escFs, mpub._escFs);
         int[] aliases = XInt.meet(mpriv._escAs, mpub._escAs);
-        return TypeMem.make(fld._alias, t, false, false, fld._final, fidxes, aliases).escapesFrom(t);
+        // Keep escapes from the actual private value before narrowing it to
+        // the declaration. Selecting its Store from a MemMerge must preserve
+        // this result, including Scalar.BOT's unknown pointer escapes.
+        TypeMem defaults = CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ? TypeMem.BOT : mpub;
+        return TypeMem.make(fld._alias, t, false, false, fld._final, fidxes, aliases)
+            .escapesFrom(tpriv,defaults).escapesFrom(t,defaults);
     }
 
     @Override public Node idealize() {

@@ -12,6 +12,8 @@ import com.seaofnodes.simple.node.CallNode;
 import com.seaofnodes.simple.node.FunNode;
 import com.seaofnodes.simple.node.LoopNode;
 import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.type.TypeMem;
+import com.seaofnodes.simple.type.TypeTuple;
 import com.seaofnodes.simple.type.XInt;
 import com.seaofnodes.simple.util.Ary;
 import java.io.File;
@@ -73,21 +75,25 @@ public class Chapter25Test {
         for( long seed : new long[]{1,123,987654321} ) {
             CodeGen code = new CodeGen(src,seed,true).driver(CodeGen.Phase.Parse);
             FunNode visible = null;
+            int[] privateFidxs = XInt.EMPTY;
             int checked = 0;
             for( FunNode fun : code._linker ) {
                 if( fun==null || fun._name==null ) continue;
                 if( fun._name.equals("visible") ) {
-                    assertTrue(code.publicFIDX(fun.sig().fidx()));
                     visible = fun;
                     checked++;
                 }
                 if( fun._name.equals("_hidden") || fun._name.equals("hiddenClassMethod") ) {
-                    assertFalse(code.publicFIDX(fun.sig().fidx()));
+                    privateFidxs = XInt.make(privateFidxs,fun.sig().fidx());
                     checked++;
                 }
             }
             assertEquals(3,checked);
             code.driver(CodeGen.Phase.TypeCheck);
+            TypeMem outside = ((TypeTuple)code._start._type).mem();
+            assertTrue(XInt.bit(outside._escFs,visible.sig().fidx()));
+            for( int fidx = XInt.next(privateFidxs,0); fidx>=0; fidx = XInt.next(privateFidxs,fidx) )
+                assertFalse(XInt.bit(outside._escFs,fidx));
             assertTrue(visible.unknownCallers());
             assertEquals(TypeInteger.U8,visible.parm(3)._type);
             assertEquals("0",Eval2.eval(code,0));
@@ -101,25 +107,52 @@ public class Chapter25Test {
             val _private = { int x -> x+1; };
             return 0;
             """).parse();
-        int checked = 0;
+        int published = -1, unpublished = -1;
         for( FunNode fun : code._linker ) {
             if( fun==null || fun._name==null ) continue;
-            if( fun._name.equals("_hidden") ) {
-                // A public field can publish a privately named function.
-                assertTrue(code.publicFIDX(fun.sig().fidx()));
-                checked++;
-            }
-            if( fun._name.equals("_private") ) {
-                assertFalse(code.publicFIDX(fun.sig().fidx()));
-                checked++;
-            }
+            if( fun._name.equals("_hidden") ) published = fun.sig().fidx();
+            if( fun._name.equals("_private") ) unpublished = fun.sig().fidx();
         }
-        assertEquals(2,checked);
+        assertTrue(published>=0 && unpublished>=0);
         var clz = code.compunit()._clz;
-        assertTrue(XInt.bit(code.publicAliases(),clz.field("visible")._alias));
-        assertFalse(XInt.bit(code.publicAliases(),clz.field("_hidden")._alias));
-        assertFalse(XInt.bit(code.publicAliases(),clz.field("_private")._alias));
         code.driver(CodeGen.Phase.TypeCheck);
+        TypeMem outside = ((TypeTuple)code._start._type).mem();
+        // A public field can publish a privately named function.
+        assertTrue(XInt.bit(outside._escFs,published));
+        assertFalse(XInt.bit(outside._escFs,unpublished));
+        assertTrue(XInt.bit(outside._escAs,clz.field("visible")._alias));
+        assertFalse(XInt.bit(outside._escAs,clz.field("_hidden")._alias));
+        assertFalse(XInt.bit(outside._escAs,clz.field("_private")._alias));
+    }
+
+    @Test public void testImportedEscapeExclusions() throws IOException {
+        Path build=Path.of("build/objs");
+        Files.createDirectories(build);
+        Path dir=Files.createTempDirectory(build,"escape_exclusions_");
+        CodeGen library=new CodeGen(null,dir.toString(),null,"Lib","""
+            val _hidden_noInline={int n -> n+100;};
+            val apply_noInline={{int->int} f,int n -> f(n);};
+            return apply_noInline;
+            """,123,true,TypeInteger.BOT).driver("x86_64_v2","win64",false,false);
+        int savedHidden=((com.seaofnodes.simple.type.TypeFunPtr)
+            library.compunit()._clz.field("_hidden_noInline")._t).fidx();
+        // Allocate unrelated IDs before loading Lib so saved exclusions must
+        // remap by owner/slot, not by their numeric positions in the file.
+        CodeGen code=new CodeGen(null,dir.toString(),new Ary<>(new String[]{dir.toString()}),
+            "Client","""
+                val _other={int n -> n-1;};
+                val inc={int n -> n+1;};
+                return Lib.apply_noInline(inc,arg);
+                """,987654321,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        var clz=(com.seaofnodes.simple.type.TypeStruct)Parser.TYPES.get("class:Lib");
+        int hidden=((com.seaofnodes.simple.type.TypeFunPtr)clz.field("_hidden_noInline")._t).fidx();
+        assertNotEquals(savedHidden,hidden);
+        TypeMem outside=((TypeTuple)code._start._type).mem();
+        assertTrue(XInt.isHigh(outside._escFs));
+        assertFalse(XInt.bit(outside._escFs,hidden));
+        assertEquals("42",Eval2.eval(code,41));
+        Files.delete(dir.resolve("Lib.o"));
+        Files.delete(dir);
     }
 
     @Test public void testNeverReturnPointerRiscV() {

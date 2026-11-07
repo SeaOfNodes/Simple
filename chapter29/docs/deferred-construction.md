@@ -1,5 +1,10 @@
 # Deferring construction checks: experiment
 
+The [escape-flow continuation](escape-flow.md) supersedes the frozen-public
+fallback and remaining recursive-test failures described later in these notes.
+All four recursive examples now pass their original printed-IR expectations.
+The older audit below records the evidence that led to this change.
+
 The extra construction pass is removed from the working implementation.
 `Construction.check()`, its retained source-use lists, `Iter.types()`, and the
 separate constructor-Return walk are gone. Errors now belong to the existing

@@ -100,7 +100,9 @@ public class CallNode extends CFGNode {
         if( !external() ) return TypeMem.START;
         Type input = dep.addDepForwards(mem())._type;
         TypeMem escaped = input instanceof TypeMem m ? m : input.isHigh() ? TypeMem.TOP : TypeMem.BOT;
-        for( int i = 2; i<nIns()-1; i++ ) escaped = escaped.escapes(dep.addDepForwards(arg(i))._type);
+        TypeMem outside = CodeGen.CODE._start.outside(dep);
+        for( int i = 2; i<nIns()-1; i++ )
+            escaped = escaped.escapesFrom(dep.addDepForwards(arg(i))._type,outside);
         return TypeMem.make(1,Type.BOTTOM,false,false,false,escaped._escFs,escaped._escAs);
     }
 
