@@ -31,7 +31,16 @@ field shapes, existing Iter/SCCP propagates them, and TypeCheck checks and erase
 the views. Borrowed partials can read proven fields but cannot write; unknown
 callers promise no initialized fields. No new passes or backward demand walks.
 
-## Restart handoff (2026-11-06)
+## Chapter 30 starting point (2026-11-07)
+
+Cliff committed the Chapter 29 work as `bb9b30b2c` and requested merging
+`escape-flow` into `main`, then starting Chapter 30. Local `main` now includes
+that commit. The working branch is `ch30`, with a complete `chapter30/` copy
+and build/IDE entries. Its topic is not yet selected. Continue new work there;
+Chapter 29 retains the completed compiler and documentation. Inherited Java
+test names keep their historical identities.
+
+## Historical restart handoff (2026-11-06; superseded by Chapter 30)
 
 Cliff requested this handoff before restarting. Active branch is `escape-flow`,
 tracking `origin/escape-flow`; HEAD is `8f460340c`. `ch29-cleanup` was previously

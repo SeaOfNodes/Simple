@@ -10,6 +10,11 @@ It starts from Chapter 28b with the parser split into `parser/` components,
 parser as the preceding snapshot. Source privacy is deferred; the privacy
 experiments and test-fixture adaptations are not part of the new chapter.
 
+On 2026-11-07, Cliff closed Chapter 29 and started
+[Chapter 30](../chapter30/README.md) from its completed compiler. Chapter 30
+initially changes only chapter metadata and navigation; its topic is not yet
+selected. Keep Chapter 29 as the completed cleanup and partial-field-view snapshot.
+
 | Previous directory | Final chapter |
 |---|---|
 | chapter-sccp | 24a: SCCP within a function |

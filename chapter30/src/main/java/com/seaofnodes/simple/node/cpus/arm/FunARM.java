@@ -1,0 +1,22 @@
+package com.seaofnodes.simple.node.cpus.arm;
+
+import com.seaofnodes.isa.Arm64;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.FunNode;
+import com.seaofnodes.simple.node.MachNode;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
+
+public class FunARM  extends FunNode implements MachNode {
+    FunARM(FunNode fun) { super(fun); }
+    @Override public void computeFrameAdjust(CodeGen code, int maxReg) {
+        super.computeFrameAdjust(code,maxReg);
+        _frameAdjust = (_frameAdjust+15) & -16; // Keep SP aligned, including leaf spills.
+    }
+    @Override public void encoding( Encoding enc ) {
+        int sz = _frameAdjust;
+        if( sz == 0 ) return;   // Skip if no frame adjust
+        if( sz >= 1L<<12 ) throw Utils.TODO();
+        enc.add4(Arm64.imm_inst(Arm64.OPI_SUB, sz, arm.RSP, arm.RSP));
+    }
+}

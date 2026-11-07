@@ -69,6 +69,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第28a章](chapter28a/README.ja.md)：モジュールと遅延クラス初期化
 * [第28b章](chapter28b/README.ja.md)：分離コンパイル
 * [第29章](chapter29/README.ja.md)：技術的負債の整理
+* [第30章](chapter30/README.ja.md)：作業中
 
 付録：[ネイティブライブラリ](docs/appendices/native-libraries.md)、
 [最適化とバックエンドの調整](docs/appendices/optimizer-tuning.ja.md)。
@@ -84,7 +85,7 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 ノードの同一性とエッジへのアクセスを提供します。IR が拡張されるにつれて、
 各章のアダプタが意味に関する詳細を追加します。
 
-[命令エンコーダ（英語）](isa/README.md)は、第21〜29章の x86-64、ARM、RISC-V の
+[命令エンコーダ（英語）](isa/README.md)は、第21〜30章の x86-64、ARM、RISC-V の
 バイト出力処理と、ARM/RISC-V のテスト用評価器を共有します。
 機械命令ノードの選択、レジスタ割り当て、コード配置は各章に残ります。
 共通層は具体的なオペランドを受け取り、バイト列を書き出します。

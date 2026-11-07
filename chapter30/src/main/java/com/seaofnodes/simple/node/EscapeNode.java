@@ -1,0 +1,138 @@
+package com.seaofnodes.simple.node;
+
+import com.seaofnodes.print.ExprPrinter;
+import com.seaofnodes.simple.codegen.CodeGen;
+
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.*;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+
+/**
+ *  Merge public and private aliases. A borrow orders partial-reader calls
+ *  after constructor Stores without adding the private values to escape sets.
+ *  0 - control
+ *  1 - private pointer
+ *  2 - private alias
+ *  3 - public alias
+ */
+public class EscapeNode extends TypeNode {
+    public final boolean _borrow;
+
+    public EscapeNode(Field fld, Node self, Node priv, Node pub ) {
+        this(fld,self,priv,pub,false);
+    }
+    public EscapeNode(Field fld, Node self, Node priv, Node pub, boolean borrow ) {
+        super(fld,null,self,priv,pub);
+        _borrow = borrow;
+    }
+    public EscapeNode(EscapeNode esc ) {
+        super(esc);             // Copy constructor
+        _borrow = esc._borrow;
+        // Except we do not want/need self ptr past Opto.
+        // *NOTE* the weird direct stomp; this is correct because this
+        // constructor does NOT set the backedges, because it is used to
+        // copy-construct an entire graph and ALL edges will get rewritten.
+        _inputs.set(1,null);
+        _con = esc._con;
+    }
+
+    // Pointer to some private (unescaped) memory from a NewNode
+    public Node self() { return in(1); }
+    public Node priv() { return in(2); }
+    public Node pub () { return in(3); }
+    public Field fld() { return (Field)_con; }
+
+    @Override public Tag serialTag() { return Tag.Escape; }
+    @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
+        assert !_borrow; // Source ^ interfaces cannot yet be serialized.
+        baos.packed2(types.get(_con));
+    }
+    static Node make( BAOS bais, Type[] types)  {
+        return new EscapeNode((Field)types[bais.packed2()], null,null,null);
+    }
+
+    @Override
+    protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
+        p.p("Esc#").p(fld()._alias).p(" {");
+        if( self()==null ) p.p("---");
+        else p.n(self()).p(",");
+        p.n(priv()).p("}, ");
+        p.n(pub ());
+        return p;
+    }
+
+    @Override
+    public Type compute() {
+        if( priv()._type.isHigh() ) return TypeMem.TOP;
+        if( pub ()._type.isHigh() ) return TypeMem.TOP;
+        TypeMem mpriv = (TypeMem)priv()._type;
+        TypeMem mpub  = (TypeMem)pub ()._type;
+        // Private memory comes from an allocation or other non-aliased source.
+        // Public  memory comes from anywhere, might be bulk memory with a very weak mem type.
+        Field fld = fld();
+        assert mpriv._alias==1 || mpriv._alias==fld._alias;
+        assert mpub ._alias==1 || mpub ._alias==fld._alias;
+        Type tpriv = mpriv._t instanceof TypeStruct ts && ts.findAlias(fld._alias)!=-1
+            ? ts.at(ts.findAlias(fld._alias))._t
+            : mpriv._t;
+        assert !(mpub._t instanceof TypeStruct); // Never expect this, but if it starts to happen, need to optimize
+        Type tpub = mpub._t;
+
+        // t is meet of pub & priv.  Pub memory can be very weak (e.g. alias 1)
+        // and we're no worse than the declared field type
+        Type bound = fld._t;
+        if( _borrow && bound instanceof TypeMemPtr ptr && TypeMemPtr.mayBePartial(tpriv) )
+            bound = ptr.withPartial(true).partialBound();
+        Type t = tpriv.meet(tpub).join(bound);
+        // Lending memory to a local read-only partial argument is an ordering
+        // edge, not publication to unknown callers. Keep the public escape sets.
+        if( _borrow )
+            return TypeMem.make(fld._alias,t,false,false,false,mpub._escFs,mpub._escAs);
+        int[] fidxes  = XInt.meet(mpriv._escFs, mpub._escFs);
+        int[] aliases = XInt.meet(mpriv._escAs, mpub._escAs);
+        // Keep escapes from the actual private value before narrowing it to
+        // the declaration. Selecting its Store from a MemMerge must preserve
+        // this result, including Scalar.BOT's unknown pointer escapes.
+        TypeMem defaults = CodeGen.CODE._phase.ordinal()<CodeGen.Phase.Opto.ordinal() ? TypeMem.BOT : mpub;
+        return TypeMem.make(fld._alias, t, false, false, fld._final, fidxes, aliases)
+            .escapesFrom(tpriv,defaults).escapesFrom(t,defaults);
+    }
+
+    @Override public Node idealize() {
+        // Sharpen private memory input
+        if( priv() instanceof MemMergeNode mmm ) {
+            setDef(2,mmm.alias(fld()._alias));
+            return this;
+        }
+        // Sharpen public memory input
+        if( pub() instanceof MemMergeNode mmm ) {
+            setDef(3,mmm.alias(fld()._alias));
+            return this;
+        }
+        // New allocation is dead
+        if( self()._type.isHigh() )
+            if( pub()._type.isa(_type) ) return pub();
+            else addDep(pub());
+        return null;
+    }
+
+// Upgrade the internal type
+@Override boolean _upgradeType( HashMap<String,Type> TYPES) {
+    Type t = _con.upgradeType(TYPES);
+    if( t == _con ) return false;
+    unlock();               // Unlock before changing _con
+    _con = t;
+    return true;
+}
+
+    @Override public boolean eq(Node n) {
+        if( _borrow!=((EscapeNode)n)._borrow ) return false;
+        if( fld()._alias!=((EscapeNode)n).fld()._alias )
+            return false;
+        assert _con == ((EscapeNode)n)._con;
+        return true;
+    }
+
+    @Override int hash() { return _con.hashCode() ^ (_borrow ? 1024 : 0); }
+}

@@ -78,6 +78,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 28a](chapter28a/README.md): Modules and Lazy Class Initialization
 * [Chapter 28b](chapter28b/README.md): Separate Compilation
 * [Chapter 29](chapter29/README.md): Tech Debt Cleanup
+* [Chapter 30](chapter30/README.md): Work in Progress
 
 Appendices: [Native libraries](docs/appendices/native-libraries.md),
 [optimizer and backend tuning](docs/appendices/optimizer-tuning.md).
@@ -94,7 +95,7 @@ access to both printers and the viewer; chapter adapters add semantic details
 as the IR grows.
 
 The [instruction encoders](isa/README.md) share x86-64, ARM, and RISC-V byte
-emission for Chapters 21–29, along with ARM/RISC-V test evaluators. Machine-node
+emission for Chapters 21–30, along with ARM/RISC-V test evaluators. Machine-node
 selection, register allocation, and code layout remain in each chapter; the
 shared layer takes concrete operands and writes bytes.
 

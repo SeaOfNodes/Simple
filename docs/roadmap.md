@@ -7,11 +7,15 @@ snapshots on 2026-11-07. These are future changes, not promises about the
 language implemented by the tutorial. Language changes still need their own
 design decisions and chapter boundaries.
 
-## Current chapter: tech debt cleanup
+## Current chapter: Chapter 30
+
+[Chapter 30](../chapter30/README.md) is the workspace for the next project,
+starting from the completed Chapter 29 compiler. Its topic is not yet selected;
+the projects below remain candidates, not a committed scope.
 
 [Chapter 29](../chapter29/README.md) carries the parser split into grammar-sized
-components, with `Var` in `parser/` and `IterPeeps` in `codegen/`. It is the
-workspace for further cleanup; Chapter 28b retains the preceding compiler.
+components, with `Var` in `parser/` and `IterPeeps` in `codegen/`. Chapter 29
+retains that cleanup snapshot; Chapter 28b retains the preceding compiler.
 
 Constructor completion now uses private-memory field types and the existing
 TypeCheck walk, after Iter/Opto propagation. The
