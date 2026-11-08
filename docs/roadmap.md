@@ -3,42 +3,52 @@
 English | [日本語](roadmap.ja.md)
 
 Open compiler work and language proposals, reviewed against the current
-snapshots on 2026-11-07. These are future changes, not promises about the
+snapshots on 2026-11-08. These are future changes, not promises about the
 language implemented by the tutorial. Language changes still need their own
 design decisions and chapter boundaries.
 
-## Current chapter: Chapter 30
+## Contents
 
-[Chapter 30](../chapter30/README.md) is the workspace for the next project,
-starting from the completed Chapter 29 compiler. Its topic is not yet selected;
-the projects below remain candidates, not a committed scope.
-
-[Chapter 29](../chapter29/README.md) carries the parser split into grammar-sized
-components, with `Var` in `parser/` and `IterPeeps` in `codegen/`. Chapter 29
-retains that cleanup snapshot; Chapter 28b retains the preceding compiler.
-
-Constructor completion now uses private-memory field types and the existing
-TypeCheck walk, after Iter/Opto propagation. The
-[incomplete-reference design](../chapter29/docs/construction-groups.md) uses a
-partial qualifier plus forward field views for local read-only borrowers.
-Inferred field requirements, nested guarantees, and imported construction
-contracts remain longer-term proposals.
-Keep the recursive-descent path aligned with the grammar. Review moving `TYPES`
-to `CodeGen`. Consider whether
-an allocation-free use of try-with-resources makes keep/unkeep pairing clearer;
-this remains an experiment, not a new resource-management convention.
-
-Source privacy is deferred until after this initial cleanup. The archived
-implementation and tests are experiments, not part of Chapter 29's behavior.
+- [Compilation and optimization](#compilation-and-optimization) — diagnostics, analysis costs, builds, loading, and code quality.
+  - [General cleanup](#general-cleanup) - Some general quality-of-life suggestions
+  - [Phase ordering and incremental analysis](#phase-ordering-and-incremental-analysis) — scheduling costs, shared escape scans, and late identity precision.
+  - [Reliable incremental builds](#reliable-incremental-builds) — input identities, compatibility, and relinking.
+  - [Function-level loading](#function-level-loading-of-library-ir) — load individual library bodies.
+  - [Deterministic inlining](#deterministic-inlining) — stable choices using optimized body sizes.
+  - [CFG frequency estimates](#cfg-frequency-estimates) — guide scheduling and layout.
+  - [Loop rotation](#loop-rotation) — bottom-tested loops with correct entry and exit behavior.
+  - [Integer instruction widths](#integer-instruction-widths) — local narrowing patterns, 32-bit instructions, and later demanded-bit analysis.
+  - [Per-function calling conventions](#per-function-calling-conventions) — precise clobbers, custom interfaces, and later joint allocation.
+  - [Constant instance-field storage](#constant-instance-field-storage) — omit slots whose values are constant across instances.
+- [Language boundaries](#language-boundaries) — native argument representation, source access rules, and symbol visibility.
+  - [C byte pointers](#c-byte-pointers) — distinct native pointers with byte loads/stores and C-owned memory.
+  - [Source privacy](#source-privacy) — enforce private access through imports and optimization.
+  - [ELF visibility](#elf-visibility-and-unknown-callers) — separate linker exports from unknown-caller reachability.
+- [Initialization and runtime](#initialization-and-runtime) — entry arguments, static initialization, and pointer storage.
+  - [Entry arguments](#entry-arguments) — pass argument arrays to class initializers.
+  - [Pre-initialize classes](#pre-initialize-classes-from-elf-data) — replace provably static initialization with ELF data.
+  - [Compact arenas](#compact-code-and-data-arenas) — four-byte references and explicit native pointer boundaries.
+- [Longer-term proposals](#longer-term-language-and-library-proposals) — deferred language and library designs.
+  - [Partial-initialization contracts](#inferred-partial-initialization-contracts--deferred) — inferred requirements, nested guarantees, and imported contracts.
+  - [Automatic memory management](#automatic-memory-management) — ownership, sharing, cycles, and native retention.
+  - [A graphical game](#a-small-graphical-game) — exercise graphics, keyboard, and audio APIs.
+  - [Trailing arrays](#structs-with-trailing-arrays) — inline elements after named fields.
+  - [Array initialization](#array-initialization) — generate each element during allocation.
+  - [String libraries](#string-libraries) — ownership, Unicode, and additional representations beyond byte buffers.
+  - [Struct values](#struct-values) — inline storage, copying, and by-value calls.
 
 ## Compilation and optimization
 
-### Better error messages
+### General cleanup
 
-Improve compiler diagnostics: identify the offending source expression, explain
-what was expected and what was found, and point to relevant declarations or call
-sites. Preserve useful source locations through optimization and imports, and
-avoid cascading errors that obscure the original problem.
+Keep the recursive-descent path aligned with the grammar. Review moving `TYPES`
+to `CodeGen`. 
+
+Consider whether an allocation-free use of try-with-resources makes keep/unkeep
+pairing clearer; this remains an experiment, not a new resource-management
+convention.
+
+
 
 ### Phase ordering and incremental analysis
 
@@ -52,10 +62,8 @@ Remaining work:
   unit Stops now reuse its result, but updating that result still scans all
   calls and unloaded summaries. Handle contributors changing or disappearing,
   rather than only accumulating unions. The
-  [outside-world escape flow](../chapter29/docs/escape-flow.md), now in
-  Chapters 28a/28b/29, has removed the
-  frozen public inventory and previous-result escape normalization; the shared
-  scan remains.
+  [outside-world escape flow](../chapter28a/README.md#escaping-or-the-startstop-cycle) already shares
+  the result; the remaining cost is recomputing it.
 - Improve precision for identities discovered after Opto's foreign seed is
   established. They currently remain in the cofinite foreign tail. Preserve
   monotone propagation and imported callback behavior when refining this bound.
@@ -130,6 +138,72 @@ loop, or adding partial peeling. Preserve condition side effects, loop-local
 scope, and the destinations of `break` and `continue`. The current parser
 constructs a loop with its test at the head.
 
+### Integer instruction widths
+
+Keep the Chapter 30 language rule: `int` aliases `i32`, but inferred values
+and intermediate arithmetic retain their existing rules. Two `int` operands
+can produce a 33-bit sum; narrowing on assignment is a separate operation.
+
+Start with local instruction-selection improvements, without a new analysis:
+
+- Recognize `(x<<32)>>32` as sign-extension instead of two shifts.
+- Add an operand-width choice to integer machine operations and the shared
+  encoder. On x86, dropping REX.W can remove a prefix byte when no extended
+  register needs REX. The encoder already has `rexF(..., wide, ...)`, but
+  register arithmetic currently forces wide operations.
+- Use range proofs for suitable 32-bit arithmetic with a result in `u32`,
+  and 32-bit signed comparisons between operands proven to fit `i32`.
+- Combine arithmetic with explicit narrowing: a narrowed add can use a
+  32-bit add followed by sign-extension. Bypass input extensions where only
+  low bits are consumed, preserving shared producers' other wide uses.
+
+An x86 32-bit result zeroes the upper half; negative signed results still
+need sign-extension before a full-width consumer. Keep shifts and division
+under separate rules: operand width changes shift-count masking and which
+high bits can flow down, and narrow signed division introduces the
+`INT_MIN / -1` overflow case. Do not infer signed representability solely
+from `TypeInteger.log_size()`; use actual range bounds.
+
+Longer term, distinguish computed bits from demanded bits. `TypeInteger`
+already provides ranges and a derived possible-bits mask. Tracking which
+bits consumers observe could keep arithmetic chains and loops narrow and
+extend only at wide consumers, but requires backwards propagation through
+shared uses and Phis. This is a separate analysis proposal, not part of the
+local selection work. Narrow operations still occupy whole registers.
+Diagnose the current allocator retry failure before changing its input graph.
+
+### Per-function calling conventions
+
+Allocate functions independently first. Later, give known direct-call targets
+their own machine contracts: argument/return locations, clobbered registers,
+stack argument layout/alignment, and integer-extension requirements. Start
+with precise clobber summaries under the existing convention, then consider
+custom argument/return locations. Allocate callees before callers and freeze
+each contract; caller preferences can guide choices without forcing every
+call site to agree on its preferred registers.
+
+Preserve machine-call relationships before Unlink discards the ideal call
+graph. Replace compilation-wide parameter, return, preservation, and call-kill
+masks with contract lookups. Keep C entry points and callbacks on the C ABI,
+using wrappers if an internal custom entry is worthwhile. Source privacy
+alone does not establish that all calls are known.
+
+Indirect calls need a convention shared by all possible targets, entry
+thunks, or a richer function-pointer representation. Public Simple functions
+could export their selected contract in target-specific metadata after
+allocation; ideal IR is currently serialized before allocation. A changed
+contract requires rebuilding callers or rejecting stale objects even when
+the source type is unchanged.
+
+Joint caller/callee coloring is a larger, separate proposal. Model argument
+and result transfers as preferences, retaining moves when needed; current
+LRGs and spill slots belong to individual functions. Values live across a
+call must survive the callee's transitive clobbers. Recursive activations
+require saves/spills and cannot be represented just by merging static live
+ranges. Initially use fixed conventions for recursive groups. If interfaces
+are later renegotiated, budget retries by function or recursive group, not
+one global round counter shared by unrelated functions.
+
 ### Constant instance-field storage
 
 When a final instance field has the same constant value in every instance,
@@ -141,12 +215,45 @@ instance-layout optimization.
 
 ## Language boundaries
 
+### C byte pointers
+
+Introduce an eight-byte C pointer type, initially pointing only to bytes, with
+indexed byte Loads and Stores, null checks, and defined offset operations.
+Track whether the storage is C-managed or Simple-managed separately from
+pointer width and address range. The prospective low-4-GiB Simple heap does not
+make low-address C allocations Simple-owned; high-address buffers require the
+full-width C pointer. A low-address C buffer might admit a compact reference,
+but only with compatible layout and retained C ownership. Revisit whether that
+is useful when designing the heap and automatic memory management.
+
+Allow Simple buffers to be borrowed by C under a documented promise that C
+does not retain the pointer. Initially this lifetime promise is not enforced.
+Returning a pointer must not silently transfer ownership, and Simple memory
+management must not free or traverse C-owned storage.
+
+Use normal memory SSA. C views of Simple buffers can alias Simple Loads and
+Stores, so representation alone cannot select a disjoint native-memory alias
+class. Native calls must expose effects on borrowed Simple memory as well as
+C memory. Lengths and writable access need API contracts; a raw C pointer
+carries no Simple array header or length.
+
+This would let the runtime scan and copy argument bytes in Simple. Access to
+`argv[i]` would still need the small C helper: `char **` requires pointer loads,
+which are outside the initial byte-only scope.
+
+Replace existing I/O's `i64` address convention with explicit native views of
+Simple buffers, preserving their ownership and the non-retention contract.
+A later Simple `C` struct facility could supply C-compatible field layout for
+libc interfaces. Such structs have no Simple constructor/destructor and do not
+intermingle with the managed Simple object graph; specify native layout and
+ownership independently of ordinary Simple structs.
+
 ### Source privacy
 
 Underscores already select the public interface, but source access to another
 class's private fields is not rejected. Revisit source enforcement and its
-preservation across imports after the Chapter 29 cleanup. This language change
-still needs review; it is not a correction to impose on earlier chapters.
+preservation across imports. This language change still needs review; it is not
+a correction to impose on earlier chapters.
 
 - A field or method beginning with `_` is accessible only from its declaring
   class, including constructors and methods. Enclosing, nested, and sibling
@@ -217,7 +324,8 @@ need not overlap or live near zero; choose absolute addresses or offsets from
 an arena base when implementing placement and indirect calls. Native function
 thunks can occupy the code arena while native libraries live elsewhere.
 Currently function pointers occupy four bytes and use low-address thunks;
-ordinary data pointers still occupy eight bytes.
+ordinary data pointers still occupy eight bytes.  See [Automatic memory
+management](#automatic-memory-management).
 
 Give full-width native pointers separate types and foreign lifetime contracts.
 Opaque device addresses may need to pass through without CPU dereference.
@@ -226,6 +334,9 @@ ownership, borrowing, cycles, and native retention. Compact storage alone
 does not establish those rules. Preserve static class images and explicit
 native boundary conversions when choosing the representation.
 
+Defer the four-byte data-pointer switch to a later chapter alongside memory
+management, which will also establish the allocator and native ownership rules.
+
 ## Longer-term language and library proposals
 
 These are language-design alternatives. The sketches below are not executable
@@ -233,10 +344,11 @@ examples of the current Simple grammar.
 
 ### Inferred partial-initialization contracts — deferred
 
-Allow partial arguments to expose initialized fields, retain partial references,
-and propagate nested initialization guarantees, while reserving final-field
-writes to the original constructor. Cliff decided against implementing this
-now (2026-11-07): tracing requirements through aliases, nested fields, forwarding,
+Chapter 29 already permits local reads of proven initialized fields and limited
+retention of partial references through normal forward type flow. The deferred
+extension is inferred field requirements, nested guarantees, and contracts for
+separately compiled callees, while reserving final-field writes to the original
+constructor. Tracing requirements through aliases, nested fields, forwarding,
 recursive calls, and returned/stored references adds more infrastructure than
 is justified for this feature alone.
 
@@ -244,8 +356,7 @@ Revisit alongside a general backwards/liveness analysis, which may also serve
 future memory management. The normal-type contract proposal and its unresolved
 details are recorded in the
 [construction notes](../chapter29/docs/construction-groups.md#deferred-field-aware-contracts-2026-11-07).
-The forward-only prototype permits local reads of proven initialized fields;
-it adds no inferred contracts. Keep the separate-compilation restriction meanwhile.
+Keep the separate-compilation restriction on `^` functions meanwhile.
 
 ### Automatic memory management
 
@@ -255,9 +366,10 @@ as design references. Decide ownership, borrowing, sharing, cycles, and native
 retention together with the existing object and array model. This is a language
 design candidate, independent of compact pointer storage.
 
-### A small interactive game
+### A small graphical game
 
-Build a small game in Simple with 2-D graphics, keyboard input, and sound.
+Follow ASCII tic-tac-toe with a small game using 2-D graphics, keyboard input,
+and sound.
 Use it to exercise practical library APIs and native bindings; choose the game
 and supporting graphics/audio library when this project is taken up.
 
@@ -298,14 +410,14 @@ allocation does not provide this constructor operation.
 
 ### String libraries
 
-Design a family of byte-based strings with UTF-8 decoding supplied by library
-functions. Consider these distinct representations and interfaces:
+`sys.aryu8` already provides a growable buffer wrapper; `sys.text` formats into
+it and copies the result into an immutable byte array. Extend these foundations
+with explicit ownership contracts and UTF-8 decoding. Consider:
 
 - A growable string with inline bytes and cached metadata, returning a
   potentially new receiver when capacity increases.
-- An immutable string constructed all at once, with defensive copying where
-  necessary. Read-only access alone does not establish exclusive ownership.
-- A StringBuilder-style wrapper holding a replaceable pointer to its buffer.
+- Immutable-string ownership and sharing beyond the existing formatting result.
+  Read-only access alone does not establish exclusive ownership.
 - Unicode decoding and iteration over the byte representation, including
   behavior at invalid character boundaries.
 - A C-compatible string with a trailing zero and directly available length.
@@ -313,7 +425,7 @@ functions. Consider these distinct representations and interfaces:
 
 Keep mutable storage private by default and specify sharing, concatenation,
 capacity growth, and native I/O contracts. Existing `sys` byte-array and
-buffer helpers are a starting point, not this complete string design.
+buffer helpers provide the basic builder and formatting operations.
 
 ### Struct values
 
@@ -328,8 +440,3 @@ or expose an interior address with an invalid lifetime. Decide how consuming
 an enclosing object's lifetime could permit such an address. Keep method
 syntax uniform and define the calling convention for by-value arguments.
 
-### Default integer width
-
-Consider making `int` mean `i32` instead of the current `i64`. This changes
-overflow behavior, layouts, APIs, and native interfaces, so it needs a language
-decision and a deliberate compatibility boundary.

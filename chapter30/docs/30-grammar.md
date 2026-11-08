@@ -8,6 +8,9 @@ The production-to-code map below the grammar describes where syntax ends and
 name resolution or graph construction begins. This grammar documents the
 language; it is not input to a parser generator.
 
+`int` is an alias for `i32`; `i64` explicitly selects 64-bit integer storage.
+This alias does not change literal inference or intermediate arithmetic.
+
 ```antlrv4
 grammar SimpleLanguage;
 
@@ -58,11 +61,14 @@ constructorParameter : type '^'? bindingModifier? IDENTIFIER ;
 // A method is an ordinary fixed function binding in a struct definition.
 // The compiler supplies self; it is not written in parameterList.
 // Function types and expressions both receive their implicit receiver here.
-methodDeclaration : 'val' bindingModifier? IDENTIFIER '=' functionExpression ';' ;
+methodDeclaration : 'val' bindingModifier? memberName '=' functionExpression ';' ;
+memberName : IDENTIFIER | primitiveType ;
 
 declaration : declarationType binding (',' binding)* ;
 declarationType : type | 'var' | 'val' ;
 binding : bindingModifier? IDENTIFIER ('=' initializer)? ;
+// At class/struct member scope, memberName also permits primitive type names.
+// Ordinary locals and parameters still require a non-keyword IDENTIFIER.
 bindingModifier : '!' | '~' ;
 // A declaration initializer consisting of the string "C" declares an extern
 // symbol: a function, or explicit numeric native storage. Ordinary strings
@@ -132,17 +138,17 @@ unaryExpression
 // and array elements. All updates require an assignable operand.
 updateOperator : '++' | '--' ;
 postfixExpression : primaryExpression postfixSuffix* updateOperator? ;
-postfixSuffix : '.' IDENTIFIER | '[' assignment ']' | '#' | callSuffix | methodCallSuffix ;
+postfixSuffix : '.' memberName | '[' assignment ']' | '#' | callSuffix | methodCallSuffix ;
 
 // For a fixed function-valued member, object.name(args) passes object as self.
 // This overlaps ordinary field selection followed by a call syntactically;
 // name/type resolution determines which call form applies.
-methodCallSuffix : '.' IDENTIFIER callSuffix ;
+methodCallSuffix : '.' memberName callSuffix ;
 
 primaryExpression
     : INTEGER_LITERAL
     | FLOAT_LITERAL
-    | STRING_LITERAL
+    | stringExpression
     | CHARACTER_LITERAL
     | 'true'
     | 'false'
@@ -177,9 +183,17 @@ INTEGER_LITERAL : '0' | [1-9] DIGIT* ;
 // The f suffix also accepts an integer-shaped token, e.g. 12f.
 FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' '-'? DIGIT+) 'f'?
               | DIGIT+ 'f' ;
-STRING_LITERAL : '"' (ESCAPE | ~["\\])* '"' ;
+// String text uses a lexical mode: whitespace/comments are literal here.
+// Interpolation re-enters the ordinary expression grammar, recursively.
+stringExpression : '"' (STRING_TEXT | ESCAPE | '%%' | interpolation)* '"' ;
+interpolation : '%' format? '(' assignment ')' ;
+format : FORMAT_FLAG* FORMAT_WIDTH? ('.' FORMAT_WIDTH?)? FORMAT_KIND ;
+// Flags: - + space # 0. Width/precision: decimal digits, no expressions.
+// Kinds: d i u o x X f F e E g G a A c s b.
+// Duplicate/inapplicable flags and precision on c/b are rejected.
+// STRING_TEXT excludes double quote, backslash, and percent.
 CHARACTER_LITERAL : '\'' (ESCAPE | ~['\\]) '\'' ;
-fragment ESCAPE : '\\' [0ntr\\'"] ;
+fragment ESCAPE : '\\' [0ntr\\'"%] ;
 IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)* ;
 fragment NON_DIGIT : [a-zA-Z_] ;
 fragment DIGIT : [0-9] ;
@@ -206,6 +220,7 @@ there is no inheritance chain, AST, or additional compiler pass.
 | `postfixExpression`, member selection and updates | `Expressions.parsePostfix` / `parsePostfixMethod` dispatch to [`References.parseField`](../src/main/java/com/seaofnodes/simple/parser/References.java); `References.parseName` handles bare names, implicit receivers, and forward references |
 | `functionExpression`, `parameterList`, calls, `argumentList` | [`Functions`](../src/main/java/com/seaofnodes/simple/parser/Functions.java): `parseFunction`, `parseConstructor`, shared `parameters` and `arguments`, then `parseBody` |
 | `newExpression` | [`Allocations.parseNew`](../src/main/java/com/seaofnodes/simple/parser/Allocations.java); the allocation-helper graph builder follows the expression routines |
+| `stringExpression`, `interpolation` | [`Strings.parse`](../src/main/java/com/seaofnodes/simple/parser/Strings.java), using `Lexer.stringPart` / `stringFormat`; normal expression parsing resumes inside each interpolation |
 | Literals, identifiers, comments, token matching | [`Lexer`](../src/main/java/com/seaofnodes/simple/parser/Lexer.java); it also supplies source-location snapshots used by diagnostics and serialized IR |
 
 `ControlFlow` shares guarded scope merging between `if`, `?:`, `&&`, and `||`.

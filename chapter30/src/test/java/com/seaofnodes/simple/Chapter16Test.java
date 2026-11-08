@@ -77,7 +77,7 @@ return z.x;
 struct _LLI { !_LLI? !next; int i; new _LLI = { !_LLI? !n, int ii -> next=n; i=ii; }; };
 !_LLI? !head = null;
 while( arg ) {
-    head = new _LLI(head,arg);
+    int n=arg; head = new _LLI(head,n);
     arg = arg-1;
 }
 if( !head ) return 0;
@@ -107,7 +107,7 @@ struct _LLI { !_LLI? !next; int i; new _LLI = { !_LLI? !n, int a ->
 }; };
 !_LLI? !head = null;
 while( arg ) {
-    head = new _LLI(head,arg);
+    int n=arg; head = new _LLI(head,n);
     arg = arg-1;
 }
 if( !head ) return 0;

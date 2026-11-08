@@ -20,9 +20,9 @@ public class Chapter24Test {
     @Test public void testRecursiveWidening() {
         String[] srcs = {
             // Parm(x) must widen even though the recursive result is constant.
-            "val f = { int x, int limit -> x >= limit ? 0 : f(x+1,limit); }; return f(0,arg);",
+            "val f = { int x, int limit -> x >= limit ? 0 : f(++x,limit); }; int limit=arg; return f(0,limit);",
             // The growing result has its own cycle, which never crosses Parm(x).
-            "val f = { int x -> x <= 0 ? 0 : f(x-1)+1; }; return f(3);"
+            "val f = { int x -> x <= 0 ? 0 : f(--x)+1; }; return f(3);"
         };
         for( int i=0; i<srcs.length; i++ )
             for( long seed : new long[]{0,42,126} ) {
@@ -32,6 +32,7 @@ public class Chapter24Test {
     }
 
     @Test public void testColdLoopSelfConflict() { com.seaofnodes.simple.codegen.RegAllocTestSupport.coldLoopSelfConflict(); }
+    @Test public void testTiedLoopBackedges() { com.seaofnodes.simple.codegen.RegAllocTestSupport.tiedLoopBackedges(); }
 
     @Test public void testPrintingDeadFunction() throws Exception {
         var code = new CodeGen("return 0;").parse();
@@ -106,7 +107,7 @@ return (sq_noInline(2) <= score < sq_noInline(3))
     ? 0  // Expected
     : 1; // Error
 """;
-        TestC.runSF( src, "stacked_r_3", "", 2);
+        TestC.runSF( src, "stacked_r_3", "",0);
 
         // Evaluate on RISC5 emulator
         EvalRisc5 R5 = TestRisc5.build( src, "stacked_r_3", 0, 2, false);

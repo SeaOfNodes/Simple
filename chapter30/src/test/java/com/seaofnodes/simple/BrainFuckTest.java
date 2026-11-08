@@ -63,7 +63,7 @@ val brain_fuck = { ->
     return output;
 };
 """;
-        TestC.runC(src,"brain_fuck", brain_fuck, 40);
+        TestC.runC(src,"brain_fuck", brain_fuck,165);
 
         EvalRisc5 R5 = TestRisc5.build( src, "brain_fuck", 0, 25, false);
         int trap = R5.step(100000);

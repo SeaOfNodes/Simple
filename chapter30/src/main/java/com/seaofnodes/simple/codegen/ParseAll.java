@@ -140,7 +140,7 @@ public abstract class ParseAll {
                     fref._name = TypeStruct.addClzPrefix(xcunit._cname);
                     cunit.addDep(xcunit);
                 } else {
-                    throw new RuntimeException("Undefined name '" + fref._name +"'");
+                    throw fref.err();
                 }
             } catch( IOException ioe ) {
                 throw new RuntimeException(ioe);
@@ -297,14 +297,6 @@ public abstract class ParseAll {
             Parser.TYPES.put(cunit._cname,ptr._obj);
     }
 
-    // Symbol not found in source code (or we would not be here).
-    // Search the module for the fref
-    public static CompUnit findCompUnitOrThrow(CodeGen code, CompUnit cu, String symbol) {
-        CompUnit cu2 =  findCompUnit(code,cu,symbol);
-        if( cu2 != null ) return cu2;
-        throw new RuntimeException("Undefined name '" + symbol +"'");
-    }
-
     public static CompUnit findCompUnit(CodeGen code, CompUnit cu, String symbol) {
         // Symbol not found in source code (or we would not be here).
         // Search the module for the fref
@@ -328,8 +320,15 @@ public abstract class ParseAll {
     // However if A/B contains "Y", the search would be for A.B.Y then A.Y both of
     // which do not exist.
     private static CompUnit findCUnitModule( CodeGen code, CompUnit cunit, String symbol ) throws IOException {
-        if( cunit == null )     // Ran off top of module scope?
-            return null;        // Failed search
+        if( cunit == null ) {
+            // The module root is also a namespace. In particular, a root
+            // client can resolve sys.text from source, without installed .o's.
+            String fname=symbol.replace('.','/');
+            if( !new File(code._modDir+"/"+fname+".smp").exists() ) return null;
+            CompUnit root=makeCUnit(code,null,fname);
+            if( root._clz==null && WORK.find(root)==-1 ) enqueue(root);
+            return root;
+        }
 
         // Check self
         if( cunit._name.equals(symbol) )

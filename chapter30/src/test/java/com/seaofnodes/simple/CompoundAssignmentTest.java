@@ -23,7 +23,7 @@ public class CompoundAssignmentTest {
     @Test public void testLocals() {
         for (String op : OPS)
             for (long arg : new long[]{-8, 0, 5, 64}) {
-                long expected = apply(op, arg, 3);
+                long expected = (int)apply(op, arg, 3);
                 check("int x=arg; int r=(x " + op + " 3); return x*10+r;",
                       arg, expected*11);
             }
@@ -31,7 +31,7 @@ public class CompoundAssignmentTest {
 
     @Test public void testRhsOnce() {
         for (String op : OPS) {
-            long expected = apply(op, 5, 1);
+            long expected = (int)apply(op, 5, 1);
             check("int x=arg; int count=0; int r=(x " + op +
                   " (count=count+1)); return count*1000+x*10+r;", 5, 1000+expected*11);
         }
@@ -42,7 +42,7 @@ public class CompoundAssignmentTest {
         check("u8 x=255; x ^= 256; return x;", 0, 255);
         check("int x=1; int y=3; x |= y <<= 2; return x*100+y;", 0, 1312);
         check("int x=-8; x >>= 65; return x;", 0, -4);
-        check("int x=-8; x >>>= 65; return x;", 0, Long.MAX_VALUE-3);
+        check("int x=-8; x >>>= 65; return x;", 0, -4);
     }
 
     @Test public void testExistingOperators() {
@@ -73,7 +73,7 @@ public class CompoundAssignmentTest {
 
     @Test public void testFields() {
         for (String op : OPS) {
-            long expected = apply(op, -8, 3);
+            long expected = (int)apply(op, -8, 3);
             check("struct S { int x; }; !S !s=new S; s.x=arg; int r=(s.x " +
                   op + " 3); return s.x*10+r;", -8, expected*11);
         }
@@ -81,7 +81,7 @@ public class CompoundAssignmentTest {
 
     @Test public void testArrayAddressAndRhsOnce() {
         for (String op : OPS) {
-            long expected = apply(op, 5, 1);
+            long expected = (int)apply(op, 5, 1);
             check("int[] !a=new int[2]; a[0]=arg; int i=0; int count=0; " +
                   "int r=(a[i++] " + op + " (count=count+1)); " +
                   "return i*1000+count*100+a[0]*10+r;", 5, 1100+expected*11);

@@ -1,11 +1,25 @@
 
 // Array utilities
 
+// Geometric growth without wrapping a u32 length. Zero means too large.
+val capacity = { u32 current, i64 needed ->
+    if( needed < 0 || needed > 4294967295 ) return 0;
+    if( needed <= current ) return current;
+    i64 size = current ? current : 1;
+    while( size < needed ) {
+        size *= 2;
+        if( size > 4294967295 ) size = 4294967295;
+    }
+    u32 result = size;
+    return result;
+};
+
 // Copy byte array contents.  Copies the shorter of the buffers and len
-val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
+val copy = { u8[] dst, u32 doff, u8[~] src, u32 soff, u32 len ->
+    if( doff > dst# || soff > src# ) return dst;
     if( len > dst# - doff ) len = dst# - doff;
     if( len > src# - soff ) len = src# - soff;
-    for( int i=0; i<len; i++ )
+    for( u32 i=0; i<len; i++ )
         dst[i+doff] = src[i+soff];
     return dst;
 };
@@ -14,10 +28,12 @@ val copy = { u8[] dst, int doff, u8[~] src, int soff, int len ->
 // len.  Returns <0 or >0 for first non-matching byte.  Returns <0 or >0 for
 // the larger array after that, or 0 if both arrays are fully equal.
 val cmp = { u8[~] src1, u32 off1, u8[~] src2, u32 off2, u32 len ->
-    u32 len1 = len > src1# - off1 ? src1# - off1 : len;
-    u32 len2 = len > src2# - off2 ? src2# - off2 : len;
+    u32 left1 = off1 >= src1# ? 0 : src1# - off1;
+    u32 left2 = off2 >= src2# ? 0 : src2# - off2;
+    u32 len1 = len > left1 ? left1 : len;
+    u32 len2 = len > left2 ? left2 : len;
     u32 max = len1 > len2 ? len2 : len1;
-    for( int i=0; i<max; i++ )
+    for( u32 i=0; i<max; i++ )
         if( src1[off1+i] != src2[off2+i] )
             return src1[off1+i] - src2[off2+i]; // Bytes determine compare
     return len1 - len2;                         // Length determines compare

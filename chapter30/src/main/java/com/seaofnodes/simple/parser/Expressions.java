@@ -15,6 +15,8 @@ final class Expressions {
     /** Parse: [name '='] expr
      */
     Node parseAssignment() {
+        P._lexer.skipWhiteSpace();
+        Lexer site=P.loc();
         int old = P.pos();
         String name = P._lexer.matchId();
         // Just a plain expression, no assignment.
@@ -24,13 +26,16 @@ final class Expressions {
 
         // Find variable to update
         Var def = P._scope.lookup(name);
-        if( def==null )
+        if( def==null ) {
+            P.pos(old);
+            P._lexer.skipWhiteSpace();
             throw P.error("Undefined name '" + name + "'");
+        }
 
         if( def._extern!=0 )    // Parse the C binding as a memory lvalue
             {  P.pos(old);  return parseExpression();  }
 
-        P.references.checkAssignment(def);
+        P.references.checkAssignment(def,site);
         return P.references.assign(def,parseAssignment());
     }
 
@@ -117,6 +122,8 @@ final class Expressions {
         Node cmp = makeCompBool(dir,lhs.unkeep(),rhs).keep(); // Convert to a bool
 
         // Stacked compares?
+        P._lexer.skipWhiteSpace();
+        Lexer operator=P.loc();
         int dir0 = parseCompDir();
         if( dir0 == 0 ) {
             rhs.unkill();
@@ -137,7 +144,7 @@ final class Expressions {
         // compares (LHS:b < RHS:c) then (LHS:c < RHS:d), etc.
         while( dir0 != 0 ) {
             if( Math.abs(dir) != Math.abs(dir0) )
-                throw P.error("Mixing relational directions in a chained relational test");
+                throw Parser.error("Mixing relational directions in a chained relational test",operator);
             // True side parses next arm of test
             P.ctrl(ifT.unkeep());
             lhs = rhs;          // Reuse the previous RHS exactly once
@@ -150,6 +157,8 @@ final class Expressions {
             P.ctrl(ifF);
             fail.mergeScopes(P._scope.dup(), P.loc()).peephole();
             // Check next stacked compare
+            P._lexer.skipWhiteSpace();
+            operator=P.loc();
             dir0 = parseCompDir();
         }
         rhs.unkill();
@@ -185,9 +194,11 @@ final class Expressions {
     private Node parseShift() {
         Node lhs = parseAddition();
         while( true ) {
-            if( P.match("<<") ) lhs = new ShlNode(P.loc(),lhs,null);
-            else if( P.match(">>>")) lhs = new ShrNode(P.loc(),lhs,null);
-            else if( P.match(">>") ) lhs = new SarNode(P.loc(),lhs,null);
+            P._lexer.skipWhiteSpace();
+            Lexer site=P.loc();
+            if( P.match("<<") ) lhs = new ShlNode(site,lhs,null);
+            else if( P.match(">>>")) lhs = new ShrNode(site,lhs,null);
+            else if( P.match(">>") ) lhs = new SarNode(site,lhs,null);
             else break;
             lhs.setDef(2,parseAddition());
             ParseException err;
@@ -251,12 +262,14 @@ final class Expressions {
         int old = P.pos();
         if( P.match("--") || P.match("++") ) {
             int delta = P._lexer.peek(-1)=='+' ? 1 : -1; // Inc vs Dec
+            P._lexer.skipWhiteSpace();
             int start = P.pos();
+            Lexer site=P.loc();
             String name = P._lexer.matchId();
             Var var = name==null ? null : P._scope.lookup(name);
             if( var!=null && !(var.type() instanceof TypeMemPtr) ) {
                 if( var._extern==0 && var._final && !P._scope.canInit(var) )
-                    throw P.error("Cannot reassign final '"+var._name+"'");
+                    throw Parser.error("Cannot reassign final '"+var._name+"'",site);
                 // Resolve fields just as a read or postfix update does. Updating
                 // their declaration's local slot would silently lose the Store.
                 P.pos(start);
@@ -286,7 +299,7 @@ final class Expressions {
     // pre is +/-1 for a prefix update of a known name, zero otherwise.
     private Node parsePrimary(int pre) {
         if( P._lexer.isNumber(P._lexer.peek()) ) return parseLiteral();
-        if( P._lexer.peek('"') ) return parsePostfix(P.allocations.newString(P._lexer.parseString()));
+        if( P._lexer.peek('"') ) return parsePostfix(P.strings.parse());
         if( P.matchx("true" ) ) return P.con(1);
         if( P.matchx("false") ) return P._code.ZERO;
         if( P.matchx("null" ) ) return P.con(Type.NIL);
@@ -298,8 +311,10 @@ final class Expressions {
         int pos = P.pos();
         // Expect an identifier now
         String id = P._lexer.matchId();
-        if( id == null || Parser.KEYWORDS.contains(id) )
+        if( id == null || Parser.KEYWORDS.contains(id) ) {
+            P.pos(pos);
             throw P.errorSyntax("an identifier or expression");
+        }
         int pos2 = P.pos();
         return P.references.parseName(id,pre,pos,pos2);
     }
@@ -366,7 +381,11 @@ final class Expressions {
         P._lexer.skipWhiteSpace();
         Lexer site = P.loc();
         String name;
-        if( P.match(".") )      name = P.requireId();
+        if( P.match(".") ) {
+            P._lexer.skipWhiteSpace();
+            site=P.loc();
+            name = P.requireId(true);
+        }
         else if( P.match("#") ) name = "#";
         else if( P.match("[") ) name = "[]";
         // Can get here without an explicit receiver: "f()" or
@@ -389,6 +408,6 @@ final class Expressions {
 
     // Already parsed "'"
     Node parseChar() {
-        return P.require(P.con(TypeInteger.constant(P._lexer.parseChar())),"'");
+        return P.con(TypeInteger.constant(P._lexer.parseChar()));
     }
 }

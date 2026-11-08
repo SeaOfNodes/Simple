@@ -47,15 +47,17 @@ final class Declarations {
         boolean inferType = t==Type.TOP || t==Type.BOTTOM;
         boolean xfinal = bindingFinal(t);
         Lexer loc = P.loc();
-        String name = P.requireId();
+        String name = P.requireId(P._scope.klast() instanceof Kind.Func fun && FunNode.isInit(fun._name));
         // Optional initializing expression follows
         boolean fld_final = false; // Field is final, but not deeply final
         boolean uninit = false;    // Required non-null constructor field
         Node expr;
         if( P.match("=") ) {
+            P._lexer.skipWhiteSpace();
+            Lexer initializer=P.loc();
             if( isExternDecl() ) {
                 if( !(t instanceof TypeFunPtr) ) {
-                    Node ptr = externData(name,t);
+                    Node ptr = externData(name,t,loc);
                     // The lexical binding is a fixed address; its contents are mutable.
                     if( !P._scope.define(name,t,true,ptr,loc) )
                         throw Parser.error("Redefining name '"+name+"'",loc);
@@ -72,8 +74,12 @@ final class Declarations {
             // var/val, then type comes from expression
             if( inferType ) {
                 if( expr._type==Type.NIL )
-                    throw P.error("a not-null/non-zero expression");
+                    throw Parser.error("Cannot infer a type from null; declare a nullable type explicitly",initializer);
                 t = expr._type;
+                // A typed expression may still await a forward callee's flow
+                // type (e.g. interpolation while sys.text is parsed). Its
+                // checked conversion already supplies a binding/storage type.
+                if( t==Type.BOTTOM && expr instanceof ConvertNode convert ) t=convert.dst();
                 if( !xfinal ) t = Conversions.mutableInferredType(t);
                 // Instance fields may change until the constructor finishes.
                 // Keep the declared family/access, not the default's constant
@@ -133,8 +139,7 @@ final class Declarations {
     // Just after parsing "type foo = " can parse `"C"`
     private boolean isExternDecl( ) {
         int old = P.pos();
-        String s = P._lexer.parseString();
-        if( "C".equals(s) ) return true;
+        if( P.match("\"C\"") ) return true;
         P.pos(old);
         return false;
     }
@@ -151,14 +156,14 @@ final class Declarations {
 
     // A lexical C binding has a singleton namespace with one external field.
     // The namespace occupies no storage; its field offset supplies the address.
-    private Node externData(String name, Type t) {
+    private Node externData(String name, Type t, Lexer site) {
         if( !(t instanceof TypeInteger) && !(t instanceof TypeFloat) )
-            throw P.error("C data binding requires an integer or float type");
+            throw Parser.error("C data binding requires an integer or float type",site);
         String cname = ("C:"+name).intern();
         TypeStruct ts = TypeStruct.make(cname,false,Field.make(name,t,P._code.externAlias(name),false,true));
         Type old = Parser.TYPES.putIfAbsent(cname,ts);
         if( old!=null && old!=ts )
-            throw P.error("Conflicting types for C data '"+name+"'");
+            throw Parser.error("Conflicting types for C data '"+name+"'",site);
         return P.con(TypeMemPtr.make((byte)2,ts,true));
     }
 }

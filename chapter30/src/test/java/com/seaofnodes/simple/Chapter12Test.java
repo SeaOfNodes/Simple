@@ -127,7 +127,7 @@ N n = new N(null);
 return n.next;
 """);
         try { code.driver(CodeGen.Phase.TypeCheck); fail(); }
-        catch( Exception e ) { assertEquals("Argument #0 isa null, but must be a *Test.M {i64 !m; }",e.getMessage()); }
+        catch( Exception e ) { assertEquals("Argument #0 isa null, but must be a *Test.M {i32 !m; }",e.getMessage()); }
     }
 
     @Test

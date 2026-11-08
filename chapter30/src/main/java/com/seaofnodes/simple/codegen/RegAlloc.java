@@ -54,6 +54,8 @@ public class RegAlloc {
 
     // Top-level program graph structure
     final CodeGen _code;
+    // Scheduled blocks of the function currently being allocated.
+    Ary<CFGNode> _cfg;
 
     public int _spills, _spillScaled;
 
@@ -161,7 +163,7 @@ public class RegAlloc {
     }
 
     // -----------------------
-    RegAlloc( CodeGen code ) { _code = code; }
+    RegAlloc( CodeGen code ) { _code = code; _cfg = code._cfg; }
 
     public void regAlloc() {
         // Insert callee-save registers
@@ -186,16 +188,39 @@ public class RegAlloc {
         // Expensive assert: useful when chasing cross-function allocator edges.
         //assert verifyFunctionLocalEdges();
 
-        // Top driver: repeated rounds of coloring and splitting.
-        byte round=0;
-        while( !graphColor(round) ) {
-            split(round);
-            if( round >= 7 )    // Really expect to be done soon
-                throw new IllegalStateException("Register allocation made no progress after eight rounds");
-            round++;
+        // Each function owns its retry budget. Keep completed assignments while
+        // reusing the live-range and interference scratch space for the next.
+        IdentityHashMap<Node,LRG> colored = new IdentityHashMap<>();
+        _cfg = new Ary<>(CFGNode.class);
+        for( CFGNode bb : _code._cfg ) {
+            if( bb instanceof FunNode && !_cfg.isEmpty() ) {
+                allocateFunction();
+                colored.putAll(_lrgs);
+                _cfg.clear();
+            }
+            _cfg.add(bb);
         }
+        if( !_cfg.isEmpty() ) {
+            allocateFunction();
+            colored.putAll(_lrgs);
+        }
+        _lrgs.clear();
+        _lrgs.putAll(colored);
+        _cfg = _code._cfg;
         postColor();                       // Remove no-op spills
         _done = true;
+    }
+
+    private void allocateFunction() {
+        _deferredLoopSelf.clear();
+        for( byte round=0; !graphColor(round); round++ ) {
+            split(round);
+            if( round >= 7 ) {
+                FunNode fun = _cfg.at(0).fun();
+                throw new IllegalStateException("Register allocation failed after eight rounds in "+
+                                                (fun==null ? "<root>" : fun.label()));
+            }
+        }
     }
 
     boolean verifyFunctionLocalEdges() {
@@ -477,7 +502,10 @@ public class RegAlloc {
                         split.killOrdered();
                 }
                 for( int i=1; i<(deferred.containsKey(phi) ? 2 : phi.nIns()); i++ )
-                    if( i==1 || sharedPhiInput(phi,i) )
+                    // Backedges may be joined indirectly through two-address
+                    // chains, even when their input nodes are distinct. After
+                    // the cold-only attempt, isolate those inputs as well.
+                    if( i==1 || phi.region() instanceof LoopNode || sharedPhiInput(phi,i) )
                         insertBefore(phi,i,"use/self/phi",round,lrg);
             }
             // Split before two-address ops which extend the live range
@@ -653,9 +681,8 @@ public class RegAlloc {
                 return;
         }
         makeSplit(def,kind,round,lrg,umask).insertBefore(n, i);
-        // Skip split-of-split same block
-        if( skip && def instanceof SplitNode && cfg==def.cfg0() )
-            n.in(i).setDefOrdered(1,def.in(1));
+        // Keep the def-side transfer: a kill between the two copies may be
+        // exactly why this range split. Coalescing can join them when safe.
     }
     void insertBefore(Node n, int i, String kind, byte round, LRG lrg) {
         insertBefore(n,i,kind,round,lrg,true);

@@ -18,6 +18,8 @@ The [incremental build design](incremental-builds.md) expands the roadmap's
 dependency and output-ownership requirements.
 For shared viewer work, read [the graph viewer notes](graph-viewer-codex-notes.md).
 
+Use LF line endings for all new text files, including files created on Windows.
+
 ## Partial-initialization decision (2026-11-07)
 
 Cliff declined inferred partial-initialization contracts for now. The normal-type,
@@ -36,9 +38,20 @@ callers promise no initialized fields. No new passes or backward demand walks.
 Cliff committed the Chapter 29 work as `bb9b30b2c` and requested merging
 `escape-flow` into `main`, then starting Chapter 30. Local `main` now includes
 that commit. The working branch is `ch30`, with a complete `chapter30/` copy
-and build/IDE entries. Its topic is not yet selected. Continue new work there;
+and build/IDE entries. Small games now drive compiler and sys-library improvements,
+starting with ASCII tic-tac-toe; the games are workloads, not the chapter's theme.
+Runnable examples belong in `chapter30/docs/examples`, not `src/test/smp/examples`.
+Do not add Python to the codebase or use Python test drivers; use the existing
+Java test harness.
+Continue new work there;
 Chapter 29 retains the completed compiler and documentation. Inherited Java
 test names keep their historical identities.
+
+`ScopeNode.dup()` shares `Kind` boundaries and `Var` records. When pruning a
+saved break/continue scope, use `_pop()` and copy surviving forward references
+with `balanceLoopFRefs`; `pop()` promotes them by mutating shared boundaries
+and indices while the active scope still has its old binding order. Merge jump
+scopes with loop-reference balancing, not `balanceIf`'s declaration checks.
 
 ## Historical restart handoff (2026-11-06; superseded by Chapter 30)
 
@@ -486,7 +499,11 @@ and a small game with graphics, keyboard input, and sound.
   Lexer snapshots keep their original CompUnit through inlining and Call/CLInit
   serialization; recover representative sites by rescanning only on rejection.
   Source text is assumed available. Imported source paths are diagnostic data,
-  not `_smp` rebuild/discovery state. General error-message migration is deferred.
+  not `_smp` rebuild/discovery state. Chapter 30's CLI also renders
+  `ParseException.diagnostic()` through this formatter; `getMessage()` retains
+  the plain message for compiler clients and tests. Snapshot the error location
+  before reading a token for the diagnostic. Use underscores plus a caret and
+  one-based display columns (eight-column tabs) for Emacs's default navigation.
 
 - Constructors start in 16, independent binding/access permissions in 17a,
   syntax sugar and inference in 17b. Historical Chapter 17 references mean 17b.
@@ -808,10 +825,24 @@ and a small game with graphics, keyboard input, and sound.
 
 ## Register allocation review
 
+- Chapter 30 allocates scheduled functions independently, retains completed
+  register assignments, and applies the eight-round limit per function. Stage
+  failures previously blocked unrelated functions before they reached coloring.
+  BuildLRG, IFG, and coalescing must all use the active function's blocks.
+- A null operand register mask means no runtime register use. IFG must ignore
+  these inputs just as BuildLRG does; otherwise hidden class arguments create
+  false liveness across calls and unnecessary constant rematerialization.
+- Do not bypass a def-side split just because a use-side split shares its
+  block. A register kill between them can require both. Leave their removal to
+  interference-aware coalescing; bypassing and repairing them wastes a round.
 - Phi self-conflict splitting must isolate inputs shared with another Phi,
   not only the entry input and result. Two loop Phis sharing a backedge value
   otherwise stay in one conflicting LRG across every round. The correction
   starts in 20; 24-25 retain their first cold-only attempt.
+- In Chapter 30, distinct loop backedge nodes can still join the same LRG
+  through a chain of two-address instructions. On a repeated Phi self-conflict,
+  split the loop backedges even when the inputs are not identical nodes;
+  repeatedly copying only the Phi outputs cannot break that interference.
 - Chapter 25's cloned-call relinking must visit old nodes in node-ID order.
   Iterating the clone IdentityHashMap changed call edges and optimizer worklist
   order across JVMs. The SystemV sys build reproduced on Windows with
@@ -1122,6 +1153,10 @@ Consequences:
   Preserve `testBrainFuck`, `testWhileWithNullInside`, `testNullGuardErrors`,
   `testLinkedList0`, and `testCoRecur`, including their expected errors.
 
+- Chapter 30's integer widening first uses `[0, INT_MAX]` for nonnegative
+  ranges, then `i32` or `u32` as the range expands. Widening straight to `i32`
+  invents negative values in unsigned loops and can make a valid `u32`
+  argument fail TypeCheck. Keep boundary-crossing and wraparound regressions.
 - Integer widening starts in Chapter 24. `nonZero()` preserves `_widen` when
   narrowing a range. B10's correction is in 24, with `TypeTest.testNonZeroWidening`
   in 24-25. Both now use widening 0-3 and dual widening `3-widen`, preserve
