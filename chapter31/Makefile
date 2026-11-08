@@ -204,7 +204,7 @@ tests_raw1:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT)
 	@$(JVM) org.junit.runner.JUnitCore $(test_raw1)
 
 # Larger standalone tests, still JUnits, still no sys.smp
-tests_alone:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT)
+tests_alone:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT) $(RELEASE_SYS)
 	@echo "testing " $(test_alone)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_alone)
