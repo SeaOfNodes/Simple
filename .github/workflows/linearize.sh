@@ -46,6 +46,7 @@ while read -r chapter; do
     chapter28b) history_paths+=(chapter-separate-compilation chapter25) ;;
     chapter29)  history_paths+=(chapter28b chapter-separate-compilation chapter25) ;;
     chapter30)  history_paths+=(chapter29 chapter28b chapter-separate-compilation chapter25) ;;
+    chapter31)  history_paths+=(chapter30 chapter29 chapter28b chapter-separate-compilation chapter25) ;;
   esac
 
   if [[ ! -f "$repo/$chapter/README.md" ]]; then

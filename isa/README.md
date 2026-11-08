@@ -1,7 +1,7 @@
 # Shared instruction encoders
 
 This module contains the x86-64, AArch64, and RISC-V instruction encoders used
-by Chapters 21-30, plus their ARM/RISC-V test evaluators.
+by Chapters 21-31, plus their ARM/RISC-V test evaluators.
 It is compiler implementation code, shared because the same concrete instruction
 should have the same encoding in every chapter. It requires only the JDK.
 

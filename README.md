@@ -79,6 +79,7 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 28b](chapter28b/README.md): Separate Compilation
 * [Chapter 29](chapter29/README.md): Tech Debt Cleanup, Partial Objects
 * [Chapter 30](chapter30/README.md): Text Formatting and Diagnostics
+* [Chapter 31](chapter31/README.md): Work in Progress
 
 Appendices: [Native libraries](docs/appendices/native-libraries.md),
 [optimizer and backend tuning](docs/appendices/optimizer-tuning.md).
@@ -95,7 +96,7 @@ access to both printers and the viewer; chapter adapters add semantic details
 as the IR grows.
 
 The [instruction encoders](isa/README.md) share x86-64, ARM, and RISC-V byte
-emission for Chapters 21–30, along with ARM/RISC-V test evaluators. Machine-node
+emission for Chapters 21–31, along with ARM/RISC-V test evaluators. Machine-node
 selection, register allocation, and code layout remain in each chapter; the
 shared layer takes concrete operands and writes bytes.
 
@@ -104,7 +105,7 @@ The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 `make tests`.
 
 CI runs `make lib tests CTAGS=` on Linux with JDK 21. The Make targets also build
-the native runtime and `sys` library in Chapters 28b and 29 before running
+the native runtime and `sys` library in Chapter 28b and later before running
 the tests that use them; Maven's Java build alone does not produce those prerequisites.
 
 Chapters 10-14 cover whole memory,

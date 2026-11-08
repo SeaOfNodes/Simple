@@ -1,0 +1,95 @@
+
+// Simple I/O Library
+
+// Write byte array to stdout
+val p          = { u8[~] str -> write(1,str); };
+val p_noInline = { u8[~] str -> write(1,str); };
+// Write to stderr
+val err = { u8[~] str -> write(libc.STDERR,str); };
+
+
+// Read until EOF, including after short reads.  Return an empty array for an
+// empty stream, or null on error with errno preserved (partial data discarded).
+val read = { i32 fd ->
+    val chunk = new u8[8*1024];
+    i64 ptr = chunk;
+    val buf = new aryu8();
+    while( true ) {
+        i64 rez = libc.read(fd,ptr,chunk#);
+        if( rez < 0 ) {
+            if( libc.errno() == libc.EINTR ) continue;
+            return null;
+        }
+        if( rez == 0 ) break;
+        if( buf.len+rez > 4294967295 ) {
+            libc.set_errno(libc.EOVERFLOW);
+            return null;
+        }
+        u32 count = rez;
+        buf._grow(count);
+        ary.copy(buf.buf,buf.len,chunk,0,count);
+        buf.len += count;
+    }
+    val out = new u8[buf.len];
+    return ary.copy(out,0,buf.buf,0,buf.len);
+};
+
+// Write all bytes, returning the count or -1 with errno set. An error can
+// follow a successfully written prefix; it does not undo that prefix.
+val write = { i32 fd, u8[~] str ->
+    writeOff(fd,str,0,str#);
+};
+
+// Write a slice, capping len at the remaining bytes.  An offset past the end
+// is invalid, including for an empty write.  A valid empty slice returns zero.
+// Invalid arguments return -1;
+val writeOff = { i32 fd, u8[~] str, u32 off, u32 len ->
+    if( off > str# ) return libc.set_errno(libc.EINVAL);
+    if( len > str# - off ) len = str# - off;
+    i64 ptr = str;
+    ptr += off;
+    i64 done = 0;
+    while( done < len ) {
+        i64 rez = libc.write(fd,ptr+done,len-done);
+        if( rez < 0 ) {
+            if( libc.errno() == libc.EINTR ) continue;
+            return -1;
+        }
+        if( rez == 0 ) {
+            libc.set_errno(libc.EIO);
+            return -1;
+        }
+        done += rez;
+    }
+    return done;
+};
+
+// Return stdin as a u8[].
+val stdin = { -> read(0); };
+
+// One byte, without Enter or echo. Restores the previous terminal mode before
+// returning. Files/pipes also work. Returns 0..255, or -1 with libc.errno() set
+// to libc.EOF or an OS error. Ctrl-C is byte 3; escape/UTF-8 sequences are multiple bytes.
+val getch = { -> libc.simple_getch(); };
+
+// Create file for writing.  Return fd, or -1 and errno has the error code
+val create = { u8[~] str ->
+    i64 ptr = sys.aryu8.str0(str);
+    i32 perms = 6*64 + 6*8 + 6; // 0666
+    return libc.creat(ptr, perms);
+};
+
+// Open file for reading.  Return fd, or -1 and errno has the error code
+val open = { u8[~] str ->
+    i64 ptr = sys.aryu8.str0(str);
+    return libc.open(ptr, sys.libc.O_RDONLY, 0);
+};
+
+// Close an open fd.  Return 0, or -1 and errno has the error code
+val close = { i32 fd -> return libc.close(fd); };
+
+// Remove a file.  Return 0, or -1 and errno has the error code
+val remove = { u8[~] str ->
+    i64 ptr = sys.aryu8.str0(str);
+    return libc.unlink(ptr);
+};

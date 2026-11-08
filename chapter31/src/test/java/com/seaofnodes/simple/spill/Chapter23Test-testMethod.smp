@@ -1,0 +1,17 @@
+// A hypothetical scanner class
+struct _Scan {
+    int !x;
+    u8[~] buf;
+    new _Scan={ u8[~] b -> buf=b; };
+    // Skip whitespace
+    val skip = { ->
+        while( buf[x] <= ' ' )
+            x++;
+    };
+    val require = { u8 ch ->
+        skip();
+        buf[x++]==ch;
+    };
+};
+!_Scan !s = new _Scan("  [1,2]");
+return s.require('[');

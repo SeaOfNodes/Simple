@@ -33,17 +33,25 @@ field shapes, existing Iter/SCCP propagates them, and TypeCheck checks and erase
 the views. Borrowed partials can read proven fields but cannot write; unknown
 callers promise no initialized fields. No new passes or backward demand walks.
 
-## Chapter 30 starting point (2026-11-07)
+## Chapter 31 starting point (2026-11-08)
+
+Cliff merged `ch30` into `main` at `06fb5ace` and pushed it, then requested
+branch `ch31` and a complete `chapter31/` snapshot. Continue new work in
+Chapter 31; its topic is still open pending a roadmap discussion. Chapter 30
+retains the completed compiler and library. Keep inherited Java test names,
+use LF for new text files, and do not add Python code or test drivers.
+Runnable examples belong in `chapter31/docs/examples`.
+
+## Chapter 30 starting point (2026-11-07; superseded by Chapter 31)
 
 Cliff committed the Chapter 29 work as `bb9b30b2c` and requested merging
 `escape-flow` into `main`, then starting Chapter 30. Local `main` now includes
 that commit. The working branch is `ch30`, with a complete `chapter30/` copy
-and build/IDE entries. Small games now drive compiler and sys-library improvements,
+and build/IDE entries. Small games drive compiler and sys-library improvements,
 starting with ASCII tic-tac-toe; the games are workloads, not the chapter's theme.
 Runnable examples belong in `chapter30/docs/examples`, not `src/test/smp/examples`.
 Do not add Python to the codebase or use Python test drivers; use the existing
 Java test harness.
-Continue new work there;
 Chapter 29 retains the completed compiler and documentation. Inherited Java
 test names keep their historical identities.
 

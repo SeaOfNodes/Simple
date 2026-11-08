@@ -12,8 +12,14 @@ experiments and test-fixture adaptations are not part of the new chapter.
 
 On 2026-11-07, Cliff closed Chapter 29 and started
 [Chapter 30](../chapter30/README.md) from its completed compiler. Chapter 30
-initially changes only chapter metadata and navigation; its topic is not yet
-selected. Keep Chapter 29 as the completed cleanup and partial-field-view snapshot.
+uses ASCII tic-tac-toe to drive text formatting, diagnostics, standard-library,
+integer-width, and register-allocation improvements. Keep Chapter 29 as the
+completed cleanup and partial-field-view snapshot.
+
+On 2026-11-08, Cliff merged and pushed Chapter 30, then requested
+[Chapter 31](../chapter31/README.md) on branch `ch31`. It starts from the
+completed Chapter 30 compiler; its topic is not yet selected. New work belongs
+in `chapter31/`, preserving Chapter 30 as the preceding snapshot.
 
 | Previous directory | Final chapter |
 |---|---|

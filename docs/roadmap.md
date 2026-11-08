@@ -42,7 +42,7 @@ design decisions and chapter boundaries.
 ### General cleanup
 
 Keep the recursive-descent path aligned with the grammar. Review moving `TYPES`
-to `CodeGen`. 
+to `CodeGen`.
 
 Consider whether an allocation-free use of try-with-resources makes keep/unkeep
 pairing clearer; this remains an experiment, not a new resource-management
@@ -170,11 +170,10 @@ bits consumers observe could keep arithmetic chains and loops narrow and
 extend only at wide consumers, but requires backwards propagation through
 shared uses and Phis. This is a separate analysis proposal, not part of the
 local selection work. Narrow operations still occupy whole registers.
-Diagnose the current allocator retry failure before changing its input graph.
 
 ### Per-function calling conventions
 
-Allocate functions independently first. Later, give known direct-call targets
+Chapter 30 now allocates functions independently. Give known direct-call targets
 their own machine contracts: argument/return locations, clobbered registers,
 stack argument layout/alignment, and integer-extension requirements. Start
 with precise clobber summaries under the existing convention, then consider
@@ -270,10 +269,11 @@ a correction to impose on earlier chapters.
 - Native declarations follow the same rules. Public wrappers may deliberately
   expose private bindings; `sys` has no special exemption.
 
-The bundled `sys/io.smp` calls `libc._exit` directly. Keep that native binding
-private, add a public `exit` wrapper in `sys/libc.smp`, and change IO to call
-the wrapper. Bitset and array helpers access their own private fields and
-remain legal. String spill fixtures with helpers outside `_String` accessing
+The resizable-array helpers call `libc._exit` directly, and `sys.io.read`
+calls `aryu8._grow`. Keep the native exit binding private, add a public `exit`
+wrapper in `sys/libc.smp`, and define a public capacity-reservation method for
+the buffer. Bitset and array helpers accessing their own private fields remain
+legal. String spill fixtures with helpers outside `_String` accessing
 `_hashCode` need explicit adaptation; do not grant file-wide access merely to
 keep those fixtures unchanged. Validate native execution and imported source
 ownership alongside the access diagnostics.
