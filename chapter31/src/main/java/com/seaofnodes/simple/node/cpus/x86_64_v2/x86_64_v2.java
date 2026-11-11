@@ -370,8 +370,9 @@ public class x86_64_v2 extends Machine {
 
     private Node _lea(Node add, Node base, Node idx, int off) {
         int scale = 0;
-        if( base instanceof ShlNode && !(idx instanceof ShlNode) )
-            throw Utils.TODO(); // Bug in canonicalization, should on RHS
+        if( base instanceof ShlNode && !(idx instanceof ShlNode) ) {
+            Node tmp = base; base = idx; idx = tmp;
+        }
         if( idx instanceof ShlNode shift && shift.in(2) instanceof ConstantNode shfcon &&
             shfcon._con instanceof TypeInteger tscale && 0 <= tscale.value() && tscale.value() <= 3 ) {
             idx = shift.in(1);
