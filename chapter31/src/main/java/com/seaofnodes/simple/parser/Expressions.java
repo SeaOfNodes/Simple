@@ -400,7 +400,7 @@ final class Expressions {
      * Parse integer literal
      *
      * <pre>
-     *     integerLiteral: [1-9][0-9]* | [0]
+     *     integerLiteral: [1-9][0-9]* | 0[0-7]* | 0[xX][0-9a-fA-F]+
      *     floatLiteral: [digits].[digits]?[e [digits]]?[f]?
      * </pre>
      */

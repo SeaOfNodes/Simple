@@ -1,4 +1,4 @@
-# Chapter 31: Work in Progress
+# Chapter 31: Software Drawing and Graphical Games
 
 English | [日本語](README.ja.md)
 
@@ -7,6 +7,21 @@ English | [日本語](README.ja.md)
 Small graphical games drive this chapter's language and library work, starting
 with a pixel window for a Simple-written 2-D graphics library. MiniFB supplies
 the optional native window/input backend; drawing stays in Simple.
+
+The [drawing library](docs/drawing.md) provides a pixel canvas, colors,
+rectangles, circles, thick lines, and bitmap labels. The
+[graphical tic-tac-toe game](docs/examples/TicTacToeGraphical.smp) uses it for
+mouse/keyboard play against the terminal game's CPU strategy.
+Hexadecimal colors (`0xe47b57`) and leading-zero octal font masks (`025755`)
+are supported by this chapter's integer literal syntax.
+
+```sh
+make -C chapter31 run-graphical-tictactoe CTAGS=
+```
+
+This explicitly builds the optional backend and opens a window. Use
+`graphical-tictactoe` instead to build the executable without starting it or
+requiring MiniFB.
 
 The default build and test suite need no graphics dependencies. See
 [optional graphics](docs/graphics.md) for building MiniFB, running the pixel

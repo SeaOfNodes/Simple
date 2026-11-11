@@ -4,6 +4,9 @@ Simple owns the pixel array and drawing code. [MiniFB](https://github.com/emoon/
 provides a window, input, and pixel presentation. The first interface is
 `sys.gfx`: one fixed-size window, operated on the main thread. The
 [Graphics example](examples/Graphics.smp) draws a color gradient in Simple.
+The [drawing library and graphical tic-tac-toe](drawing.md) build on this pixel
+interface. `make run-graphical-tictactoe CTAGS=` builds the optional backend and
+opens the game; `make graphical-tictactoe CTAGS=` only builds its executable.
 
 ## Default: no graphics dependency
 

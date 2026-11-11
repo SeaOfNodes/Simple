@@ -232,7 +232,7 @@ tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_CRT)
 CLASS ?= Chapter25Test
 METHOD ?=
 .PHONY: test
-test: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_CRT)
+test: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_SYS) $(RELEASE_CRT)
 	@$(JVM) com.seaofnodes.simple.TestRunner "$(CLASS)" "$(METHOD)"
 
 fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag

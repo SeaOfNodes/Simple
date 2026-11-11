@@ -21,8 +21,16 @@ else
 endif
 MINIFB_SOURCES = $(addprefix $(MINIFB_SRC)/src/,$(addsuffix .c,$(MINIFB_COMMON) $(MINIFB_PLATFORM)))
 GRAPHICS_EXAMPLE := $(GAME_DIR)/Graphics$(if $(filter Windows_NT,$(OS)),.exe,)
+GRAPHICAL_TICTACTOE := $(GAME_DIR)/TicTacToeGraphical$(if $(filter Windows_NT,$(OS)),.exe,)
 
 .PHONY: graphics graphics-example run-graphics
+.PHONY: graphical-tictactoe run-graphical-tictactoe
+graphical-tictactoe: $(GRAPHICAL_TICTACTOE)
+$(GRAPHICAL_TICTACTOE): docs/examples/TicTacToeGraphical.smp $(CLZDIR)/test/.ttag $(RELEASE_SYS) $(RELEASE_CRT) graphics.mk
+	@$(JVM) com.seaofnodes.simple.Simple --link --cpu $(CPU_PORT) --abi $(CALL_CONV) -L $(dir $(RELEASE_SYS)) -o $(GAME_DIR)/TicTacToeGraphical.o $<
+
+run-graphical-tictactoe: graphics graphical-tictactoe
+	SIMPLE_MINIFB="$(abspath $(GRAPHICS_LIB))" $(GRAPHICAL_TICTACTOE)
 graphics: $(GRAPHICS_LIB)
 
 $(MINIFB_STAMP): graphics.mk

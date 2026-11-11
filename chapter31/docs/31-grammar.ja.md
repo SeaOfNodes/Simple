@@ -167,7 +167,7 @@ argumentList : assignment (',' assignment)* ','? ;
 // earlier chapters are replaced by constructor arguments.
 newExpression : 'new' type ('[' assignment ']' | callSuffix)? ;
 
-INTEGER_LITERAL : '0' | [1-9] DIGIT* ;
+INTEGER_LITERAL : [1-9] DIGIT* | '0' [0-7]* | '0' [xX] HEX_DIGIT+ ;
 FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' '-'? DIGIT+) ;
 STRING_LITERAL : '"' (ESCAPE | ~["\\])* '"' ;
 CHARACTER_LITERAL : '\'' (ESCAPE | ~['\\]) '\'' ;
@@ -175,6 +175,7 @@ fragment ESCAPE : '\\' [0ntr\\'"] ;
 IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)* ;
 fragment NON_DIGIT : [a-zA-Z_] ;
 fragment DIGIT : [0-9] ;
+fragment HEX_DIGIT : [0-9a-fA-F] ;
 WHITESPACE : [ \t\r\n]+ -> skip ;
 LINE_COMMENT : '//' ~[\r\n]* -> skip ;
 BLOCK_COMMENT : '/*' .*? '*/' -> skip ;

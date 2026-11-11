@@ -368,10 +368,14 @@ design candidate, independent of compact pointer storage.
 
 ### A small graphical game
 
-Follow ASCII tic-tac-toe with a small game using 2-D graphics, keyboard input,
-and sound.
-Use it to exercise practical library APIs and native bindings; choose the game
-and supporting graphics/audio library when this project is taken up.
+Chapter 31 follows ASCII tic-tac-toe with a graphical version, using
+[software drawing in Simple](../chapter31/docs/drawing.md) and an optional
+MiniFB window/input backend. The initial library supplies colors, rectangles,
+circles, thick lines, and bitmap labels. Mouse/keyboard turns and replay
+exercise that boundary without requiring an animated game engine.
+
+Sound and further games remain future work. Choose an audio library when
+that work is taken up; MiniFB supplies only the window and input boundary.
 
 ### Structs with trailing arrays
 
@@ -439,4 +443,3 @@ through an existing reference. A value must not silently become a reference
 or expose an interior address with an invalid lifetime. Decide how consuming
 an enclosing object's lifetime could permit such an address. Keep method
 syntax uniform and define the calling convention for by-value arguments.
-

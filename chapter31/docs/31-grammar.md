@@ -11,6 +11,14 @@ language; it is not input to a parser generator.
 `int` is an alias for `i32`; `i64` explicitly selects 64-bit integer storage.
 This alias does not change literal inference or intermediate arithmetic.
 
+Integer literals use decimal (`42`), leading-zero octal (`052`), or hexadecimal
+(`0x2a`, `0X2A`). Octal digits are 0–7; `08` and `09` are errors. Hexadecimal
+and octal literals can spell any 64-bit bit pattern: the high bit gives the
+usual signed value, so `0xffffffffffffffff` is -1. Decimal literals retain
+their signed 64-bit limit. Floating literals remain decimal, including forms
+such as `012.5` and `012f`. A radix prefix does not change integer inference
+or storage width.
+
 ```antlrv4
 grammar SimpleLanguage;
 
@@ -179,7 +187,7 @@ argumentList : assignment (',' assignment)* ','? ;
 // earlier chapters are replaced by constructor arguments.
 newExpression : 'new' type ('[' assignment ']' | callSuffix)? ;
 
-INTEGER_LITERAL : '0' | [1-9] DIGIT* ;
+INTEGER_LITERAL : [1-9] DIGIT* | '0' [0-7]* | '0' [xX] HEX_DIGIT+ ;
 // The f suffix also accepts an integer-shaped token, e.g. 12f.
 FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' '-'? DIGIT+) 'f'?
               | DIGIT+ 'f' ;
@@ -197,6 +205,7 @@ fragment ESCAPE : '\\' [0ntr\\'"%] ;
 IDENTIFIER : NON_DIGIT (NON_DIGIT | DIGIT)* ;
 fragment NON_DIGIT : [a-zA-Z_] ;
 fragment DIGIT : [0-9] ;
+fragment HEX_DIGIT : [0-9a-fA-F] ;
 WHITESPACE : [ \t\r\n]+ -> skip ;
 LINE_COMMENT : '//' ~[\r\n]* -> skip ;
 BLOCK_COMMENT : '/*' .*? '*/' -> skip ;

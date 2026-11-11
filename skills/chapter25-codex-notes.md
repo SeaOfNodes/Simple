@@ -33,12 +33,22 @@ field shapes, existing Iter/SCCP propagates them, and TypeCheck checks and erase
 the views. Borrowed partials can read proven fields but cannot write; unknown
 callers promise no initialized fields. No new passes or backward demand walks.
 
-## Chapter 31 starting point (2026-11-08)
+## Chapter 31: graphical games (2026-11-11)
 
 Cliff merged `ch30` into `main` at `06fb5ace` and pushed it, then requested
 branch `ch31` and a complete `chapter31/` snapshot. Continue new work in
-Chapter 31; its topic is still open pending a roadmap discussion. Chapter 30
-retains the completed compiler and library. Keep inherited Java test names,
+Chapter 31. Small graphical turn-based games now drive its library work:
+`sys.gfx` provides the optional MiniFB pixel window/input boundary, while
+`sys.draw.Canvas` draws rectangles, circles, thick lines, colors, and bitmap
+labels entirely in Simple. `docs/examples/TicTacToeGraphical.smp` is the first
+game; the existing terminal version remains available. See Chapter 31's
+`docs/drawing.md` and `docs/graphics.md`. Sound remains deferred.
+Chapter 31 supports `0x`/`0X` hexadecimal and C-style leading-zero octal
+integer literals. Cliff explicitly prefers `025755`, not a `0o` prefix.
+The 3x5 font uses five octal row digits; packed pixel colors use hex.
+Default builds/tests must not download MiniFB or require a display; interactive
+launch targets are explicit. Drawing and game checks run without a backend.
+Chapter 30 retains the preceding compiler and library. Keep inherited Java test names,
 use LF for new text files, and do not add Python code or test drivers.
 Runnable examples belong in `chapter31/docs/examples`.
 

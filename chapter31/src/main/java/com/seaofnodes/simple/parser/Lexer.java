@@ -239,6 +239,7 @@ public class Lexer {
     // Return a constant Type, either TypeInteger or TypeFloat
     Type parseNumber() {
         Lexer start=new Lexer(this);
+        if( isHex() ) return parseInteger(parseNumberString(),16,2,start);
         int old = _position;
         int len = isLongOrDouble();
         boolean f32 = peek()=='f';
@@ -250,7 +251,7 @@ public class Lexer {
                 return TypeFloat.constant(Float.parseFloat(literal));
             if( len > 0 ) {
                 if( len > 1 && _input[old]=='0' )
-                    throw Parser.error("Syntax error: integer values cannot start with '0'",start);
+                    return parseInteger(literal,8,0,start);
                 long i = Long.parseLong(literal);
                 return TypeInteger.constant(i);
             }
@@ -262,12 +263,35 @@ public class Lexer {
     }
     private String parseNumberString() {
         int old = _position;
+        if( isHex() ) {
+            _position += 2;
+            while( isIdLetter(peek()) ) inc();
+            return new String(_input,old,_position-old);
+        }
         int len = Math.abs(isLongOrDouble());
         if( peek()=='f' ) {
             nextChar();
             len++;
         }
         return new String(_input,old,len);
+    }
+
+    private boolean isHex() {
+        return peek()=='0' && _position+1<_input.length && (peek(1)=='x' || peek(1)=='X');
+    }
+
+    private TypeInteger parseInteger(String literal, int radix, int prefix, Lexer start) {
+        String kind = radix==16 ? "Hexadecimal" : "Octal";
+        if( literal.length()==prefix )
+            throw Parser.error(kind+" integer literal requires at least one digit",start);
+        for( int i=prefix; i<literal.length(); i++ )
+            if( Character.digit(literal.charAt(i),radix)<0 )
+                throw Parser.error("Invalid "+kind.toLowerCase()+" integer literal '"+literal+"'",start);
+        try {
+            return TypeInteger.constant(Long.parseUnsignedLong(literal.substring(prefix),radix));
+        } catch( NumberFormatException ex ) {
+            throw Parser.error(kind+" integer literal exceeds 64 bits",start);
+        }
     }
 
     // Return +len that ends a long

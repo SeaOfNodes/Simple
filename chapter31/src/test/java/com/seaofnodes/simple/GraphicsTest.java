@@ -10,7 +10,7 @@ import static org.junit.Assert.*;
 
 // These tests never open a window and do not need MiniFB installed.
 public class GraphicsTest {
-    private static String graphics, text;
+    private static String graphics, text, game;
 
     @BeforeClass public static void compilePrograms() throws Exception {
         var paths = new Ary<>(new String[]{TestC.RELEASE_SYS_DIR});
@@ -18,6 +18,8 @@ public class GraphicsTest {
             "graphics_missing",paths,TestC.CALL_CONVENTION,null,null,-1);
         text = TestC.compile("val main={ -> sys.io.p(\"text still works\\n\"); return 0; };",
             "graphics_text",paths,TestC.CALL_CONVENTION,null,null,-1);
+        game = TestC.compile(Files.readString(Path.of("docs/examples/TicTacToeGraphical.smp")),
+            "graphics_game",paths,TestC.CALL_CONVENTION,null,null,-1);
     }
 
     private static String run(String exe, String backend, int exit) throws Exception {
@@ -41,6 +43,10 @@ public class GraphicsTest {
 
     @Test public void disabledGraphics() throws Exception {
         assertTrue(run(graphics,"off",1).contains("disabled"));
+    }
+
+    @Test public void gameWithoutBackend() throws Exception {
+        assertTrue(run(game,"off",1).contains("disabled"));
     }
 
     @Test public void missingLibrary() throws Exception {
