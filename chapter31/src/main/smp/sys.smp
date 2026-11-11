@@ -7,6 +7,7 @@ val aryi64 = aryi64;            // Variable sized array of i64
 val aryu8 = aryu8;              // Variable sized array of u8
 val char = char;                // Character utilities
 val io = io;                    // IO library
+val gfx = gfx;                  // Optional pixel window (MiniFB)
 val text = text;                // Typed text conversions
 val libc = libc;                // libc FFI bindings
 val rt = rt;                    // Run Time support

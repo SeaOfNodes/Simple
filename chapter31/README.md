@@ -4,8 +4,14 @@ English | [日本語](README.ja.md)
 
 [Previous: Chapter 30 — Text Formatting and Diagnostics](../chapter30/README.md)
 
-This chapter starts from the completed Chapter 30 compiler and standard library.
-Its next topic is open; the [roadmap](../docs/roadmap.md) lists the candidates.
+Small graphical games drive this chapter's language and library work, starting
+with a pixel window for a Simple-written 2-D graphics library. MiniFB supplies
+the optional native window/input backend; drawing stays in Simple.
+
+The default build and test suite need no graphics dependencies. See
+[optional graphics](docs/graphics.md) for building MiniFB, running the pixel
+example, and handling a missing backend. `make tests_nographics CTAGS=` runs
+all ordinary tests with graphics explicitly disabled.
 
 The inherited language and library are described in [Chapter 30](../chapter30/README.md).
 The [grammar and code map](docs/31-grammar.md),

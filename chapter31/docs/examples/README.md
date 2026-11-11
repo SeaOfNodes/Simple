@@ -1,7 +1,9 @@
 # Runnable examples
 
 These programs live beside the documentation so readers can find and run them.
-Their native regression tests still run as part of `make tests`.
+Their non-graphical native regression tests run as part of `make tests`.
+The optional [pixel-window example](Graphics.smp) uses MiniFB; see
+[graphics setup](../graphics.md). `make run-graphics` opens it explicitly.
 
 From `chapter31`, build the tic-tac-toe executable (without starting it):
 

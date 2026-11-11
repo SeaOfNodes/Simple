@@ -417,7 +417,7 @@ public class Serialize {
         assert elf._clz._name==strs[1/*skip null ptr*/];
         for( Type type : types )
             if( type instanceof TypeStruct ts )
-                Parser.TYPES.put(ts._name,ts);
+                installType(ts);
         for( Type type : types ) {
             if( !(type instanceof TypeStruct ts) || !TypeStruct.startsClzPrefix(ts._name) )
                 continue;
@@ -429,7 +429,7 @@ public class Serialize {
         elf._pubTypes = new TypeStruct[npubTypes];
         for( int i=0; i<npubTypes; i++ ) {
             TypeStruct ts = elf._pubTypes[i] = (TypeStruct)types[pubTypeIds[i]];
-            Parser.TYPES.put(ts._name,ts);
+            installType(ts);
         }
         elf._functions = new FunctionSummary[bais.packed4()];
         for( int i = 0; i<elf._functions.length; i++ ) {
@@ -442,6 +442,14 @@ public class Serialize {
             elf._functions[i]=new FunctionSummary(sig,state,name.isEmpty() ? fidxs.symbol(sig.fidx()) : name,size,edges);
         }
         return elf._types = new TypeRead(types,strs,fileAliases,fileFidxs,fileRpcs);
+    }
+
+    private static void installType(TypeStruct ts) {
+        // TYPES names the mutable array declaration. Read-only arrays in
+        // imported signatures keep their own types, but must not replace that
+        // declaration: closeOver looks up its mutable variant by name.
+        if( ts.isAry() ) ts = ts.replace(ts.field("[]").makeFrom(false));
+        Parser.TYPES.put(ts._name,ts);
     }
 
     static void readAll( CodeGen code, ElfReader elf, GlobalBits aliases, GlobalBits fidxs, GlobalBits rpcs ) {

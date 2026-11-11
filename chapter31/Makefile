@@ -155,6 +155,7 @@ RELEASE:= build/release
 TEST_SYS:= $(OBJS)/lib_$(CPU_ABI)/sys.o
 RELEASE_SYS:= $(RELEASE)/$(CPU_ABI)/sys.o
 RELEASE_CRT:= $(RELEASE)/$(CPU_ABI)/simple_crt.o
+RELEASE_GRAPHICS:= $(RELEASE)/$(CPU_ABI)/simple_graphics.o
 RELEASE_ARGS:= $(RELEASE)/$(CPU_ABI)/simple_args.o
 C_CALL_CONV:= $(if $(filter win64,$(CALL_CONV)),ms_abi,sysv_abi)
 GAME_DIR:= build/examples/$(CPU_ABI)
@@ -183,10 +184,22 @@ $(RELEASE_ARGS): src/main/smp/sys/rt/simple_args.smp $(CLZDIR)/main/.mtag $(simp
 	@echo "simping " $@
 	@$(JVM) com.seaofnodes.simple.Simple --cpu $(CPU_PORT) --abi $(CALL_CONV) --norun -o $@ $<
 
-$(RELEASE_CRT): src/main/c/simple_crt.c $(RELEASE_ARGS) Makefile
+$(RELEASE_CRT): src/main/c/simple_crt.c $(RELEASE_ARGS) $(RELEASE_GRAPHICS) Makefile
 	@echo "compiling " $@
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@gcc -c -O2 -DCALL_CONV=$(C_CALL_CONV) -o $@ $<
+
+$(RELEASE_GRAPHICS): src/main/c/simple_graphics.c src/main/c/simple_graphics.h Makefile
+	@echo "compiling " $@
+	@mkdir -p $(dir $@)
+	@gcc -c -O2 -Wall -Wextra -o $@ $<
+
+# Optional native graphics backend. Nothing in the default build depends on it.
+include graphics.mk
+
+.PHONY: tests_nographics
+tests_nographics:
+	@SIMPLE_MINIFB=off $(MAKE) tests
 
 #######################################################
 # Base launch line for JVM tests
