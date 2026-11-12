@@ -7,12 +7,14 @@ provides a window, input, and pixel presentation. The first interface is
 The [drawing library and graphical tic-tac-toe](drawing.md) build on this pixel
 interface. `make run-graphical-tictactoe CTAGS=` builds the optional backend and
 opens the game; `make graphical-tictactoe CTAGS=` only builds its executable.
+The game run target also builds optional [background audio](audio.md).
 
 ## Default: no graphics dependency
 
 From `chapter31`, the usual `make release`, `make tests`, and `make tictactoe`
 need no MiniFB, graphics headers, OpenGL, CMake, or running display. Nothing
-downloads MiniFB unless you explicitly request `make graphics`.
+downloads dependencies unless you explicitly request `make libs` or `make init`
+(`make lib` remains a setup alias). Build and run targets never use the network.
 
 `make tests_nographics CTAGS=` runs the entire ordinary suite with
 `SIMPLE_MINIFB=off`. This includes the missing-backend tests, which never open
@@ -29,12 +31,14 @@ the process. Non-graphics programs ignore even a broken graphics configuration.
 From `chapter31`:
 
 ```sh
+make libs CTAGS=       # Once while online; fills the persistent lib/ cache.
 make graphics graphics-example CTAGS=
 make run-graphics CTAGS=
 ```
 
-`graphics` downloads the revision pinned in [graphics.mk](../graphics.mk) into
-ignored `build/deps/minifb` and builds only its C framebuffer backend. Windows
+`libs` downloads the revision pinned in [graphics.mk](../graphics.mk) into
+ignored `lib/minifb-<revision>.tar.gz` and extracts it under `lib/`.
+`graphics` builds only its C framebuffer backend from these local sources. Windows
 uses the MinGW-w64 GCC compiler (`x86_64-w64-mingw32-gcc`) and GDI; the rest of
 Simple still uses the existing Cygwin GCC. Linux uses GCC and X11 (`libx11-dev`
 on Ubuntu), including XWayland on a Wayland desktop. OpenGL, the C++ callback
@@ -50,6 +54,9 @@ Outputs:
 
 `MiniFB-LICENSE` is copied alongside the backend; include it when distributing
 the library. MiniFB sources remain outside the tracked Simple sources.
+The cache survives `make clean`. Editing a makefile or rebuilding a backend
+does not fetch or check GitHub. Missing dependencies fail promptly with
+instructions to run `make libs` while online.
 
 `graphics-example` alone builds the executable without requiring MiniFB. It
 also demonstrates the diagnostic and exit status 1 when graphics is absent.

@@ -192,6 +192,7 @@ public abstract class TestC {
         params.addAll(objects);
         // The loader has no MiniFB dependency and opens nothing until gfx.open.
         params.add(runtimeObject("simple_graphics"));
+        params.add(runtimeObject("simple_audio"));
         if( !OS.startsWith("Windows") ) params.add("-ldl");
         // Standalone Simple programs export `simple_main`; the small C
         // runtime owns native main and calls the Simple argument converter

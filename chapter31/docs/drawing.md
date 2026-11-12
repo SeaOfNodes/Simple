@@ -76,6 +76,9 @@ The explicit backend path follows [the pixel-window instructions](graphics.md).
 Passing any argument performs a five-poll, self-closing smoke test.
 
 The original `make tictactoe` still builds the terminal game.
+The graphical game also uses optional [background audio](audio.md): a soft
+boop for accepted moves, rising tones for a player win, and falling tones for
+a CPU win. Bad input is silent. The run target builds/configures both backends.
 `make test CLASS=DrawTest CTAGS=` checks raster pixels and complete game turns
 without a display. `make tests_nographics CTAGS=` runs the ordinary suite with
 the backend disabled.

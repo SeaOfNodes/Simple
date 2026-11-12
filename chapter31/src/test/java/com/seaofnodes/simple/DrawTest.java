@@ -75,12 +75,14 @@ public class DrawTest {
                 _reset(board);
                 if( _square(48,168)!=0 || _square(551,671)!=8 || _square(552,400)!=-1 || _square(100,167)!=-1 ) return 1;
                 if( !_move(board,4) || board[4]!='X' || board[0]!='O' ) return 2;
+                if( _sound(board)!=sys.audio.BOOP ) return 10;
                 if( _move(board,4) || _move(board,0) || _move(board,-1) || _move(board,9) ) return 3;
                 val moves = "1879";
                 _reset(board);
                 for( int i=0; i<moves#; i++ )
                     if( !_move(board,moves[i]-'1') ) return 4;
                 if( _winner(board)!='X' || _move(board,1) ) return 5;
+                if( _sound(board)!=sys.audio.WIN ) return 11;
                 val screen = new sys.draw.Canvas(600,780);
                 _draw(screen,board,-1);
                 if( screen.pixels[252*600+132]==screen.pixels[0] ) return 6;
@@ -91,6 +93,7 @@ public class DrawTest {
                 _reset(board);
                 _move(board,0); _move(board,1); _move(board,3);
                 if( _winner(board)!='O' ) return 8;
+                if( _sound(board)!=sys.audio.LOSE ) return 12;
                 _draw(screen,board,-1);
                 _reset(board);
                 if( _finished(board) ) return 9;

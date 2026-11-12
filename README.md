@@ -29,6 +29,11 @@ the backend starts with a Java evaluator (first introduced in Chapter
 
 ## Chapters
 
+Download dependencies once with `make libs` (or `make init`; `make lib` remains
+an alias). Other Make targets use the local `lib/` caches and never download.
+For Chapter 31's graphics and audio, use `make -C chapter31 libs CTAGS=` while
+online; those cached sources survive `make clean` for later offline builds.
+
 The following is a rough plan, subject to change.
 
 Each chapter will be self-sufficient and complete; in the sense that each
@@ -103,6 +108,14 @@ shared layer takes concrete operands and writes bytes.
 The top-level Makefile runs each chapter's `tests`, `tags` (also `tag`),
 `release`, or `lib` target. Start with `make lib` on a fresh checkout, then
 `make tests`.
+
+All chapter Makefiles share [Java build rules](build-support/java.mk) and
+[offline dependency rules](build-support/libraries.mk). Missing JUnit JARs
+are copied from another chapter's local cache when available; otherwise the
+build stops with `make libs` instructions before compiling. Chapter-specific
+Makefile additions introduce allocation statistics (20), shared instruction
+encoders (21), the native entry shim (28a), separate compilation and `sys`
+(28b), the terminal game (30), and graphics/audio (31).
 
 CI runs `make lib tests CTAGS=` on Linux with JDK 21. The Make targets also build
 the native runtime and `sys` library in Chapter 28b and later before running

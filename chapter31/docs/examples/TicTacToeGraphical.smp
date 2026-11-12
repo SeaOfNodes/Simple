@@ -7,6 +7,7 @@ val main = { u8[~][] args ->
     val board = new u8[9];
     _reset(board);
     if( sys.gfx.open("Simple tic-tac-toe",screen.width,screen.height) != sys.gfx.OK ) return 1;
+    sys.audio.open(); // Audio is optional; failure leaves the game silent.
     _draw(screen,board,-1);
     int result = sys.gfx.present(screen.pixels);
     bool mouseHeld = false, keyHeld = false, replayHeld = false;
@@ -20,7 +21,7 @@ val main = { u8[~][] args ->
         int square = _square(sys.gfx.mouseX(),sys.gfx.mouseY());
         bool dirty = square!=hover;
         hover = square;
-        if( replay && !replayHeld ) { _reset(board); dirty=true; }
+        if( replay && !replayHeld ) { sys.audio.stop(); _reset(board); dirty=true; }
         bool digit = false;
         int choice = down && !mouseHeld ? square : -1;
         for( int i=0; i<9; i++ ) {
@@ -30,7 +31,10 @@ val main = { u8[~][] args ->
                 if( !keyHeld ) choice=i;
             }
         }
-        if( !(replay && !replayHeld) && _move(board,choice) ) dirty=true;
+        if( !(replay && !replayHeld) && _move(board,choice) ) {
+            sys.audio.play(_sound(board));
+            dirty=true;
+        }
         mouseHeld = down;
         keyHeld = digit;
         replayHeld = replay;
@@ -40,8 +44,15 @@ val main = { u8[~][] args ->
         }
         if( args#>1 && ++frames==5 ) break;
     }
+    sys.audio.close();
     sys.gfx.close();
     return result==sys.gfx.ERROR ? 1 : 0;
+};
+
+// Called only for an accepted move; invalid input never requests a sound.
+val _sound = { u8[~] board ->
+    int winner = _winner(board);
+    return winner=='X' ? sys.audio.WIN : winner=='O' ? sys.audio.LOSE : sys.audio.BOOP;
 };
 
 val _reset = { u8[] board ->

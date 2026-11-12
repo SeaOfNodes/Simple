@@ -42,12 +42,26 @@ Chapter 31. Small graphical turn-based games now drive its library work:
 `sys.draw.Canvas` draws rectangles, circles, thick lines, colors, and bitmap
 labels entirely in Simple. `docs/examples/TicTacToeGraphical.smp` is the first
 game; the existing terminal version remains available. See Chapter 31's
-`docs/drawing.md` and `docs/graphics.md`. Sound remains deferred.
+`docs/drawing.md`, `docs/graphics.md`, and `docs/audio.md`. Optional `sys.audio`
+uses miniaudio for native-thread playback, default boop/win/loss cues, and
+copied mono PCM. Default tests must not require audio hardware or downloads.
 Chapter 31 supports `0x`/`0X` hexadecimal and C-style leading-zero octal
 integer literals. Cliff explicitly prefers `025755`, not a `0o` prefix.
 The 3x5 font uses five octal row digits; packed pixel colors use hex.
 Default builds/tests must not download MiniFB or require a display; interactive
 launch targets are explicit. Drawing and game checks run without a backend.
+Cliff requires offline builds: only explicit `make libs`/`init` (legacy `lib`
+alias) may access the network. Cache pinned dependencies under `lib/`, never
+`build/`; `clean` must preserve them. Shared `build-support/libraries.mk`
+gates all chapter JAR downloads. Graphics/audio makefiles use this same gate;
+missing caches fail promptly, and makefile edits never trigger network checks.
+All chapter Makefiles use `build-support/java.mk`: explicit JAR prerequisites,
+whole-source-set compilation, optional tags, and consistent class directories.
+JARs may be copied from another local chapter cache during any offline target;
+only explicit setup may download. Keep chapter-to-chapter Makefile differences
+limited to features introduced there. Native tests must build the released
+`sys` objects before executing clients, including single-test and standalone
+test targets.
 Chapter 30 retains the preceding compiler and library. Keep inherited Java test names,
 use LF for new text files, and do not add Python code or test drivers.
 Runnable examples belong in `chapter31/docs/examples`.

@@ -1,75 +1,10 @@
-#
-# Makefile expects to run at the project root, and not nested inside anywhere
-#
-#  cd $DESK/Simple/chapterXX; make
-#
-#
-# first time only - this is the only thing that hits the Interwebs
-#
-#   make lib
-#
-# any time you want to nuke everything from space:
-#
-#   make clean tags
-#
-# run the tests
-#
-#   make tests
-#   make test CLASS=Chapter25Test METHOD=testHelloWorldNoInline
+# Build from this chapter directory; make libs/init prepares the offline cache.
+USE_ISA := 1
+CUSTOM_TESTS := 1
+CUSTOM_RELEASE := 1
+DEFAULT_TARGETS := release tests
+include $(firstword $(wildcard ../build-support/java.mk build-support/java.mk))
 
-#######################################################
-#
-# Boilerplate because make syntax isn't the best
-#
-
-# Use bash for recipes
-SHELL := /bin/bash
-
-# Remove target on error (no broken leftover files)
-.DELETE_ON_ERROR:
-
-# Keep partial builds but not partial recipes; keeping them speeds up the next `make`
-.NOTINTERMEDIATE:
-
-# for printing variable values
-# usage: make print-VARIABLE
-#        > VARIABLE = value_of_variable
-print-%  : ; @echo $* = $($*)
-
-# literal space
-space := $() $()
-
-# Decide OS-specific questions
-# jar-file seperator
-ifeq ($(OS),Windows_NT)
-	SEP = ;
-else
-	SEP = :
-endif
-# Find a reasonable ctags.
-CTAGS = $(shell which ctags)
-# Hack for MacOS: /usr/bin/ctags is unfriendly, so look for ctags from brew
-ifeq ($(UNAME),Darwin)
-	CTAGS = $(shell brew list ctags 2> /dev/null | grep bin/ctags)
-endif
-
-# Fun Args to javac.  Mostly limit to java8 source definitions, and fairly
-# aggressive lint warnings.
-JAVAC_ARGS = -g
-
-# Source code
-SIMPLE := com/seaofnodes/simple
-SRC := src/main/java
-TST := src/test/java
-CLZDIR:= build/classes
-main_javas   := $(wildcard $(SRC)/$(SIMPLE)/*java $(SRC)/$(SIMPLE)/*/*java $(SRC)/$(SIMPLE)/node/cpus/*/*java)
-test_javas   := $(wildcard $(TST)/$(SIMPLE)/*java $(TST)/$(SIMPLE)/*/*java)
-simple_driver := $(TST)/$(SIMPLE)/Simple.java
-main_classes := $(patsubst $(SRC)/%java,$(CLZDIR)/main/%class,$(main_javas))
-include $(firstword $(wildcard ../graph/graph.mk graph/graph.mk))
-include $(firstword $(wildcard ../print/print.mk print/print.mk))
-include $(firstword $(wildcard ../isa/isa.mk isa/isa.mk))
-test_classes := $(patsubst $(TST)/%java,$(CLZDIR)/test/%class,$(test_javas))
 # These tests do not rely on the stdlib
 test_alone := com.seaofnodes.simple.BrainFuckTest com.seaofnodes.simple.MergeSortTest com.seaofnodes.simple.TypeTest
 test_raw_nums0 := 01 02 03 04 05 06 07 08 09 10 12 13 14Float 14 15 16 17a 17b 18 19 20 21
@@ -89,59 +24,6 @@ test_cp2     := $(filter-out $(test_raw1) ,$(test_cp1))
 test_cp3     := $(filter-out $(test_alone),$(test_cp2))
 test_cp4     := $(filter-out com.seaofnodes.simple.Chapter25Test,$(test_cp3))
 test_cp      := $(filter-out $(test_sys)  ,$(test_cp4))
-# All the classes to compile
-classes = $(main_classes) $(test_classes)
-# All the libraries
-libs = $(wildcard lib/*jar)
-jars = $(subst $(space),$(SEP),$(libs))
-
-
-default_targets := TAGS release tests
-# Optionally add ctags to the default target if a reasonable one was found.
-ifneq ($(CTAGS),)
-default_targets += tags
-endif
-
-default: $(default_targets)
-
-.PHONY: build
-build: $(CLZDIR)/main/.mtag
-
-#######################################################
-# Compile Java as a whole source set.  javac tracks Java dependencies
-# internally, so compiling only the directly out-of-date .java files can leave
-# stale dependent .class files behind.
-$(CLZDIR)/main/.mtag: $(main_javas)
-	@[ -d $(CLZDIR)/main ] || mkdir -p $(CLZDIR)/main
-	@# This crap is really just "javac", but with a beautiful error message.
-	@# The very very long list of java files is suppressed and counted.
-	@# The required output "Note: blah blah deprecated blah" is suppressed.
-	$(file > .argsM.txt, $(main_javas))
-	@echo "compiling main " `wc -w < .argsM.txt` " files"
-	@if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(SRC) -d $(CLZDIR)/main @.argsM.txt >& .out.txt ; then \
-            cat .out.txt ; \
-            exit 1; \
-	fi
-	@rm -rf .out.txt
-	@touch $(CLZDIR)/main/.mtag
-	@rm -f .argsM.txt
-
-
-#######################################################
-
-$(CLZDIR)/test/.ttag: $(test_javas) $(isa_test_javas) $(CLZDIR)/main/.mtag
-	@[ -d $(CLZDIR)/test ] || mkdir -p $(CLZDIR)/test
-	$(file > .argsT.txt, $(test_javas) $(isa_test_javas))
-	@echo "compiling test " `wc -w < .argsT.txt` " files"
-	@if ! javac $(JAVAC_ARGS) -cp "$(CLZDIR)/test$(SEP)$(CLZDIR)/main$(SEP)$(jars)" -sourcepath $(TST) -d $(CLZDIR)/test @.argsT.txt >& .out.txt ; then \
-            cat .out.txt ; \
-            exit 1; \
-	fi
-	@rm -rf .out.txt
-	@touch $(CLZDIR)/test/.ttag
-	@rm -f .argsT.txt
-
-#######################################################
 
 # Default Simple .o target is build/objs which is where all the test .o's get
 # dumped.  The default sys search needs to NOT include all the dumped test
@@ -190,7 +72,6 @@ $(RELEASE_CRT): src/main/c/simple_crt.c $(RELEASE_ARGS) Makefile
 
 #######################################################
 # Base launch line for JVM tests
-JVM=nice java -ea -cp "$(CLZDIR)/main${SEP}${jars}${SEP}$(CLZDIR)/test"
 
 # Tests that do NOT need sys.smp
 tests_raw0:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT)
@@ -204,13 +85,13 @@ tests_raw1:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT)
 	@$(JVM) org.junit.runner.JUnitCore $(test_raw1)
 
 # Larger regressions, including BrainFuck's standard-library buffer variant.
-tests_alone:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(RELEASE_CRT) $(RELEASE_SYS)
+tests_alone: $(main_classes) $(test_classes) $(RELEASE_SYS) $(RELEASE_CRT)
 	@echo "testing " $(test_alone)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_alone)
 
 # Tests that DO need sys.smp
-tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_CRT)
+tests_sys: $(main_classes) $(test_classes) $(RELEASE_SYS) $(RELEASE_CRT)
 	@echo "testing " $(test_sys)
 	@[ -d $(OBJS) ] || mkdir -p $(OBJS)
 	@$(JVM) org.junit.runner.JUnitCore $(test_sys)
@@ -219,12 +100,8 @@ tests_sys:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_CRT)
 CLASS ?= Chapter25Test
 METHOD ?=
 .PHONY: test
-test: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_CRT)
+test: $(main_classes) $(test_classes) $(RELEASE_SYS) $(RELEASE_CRT)
 	@$(JVM) com.seaofnodes.simple.TestRunner "$(CLASS)" "$(METHOD)"
-
-fuzzer: $(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
-	@echo "fuzzing "
-	@$(JVM) org.junit.runner.JUnitCore com.seaofnodes.simple.FuzzerWrap
 
 tests:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag tests_raw0 tests_raw1 tests_alone tests_sys fuzzer
 	@echo "All tests"
@@ -243,35 +120,7 @@ build/release/Simple.jar:	$(CLZDIR)/main/.mtag $(CLZDIR)/test/.ttag
 	@jar cfm $@ build/release/MANIFEST.MF -C $(CLZDIR)/main . -C $(CLZDIR)/test . -C $(SRC)/$(SIMPLE) . -C $(TST)/$(SIMPLE) .
 
 
-#######################################################
-.PHONY: clean
-clean:
-	rm -rf build
-	rm -f TAGS
-	(find . -name "*~" -exec rm {} \; 2>/dev/null; exit 0)
-
-# Download libs from maven
-lib:	lib/junit-4.12.jar  lib/hamcrest-core-1.3.jar
-
-# Jars
-lib/junit-4.12.jar:
-	@[ -d lib ] || mkdir -p lib
-	@(cd lib; wget https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar)
-
-lib/hamcrest-core-1.3.jar:
-	@[ -d lib ] || mkdir -p lib
-	@(cd lib; wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar)
-
-# Build emacs tags (part of a tasty emacs ide experience)
-.PHONY: tags
-tags: TAGS
-
-TAGS:	$(main_javas) $(test_javas)
-	@rm -f TAGS
-	@$(CTAGS) -e --recurse=yes --fields=+fksaiS $(SRC) $(TST)
-
-# Frozen earlier allocation cohorts, followed by Chapter 25's native tests.
-spill-stats: $(CLZDIR)/test/.ttag $(TEST_SYS) $(RELEASE_SYS) $(RELEASE_CRT)
-	@$(JVM) com.seaofnodes.simple.SpillStats
 
 .PHONY: spill-stats
+spill-stats: $(test_classes) $(TEST_SYS) $(RELEASE_SYS) $(RELEASE_CRT)
+	@$(JVM) com.seaofnodes.simple.SpillStats

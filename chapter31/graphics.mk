@@ -1,7 +1,8 @@
 # Optional MiniFB build, pinned independently of Simple's default build.
 # A C-only GDI/X11 subset: no OpenGL, C++ wrapper, examples, or CMake required.
 MINIFB_REV := f92be8e966f194004853c10196e704f4510f58d4
-MINIFB_SRC := build/deps/minifb
+MINIFB_SRC := lib/minifb-$(MINIFB_REV)
+MINIFB_ARCHIVE := lib/minifb-$(MINIFB_REV).tar.gz
 MINIFB_STAMP := $(MINIFB_SRC)/.simple-$(MINIFB_REV)
 MINIFB_COMMON := MiniFB_common MiniFB_cpu_x86 MiniFB_internal MiniFB_stretch \
     MiniFB_stretch_sse2 MiniFB_stretch_avx2 MiniFB_stretch_neon MiniFB_timer MiniFB_utf8
@@ -29,15 +30,18 @@ graphical-tictactoe: $(GRAPHICAL_TICTACTOE)
 $(GRAPHICAL_TICTACTOE): docs/examples/TicTacToeGraphical.smp $(CLZDIR)/test/.ttag $(RELEASE_SYS) $(RELEASE_CRT) graphics.mk
 	@$(JVM) com.seaofnodes.simple.Simple --link --cpu $(CPU_PORT) --abi $(CALL_CONV) -L $(dir $(RELEASE_SYS)) -o $(GAME_DIR)/TicTacToeGraphical.o $<
 
-run-graphical-tictactoe: graphics graphical-tictactoe
-	SIMPLE_MINIFB="$(abspath $(GRAPHICS_LIB))" $(GRAPHICAL_TICTACTOE)
+run-graphical-tictactoe: graphics audio graphical-tictactoe
+	SIMPLE_MINIFB="$(abspath $(GRAPHICS_LIB))" SIMPLE_MINIAUDIO="$(abspath $(AUDIO_LIB))" $(GRAPHICAL_TICTACTOE)
 graphics: $(GRAPHICS_LIB)
 
-$(MINIFB_STAMP): graphics.mk
-	@mkdir -p $(dir $(MINIFB_SRC))
-	@test -d $(MINIFB_SRC)/.git || git clone --no-checkout https://github.com/emoon/minifb.git $(MINIFB_SRC)
-	@git -C $(MINIFB_SRC) fetch --depth 1 origin $(MINIFB_REV)
-	@git -C $(MINIFB_SRC) checkout --detach $(MINIFB_REV)
+lib libs init: $(MINIFB_STAMP)
+
+$(MINIFB_ARCHIVE):
+	@$(call download-library,https://codeload.github.com/emoon/minifb/tar.gz/$(MINIFB_REV))
+
+$(MINIFB_STAMP): $(MINIFB_ARCHIVE)
+	@mkdir -p $(MINIFB_SRC)
+	@tar -xzf $< --strip-components=1 -C $(MINIFB_SRC)
 	@touch $@
 
 $(GRAPHICS_LIB): $(MINIFB_STAMP) src/main/c/simple_minifb.c src/main/c/simple_graphics.h graphics.mk

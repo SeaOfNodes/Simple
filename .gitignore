@@ -26,6 +26,10 @@ TAGS
 
 # Libs
 */lib/*jar
+*/lib/*.tmp
+/chapter31/lib/minifb-*/
+/chapter31/lib/minifb-*.tar.gz
+/chapter31/lib/miniaudio-*/
 
 # Portable IDEA descriptors; personal IDE settings stay ignored.
 !chapter*/*.iml

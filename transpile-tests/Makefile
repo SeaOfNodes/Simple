@@ -75,17 +75,8 @@ clean:
 	rm -f TAGS
 	(find . -name "*~" -exec rm {} \; 2>/dev/null; exit 0)
 
-# Download libs from maven
-lib:	lib/junit-4.12.jar  lib/hamcrest-core-1.3.jar
-
-# Jars
-lib/junit-4.12.jar:
-	@[ -d lib ] || mkdir -p lib
-	@(cd lib; wget https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar)
-
-lib/hamcrest-core-1.3.jar:
-	@[ -d lib ] || mkdir -p lib
-	@(cd lib; wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar)
+# Explicit dependency setup; all other targets use the local lib cache.
+include $(firstword $(wildcard ../build-support/libraries.mk build-support/libraries.mk))
 
 # Build emacs tags (part of a tasty emacs ide experience)
 tags:	$(main_javas) $(test_javas)

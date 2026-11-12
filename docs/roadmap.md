@@ -374,8 +374,9 @@ MiniFB window/input backend. The initial library supplies colors, rectangles,
 circles, thick lines, and bitmap labels. Mouse/keyboard turns and replay
 exercise that boundary without requiring an animated game engine.
 
-Sound and further games remain future work. Choose an audio library when
-that work is taken up; MiniFB supplies only the window and input boundary.
+Optional [background audio](../chapter31/docs/audio.md) uses miniaudio for
+soft move sounds and ascending/descending win/loss cues. Further games remain
+future work; MiniFB supplies only the window and input boundary.
 
 ### Structs with trailing arrays
 

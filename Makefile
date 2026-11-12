@@ -5,6 +5,8 @@
 # Lettered pairs are complete snapshots, in teaching order.
 CHAPTERS ?= $(sort $(patsubst %/pom.xml,%,$(wildcard chapter[0-9][0-9]/pom.xml chapter[0-9][0-9][a-z]/pom.xml)))
 ACTIONS := tests tags release lib
+.PHONY: libs init
+libs init: lib
 CHAPTER_TARGETS := $(foreach action,$(ACTIONS),$(addsuffix /$(action),$(CHAPTERS)))
 
 # Keep baseline/review runs sequential, including when invoked with -j.

@@ -8,6 +8,7 @@ The [graphical tic-tac-toe](TicTacToeGraphical.smp) uses the Simple
 [drawing library](../drawing.md). Run it with
 `make run-graphical-tictactoe CTAGS=`; click a cell or press 1–9, R/Space to
 replay, and Q/Escape to quit. The terminal game below remains available.
+Optional [background audio](../audio.md) supplies soft move and win/loss cues.
 
 From `chapter31`, build the tic-tac-toe executable (without starting it):
 

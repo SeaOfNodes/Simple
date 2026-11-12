@@ -12,16 +12,22 @@ The [drawing library](docs/drawing.md) provides a pixel canvas, colors,
 rectangles, circles, thick lines, and bitmap labels. The
 [graphical tic-tac-toe game](docs/examples/TicTacToeGraphical.smp) uses it for
 mouse/keyboard play against the terminal game's CPU strategy.
+The optional [audio library](docs/audio.md) adds soft move sounds and rising
+or falling win/loss cues, played in the background by miniaudio.
 Hexadecimal colors (`0xe47b57`) and leading-zero octal font masks (`025755`)
 are supported by this chapter's integer literal syntax.
 
 ```sh
+make -C chapter31 libs CTAGS=     # Once while online (also: init or lib).
 make -C chapter31 run-graphical-tictactoe CTAGS=
 ```
 
-This explicitly builds the optional backend and opens a window. Use
+This explicitly builds the optional graphics/audio backends and opens a window. Use
 `graphical-tictactoe` instead to build the executable without starting it or
 requiring MiniFB.
+Dependencies stay cached under `chapter31/lib`, including across `make clean`.
+Only explicit `libs`/`init`/`lib` setup targets access the internet; other
+targets use local files and fail promptly if something needs downloading.
 
 The default build and test suite need no graphics dependencies. See
 [optional graphics](docs/graphics.md) for building MiniFB, running the pixel
