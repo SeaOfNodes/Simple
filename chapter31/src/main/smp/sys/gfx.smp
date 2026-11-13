@@ -23,12 +23,14 @@ val open = { u8[~] title, u32 width, u32 height ->
     i64 ptr = aryu8.str0(title);
     simple_gfx_open(ptr,width,height);
 };
+
 // Array length must be width*height. The native layer copies for OS repaints;
 // it never keeps a pointer into the Simple heap after this call returns.
 val present = { u32[~] pixels ->
     i64 ptr = pixels;
     simple_gfx_present(ptr,pixels#);
 };
+
 // wait=true waits up to 17ms, waking early for input to avoid a busy loop.
 val poll = { bool wait -> simple_gfx_poll(wait); };
 val mouseX = { -> simple_gfx_mouse_x(); };

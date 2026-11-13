@@ -3,44 +3,55 @@
 u32 GREEN=0x62ff70, DIM=0x123d20, BACKGROUND=0x020b05;
 
 val main = { u8[~][] args ->
+    val gfx  = sys.gfx;
+    val time = sys.time;
     // The main Canvas
     val screen = new sys.draw.Canvas(720,540);
-    if( sys.gfx.open("Simple digital and analog clocks",screen.width,screen.height)!=sys.gfx.OK ) return 1;
+    if( gfx.open("Simple digital and analog clocks",screen.width,screen.height)!=gfx.OK ) return 1;
 
     // Button to flip clock style
     val button = new sys.draw.Button(220,454,280,52,"ANALOG CLOCK");
     val timers = new sys.time.Timers();
     u32 frame_id = timers.every(33);
-    if( frame_id==0 ) { sys.gfx.close(); return 1; }
+    if( frame_id==0 ) { gfx.close(); return 1; }
 
     bool analog=false, held=false;
-    int frames=0, status=sys.gfx.OK;
+    int frames=0, status=gfx.OK;
 
     // Main event loop
-    while( status==sys.gfx.OK ) {
-        bool space = sys.gfx.key(' ');
-        bool down = sys.gfx.button(sys.gfx.LEFT);
-        bool click = button.update(sys.gfx.mouseX(),sys.gfx.mouseY(),down);
+    while( status==gfx.OK ) {
+        // Did the user press space bar?
+        bool space = gfx.key(' ');
+        // Did the left mouse button go down?
+        bool down = gfx.button(gfx.LEFT);
+        // ANd did it go down over this button?
+        bool click = button.update(gfx.mouseX(),gfx.mouseY(),down);
+        // If clicked, flip the clock mode
         if( click || (space && !held) ) analog=!analog;
         held = space;
+        if( gfx.key('Q') ) break;
+        // Change button label
         button.label = analog ? "DIGITAL CLOCK" : "ANALOG CLOCK";
-        if( sys.gfx.key('Q') ) break;
-        if( timers.poll(sys.time.monotonic())==frame_id ) {
-            _draw(screen,sys.time.now(),analog);
+        // If the next timer event is the every-33-msec event
+        if( timers.poll(time.monotonic())==frame_id ) {
+            // Draw the clock screen and button
+            _draw(screen,time.now(),analog);
             button.draw(screen,3,GREEN,BACKGROUND,DIM);
-            status = sys.gfx.present(screen.pixels);
+            // Presne the canvas on screen
+            status = gfx.present(screen.pixels);
+            // Testing only: show 5 frames, flip to analog, show 5 more and exit
             if( args#>1 ) {
                 frames++;
                 if( frames==5 ) analog=true;
                 if( frames==10 ) break;
             }
         }
-        if( status!=sys.gfx.OK ) break;
+        if( status!=gfx.OK ) break;
         // Stall until next timer event
-        status = sys.gfx.wait(sys.time.remaining(timers.nextDeadline(),sys.time.monotonic()));
+        status = gfx.wait(time.remaining(timers.nextDeadline(),time.monotonic()));
     }
-    sys.gfx.close();
-    return status==sys.gfx.ERROR ? 1 : 0;
+    gfx.close();
+    return status==gfx.ERROR ? 1 : 0;
 };
 
 val _draw = { !sys.draw.Canvas screen, i64 wall_ms, i64 analog ->
@@ -48,13 +59,13 @@ val _draw = { !sys.draw.Canvas screen, i64 wall_ms, i64 analog ->
     screen.clear(BACKGROUND);
     screen.text(266,24,"SIMPLE CLOCK",4,GREEN);
     if( analog ) _analog(screen,d.hour,d.minute,d.second,d.millisecond);
-    else _digital(screen,d.hour,d.minute,d.second);
+    else        _digital(screen,d.hour,d.minute,d.second);
     screen.text(298,412,"%(sys.time.formatLocal(wall_ms,sys.time.DATE))",4,GREEN);
     screen.text(249,520,"SPACE SWITCH   Q OR ESC QUIT",2,GREEN);
 };
 
 // a..g bits: top, upper-right, lower-right, bottom, lower-left, upper-left,
-// middle. Faint unlit bars retain the old LED figure-eight silhouette.
+// middle.  Faint unlit bars retain the old LED figure-eight silhouette.
 val _digit = { !sys.draw.Canvas c, int x, int y, i64 digit ->
     int bits=digit==0 ? 0x3f : digit==1 ? 0x06 : digit==2 ? 0x5b :
         digit==3 ? 0x4f : digit==4 ? 0x66 : digit==5 ? 0x6d :
