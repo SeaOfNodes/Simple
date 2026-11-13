@@ -15,3 +15,4 @@ val rgb = { int r, int g, int b ->
 };
 
 val Canvas = Canvas; // Pixel canvas and drawing methods
+val Button = Button; // Pointer state and rendering for a rectangular button

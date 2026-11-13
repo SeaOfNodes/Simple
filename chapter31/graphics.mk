@@ -23,6 +23,14 @@ endif
 MINIFB_SOURCES = $(addprefix $(MINIFB_SRC)/src/,$(addsuffix .c,$(MINIFB_COMMON) $(MINIFB_PLATFORM)))
 GRAPHICS_EXAMPLE := $(GAME_DIR)/Graphics$(if $(filter Windows_NT,$(OS)),.exe,)
 GRAPHICAL_TICTACTOE := $(GAME_DIR)/TicTacToeGraphical$(if $(filter Windows_NT,$(OS)),.exe,)
+CLOCK_EXAMPLE := $(GAME_DIR)/Clock$(if $(filter Windows_NT,$(OS)),.exe,)
+
+.PHONY: clock-example run-clock
+clock-example: $(CLOCK_EXAMPLE)
+$(CLOCK_EXAMPLE): docs/examples/Clock.smp $(CLZDIR)/test/.ttag $(RELEASE_SYS) $(RELEASE_CRT) graphics.mk
+	@$(JVM) com.seaofnodes.simple.Simple --link --cpu $(CPU_PORT) --abi $(CALL_CONV) -L $(dir $(RELEASE_SYS)) -o $(GAME_DIR)/Clock.o $<
+run-clock: graphics clock-example
+	SIMPLE_MINIFB="$(abspath $(GRAPHICS_LIB))" $(CLOCK_EXAMPLE)
 
 .PHONY: graphics graphics-example run-graphics
 .PHONY: graphical-tictactoe run-graphical-tictactoe

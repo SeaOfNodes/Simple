@@ -11,6 +11,7 @@ val io = io;                    // IO library
 val gfx = gfx;                  // Optional pixel window (MiniFB)
 val draw = draw;                // Software raster drawing in Simple
 val text = text;                // Typed text conversions
+val time = time;                // Clocks, calendar text, and cooperative timers
 val libc = libc;                // libc FFI bindings
 val rt = rt;                    // Run Time support
 val scan = scan;                // A simple string parser

@@ -32,7 +32,6 @@ design decisions and chapter boundaries.
   - [Partial-initialization contracts](#inferred-partial-initialization-contracts--deferred) — inferred requirements, nested guarantees, and imported contracts.
   - [Automatic memory management](#automatic-memory-management) — ownership, sharing, cycles, and native retention.
   - [A graphical game](#a-small-graphical-game) — exercise graphics, keyboard, and audio APIs.
-  - [Time and animation](#time-timers-and-animation) — scoped follow-on chapter with clocks, calendar values, cooperative timers, and responsive waits.
   - [Trailing arrays](#structs-with-trailing-arrays) — inline elements after named fields.
   - [Array initialization](#array-initialization) — generate each element during allocation.
   - [String libraries](#string-libraries) — ownership, Unicode, and additional representations beyond byte buffers.
@@ -379,89 +378,8 @@ Optional [background audio](../chapter31/docs/audio.md) uses miniaudio for
 soft move sounds and ascending/descending win/loss cues. Further games remain
 future work; MiniFB supplies only the window and input boundary.
 
-### Time timers and animation
-
-Scoped on 2026-11-12 as a proposed Chapter 32 following Chapter 31's drawing,
-graphics, and audio work. Save this scope while closing Chapter 31; the time
-interface and animation work are not implemented yet. This is primarily a
-standard-library/runtime chapter, with no anticipated compiler changes or new
-external dependencies. Keep the game loop and timer dispatch single-threaded.
-
-Default instants are bare `i64` milliseconds since Unix epoch, UTC. Durations
-are also bare `i64` milliseconds. Distinguish wall-clock readings from monotonic
-readings by operation names and documentation: animation and timer deadlines
-must not depend on system-clock corrections.
-
-Proposed `sys.time` core:
-
-| Operation | Meaning |
-| --- | --- |
-| `now()` | UTC Unix-epoch milliseconds. |
-| `monotonic()` | Milliseconds from an unspecified monotonic origin, for deadlines and elapsed time. |
-| `nanoTime()` | Monotonic nanoseconds; units do not promise nanosecond clock resolution. |
-| `sleep(ms)` | Suspend the calling thread for a duration. |
-| `sleepUntil(deadline)` | Wait until a monotonic millisecond deadline. |
-| `seconds(n)`, `minutes(n)`, `hours(n)`, `days(n)` | Convert durations to milliseconds; a day here is exactly 24 hours. |
-| `toSeconds(ms)`, `toMinutes(ms)`, etc. | Convert back with explicitly documented rounding. |
-
-Cygwin's existing runtime headers expose `clock_gettime`, `clock_nanosleep`,
-and `localtime_r`; investigate sharing the native clock/calendar bridge with
-Linux. Native Windows interval measurement can use QueryPerformanceCounter.
-Epoch nanoseconds are optional: signed `i64` would cover only about 292 years
-on either side of 1970, so retain milliseconds as the default representation.
-Sleep deadlines are approximate; handle interruptions and avoid busy waiting.
-
-Initial calendar/text support:
-
-- Format UTC as `2026-11-12T15:04:05.123Z`; parse that form and explicit numeric
-  UTC offsets such as `-08:00`.
-- Break instants into UTC or system-local calendar fields. An auxiliary
-  `DateTime` structure can contain year, month, day, hour, minute, second,
-  millisecond, weekday, UTC offset, daylight-saving status, and zone abbreviation.
-  The underlying instant remains a bare `i64`.
-- Construct instants from UTC fields or calendar fields with explicit offsets.
-- Query the local UTC offset, DST status, and zone abbreviation at a supplied
-  instant, using the operating system's existing time-zone machinery.
-- Defer arbitrary named-zone conversion, bundled time-zone databases,
-  natural-language parsing, and locale-specific formatting. Parsing local
-  calendar times without an offset needs a policy for ambiguous/nonexistent
-  times around daylight-saving transitions.
-
-Keep arithmetic, parsing, formatting, and timer scheduling in Simple where
-practical. Limit native code to clock readings, OS waits, and local-zone
-conversion. Validate overflow, negative epoch division/remainders, leap days,
-invalid dates, and supported calendar ranges. A parse error cannot use `-1`
-as a sentinel because that is a valid instant. Fixed-duration days and calendar
-day arithmetic are separate operations.
-
-Animation needs an input-aware wait in addition to ordinary sleep. Replace
-the graphics adapter's fixed 17ms delay with a proposed `gfx.wait(timeoutMs)`
-that processes events and wakes for either input or timeout. The game loop
-waits until the earlier of its next frame and next timer, then handles input,
-due timers, simulation, and drawing on the same thread. Windows has a
-message-aware timed wait; X11 needs corresponding backend integration.
-
-A small cooperative timer queue in Simple can expose `after(delay)` and
-`every(period)` returning timer IDs, plus `cancel(id)`, `nextDeadline()`, and
-`poll(now)` returning due IDs. Returning IDs avoids requiring closures or
-background callbacks. Advance repeating deadlines from their previous deadline
-to avoid drift. Define a missed-tick policy and bound animation catch-up;
-reset or clamp frame deltas after laptop sleep rather than replaying hours of
-frames. Explicitly exclude waking the computer from system suspend.
-
-Use an animated game example to drive the chapter. Planning estimate:
-roughly 1,000-2,000 implementation lines, plus tests and documentation. Clock
-readings, sleep, and unit conversion are small; calendar/text/zone support,
-cooperative scheduling, responsive graphics waiting, and an animated example
-make the complete scope medium-sized. Test timer ordering, cancellation,
-repetition, and clock jumps with injected/fake readings; keep actual sleep tests
-broadly bounded and hardware/display checks optional.
-
-Platform references: [clock_gettime](https://man7.org/linux/man-pages/man2/clock_gettime.2.html),
-[clock_nanosleep](https://man7.org/linux/man-pages/man2/clock_nanosleep.2.html),
-[calendar conversion](https://man7.org/linux/man-pages/man3/localtime.3.html),
-[Windows clock guidance](https://learn.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps),
-and [message-aware waiting](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-msgwaitformultipleobjectsex).
+Chapter 31 also implements [time and single-threaded animation](../chapter31/docs/time.md),
+including cooperative timers and responsive input waits.
 
 ### Structs with trailing arrays
 

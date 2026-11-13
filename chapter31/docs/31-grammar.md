@@ -195,10 +195,13 @@ FLOAT_LITERAL : DIGIT+ ('.' DIGIT* ('e' DIGIT+)? | 'e' '-'? DIGIT+) 'f'?
 // Interpolation re-enters the ordinary expression grammar, recursively.
 stringExpression : '"' (STRING_TEXT | ESCAPE | '%%' | interpolation)* '"' ;
 interpolation : '%' format? '(' assignment ')' ;
-format : FORMAT_FLAG* FORMAT_WIDTH? ('.' FORMAT_WIDTH?)? FORMAT_KIND ;
+format : FORMAT_FLAG* FORMAT_WIDTH? ('.' FORMAT_WIDTH?)? FORMAT_KIND TIME_STYLE? ;
 // Flags: - + space # 0. Width/precision: decimal digits, no expressions.
-// Kinds: d i u o x X f F e E g G a A c s b.
-// Duplicate/inapplicable flags and precision on c/b are rejected.
+// Kinds: d i u o x X f F e E g G a A c s b t.
+// TIME_STYLE: F r R M D T, allowed only after t; default F (ISO UTC).
+// Time styles: ISO, 12-hour, 24-hour, elapsed MM:SS.mmm, DD/MM/YY, HH:MM:SS.
+// Duplicate/inapplicable flags and precision on c/b/t are rejected.
+// Time accepts width and left alignment only; see time.md.
 // STRING_TEXT excludes double quote, backslash, and percent.
 CHARACTER_LITERAL : '\'' (ESCAPE | ~['\\]) '\'' ;
 fragment ESCAPE : '\\' [0ntr\\'"%] ;

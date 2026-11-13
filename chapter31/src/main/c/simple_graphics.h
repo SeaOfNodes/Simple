@@ -14,6 +14,7 @@ struct simple_graphics_api {
     int32_t (*button)(int32_t);
     int32_t (*key)(int32_t);
     void (*close)(void);
+    int32_t (*wait)(int64_t);
 };
-#define SIMPLE_GRAPHICS_VERSION 1
+#define SIMPLE_GRAPHICS_VERSION 2
 #endif

@@ -61,7 +61,7 @@ public class PrintRegTestSupport {
         visit.put(marker,t);
         var method = com.seaofnodes.simple.print.ASMPrinter.class.getDeclaredMethod(
             "printConstantPool",int.class,com.seaofnodes.simple.util.SB.class,
-            com.seaofnodes.simple.util.BAOS.class,java.util.HashMap.class,boolean.class,String.class);
+            com.seaofnodes.simple.util.BAOS.class,java.util.Map.class,boolean.class,String.class);
         method.setAccessible(true);
         try {
             var sb = new com.seaofnodes.simple.util.SB();

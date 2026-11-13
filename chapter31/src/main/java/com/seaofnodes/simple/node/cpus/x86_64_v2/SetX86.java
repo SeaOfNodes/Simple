@@ -4,7 +4,6 @@ import com.seaofnodes.isa.X86;
 import com.seaofnodes.simple.codegen.*;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.util.SB;
-import com.seaofnodes.simple.util.Utils;
 
 // Corresponds to the x86 instruction "sete && setne".
 // Use result of comparison without jump.
@@ -25,15 +24,14 @@ public class SetX86 extends MachConcreteNode implements MachNode {
     @Override public RegMask outregmap() { return x86_64_v2.WMASK; }
 
     @Override public void encoding( Encoding enc ) {
-        int op=switch (_bop) {
-            case "==" -> 0x94;  // SETE
-            case "<"  -> _unsigned ? 0x92 : 0x9C;  // SETB /SETL
-            case "<=" -> _unsigned ? 0x96 : 0x9E;  // SETBE/SETLE
-            case ">=" -> _unsigned ? 0x93 : 0x9D;  // SETAE/SETGE
-            case ">"  -> _unsigned ? 0x97 : 0x9F;  // SETA /SETG
-            default -> throw Utils.TODO();
-            };
-        X86.set(enc,op&15,enc.reg(this));
+        int dst=enc.reg(this);
+        if( in(1) instanceof CmpFX86 ) {
+            // MOV preserves comparison flags; unordered is true only for !=.
+            X86.unary(enc,0xC7,0,dst);
+            enc.add4(_bop.equals("!=") ? 1 : 0);
+            enc.add1(0x7A).add1(dst>=4 ? 8 : 6); // JP past SETcc/MOVZX
+        }
+        X86.set(enc,x86_64_v2.jumpop(_bop,_unsigned)&15,dst);
     }
 
     @Override public void asm(CodeGen code, SB sb) {

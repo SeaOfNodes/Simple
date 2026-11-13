@@ -10,6 +10,12 @@ The [graphical tic-tac-toe](TicTacToeGraphical.smp) uses the Simple
 replay, and Q/Escape to quit. The terminal game below remains available.
 Optional [background audio](../audio.md) supplies soft move and win/loss cues.
 
+The [digital and analog clock](Clock.smp) demonstrates the [time library](../time.md),
+green seven-segment digits, smooth clock hands, and a reusable software button.
+Run `make run-clock CTAGS=`; click the button or press Space to switch faces,
+and Q/Escape to exit. Both faces show system-local time.
+`make clock-example CTAGS=` builds it without starting a window.
+
 From `chapter31`, build the tic-tac-toe executable (without starting it):
 
 ```sh

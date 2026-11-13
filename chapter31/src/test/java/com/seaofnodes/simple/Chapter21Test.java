@@ -461,6 +461,7 @@ return i;
         String src =
 """
 val test_sqrt = { flt x ->
+    if( x==0.0 ) return 0.0; // Avoid 0/0: unordered comparisons must stay false.
     flt epsilon = 1e-15;
     flt guess = x;
     while( 1 ) {

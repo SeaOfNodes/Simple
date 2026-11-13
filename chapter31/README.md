@@ -1,4 +1,4 @@
-# Chapter 31: Software Drawing and Graphical Games
+# Chapter 31: Software Drawing, Time, and Graphical Games
 
 English | [日本語](README.ja.md)
 
@@ -16,6 +16,13 @@ The optional [audio library](docs/audio.md) adds soft move sounds and rising
 or falling win/loss cues, played in the background by miniaudio.
 Hexadecimal colors (`0xe47b57`) and leading-zero octal font masks (`025755`)
 are supported by this chapter's integer literal syntax.
+
+The [time library](docs/time.md) adds millisecond clocks, calendar conversion,
+absolute ISO parsing, built-in time formatting, sleeps, and cooperative timers.
+The [digital and analog clock](docs/examples/Clock.smp) demonstrates single-threaded
+animation and the reusable `sys.draw.Button` widget:
+`make -C chapter31 run-clock CTAGS=`. Click its button or press Space to switch
+between green seven-segment digits and an analog dial.
 
 ```sh
 make -C chapter31 libs CTAGS=     # Once while online (also: init or lib).

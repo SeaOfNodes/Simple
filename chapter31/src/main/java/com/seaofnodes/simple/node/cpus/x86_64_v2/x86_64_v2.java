@@ -87,6 +87,18 @@ public class x86_64_v2 extends Machine {
         default -> throw new IllegalArgumentException("Too many arguments");
         };
     }
+    static int jumpop(String op, boolean unsigned) {
+        if( !unsigned ) return jumpop(op);
+        return switch( op ) {
+            case "==" -> 0x84;
+            case "!=" -> 0x85;
+            case "<"  -> 0x82;
+            case "<=" -> 0x86;
+            case ">"  -> 0x87;
+            case ">=" -> 0x83;
+            default -> throw new IllegalArgumentException(op);
+        };
+    }
 
     // Limit of float args passed in registers
     static RegMask[] XMMS8 = new RegMask[]{

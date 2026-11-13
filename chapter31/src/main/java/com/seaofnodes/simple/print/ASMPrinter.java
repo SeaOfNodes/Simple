@@ -10,7 +10,7 @@ import com.seaofnodes.simple.type.*;
 import java.util.ArrayList;
 import com.seaofnodes.simple.codegen.Encoding;
 import com.seaofnodes.simple.util.BAOS;
-import java.util.HashMap;
+import java.util.Map;
 
 /** Machine-specific facts; traversal, columns and byte display live in print/. */
 public final class ASMPrinter extends AssemblyAdapter<Node> {
@@ -93,7 +93,7 @@ public final class ASMPrinter extends AssemblyAdapter<Node> {
         return data;
     }
     // Retain this diagnostic entry point for checking that pool printing never lays out types.
-    static int printConstantPool(int address, SB sb, BAOS bits, HashMap<Node,Encoding.Relo> relos,
+    static int printConstantPool(int address, SB sb, BAOS bits, Map<Node,Encoding.Relo> relos,
                                  boolean ro, String name) {
         sb.p(com.seaofnodes.print.ASMPrinter.pool(new Pool(name,bits.buf(),0,address,entries(relos.values(),ro))));
         return address+bits.size();

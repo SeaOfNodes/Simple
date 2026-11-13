@@ -3,9 +3,125 @@ package com.seaofnodes.simple;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.Test;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.Ary;
+import static org.junit.Assert.*;
 
 // Native raster and game checks; no backend or display is needed.
 public class DrawTest {
+    @Test public void nativeClockCoordinates() throws Exception {
+        String clock=Files.readString(Path.of("docs/examples/Clock.smp"))
+            .replace("val main =","val _windowMain =");
+        StringBuilder source=new StringBuilder(clock+"""
+            val _check_noInline={ f64 turn, int expectedX, int expectedY ->
+                int x=360+_sin_noInline(turn)*128, y=232-_sin_noInline(turn+0.25)*128;
+                if( x<expectedX-1 || x>expectedX+1 || y<expectedY-1 || y>expectedY+1 ) {
+                    sys.io.p("turn %f(turn): %(x),%(y) expected %(expectedX),%(expectedY)\\n");
+                    return 1;
+                }
+                return 0;
+            };
+            val main={ ->
+            """);
+        for(int i=0;i<=60;i++) {
+            double turn=i/60.0;
+            int x=(int)(360+clockSine(turn)*128), y=(int)(232-clockSine(turn+0.25)*128);
+            source.append("if(_check_noInline(").append(turn).append(',').append(x).append(',').append(y)
+                .append(")!=0) return 1;");
+        }
+        source.append("return 0; };");
+        TestC.runSYS(source.toString(),"clockCoordinates","",-1);
+    }
+
+    private static double clockSine(double turn) {
+        turn-=(long)turn;
+        boolean negative=turn>0.5;
+        double x=(negative ? turn-0.5 : turn)*6.283185307179586;
+        double product=x*(3.141592653589793-x);
+        return (negative ? -16.0 : 16.0)*product/(49.34802200544679-4*product);
+    }
+
+    @Test public void nativeAnalogSweep() throws Exception {
+        String clock=Files.readString(Path.of("docs/examples/Clock.smp"))
+            .replace("val main =","val _windowMain =");
+        StringBuilder source=new StringBuilder(clock+"""
+            val _renderCheck_noInline={ int second, int millisecond, int expectedX, int expectedY ->
+                val c=new sys.draw.Canvas(720,540);
+                _analog_noInline(c,3,20,second,millisecond);
+                var found=false;
+                for( int y=expectedY-2; y<=expectedY+2; y++ )
+                    for( int x=expectedX-2; x<=expectedX+2; x++ )
+                        if( c.pixels[y*720+x]==0xc3ffcb ) found=true;
+                if( !found ) {
+                    sys.io.p("missing second hand %(second).%(millisecond) expected %(expectedX),%(expectedY)\\n");
+                    return 1;
+                }
+                // Every dial mark/hand must stay within the dial's bounds.
+                for( int y=0; y<540; y++ ) for( int x=0; x<720; x++ )
+                    if( (x<204 || x>516 || y<76 || y>388) && c.pixels[y*720+x]!=0 ) {
+                        sys.io.p("stray pixel %(x),%(y) color %x(c.pixels[y*720+x]) at %(second).%(millisecond)\\n");
+                        return 2;
+                    }
+                return 0;
+            };
+            val main={ ->
+            """);
+        for(int millis:new int[]{0,500,7500,15000,30000,45000,59500}) {
+            double turn=millis/60000.0;
+            int x=(int)(360+clockSine(turn)*128), y=(int)(232-clockSine(turn+0.25)*128);
+            source.append("if(_renderCheck_noInline(").append(millis/1000).append(',').append(millis%1000)
+                .append(',').append(x).append(',').append(y).append(")!=0) return 1;");
+        }
+        source.append("return 0; };");
+        TestC.runSYS(source.toString(),"clockAnalogSweep","",-1);
+    }
+
+    @Test public void buttonInteractionAndRendering() throws Exception {
+        TestC.runSYS("""
+            val main={ ->
+                val b=new sys.draw.Button(10,10,60,30,"GO");
+                if( !b.contains(10,10) || b.contains(70,20) || b.contains(20,40) ) return 1;
+                if( b.update(20,20,true) || !b.pressed || b.update(20,20,true) ) return 2;
+                if( !b.update(20,20,false) || b.pressed || b.update(20,20,false) ) return 3;
+                if( b.update(0,0,true) || b.update(20,20,true) || b.update(20,20,false) ) return 4;
+                b.update(20,20,true);
+                if( b.update(0,0,false) ) return 5;
+                b.update(20,20,true); b.enabled=false;
+                if( b.update(20,20,true) || b.pressed || b.update(20,20,false) ) return 6;
+                b.enabled=true;
+                val c=new sys.draw.Canvas(90,60);
+                b.update(20,20,false); b.draw(c,2,9,3,5);
+                if( c.pixels[10*90+10]!=9 || c.pixels[13*90+13]!=5 || c.pixels[0]!=0 ) return 7;
+                b.update(0,0,false); b.draw(c,2,9,3,5);
+                if( c.pixels[13*90+13]!=3 ) return 8;
+                return 0;
+            };
+            ""","drawButton","",-1);
+    }
+
+    @Test public void clockFacesWithoutWindow() throws Exception {
+        String clock=Files.readString(Path.of("docs/examples/Clock.smp"))
+            .replace("val main =","val _windowMain =");
+        CodeGen code=new CodeGen(null,null,new Ary<>(new String[]{TestC.RELEASE_SYS_DIR}),"ClockRaster",clock+"""
+            val main={ ->
+                val c=new sys.draw.Canvas(720,540);
+                _digit_noInline(c,10,10,8);
+                if( c.pixels[10*720+40]!=GREEN || c.pixels[82*720+40]!=GREEN || c.pixels[154*720+40]!=GREEN ) return 1;
+                _digit_noInline(c,10,10,1);
+                if( c.pixels[10*720+40]!=DIM || c.pixels[40*720+78]!=GREEN || c.pixels[40*720+14]!=DIM ) return 2;
+                c.clear(BACKGROUND); _digital_noInline(c,23,59,58);
+                if( c.pixels[214*720+254]!=GREEN || c.pixels[262*720+470]!=GREEN ) return 3;
+                c.clear(BACKGROUND); _analog_noInline(c,3,0,0,0);
+                if( c.pixels[232*720+430]!=GREEN || c.pixels[160*720+360]!=0xc3ffcb || c.pixels[232*720+360]!=GREEN ) return 4;
+                if( _sin_noInline(0.25)<0.999 || _sin_noInline(0.75)>-0.999 || _sin_noInline(1.0)!=0.0 ) return 5;
+                return 0;
+            };
+            return main();
+            """,126L,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
+        assertEquals("0",Eval2.eval(code,0,3000000));
+    }
+
     @Test public void rectanglesAndColors() throws Exception {
         TestC.runSYS("""
             val main = { ->

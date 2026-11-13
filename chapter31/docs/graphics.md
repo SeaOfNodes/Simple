@@ -21,7 +21,7 @@ downloads dependencies unless you explicitly request `make libs` or `make init`
 windows. It excludes the interactive `run-graphics` target.
 
 The runtime contains a small loader using the OS dynamic-library facilities.
-It does nothing until `sys.gfx.open`. Without a configured backend, `open`
+It does nothing until `sys.gfx.open`. Without an available backend, `open`
 prints a diagnostic to stderr and returns `sys.gfx.ERROR` (-1). Programs can
 return a nonzero status or fall back to text; the library does not terminate
 the process. Non-graphics programs ignore even a broken graphics configuration.
@@ -92,9 +92,16 @@ SIMPLE_MINIFB="$PWD/build/release/x86_64_v2_SystemV/libsimple_minifb.so" \
     xvfb-run -a build/examples/x86_64_v2_SystemV/Graphics smoke
 ```
 
-The backend path is explicit: a DLL installed elsewhere or a different working
-directory cannot silently select the wrong version. `SIMPLE_MINIFB=off` disables
-graphics; an absent, unloadable, or incompatible backend produces a diagnostic.
+With no `SIMPLE_MINIFB` setting, the runtime searches beside the executable,
+then its `../../release/<ABI>` and `../release/<ABI>` directories. These cover
+the examples and test build layouts regardless of the current directory.
+It also checks the current directory, `build/release/<ABI>`, and
+`chapter31/build/release/<ABI>` relative to the current directory. Thus built
+examples such as `Clock.exe` can be launched directly without configuration.
+
+`SIMPLE_MINIFB` overrides discovery; an invalid explicit path reports an error
+without falling back. `SIMPLE_MINIFB=off` disables graphics for headless tests.
+An absent, unloadable, or incompatible backend produces a diagnostic.
 A backend that loads but cannot create a window also reports an error cleanly.
 
 ## Initial interface
@@ -103,14 +110,20 @@ A backend that loads but cannot create a window also reports an error cleanly.
 | --- | --- |
 | `open(title,width,height)` | Open one window; returns `OK` or `ERROR`. |
 | `present(pixels)` | Present a `u32[~]` of exactly `width*height` pixels, packed `0x00RRGGBB`. |
-| `poll(wait)` | Process input; `true` waits about 17ms first to avoid a busy loop. |
+| `poll(wait)` | Process input; `true` waits up to 17ms, waking for input. |
+| `wait(timeoutMs)` | Wait for input or timeout, then process events; 0 polls, -1 waits indefinitely. |
 | `mouseX()`, `mouseY()` | Current mouse position, origin at upper left. |
 | `button(LEFT)`, `key(code)` | Current pressed state; printable keys use uppercase ASCII. |
 | `close()` | Release native window and pixel storage; safe to repeat. |
 
-`present` and `poll` return `OK` (0), `CLOSED` (1, normal close/Escape), or
+`present`, `poll`, and `wait` return `OK` (0), `CLOSED` (1, normal close/Escape), or
 `ERROR` (-1). Stop polling after either terminal result and call `close`.
 The initial input API samples held state; it is not a queue of every transition.
+
+Waits may return early; values below -1 are errors. Recheck the monotonic
+clock after waking. The [time library and animation example](time.md) combine
+this wait with cooperative timer deadlines. Backend API version 2 adds the
+wait operation; rebuild older MiniFB adapters from the cached sources.
 
 MiniFB retains its last framebuffer for repaint events. The adapter copies the
 Simple array into native-owned storage before presenting; it never retains a

@@ -15,6 +15,7 @@ int ESCAPE = 256;
 { i32 -> i32 } simple_gfx_button = "C";
 { i32 -> i32 } simple_gfx_key = "C";
 { i32 } simple_gfx_close = "C";
+{ i64 -> i32 } simple_gfx_wait = "C";
 
 // Failure prints a diagnostic to stderr and returns ERROR; callers decide
 // whether to exit or fall back to text. No native library is loaded until here.
@@ -28,7 +29,7 @@ val present = { u32[~] pixels ->
     i64 ptr = pixels;
     simple_gfx_present(ptr,pixels#);
 };
-// wait=true waits about 17ms before polling, avoiding a busy loop.
+// wait=true waits up to 17ms, waking early for input to avoid a busy loop.
 val poll = { bool wait -> simple_gfx_poll(wait); };
 val mouseX = { -> simple_gfx_mouse_x(); };
 val mouseY = { -> simple_gfx_mouse_y(); };
@@ -36,3 +37,6 @@ val button = { int button -> simple_gfx_button(button); };
 // Printable keys use uppercase ASCII; special keys use MiniFB's key codes.
 val key = { int key -> simple_gfx_key(key); };
 val close = { -> simple_gfx_close(); };
+// Wait for input or at most timeout milliseconds; 0 polls, -1 waits indefinitely.
+// This blocks the game thread, dispatches window events, and may wake early.
+val wait = { i64 timeout -> simple_gfx_wait(timeout); };

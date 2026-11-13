@@ -1,0 +1,55 @@
+// Cooperative timers. poll returns IDs; callbacks never run on another thread.
+struct Timers {
+    i64[] !_ids=new i64[8], !_due=new i64[8], !_period=new i64[8];
+    i64 !_next=1;
+
+    val _add = { i64 current, i64 delay, i64 period ->
+        if( current<0 || delay<0 || current>time.LIMIT-delay || _next==time.LIMIT ) return -1;
+        int slot=0;
+        while( slot<_ids# && _ids[slot]!=0 ) slot++;
+        if( slot==_ids# ) {
+            if( _ids#>1073741823 ) return -1;
+            val ids=new i64[_ids#*2], due=new i64[_ids#*2], periods=new i64[_ids#*2];
+            for( int i=0; i<_ids#; i++ ) { ids[i]=_ids[i]; due[i]=_due[i]; periods[i]=_period[i]; }
+            _ids=ids; _due=due; _period=periods;
+            // Retry against the newly published arrays after growing.
+            return _add(current,delay,period);
+        }
+        i64 id=_next++;
+        _ids[slot]=id; _due[slot]=current+delay; _period[slot]=period;
+        return id;
+    };
+    // Explicit-clock versions make game logic and tests deterministic.
+    val afterAt = { i64 current, i64 delay -> _add(current,delay,0); };
+    val everyAt = { i64 current, i64 period -> period<=0 ? -1 : _add(current,period,period); };
+    val after = { i64 delay -> afterAt(time.monotonic(),delay); };
+    val every = { i64 period -> everyAt(time.monotonic(),period); };
+    val cancel = { i64 id ->
+        if( id<=0 ) return false;
+        for( int i=0; i<_ids#; i++ ) if( _ids[i]==id ) { _ids[i]=0; return true; }
+        return false;
+    };
+    val nextDeadline = { ->
+        i64 next=-1;
+        for( int i=0; i<_ids#; i++ )
+            if( _ids[i]!=0 && (next<0 || _due[i]<next) ) next=_due[i];
+        return next;
+    };
+    // Earliest deadline first; equal deadlines use registration order.
+    // Repeats skip missed ticks and retain their phase, avoiding bursts/drift.
+    val poll = { i64 current ->
+        int slot=-1;
+        for( int i=0; i<_ids#; i++ )
+            if( _ids[i]!=0 && _due[i]<=current && (slot<0 || _due[i]<_due[slot] ||
+                (_due[i]==_due[slot] && _ids[i]<_ids[slot])) ) slot=i;
+        if( slot<0 ) return -1;
+        i64 id=_ids[slot], period=_period[slot];
+        if( period==0 ) _ids[slot]=0;
+        else {
+            i64 steps=(current-_due[slot])/period;
+            if( steps>=(time.LIMIT-_due[slot])/period ) _ids[slot]=0;
+            else _due[slot]+=(steps+1)*period;
+        }
+        return id;
+    };
+};

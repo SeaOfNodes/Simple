@@ -96,3 +96,8 @@ val f64  = { f64  x -> end(floating(begin(),x, 0 ,0,-1)); };
 val char = { i64  x -> end(integer (begin(),x,'c',0,-1)); };
 val bool = { bool x -> end(integer (begin(),x,'b',0,-1)); };
 val hex  = { i64  x -> end(integer (begin(),x,'x',0,-1)); };
+
+// Time selectors occupy spec bits 16..23; padding shares string formatting.
+val time = { !aryu8 b, i64 value, i64 spec, i64 width, i64 precision ->
+    string(b,sys.time.format(value,(spec>>>16)&255),spec,width,-1);
+};

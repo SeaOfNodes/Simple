@@ -405,14 +405,19 @@ public class Lexer {
             precision = formatNumber(site);
         }
         char kind=nextChar();
-        if( "diuoxXfFeEgGaAcsb".indexOf(kind)<0 )
+        if( "diuoxXfFeEgGaAcsbt".indexOf(kind)<0 )
             throw Parser.error("Expected a string format: %(expression), %d(expression), or %%",site);
         boolean number="diuoxXfFeEgGaA".indexOf(kind)>=0;
         if( !number && (flags&~1)!=0 || "uoxX".indexOf(kind)>=0 && (flags&6)!=0 ||
             "diu".indexOf(kind)>=0 && (flags&8)!=0 )
             throw Parser.error("Invalid flags for %"+kind,site);
-        if( precision>=0 && (kind=='c' || kind=='b') )
+        if( precision>=0 && (kind=='c' || kind=='b' || kind=='t') )
             throw Parser.error("Precision is not supported for %"+kind,site);
+        if( kind=='t' && peek()!='(' ) {
+            int style="FrRMDT".indexOf(nextChar());
+            if( style<0 ) throw Parser.error("Expected a time format: %t, %tF, %tr, %tR, %tM, %tD, or %tT",site);
+            flags |= style<<8;
+        }
         if( peek()!='(' ) throw Parser.error("Expected '(' after string format %"+kind,site);
         inc();
         return new Format(kind,flags,width,precision,site);

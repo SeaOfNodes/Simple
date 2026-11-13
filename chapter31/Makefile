@@ -39,6 +39,7 @@ RELEASE_SYS:= $(RELEASE)/$(CPU_ABI)/sys.o
 RELEASE_CRT:= $(RELEASE)/$(CPU_ABI)/simple_crt.o
 RELEASE_GRAPHICS:= $(RELEASE)/$(CPU_ABI)/simple_graphics.o
 RELEASE_AUDIO:= $(RELEASE)/$(CPU_ABI)/simple_audio.o
+RELEASE_TIME:= $(RELEASE)/$(CPU_ABI)/simple_time.o
 RELEASE_ARGS:= $(RELEASE)/$(CPU_ABI)/simple_args.o
 C_CALL_CONV:= $(if $(filter win64,$(CALL_CONV)),ms_abi,sysv_abi)
 GAME_DIR:= build/examples/$(CPU_ABI)
@@ -67,7 +68,7 @@ $(RELEASE_ARGS): src/main/smp/sys/rt/simple_args.smp $(CLZDIR)/main/.mtag $(simp
 	@echo "simping " $@
 	@$(JVM) com.seaofnodes.simple.Simple --cpu $(CPU_PORT) --abi $(CALL_CONV) --norun -o $@ $<
 
-$(RELEASE_CRT): src/main/c/simple_crt.c $(RELEASE_ARGS) $(RELEASE_GRAPHICS) $(RELEASE_AUDIO) Makefile
+$(RELEASE_CRT): src/main/c/simple_crt.c $(RELEASE_ARGS) $(RELEASE_GRAPHICS) $(RELEASE_AUDIO) $(RELEASE_TIME) Makefile
 	@echo "compiling " $@
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@gcc -c -O2 -DCALL_CONV=$(C_CALL_CONV) -o $@ $<
@@ -82,6 +83,10 @@ include graphics.mk
 include audio.mk
 
 $(RELEASE_AUDIO): src/main/c/simple_audio.c src/main/c/simple_audio.h Makefile
+	@mkdir -p $(dir $@)
+	@gcc -c -O2 -Wall -Wextra -o $@ $<
+
+$(RELEASE_TIME): src/main/c/simple_time.c Makefile
 	@mkdir -p $(dir $@)
 	@gcc -c -O2 -Wall -Wextra -o $@ $<
 

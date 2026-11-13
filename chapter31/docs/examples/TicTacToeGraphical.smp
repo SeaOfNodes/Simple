@@ -13,7 +13,7 @@ val main = { u8[~][] args ->
     bool mouseHeld = false, keyHeld = false, replayHeld = false;
     int hover = -1, frames = 0;
     while( result==sys.gfx.OK ) {
-        result = sys.gfx.poll(true);
+        result = sys.gfx.wait(17);
         if( result!=sys.gfx.OK ) break;
         if( sys.gfx.key('Q') ) break;
         bool down = sys.gfx.button(sys.gfx.LEFT);

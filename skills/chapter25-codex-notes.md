@@ -66,6 +66,30 @@ Chapter 30 retains the preceding compiler and library. Keep inherited Java test 
 use LF for new text files, and do not add Python code or test drivers.
 Runnable examples belong in `chapter31/docs/examples`.
 
+MiniFB discovery defaults to executable-relative and obvious chapter build
+locations; examples should run directly without environment setup. Explicit
+`SIMPLE_MINIFB` paths override discovery and `off` keeps headless tests stable.
+
+The Clock example now shows digital/analog local-time clocks, switched by the
+software `sys.draw.Button` widget or Space. Button input is caller-fed, fires
+on release inside after a press inside, and has no native/window dependency.
+
+Clock rendering needs native regression coverage as well as Eval2: evaluator
+checks cannot catch instruction encoding or relocation errors. X86 floating
+comparisons use UCOMISD's CF/ZF/PF, preserve unordered behavior when layout
+negates a branch, and must not use signed SF/OF conditions. Encoding metadata
+for relocation sites uses instruction identity: scheduling/RA can clone equal
+constant loads, each of which still requires its own relocation.
+
+Time and animation now belong in Chapter 31, not a follow-on chapter proposal.
+See `chapter31/docs/time.md`: bare i64 epoch milliseconds, distinct monotonic
+deadlines, optional monotonic nanoseconds, OS local zones, Simple calendar/text
+and cooperative timer IDs, and input-aware `gfx.wait`. Cliff explicitly accepts
+`-1` for absolute parse errors despite its collision with the instant just before
+the epoch; relative time parsing is deferred. Built-in `%t` selectors cover ISO,
+12/24-hour clocks, elapsed minutes, calendar dates, and clock seconds. UTC is
+the interpolation default; local-zone formatting is an explicit library call.
+
 ## Chapter 30 starting point (2026-11-07; superseded by Chapter 31)
 
 Cliff committed the Chapter 29 work as `bb9b30b2c` and requested merging

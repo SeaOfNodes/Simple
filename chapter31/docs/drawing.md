@@ -51,6 +51,22 @@ for computed components. The font masks use leading-zero octal, with five
 digits after the prefix: each digit is one three-pixel row, top to bottom.
 For example, `A` is `025755`: rows `010`, `101`, `111`, `101`, `101`.
 
+## Button widget
+
+`new sys.draw.Button(x,y,width,height,label)` creates a rectangular software
+button. It owns no window or native resources. Feed pointer coordinates and
+the held mouse-button state to `update(x,y,down)` once per event-loop iteration.
+It returns true once on release inside, provided the press began inside.
+Dragging in from outside does not activate it; releasing outside cancels.
+
+`hovered` and `pressed` expose visual state. Set `enabled=false` to cancel a
+pending press and disable activation; `label` can be changed at any time.
+`contains(x,y)` uses half-open bounds. `draw(canvas,scale,foreground,background,active)`
+paints the button and centers its 3x5 label when it fits. Colors belong to the
+caller. Keyboard shortcuts belong to the application; this small widget has
+no focus system. The [clock example](examples/Clock.smp) shows mouse activation
+and a Space shortcut in the same single-threaded loop.
+
 ## Graphical tic-tac-toe
 
 From `chapter31`:
@@ -72,7 +88,7 @@ polling still processes window events and waits between polls.
 `make graphical-tictactoe CTAGS=` builds without opening a window or requiring
 MiniFB. Its output is `build/examples/x86_64_v2_win64/TicTacToeGraphical.exe`
 on Windows or `build/examples/x86_64_v2_SystemV/TicTacToeGraphical` on Linux.
-The explicit backend path follows [the pixel-window instructions](graphics.md).
+Backend discovery and explicit overrides follow [the pixel-window instructions](graphics.md).
 Passing any argument performs a five-poll, self-closing smoke test.
 
 The original `make tictactoe` still builds the terminal game.

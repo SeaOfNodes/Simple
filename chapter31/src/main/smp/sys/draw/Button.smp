@@ -1,0 +1,41 @@
+// Feed pointer state once per event-loop iteration. Activate on release inside,
+// only after a press that began inside. No native/window dependency.
+struct Button {
+    int x, y, width, height;
+    u8[~] !label;
+    bool !enabled=true, !hovered=false, !pressed=false;
+    bool !_held=false, !_armed=false;
+    new Button = { int px, int py, int w, int h, u8[~] text ->
+        x=px; y=py; width=w; height=h; label=text;
+    };
+    val contains = { i64 px, i64 py ->
+        if( width<=0 || height<=0 ) return false;
+        i64 right=x, bottom=y; right+=width; bottom+=height;
+        if( px<x || py<y || px>=right || py>=bottom ) return false;
+        return true;
+    };
+    val update = { i64 px, i64 py, bool down ->
+        hovered=false;
+        if( enabled ) hovered=contains(px,py);
+        if( !enabled ) _armed=false;
+        if( down && !_held ) _armed=hovered;
+        var clicked=false;
+        if( !down ) if( _held ) if( _armed ) if( hovered ) clicked=true;
+        if( !down ) _armed=false;
+        _held=down;
+        pressed=false;
+        if( down ) if( _armed ) if( hovered ) pressed=true;
+        return clicked;
+    };
+    val draw = { !sys.draw.Canvas screen, int scale, u32 foreground, u32 background, u32 active ->
+        screen.fillRect(x,y,width,height,enabled && (hovered || pressed) ? active : background);
+        screen.rect(x,y,width,height,2,enabled ? foreground : active);
+        if( scale>0 ) {
+            i64 textWidth=label#; textWidth=(textWidth*4-1)*scale;
+            if( textWidth<=width-8 && 5*scale<=height-8 )
+                screen.text(x+(width-textWidth)/2,y+(height-5*scale)/2+(pressed ? 1 : 0),
+                    label,scale,enabled ? foreground : active);
+        }
+        return self;
+    };
+};

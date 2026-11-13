@@ -3,11 +3,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #ifdef _WIN32
 #include <windows.h>
 #else
 #include <errno.h>
 #include <time.h>
+#include <poll.h>
+#include "WindowData.h"
+#include "x11/WindowData_X11.h"
 #endif
 
 // One fixed-size window for now. No Simple pointer survives a native call:
@@ -73,27 +77,27 @@ static int32_t present(const uint32_t *pixels, uint32_t count) {
     return status(mfb_update_ex(window, frame, width, height));
 }
 
-static int32_t poll_events(int32_t wait) {
+static int32_t wait_events(int64_t timeout) {
     if (!window) return 1;
-    if (wait) {
-        // mfb_wait_sync returns false for both destruction and errors that
-        // leave the window alive. Use a short OS wait, then the status-bearing
-        // event API, so we know whether the window still needs destruction.
+    if (timeout < -1) return -1;
+    // May return early; the game recomputes its deadlines after every wakeup.
+    int ms=timeout>INT_MAX ? INT_MAX : (int)timeout;
 #ifdef _WIN32
-        Sleep(17);
+    if (MsgWaitForMultipleObjectsEx(0,NULL,ms<0 ? INFINITE : (DWORD)ms,
+            QS_ALLINPUT,MWMO_INPUTAVAILABLE)==WAIT_FAILED) return -1;
 #else
-        struct timespec delay = {0, 16666667};
-        while (nanosleep(&delay, &delay) < 0) {
-            if (errno != EINTR) {
-                perror("Simple graphics: event wait");
-                close_window();
-                return -1;
-            }
-        }
-#endif
+    // The pinned MiniFB X11 backend owns this connection. Check already queued
+    // Xlib events before waiting on its socket; no new event thread is needed.
+    SWindowData *data=(SWindowData *)window;
+    SWindowData_X11 *native=(SWindowData_X11 *)data->specific;
+    if (!XPending(native->display)) {
+        struct pollfd fd={ConnectionNumber(native->display),POLLIN,0};
+        if (poll(&fd,1,ms)<0 && errno!=EINTR) return -1;
     }
+#endif
     return status(mfb_update_events(window));
 }
+static int32_t poll_events(int32_t wait) { return wait_events(wait ? 17 : 0); }
 static int32_t mouse_x(void) { return window ? mfb_get_mouse_x(window) : 0; }
 static int32_t mouse_y(void) { return window ? mfb_get_mouse_y(window) : 0; }
 static int32_t button(int32_t b) {
@@ -105,7 +109,7 @@ static int32_t key(int32_t k) {
 
 static const struct simple_graphics_api api = {
     SIMPLE_GRAPHICS_VERSION, open_window, present, poll_events,
-    mouse_x, mouse_y, button, key, close_window
+    mouse_x, mouse_y, button, key, close_window, wait_events
 };
 #ifdef _WIN32
 __declspec(dllexport)
