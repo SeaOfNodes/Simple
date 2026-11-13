@@ -15,7 +15,7 @@ public class DrawTest {
             .replace("val main =","val _windowMain =");
         StringBuilder source=new StringBuilder(clock+"""
             val _check_noInline={ f64 turn, int expectedX, int expectedY ->
-                int x=360+_sin_noInline(turn)*128, y=232-_sin_noInline(turn+0.25)*128;
+                int x=360+_sin(turn)*128, y=232-_sin(turn+0.25)*128;
                 if( x<expectedX-1 || x>expectedX+1 || y<expectedY-1 || y>expectedY+1 ) {
                     sys.io.p("turn %f(turn): %(x),%(y) expected %(expectedX),%(expectedY)\\n");
                     return 1;
@@ -48,7 +48,7 @@ public class DrawTest {
         StringBuilder source=new StringBuilder(clock+"""
             val _renderCheck_noInline={ int second, int millisecond, int expectedX, int expectedY ->
                 val c=new sys.draw.Canvas(720,540);
-                _analog_noInline(c,3,20,second,millisecond);
+                _analog(c,3,20,second,millisecond);
                 var found=false;
                 for( int y=expectedY-2; y<=expectedY+2; y++ )
                     for( int x=expectedX-2; x<=expectedX+2; x++ )
@@ -106,15 +106,15 @@ public class DrawTest {
         CodeGen code=new CodeGen(null,null,new Ary<>(new String[]{TestC.RELEASE_SYS_DIR}),"ClockRaster",clock+"""
             val main={ ->
                 val c=new sys.draw.Canvas(720,540);
-                _digit_noInline(c,10,10,8);
+                _digit(c,10,10,8);
                 if( c.pixels[10*720+40]!=GREEN || c.pixels[82*720+40]!=GREEN || c.pixels[154*720+40]!=GREEN ) return 1;
-                _digit_noInline(c,10,10,1);
+                _digit(c,10,10,1);
                 if( c.pixels[10*720+40]!=DIM || c.pixels[40*720+78]!=GREEN || c.pixels[40*720+14]!=DIM ) return 2;
-                c.clear(BACKGROUND); _digital_noInline(c,23,59,58);
+                c.clear(BACKGROUND); _digital(c,23,59,58);
                 if( c.pixels[214*720+254]!=GREEN || c.pixels[262*720+470]!=GREEN ) return 3;
-                c.clear(BACKGROUND); _analog_noInline(c,3,0,0,0);
+                c.clear(BACKGROUND); _analog(c,3,0,0,0);
                 if( c.pixels[232*720+430]!=GREEN || c.pixels[160*720+360]!=0xc3ffcb || c.pixels[232*720+360]!=GREEN ) return 4;
-                if( _sin_noInline(0.25)<0.999 || _sin_noInline(0.75)>-0.999 || _sin_noInline(1.0)!=0.0 ) return 5;
+                if( _sin(0.25)<0.999 || _sin(0.75)>-0.999 || _sin(1.0)!=0.0 ) return 5;
                 return 0;
             };
             return main();
@@ -174,6 +174,14 @@ public class DrawTest {
                 for( int y=0; y<5; y++ )
                     for( int x=0; x<3; x++ )
                         if( c.pixels[y*16+x]!=c.pixels[y*16+x+8] ) return 6;
+                c.clear(0).text(0,0,":/",2,6);
+                for( int y=0; y<10; y++ )
+                    for( int x=0; x<16; x++ ) {
+                        int row=y/2, col=x/2;
+                        var colon=col==1 && (row==1 || row==3);
+                        var slash=(row<2 && col==6) || (row==2 && col==5) || (row>2 && col==4);
+                        if( c.pixels[y*16+x]!=((colon || slash) ? 6 : 0) ) return 9;
+                    }
                 c.clear(0).fillCircle(-1,-1,2,7);
                 if( c.pixels[0]!=7 || c.pixels[2]!=0 ) return 7;
                 return 0;

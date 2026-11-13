@@ -1,10 +1,29 @@
+// Time utilities; get the current time (both nanos and millis), sleep, time zones.
+
 // Instants: bare i64 UTC Unix-epoch milliseconds. Durations: i64 milliseconds.
 // Monotonic readings are a separate clock domain, for deadlines/elapsed time.
+
 val DateTime = DateTime;
 val Timers = Timers;
-i64 SECOND=1000, MINUTE=60000, HOUR=3600000, DAY=86400000;
-i64 MIN=-62135596800000, MAX=253402300799999; // Calendar years 1..9999.
-i64 LIMIT=9223372036854775807;
+i64 SECOND = 1000;
+i64 MINUTE = 60*SECOND;
+i64 HOUR = 60*MINUTE;
+i64 DAY = 24*HOUR;
+i64 NANOS_PER_MS = 1000*1000;
+
+// Gregorian leap days: every fourth year, except centuries not divisible by 400.
+i64 _DAYS_PER_4_YEARS = 4*365+1;
+i64 _DAYS_PER_CENTURY = 100*365+100/4-1;
+i64 _DAYS_PER_ERA = 4*_DAYS_PER_CENTURY+1;
+// Complete years before the Unix epoch and after the last supported date.
+i64 _DAYS_BEFORE_EPOCH = 1969*365+1969/4-1969/100+1969/400;
+i64 _DAYS_BEFORE_YEAR_10000 = 9999*365+9999/4-9999/100+9999/400;
+// The March-based calendar algorithm starts at 0000-03-01, 306 days before 0001-01-01.
+i64 _MARCH_EPOCH_DAYS = _DAYS_BEFORE_EPOCH+306;
+i64 MIN = -_DAYS_BEFORE_EPOCH*DAY; // 0001-01-01T00:00:00.000Z
+i64 MAX = (_DAYS_BEFORE_YEAR_10000-_DAYS_BEFORE_EPOCH)*DAY-1; // 9999-12-31T23:59:59.999Z
+
+// Access to the underlying LIBC functions
 int ISO=0, CLOCK12=1, CLOCK24=2, ELAPSED=3, DATE=4, CLOCK24_SECONDS=5;
 { i64 } simple_time_now = "C";
 { i64 } simple_time_mono = "C";
@@ -12,34 +31,36 @@ int ISO=0, CLOCK12=1, CLOCK24=2, ELAPSED=3, DATE=4, CLOCK24_SECONDS=5;
 { i64 i32 -> i32 } simple_time_sleep = "C";
 { i64 i64 -> i32 } simple_time_local = "C";
 { i64 i64 u32 -> i32 } simple_time_zone = "C";
-val now = { -> simple_time_now(); };
+val now       = { -> simple_time_now (); };
 val monotonic = { -> simple_time_mono(); };
-val nanoTime = { -> simple_time_nano(); };
-val sleep = { i64 ms -> simple_time_sleep(ms,0); };
-val sleepUntil = { i64 deadline -> simple_time_sleep(deadline,1); };
+val nanoTime  = { -> simple_time_nano(); };
+val sleep      = { i64 duration_ms -> simple_time_sleep(duration_ms,0); };
+val sleepUntil = { i64 deadline_ms -> simple_time_sleep(deadline_ms,1); };
 
-// Signed duration conversions. Overflow returns -1; reverse conversions truncate
-// toward zero. An exact duration day is 24 hours, independent of DST.
+// Signed duration conversions.  Overflow returns -1; reverse conversions truncate
+// toward zero.  An exact duration day is 24 hours, independent of DST.
 val _scale = { i64 n, i64 unit ->
-    if( n>LIMIT/unit || n<(-LIMIT-1)/unit ) return -1;
+    if( n>sys.integer.MAX_I64/unit || n<sys.integer.MIN_I64/unit ) return -1;
     return n*unit;
 };
 val seconds = { i64 n -> _scale(n,SECOND); };
 val minutes = { i64 n -> _scale(n,MINUTE); };
-val hours = { i64 n -> _scale(n,HOUR); };
-val days = { i64 n -> _scale(n,DAY); };
+val hours   = { i64 n -> _scale(n,HOUR); };
+val days    = { i64 n -> _scale(n,DAY); };
 val toSeconds = { i64 ms -> ms/SECOND; };
 val toMinutes = { i64 ms -> ms/MINUTE; };
-val toHours = { i64 ms -> ms/HOUR; };
-val toDays = { i64 ms -> ms/DAY; };
-val fromNanos = { i64 ns -> ns/1000000; };
-val toNanos = { i64 ms -> _scale(ms,1000000); };
+val toHours   = { i64 ms -> ms/HOUR; };
+val toDays    = { i64 ms -> ms/DAY; };
+val fromNanos = { i64 ns -> ns/NANOS_PER_MS; };
+val toNanos = { i64 ms -> _scale(ms,NANOS_PER_MS); };
+
 // Clamp to zero once due, and saturate for widely separated i64 readings.
-val remaining = { i64 deadline, i64 current ->
-    if( deadline<=current ) return 0;
-    if( current<0 && deadline>LIMIT+current ) return LIMIT;
-    return deadline-current;
+val remaining = { i64 deadline_ms, i64 current_ms ->
+    if( deadline_ms<=current_ms ) return 0;
+    if( current_ms<0 && deadline_ms>sys.integer.MAX_I64+current_ms ) return sys.integer.MAX_I64;
+    return deadline_ms-current_ms;
 };
+
 val _mod = { i64 n, i64 unit -> n-n/unit*unit; };
 val leap = { int year -> _mod(year,4)==0 && (_mod(year,100)!=0 || _mod(year,400)==0); };
 val monthDays = { int year, int month ->
@@ -53,24 +74,27 @@ val _days = { i64 year, i64 month, i64 day ->
     year -= month<=2 ? 1 : 0;
     i64 era=year/400, y=year-era*400;
     i64 mp=month+(month>2 ? -3 : 9);
-    return era*146097+y*365+y/4-y/100+(153*mp+2)/5+day-1-719468;
+    return era*_DAYS_PER_ERA+y*365+y/4-y/100+(153*mp+2)/5+day-1-_MARCH_EPOCH_DAYS;
 };
+
 val valid = { int year, int month, int day, int hour, int minute, int second, int millisecond ->
     return year>=1 && year<=9999 && month>=1 && month<=12 && day>=1 && day<=monthDays(year,month) &&
         hour>=0 && hour<=23 && minute>=0 && minute<=59 && second>=0 && second<=59 &&
         millisecond>=0 && millisecond<=999;
 };
+
 val makeUTC = { int year, int month, int day, int hour, int minute, int second, int millisecond ->
     if( !valid(year,month,day,hour,minute,second,millisecond) ) return -1;
     return _days(year,month,day)*DAY+hour*HOUR+minute*MINUTE+second*SECOND+millisecond;
 };
+
 val utc = { i64 instant ->
     val d=DateTime.empty();
     if( instant<MIN || instant>MAX ) return d;
     i64 day=instant/DAY, rest=_mod(instant,DAY);
     if( rest<0 ) { rest+=DAY; day--; }
-    i64 z=day+719468, era=z/146097, doe=z-era*146097;
-    i64 y=(doe-doe/1460+doe/36524-doe/146096)/365;
+    i64 z=day+_MARCH_EPOCH_DAYS, era=z/_DAYS_PER_ERA, doe=z-era*_DAYS_PER_ERA;
+    i64 y=(doe-doe/(_DAYS_PER_4_YEARS-1)+doe/_DAYS_PER_CENTURY-doe/(_DAYS_PER_ERA-1))/365;
     i64 doy=doe-(365*y+y/4-y/100), mp=(5*doy+2)/153;
     d.day=doy-(153*mp+2)/5+1;
     d.month=mp+(mp<10 ? 3 : -9);
@@ -81,6 +105,7 @@ val utc = { i64 instant ->
     if( d.weekday<0 ) d.weekday+=7;
     return d;
 };
+
 val local = { i64 instant ->
     val d=DateTime.empty();
     val f=new i64[10];
@@ -91,6 +116,7 @@ val local = { i64 instant ->
     d.weekday=f[7]; d.offsetSeconds=f[8]; d.daylight=f[9]!=0;
     return d;
 };
+
 val zoneName = { i64 instant ->
     val bytes=new u8[128];
     i64 ptr=bytes;
@@ -104,10 +130,11 @@ val zoneName = { i64 instant ->
 val _digits = { !aryu8 b, i64 n, int width ->
     text.integer(b,n,'d'|4096,width,-1);
 };
+
 val _format = { i64 instant, int style, bool localZone ->
-    val d=localZone ? local(instant) : utc(instant);
+    val d = localZone ? local(instant) : utc(instant);
     if( d.year==0 || style<0 || style>5 || style==3 ) return "<invalid time>";
-    val b=new aryu8();
+    val b = new aryu8();
     if( style==4 ) {
         _digits(b,d.day,2).add('/'); _digits(b,d.month,2).add('/'); _digits(b,_mod(d.year,100),2);
     } else {
@@ -161,8 +188,9 @@ val _number = { u8[~] s, i64 at, int count ->
     }
     return n;
 };
+
 // Keep suffix validation separate from calendar construction.
-val _parseZone_noInline = { u8[~] s, int at, i64 instant ->
+val _parseZone = { u8[~] s, int at, i64 instant ->
     if( at<0 || at>=s# ) return -1;
     i64 offset=0;
     if( s[at]=='Z' ) { if( at+1!=s# ) return -1; }
@@ -182,10 +210,10 @@ val _parseZone_noInline = { u8[~] s, int at, i64 instant ->
 // cannot distinguish the valid instant one millisecond before Unix epoch).
 val parse = { u8[~] s ->
     if( s#<20 || s[4]!='-' || s[7]!='-' || s[10]!='T' || s[13]!=':' || s[16]!=':' ) return -1;
-    int y=_number(s,0,4), m=_number(s,5,2), d=_number(s,8,2);
+    int y=_number(s, 0,4), m  =_number(s, 5,2), d  =_number(s, 8,2);
     int h=_number(s,11,2), min=_number(s,14,2), sec=_number(s,17,2);
     bool fraction=s[19]=='.';
     int ms=fraction ? _number(s,20,3) : 0;
     if( !valid(y,m,d,h,min,sec,ms) ) return -1;
-    return _parseZone_noInline(s,fraction ? 23 : 19,makeUTC(y,m,d,h,min,sec,ms));
+    return _parseZone(s,fraction ? 23 : 19,makeUTC(y,m,d,h,min,sec,ms));
 };

@@ -39,4 +39,4 @@ val key = { int key -> simple_gfx_key(key); };
 val close = { -> simple_gfx_close(); };
 // Wait for input or at most timeout milliseconds; 0 polls, -1 waits indefinitely.
 // This blocks the game thread, dispatches window events, and may wake early.
-val wait = { i64 timeout -> simple_gfx_wait(timeout); };
+val wait = { i64 timeout_ms -> simple_gfx_wait(timeout_ms); };

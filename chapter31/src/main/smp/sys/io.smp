@@ -21,7 +21,7 @@ val read = { i32 fd ->
             return null;
         }
         if( rez == 0 ) break;
-        if( buf.len+rez > 4294967295 ) {
+        if( buf.len+rez > sys.integer.MAX_U32 ) {
             libc.set_errno(libc.EOVERFLOW);
             return null;
         }

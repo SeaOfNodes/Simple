@@ -3,12 +3,12 @@
 
 // Geometric growth without wrapping a u32 length. Zero means too large.
 val capacity = { u32 current, i64 needed ->
-    if( needed < 0 || needed > 4294967295 ) return 0;
+    if( needed < 0 || needed > sys.integer.MAX_U32 ) return 0;
     if( needed <= current ) return current;
     i64 size = current ? current : 1;
     while( size < needed ) {
         size *= 2;
-        if( size > 4294967295 ) size = 4294967295;
+        if( size > sys.integer.MAX_U32 ) size = sys.integer.MAX_U32;
     }
     u32 result = size;
     return result;

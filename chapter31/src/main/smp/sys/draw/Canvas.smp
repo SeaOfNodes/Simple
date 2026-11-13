@@ -6,7 +6,7 @@ struct Canvas {
     new Canvas = { int w, int h ->
         i64 count = w;
         count *= h;
-        if( w<=0 || h<=0 || count>2147483647 ) libc._exit(1);
+        if( w<=0 || h<=0 || count>sys.integer.MAX_I32 ) libc._exit(1);
         width = w;
         height = h;
         pixels = new u32[count];
@@ -112,9 +112,12 @@ struct Canvas {
     };
 };
 
+// An old-school 3x5 font
 val _glyph = { u8 c ->
+    // Only space for upper-case letters in a 3x5 font
+    if( 'a' <= c <= 'z' )
+        c -= 'a'-'A';
     // Five octal digits: one 3-bit row per digit, top to bottom.
-    if( 'a'<=c<='z' ) c -= 'a'-'A';
     if( c==' ' ) return 000000;
     if( c=='0' ) return 075557;
     if( c=='1' ) return 026227;
@@ -155,6 +158,30 @@ val _glyph = { u8 c ->
     if( c=='-' ) return 000700;
     if( c=='.' ) return 000002;
     if( c==':' ) return 002020;
+    if( c==',' ) return 000024;
+    if( c==';' ) return 002024;
+    if( c=='\'' ) return 022000;
+    if( c=='"' ) return 055000;
+    if( c=='`' ) return 042000;
+    if( c=='/' ) return 011244;
+    if( c=='\\' ) return 044211;
+    if( c=='(' ) return 012221;
+    if( c==')' ) return 042224;
+    if( c=='[' ) return 032223;
+    if( c==']' ) return 062226;
+    if( c=='{' ) return 032423;
+    if( c=='}' ) return 062126;
+    if( c=='+' ) return 002720;
+    if( c=='=' ) return 007070;
+    if( c=='_' ) return 000007;
+    if( c=='<' ) return 012421;
+    if( c=='>' ) return 042124;
+    if( c=='|' ) return 022222;
+    if( c=='^' ) return 025000;
+    if( c=='~' ) return 003600;
+    if( c=='*' ) return 005250;
+    if( c=='#' ) return 057575;
+    if( c=='%' ) return 051245;
     if( c=='!' ) return 022202;
     if( c=='?' ) return 061202;
     return 061202;

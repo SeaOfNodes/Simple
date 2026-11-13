@@ -88,20 +88,27 @@ public class TimeTest extends TestC {
     @Test public void timerOrderingAndMissedTicks() throws Exception {
         checks("""
             val q=new sys.time.Timers();
-            if( q.poll(0)!=-1 || q.nextDeadline()!=-1 ) return 1;
-            i64 a=q.afterAt(100,20), b=q.afterAt(100,10), c=q.afterAt(100,10);
-            if( q.nextDeadline()!=110 || q.poll(109)!=-1 || q.poll(110)!=b || q.poll(110)!=c || q.poll(110)!=-1 ) return 2;
-            if( !q.cancel(a) || q.cancel(a) || q.cancel(-1) || q.nextDeadline()!=-1 ) return 3;
-            i64 repeat=q.everyAt(100,10);
-            if( q.poll(135)!=repeat || q.nextDeadline()!=140 || q.poll(135)!=-1 ) return 4;
+            if( q.poll(0)!=0 || q.nextDeadline()!=-1 ) return 1;
+            u32 a=q.afterAt(100,20), b=q.afterAt(100,10), c=q.afterAt(100,10);
+            if( a==0 || b==0 || c==0 ) return 10;
+            if( q.nextDeadline()!=110 || q.poll(109)!=0 || q.poll(110)!=b || q.poll(110)!=c || q.poll(110)!=0 ) return 2;
+            if( !q.cancel(a) || q.cancel(a) || q.cancel(0) || q.nextDeadline()!=-1 ) return 3;
+            u32 repeat=q.everyAt(100,10);
+            if( q.poll(135)!=repeat || q.nextDeadline()!=140 || q.poll(135)!=0 ) return 4;
             if( q.poll(140)!=repeat || q.nextDeadline()!=150 || !q.cancel(repeat) ) return 5;
-            for( int i=0; i<20; i++ ) if( q.afterAt(200,i)<0 ) return 11;
-            i64 prev=-1;
-            for( int i=0; i<20; i++ ) { i64 id=q.poll(300); if( id<=prev ) return 6; prev=id; }
-            if( q.nextDeadline()!=-1 || q.poll(1000)!=-1 ) return 7;
-            if( q.afterAt(-1,1)!=-1 || q.afterAt(0,-1)!=-1 || q.everyAt(0,0)!=-1 || q.afterAt(9223372036854775807,1)!=-1 ) return 8;
-            i64 last=q.everyAt(9223372036854775806,1);
-            if( last<0 || q.poll(9223372036854775807)!=last || q.nextDeadline()!=-1 ) return 9;
+            for( int i=0; i<20; i++ ) if( q.afterAt(200,i)==0 ) return 11;
+            u32 prev=0;
+            for( int i=0; i<20; i++ ) { u32 id=q.poll(300); if( id<=prev ) return 6; prev=id; }
+            if( q.nextDeadline()!=-1 || q.poll(1000)!=0 ) return 7;
+            if( q.afterAt(-1,1)!=0 || q.afterAt(0,-1)!=0 || q.everyAt(0,0)!=0 || q.afterAt(9223372036854775807,1)!=0 ) return 8;
+            u32 last=q.everyAt(9223372036854775806,1);
+            if( last==0 || q.poll(9223372036854775807)!=last || q.nextDeadline()!=-1 ) return 9;
+            // Exhaust IDs without wrapping or letting an old ID cancel a new timer.
+            q._next=0xfffffffe;
+            u32 high=q.afterAt(0,10), max=q.afterAt(0,10);
+            if( high!=0xfffffffe || max!=0xffffffff || q.afterAt(0,0)!=0 ) return 12;
+            if( q.cancel(a) || q.poll(10)!=high || q.poll(10)!=max || q.poll(10)!=0 ) return 13;
+            if( q.afterAt(0,0)!=0 || q.nextDeadline()!=-1 ) return 14;
             ""","timeTimers");
     }
 

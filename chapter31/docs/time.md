@@ -12,9 +12,9 @@ monotonic deadline.
 | `time.now()` | Unix-epoch milliseconds; may jump when the system clock changes. |
 | `time.monotonic()` | Monotonic milliseconds for elapsed time and deadlines. |
 | `time.nanoTime()` | Monotonic nanoseconds, with the clock's available resolution. |
-| `time.sleep(ms)` | Sleep for a nonnegative duration. |
-| `time.sleepUntil(deadline)` | Wait for a monotonic millisecond deadline; returns immediately if past. |
-| `time.remaining(deadline, current)` | Nonnegative difference, saturating on overflow. |
+| `time.sleep(duration_ms)` | Sleep for a nonnegative duration. |
+| `time.sleepUntil(deadline_ms)` | Wait for a monotonic millisecond deadline; returns immediately if past. |
+| `time.remaining(deadline_ms, current_ms)` | Nonnegative difference, saturating on overflow. |
 
 Clock errors return `-1`; sleeps return zero on success or `-1` on error,
 with `sys.libc.errno()` available. Interrupted sleeps resume rather than
@@ -27,7 +27,11 @@ to milliseconds. `toSeconds(ms)`, `toMinutes(ms)`, `toHours(ms)`, and
 `toDays(ms)` truncate toward zero. A duration day is exactly 24 hours,
 independent of daylight saving. `toNanos(ms)` and `fromNanos(ns)` convert
 between millisecond and nanosecond units. Multiplication overflow returns
-`-1`. Constants `SECOND`, `MINUTE`, `HOUR`, and `DAY` are also available.
+`-1`. Constants `SECOND`, `MINUTE`, `HOUR`, and `DAY` are also available,
+defined as `1000`, `60*SECOND`, `60*MINUTE`, and `24*HOUR` respectively.
+`NANOS_PER_MS` is `1000*1000`. Overflow checks use the shared
+`sys.integer.MIN_I64` and `MAX_I64` bounds; `MAX_I32` and `MAX_U32` in that
+module also describe the library's array and timer-ID limits.
 
 ## String interpolation
 
@@ -83,22 +87,28 @@ formatting and calendar conversion still support that instant.
 
 Create `val timers = new sys.time.Timers();` on the game thread:
 
+Timer IDs are `u32`, with `0` reserved for registration failure or no timer due.
+Deadlines, delays, and periods remain `i64` milliseconds; their parameter,
+field, and local names end in `_ms` to distinguish them from IDs.
+
 | Operation | Meaning |
 | --- | --- |
-| `after(delay)` | Register a one-shot timer; return its positive ID, or `-1`. |
-| `every(period)` | Register a repeating timer; period must be positive. |
-| `afterAt(current, delay)`, `everyAt(current, period)` | Supply a monotonic reading explicitly, useful for deterministic tests. |
+| `after(delay_ms)` | Register a one-shot timer; return its positive `u32` ID, or `0`. |
+| `every(period_ms)` | Register a repeating timer; period must be positive. Returns a `u32` ID, or `0`. |
+| `afterAt(current_ms, delay_ms)`, `everyAt(current_ms, period_ms)` | Supply a monotonic reading explicitly, useful for deterministic tests. |
 | `cancel(id)` | Remove a timer; return whether it was present. |
 | `nextDeadline()` | Earliest monotonic deadline, or `-1` if empty. |
-| `poll(current)` | Return the next due ID, or `-1` if none. |
+| `poll(current_ms)` | Return the next due `u32` ID, or `0` if none. |
 
 Poll repeatedly to drain due timers. Deadlines order delivery, then registration
 ID breaks ties. Repeating timers advance from their previous deadline, skipping
 missed ticks to the first future deadline rather than drifting or replaying a
 backlog. Deadline overflow rejects registration or cancels a repeating timer.
+IDs are never reused within a collection; registration fails once all nonzero
+`u32` IDs have been issued.
 There are no callbacks or timer threads: the caller handles each returned ID.
 
-`gfx.wait(timeoutMs)` processes events after waiting for input or a timeout:
+`gfx.wait(timeout_ms)` processes events after waiting for input or a timeout:
 zero polls, `-1` waits indefinitely, values below `-1` fail. It returns the same
 `OK`, `CLOSED`, or `ERROR` statuses as `gfx.poll`, and may wake early. Re-read the
 monotonic clock after each wake. This allows one thread to handle timers,

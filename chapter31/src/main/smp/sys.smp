@@ -7,6 +7,7 @@ val ary = ary;                  // Array utilities
 val aryi64 = aryi64;            // Variable sized array of i64
 val aryu8 = aryu8;              // Variable sized array of u8
 val char = char;                // Character utilities
+val integer = integer;          // Integer bounds
 val io = io;                    // IO library
 val gfx = gfx;                  // Optional pixel window (MiniFB)
 val draw = draw;                // Software raster drawing in Simple

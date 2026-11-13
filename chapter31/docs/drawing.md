@@ -50,6 +50,9 @@ Packed colors use hexadecimal literals (`0xRRGGBB`); `rgb(r,g,b)` remains handy
 for computed components. The font masks use leading-zero octal, with five
 digits after the prefix: each digit is one three-pixel row, top to bottom.
 For example, `A` is `025755`: rows `010`, `101`, `111`, `101`, `101`.
+The font includes all printable ASCII punctuation except `@`, `&`, and `$`,
+which use the question-mark fallback. Colons and slashes support clock and date
+labels; quotes, brackets, arithmetic signs, and other small symbols fit in 3×5.
 
 ## Button widget
 
