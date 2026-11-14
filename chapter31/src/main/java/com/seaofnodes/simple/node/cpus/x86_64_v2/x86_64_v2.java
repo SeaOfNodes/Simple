@@ -294,6 +294,7 @@ public class x86_64_v2 extends Machine {
     public Node instSelect(Node n) {
         return switch (n) {
         case AddNode      add -> add(add);
+        case Intrinsic.BitCastNode cast -> new BitCastX86(cast);
         case AndNode      and -> and(and);
         case BoolNode    bool -> cmp(bool);
         case CLInitNode  init -> new CLInitNode(init);
@@ -310,10 +311,7 @@ public class x86_64_v2 extends Machine {
         case IfNode       iff -> jmp(iff);
         case LoadNode      ld -> ld(ld);
         case MemMergeNode mem -> new MemMergeNode(mem);
-        case MinusNode    neg -> {
-            if( neg.mode()==2 ) throw Utils.TODO();
-            yield new NegX86(neg);
-        }
+        case MinusNode    neg -> neg.mode()==2 ? new NegFX86(neg) : new NegX86(neg);
         case MulNode      mul -> mul.mode()==2 ? new MulFX86(mul) : mul(mul);
         case NewNode      nnn -> new NewX86(nnn);
         case NotNode      not -> new NotX86(not);

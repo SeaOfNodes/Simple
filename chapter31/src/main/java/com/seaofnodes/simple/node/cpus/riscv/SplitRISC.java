@@ -47,7 +47,7 @@ public class SplitRISC extends SplitNode {
             // FPR->FPR
             src -= riscv.F_OFFSET;
             dst -= riscv.F_OFFSET;
-            enc.add4(RiscV.r_type(RiscV.OP_FP, dst, 0b000, src, src, 0b0010101)); // dst = FMIN(src,src)
+            enc.add4(RiscV.r_type(RiscV.OP_FP, dst, 0b000, src, src, 0b0010001)); // FSGNJ.D preserves NaN bits.
         } else if(!srcX && dstX) {
             //GPR->FPR
             // fmv.d.x

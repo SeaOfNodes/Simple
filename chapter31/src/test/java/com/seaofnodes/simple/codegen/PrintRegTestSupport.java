@@ -3,6 +3,30 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.TypeInteger;
 import static org.junit.Assert.*;
 public class PrintRegTestSupport {
+    public static void checkDataAliases(java.nio.file.Path file, int size, String... names) {
+        ElfReader elf=ElfReader.load(file.toFile(),null);
+        assertNotNull(elf);
+        ElfReader.Section symbols=java.util.Arrays.stream(elf._sections)
+            .filter(s -> ".symtab".equals(s._name)).findFirst().orElseThrow();
+        ElfReader.Section strings=elf._sections[symbols._link];
+        var bytes=java.nio.ByteBuffer.wrap(elf._buf).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        var wanted=new java.util.HashSet<>(java.util.Arrays.asList(names));
+        Long address=null;
+        for( int i=0; i<symbols._size/symbols._esize; i++ ) {
+            int off=(int)symbols._offset+i*symbols._esize;
+            String name=strings.str(bytes.getInt(off));
+            if( !wanted.remove(name) ) continue;
+            assertTrue("Debug aliases precede global symbols",i<symbols._info);
+            assertEquals("Local object symbol",1,bytes.get(off+4)&255);
+            assertEquals(".rodata",elf._sections[bytes.getShort(off+6)&65535]._name);
+            assertEquals(size,bytes.getLong(off+16));
+            long value=bytes.getLong(off+8);
+            if( address!=null ) assertEquals("Aliases share storage",address.longValue(),value);
+            address=value;
+        }
+        assertTrue("Missing debug symbols: "+wanted,wanted.isEmpty());
+    }
+
     public static void check() throws Exception {
         var code = new CodeGen("return 0;").parse();
         var alloc = new RegAlloc(code);

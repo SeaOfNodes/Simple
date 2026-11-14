@@ -28,7 +28,7 @@ public class ConvertNodeTest {
                 for( boolean arrayRO : new boolean[]{false,true} )
                     inputs.add(TypeMemPtr.make(TypeStruct.makeAry("[]test",len,-1,
                         TypeMemPtr.TEST.withAccess(elementRO),-2,false)).withAccess(arrayRO));
-        inputs.add(TypeConAryB.make(new byte[]{1,2,3}));
+        inputs.add(TypeConAry.make(new byte[]{1,2,3}));
         for( long value : new long[]{Long.MIN_VALUE,-129,-128,-1,0,1,127,128,255,256,Long.MAX_VALUE} )
             inputs.add(TypeInteger.constant(value));
         for( double value : new double[]{-0.0,0.0,1.0,16777217.0,Double.NaN,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY} )

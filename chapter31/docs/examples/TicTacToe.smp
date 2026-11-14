@@ -21,7 +21,7 @@ val main = { u8[~][] args ->
         // Compute CPU move
         int reply = _cpu(board);
         // Set CPU choice; print board
-        board[reply]='O';
+        board[reply] = 'O';
         sys.io.p("CPU plays %(reply+1).\n");
         _draw(board);
         // A winner?
@@ -61,37 +61,37 @@ val _validMove =  { u8[~] board ->
 
 // Return the winning mark, or zero.
 val _winner = { u8[~] board ->
-    for( int i=0; i<3; i++ ) {
+    for( int i = 0; i < 3; i++ ) {
         int row = i*3;
-        if( board[row]!=' ' && board[row]==board[row+1] && board[row]==board[row+2] )
+        if( board[row] != ' ' && board[row] == board[row+1] && board[row] == board[row+2] )
             return board[row];
-        if( board[i]!=' ' && board[i]==board[i+3] && board[i]==board[i+6] )
+        if( board[i] != ' ' && board[i] == board[i+3] && board[i] == board[i+6] )
             return board[i];
     }
-    if( board[4]!=' ' ) {
-        if( board[0]==board[4] && board[4]==board[8] ) return board[4];
-        if( board[2]==board[4] && board[4]==board[6] ) return board[4];
+    if( board[4] != ' ' ) {
+        if( board[0] == board[4] && board[4] == board[8] ) return board[4];
+        if( board[2] == board[4] && board[4] == board[6] ) return board[4];
     }
     return 0;
 };
 
 val _finished = { u8[~] board ->
     int winner = _winner(board);
-    if( winner=='X' ) { sys.io.p("You win!\n"); return true; }
-    if( winner=='O' ) { sys.io.p("CPU wins!\n"); return true; }
-    for( int i=0; i<board#; i++ )
-        if( board[i]==' ' ) return false;
+    if( winner == 'X' ) { sys.io.p("You win!\n"); return true; }
+    if( winner == 'O' ) { sys.io.p("CPU wins!\n"); return true; }
+    for( int i = 0; i < board#; i++ )
+        if( board[i] == ' ' ) return false;
     sys.io.p("It's a draw!\n");
     return true;
 };
 
 // Try each empty square, restoring it before returning.
 val _threat = { u8[] board, u8 mark ->
-    for( int i=0; i<board#; i++ ) {
-        if( board[i]==' ' ) {
-            board[i]=mark;
-            bool wins = _winner(board)==mark;
-            board[i]=' ';       // Restore board
+    for( int i = 0; i < board#; i++ ) {
+        if( board[i] == ' ' ) {
+            board[i] = mark;
+            bool wins = _winner(board) == mark;
+            board[i] = ' ';       // Restore board
             if( wins ) return i;
         }
     }
@@ -103,30 +103,30 @@ val _threat = { u8[] board, u8 mark ->
 val _cpu = { u8[] board ->
     // If O can win, do so
     int win = _threat(board,'O');
-    if( win>=0 ) return win;
+    if( win >= 0 ) return win;
     // If X will win next move, block
     int block = _threat(board,'X');
-    if( block>=0 ) return block;
+    if( block >= 0 ) return block;
     // If center is open, take it
-    if( board[4]==' ' ) return 4;
+    if( board[4] == ' ' ) return 4;
     // If a corner is open, take it
-    for( int i=0; i<board#; i+=2 )
-        if( board[i]==' ' ) return i;
+    for( int i = 0; i < board#; i += 2 )
+        if( board[i] == ' ' ) return i;
     // Take whatever is available
-    for( int i=0; i<board#; i++ )
-        if( board[i]==' ' ) return i;
+    for( int i = 0; i < board#; i++ )
+        if( board[i] == ' ' ) return i;
     return -1;
 };
 
 val _draw = { u8[~] board ->
     val out = new sys.aryu8();
-    for( int row=0; row<3; row++ ) {
-        for( int col=0; col<3; col++ ) {
+    for( int row = 0; row < 3; row++ ) {
+        for( int col = 0; col < 3; col++ ) {
             out.add(' ').add(board[row*3+col]).add(' ');
-            if( col<2 ) out.add('|');
+            if( col < 2 ) out.add('|');
         }
         out.add('\n');
-        if( row<2 ) out.addAry("---+---+---\n");
+        if( row < 2 ) out.addAry("---+---+---\n");
     }
     out.write(sys.libc.STDOUT);
 };

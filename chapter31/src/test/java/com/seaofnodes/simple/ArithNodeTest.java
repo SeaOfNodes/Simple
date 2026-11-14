@@ -65,7 +65,7 @@ public class ArithNodeTest {
         TypePtr.gather(inputs);
         TypeMemPtr.gather(inputs);
         TypeFunPtr.gather(inputs);
-        inputs.add(TypeConAryB.make(new byte[]{1,2,3}));
+        inputs.add(TypeConAry.make(new byte[]{1,2,3}));
         for( long value : new long[]{Long.MIN_VALUE,Long.MIN_VALUE+1,-1,1,Long.MAX_VALUE} )
             inputs.add(TypeInteger.constant(value));
         for( double value : new double[]{-0.0,0.0,-1.0,1.0,16777216.0,16777217.0,Double.NaN,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY} )

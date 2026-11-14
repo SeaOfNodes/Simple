@@ -14,37 +14,37 @@ struct Timers {
 
     // Add a new timer
     { i64 i64 i64 -> u32 } _add = { i64 current_ms, i64 delay_ms, i64 period_ms ->
-        if( current_ms<0 || delay_ms<0 || current_ms>sys.integer.MAX_I64-delay_ms || _next==0 ) return 0;
+        if( current_ms < 0 || delay_ms < 0 || current_ms > sys.integer.MAX_I64-delay_ms || _next == 0 ) return 0;
         // Ugly linear scan for an available slot
-        int slot=0;
-        while( slot<_ids# && _ids[slot]!=0 ) slot++;
+        int slot = 0;
+        while( slot < _ids# && _ids[slot] != 0 ) slot++;
         // Double size for lots of timers
-        if( slot==_ids# ) {
-            if( _ids#>sys.integer.MAX_I32/2 ) return 0;
+        if( slot == _ids# ) {
+            if( _ids# > sys.integer.MAX_I32/2 ) return 0;
             val ids = new u32[_ids#*2];
             val due_ms = new i64[_ids#*2], periods_ms = new i64[_ids#*2];
-            for( int i=0; i<_ids#; i++ ) { ids[i]=_ids[i]; due_ms[i]=_due_ms[i]; periods_ms[i]=_period_ms[i]; }
-            _ids=ids; _due_ms=due_ms; _period_ms=periods_ms;
+            for( int i = 0; i < _ids#; i++ ) { ids[i] = _ids[i]; due_ms[i] = _due_ms[i]; periods_ms[i] = _period_ms[i]; }
+            _ids = ids; _due_ms = due_ms; _period_ms = periods_ms;
             // Retry against the newly published arrays after growing.
             return _add(current_ms,delay_ms,period_ms);
         }
         // Next available timer id
         u32 id = _next;
-        _next = id==sys.integer.MAX_U32 ? 0 : id+1;
-        _ids[slot]=id; _due_ms[slot]=current_ms+delay_ms; _period_ms[slot]=period_ms;
+        _next = id == sys.integer.MAX_U32 ? 0 : id+1;
+        _ids[slot] = id; _due_ms[slot] = current_ms+delay_ms; _period_ms[slot] = period_ms;
         return id;
     };
 
     // Explicit-clock versions make game logic and tests deterministic.
     { i64 i64 -> u32 } afterAt = { i64 current_ms, i64 delay_ms -> _add(current_ms,delay_ms,0); };
-    { i64 i64 -> u32 } everyAt = { i64 current_ms, i64 period_ms -> period_ms<=0 ? 0 : _add(current_ms,period_ms,period_ms); };
+    { i64 i64 -> u32 } everyAt = { i64 current_ms, i64 period_ms -> period_ms <= 0 ? 0 : _add(current_ms,period_ms,period_ms); };
     { i64 -> u32 } after = { i64 delay_ms  -> afterAt(time.monotonic(),delay_ms ); };
     { i64 -> u32 } every = { i64 period_ms -> everyAt(time.monotonic(),period_ms); };
 
     // Remove a timer
     val cancel = { u32 id ->
-        if( id==0 ) return false;
-        for( int i=0; i<_ids#; i++ ) if( _ids[i]==id ) { _ids[i]=0; return true; }
+        if( id == 0 ) return false;
+        for( int i = 0; i < _ids#; i++ ) if( _ids[i] == id ) { _ids[i] = 0; return true; }
         return false;
     };
 
@@ -52,8 +52,8 @@ struct Timers {
     val nextDeadline = { ->
         i64 next_ms = -1;
         // Ugly linear scan again, but short
-        for( int i=0; i<_ids#; i++ )
-            if( _ids[i]!=0 && (next_ms<0 || _due_ms[i] < next_ms) ) next_ms = _due_ms[i];
+        for( int i = 0; i < _ids#; i++ )
+            if( _ids[i] != 0 && (next_ms < 0 || _due_ms[i] < next_ms) ) next_ms = _due_ms[i];
         return next_ms;
     };
 
@@ -63,16 +63,16 @@ struct Timers {
     // Repeats skip missed ticks and retain their phase, avoiding bursts/drift.
     { i64 -> u32 } poll = { i64 current_ms ->
         int slot = -1;
-        for( int i=0; i<_ids#; i++ )
-            if( _ids[i]!=0 && _due_ms[i]<=current_ms && (slot<0 || _due_ms[i]<_due_ms[slot] ||
-                (_due_ms[i]==_due_ms[slot] && _ids[i]<_ids[slot])) ) slot=i;
-        if( slot<0 ) return 0;
+        for( int i = 0; i < _ids#; i++ )
+            if( _ids[i] != 0 && _due_ms[i] <= current_ms && (slot < 0 || _due_ms[i] < _due_ms[slot] ||
+                (_due_ms[i] == _due_ms[slot] && _ids[i] < _ids[slot])) ) slot = i;
+        if( slot < 0 ) return 0;
         u32 id = _ids[slot];
         i64 period_ms = _period_ms[slot];
-        if( period_ms==0 ) _ids[slot]=0;
+        if( period_ms == 0 ) _ids[slot] = 0;
         else {
             i64 steps = (current_ms-_due_ms[slot])/period_ms;
-            if( steps>=(sys.integer.MAX_I64-_due_ms[slot])/period_ms ) _ids[slot]=0;
+            if( steps >= (sys.integer.MAX_I64-_due_ms[slot])/period_ms ) _ids[slot] = 0;
             else _due_ms[slot] += (steps+1)*period_ms;
         }
         return id;

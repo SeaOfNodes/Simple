@@ -1,0 +1,15 @@
+// Mathematical constants, rounded to the nearest f64 value.
+val PI = 3.141592653589793;
+val E  = 2.718281828459045;
+
+// Fixed-semantics C bindings recognized by the compiler's intrinsic inliner.
+// These preserve all 64 bits, including signed zero and NaN payloads.
+// They are NOT numeric conversions (ordinary typed assignments still are).
+{ f64 -> i64 } simple_f64_bits = "C";
+{ i64 -> f64 } simple_f64_from_bits = "C";
+val f64Bits = simple_f64_bits;
+val f64FromBits = simple_f64_from_bits;
+
+
+val max = { f64 x, f64 y -> return x > y ? x : y; };
+val min = { f64 x, f64 y -> return x < y ? x : y; };

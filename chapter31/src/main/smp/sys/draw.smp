@@ -7,9 +7,9 @@ u32 BLUE  = 0x0000ff;
 
 // Components are clamped to bytes rather than wrapping.
 val rgb = { int r, int g, int b ->
-    r = r<0 ? 0 : r>255 ? 255 : r;
-    g = g<0 ? 0 : g>255 ? 255 : g;
-    b = b<0 ? 0 : b>255 ? 255 : b;
+    r = r < 0 ? 0 : r > 255 ? 255 : r;
+    g = g < 0 ? 0 : g > 255 ? 255 : g;
+    b = b < 0 ? 0 : b > 255 ? 255 : b;
     u32 color = (r<<16) | (g<<8) | b;
     return color;
 };

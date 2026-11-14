@@ -16,13 +16,16 @@ import java.util.Map;
 public final class ASMPrinter extends AssemblyAdapter<Node> {
     private final CodeGen _code;
     private final Encoding _enc;
-    private ASMPrinter(CodeGen code) {
+    private ASMPrinter(CodeGen code, Encoding enc) {
         super(new IRPrinter());
         _code=code;
-        _enc=code._encoding;
+        _enc=enc;
     }
     public static SB print(SB sb, CodeGen code) {
-        return sb.p(new com.seaofnodes.print.ASMPrinter<>(new ASMPrinter(code)).print());
+        return print(sb,code,code._encoding);
+    }
+    public static SB print(SB sb, CodeGen code, Encoding enc) {
+        return sb.p(new com.seaofnodes.print.ASMPrinter<>(new ASMPrinter(code,enc)).print());
     }
     @Override public ArrayList<Node> blocks() {
         var blocks=new ArrayList<Node>();
@@ -89,7 +92,7 @@ public final class ASMPrinter extends AssemblyAdapter<Node> {
         var data=new ArrayList<Data>();
         for( var obj : _enc._data.entries() )
             if( !obj.external && obj.readOnly==ro )
-                data.add(new Data(obj,obj.symbol+": "+obj.type.str(),obj.alignment,obj.size));
+                data.add(new Data(obj,obj.label()+": "+obj.type.str(),obj.alignment,obj.size));
         return data;
     }
     // Retain this diagnostic entry point for checking that pool printing never lays out types.

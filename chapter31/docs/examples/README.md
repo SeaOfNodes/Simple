@@ -16,6 +16,30 @@ Run `make run-clock CTAGS=`; click the button or press Space to switch faces,
 and Q/Escape to exit. Both faces show system-local time.
 `make clock-example CTAGS=` builds it without starting a window.
 
+The [Breakout game](Breakout.smp) has 24 columns and 8 rows, with colors and
+point values by depth: 1 at the bottom through 8 at the top, 864 points total.
+Clear the wall before losing all three balls. Mouse movement or the arrow keys
+move the paddle; Space/left click serves, P pauses, R restarts, Q/Escape exits.
+Run `make run-breakout CTAGS=` or build only with `make breakout CTAGS=`.
+The familiar paddle, serve, and limited-ball rules follow
+[Atari's Breakout instructions](https://atari.com/pages/breakout).
+
+The deepest row reached with the current ball sets the base speed: 320 pixels/second plus 35 for
+each additional depth. After touching the back wall, hitting the top of a brick
+activates a **one-time 1.65x speed boost**; side/front hits do not. Returning to
+the paddle disarms that trip's back-wall opportunity. Losing a ball resets depth
+and boost, so each new ball starts at 320 pixels/second and can earn its own
+back-wall boost. Edge hits on the paddle give a wider
+rebound than center hits. Clear all bricks to win; no new wall replaces them.
+
+Physics uses fixed 8 ms ticks with movement split into steps of at most two
+pixels, including at boosted speed. Rendering runs roughly every 16 ms. The
+brick and sound tables demonstrate array initializers; the short bounce tones
+use read-only PCM arrays made by index functions. Brick boops rise in pitch with
+row depth, from about 333 Hz at the bottom to 800 Hz at the top. Audio is optional. Native
+tests in `BreakoutTest` exercise collisions, scoring, lives, pause, paddle angles,
+the boost, and clearing the whole wall without a display or audio device.
+
 From `chapter31`, build the tic-tac-toe executable (without starting it):
 
 ```sh

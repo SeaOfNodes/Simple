@@ -318,11 +318,15 @@ public class ElfWriter {
         _strtab = new StringSection();
 
         // place all the symbols
+        Encoding enc = _code._encoding;
         int nlocals = 1/*null*/+9/*number of sections*/+1/*Simple section*/;
+        int debugLocals=0;
+        for( StaticData.ObjectData obj : enc._data.objects.values() )
+            if( !obj.external ) debugLocals+=obj.debugNames.size();
+        nlocals+=debugLocals;
         SymbolSection symbols = new SymbolSection(nlocals);
 
         // we've already constructed these entire sections in the encoding phase
-        Encoding enc = _code._encoding;
         // Append ELF-only thunks to a copy. Export must not change instruction
         // offsets or the image used by the in-memory linker and emulators.
         BAOS textBits = new BAOS(enc._bits.toByteArray(),enc._bits.size());
@@ -402,10 +406,17 @@ public class ElfWriter {
         SimpleSection simple = new SimpleSection(_code._serial);
 
         // Write the local section header symbols
-        assert nlocals == 1+_sections._len;
+        assert nlocals == 1+_sections._len+debugLocals;
         symbols.symbol("",0,0,0); // Null symbol at index 0
         for( Section s : _sections )
             symbols.symbol(s._name, s._index, SYM_BIND_LOCAL, SYM_TYPE_SECTION, 0, s.size());
+        // Local aliases describe the pooled object without changing linkage.
+        // Several source constants may name the same bytes.
+        for( StaticData.ObjectData obj : enc._data.objects.values() )
+            if( !obj.external )
+                for( String name : obj.debugNames )
+                    symbols.symbol(name,obj.readOnly ? rodata._index : rwdata._index,
+                                   SYM_BIND_LOCAL,SYM_TYPE_OBJECT,obj.offset,obj.size);
 
         int size = 64; // ELF header size
         // size of all section data

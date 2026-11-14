@@ -335,7 +335,19 @@ public class EvalRisc5 {
                 case  1:  frval = lhs - rhs;  break;  // fsub.d
                 case  2:  frval = lhs * rhs;  break;  // fmul.d
                 case  3:  frval = lhs / rhs;  break;  // fdiv.d
-                case  5:  frval = Math.min(lhs,rhs); break; // fmin.d, also used for move
+                case 4: { // FSGNJ.D / FSGNJN.D / FSGNJX.D (FMV.D uses FSGNJ.D)
+                    long left = Double.doubleToRawLongBits(lhs);
+                    long right = Double.doubleToRawLongBits(rhs);
+                    long sign = switch((ir >> 12)&7) {
+                    case 0 -> right;
+                    case 1 -> ~right;
+                    case 2 -> left ^ right;
+                    default -> throw new UnsupportedOperationException();
+                    };
+                    frval = Double.longBitsToDouble((left & Long.MAX_VALUE) | (sign & Long.MIN_VALUE));
+                    break;
+                }
+                case 5: frval = Math.min(lhs,rhs); break; // FMIN.D
                 case 20:
                     is_f = false; // Output into a GPR
                     rval = switch( (ir >> 12) & 7 ) {
@@ -351,10 +363,15 @@ public class EvalRisc5 {
                     rval = Double.isNaN(lhs) ? Long.MAX_VALUE : (long)lhs;
                     break;
                 case 26:  frval = (double)regs[rs1]; break; // fcvt.d.l
-                case 28: { // FCLASS.D
-                    if( rs2!=0 || ((ir>>12)&7)!=1 ) throw new UnsupportedOperationException();
+                case 28: { // FMV.X.D / FCLASS.D
+                    if( rs2!=0 ) throw new UnsupportedOperationException();
                     is_f = false;
                     long bits = Double.doubleToRawLongBits(lhs);
+                    if( ((ir>>12)&7)==0 ) {
+                        rval = bits;
+                        break;
+                    }
+                    if( ((ir>>12)&7)!=1 ) throw new UnsupportedOperationException();
                     boolean neg = bits<0;
                     int kind = Double.isNaN(lhs) ? ((bits&(1L<<51))==0 ? 8 : 9)
                         : Double.isInfinite(lhs) ? (neg ? 0 : 7)
@@ -364,6 +381,10 @@ public class EvalRisc5 {
                     rval = 1L<<kind;
                     break;
                 }
+                case 30: // FMV.D.X
+                    if( rs2!=0 || ((ir>>12)&7)!=0 ) throw new UnsupportedOperationException();
+                    frval = Double.longBitsToDouble(regs[rs1]);
+                    break;
                 default:
                     trap  = (2+1); // Fault: Invalid opcode.
                     throw new UnsupportedOperationException();

@@ -366,21 +366,6 @@ as design references. Decide ownership, borrowing, sharing, cycles, and native
 retention together with the existing object and array model. This is a language
 design candidate, independent of compact pointer storage.
 
-### A small graphical game
-
-Chapter 31 follows ASCII tic-tac-toe with a graphical version, using
-[software drawing in Simple](../chapter31/docs/drawing.md) and an optional
-MiniFB window/input backend. The initial library supplies colors, rectangles,
-circles, thick lines, and bitmap labels. Mouse/keyboard turns and replay
-exercise that boundary without requiring an animated game engine.
-
-Optional [background audio](../chapter31/docs/audio.md) uses miniaudio for
-soft move sounds and ascending/descending win/loss cues. Further games remain
-future work; MiniFB supplies only the window and input boundary.
-
-Chapter 31 also implements [time and single-threaded animation](../chapter31/docs/time.md),
-including cooperative timers and responsive input waits.
-
 ### Structs with trailing arrays
 
 Allow named fields followed by an array length and inline element storage:

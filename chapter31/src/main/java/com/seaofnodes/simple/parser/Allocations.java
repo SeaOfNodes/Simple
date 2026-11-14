@@ -124,7 +124,7 @@ final class Allocations {
         TypeStruct ts = P.types.typeAry(TypeInteger.U8,true);
         int  lenAlias = ts.field("#" )._alias;
         int elemAlias = ts.field("[]")._alias;
-        TypeConAryB body = TypeConAryB.make(s);
+        TypeConAry body = TypeConAry.make(s);
         TypeInteger slen = TypeInteger.constant(s.length);
         // Make a TMP, not-null (byte)2, singleton (true) (requires text
         // strings are hash-interned), with a TypeStruct having a constant

@@ -1,7 +1,5 @@
 # Chapter 30: Text Formatting and Diagnostics
 
-English | [日本語](README.ja.md)
-
 [Previous: Chapter 29 — Tech Debt Cleanup](../chapter29/README.md)
 
 This chapter uses a small game to drive improvements in the compiler and the

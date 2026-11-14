@@ -110,6 +110,7 @@ public abstract class Eval2 {
 
     // Class pointers and initializer self parameters share one object per run.
     private static final HashMap<String,Object[]> CLASSES = new HashMap<>();
+    private static final IdentityHashMap<TypeStruct,Object[]> ARRAYS = new IdentityHashMap<>();
 
     public static String eval( CodeGen code, long arg ) { return eval(code,arg,1000); }
     public static String eval( CodeGen code, long arg, int timeout ) {
@@ -122,6 +123,7 @@ public abstract class Eval2 {
         // selection. Objects loaded later are scheduled independently.
         code.driver(CodeGen.Phase.LocalSched);
         CLASSES.clear();
+        ARRAYS.clear();
 
         // Timer for when we run too long.  Ticks once per backedge or function call
         int loopCnt = 0;
@@ -334,6 +336,8 @@ public abstract class Eval2 {
         case RoundF32Node rnd  -> (double)(float)d(rnd.in(1));
         case ToIntegerNode cvt -> (long)d(cvt.in(1));
         case ToFloatNode  toflt-> (double)x(toflt.in(1));
+        case Intrinsic.F64BitsNode cast -> Double.doubleToRawLongBits(d(cast.in(1)));
+        case Intrinsic.F64FromBitsNode cast -> Double.longBitsToDouble(x(cast.in(1)));
         case XorNode      xor  -> x(xor.in(1)) ^  x(xor.in(2));
         default -> throw Utils.TODO();
         };
@@ -361,9 +365,12 @@ public abstract class Eval2 {
             if( tmp._obj.isAry() ) { // Constant array ptr
                 Type elem = tmp._obj.field("[]")._t;
                 if( elem instanceof TypeConAry con ) {
+                    Object[] old=ARRAYS.get(tmp._obj);
+                    if( old!=null ) yield old;
                     Object[] xs = new Object[con.len()];
                     for( int i=0; i<con.len(); i++ )
                         xs[i] = con.at8(i);
+                    ARRAYS.put(tmp._obj,xs);
                     yield xs;
                 } else {
                     // Generic constant array, used as a default input to a

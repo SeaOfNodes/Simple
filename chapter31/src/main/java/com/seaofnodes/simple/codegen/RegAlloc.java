@@ -215,7 +215,7 @@ public class RegAlloc {
         _deferredLoopSelf.clear();
         for( byte round=0; !graphColor(round); round++ ) {
             split(round);
-            if( round >= 7 ) {
+            if( round >= 10 ) {
                 FunNode fun = _cfg.at(0).fun();
                 throw new IllegalStateException("Register allocation failed after eight rounds in "+
                                                 (fun==null ? "<root>" : fun.label()));

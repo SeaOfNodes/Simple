@@ -107,7 +107,7 @@ public class TypeFloat extends TypeScalar {
         else {
             assert isConstant();
             baos.write(TAGOFFS[_type] + 2);
-            baos.packed8(Double.doubleToLongBits(_con));
+            baos.packed8(Double.doubleToRawLongBits(_con));
         }
     }
 
@@ -121,12 +121,12 @@ public class TypeFloat extends TypeScalar {
     }
 
     @Override
-    int hash() { return (int)(Double.hashCode(_con) ^ _sz ^ (1<<17)); }
+    int hash() { return Long.hashCode(Double.doubleToRawLongBits(_con)) ^ _sz ^ (1<<17); }
     @Override
     public boolean eq( Type t ) {
         TypeFloat i = (TypeFloat)t; // Contract
-        // Allow NaN to check for equality
-        return _sz==i._sz && Double.doubleToLongBits(_con)==Double.doubleToLongBits(i._con);
+        // Representation conversions observe NaN signs/payloads and signed zero.
+        return _sz==i._sz && Double.doubleToRawLongBits(_con)==Double.doubleToRawLongBits(i._con);
     }
 
 }

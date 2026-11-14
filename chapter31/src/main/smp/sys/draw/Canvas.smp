@@ -6,39 +6,39 @@ struct Canvas {
     new Canvas = { int w, int h ->
         i64 count = w;
         count *= h;
-        if( w<=0 || h<=0 || count>sys.integer.MAX_I32 ) libc._exit(1);
+        if( w <= 0 || h <= 0 || count > sys.integer.MAX_I32 ) libc._exit(1);
         width = w;
         height = h;
         pixels = new u32[count];
     };
 
     val clear = { u32 color ->
-        for( int i=0; i<pixels#; i++ ) pixels[i] = color;
+        for( int i = 0; i < pixels#; i++ ) pixels[i] = color;
         return self;
     };
 
     val pixel = { i64 x, i64 y, u32 color ->
-        if( 0<=x<width && 0<=y<height ) pixels[y*width+x] = color;
+        if( 0 <= x < width && 0 <= y < height ) pixels[y*width+x] = color;
         return self;
     };
 
     // Integer coordinates, top-left origin. Rectangle extents are half-open.
     val fillRect = { i64 x, i64 y, i64 w, i64 h, u32 color ->
-        if( w<=0 || h<=0 ) return self;
+        if( w <= 0 || h <= 0 ) return self;
         i64 right = x; right += w;
         i64 bottom = y; bottom += h;
-        if( right<=0 || bottom<=0 || x>=width || y>=height ) return self;
-        int x0 = x<0 ? 0 : x, y0 = y<0 ? 0 : y;
-        int x1 = right>width ? width : right, y1 = bottom>height ? height : bottom;
-        for( int py=y0; py<y1; py++ )
-            for( int px=x0; px<x1; px++ ) pixels[py*width+px] = color;
+        if( right <= 0 || bottom <= 0 || x >= width || y >= height ) return self;
+        int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y;
+        int x1 = right > width ? width : right, y1 = bottom > height ? height : bottom;
+        for( int py = y0; py < y1; py++ )
+            for( int px = x0; px < x1; px++ ) pixels[py*width+px] = color;
         return self;
     };
 
     // Outline stays inside the rectangle. Wide borders become a filled rect.
     val rect = { i64 x, i64 y, i64 w, i64 h, i64 thickness, u32 color ->
-        if( w<=0 || h<=0 || thickness<=0 ) return self;
-        if( thickness>=w || thickness>=h || thickness>=w-thickness || thickness>=h-thickness )
+        if( w <= 0 || h <= 0 || thickness <= 0 ) return self;
+        if( thickness >= w || thickness >= h || thickness >= w-thickness || thickness >= h-thickness )
             return fillRect(x,y,w,h,color);
         fillRect(x,y,w,thickness,color);
         fillRect(x,y+h-thickness,w,thickness,color);
@@ -54,23 +54,23 @@ struct Canvas {
         return _circle(cx,cy,radius,thickness,false,color);
     };
     val _circle = { i64 cx, i64 cy, int radius, int thickness, bool filled, u32 color ->
-        if( radius<0 || (!filled && thickness<=0) ) return self;
+        if( radius < 0 || (!filled && thickness <= 0) ) return self;
         i64 left = cx; left -= radius;
         i64 top = cy; top -= radius;
         i64 right = cx; right += radius;
         i64 bottom = cy; bottom += radius;
-        if( right<0 || bottom<0 || left>=width || top>=height ) return self;
-        int x0 = left<0 ? 0 : left, y0 = top<0 ? 0 : top;
-        int x1 = right>=width ? width-1 : right, y1 = bottom>=height ? height-1 : bottom;
+        if( right < 0 || bottom < 0 || left >= width || top >= height ) return self;
+        int x0 = left < 0 ? 0 : left, y0 = top < 0 ? 0 : top;
+        int x1 = right >= width ? width-1 : right, y1 = bottom >= height ? height-1 : bottom;
         i64 outer2 = radius;
         outer2 *= radius;
         i64 inner = filled ? -1 : radius-thickness;
-        for( int py=y0; py<=y1; py++ )
-            for( int px=x0; px<=x1; px++ ) {
+        for( int py = y0; py <= y1; py++ )
+            for( int px = x0; px <= x1; px++ ) {
                 i64 dx = px; dx -= cx;
                 i64 dy = py; dy -= cy;
                 i64 d2 = dx*dx+dy*dy;
-                if( d2<=outer2 && (inner<=0 || d2>inner*inner) ) pixels[py*width+px] = color;
+                if( d2 <= outer2 && (inner <= 0 || d2 > inner*inner) ) pixels[py*width+px] = color;
             }
         return self;
     };
@@ -78,17 +78,17 @@ struct Canvas {
     // Round caps; a zero-length segment is a dot. Only the clipped bounding
     // box is scanned. Floating distances avoid overflowing coordinate squares.
     val line = { i64 x0, i64 y0, i64 x1, i64 y1, i64 thickness, u32 color ->
-        if( thickness<=0 ) return self;
+        if( thickness <= 0 ) return self;
         i64 pad = thickness/2+1;
-        i64 left = x0<x1 ? x0 : x1; left -= pad;
-        i64 top = y0<y1 ? y0 : y1; top -= pad;
-        i64 right = x0>x1 ? x0 : x1; right += pad;
-        i64 bottom = y0>y1 ? y0 : y1; bottom += pad;
-        if( right<0 || bottom<0 || left>=width || top>=height ) return self;
-        int bx0 = left<0 ? 0 : left, by0 = top<0 ? 0 : top;
-        int bx1 = right>=width ? width-1 : right, by1 = bottom>=height ? height-1 : bottom;
-        for( int py=by0; py<=by1; py++ )
-            for( int px=bx0; px<=bx1; px++ )
+        i64 left = x0 < x1 ? x0 : x1; left -= pad;
+        i64 top = y0 < y1 ? y0 : y1; top -= pad;
+        i64 right = x0 > x1 ? x0 : x1; right += pad;
+        i64 bottom = y0 > y1 ? y0 : y1; bottom += pad;
+        if( right < 0 || bottom < 0 || left >= width || top >= height ) return self;
+        int bx0 = left < 0 ? 0 : left, by0 = top < 0 ? 0 : top;
+        int bx1 = right >= width ? width-1 : right, by1 = bottom >= height ? height-1 : bottom;
+        for( int py = by0; py <= by1; py++ )
+            for( int px = bx0; px <= bx1; px++ )
                 if( _onLine(px,py,x0,y0,x1,y1,thickness) ) pixels[py*width+px] = color;
         return self;
     };
@@ -96,14 +96,14 @@ struct Canvas {
     // Small 3x5 bitmap font for game labels. Lowercase maps to uppercase.
     // Newline returns to x; unsupported characters draw a question mark.
     val text = { i64 x, i64 y, u8[~] str, int scale, u32 color ->
-        if( scale<=0 ) return self;
+        if( scale <= 0 ) return self;
         i64 px = x, py = y;
-        for( int i=0; i<str#; i++ ) {
+        for( int i = 0; i < str#; i++ ) {
             u8 c = str[i];
-            if( c=='\n' ) { px=x; py+=6*scale; continue; }
+            if( c == '\n' ) { px = x; py += 6*scale; continue; }
             int bits = _glyph(c);
-            for( int row=0; row<5; row++ )
-                for( int col=0; col<3; col++ )
+            for( int row = 0; row < 5; row++ )
+                for( int col = 0; col < 3; col++ )
                     if( (bits >> (14-row*3-col)) & 1 )
                         fillRect(px+col*scale,py+row*scale,scale,scale,color);
             px += 4*scale;
@@ -130,7 +130,7 @@ val _glyphs = new u16[~96]{
 };
 
 val _glyph = { u8 c ->
-    return 32<=c<128 ? _glyphs[c-32] : 061202;
+    return 32 <= c < 128 ? _glyphs[c-32] : 061202;
 };
 
 // Pixel coverage for a round-ended segment, separate from traversal.
@@ -140,10 +140,10 @@ val _onLine = { i64 px, i64 py, i64 x0, i64 y0, i64 x1, i64 y1, i64 thickness ->
     f64 vx = px; vx -= x0;
     f64 vy = py; vy -= y0;
     f64 length2 = dx*dx+dy*dy;
-    bool point = x0==x1 && y0==y1;
+    bool point = x0 == x1 && y0 == y1;
     f64 t = point ? 0.0 : (vx*dx+vy*dy)/length2;
-    t = t<0 ? 0.0 : t>1 ? 1.0 : t;
+    t = t < 0 ? 0.0 : t > 1 ? 1.0 : t;
     f64 ex = vx-t*dx, ey = vy-t*dy;
     f64 half = thickness/2.0;
-    return ex*ex+ey*ey<=half*half;
+    return ex*ex+ey*ey <= half*half;
 };

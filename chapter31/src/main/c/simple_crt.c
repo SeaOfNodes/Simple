@@ -6,6 +6,19 @@
 #include <termios.h>
 #include <unistd.h>
 
+// Fixed-semantics compiler intrinsics. Keep these definitions for indirect
+// calls; direct calls may inline to representation-preserving register moves.
+int64_t simple_f64_bits(double value) {
+    int64_t bits;
+    memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+double simple_f64_from_bits(int64_t bits) {
+    double value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
 // errno may be thread-local or a macro calling a platform accessor.
 int32_t simple_errno(void) { return errno; }
 int32_t simple_set_errno(int32_t error) { errno = error; return -1; }

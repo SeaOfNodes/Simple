@@ -20,7 +20,7 @@ struct bitset {
         if( x < len ) return self;
         while( x >= len ) len *= 2;
         var bits = new i64[len];
-        for( int i=0; i<_bits#; i++ )
+        for( int i = 0; i < _bits#; i++ )
             bits[i] = _bits[i];
         _bits = bits;
         return self;
@@ -51,7 +51,7 @@ struct bitset {
     };
 
     val clear = { ->
-        for( int i=0; i<_bits#; i++ ) _bits[i] = 0;
+        for( int i = 0; i < _bits#; i++ ) _bits[i] = 0;
         return self;
     };
 };

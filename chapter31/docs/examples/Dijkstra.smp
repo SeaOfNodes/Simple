@@ -6,14 +6,14 @@ val shortestPath = { !sys.aryi64 matrix, int nodes, int src, int dst ->
     i64 infinity = sys.integer.MAX_I64;
     var visited = new sys.adt.bitset();
     // All nodes are infinitely far from each other, except the starting point
-    var dist = new i64[nodes]{ int i -> i==src ? 0 : infinity; };
+    var dist = new i64[nodes]{ int i -> i == src ? 0 : infinity; };
 
     i64 result = -1;
     int count = 0;
     while( count < nodes && result < 0 ) {
         int nearest = -1;
         i64 best = infinity;
-        for( int node=0; node<nodes; node++ )
+        for( int node = 0; node < nodes; node++ )
             if( !visited.get(node) && dist[node] < best ) {
                 nearest = node;
                 best = dist[node];
@@ -22,8 +22,8 @@ val shortestPath = { !sys.aryi64 matrix, int nodes, int src, int dst ->
         else {
             if( nearest == dst ) return best;
             visited.set(nearest);
-            for( int node=0; node<nodes; node++ ) {
-                u32 index=nearest*nodes + node;
+            for( int node = 0; node < nodes; node++ ) {
+                u32 index = nearest*nodes + node;
                 i64 weight = matrix.get(index);
                 if( weight > 0 && !visited.get(node) && best+weight < dist[node] )
                     dist[node] = best+weight;
@@ -47,7 +47,7 @@ val main = { u8[~][] args ->
     if( !matrix ) return usage();
     if( !matrix.len ) return usage();
     // All numbers are positive
-    for( u32 i=0; i<matrix.len; i++ )
+    for( u32 i = 0; i < matrix.len; i++ )
         if( matrix.get(i) < 0 ) return usage();
     // Matrix is square
     int nodes = 0;
@@ -61,7 +61,7 @@ val main = { u8[~][] args ->
     if( src < 0 || src >= nodes || dst < 0 || dst >= nodes )
         return usage();         // Source and destination land within the graph
 
-     int source=src, destination=dst;
+     int source = src, destination = dst;
      i64 cost = shortestPath(matrix,nodes,source,destination);
      if( cost >= 0 ) {
          new sys.aryu8().num(cost).add('\n').write(1);

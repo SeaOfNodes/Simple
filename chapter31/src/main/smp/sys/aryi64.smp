@@ -14,7 +14,7 @@ struct aryi64 {
         u32 newlen = ary.capacity(buf#,len+len2);
         if( !newlen ) libc._exit(1); // Length exceeds the array representation.
         i64[] !buf2 = new i64[newlen];
-        for( u32 i=0; i<len; i++ )
+        for( u32 i = 0; i < len; i++ )
             buf2[i] = buf[i];
         buf = buf2;
         self;
@@ -32,7 +32,7 @@ struct aryi64 {
     val str = { ->
         // TODO: clunky default constructor syntax
         var str = new aryu8().add('[');
-        for( u32 i=0; i<len; i++ )
+        for( u32 i = 0; i < len; i++ )
             str.num(buf[i]).add(',').add(' ');
         if( len ) str.undo(2);
         return str.add(']');
@@ -79,7 +79,7 @@ val copy = { i64[] dst, u32 doff, i64[~] src, u32 soff, u32 len ->
     if( doff > dst# || soff > src# ) return dst;
     if( len > dst# - doff ) len = dst# - doff;
     if( len > src# - soff ) len = src# - soff;
-    for( u32 i=0; i<len; i++ )
+    for( u32 i = 0; i < len; i++ )
         dst[i+doff] = src[i+soff];
     return dst;
 };

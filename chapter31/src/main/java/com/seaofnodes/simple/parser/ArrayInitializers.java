@@ -66,13 +66,15 @@ final class ArrayInitializers {
             }
         }
 
+        Node result=new ArrayInitNode(P.ctrl(),mem,self,len,
+                                      generator ? -1 : values.size(),site,values).peephole().keep();
         Node prior=P.mem();
-        P.mem(P.mergeAlias(prior,length._alias,new EscapeNode(length,self,slen.unkeep(),prior).peephole()));
+        P.mem(P.mergeAlias(prior,length._alias,new EscapeNode(length,result,slen.unkeep(),prior).peephole()));
         prior=P.mem();
-        P.mem(P.mergeAlias(prior,body._alias,new EscapeNode(body,self,mem,prior).peephole()));
-        Node result=new ArrayInitNode(P.ctrl(),mem.unkeep(),self.unkeep(),len.unkeep(),
-                                      generator ? -1 : values.size(),site,values).peephole();
+        P.mem(P.mergeAlias(prior,body._alias,new EscapeNode(body,result,mem,prior).peephole()));
+        mem.unkeep(); self.unkeep(); len.unkeep();
         for( Node value : values ) value.unkeep();
+        result.unkeep();
         return readonly ? new ReadOnlyNode(result).peephole() : result;
     }
 

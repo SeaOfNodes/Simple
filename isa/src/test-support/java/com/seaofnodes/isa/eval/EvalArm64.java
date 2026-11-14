@@ -418,6 +418,11 @@ public class EvalArm64 {
                 int rs1 = (ir >> 5) & 0x1F;
                 if( (ir & 0xFFFFFC00)==0x9E780000 ) { // FCVTZS Xd,Dn
                     rval = (long)fregs[rs1];
+                } else if( (ir & 0xFFFFFC00)==0x9E660000 ) { // FMOV Xd,Dn
+                    rval = Double.doubleToRawLongBits(fregs[rs1]);
+                } else if( (ir & 0xFFFFFC00)==0x9E670000 ) { // FMOV Dd,Xn
+                    is_f = true;
+                    frval = Double.longBitsToDouble(regs[rs1]);
                 } else { // SCVTF
                     is_f = true;
                     frval = (double)regs[rs1];

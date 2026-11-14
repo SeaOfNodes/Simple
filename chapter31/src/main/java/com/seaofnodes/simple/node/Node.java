@@ -77,7 +77,7 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
         New,Never,Not,Or,Parm,Phi,Proj,PtrToInt,
         ReadOnly,Return,Region,RoundF32,
         Sar,Shl,Shr,Start,StartCU,StopCU,Stop,Store,Sub,
-        ToInteger,ToFloat,XCtrl,Xor;
+        ToInteger,ToFloat,XCtrl,Xor,F64Bits,F64FromBits;
         public static final Tag[] VALS = values();
         public Node make( BAOS bais, String[] strs, Type[] types, GlobalBits fileAliases, GlobalBits aliases ) {
             return switch(this) {
@@ -103,6 +103,8 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
             case Sub    -> new   SubNode(null,null,(byte)bais.packed1());
             case ToFloat-> new ToFloatNode(null);
             case ToInteger-> new ToIntegerNode(null);
+            case F64Bits-> new Intrinsic.F64BitsNode(null);
+            case F64FromBits-> new Intrinsic.F64FromBitsNode(null);
             case XCtrl  -> new XCtrlNode();
             case Xor    -> { int mode=bais.packed1(); assert mode==1; yield new XorNode(null,null,null); }
 

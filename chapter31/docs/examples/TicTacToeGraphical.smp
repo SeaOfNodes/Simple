@@ -13,28 +13,28 @@ val main = { u8[~][] args ->
     bool mouseHeld = false, keyHeld = false, replayHeld = false;
     int hover = -1, frames = 0;
 
-    while( result==sys.gfx.OK ) {
+    while( result == sys.gfx.OK ) {
         result = sys.gfx.wait(17);
-        if( result!=sys.gfx.OK ) break;
+        if( result != sys.gfx.OK ) break;
         if( sys.gfx.key('Q') ) break;
         bool down = sys.gfx.button(sys.gfx.LEFT);
         bool replay = sys.gfx.key('R') || sys.gfx.key(' ');
         int square = _square(sys.gfx.mouseX(),sys.gfx.mouseY());
-        bool dirty = square!=hover;
+        bool dirty = square != hover;
         hover = square;
-        if( replay && !replayHeld ) { sys.audio.stop(); _reset(board); dirty=true; }
+        if( replay && !replayHeld ) { sys.audio.stop(); _reset(board); dirty = true; }
         bool digit = false;
         int choice = down && !mouseHeld ? square : -1;
-        for( int i=0; i<9; i++ ) {
+        for( int i = 0; i < 9; i++ ) {
             int key = '1'+i;
             if( sys.gfx.key(key) ) {
                 digit = true;
-                if( !keyHeld ) choice=i;
+                if( !keyHeld ) choice = i;
             }
         }
         if( !(replay && !replayHeld) && _move(board,choice) ) {
             sys.audio.play(_sound(board));
-            dirty=true;
+            dirty = true;
         }
         mouseHeld = down;
         keyHeld = digit;
@@ -43,68 +43,68 @@ val main = { u8[~][] args ->
             _draw(screen,board,hover);
             result = sys.gfx.present(screen.pixels);
         }
-        if( args#>1 && ++frames==5 ) break;
+        if( args# > 1 && ++frames == 5 ) break;
     }
     sys.audio.close();
     sys.gfx.close();
-    return result==sys.gfx.ERROR ? 1 : 0;
+    return result == sys.gfx.ERROR ? 1 : 0;
 };
 
 // Called only for an accepted move; invalid input never requests a sound.
 val _sound = { u8[~] board ->
     int winner = _winner(board);
-    return winner=='X' ? sys.audio.WIN : winner=='O' ? sys.audio.LOSE : sys.audio.BOOP;
+    return winner == 'X' ? sys.audio.WIN : winner == 'O' ? sys.audio.LOSE : sys.audio.BOOP;
 };
 
 val _reset = { u8[] board ->
-    for( int i=0; i<9; i++ ) board[i]=' ';
+    for( int i = 0; i < 9; i++ ) board[i] = ' ';
 };
 val _square = { int x, int y ->
-    if( x<48 || x>=552 || y<168 || y>=672 ) return -1;
+    if( x < 48 || x >= 552 || y < 168 || y >= 672 ) return -1;
     return (y-168)/168*3+(x-48)/168;
 };
 
 // One player turn followed by one CPU turn. Invalid/finished moves do nothing.
 val _move = { u8[] board, int square ->
-    if( square<0 || square>=9 || board[square]!=' ' || _finished(board) ) return false;
+    if( square < 0 || square >= 9 || board[square] != ' ' || _finished(board) ) return false;
     board[square] = 'X';
     if( !_finished(board) ) {
         int reply = _cpu(board);
-        if( reply>=0 ) board[reply]='O';
+        if( reply >= 0 ) board[reply] = 'O';
     }
     return true;
 };
 
 val _finished = { u8[~] board ->
     if( _winner(board) ) return true;
-    for( int i=0; i<9; i++ ) if( board[i]==' ' ) return false;
+    for( int i = 0; i < 9; i++ ) if( board[i] == ' ' ) return false;
     return true;
 };
 
 val _winningLine = { u8[~] board ->
-    for( int i=0; i<3; i++ ) {
+    for( int i = 0; i < 3; i++ ) {
         int row = i*3;
-        if( board[row]!=' ' && board[row]==board[row+1] && board[row]==board[row+2] ) return i;
-        if( board[i]!=' ' && board[i]==board[i+3] && board[i]==board[i+6] ) return 3+i;
+        if( board[row] != ' ' && board[row] == board[row+1] && board[row] == board[row+2] ) return i;
+        if( board[i] != ' ' && board[i] == board[i+3] && board[i] == board[i+6] ) return 3+i;
     }
-    if( board[4]!=' ' ) {
-        if( board[0]==board[4] && board[4]==board[8] ) return 6;
-        if( board[2]==board[4] && board[4]==board[6] ) return 7;
+    if( board[4] != ' ' ) {
+        if( board[0] == board[4] && board[4] == board[8] ) return 6;
+        if( board[2] == board[4] && board[4] == board[6] ) return 7;
     }
     return -1;
 };
 // Return the winning mark, or zero.
 val _winner = { u8[~] board ->
     int line = _winningLine(board);
-    return line<0 ? 0 : line<3 ? board[line*3] : line<6 ? board[line-3] : board[4];
+    return line < 0 ? 0 : line < 3 ? board[line*3] : line < 6 ? board[line-3] : board[4];
 };
 
 // Try each empty square, restoring it before returning.
 val _threat = { u8[] board, u8 mark ->
-    for( int i=0; i<9; i++ )
-        if( board[i]==' ' ) {
+    for( int i = 0; i < 9; i++ )
+        if( board[i] == ' ' ) {
             board[i] = mark;
-            bool wins = _winner(board)==mark;
+            bool wins = _winner(board) == mark;
             board[i] = ' ';       // Restore board
             if( wins ) return i;
         }
@@ -115,16 +115,16 @@ val _threat = { u8[] board, u8 mark ->
 val _cpu = { u8[] board ->
     // If O can win, do so
     int win = _threat(board,'O');
-    if( win>=0 ) return win;
+    if( win >= 0 ) return win;
     // If X will win next move, block
     int block = _threat(board,'X');
-    if( block>=0 ) return block;
+    if( block >= 0 ) return block;
     // If center is open, take it
-    if( board[4]==' ' ) return 4;
+    if( board[4] == ' ' ) return 4;
     // If a corner is open, take it
-    for( int i=0; i<9; i+=2 ) if( board[i]==' ' ) return i;
+    for( int i = 0; i < 9; i += 2 ) if( board[i] == ' ' ) return i;
     // Take whatever is available
-    for( int i=0; i<9; i++ ) if( board[i]==' ' ) return i;
+    for( int i = 0; i < 9; i++ ) if( board[i] == ' ' ) return i;
     return -1;
 };
 
@@ -136,30 +136,30 @@ val _draw = { !sys.draw.Canvas screen, u8[~] board, int hover ->
     screen.clear(background);
     screen.text(48,34,"TIC TAC TOE",6,paper);
     screen.fillRect(48,90,504,3,ink);
-    screen.text(48,116,finished ? (winner=='X' ? "YOU WIN!" : winner=='O' ? "CPU WINS" : "DRAW") : "YOUR TURN",4,accent);
+    screen.text(48,116,finished ? (winner == 'X' ? "YOU WIN!" : winner == 'O' ? "CPU WINS" : "DRAW") : "YOUR TURN",4,accent);
     screen.line(428,112,450,134,5,cross).line(450,112,428,134,5,cross);
     screen.circle(496,123,13,5,0x70c9bf);
     screen.text(428,145,"YOU",2,0xa2b9b7);
     screen.text(484,145,"CPU",2,0xa2b9b7);
     screen.fillRect(48,168,504,504,paper);
-    if( !finished && hover>=0 && hover<9 && board[hover]==' ' )
+    if( !finished && hover >= 0 && hover < 9 && board[hover] == ' ' )
         screen.fillRect(48+(hover-hover/3*3)*168,168+hover/3*168,168,168,0xd9e8de);
-    for( int i=1; i<3; i++ ) {
+    for( int i = 1; i < 3; i++ ) {
         screen.fillRect(48+i*168-3,168,6,504,ink);
         screen.fillRect(48,168+i*168-3,504,6,ink);
     }
-    for( int i=0; i<9; i++ ) {
+    for( int i = 0; i < 9; i++ ) {
         int cx = 132+(i-i/3*3)*168, cy = 252+i/3*168;
-        if( board[i]=='X' )
+        if( board[i] == 'X' )
             screen.line(cx-38,cy-38,cx+38,cy+38,12,cross).line(cx+38,cy-38,cx-38,cy+38,12,cross);
-        else if( board[i]=='O' ) screen.circle(cx,cy,48,11,ring);
-        else screen.text(cx-6,cy-10,i==0 ? "1" : i==1 ? "2" : i==2 ? "3" :
-            i==3 ? "4" : i==4 ? "5" : i==5 ? "6" : i==6 ? "7" : i==7 ? "8" : "9",4,0x95a59e);
+        else if( board[i] == 'O' ) screen.circle(cx,cy,48,11,ring);
+        else screen.text(cx-6,cy-10,i == 0 ? "1" : i == 1 ? "2" : i == 2 ? "3" :
+            i == 3 ? "4" : i == 4 ? "5" : i == 5 ? "6" : i == 6 ? "7" : i == 7 ? "8" : "9",4,0x95a59e);
     }
     int line = _winningLine(board);
-    if( line>=0 ) {
-        int first = line<3 ? line*3 : line<6 ? line-3 : line==6 ? 0 : 2;
-        int last = line<3 ? first+2 : line<6 ? first+6 : line==6 ? 8 : 6;
+    if( line >= 0 ) {
+        int first = line < 3 ? line*3 : line < 6 ? line-3 : line == 6 ? 0 : 2;
+        int last = line < 3 ? first+2 : line < 6 ? first+6 : line == 6 ? 8 : 6;
         screen.line(132+(first-first/3*3)*168,252+first/3*168,132+(last-last/3*3)*168,252+last/3*168,5,0xeab64e);
     }
     screen.text(48,704,"CLICK A SQUARE OR PRESS 1-9",3,paper);

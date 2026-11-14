@@ -24,6 +24,14 @@ MINIFB_SOURCES = $(addprefix $(MINIFB_SRC)/src/,$(addsuffix .c,$(MINIFB_COMMON) 
 GRAPHICS_EXAMPLE := $(GAME_DIR)/Graphics$(if $(filter Windows_NT,$(OS)),.exe,)
 GRAPHICAL_TICTACTOE := $(GAME_DIR)/TicTacToeGraphical$(if $(filter Windows_NT,$(OS)),.exe,)
 CLOCK_EXAMPLE := $(GAME_DIR)/Clock$(if $(filter Windows_NT,$(OS)),.exe,)
+BREAKOUT := $(GAME_DIR)/Breakout$(if $(filter Windows_NT,$(OS)),.exe,)
+
+.PHONY: breakout run-breakout
+breakout: $(BREAKOUT)
+$(BREAKOUT): docs/examples/Breakout.smp $(CLZDIR)/test/.ttag $(RELEASE_SYS) $(RELEASE_CRT) graphics.mk
+	@$(JVM) com.seaofnodes.simple.Simple --link --cpu $(CPU_PORT) --abi $(CALL_CONV) -L $(dir $(RELEASE_SYS)) -o $(GAME_DIR)/Breakout.o $<
+run-breakout: graphics audio breakout
+	SIMPLE_MINIFB="$(abspath $(GRAPHICS_LIB))" SIMPLE_MINIAUDIO="$(abspath $(AUDIO_LIB))" $(BREAKOUT)
 
 .PHONY: clock-example run-clock
 clock-example: $(CLOCK_EXAMPLE)

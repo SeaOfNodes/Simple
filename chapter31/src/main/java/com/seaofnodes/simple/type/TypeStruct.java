@@ -146,8 +146,7 @@ public class TypeStruct extends Type {
         Type len = TypeInteger.constant(con.len());
         return make(name,false,
                     Field.make("#"    ,len       , lenAlias,true),
-                    Field.make("[]"   ,con.elem(),bodyAlias,true),
-                    Field.make("[con]",con       ,bodyAlias,true));
+                    Field.make("[]"   ,con       ,bodyAlias,true));
     }
 
     public TypeStruct makeInit() {
@@ -190,6 +189,9 @@ public class TypeStruct extends Type {
     }
     @Override TypeStruct _close( String name, HashMap<String, Type> TYPES ) {
         assert (name==null) != (TYPES==null); // One or the other
+        // Primitive constant contents are already closed. Looking up their
+        // shared array name would discard the length and payload on import.
+        if( isConAry() ) return this;
         String namePlusFinal = isAry() ? (_name+(_fields[1]._final ? "~" : "!")).intern() : _name;
         TypeStruct ts = (TypeStruct)VISIT.get(namePlusFinal);
         if( ts!=null ) return ts;
@@ -251,7 +253,7 @@ public class TypeStruct extends Type {
     public  static final TypeStruct TEST= make("test",false,Field.TEST);
     private static final TypeStruct ARY = makeAry("[]i64",TypeInteger.U32,-1,TypeInteger.BOT,-2,false);
     private static final TypeStruct STR = makeAry("[]u8" ,TypeInteger.U32,-1,TypeInteger.U8 ,-4,false);
-    private static final TypeStruct ABC = makeAry("[]u8",-1,-4,TypeConAryB.ABC);
+    private static final TypeStruct ABC = makeAry("[]u8",-1,-4,TypeConAry.ABC);
     // Representative unresolved forms for the exhaustive lattice tests:
     // bare forward ref, forward ref constrained by a field use, and definition.
     private static final TypeStruct FREF0 = forward("%FREF");
@@ -462,6 +464,7 @@ public class TypeStruct extends Type {
     @Override public int log_size() { throw Utils.TODO("Should not reach here: structs have no scalar log size"); }
     @Override public int size() { return offset(_fields.length); }
     @Override public int alignment() {
+        if( isAry() ) return Math.max(2,aryScale()); // The length is always u32.
         int align = 0;
         for( Field f : _fields )
             if( !f._extern ) align = Math.max(align, f._t.alignment());
@@ -607,7 +610,7 @@ public class TypeStruct extends Type {
             int align = _fields[1]._t.alignment();
             _offs[1] = (4 + ((1<<align)-1)) & -(1<<align);
             if( _fields[1]._t instanceof TypeConAry ary ) // Array length is well-defined for constants, not defined for runtime arrays
-                _offs[2] = _offs[1]+ary.len();
+                _offs[2] = _offs[1]+(ary.len()<<ary.log_size());
 
         } else {
             int[] cnts = new int[5]; // Count of fields at log field size

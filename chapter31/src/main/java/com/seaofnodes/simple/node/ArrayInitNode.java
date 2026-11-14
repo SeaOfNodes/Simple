@@ -22,7 +22,33 @@ public final class ArrayInitNode extends Node {
     }
     @Override public String label() { return "ArrayInit"; }
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) { return p.p("arrayInit(").n(in(2)).p(")"); }
-    @Override public Type compute() { return in(0)._type==Type.CONTROL ? in(2)._type : Type.TOP; }
+    @Override public Type compute() {
+        if( in(0)._type != Type.CONTROL ) return Type.TOP;
+        Type ptr = in(2)._type;
+        if( _count < 0 ) return ptr;
+        // A list is strict in all its inputs. Wait for every input before
+        // choosing a constant payload or falling to the ordinary array type.
+        // Otherwise one SCCP worklist order can return PtrTop (or an array)
+        // before another unresolved input sends the result back up to Top.
+        if( ptr.isHigh() || in(3)._type.isHigh() ) return Type.TOP;
+        for( int i = 4; i < nIns(); i++ )
+            if( in(i)._type.isHigh() ) return Type.TOP;
+        if( !(ptr instanceof TypeMemPtr tmp) ) return ptr;
+        Field body = tmp._obj.field("[]");
+        if( body == null || !body._final || !(body._t instanceof TypeInteger storage) ) return ptr;
+        if( !(in(3)._type instanceof TypeInteger length) || !length.isConstant() || length.value() != _count ) return ptr;
+        long[] values = new long[_count];
+        for( int i = 0; i < _count; i++ ) {
+            Type value = in(i+4)._type;
+            if( !(value instanceof TypeInteger integer) || !integer.isConstant() ) return ptr;
+            values[i] = integer.value();
+        }
+        TypeConAry contents = TypeConAry.make(storage,values);
+        TypeStruct array = TypeStruct.makeAry(tmp._obj._name,tmp._obj.field("#")._alias,body._alias,contents);
+        // The surrounding ReadOnlyNode supplies the public view. Keep this
+        // node's access flags consistent when its contents cease to be constant.
+        return TypeMemPtr.make((byte)2,array,true).withAccess(tmp._ro);
+    }
     @Override public Node idealize() { return null; }
     @Override public Parser.ParseException err() {
         if( in(0)._type==Type.XCONTROL ) return null;

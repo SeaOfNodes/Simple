@@ -1,10 +1,46 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.node.ArrayInitNode;
+import com.seaofnodes.simple.node.ConstantNode;
+import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.type.*;
+import com.seaofnodes.simple.util.Ary;
+import java.util.ArrayList;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ArrayInitTest {
+    @Test public void constantListComputeIsMonotone() {
+        CodeGen code = new CodeGen("return 0;").parse();
+        TypeStruct layout = TypeStruct.makeAry("[]i32",TypeInteger.U32,2,TypeInteger.I32,3,true);
+        Type array = TypeMemPtr.make(layout);
+        Node ctrl = ConstantNode.seed(Type.CONTROL);
+        Node ptr = ConstantNode.seed(Type.TOP);
+        Node len = ConstantNode.seed(Type.TOP);
+        Node x = ConstantNode.seed(Type.TOP), y = ConstantNode.seed(Type.TOP);
+        ArrayInitNode init = new ArrayInitNode(ctrl,code.ZERO,ptr,len,2,null,new Ary<>(new Node[]{x,y}));
+        Type[][] inputs = {
+            {Type.TOP,TypeMemPtr.TOP,array},
+            {Type.TOP,TypeInteger.TOP,TypeInteger.TWO,TypeInteger.U32},
+            {Type.TOP,TypeInteger.TOP,TypeInteger.constant(5),TypeInteger.BOT},
+            {Type.TOP,TypeInteger.TOP,TypeInteger.constant(6),TypeInteger.BOT}
+        };
+        var states = new ArrayList<Type[]>();
+        for( Type p : inputs[0] )
+            for( Type l : inputs[1] )
+                for( Type a : inputs[2] )
+                    for( Type b : inputs[3] ) {
+                        ptr._type = p; len._type = l; x._type = a; y._type = b;
+                        states.add(new Type[]{p,l,a,b,init.compute()});
+                    }
+        for( Type[] before : states )
+            for( Type[] after : states )
+                if( before[0].isa(after[0]) && before[1].isa(after[1]) &&
+                    before[2].isa(after[2]) && before[3].isa(after[3]) )
+                    assertTrue("Array initializer rose from "+before[4]+" to "+after[4],before[4].isa(after[4]));
+    }
+
     private static void value(String src, long expected) {
         CodeGen code=new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals(Long.toString(expected),Eval2.eval(code,0,100000));

@@ -448,7 +448,11 @@ public class Serialize {
         // TYPES names the mutable array declaration. Read-only arrays in
         // imported signatures keep their own types, but must not replace that
         // declaration: closeOver looks up its mutable variant by name.
-        if( ts.isAry() ) ts = ts.replace(ts.field("[]").makeFrom(false));
+        if( ts.isConAry() ) {
+            TypeConAry ary=(TypeConAry)ts.field("[]")._t;
+            ts=TypeStruct.makeAry(ts._name,TypeInteger.U32,ts.field("#")._alias,
+                ary.storageType(),ts.field("[]")._alias,false);
+        } else if( ts.isAry() ) ts = ts.replace(ts.field("[]").makeFrom(false));
         Parser.TYPES.put(ts._name,ts);
     }
 

@@ -531,7 +531,7 @@ public class Type /*implements Cloneable*/ {
             // tag-space except for the first tag-space which uses 1 tag for
             // multiple Types instead of 1 Type having multiple tags.  Has to
             // be ordered to match _type enum.
-            for( Type t : new Type[]{Type.XNIL,TypeScalar.BOT,TypePtr.PTR,TypeInteger.BOT,TypeFloat.F64,TypeConAryB.ABC,TypeRPC.BOT,TypeMemPtr.BOT,TypeFunPtr.BOT,TypeMem.BOT,Field.BOT,TypeStruct.BOT,TypeTuple.BOT} )
+            for( Type t : new Type[]{Type.XNIL,TypeScalar.BOT,TypePtr.PTR,TypeInteger.BOT,TypeFloat.F64,TypeConAry.ABC,TypeRPC.BOT,TypeMemPtr.BOT,TypeFunPtr.BOT,TypeMem.BOT,Field.BOT,TypeStruct.BOT,TypeTuple.BOT} )
                 TAGOFFS[t._type+1] = TAGOFFS[t._type] + t.TAGOFF();
         assert TAGOFFS[TMAX] <= 255;
         return TAGOFFS;

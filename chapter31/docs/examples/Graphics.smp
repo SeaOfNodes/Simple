@@ -3,8 +3,8 @@
 val main = { u8[~][] args ->
     if( sys.gfx.open("Simple pixels",320,240) != sys.gfx.OK ) return 1;
     val pixels = new u32[320*240];
-    for( int y=0; y<240; y++ )
-        for( int x=0; x<320; x++ )
+    for( int y = 0; y < 240; y++ )
+        for( int x = 0; x < 320; x++ )
             pixels[y*320+x] = (x*255/319 << 16) | (y*255/239 << 8) | 64;
     int result = sys.gfx.present(pixels);
     int frames = 0;

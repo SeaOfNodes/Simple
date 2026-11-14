@@ -350,6 +350,7 @@ public class arm extends Machine {
         case StoreNode st    -> st(st);
         case SubNode sub     -> sub.mode()==2 ? new SubFARM(sub) : sub(sub);
         case ToFloatNode tfn -> new I2F8ARM(tfn);
+        case Intrinsic.BitCastNode cast -> new BitCastARM(cast);
         case ToIntegerNode cvt -> new F8ToIARM(cvt);
         case XorNode xor     -> xor(xor);
 
