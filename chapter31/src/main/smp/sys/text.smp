@@ -5,10 +5,7 @@
 val begin = { -> new aryu8(); };
 
 val end = { aryu8 b ->
-    val bytes = new u8[b.len];
-    ary.copy(bytes,0,b.buf,0,b.len);
-    u8[~] result = bytes;
-    result;
+    new u8[~b.len]{ i64 i -> b.buf[i]; };
 };
 
 val _pad = { !aryu8 b, i64 n, u8 c ->

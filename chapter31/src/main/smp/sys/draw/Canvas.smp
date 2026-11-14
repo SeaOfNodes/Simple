@@ -112,79 +112,25 @@ struct Canvas {
     };
 };
 
-// An old-school 3x5 font
+// An old-school 3x5 font, ASCII 32..127. Five octal row digits need u16.
+// Lowercase uses uppercase shapes; unsupported characters use '?'.
+val _glyphs = new u16[~96]{
+    000000,022202,055000,057575,061202,051245,061202,022000, // space..'
+    012221,042224,005250,002720,000024,000700,000002,011244, // (../
+    075557,026227,061247,061216,055711,074616,034757,071222, // 0..7
+    075757,075716,002020,002024,012421,007070,042124,061202, // 8..?
+    061202,025755,065656,034443,065556,074647,074644,034553, // @..G
+    055755,072227,011152,055655,044447,057755,057775,025552, // H..O
+    065644,025573,065655,034216,072222,055557,055552,055775, // P..W
+    055255,055222,071247,032223,044211,062226,025000,000007, // X.._
+    042000,025755,065656,034443,065556,074647,074644,034553, // `..g
+    055755,072227,011152,055655,044447,057755,057775,025552, // h..o
+    065644,025573,065655,034216,072222,055557,055552,055775, // p..w
+    055255,055222,071247,032423,022222,062126,003600,061202, // x..DEL
+};
+
 val _glyph = { u8 c ->
-    // Only space for upper-case letters in a 3x5 font
-    if( 'a' <= c <= 'z' )
-        c -= 'a'-'A';
-    // Five octal digits: one 3-bit row per digit, top to bottom.
-    if( c==' ' ) return 000000;
-    if( c=='0' ) return 075557;
-    if( c=='1' ) return 026227;
-    if( c=='2' ) return 061247;
-    if( c=='3' ) return 061216;
-    if( c=='4' ) return 055711;
-    if( c=='5' ) return 074616;
-    if( c=='6' ) return 034757;
-    if( c=='7' ) return 071222;
-    if( c=='8' ) return 075757;
-    if( c=='9' ) return 075716;
-    if( c=='A' ) return 025755;
-    if( c=='B' ) return 065656;
-    if( c=='C' ) return 034443;
-    if( c=='D' ) return 065556;
-    if( c=='E' ) return 074647;
-    if( c=='F' ) return 074644;
-    if( c=='G' ) return 034553;
-    if( c=='H' ) return 055755;
-    if( c=='I' ) return 072227;
-    if( c=='J' ) return 011152;
-    if( c=='K' ) return 055655;
-    if( c=='L' ) return 044447;
-    if( c=='M' ) return 057755;
-    if( c=='N' ) return 057775;
-    if( c=='O' ) return 025552;
-    if( c=='P' ) return 065644;
-    if( c=='Q' ) return 025573;
-    if( c=='R' ) return 065655;
-    if( c=='S' ) return 034216;
-    if( c=='T' ) return 072222;
-    if( c=='U' ) return 055557;
-    if( c=='V' ) return 055552;
-    if( c=='W' ) return 055775;
-    if( c=='X' ) return 055255;
-    if( c=='Y' ) return 055222;
-    if( c=='Z' ) return 071247;
-    if( c=='-' ) return 000700;
-    if( c=='.' ) return 000002;
-    if( c==':' ) return 002020;
-    if( c==',' ) return 000024;
-    if( c==';' ) return 002024;
-    if( c=='\'' ) return 022000;
-    if( c=='"' ) return 055000;
-    if( c=='`' ) return 042000;
-    if( c=='/' ) return 011244;
-    if( c=='\\' ) return 044211;
-    if( c=='(' ) return 012221;
-    if( c==')' ) return 042224;
-    if( c=='[' ) return 032223;
-    if( c==']' ) return 062226;
-    if( c=='{' ) return 032423;
-    if( c=='}' ) return 062126;
-    if( c=='+' ) return 002720;
-    if( c=='=' ) return 007070;
-    if( c=='_' ) return 000007;
-    if( c=='<' ) return 012421;
-    if( c=='>' ) return 042124;
-    if( c=='|' ) return 022222;
-    if( c=='^' ) return 025000;
-    if( c=='~' ) return 003600;
-    if( c=='*' ) return 005250;
-    if( c=='#' ) return 057575;
-    if( c=='%' ) return 051245;
-    if( c=='!' ) return 022202;
-    if( c=='?' ) return 061202;
-    return 061202;
+    return 32<=c<128 ? _glyphs[c-32] : 061202;
 };
 
 // Pixel coverage for a round-ended segment, separate from traversal.

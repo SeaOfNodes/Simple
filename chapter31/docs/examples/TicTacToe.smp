@@ -3,8 +3,7 @@ val main = { u8[~][] args ->
     sys.io.p("Tic-tac-toe!\nYou are X; the CPU is O.  You go first.\n");
     sys.io.p("Press a square's number (no Enter needed), or q/Esc to quit.\n");
     sys.io.p("Squares:\n 1 | 2 | 3 \n---+---+---\n 4 | 5 | 6 \n---+---+---\n 7 | 8 | 9 \n\n");
-    val board = new u8[9];
-    for( int i=0; i<board#; i++ ) board[i]=' ';
+    val board = new u8[9]{ int i -> ' '; }; // Initialize the board
     // Draw empty board
     _draw(board);
 

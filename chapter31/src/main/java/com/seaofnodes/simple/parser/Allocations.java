@@ -25,11 +25,20 @@ final class Allocations {
         }
         // Parse ary[ length_expr ]
         if( P.match("[") ) {
-            if( !t.makeZero().isa(t) )
-                throw Parser.error("Cannot allocate a non-nullable, since arrays are always zero/null filled",site);
+            boolean readonly = P.match("~");
+            if( P.match("]") ) {
+                P.require("{");
+                return P.arrays.parse(t,readonly,null,site);
+            }
             Node len = P.expressions.parseAssignment().keep();
             P.require("]");
+            if( P.match("{") ) return P.arrays.parse(t,readonly,len,site);
+            if( !t.makeZero().isa(t) )
+                throw Parser.error("Cannot allocate a non-nullable, since arrays are always zero/null filled",site);
+            if( readonly ) return new ReadOnlyNode(allocArray(P.types.typeAry(t,true),len)).peephole();
             return allocArray(P.types.typeAry(t,false),len);
+        } else if( t instanceof TypeMemPtr ary && ary._obj.isAry() && P.match("{") ) {
+            return P.arrays.parse(ary._obj.field("[]")._t,ary._ro,null,site);
         } else {
             if( !(t instanceof TypeMemPtr tmp) )
                 throw Parser.error("Cannot allocate a "+t.str(),site);
@@ -100,8 +109,6 @@ final class Allocations {
         // Length is casted to sanity.
         // TODO: Needs runtime check.
         Node st = P.peep(new StoreNode(null, "#", 1, TypeInteger.U32, null, smem, self, ConFldOffNode.make(ts,"#"), len.unkeep(), true));
-
-        // TODO: Allow add-on "constructor" to init the array elements
 
         Node prior = P.mem();
         Node esc = P.peep(new EscapeNode(lenFld,self,st,prior));

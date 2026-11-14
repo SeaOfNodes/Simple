@@ -3,13 +3,10 @@
 // https://sampleprograms.io/projects/dijkstra/
 
 val shortestPath = { !sys.aryi64 matrix, int nodes, int src, int dst ->
-    i64 infinity = (1 << 63)-1;
-    var dist = new i64[nodes];
+    i64 infinity = sys.integer.MAX_I64;
     var visited = new sys.adt.bitset();
-    // All nodes are infinitely far from each other
-    for( int i=0; i<nodes; i++ ) dist[i] = infinity;
-    // Starting point is zero far from starting point
-    dist[src] = 0;
+    // All nodes are infinitely far from each other, except the starting point
+    var dist = new i64[nodes]{ int i -> i==src ? 0 : infinity; };
 
     i64 result = -1;
     int count = 0;

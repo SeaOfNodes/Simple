@@ -134,6 +134,24 @@ public class ParserDiagnosticTest {
             +"\n    return x;\n    ^",error.diagnostic());
     }
 
+    @Test public void testJUnitReportsSourceDiagnostic() {
+        var error=rejected("val dist=new i64[3]{int i -> i;}\ndist[0]=0;");
+        String expected="Test.smp:2:1: error: Syntax error, expected `;` but found `dist`"
+            +"\n    dist[0]=0;\n    ^"+System.lineSeparator();
+        var test=org.junit.runner.Description.createTestDescription(getClass(),"missingSemicolon");
+        assertEquals(expected,new org.junit.runner.notification.Failure(test,error).getTrace());
+
+        var bytes=new java.io.ByteArrayOutputStream();
+        error.printStackTrace(new java.io.PrintStream(bytes,true,StandardCharsets.UTF_8));
+        assertEquals(expected,bytes.toString(StandardCharsets.UTF_8));
+        assertEquals("Syntax error, expected `;` but found `dist`",error.getMessage());
+
+        // Compiler implementation failures must still include Java frames.
+        String trace=new org.junit.runner.notification.Failure(test,new IllegalStateException("compiler bug")).getTrace();
+        assertTrue(trace,trace.contains("java.lang.IllegalStateException: compiler bug"));
+        assertTrue(trace,trace.contains("ParserDiagnosticTest.testJUnitReportsSourceDiagnostic"));
+    }
+
     @Test public void testEOF() {
         var error=rejected("return 1");
         assertEquals("Test.smp:1:9: error: Syntax error, expected `;` but found `EOF`"

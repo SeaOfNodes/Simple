@@ -185,7 +185,14 @@ argumentList : assignment (',' assignment)* ','? ;
 
 // Allocation invokes the declared constructor; inline initializer blocks from
 // earlier chapters are replaced by constructor arguments.
-newExpression : 'new' type ('[' assignment ']' | callSuffix)? ;
+newExpression
+    : 'new' type ('[' '~'? assignment ']' arrayInitializer? | arrayInitializer | callSuffix)?
+    ;
+// With no explicit length, type must end in [] or [~] and the initializer is a list.
+arrayInitializer
+    : '{' (assignment (',' assignment)* ','?)? '}'
+    | '{' ('int' | 'i32' | 'i64' | 'u32') IDENTIFIER '->' statement* '}'
+    ;
 
 INTEGER_LITERAL : [1-9] DIGIT* | '0' [0-7]* | '0' [xX] HEX_DIGIT+ ;
 // The f suffix also accepts an integer-shaped token, e.g. 12f.
@@ -231,7 +238,7 @@ there is no inheritance chain, AST, or additional compiler pass.
 | `assignment` through `primaryExpression` | [`Expressions`](../src/main/java/com/seaofnodes/simple/parser/Expressions.java): `parseAssignment`, `parseExpression`, `parseLogical`, `parseBitwise`, `parseEquality`, `parseComparison`, `parseShift`, `parseAddition`, `parseMultiplication`, `parseUnary`, `parsePrimary` |
 | `postfixExpression`, member selection and updates | `Expressions.parsePostfix` / `parsePostfixMethod` dispatch to [`References.parseField`](../src/main/java/com/seaofnodes/simple/parser/References.java); `References.parseName` handles bare names, implicit receivers, and forward references |
 | `functionExpression`, `parameterList`, calls, `argumentList` | [`Functions`](../src/main/java/com/seaofnodes/simple/parser/Functions.java): `parseFunction`, `parseConstructor`, shared `parameters` and `arguments`, then `parseBody` |
-| `newExpression` | [`Allocations.parseNew`](../src/main/java/com/seaofnodes/simple/parser/Allocations.java); the allocation-helper graph builder follows the expression routines |
+| `newExpression`, `arrayInitializer` | [`Allocations.parseNew`](../src/main/java/com/seaofnodes/simple/parser/Allocations.java), [`ArrayInitializers`](../src/main/java/com/seaofnodes/simple/parser/ArrayInitializers.java); private initialization, list checks, and generator loops |
 | `stringExpression`, `interpolation` | [`Strings.parse`](../src/main/java/com/seaofnodes/simple/parser/Strings.java), using `Lexer.stringPart` / `stringFormat`; normal expression parsing resumes inside each interpolation |
 | Literals, identifiers, comments, token matching | [`Lexer`](../src/main/java/com/seaofnodes/simple/parser/Lexer.java); it also supplies source-location snapshots used by diagnostics and serialized IR |
 

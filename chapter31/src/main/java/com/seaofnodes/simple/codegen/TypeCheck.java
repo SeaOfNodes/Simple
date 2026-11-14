@@ -21,12 +21,14 @@ abstract class TypeCheck {
         Ary<Node> errs = new Ary<>(Node.class);
         Ary<ConstructNode> constructs = new Ary<>(ConstructNode.class);
         Ary<InitViewNode> views = new Ary<>(InitViewNode.class);
+        Ary<ArrayInitNode> arrays = new Ary<>(ArrayInitNode.class);
         code._stop.walk( n -> {
                 if( n.err() != null )
                     errs.add(n);
                 if( n instanceof CLInitNode ) code.add(n);
                 if( n instanceof ConstructNode con ) constructs.add(con);
                 if( n instanceof InitViewNode view ) views.add(view);
+                if( n instanceof ArrayInitNode array ) arrays.add(array);
                 return null;
             });
 
@@ -57,13 +59,15 @@ abstract class TypeCheck {
             if( !con.isDead() ) con.subsume(con.in(1));
         for( InitViewNode view : views )
             if( !view.isDead() ) view.subsume(view.in(1));
+        for( ArrayInitNode array : arrays )
+            if( !array.isDead() ) array.subsume(array.in(2));
     }
 
     private static int errorRank(Node n) {
         // Bad memory access originates the error. Missing construction fields
         // in turn explain generic-scalar arithmetic further downstream.
         if( n instanceof MemOpNode && noBottomInputs(n) ) return 0;
-        if( n instanceof ConstructNode ) return 1;
+        if( n instanceof ConstructNode || n instanceof ArrayInitNode ) return 1;
         return noBottomInputs(n) ? 2 : 3;
     }
 

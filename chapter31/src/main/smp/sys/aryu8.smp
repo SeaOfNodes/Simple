@@ -69,10 +69,7 @@ val atoi = { u8[~] str ->
 
 // Zero-terminate a string for libc, reserving one array element for the zero.
 { u8[~] -> u8[] } str0 = { u8[~] str ->
-  if( str# == sys.integer.MAX_U32 ) libc._exit(1);
-  u8[] !strz = new u8[str#+1];
-  u32 len=str#;
-  ary.copy(strz,0,str,0,len);
-  strz[str#] = '\0';
-  strz;
+    if( str# == sys.integer.MAX_U32 ) libc._exit(1);
+    // Copy, terminate and return
+    return new u8[str#+1]{i64 i -> i<str# ? str[i] : '\0'; };
 };

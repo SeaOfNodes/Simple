@@ -24,6 +24,31 @@ animation and the reusable `sys.draw.Button` widget:
 `make -C chapter31 run-clock CTAGS=`. Click its button or press Space to switch
 between green seven-segment digits and an analog dial.
 
+## Array initializers
+
+Arrays can be filled with a list or an index-based initializer:
+
+```simple
+val glyphs = new u16[~]{075557,026227,061247}; // Read-only, inferred length.
+val squares = new int[10]{int i -> i*i;};
+val names = new u8[~][~2]{"Alice","Bob"}; // Read-only, non-null strings.
+```
+
+An explicit list length must be a constant equal to the number of elements.
+A generator evaluates its length once and runs in index order, once per element
+(zero times for an empty array). Its body supports statements and `return`, or
+uses its last expression as the result. It can read surrounding locals but
+cannot reassign them. Use `int`, `i64`, or `u32` for the index.
+
+`[~n]` (or `[~]` with a list) makes the array read-only; `val` alone only fixes
+the binding. Initializers can construct arrays of non-null references because
+every element is supplied before the array becomes accessible. Read-only access
+propagates to referenced elements, following the existing view rules. Initialization runs at runtime;
+read-only does not require compile-time evaluation. Canvas's font now uses a
+read-only `u16` table, and `sys.text.end` uses a generator for its byte copy.
+
+## Running the examples
+
 ```sh
 make -C chapter31 libs CTAGS=     # Once while online (also: init or lib).
 make -C chapter31 run-graphical-tictactoe CTAGS=

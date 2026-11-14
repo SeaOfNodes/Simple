@@ -198,6 +198,8 @@ final class Functions {
     }
 
     ReturnNode parseBody( String funName, TypeFunPtr sig, Lexer loc, BitSet finals, String[] ids) {
+        ArrayInitializers.Frame outerArray = P.arrays._frame;
+        P.arrays._frame = null;
         Structs.Constructor outerCtor = P.structs._pendingCtor;
         P.structs._pendingCtor = null;
         boolean isInit = FunNode.isInit(funName);
@@ -275,6 +277,7 @@ final class Functions {
         P.statements._breakScope    =    breakScope;
         P._scope.pop();
         P.construction._frame = outerConstruction;
+        P.arrays._frame = outerArray;
 
         return ret;
     }

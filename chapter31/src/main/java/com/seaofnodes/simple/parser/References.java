@@ -120,6 +120,7 @@ final class References {
             return P.expressions.parsePostfixMethod(P.construction.view(rvalue),P._scope.in(P._scope.update(P._scope.var(selfx),null)));
         }
         // Assign-update direct into Scope
+        P.arrays.checkAssignment(var,site);
         if( var._final && !P._scope.canInit(var) )
             throw Parser.error("Cannot reassign final '"+var._name+"'",site);
         checkSharedFunction(var);
@@ -130,6 +131,7 @@ final class References {
     }
 
     void checkAssignment(Var def, Lexer site) {
+        if( fieldSelf(def)==null ) P.arrays.checkAssignment(def,site);
         String name = def._name;
         // A final field may receive its first value in its constructor.
         if( P._scope.in(def._idx)._type!=Type.TOP && def._final &&

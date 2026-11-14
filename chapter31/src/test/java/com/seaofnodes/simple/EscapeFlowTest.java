@@ -7,6 +7,37 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class EscapeFlowTest {
+    @Test public void testArrayGeneratorDoesNotPublishUnrelatedFunctions() {
+        for( long seed : new long[]{1,123,987654321} )
+            for( String access : new String[]{"","~"} ) {
+                CodeGen code=new CodeGen("""
+                    val _hidden_noInline={i64 x -> x+1;};
+                    val data=new i32[%s(arg&7)]{int i -> i*i;};
+                    return data#;
+                    """.formatted(access),seed,true).parse();
+                int hidden=named(code,"_hidden_noInline").sig().fidx();
+                code.driver(CodeGen.Phase.TypeCheck);
+                TypeMem outside=((TypeTuple)code._start._type).mem();
+                assertFalse(XInt.bit(outside._escFs,hidden));
+                assertEquals("0",Eval2.eval(code,0));
+                assertEquals("4",Eval2.eval(code,4));
+            }
+    }
+
+    @Test public void testArrayGeneratorPublishesItsCallbacks() {
+        CodeGen code=new CodeGen("""
+            val _callback_noInline={i64 x -> x+1;};
+            val callbacks=new {i64 -> i64}[~3]{int i -> _callback_noInline;};
+            return callbacks;
+            """).parse();
+        FunNode callback=named(code,"_callback_noInline");
+        int fidx=callback.sig().fidx();
+        code.driver(CodeGen.Phase.TypeCheck);
+        assertTrue(XInt.bit(((TypeTuple)code._start._type).mem()._escFs,fidx));
+        assertFalse(callback.isDead());
+        assertTrue(callback.unknownCallers());
+    }
+
     // A cofinite outside set must not revive private allocation helpers.
     @Test public void testOpaqueRoundTrip() {
         for( long seed : new long[]{1,123,987654321} ) {

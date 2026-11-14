@@ -388,7 +388,7 @@ public abstract class Eval2 {
             TypeMem mem = (TypeMem)con._type;
             Object val = con(mem._t);
             TypeMemPtr tmp = (TypeMemPtr)esc.self()._type;
-            int idx = tmp._obj.findAlias(esc.fld()._alias);
+            int idx = layout(tmp._obj).findAlias(esc.fld()._alias);
             Object[] fs = (Object[])val(esc.self());
             if( tmp._obj.isAry() ) {
                 assert idx==0; // length field
@@ -443,8 +443,18 @@ public abstract class Eval2 {
 
     private static Object[] classObject(TypeStruct type) {
         Object[] ptr = CLASSES.get(type._name);
-        if( ptr==null ) CLASSES.put(type._name,ptr=alloc(type));
+        if( ptr==null ) CLASSES.put(type._name,ptr=alloc(layout(type)));
         return ptr;
+    }
+
+    // Imported pointer views may retain parsing-only forward-reference fields.
+    // Like native field offsets, evaluator slots use the module's final layout.
+    private static TypeStruct layout(TypeStruct type) {
+        if( TypeStruct.startsClzPrefix(type._name) ) {
+            CompUnit cu=CODE._compunits.get(type._name.substring(6).replace('.','/'));
+            if( cu!=null ) return cu._clz;
+        }
+        return type;
     }
 
     private static Object not( NotNode not ) {
@@ -465,7 +475,7 @@ public abstract class Eval2 {
         TypeMemPtr tmp = (TypeMemPtr)ld.ptr()._type;
         int idx = tmp._obj.isAry()
             ? offToIdx(x(ld.off()),tmp._obj)
-            : tmp._obj.find(ld._name);
+            : layout(tmp._obj).find(ld._name);
         return fs[idx];
     }
 
@@ -476,7 +486,7 @@ public abstract class Eval2 {
         Object[] fs = (Object[])val(st.ptr());
         int idx = tmp._obj.isAry()
             ? offToIdx(x(st.off()),tmp._obj)
-            : tmp._obj.find(st._name);
+            : layout(tmp._obj).find(st._name);
         Object val = val(st.val());
         // Idealization can remove conversions already performed by the store.
         Type type = st.declaredType();
