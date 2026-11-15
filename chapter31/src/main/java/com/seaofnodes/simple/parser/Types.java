@@ -37,6 +37,12 @@ final class Types {
             if( t0==Type.BOTTOM || t0==Type.TOP ) return t0; // var/val
             tname = typeName(tname).intern();
             t0 = Parser.TYPES.get(tname);
+            // Bare forward types use the same file-relative name as `new`.
+            // A later sibling declaration must complete this very type.
+            if( t0 == null && tname.indexOf('.') == -1 ) {
+                tname = fullTypeName(tname);
+                t0 = Parser.TYPES.get(tname);
+            }
         }
         Type t1 = t0==null ? TypeStruct.forward(tname) : t0;
 
@@ -135,9 +141,8 @@ final class Types {
 
     Type implicitSelfType() {
         TypeStruct self = P._scope.constructorSelf();
-        // Ordinary instance methods accept the declared object shape.  The
-        // constructor-only receiver starts at the low/default field values,
-        // and is built explicitly by parseConstructor().
+        // Function types without a body must allow for writes. Function
+        // expressions can infer a weaker requirement in MethodAccess.
         return self == null ? TypePtr.PTR : TypeMemPtr.make(self);
     }
 

@@ -98,7 +98,15 @@ public class LoadNode extends MemOpNode {
             t = mem._alias==_alias ? mem._t : actual==null ? TypeScalar.BOT : actual._t;
         } else if( mem._alias==_alias )
             t = t.join(mem._t);
-        if( !mem._one ) t = mem.outside(t);
+        // A final method's identity comes from its declaration, not from an
+        // unknown outside writer. It remains callable on a local object even
+        // when that function has never escaped to outside code.
+        if( !mem._one ) {
+            Type declared = Parser.TYPES.get(tmp._obj._name);
+            Field field = declared instanceof TypeStruct obj ? obj.field(_name) : null;
+            if( !(field != null && field._final && field._t instanceof TypeFunPtr fun && fun.isConstant()) )
+                t = mem.outside(t);
+        }
         // Store forwarding is also a value fact during SCCP. Waiting for the
         // later rewrite can turn a known non-null stored pointer into a
         // nullable declaration, then BOTTOM at the next dereference.

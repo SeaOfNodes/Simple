@@ -3,7 +3,7 @@ struct Canvas {
     u32 height;
     u32[] pixels;
 
-    new Canvas = { int w, int h ->
+    new Canvas = { u32 w, u32 h ->
         i64 count = w;
         count *= h;
         if( w <= 0 || h <= 0 || count > sys.integer.MAX_I32 ) libc._exit(1);

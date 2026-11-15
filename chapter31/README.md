@@ -73,7 +73,7 @@ units directly: `SECOND=1000`, `MINUTE=60*SECOND`, and `HOUR=60*MINUTE`.
 for due timer IDs; no timer thread or callback is needed.  This might be a mindset
 change for you game writers, it depends on what era you started writing them.
 Here it is all single-threaded and event-loop driven - but when there is nothing
-left to do, you need to wait for an event.  
+left to do, you need to wait for an event.
 
 Time also works in string interpolation:
 

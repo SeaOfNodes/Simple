@@ -279,7 +279,7 @@ return _s.peek('q');
         CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
         assertEquals("return Phi(Region,0,1);", code.print());
         assertEquals("1", Eval2.eval(code, 0));
-        testCPU(src,"x86_64_v2", "win64",31,null);
+        testCPU(src,"x86_64_v2", "win64",23,null);
     };
 
     @Test
@@ -303,8 +303,7 @@ return s.skip().x;
 
         try { new CodeGen(src).driver(CodeGen.Phase.TypeCheck); fail(); }
         catch( Exception e ) {
-            // Bad error message, but basically requires a mutable 'x' field.
-            org.junit.Assert.assertTrue(e.getMessage().startsWith("Argument #0 isa"));
+            assertEquals("Receiver for method 'skip' is read-only Test._Scan; expected writable Test._Scan",e.getMessage());
         }
     };
 

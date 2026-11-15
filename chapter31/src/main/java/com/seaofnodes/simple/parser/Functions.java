@@ -14,6 +14,11 @@ final class Functions {
     // Merge all function exits here.
     ScopeNode _returnScope;
 
+    // Instance method headers are available immediately; their bodies need
+    // the complete field scope, just like explicitly declared constructors.
+    private record Method(FunPtrNode ptr, Lexer body, Lexer loc, BitSet finals, String[] ids) {}
+    private Ary<Method> _methods;
+
     Functions(Parser P) { this.P = P; }
 
     /**
@@ -29,6 +34,7 @@ final class Functions {
         Ary<String> ids = new Ary<>(String.class);
         BitSet finals = new BitSet();
         Type self = P.types.implicitSelfType();
+        if( P.structs.inStructDeclaration() ) self = self.makeRO();
         ts.push(self);
         ids.push(self == TypePtr.PTR ? "#self" : "self");
 
@@ -38,8 +44,47 @@ final class Functions {
         parameters(ts,ids,finals,false);
         // Make a concrete function type, with a fidx
         TypeFunPtr tfp = TypeFunPtr.make1((byte)2,true,ts.asAry(),Type.BOTTOM,P._code.fidx(P._ref._cname));
+        if( P.structs.inStructDeclaration() ) {
+            FunPtrNode ptr = (FunPtrNode)new FunPtrNode(tfp,P._code._start,null).peephole().keep();
+            _methods.push(new Method(ptr,P.loc(),loc,finals,ids.asAry()));
+            P._lexer.skipTo('{','}',"method body");
+            return ptr;
+        }
         ReturnNode ret = parseFunctionBody(tfp,loc,finals,ids.asAry());
         return new FunPtrNode(tfp,P._code._start,ret).peephole();
+    }
+
+    private void finishMethods() {
+        if( _methods == null ) return;
+        Ary<Method> methods = _methods;
+        Lexer after = P._lexer;
+        for( Method method : methods ) {
+            P._lexer = new Lexer(method.body());
+            TypeFunPtr sig = (TypeFunPtr)method.ptr()._con;
+            ReturnNode ret = parseFunctionBody(sig,method.loc(),method.finals(),method.ids());
+            method.ptr().setDef(1,ret);
+            P.require("}");
+        }
+        Ary<FunNode> functions = new Ary<>(FunNode.class);
+        for( Method method : methods ) functions.add(method.ptr().fun());
+        MethodAccess.infer(functions);
+        for( Method method : methods ) {
+            ReturnNode ret = method.ptr().ret();
+            TypeFunPtr sig = ret.fun().sig();
+            method.ptr().peephole();
+            // Declarations saw the header before its FunNode existed.
+            for( Var var : P._scope._vars )
+                if( var.type() instanceof TypeFunPtr tfp && tfp.isConstant() && tfp.fidx() == sig.fidx() ) {
+                    ret.fun().setName(var._name);
+                    var.refineType(var.type().join(method.ptr()._type));
+                    TypeStruct self = P._scope.constructorSelf();
+                    TypeStruct shape = (TypeStruct)Parser.TYPES.get(self._name);
+                    Parser.TYPES.put(shape._name,shape.replace(shape.field(var._name).makeFrom(var.type())));
+                    break;
+                }
+            method.ptr().unkeep();
+        }
+        P._lexer = after;
     }
 
     Node parseConstructor(String name, boolean explicit) {
@@ -203,6 +248,8 @@ final class Functions {
         Structs.Constructor outerCtor = P.structs._pendingCtor;
         P.structs._pendingCtor = null;
         boolean isInit = FunNode.isInit(funName);
+        Ary<Method> outerMethods = _methods;
+        _methods = FunNode.isInstance(funName) ? new Ary<>(Method.class) : null;
         boolean isCtor = isInit || P.structs.isExplicitConstructorName(funName);
         String typeName = isCtor ? ((TypeMemPtr)sig._sig[0])._obj._name : null;
 
@@ -235,7 +282,11 @@ final class Functions {
                 nvar = P.structs.updateSelfAsFieldsDiscovered( typeName, nvar );
         }
 
-        if( isInit ) P.structs.finishConstructor();
+        if( isInit ) {
+            finishMethods();
+            P.structs.finishConstructor();
+        }
+        _methods = outerMethods;
         P.structs._pendingCtor = outerCtor;
 
         ParmNode self = fun.parm(2);
@@ -303,8 +354,14 @@ final class Functions {
         // All args, "as-if" called externally
         for( int i = 0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
+            // Parse an implicit receiver with write access, then infer the
+            // public requirement from its uses once every method is present.
+            if( i == 0 && ids[0].equals("self") && !FunNode.isInit(funName) &&
+                !(sig.ret() instanceof TypeMem) && t instanceof TypeMemPtr ptr )
+                t = ptr.withAccess(false);
             // Args take a default input if called from Start/external-world
-            Node parm = new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(fun.defaultArg(i)).peephole()).peephole();
+            Type seed = i == 0 && t instanceof TypeMemPtr ? t : fun.defaultArg(i);
+            Node parm = new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(seed).peephole()).peephole();
             if( t instanceof TypeMemPtr ptr && ptr._partial ) parm = new ConstructNode(parm).peephole();
             P._scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), parm, loc);
         }

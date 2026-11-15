@@ -10,6 +10,57 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ParserDiagnosticTest {
+    @Test public void testMissingForwardTypeDiagnostic() {
+        String source = """
+            val read = { Missing value ->
+                return value.field;
+            };
+            return 0;
+            """;
+        var error = rejected(source);
+        assertEquals("Unknown type 'Test.Missing'",error.getMessage());
+        assertTrue(error.diagnostic(),error.diagnostic().startsWith("Test.smp:2:"));
+        assertTrue(error.diagnostic(),error.diagnostic().contains("return value.field;"));
+    }
+
+    @Test public void testReadOnlyReceiverDiagnostic() {
+        String source = """
+            struct Box {
+                int x = 1;
+                val bump = { -> x++; x; };
+            };
+            val draw = { Box b ->
+                return b.bump();
+            };
+            return draw(new Box);
+            """;
+        try {
+            new CodeGen(source).driver(CodeGen.Phase.TypeCheck);
+            fail("Read-only receiver accepted by a writable method");
+        } catch( Parser.ParseException e ) {
+            assertEquals("Receiver for method 'bump' is read-only Test.Box; expected writable Test.Box",e.getMessage());
+            assertTrue(e.diagnostic(),e.diagnostic().startsWith("Test.smp:6:18: error: "));
+            assertFalse(e.getMessage().contains("{i32"));
+        }
+    }
+
+    @Test public void testReadOnlyArgumentDiagnostic() {
+        String source = """
+            struct Box { int x = 1; };
+            val write = { !Box b -> b.x = 2; };
+            val draw = { Box b -> write(b); };
+            return draw(new Box);
+            """;
+        try {
+            new CodeGen(source).driver(CodeGen.Phase.TypeCheck);
+            fail("Read-only argument accepted by a writable parameter");
+        } catch( Parser.ParseException e ) {
+            assertEquals("Argument #1 is read-only Test.Box; expected writable Test.Box",e.getMessage());
+        }
+        new CodeGen(source.replace("val draw = { Box b", "val draw = { !Box b"))
+            .driver(CodeGen.Phase.TypeCheck);
+    }
+
     private static Parser.ParseException rejected(String source) {
         try {
             new CodeGen(source).driver(CodeGen.Phase.Parse);

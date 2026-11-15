@@ -256,6 +256,15 @@ public class CallNode extends CFGNode {
                 // Constructors return private memory and carry hidden self and
                 // selfMem arguments ahead of the source-level arguments.
                 int argno = i - (tfp.ret() instanceof TypeMem ? 2 : 0);
+                // Access qualifiers are not shown by the structural type dump.
+                // Report the differing permission instead of two huge shapes.
+                if( arg(i+2)._type instanceof TypeMemPtr actual && actual._ro &&
+                    tfp.arg(i) instanceof TypeMemPtr formal && !formal._ro ) {
+                    String who = i == 0 ? name() == null ? "Receiver" : "Receiver for method '"+name()+"'"
+                                        : "Argument #"+argno;
+                    return Parser.error(who+" is read-only "+actual._obj.str()+
+                                        "; expected writable "+formal._obj.str(),_loc);
+                }
                 return Parser.error( "Argument #" + argno + " isa " + arg(i+2)._type + ", but must be a " + tfp.arg(i), _loc );
             }
 

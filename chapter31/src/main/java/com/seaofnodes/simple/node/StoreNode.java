@@ -243,6 +243,10 @@ public class StoreNode extends MemOpNode {
     private byte storageType() {
         if( !(ptr()._type instanceof TypeMemPtr tmp) )
             return 0;
+        // Completing a forward declaration changes TYPES without changing
+        // this Store's inputs. Wait for the pointer's type upgrade, which
+        // queues its users, before consulting the completed declaration.
+        if( tmp._obj._fref ) return 0;
         TypeStruct obj = (TypeStruct)Parser.TYPES.get(tmp._obj._name);
         Field fld = obj.field(_name);
         if( fld == null || fld._t == null )
