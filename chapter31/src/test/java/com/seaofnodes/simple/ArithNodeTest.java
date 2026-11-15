@@ -85,6 +85,7 @@ public class ArithNodeTest {
             ops.add(new SubNode(lhs,rhs,mode));
             ops.add(new MulNode(lhs,rhs,mode));
             ops.add(new DivNode(lhs,rhs,mode));
+            ops.add(new ModNode(lhs,rhs,mode));
         }
         ops.add(new AndNode(null,lhs,rhs));
         ops.add(new OrNode(null,lhs,rhs));

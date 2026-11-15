@@ -14,11 +14,19 @@
 #include "x11/WindowData_X11.h"
 #endif
 
-// One fixed-size window for now. No Simple pointer survives a native call:
+// One resizable window. No Simple pointer survives a native call:
 // MiniFB retains its last draw buffer for OS repaint events, so copy it here.
 static struct mfb_window *window;
 static uint32_t *frame;
 static uint32_t width, height;
+static size_t capacity;
+
+static uint32_t window_width(void) { return window ? mfb_get_window_width(window) : 0; }
+static uint32_t window_height(void) { return window ? mfb_get_window_height(window) : 0; }
+
+static void resize_window(struct mfb_window *w, int x, int y) {
+    if (x > 0 && y > 0) mfb_set_viewport(w, 0, 0, (unsigned)x, (unsigned)y);
+}
 
 // The C-only build never installs the upstream C++ callback wrappers.
 void release_cpp_stub(struct mfb_window *unused) { (void)unused; }
@@ -31,6 +39,7 @@ static void close_window(void) {
     }
     free(frame);
     frame = NULL;
+    capacity = 0;
 }
 
 static int32_t open_window(const char *title, uint32_t w, uint32_t h) {
@@ -44,7 +53,8 @@ static int32_t open_window(const char *title, uint32_t w, uint32_t h) {
         fprintf(stderr, "Simple graphics: cannot allocate the display buffer.\n");
         return -1;
     }
-    window = mfb_open(title, w, h);
+    capacity = (size_t)w * h;
+    window = mfb_open_ex(title, w, h, MFB_WF_RESIZABLE);
     if (!window) {
         fprintf(stderr, "Simple graphics: MiniFB could not open a window (is a graphical display available?).\n");
         close_window();
@@ -52,6 +62,7 @@ static int32_t open_window(const char *title, uint32_t w, uint32_t h) {
     }
     width = w;
     height = h;
+    mfb_set_resize_callback(window, resize_window);
     return 0;
 }
 
@@ -67,14 +78,29 @@ static int32_t status(mfb_update_state state) {
     return -1;
 }
 
-static int32_t present(const uint32_t *pixels, uint32_t count) {
+static int32_t present_size(const uint32_t *pixels, uint32_t count, uint32_t w, uint32_t h) {
     if (!window) return 1;
-    if (!pixels || count != (uint64_t)width * height) {
+    if (!pixels || !w || !h || w > UINT32_MAX / 4 ||
+        count != (uint64_t)w * h || (uint64_t)w * h > SIZE_MAX / 4) {
         fprintf(stderr, "Simple graphics: pixel array length must equal width * height.\n");
         return -1;
     }
+    if (count > capacity) {
+        uint32_t *larger = realloc(frame, (size_t)count * sizeof(*frame));
+        if (!larger) {
+            fprintf(stderr, "Simple graphics: cannot resize the display buffer.\n");
+            return -1;
+        }
+        frame = larger;
+        capacity = count;
+    }
     memcpy(frame, pixels, (size_t)count * sizeof(*frame));
-    return status(mfb_update_ex(window, frame, width, height));
+    return status(mfb_update_ex(window, frame, w, h));
+}
+
+// Compatibility for clients drawing at their original resolution.
+static int32_t present(const uint32_t *pixels, uint32_t count) {
+    return present_size(pixels, count, width, height);
 }
 
 static int32_t wait_events(int64_t timeout) {
@@ -109,7 +135,8 @@ static int32_t key(int32_t k) {
 
 static const struct simple_graphics_api api = {
     SIMPLE_GRAPHICS_VERSION, open_window, present, poll_events,
-    mouse_x, mouse_y, button, key, close_window, wait_events
+    mouse_x, mouse_y, button, key, close_window, wait_events,
+    window_width, window_height, present_size
 };
 #ifdef _WIN32
 __declspec(dllexport)

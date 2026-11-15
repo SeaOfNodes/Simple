@@ -2,13 +2,22 @@
 // Pass any argument for a short, self-closing test; otherwise close or press Esc.
 val main = { u8[~][] args ->
     if( sys.gfx.open("Simple pixels",320,240) != sys.gfx.OK ) return 1;
-    val pixels = new u32[320*240];
-    for( int y = 0; y < 240; y++ )
-        for( int x = 0; x < 320; x++ )
-            pixels[y*320+x] = (x*255/319 << 16) | (y*255/239 << 8) | 64;
-    int result = sys.gfx.present(pixels);
+    val c = new sys.draw.Canvas(320,240);
+    int result = sys.gfx.OK;
+    bool dirty = true;
     int frames = 0;
     while( result == sys.gfx.OK ) {
+        if( c.resize(sys.gfx.width(),sys.gfx.height()) ) dirty = true;
+        if( dirty ) {
+            // The gradient fills the window, including non-4:3 shapes.
+            int dx = c.width > 1 ? c.width-1 : 1, dy = c.height > 1 ? c.height-1 : 1;
+            for( int y = 0; y < c.height; y++ )
+                for( int x = 0; x < c.width; x++ )
+                    c.pixels[y*c.width+x] = (x*255/dx << 16) | (y*255/dy << 8) | 64;
+            result = sys.gfx.presentSize(c.pixels,c.width,c.height);
+            if( result != sys.gfx.OK ) break;
+            dirty = false;
+        }
         result = sys.gfx.poll(true);
         if( args# > 1 && ++frames == 5 ) break;
     }

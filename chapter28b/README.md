@@ -120,7 +120,9 @@ those exclusions by owner and slot, then restores the complement. Treating
 this set as FULL would expose private library functions. Unknown callback
 arguments, results, and unloaded summaries use the evolving Start/Stop state;
 no frozen public-function list supplies their bounds. Hidden class receivers
-default to the defining class singleton even after import.
+default to the defining class singleton even after import. The
+[escape-flow implementation notes](../chapter29/docs/escape-flow.md) explain
+the shared design and the identity-remapping checks in more detail.
 
 `ParseAll` is the workhorse that discovers source and object dependencies.  It
 tracks missing symbol references, looking them up in the search path one by one,

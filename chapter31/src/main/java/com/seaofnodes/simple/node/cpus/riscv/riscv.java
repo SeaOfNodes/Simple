@@ -222,6 +222,7 @@ public class riscv extends Machine {
         case CProjNode      c -> new CProjNode(c);
         case ConstantNode con -> con(con);
         case DivNode      div -> div.mode()==2 ? new DivFRISC(div) : new DivRISC(div);
+        case ModNode      mod -> mod.mode()==2 ? new ModFNode(mod) : new DivRISC(mod);
         case EscapeNode   esc -> new EscapeNode(esc);
         case FunNode      fun -> new FunRISC(fun);
         case FunPtrNode  fptr -> fptr(fptr);

@@ -15,6 +15,9 @@ struct simple_graphics_api {
     int32_t (*key)(int32_t);
     void (*close)(void);
     int32_t (*wait)(int64_t);
+    uint32_t (*width)(void);
+    uint32_t (*height)(void);
+    int32_t (*present_size)(const uint32_t *, uint32_t, uint32_t, uint32_t);
 };
-#define SIMPLE_GRAPHICS_VERSION 2
+#define SIMPLE_GRAPHICS_VERSION 3
 #endif

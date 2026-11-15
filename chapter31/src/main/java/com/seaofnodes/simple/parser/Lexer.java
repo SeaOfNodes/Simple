@@ -325,7 +325,7 @@ public class Lexer {
 
     //
     private boolean isPunctuation(char ch) {
-        return "=;[]<>()+-/*&|^".indexOf(ch) != -1;
+        return "=;[]<>()+-/*%&|^".indexOf(ch) != -1;
     }
 
     private String parsePunctuation() {
@@ -350,7 +350,7 @@ public class Lexer {
         if( match(">>=" ) ) return SAR;
         if( _position+2 >= _input.length ) return 0;
         char ch0 = (char)_input[_position];
-        if( "+-/*&|^".indexOf(ch0) == -1 ) return 0;
+        if( "+-/*%&|^".indexOf(ch0) == -1 ) return 0;
         char ch1 = (char)_input[_position+1];
         if(               ch1 == '=' ) { _position += 2; return ch0; }
         if( isIdLetter((char)_input[_position+2]) ) return 0;

@@ -18,9 +18,9 @@ completed cleanup and partial-field-view snapshot.
 
 On 2026-11-08, Cliff merged and pushed Chapter 30, then requested
 [Chapter 31](../chapter31/README.md) on branch `ch31`. It starts from the
-completed Chapter 30 compiler. Chapter 31 now develops software drawing in
-Simple and small graphical turn-based games, starting with tic-tac-toe and an
-optional MiniFB window/input backend. New work belongs in `chapter31/`,
+completed Chapter 30 compiler. Chapter 31 develops software drawing, audio,
+time and math libraries, array initialization and static data, and graphical
+games including tic-tac-toe and Breakout. New work belongs in `chapter31/`,
 preserving Chapter 30 as the preceding snapshot.
 
 | Previous directory | Final chapter |

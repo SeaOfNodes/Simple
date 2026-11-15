@@ -88,7 +88,7 @@ public class StreamIOTest extends TestC {
                 val bytes=sys.io.read(700);
                 if(!bytes) return 1;
                 if(bytes#!=24593) return 2;
-                for(u32 i=0; i<bytes#; i++) if(bytes[i]!=i-(i/251)*251) return 3;
+                for(u32 i=0; i<bytes#; i++) if(bytes[i]!=i%251) return 3;
                 test_io_mode(1,0);
                 if(sys.io.write(701,bytes)!=bytes# || test_io_count()!=bytes#) return 4;
                 if(test_io_status()) return 5;

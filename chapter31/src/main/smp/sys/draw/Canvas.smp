@@ -1,32 +1,76 @@
 struct Canvas {
-    u32 width;
-    u32 height;
-    u32[] pixels;
+    u32 !width;
+    u32 !height;
+    u32[] !pixels;
+    // Layout coordinates are relative to the constructor's base size.
+    // A single float scale preserves circles and game geometry on resize.
+    u32 baseWidth, baseHeight;
+    f64 scale = 1.0;
+    int offsetX = 0, offsetY = 0;
 
     new Canvas = { u32 w, u32 h ->
+        if( w > sys.integer.MAX_I32 || h > sys.integer.MAX_I32 ) libc._exit(1);
         i64 count = w;
         count *= h;
         if( w <= 0 || h <= 0 || count > sys.integer.MAX_I32 ) libc._exit(1);
         width = w;
         height = h;
+        baseWidth = w;
+        baseHeight = h;
         pixels = new u32[count];
     };
 
+    // Ignore minimized windows. Return true only when a redraw is needed.
+    val resize = { u32 w, u32 h ->
+        if( w == 0 || h == 0 || (w == width && h == height) ) return false;
+        if( w > sys.integer.MAX_I32 || h > sys.integer.MAX_I32 ) libc._exit(1);
+        i64 count = w; count *= h;
+        if( count > sys.integer.MAX_I32 ) libc._exit(1);
+        // Reuse storage while dragging. Geometric growth bounds total allocation
+        // even in the current runtime, which does not yet collect old arrays.
+        if( count > pixels# ) {
+            i64 capacity = pixels#*2;
+            if( capacity < count ) capacity = count;
+            if( capacity > sys.integer.MAX_I32 ) capacity = sys.integer.MAX_I32;
+            pixels = new u32[capacity];
+        }
+        width = w; height = h;
+        f64 sx = w*1.0/baseWidth, sy = h*1.0/baseHeight;
+        scale = sx < sy ? sx : sy;
+        offsetX = (w-baseWidth*scale)/2;
+        offsetY = (h-baseHeight*scale)/2;
+        return true;
+    };
+
+    // Inverse of the drawing transform. Margins are outside the layout;
+    // reject them before integer truncation can turn a small negative into 0.
+    val localX = { int x ->
+        if( x < offsetX || x >= offsetX+baseWidth*scale ) return -1;
+        int local = (x-offsetX)/scale;
+        return local;
+    };
+    val localY = { int y ->
+        if( y < offsetY || y >= offsetY+baseHeight*scale ) return -1;
+        int local = (y-offsetY)/scale;
+        return local;
+    };
+
     val clear = { u32 color ->
-        for( int i = 0; i < pixels#; i++ ) pixels[i] = color;
+        i64 count = width; count *= height;
+        for( int i = 0; i < count; i++ ) pixels[i] = color;
         return self;
     };
 
     val pixel = { i64 x, i64 y, u32 color ->
-        if( 0 <= x < width && 0 <= y < height ) pixels[y*width+x] = color;
-        return self;
+        return fillRect(x,y,1,1,color);
     };
 
     // Integer coordinates, top-left origin. Rectangle extents are half-open.
     val fillRect = { i64 x, i64 y, i64 w, i64 h, u32 color ->
         if( w <= 0 || h <= 0 ) return self;
-        i64 right = x; right += w;
-        i64 bottom = y; bottom += h;
+        i64 right = offsetX+(x+w)*scale;
+        i64 bottom = offsetY+(y+h)*scale;
+        x = offsetX+x*scale; y = offsetY+y*scale;
         if( right <= 0 || bottom <= 0 || x >= width || y >= height ) return self;
         int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y;
         int x1 = right > width ? width : right, y1 = bottom > height ? height : bottom;
@@ -55,6 +99,10 @@ struct Canvas {
     };
     val _circle = { i64 cx, i64 cy, int radius, int thickness, bool filled, u32 color ->
         if( radius < 0 || (!filled && thickness <= 0) ) return self;
+        cx = offsetX+cx*scale; cy = offsetY+cy*scale;
+        radius *= scale;
+        thickness *= scale;
+        if( !filled && thickness < 1 ) thickness = 1;
         i64 left = cx; left -= radius;
         i64 top = cy; top -= radius;
         i64 right = cx; right += radius;
@@ -79,6 +127,10 @@ struct Canvas {
     // box is scanned. Floating distances avoid overflowing coordinate squares.
     val line = { i64 x0, i64 y0, i64 x1, i64 y1, i64 thickness, u32 color ->
         if( thickness <= 0 ) return self;
+        x0 = offsetX+x0*scale; y0 = offsetY+y0*scale;
+        x1 = offsetX+x1*scale; y1 = offsetY+y1*scale;
+        thickness *= scale;
+        if( thickness < 1 ) thickness = 1;
         i64 pad = thickness/2+1;
         i64 left = x0 < x1 ? x0 : x1; left -= pad;
         i64 top = y0 < y1 ? y0 : y1; top -= pad;

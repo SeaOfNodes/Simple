@@ -1,5 +1,10 @@
 # Deferring construction checks: experiment
 
+This is a development record for Chapter 29. Read the
+[chapter's constructor explanation](../README.md#checking-constructor-completion)
+for the implemented behavior; the experiments below include superseded approaches
+and dated test results.
+
 The [escape-flow continuation](escape-flow.md) supersedes the frozen-public
 fallback and remaining recursive-test failures described later in these notes.
 All four recursive examples now pass their original printed-IR expectations.

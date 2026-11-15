@@ -184,6 +184,7 @@ public class RegAlloc {
             if( bb instanceof CallEndMach cend ) cend.cacheRegs(_code);
             for( Node n : bb._outputs )
                 if( n instanceof NewNode nnn ) nnn.cacheRegs(_code);
+                else if( n instanceof ModFNode mod ) mod.cacheRegs(_code);
         }
         // Expensive assert: useful when chasing cross-function allocator edges.
         //assert verifyFunctionLocalEdges();
@@ -680,7 +681,14 @@ public class RegAlloc {
             if( cfg==def.cfg0() && def.nOuts()==1 && !singleReg )
                 return;
         }
-        makeSplit(def,kind,round,lrg,umask).insertBefore(n, i);
+        // If isolating a loop Phi's uses did not relieve pressure, cloning its
+        // constant input again cannot help: it still forces the Phi into a GPR.
+        // A real transfer on this retry lets the Phi live on the stack.
+        Node split = n instanceof PhiNode phi && phi.region() instanceof LoopNode &&
+            lrg._machUse instanceof SplitNode prior && prior._round<round &&
+            !lrg._mask.isEmpty() && def instanceof MachNode mach && mach.isClone()
+            ? makeSplit(kind,round,lrg) : makeSplit(def,kind,round,lrg,umask);
+        split.insertBefore(n, i);
         // Keep the def-side transfer: a kill between the two copies may be
         // exactly why this range split. Coalescing can join them when safe.
     }
@@ -742,6 +750,8 @@ public class RegAlloc {
                 // Raise frame size by max stack args passed to New
                 if( n instanceof NewNode nnn )
                     maxReg = Math.max(maxReg,nnn._xslot);
+                if( n instanceof ModFNode mod )
+                    maxReg = Math.max(maxReg,mod._xslot);
 
                 if( !(n instanceof SplitNode ) ) continue;
                 int defreg = lrg(n     )._reg;

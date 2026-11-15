@@ -43,7 +43,7 @@ val integer = { !aryu8 b, i64 value, i64 spec, i64 width, i64 precision ->
     if( n == 0 && precision != 0 ) digits[count++] = '0';
     while( n != 0 ) {
         i64 q = 0, r = 0;
-        if( signed ) { q = n/base; r = q*base-n; }
+        if( signed ) { q = n/base; r = -(n%base); }
         else {
             // Unsigned division without a u64 type. Halving first makes
             // the dividend nonnegative; the remainder needs at most one fix.

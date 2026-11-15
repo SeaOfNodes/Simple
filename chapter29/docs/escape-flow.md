@@ -1,5 +1,9 @@
 # Outside-world escape flow
 
+For the teaching sequence, read [escape analysis in Chapter 27](../../chapter27/README.md)
+and [the later precision fixes in Chapter 29](../README.md#keeping-private-code-out-of-the-outside-world-summary).
+This supplement records implementation dependencies and backport details.
+
 The `escape-flow` branch developed this design in Chapter29 and backported it
 to Chapters 28a/28b. Chapter28a uses `LocalIds` and its existing initializer
 root/lowering protocol; Chapter28b adds saved summaries and cofinite identity
@@ -125,7 +129,7 @@ later. This limitation is not repaired by resetting the whole IR.
 
 ## Validation
 
-The combined `make -k tests CHAPTERS="chapter28a chapter28b chapter29" CTAGS=`
+The combined `make -k tests CHAPTERS="chapter28a chapter28b chapter29"`
 run passes with assertions: 538 active tests in Chapter28a, 578 in Chapter28b,
 and 601 in Chapter29. Shared printer and ISA checks pass too. The log is saved
 under ignored `build/escape-backport-final.log`.

@@ -1,4 +1,5 @@
 // Optional background audio. All API calls belong on the game/main thread.
+// API and launch reference: audio.md beside this file.
 int OK = 0;
 int ERROR = -1;
 int BOOP = 1;

@@ -2,7 +2,19 @@
 val PI = 3.141592653589793;
 val E  = 2.718281828459045;
 
+// Native libm functions, all f64 -> f64. sin/cos take radians; exp is e^x,
+// log is the natural logarithm, and sqrt is the nonnegative square root.
+// These are ordinary C calls: results and domain/range errors (including
+// errno) follow the host libm. They are not folded or treated as pure intrinsics.
+// The standard linker already includes -lm.
+{ f64 -> f64 } sin  = "C";
+{ f64 -> f64 } cos  = "C";
+{ f64 -> f64 } exp  = "C";
+{ f64 -> f64 } log  = "C";
+{ f64 -> f64 } sqrt = "C";
+
 // Fixed-semantics C bindings recognized by the compiler's intrinsic inliner.
+// See chapter31/README.md, "Math support and intrinsics", for the compiler contract.
 // These preserve all 64 bits, including signed zero and NaN payloads.
 // They are NOT numeric conversions (ordinary typed assignments still are).
 { f64 -> i64 } simple_f64_bits = "C";

@@ -1,4 +1,5 @@
 // Time utilities; get the current time (both nanos and millis), sleep, time zones.
+// API, formatting, and timer reference: time/README.md.
 
 // Instants: bare i64 UTC Unix-epoch milliseconds. Durations: i64 milliseconds.
 // Monotonic readings are a separate clock domain, for deadlines/elapsed time.
@@ -61,8 +62,7 @@ val remaining = { i64 deadline_ms, i64 current_ms ->
     return deadline_ms-current_ms;
 };
 
-val _mod = { i64 n, i64 unit -> n-n/unit*unit; };
-val leap = { int year -> _mod(year,4) == 0 && (_mod(year,100) != 0 || _mod(year,400) == 0); };
+val leap = { int year -> year%4 == 0 && (year%100 != 0 || year%400 == 0); };
 val monthDays = { int year, int month ->
     if( month < 1 || month > 12 ) return 0;
     return month == 2 ? (leap(year) ? 29 : 28) :
@@ -72,7 +72,7 @@ val monthDays = { int year, int month ->
 // Gregorian civil dates, expressed using 400-year eras; no per-year loops.
 val _days = { i64 year, i64 month, i64 day ->
     year -= month <= 2 ? 1 : 0;
-    i64 era = year/400, y = year-era*400;
+    i64 era = year/400, y = year%400;
     i64 mp = month+(month > 2 ? -3 : 9);
     return era*_DAYS_PER_ERA+y*365+y/4-y/100+(153*mp+2)/5+day-1-_MARCH_EPOCH_DAYS;
 };
@@ -91,17 +91,17 @@ val makeUTC = { int year, int month, int day, int hour, int minute, int second, 
 val utc = { i64 instant ->
     val d = DateTime.empty();
     if( instant < MIN || instant > MAX ) return d;
-    i64 day = instant/DAY, rest = _mod(instant,DAY);
+    i64 day = instant/DAY, rest = instant%DAY;
     if( rest < 0 ) { rest += DAY; day--; }
-    i64 z = day+_MARCH_EPOCH_DAYS, era = z/_DAYS_PER_ERA, doe = z-era*_DAYS_PER_ERA;
+    i64 z = day+_MARCH_EPOCH_DAYS, era = z/_DAYS_PER_ERA, doe = z%_DAYS_PER_ERA;
     i64 y = (doe-doe/(_DAYS_PER_4_YEARS-1)+doe/_DAYS_PER_CENTURY-doe/(_DAYS_PER_ERA-1))/365;
     i64 doy = doe-(365*y+y/4-y/100), mp = (5*doy+2)/153;
     d.day = doy-(153*mp+2)/5+1;
     d.month = mp+(mp < 10 ? 3 : -9);
     d.year = y+era*400+(d.month <= 2 ? 1 : 0);
-    d.hour = rest/HOUR; d.minute = _mod(rest/MINUTE,60);
-    d.second = _mod(rest/SECOND,60); d.millisecond = _mod(rest,SECOND);
-    d.weekday = _mod(day+4,7);
+    d.hour = rest/HOUR; d.minute = rest/MINUTE%60;
+    d.second = rest/SECOND%60; d.millisecond = rest%SECOND;
+    d.weekday = (day+4)%7;
     if( d.weekday < 0 ) d.weekday += 7;
     return d;
 };
@@ -136,13 +136,13 @@ val _format = { i64 instant, int style, bool localZone ->
     if( d.year == 0 || style < 0 || style > 5 || style == 3 ) return "<invalid time>";
     val b = new aryu8();
     if( style == 4 ) {
-        _digits(b,d.day,2).add('/'); _digits(b,d.month,2).add('/'); _digits(b,_mod(d.year,100),2);
+        _digits(b,d.day,2).add('/'); _digits(b,d.month,2).add('/'); _digits(b,d.year%100,2);
     } else {
         if( style == 0 ) {
             _digits(b,d.year,4).add('-'); _digits(b,d.month,2).add('-'); _digits(b,d.day,2).add('T');
         }
         int hour = d.hour;
-        if( style == 1 ) { hour = _mod(hour,12); if( hour == 0 ) hour = 12; }
+        if( style == 1 ) { hour = hour%12; if( hour == 0 ) hour = 12; }
         _digits(b,hour,style == 1 ? 1 : 2).add(':'); _digits(b,d.minute,2);
         if( style == 0 || style == 5 ) { b.add(':'); _digits(b,d.second,2); }
         if( style == 1 ) b.addAry(d.hour < 12 ? "am" : "pm");
@@ -153,8 +153,8 @@ val _format = { i64 instant, int style, bool localZone ->
                 i64 offset = d.offsetSeconds;
                 b.add(offset < 0 ? '-' : '+');
                 if( offset < 0 ) offset = -offset;
-                _digits(b,offset/3600,2).add(':'); _digits(b,_mod(offset/60,60),2);
-                if( _mod(offset,60) != 0 ) { b.add(':'); _digits(b,_mod(offset,60),2); }
+                _digits(b,offset/3600,2).add(':'); _digits(b,offset/60%60,2);
+                if( offset%60 != 0 ) { b.add(':'); _digits(b,offset%60,2); }
             }
         }
     }
@@ -166,7 +166,7 @@ val elapsed = { i64 ms ->
     // Nonpositive arithmetic handles the minimum i64 without negating it.
     if( ms < 0 ) b.add('-'); else ms = -ms;
     _digits(b,-(ms/MINUTE),2).add(':');
-    _digits(b,-_mod(ms/SECOND,60),2).add('.'); _digits(b,-_mod(ms,SECOND),3);
+    _digits(b,-(ms/SECOND%60),2).add('.'); _digits(b,-(ms%SECOND),3);
     return text.end(b);
 };
 val format = { i64 instant, int style ->

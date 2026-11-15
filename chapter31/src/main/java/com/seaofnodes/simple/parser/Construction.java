@@ -56,7 +56,8 @@ import com.seaofnodes.simple.util.Ary;
  * binding denotes the allocator. Private-memory Parms therefore need no
  * fictitious external default or constructor-specific transfer function.
  * InitView and Construct are erased by the existing TypeCheck walk. There is
- * no extra construction pass; see docs/construction-groups.md.
+ * no extra construction pass; see chapter29/docs/construction-groups.md
+ * from the repository root, and chapter29/README.md for the introduction.
  */
 final class Construction {
     private final Parser P;

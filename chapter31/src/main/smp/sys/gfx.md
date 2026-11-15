@@ -1,12 +1,16 @@
 # Optional graphics
 
+[Chapter 31](../../../../README.md#graphics-and-sound) introduces the library.
+The Simple API is implemented in [gfx.smp](gfx.smp), with the window adapter in
+[simple_minifb.c](../../c/simple_minifb.c).
+
 Simple owns the pixel array and drawing code. [MiniFB](https://github.com/emoon/minifb)
 provides a window, input, and pixel presentation. The first interface is
-`sys.gfx`: one fixed-size window, operated on the main thread. The
-[Graphics example](examples/Graphics.smp) draws a color gradient in Simple.
-The [drawing library and graphical tic-tac-toe](drawing.md) build on this pixel
-interface. `make run-graphical-tictactoe CTAGS=` builds the optional backend and
-opens the game; `make graphical-tictactoe CTAGS=` only builds its executable.
+`sys.gfx`: one resizable window, operated on the main thread. The
+[Graphics example](../../../../docs/examples/Graphics.smp) draws a color gradient in Simple.
+The [drawing library and graphical tic-tac-toe](draw/README.md) build on this pixel
+interface. `make run-graphical-tictactoe` builds the optional backend and
+opens the game; `make graphical-tictactoe` only builds its executable.
 The game run target also builds optional [background audio](audio.md).
 
 ## Default: no graphics dependency
@@ -16,7 +20,7 @@ need no MiniFB, graphics headers, OpenGL, CMake, or running display. Nothing
 downloads dependencies unless you explicitly request `make libs` or `make init`
 (`make lib` remains a setup alias). Build and run targets never use the network.
 
-`make tests_nographics CTAGS=` runs the entire ordinary suite with
+`make tests_nographics` runs the entire ordinary suite with
 `SIMPLE_MINIFB=off`. This includes the missing-backend tests, which never open
 windows. It excludes the interactive `run-graphics` target.
 
@@ -31,12 +35,12 @@ the process. Non-graphics programs ignore even a broken graphics configuration.
 From `chapter31`:
 
 ```sh
-make libs CTAGS=       # Once while online; fills the persistent lib/ cache.
-make graphics graphics-example CTAGS=
-make run-graphics CTAGS=
+make libs       # Once while online; fills the persistent lib/ cache.
+make graphics graphics-example
+make run-graphics
 ```
 
-`libs` downloads the revision pinned in [graphics.mk](../graphics.mk) into
+`libs` downloads the revision pinned in [graphics.mk](../../../../graphics.mk) into
 ignored `lib/minifb-<revision>.tar.gz` and extracts it under `lib/`.
 `graphics` builds only its C framebuffer backend from these local sources. Windows
 uses the MinGW-w64 GCC compiler (`x86_64-w64-mingw32-gcc`) and GDI; the rest of
@@ -64,16 +68,23 @@ also demonstrates the diagnostic and exit status 1 when graphics is absent.
 or release Escape to exit. Passing any argument to the executable makes it
 close after five polling iterations, for a quick smoke test.
 
-To run directly from PowerShell:
+To run directly from `chapter31` in PowerShell:
 
 ```powershell
 $env:SIMPLE_MINIFB = (Resolve-Path build/release/x86_64_v2_win64/simple_minifb.dll).Path
 .\build\examples\x86_64_v2_win64\Graphics.exe
 ```
 
-From Cygwin bash:
+From Command Prompt (`cmd.exe`):
 
-```sh
+```bat
+set "SIMPLE_MINIFB=%CD%\build\release\x86_64_v2_win64\simple_minifb.dll"
+.\build\examples\x86_64_v2_win64\Graphics.exe
+```
+
+From Bash (Cygwin, using the Windows build):
+
+```bash
 export SIMPLE_MINIFB="$PWD/build/release/x86_64_v2_win64/simple_minifb.dll"
 ./build/examples/x86_64_v2_win64/Graphics.exe
 ```
@@ -81,7 +92,7 @@ export SIMPLE_MINIFB="$PWD/build/release/x86_64_v2_win64/simple_minifb.dll"
 For WSL, from the repository root:
 
 ```sh
-wsl -d Ubuntu-24.04 -- bash -lc 'cd chapter31 && make graphics graphics-example CLZDIR=build/classes-linux CTAGS='
+wsl -d Ubuntu-24.04 -- bash -lc 'cd chapter31 && make graphics graphics-example CLZDIR=build/classes-linux'
 ```
 
 Inside WSL, set `SIMPLE_MINIFB` to the full path of the Linux `.so`, then run
@@ -109,7 +120,9 @@ A backend that loads but cannot create a window also reports an error cleanly.
 | Operation | Meaning |
 | --- | --- |
 | `open(title,width,height)` | Open one window; returns `OK` or `ERROR`. |
-| `present(pixels)` | Present a `u32[~]` of exactly `width*height` pixels, packed `0x00RRGGBB`. |
+| `present(pixels)` | Present a `u32[~]` of exactly the original `width*height` pixels, packed `0x00RRGGBB`. MiniFB stretches this buffer to the window. |
+| `width()`, `height()` | Current drawable dimensions after the last event dispatch; zero when no window exists. |
+| `presentSize(pixels,width,height)` | Present the first `width*height` elements of a buffer at an explicit resolution. Dimensions must be positive and fit the array. |
 | `poll(wait)` | Process input; `true` waits up to 17ms, waking for input. |
 | `wait(timeoutMs)` | Wait for input or timeout, then process events; 0 polls, -1 waits indefinitely. |
 | `mouseX()`, `mouseY()` | Current mouse position, origin at upper left. |
@@ -121,9 +134,18 @@ A backend that loads but cannot create a window also reports an error cleanly.
 The initial input API samples held state; it is not a queue of every transition.
 
 Waits may return early; values below -1 are errors. Recheck the monotonic
-clock after waking. The [time library and animation example](time.md) combine
-this wait with cooperative timer deadlines. Backend API version 2 adds the
-wait operation; rebuild older MiniFB adapters from the cached sources.
+clock after waking. The [time library and animation example](time/README.md) combine
+this wait with cooperative timer deadlines. Backend API version 3 adds
+resizing and explicit framebuffer dimensions; rebuild older MiniFB adapters
+with `make graphics` from the cached sources.
+
+For drawing at the new resolution, call `canvas.resize(gfx.width(),gfx.height())`
+after processing events, redraw when it returns true, and use
+`gfx.presentSize(canvas.pixels,canvas.width,canvas.height)`. Explicit buffer
+dimensions remain valid if another resize arrives while presenting. Zero-sized
+resize notifications are ignored by Canvas so minimizing retains the last layout.
+Mouse coordinates are in drawable pixels; convert them with `canvas.localX`
+and `canvas.localY` for hit testing in the [base layout](draw/README.md).
 
 MiniFB retains its last framebuffer for repaint events. The adapter copies the
 Simple array into native-owned storage before presenting; it never retains a

@@ -9,7 +9,7 @@ val main = { u8[~][] args ->
     if( sys.gfx.open("Simple tic-tac-toe",screen.width,screen.height) != sys.gfx.OK ) return 1;
     sys.audio.open(); // Audio is optional; failure leaves the game silent.
     _draw(screen,board,-1);
-    int result = sys.gfx.present(screen.pixels);
+    int result = sys.gfx.presentSize(screen.pixels,screen.width,screen.height);
     bool mouseHeld = false, keyHeld = false, replayHeld = false;
     int hover = -1, frames = 0;
 
@@ -19,8 +19,9 @@ val main = { u8[~][] args ->
         if( sys.gfx.key('Q') ) break;
         bool down = sys.gfx.button(sys.gfx.LEFT);
         bool replay = sys.gfx.key('R') || sys.gfx.key(' ');
-        int square = _square(sys.gfx.mouseX(),sys.gfx.mouseY());
-        bool dirty = square != hover;
+        bool resized = screen.resize(sys.gfx.width(),sys.gfx.height());
+        int square = _square(screen.localX(sys.gfx.mouseX()),screen.localY(sys.gfx.mouseY()));
+        bool dirty = resized || square != hover;
         hover = square;
         if( replay && !replayHeld ) { sys.audio.stop(); _reset(board); dirty = true; }
         bool digit = false;
@@ -41,7 +42,7 @@ val main = { u8[~][] args ->
         replayHeld = replay;
         if( dirty ) {
             _draw(screen,board,hover);
-            result = sys.gfx.present(screen.pixels);
+            result = sys.gfx.presentSize(screen.pixels,screen.width,screen.height);
         }
         if( args# > 1 && ++frames == 5 ) break;
     }
@@ -143,13 +144,13 @@ val _draw = { !sys.draw.Canvas screen, u8[~] board, int hover ->
     screen.text(484,145,"CPU",2,0xa2b9b7);
     screen.fillRect(48,168,504,504,paper);
     if( !finished && hover >= 0 && hover < 9 && board[hover] == ' ' )
-        screen.fillRect(48+(hover-hover/3*3)*168,168+hover/3*168,168,168,0xd9e8de);
+        screen.fillRect(48+(hover%3)*168,168+hover/3*168,168,168,0xd9e8de);
     for( int i = 1; i < 3; i++ ) {
         screen.fillRect(48+i*168-3,168,6,504,ink);
         screen.fillRect(48,168+i*168-3,504,6,ink);
     }
     for( int i = 0; i < 9; i++ ) {
-        int cx = 132+(i-i/3*3)*168, cy = 252+i/3*168;
+        int cx = 132+(i%3)*168, cy = 252+i/3*168;
         if( board[i] == 'X' )
             screen.line(cx-38,cy-38,cx+38,cy+38,12,cross).line(cx+38,cy-38,cx-38,cy+38,12,cross);
         else if( board[i] == 'O' ) screen.circle(cx,cy,48,11,ring);
@@ -160,7 +161,7 @@ val _draw = { !sys.draw.Canvas screen, u8[~] board, int hover ->
     if( line >= 0 ) {
         int first = line < 3 ? line*3 : line < 6 ? line-3 : line == 6 ? 0 : 2;
         int last = line < 3 ? first+2 : line < 6 ? first+6 : line == 6 ? 8 : 6;
-        screen.line(132+(first-first/3*3)*168,252+first/3*168,132+(last-last/3*3)*168,252+last/3*168,5,0xeab64e);
+        screen.line(132+(first%3)*168,252+first/3*168,132+(last%3)*168,252+last/3*168,5,0xeab64e);
     }
     screen.text(48,704,"CLICK A SQUARE OR PRESS 1-9",3,paper);
     screen.text(48,738,"R OR SPACE REPLAY   Q OR ESC QUIT",3,0xa2b9b7);

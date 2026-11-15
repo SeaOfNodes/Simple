@@ -31,7 +31,7 @@ the backend starts with a Java evaluator (first introduced in Chapter
 
 Download dependencies once with `make libs` (or `make init`; `make lib` remains
 an alias). Other Make targets use the local `lib/` caches and never download.
-For Chapter 31's graphics and audio, use `make -C chapter31 libs CTAGS=` while
+For Chapter 31's graphics and audio, use `make -C chapter31 libs` while
 online; those cached sources survive `make clean` for later offline builds.
 
 The following is a rough plan, subject to change.
@@ -117,7 +117,7 @@ Makefile additions introduce allocation statistics (20), shared instruction
 encoders (21), the native entry shim (28a), separate compilation and `sys`
 (28b), the terminal game (30), and graphics/audio (31).
 
-CI runs `make lib tests CTAGS=` on Linux with JDK 21. The Make targets also build
+CI runs `make lib tests` on Linux with JDK 21. The Make targets also build
 the native runtime and `sys` library in Chapter 28b and later before running
 the tests that use them; Maven's Java build alone does not produce those prerequisites.
 

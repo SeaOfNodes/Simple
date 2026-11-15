@@ -33,75 +33,90 @@ field shapes, existing Iter/SCCP propagates them, and TypeCheck checks and erase
 the views. Borrowed partials can read proven fields but cannot write; unknown
 callers promise no initialized fields. No new passes or backward demand walks.
 
-## Chapter 31: graphical games (2026-11-11)
+## Chapter 31: restart guidance (2026-11-14)
 
-Cliff merged `ch30` into `main` at `06fb5ace` and pushed it, then requested
-branch `ch31` and a complete `chapter31/` snapshot. Continue new work in
-Chapter 31. Small graphical turn-based games now drive its library work:
-`sys.gfx` provides the optional MiniFB pixel window/input boundary, while
-`sys.draw.Canvas` draws rectangles, circles, thick lines, colors, and bitmap
-labels entirely in Simple. `docs/examples/TicTacToeGraphical.smp` is the first
-game; the existing terminal version remains available. See Chapter 31's
-`docs/drawing.md`, `docs/graphics.md`, and `docs/audio.md`. Optional `sys.audio`
-uses miniaudio for native-thread playback, default boop/win/loss cues, and
-copied mono PCM. Default tests must not require audio hardware or downloads.
-Chapter 31 supports `0x`/`0X` hexadecimal and C-style leading-zero octal
-integer literals. Cliff explicitly prefers `025755`, not a `0o` prefix.
-The 3x5 font uses five octal row digits; packed pixel colors use hex.
-Default builds/tests must not download MiniFB or require a display; interactive
-launch targets are explicit. Drawing and game checks run without a backend.
-Cliff requires offline builds: only explicit `make libs`/`init` (legacy `lib`
-alias) may access the network. Cache pinned dependencies under `lib/`, never
-`build/`; `clean` must preserve them. Shared `build-support/libraries.mk`
-gates all chapter JAR downloads. Graphics/audio makefiles use this same gate;
-missing caches fail promptly, and makefile edits never trigger network checks.
-All chapter Makefiles use `build-support/java.mk`: explicit JAR prerequisites,
-whole-source-set compilation, optional tags, and consistent class directories.
-JARs may be copied from another local chapter cache during any offline target;
-only explicit setup may download. Keep chapter-to-chapter Makefile differences
-limited to features introduced there. Native tests must build the released
-`sys` objects before executing clients, including single-test and standalone
-test targets.
-Chapter 30 retains the preceding compiler and library. Keep inherited Java test names,
-use LF for new text files, and do not add Python code or test drivers.
-Runnable examples belong in `chapter31/docs/examples`.
+Continue work in `chapter31/`; preserve the preceding chapter snapshots.
+There is no unfinished task from this session. Check Git status before editing:
+Cliff is actively refactoring Breakout and editing README/Canvas alongside us.
+Preserve those edits and let him do the game-method moves himself. No commit,
+push, or chapter split has been requested.
 
-MiniFB discovery defaults to executable-relative and obvious chapter build
-locations; examples should run directly without environment setup. Explicit
-`SIMPLE_MINIFB` paths override discovery and `off` keeps headless tests stable.
+Read Chapter 31's README and the relevant library docs for implemented features.
+They cover graphics/audio, Clock and Breakout, time/math, array initializers,
+read-only non-null arrays, compiler intrinsics, and static constant-array data.
+Do not revive old proposals as pending work. TypeConAry is now unified and
+non-generic; its type, rather than initializer syntax, triggers static data.
+Identical constant arrays may share storage, including strings. Preserve element
+ranges in printed types and the empty-array lattice behavior tested in TypeTest.
 
-The Clock example now shows digital/analog local-time clocks, switched by the
-software `sys.draw.Button` widget or Space. Button input is caller-fed, fires
-on release inside after a press inside, and has no native/window dependency.
+Useful implementation facts:
 
-Clock rendering needs native regression coverage as well as Eval2: evaluator
-checks cannot catch instruction encoding or relocation errors. X86 floating
-comparisons use UCOMISD's CF/ZF/PF, preserve unordered behavior when layout
-negates a branch, and must not use signed SF/OF conditions. Encoding metadata
-for relocation sites uses instruction identity: scheduling/RA can clone equal
-constant loads, each of which still requires its own relocation.
+- Struct method headers are parsed first; bodies wait until fields are known.
+  MethodAccess infers whether the receiver needs write access. Read-only methods
+  can accept read-only receivers; writes through receiver aliases still require
+  write access. MethodFieldsTest and MethodAccessTest cover this behavior.
+- Nested functions inside methods have their own receiver parameter. Bare field
+  names resolve through that receiver, including across blocks and nested
+  functions. This is not closure capture or a bound method value: a bare callback
+  invocation supplies the calling function's receiver. Nonconstant local captures
+  remain unsupported. A no-argument function type is `{ bool }` or `{ int }`,
+  not `{ -> bool }`.
+- Bare forward types use file-qualified names. Missing required types produce
+  source diagnostics. Store-width discovery waits for the forward pointer type
+  upgrade so worklist notification is preserved.
+- A final constant method target comes from its declaration. Loading it must not
+  discard its identity merely because it has not escaped to outside code.
+- Do not use ordinary HashMap/HashSet with Node keys for bookkeeping:
+  Node.hashCode participates in GVN locking. Use identity maps/sets.
+- Breakout keeps input history in Game; there is no separate Controls class now.
+  Debounce's callback returns int because audio.stop returns i32; the result is
+  ignored. Boosted brick hits use sound 3 and the brick's soundDepth, not sound 4.
+  The old collisionsAndBoost sound expectations are fixed.
 
-Time and animation now belong in Chapter 31, not a follow-on chapter proposal.
-See `chapter31/docs/time.md`: bare i64 epoch milliseconds, distinct monotonic
-deadlines, optional monotonic nanoseconds, OS local zones, Simple calendar/text
-and cooperative timer IDs, and input-aware `gfx.wait`. Cliff explicitly accepts
-`-1` for absolute parse errors despite its collision with the instant just before
-the epoch; relative time parsing is deferred. Built-in `%t` selectors cover ISO,
-12/24-hour clocks, elapsed minutes, calendar dates, and clock seconds. UTC is
-the interpolation default; local-zone formatting is an explicit library call.
+Keep arithmetic compact, but space assignments, compound assignments, and
+relational operators. Preserve deliberate column alignment above other spacing
+rules. Time values use `_ms`/`_msec` suffixes; timer IDs have a smaller unsigned
+type. Prefer named bounds and products of time units to large magic numbers.
+
+Build and test from the chapter directory using the existing Java harness;
+do not add Python code or test drivers. Useful commands are `make breakout
+CTAGS=`, `make test CLASS=BreakoutTest CTAGS=`, and `make test CLASS=GraphicsTest
+METHOD=breakoutInputAndFrames CTAGS=`. Native coverage matters: Eval2 cannot
+detect instruction encoding or relocation errors. Use identity for relocation
+sites because equal constant loads can still require separate relocations.
+X86 floating comparisons use UCOMISD's CF/ZF/PF, preserve unordered behavior
+when negating a branch, and must not use signed SF/OF conditions.
+
+At this reset, the 752-test suite excluding BreakoutTest and GraphicsTest passed,
+the Breakout input/render smoke test passed, and all five BreakoutTest tests
+passed. These are dated results, not a fixed expected count. Earlier logs with
+receiver, forward-type, callback-target, or collision failures are superseded.
+No test process is left running. Do not rerun unchanged checks just for a reset.
+
+Default builds/tests are offline and need no display or audio hardware. Only
+explicit `make libs`/`init` (legacy `lib`) may download dependencies. Cache them
+under `lib/`, never `build/`; clean must preserve the cache. Missing dependencies
+fail promptly. Interactive launch targets are explicit; `SIMPLE_MINIFB=off` and
+`SIMPLE_MINIAUDIO=off` select headless tests. Build released sys objects before
+running native clients, including single-test targets. Runnable examples belong
+in `docs/examples`. Keep new and edited text LF-only.
+Shared `build-support/java.mk` and `libraries.mk` own the common build and
+download rules. Keep chapter Makefile differences limited to introduced
+features; cached JARs may be copied between chapters during offline builds.
+Keep inherited Java test names. MiniFB discovery supports executable-relative
+and chapter build paths; examples should run without environment setup.
+
+Clock button input is caller-fed and fires on release inside after a press
+inside. Its drawing widget has no native-window dependency. Time/animation
+already belong in this chapter. Time parsing uses -1 for absolute parse errors
+by Cliff's choice; relative time parsing remains deferred. UTC is the default
+for time interpolation; local-zone formatting is an explicit library call.
+Hex literals use 0x/0X and octal uses a leading zero, not 0o.
 
 ## Chapter 30 starting point (2026-11-07; superseded by Chapter 31)
 
-Cliff committed the Chapter 29 work as `bb9b30b2c` and requested merging
-`escape-flow` into `main`, then starting Chapter 30. Local `main` now includes
-that commit. The working branch is `ch30`, with a complete `chapter30/` copy
-and build/IDE entries. Small games drive compiler and sys-library improvements,
-starting with ASCII tic-tac-toe; the games are workloads, not the chapter's theme.
-Runnable examples belong in `chapter30/docs/examples`, not `src/test/smp/examples`.
-Do not add Python to the codebase or use Python test drivers; use the existing
-Java test harness.
-Chapter 29 retains the completed compiler and documentation. Inherited Java
-test names keep their historical identities.
+Chapter 30 is the preceding snapshot. Its old branch and startup instructions
+are superseded by the Chapter 31 guidance above.
 
 `ScopeNode.dup()` shares `Kind` boundaries and `Var` records. When pruning a
 saved break/continue scope, use `_pop()` and copy surviving forward references
@@ -109,21 +124,10 @@ with `balanceLoopFRefs`; `pop()` promotes them by mutating shared boundaries
 and indices while the active scope still has its old binding order. Merge jump
 scopes with loop-reference balancing, not `balanceIf`'s declaration checks.
 
-## Historical restart handoff (2026-11-06; superseded by Chapter 30)
+## Escape-flow implementation lessons
 
-Cliff requested this handoff before restarting. Active branch is `escape-flow`,
-tracking `origin/escape-flow`; HEAD is `8f460340c`. `ch29-cleanup` was previously
-fast-forwarded into local `main`, then this branch was created. The escape-flow
-implementation is still **uncommitted and unstaged**. Preserve all working-tree
-changes, including untracked `chapter29/docs/escape-flow.md` and
-`chapter29/src/test/java/com/seaofnodes/simple/EscapeFlowTest.java`. No commit,
-push, or chapter split is currently requested. Cliff thinks this may deserve
-its own chapter; keep working in Chapter29 until that decision is made.
-
-Read [the escape-flow design](../chapter29/docs/escape-flow.md) first. It is the
-current account; the later sections of deferred-construction.md retain older
-failed experiments and are explicitly superseded. The implementation is a
-tested first pass, not a claim that all outside-value precision is solved.
+See [the escape-flow design](../chapter29/docs/escape-flow.md). These are reusable
+implementation facts; old branch status and validation logs remain in Git.
 
 Important implementation choices for review/resumption:
 
@@ -162,50 +166,10 @@ in EscapeFlowTest.testUnknownCallerCallback now proves that only `<clinit>` and
 object/callback merge can also have an abstract pointer type, so do not cap
 arbitrary TypePtr values at outside escapes.
 
-Validation saved under ignored `build/`:
-
-- `xint-alloc-build.log` and `xint-alloc-chapter*.log`: all five XInt chapters
-  (26/27/28a/28b/29) rebuild; 134 focused type, escape, module, and import tests
-  pass after renaming the pooled allocator to `XInt.alloc` and using it for
-  the three foreign-set builders. It returns zeroed mutable storage to fill
-  and pass to `intern`; `_free` still returns storage to the pool.
-- `escape-string-reorder-final.log`: full 28a/28b/29 suites pass after the
-  String declaration reorder and measured spill expectations (538/578/601
-  active tests), plus shared printer and ISA checks.
-- `escape-backport-final.log`: combined full Make run for 28a/28b/29,
-  respectively 538/578/601 active tests pass with assertions, plus shared
-  printer and ISA checks. Added allocator, unknown-callback cycle, and saved
-  private-function exclusion coverage. Destination baselines are recorded in
-  `escape-backport-baseline.log` (531 in 28a, 571 in 28b).
-- `remove-public-interface-tests.log`: full Chapter29 `make -k tests CTAGS=`,
-  all 598 active tests pass after removing the frozen public-interface inventory
-  and moving its test coverage to the converged escape sets.
-- `class-self-default-tests.log`: full Chapter29 `make -k tests CTAGS=`, all
-  598 active tests pass after sharpening the hidden receiver default, including
-  the retained escape-exclusion assertion. No printed-IR golden changed.
-- `escape-flow-complete.log`: full Chapter29 `make -k tests`, all 598 active
-  tests pass with assertions (404 raw0, 38 raw1, 13 standalone, 29 system,
-  1 fuzzer, 113 aggregate).
-- `escape-flow-last-check.log`: 26 tests pass after the final small CLInit guard
-  cleanup: ClassInitDependenciesTest, ConvertNodeTest, EscapeFlowTest.
-- `EscapeSeeds.java` / `.class`: four recursive programs across four worklist
-  seeds, 16 checks pass against unchanged expected IR. Sources are in
-  `build/remaining-failures/*.smp`. The four are Chapter12 testCoRecur,
-  testCoRecur2, testCoRecur3, and testPrivateRecursiveReturn.
-- `EscapeLoads.java` and `OutsideCallback.java` are disposable diagnostic
-  harnesses; `escape-flow-*.log` includes intermediate failures. Use the final
-  logs above, not an earlier trial, as the validation baseline.
-
-Run Make from `chapter29`; use the existing JUnit classpath
-`build/classes/main;build/classes/test;lib/*`. No tests/JVMs are left running.
-Do not recreate tmp/* experiment directories. No new whole-IR passes, side IR,
-IterPeeps escape-repair hooks, or relaxed goldens were introduced. There is no
-need to rerun unchanged checks merely because the conversation restarted.
-
-## Current workspace (2026-11-06)
+## Chapter 29 parser snapshot (historical)
 
 Chapter 29 is **Tech Debt Cleanup**. Cliff approved keeping the parser split
-and moving it into this new snapshot; continue parser work there. Chapter 28b
+and moving it into that snapshot; current work belongs in Chapter 31. Chapter 28b
 retains the original parser. The new `parser/` package follows the grammar;
 `Var` belongs there and `IterPeeps` belongs in `codegen/`.
 

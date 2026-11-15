@@ -2,25 +2,30 @@
 
 These programs live beside the documentation so readers can find and run them.
 Their non-graphical native regression tests run as part of `make tests`.
+All four graphical demos support window resizing. Clock, Tic-tac-toe, and
+Breakout scale their base layouts uniformly and center them in the window;
+mouse input follows the same transform. Breakout keeps its physics in base
+coordinates, so resizing preserves the current game and ball speed. The pixel
+gradient fills the entire window at its new resolution.
 The optional [pixel-window example](Graphics.smp) uses MiniFB; see
-[graphics setup](../graphics.md). `make run-graphics` opens it explicitly.
+[graphics setup](../../src/main/smp/sys/gfx.md). `make run-graphics` opens it explicitly.
 The [graphical tic-tac-toe](TicTacToeGraphical.smp) uses the Simple
-[drawing library](../drawing.md). Run it with
-`make run-graphical-tictactoe CTAGS=`; click a cell or press 1–9, R/Space to
+[drawing library](../../src/main/smp/sys/draw/README.md). Run it with
+`make run-graphical-tictactoe`; click a cell or press 1–9, R/Space to
 replay, and Q/Escape to quit. The terminal game below remains available.
-Optional [background audio](../audio.md) supplies soft move and win/loss cues.
+Optional [background audio](../../src/main/smp/sys/audio.md) supplies soft move and win/loss cues.
 
-The [digital and analog clock](Clock.smp) demonstrates the [time library](../time.md),
+The [digital and analog clock](Clock.smp) demonstrates the [time library](../../src/main/smp/sys/time/README.md),
 green seven-segment digits, smooth clock hands, and a reusable software button.
-Run `make run-clock CTAGS=`; click the button or press Space to switch faces,
+Run `make run-clock`; click the button or press Space to switch faces,
 and Q/Escape to exit. Both faces show system-local time.
-`make clock-example CTAGS=` builds it without starting a window.
+`make clock-example` builds it without starting a window.
 
 The [Breakout game](Breakout.smp) has 24 columns and 8 rows, with colors and
 point values by depth: 1 at the bottom through 8 at the top, 864 points total.
 Clear the wall before losing all three balls. Mouse movement or the arrow keys
 move the paddle; Space/left click serves, P pauses, R restarts, Q/Escape exits.
-Run `make run-breakout CTAGS=` or build only with `make breakout CTAGS=`.
+Run `make run-breakout` or build only with `make breakout`.
 The familiar paddle, serve, and limited-ball rules follow
 [Atari's Breakout instructions](https://atari.com/pages/breakout).
 
@@ -43,7 +48,7 @@ the boost, and clearing the whole wall without a display or audio device.
 From `chapter31`, build the tic-tac-toe executable (without starting it):
 
 ```sh
-make lib tictactoe CTAGS=
+make lib tictactoe
 ```
 
 Run the Windows build from PowerShell:
@@ -52,9 +57,15 @@ Run the Windows build from PowerShell:
 .\build\examples\x86_64_v2_win64\TicTacToe.exe
 ```
 
-Or from Cygwin:
+Or from Command Prompt (`cmd.exe`):
 
-```sh
+```bat
+.\build\examples\x86_64_v2_win64\TicTacToe.exe
+```
+
+Or from Bash (Cygwin, using the Windows build):
+
+```bash
 ./build/examples/x86_64_v2_win64/TicTacToe.exe
 ```
 
@@ -66,7 +77,7 @@ directory in WSL. Separate Java and native output directories let the Windows
 and Linux builds coexist:
 
 ```sh
-make lib tictactoe CLZDIR=build/classes-linux CTAGS=
+make lib tictactoe CLZDIR=build/classes-linux
 ./build/examples/x86_64_v2_SystemV/TicTacToe
 ```
 

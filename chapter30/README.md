@@ -205,7 +205,7 @@ also deferred; the `int` change does not shrink pointers.
 
 The [grammar and code map](docs/30-grammar.md),
 [source layout](src/main/java/com/seaofnodes/simple/README.md), and
-[construction notes](docs/construction-groups.md) describe the starting point.
+[construction explanation in Chapter 29](../chapter29/README.md#checking-constructor-completion) describe the starting point.
 Open projects are listed in the [roadmap](../docs/roadmap.md).
 
 ## Build and test
@@ -213,13 +213,13 @@ Open projects are listed in the [roadmap](../docs/roadmap.md).
 From the repository root:
 
 ```sh
-make lib tests release CHAPTERS=chapter30 CTAGS=
+make lib tests release CHAPTERS=chapter30
 ```
 
 Build the game without starting it:
 
 ```sh
-make -C chapter30 tictactoe CTAGS=
+make -C chapter30 tictactoe
 ```
 
 The Windows/Cygwin build produces
@@ -229,7 +229,7 @@ from Cygwin or PowerShell. Linux produces
 When building in WSL alongside Windows, keep Java build outputs separate:
 
 ```sh
-make -C chapter30 tictactoe CLZDIR=build/classes-linux CTAGS=
+make -C chapter30 tictactoe CLZDIR=build/classes-linux
 ```
 
 IntelliJ has a `chapter30` module and a **chapter30 tests** run configuration.

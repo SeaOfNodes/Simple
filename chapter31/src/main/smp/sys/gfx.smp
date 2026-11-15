@@ -1,5 +1,6 @@
 // Minimal pixel-window interface; drawing belongs in Simple.
-// One fixed-size window, main thread only. Pixel format is 0x00RRGGBB.
+// API and launch reference: gfx.md beside this file.
+// One resizable window, main thread only. Pixel format is 0x00RRGGBB.
 // open/present/poll return OK, CLOSED (normal user close/Esc), or ERROR.
 int OK = 0;
 int CLOSED = 1;
@@ -9,6 +10,9 @@ int ESCAPE = 256;
 
 { i64 u32 u32 -> i32 } simple_gfx_open = "C";
 { i64 u32 -> i32 } simple_gfx_present = "C";
+{ i64 u32 u32 u32 -> i32 } simple_gfx_present_size = "C";
+{ u32 } simple_gfx_width = "C";
+{ u32 } simple_gfx_height = "C";
 { i32 -> i32 } simple_gfx_poll = "C";
 { i32 } simple_gfx_mouse_x = "C";
 { i32 } simple_gfx_mouse_y = "C";
@@ -29,6 +33,19 @@ val open = { u8[~] title, u32 width, u32 height ->
 val present = { u32[~] pixels ->
     i64 ptr = pixels;
     simple_gfx_present(ptr,pixels#);
+};
+
+// Drawable size after the last event dispatch; zero when closed.
+val width = { -> simple_gfx_width(); };
+val height = { -> simple_gfx_height(); };
+// Explicit dimensions keep a resize arriving during presentation harmless.
+val presentSize = { u32[~] pixels, u32 width, u32 height ->
+    if( width == 0 || height == 0 || width > pixels# || height > pixels# ) return ERROR;
+    i64 count = width; count *= height;
+    if( count > pixels# ) return ERROR;
+    i64 ptr = pixels;
+    u32 size = count;
+    simple_gfx_present_size(ptr,size,width,height);
 };
 
 // wait=true waits up to 17ms, waking early for input to avoid a busy loop.

@@ -136,12 +136,61 @@ and the [construction notes](docs/construction-groups.md) explain the type flow,
 memory edges, and remaining restrictions.
 
 
+## Keeping private code out of the outside-world summary
+
+[Chapter 27](../chapter27/README.md#start-and-stop-close-the-cycle) explains how
+Start and Stop discover which objects and functions unknown code can reach.
+The module and separate-compilation snapshots extend that cycle to foreign
+identities. This chapter's construction cleanup also exposed places where an
+unnecessarily broad value could undo that precision.
+
+Suppose a library passes a callback to native code. The callback has escaped:
+native code may call it or return its address later. Another private callback
+that the library never exposes must stay private. Treating every unknown
+callback result as every possible function would lose that distinction.
+
+The outside state therefore starts with foreign identities and gains local
+identities only as they escape. A finite set of exclusions represents the
+locally owned identities that the outside world cannot yet reach. Start feeds
+this state into unknown callers and native results; Stop discovers newly exposed
+addresses. Ordinary SCCP repeats the cycle until it stabilizes. Public
+declarations help select entry points; a frozen list of public names cannot
+replace the evolving escape state.
+
+Consumers must track changes to this state even when control does not change.
+For example, CallEnd depends directly on Start because a call can remain live
+while additional callbacks escape. Local pointer facts matter too: preserving
+non-nullness through conversions and recovering stored pointer types during
+Load computation prevents an avoidable unknown value from widening the whole
+cycle. Class-init effects come from the known initializer's Return, and a class
+function's implicit receiver defaults to its owning singleton.
+
+The [outside-world escape-flow notes](docs/escape-flow.md) cover the detailed
+dependencies, imported identities, and regression examples. That design was
+developed here and backported to Chapters 28a/28b; the Chapter 27 snapshot retains
+the earlier analysis taught in its README.
+
+## Implementation notes and experiments
+
+The explanations above describe the chapter's implemented behavior. For a
+closer look at particular mechanisms:
+
+- [Construction field types and incomplete references](docs/construction-groups.md)
+  covers field views, aliases, loops, and the separate deferred contract proposal.
+- [Deferring construction checks](docs/deferred-construction.md) records the
+  experiment that removed the extra construction pass. Its historical failures
+  and abandoned escape fallback are superseded by the escape-flow continuation.
+- [Outside-world escape flow](docs/escape-flow.md) records the final design and
+  the differences between its 28a, 28b, and 29 implementations.
+
+Later chapters inherit the implementation and link here for these topics.
+
 ## Build and test
 
 From the repository root:
 
 ```sh
-make lib tests release CHAPTERS=chapter29 CTAGS=
+make lib tests release CHAPTERS=chapter29
 ```
 
 The suite includes the inherited compiler, evaluator, native execution,

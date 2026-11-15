@@ -191,7 +191,7 @@ public class BreakoutTest {
                 g._serve();
                 // Drive through every brick's front, bottom row first.
                 for( int i=COLS*ROWS-1; i>=0; i-- ) {
-                    g.x=LEFT+20.0+(i-i/COLS*COLS)*BRICK_DX;
+                    g.x=LEFT+20.0+(i%COLS)*BRICK_DX;
                     g.y=BRICK_TOP+1.0+(i/COLS)*BRICK_DY+BRICK_H+RADIUS;
                     g.dx=0.0; g.dy=-1.0;
                     g._tick(0);

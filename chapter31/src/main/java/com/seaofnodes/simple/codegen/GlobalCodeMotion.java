@@ -141,10 +141,11 @@ public abstract class GlobalCodeMotion {
             if( def!=null && !(def instanceof PhiNode) )
                 _schedEarly(def,code,start);
 
-        // An existing edge 0 already supplies control (or a Phi/Proj binding).
-        if( n.in(0)==null ) {
+        // A memory op's control is a lower bound, not a complete early schedule:
+        // instruction selection may have folded in an operand defined later.
+        if( n.in(0)==null || n instanceof MemOpNode ) {
             // Schedule at deepest input
-            CFGNode early = start; // Maximally early, lowest idepth
+            CFGNode early = n.in(0) instanceof CFGNode ctrl ? ctrl : start;
             for( int i=1; i<n.nIns(); i++ )
                 if( n.in(i)!=null && n.in(i).cfg0().idepth() > early.idepth() )
                     early = n.in(i).cfg0(); // Latest/deepest input
@@ -250,6 +251,9 @@ public abstract class GlobalCodeMotion {
         for( Node use : n._outputs )
             if( use != null )
               lca = use_block(n,use, late).domLCA(lca,null);
+
+        assert lca!=null && early.dominates(lca,null) :
+            "Early schedule must dominate uses of "+n.getClass().getSimpleName()+"#"+n._nid;
 
         // Loads may need anti-dependencies, raising their LCA
         if( n instanceof MemOpNode load && load._isLoad )

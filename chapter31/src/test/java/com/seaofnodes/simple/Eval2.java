@@ -313,6 +313,9 @@ public abstract class Eval2 {
         case DivNode      div  -> div.mode()==1
             ? (Object)(x(div.in(2))==0 ? 0L : x(div.in(1)) / x(div.in(2)))
             : (Object)((d(div.in(2))==0 ? 0D : d(div.in(1))) / d(div.in(2)));
+        case ModNode      mod  -> mod.mode()==1
+            ? (Object)(x(mod.in(2))==0 ? 0L : x(mod.in(1)) % x(mod.in(2)))
+            : (Object)(d(mod.in(1)) % d(mod.in(2)));
         case EscapeNode   esc  -> esc(esc);
         case FunPtrNode   fptr -> con(fptr._con);
         case LoadNode     ld   -> load(ld);

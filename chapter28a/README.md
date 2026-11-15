@@ -259,6 +259,11 @@ initializer's memory effects, and unknown callbacks participate in class-init
 cycle detection through the functions that have escaped.
 
 
+The [detailed escape-flow notes](../chapter29/docs/escape-flow.md) describe the
+consumer dependencies and foreign-identity exclusions. The design was developed
+in Chapter 29 and backported here using this chapter's `LocalIds` and existing
+initializer protocol; its later construction changes are not part of this snapshot.
+
 ## Emitting code and data
 
 After cleanup by `FinishCalls`, the live code and data from the discovered

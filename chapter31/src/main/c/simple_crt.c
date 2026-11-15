@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -17,6 +18,15 @@ double simple_f64_from_bits(int64_t bits) {
     double value;
     memcpy(&value, &bits, sizeof(value));
     return value;
+}
+
+// Floating remainder's machine instruction uses this memory-preserving helper.
+double simple_f64_mod(double x, double y) {
+    // fmod can set errno for NaN-producing inputs; arithmetic leaves it alone.
+    int saved_errno = errno;
+    double result = fmod(x, y);
+    errno = saved_errno;
+    return result;
 }
 
 // errno may be thread-local or a macro calling a platform accessor.

@@ -1,5 +1,8 @@
 # Construction: field types and incomplete references
 
+Start with [Chapter 29's constructor and partial-reference explanation](../README.md#checking-constructor-completion).
+This supplement details the type flow and records a separate deferred proposal.
+
 Instance constructors use ordinary field Loads and Stores. There are two checks:
 whether a field has a value, and whether an object reference is usable outside
 construction. Neither requires a collection of constructor-group identities.
@@ -31,7 +34,8 @@ reads may be removed by DCE.
 The allocator's ConstructNode retains the constructor's final private memory
 for its completion check. TypeCheck gathers these nodes during its existing
 error walk and removes checked boundaries before lowering. The pass removal
-exposes known failures; see [the late-check notes](deferred-construction.md).
+exposed failures during development; the [late-check experiment](deferred-construction.md)
+records them and links the subsequent escape-flow fixes.
 
 Internal construction memory parameters use actual allocation/initializer call
 edges; the hypothetical external caller does not supply their memory. They

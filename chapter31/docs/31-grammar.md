@@ -64,7 +64,7 @@ constructorParameterList : (constructorParameter ','?)+ ;
 constructorParameter : type '^'? bindingModifier? IDENTIFIER ;
 // ^ accepts an unfinished struct reference; ? independently permits null.
 // Only self may be read while incomplete; ^ arguments may be stored/forwarded.
-// A new result is incomplete iff an actual argument is. See construction-groups.md.
+// A new result is incomplete iff an actual argument is. See ../../chapter29/README.md#incomplete-types.
 
 // A method is an ordinary fixed function binding in a struct definition.
 // The compiler supplies self; it is not written in parameterList.
@@ -102,7 +102,7 @@ primitiveType
 
 assignment : expression (assignmentOperator assignment)? ;
 assignmentOperator
-    : '=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^='
+    : '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^='
     | '<<=' | '>>=' | '>>>='
     ;
 
@@ -133,7 +133,7 @@ additiveExpression
     ;
 
 multiplicativeExpression
-    : unaryExpression (('*' | '/') unaryExpression)*
+    : unaryExpression (('*' | '/' | '%') unaryExpression)*
     ;
 
 unaryExpression

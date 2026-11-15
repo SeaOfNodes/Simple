@@ -3,19 +3,51 @@ package com.seaofnodes.simple;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.Test;
-import com.seaofnodes.simple.codegen.CodeGen;
-import com.seaofnodes.simple.type.TypeInteger;
-import com.seaofnodes.simple.util.Ary;
-import static org.junit.Assert.*;
 
 // Native raster and game checks; no backend or display is needed.
 public class DrawTest {
+    @Test public void resizedLayoutAndInput() throws Exception {
+        String game=Files.readString(Path.of("docs/examples/TicTacToeGraphical.smp"))
+            .replace("val main =","val _windowMain =");
+        TestC.runSYS(game+"""
+            val main={ ->
+                val c=new sys.draw.Canvas(600,780);
+                val original=c.pixels;
+                val board=new u8[9]; _reset(board);
+                // Half size with horizontal margins: board remains square.
+                if( !c.resize(500,390) || c.scale!=0.5 || c.offsetX!=100 || c.offsetY!=0 ) return 1;
+                if( c.pixels!=original ) return 13;
+                _draw(c,board,4);
+                if( c.pixels[84*500+124]!=0x35535a || c.pixels[0]!=0x142e36 ) return 2;
+                if( _square(c.localX(250),c.localY(210))!=4 || c.localX(99)!=-1 ) return 3;
+                if( c.localX(400)!=-1 || c.localY(390)!=-1 ) return 4;
+                // Noninteger scale, taller aspect ratio, and scaled button hit box.
+                val b=new sys.draw.Button(48,168,168,168,"GO");
+                if( !c.resize(750,1100) || c.scale!=1.25 || c.offsetY!=62 ) return 5;
+                val grown=c.pixels;
+                if( b.update(c.localX(100),c.localY(300),true) ) return 6;
+                if( !b.update(c.localX(100),c.localY(300),false) ) return 7;
+                c.clear(0).fillCircle(300,400,40,9).text(48,34,"GO",3,7);
+                if( c.pixels[562*750+425]!=9 || c.pixels[612*750+375]!=9 ) return 8;
+                if( c.pixels[562*750+426]!=0 || c.pixels[613*750+375]!=0 ) return 9;
+                // Minimize and repeated sizes retain the last usable buffer.
+                if( c.resize(0,0) || c.resize(750,1100) || c.width!=750 ) return 10;
+                if( !c.resize(1,1) ) return 11;
+                _draw(c,board,4);
+                if( !c.resize(600,780) || c.scale!=1.0 || c.offsetX!=0 || c.offsetY!=0 ) return 12;
+                if( c.pixels!=grown ) return 14;
+                return 0;
+            };
+            ""","drawResize","",-1);
+    }
+
     @Test public void nativeClockCoordinates() throws Exception {
         String clock=Files.readString(Path.of("docs/examples/Clock.smp"))
             .replace("val main =","val _windowMain =");
         StringBuilder source=new StringBuilder(clock+"""
             val _check_noInline={ f64 turn, int expectedX, int expectedY ->
-                int x=360+_sin(turn)*128, y=232-_sin(turn+0.25)*128;
+                f64 angle=turn*2*sys.math.PI;
+                int x=360+sys.math.sin(angle)*128, y=232-sys.math.cos(angle)*128;
                 if( x<expectedX-1 || x>expectedX+1 || y<expectedY-1 || y>expectedY+1 ) {
                     sys.io.p("turn %f(turn): %(x),%(y) expected %(expectedX),%(expectedY)\\n");
                     return 1;
@@ -26,20 +58,12 @@ public class DrawTest {
             """);
         for(int i=0;i<=60;i++) {
             double turn=i/60.0;
-            int x=(int)(360+clockSine(turn)*128), y=(int)(232-clockSine(turn+0.25)*128);
+            int x=(int)(360+Math.sin(turn*2*Math.PI)*128), y=(int)(232-Math.cos(turn*2*Math.PI)*128);
             source.append("if(_check_noInline(").append(turn).append(',').append(x).append(',').append(y)
                 .append(")!=0) return 1;");
         }
         source.append("return 0; };");
         TestC.runSYS(source.toString(),"clockCoordinates","",-1);
-    }
-
-    private static double clockSine(double turn) {
-        turn-=(long)turn;
-        boolean negative=turn>0.5;
-        double x=(negative ? turn-0.5 : turn)*6.283185307179586;
-        double product=x*(3.141592653589793-x);
-        return (negative ? -16.0 : 16.0)*product/(49.34802200544679-4*product);
     }
 
     @Test public void nativeAnalogSweep() throws Exception {
@@ -69,7 +93,7 @@ public class DrawTest {
             """);
         for(int millis:new int[]{0,500,7500,15000,30000,45000,59500}) {
             double turn=millis/60000.0;
-            int x=(int)(360+clockSine(turn)*128), y=(int)(232-clockSine(turn+0.25)*128);
+            int x=(int)(360+Math.sin(turn*2*Math.PI)*128), y=(int)(232-Math.cos(turn*2*Math.PI)*128);
             source.append("if(_renderCheck_noInline(").append(millis/1000).append(',').append(millis%1000)
                 .append(',').append(x).append(',').append(y).append(")!=0) return 1;");
         }
@@ -103,7 +127,7 @@ public class DrawTest {
     @Test public void clockFacesWithoutWindow() throws Exception {
         String clock=Files.readString(Path.of("docs/examples/Clock.smp"))
             .replace("val main =","val _windowMain =");
-        CodeGen code=new CodeGen(null,null,new Ary<>(new String[]{TestC.RELEASE_SYS_DIR}),"ClockRaster",clock+"""
+        TestC.runSYS(clock+"""
             val main={ ->
                 val c=new sys.draw.Canvas(720,540);
                 _digit(c,10,10,8);
@@ -114,12 +138,9 @@ public class DrawTest {
                 if( c.pixels[214*720+254]!=GREEN || c.pixels[262*720+470]!=GREEN ) return 3;
                 c.clear(BACKGROUND); _analog(c,3,0,0,0);
                 if( c.pixels[232*720+430]!=GREEN || c.pixels[160*720+360]!=0xc3ffcb || c.pixels[232*720+360]!=GREEN ) return 4;
-                if( _sin(0.25)<0.999 || _sin(0.75)>-0.999 || _sin(1.0)!=0.0 ) return 5;
                 return 0;
             };
-            return main();
-            """,126L,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
-        assertEquals("0",Eval2.eval(code,0,3000000));
+            ""","clockRaster","",-1);
     }
 
     @Test public void rectanglesAndColors() throws Exception {

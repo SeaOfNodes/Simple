@@ -32,6 +32,7 @@ public class GraphicsTest {
 
     private static String run(String exe, String backend, int exit, Path cwd) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(Path.of(exe).toAbsolutePath().toString()).redirectErrorStream(true);
+        pb.environment().put("SIMPLE_MINIAUDIO","off");
         if (cwd!=null) pb.directory(cwd.toFile());
         if( backend == null ) pb.environment().remove("SIMPLE_MINIFB");
         else pb.environment().put("SIMPLE_MINIFB",backend);
@@ -68,9 +69,12 @@ public class GraphicsTest {
             static int32_t poll_events(int32_t n) { return 0; }
             static int32_t position(void) { return 0; }
             static int32_t wait_events(int64_t n) { return 0; }
+            static uint32_t size(void) { return 0; }
+            static int32_t present_size(const uint32_t *p,uint32_t n,uint32_t w,uint32_t h) { return 0; }
             static void close_window(void) {}
             static const struct simple_graphics_api api={SIMPLE_GRAPHICS_VERSION,
-                open_window,present,poll_events,position,position,poll_events,poll_events,close_window,wait_events};
+                open_window,present,poll_events,position,position,poll_events,poll_events,close_window,wait_events,
+                size,size,present_size};
             const struct simple_graphics_api *simple_minifb_api(void) { return &api; }
             """);
         Path mock=root.resolve(name);
@@ -150,9 +154,15 @@ public class GraphicsTest {
                        (k=='R' && (frames==8 || frames==9));
             }
             static int32_t wait_events(int64_t ms) { usleep(ms*1000); return 0; }
+            static uint32_t width(void) { return 1008; }
+            static uint32_t height(void) { return 760; }
+            static int32_t present_size(const uint32_t *p,uint32_t n,uint32_t w,uint32_t h) {
+                return w==1008 && h==760 ? present(p,n) : -1;
+            }
             static void close_window(void) {}
             static const struct simple_graphics_api api={SIMPLE_GRAPHICS_VERSION,
-                open_window,present,poll_events,mouse_x,mouse_y,poll_events,key,close_window,wait_events};
+                open_window,present,poll_events,mouse_x,mouse_y,poll_events,key,close_window,wait_events,
+                width,height,present_size};
             const struct simple_graphics_api *simple_minifb_api(void) { return &api; }
             """);
         TestC.exec(30,"gcc","-shared","-fPIC","-Isrc/main/c",source.toString(),"-o",library.toString());
@@ -172,6 +182,50 @@ public class GraphicsTest {
         String missing = Path.of("build","no-such-minifb-backend").toAbsolutePath().toString();
         String output = run(graphics,missing,1);
         assertTrue(output,output.contains("cannot load MiniFB backend"));
+    }
+
+    @Test public void demosResizeWithoutDisplay() throws Exception {
+        Path source=Path.of("build/objs/graphics_resize.c");
+        Path library=Path.of("build/objs/graphics_resize"+(TestC.OS.startsWith("Windows") ? ".dll" : ".so"));
+        Files.writeString(source,"""
+            #include "simple_graphics.h"
+            #include <stdio.h>
+            #include <unistd.h>
+            static unsigned step, seen, base_w, base_h;
+            static uint32_t width(void) {
+                return step==1 ? base_w/2 : step==2 ? base_w+123 : step==3 ? 1 : step==4 ? 0 : base_w;
+            }
+            static uint32_t height(void) {
+                return step==1 ? base_h/2 : step==2 ? base_h/2+17 : step==3 ? 1 : step==4 ? 0 : base_h;
+            }
+            static int32_t open_window(const char *s,uint32_t w,uint32_t h) {
+                base_w=w; base_h=h; return 0;
+            }
+            static int32_t present_size(const uint32_t *p,uint32_t n,uint32_t w,uint32_t h) {
+                if(!p || n!=(uint64_t)w*h || (step!=4 && (w!=width() || h!=height()))) return -1;
+                seen |= 1u<<step;
+                return 0;
+            }
+            static int32_t present(const uint32_t *p,uint32_t n) { return -1; }
+            static int32_t wait_events(int64_t ms) {
+                usleep(35000);
+                if(++step<6) return 0;
+                // Minimized windows need not repaint; every usable size must.
+                if((seen & 46)!=46) { printf("missing resize frames: %u\\n",seen); return -1; }
+                puts("resize passed"); return 1;
+            }
+            static int32_t poll_events(int32_t n) { return wait_events(n); }
+            static int32_t position(void) { return 0; }
+            static int32_t key(int32_t n) { return 0; }
+            static void close_window(void) {}
+            static const struct simple_graphics_api api={SIMPLE_GRAPHICS_VERSION,
+                open_window,present,poll_events,position,position,key,key,close_window,wait_events,
+                width,height,present_size};
+            const struct simple_graphics_api *simple_minifb_api(void) { return &api; }
+            """);
+        TestC.exec(30,"gcc","-shared","-fPIC","-Isrc/main/c",source.toString(),"-o",library.toString());
+        for(String exe:new String[]{graphics,clock,game,breakout})
+            assertTrue(exe,run(exe,library.toAbsolutePath().toString(),0).contains("resize passed"));
     }
 
     @Test public void textIgnoresGraphicsConfiguration() throws Exception {

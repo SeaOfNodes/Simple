@@ -191,7 +191,7 @@ struct Game {
         for( int i = 0; i < bricks#; i++ ) {
             if( bricks[i] == 0 ) continue;
             int row = i/COLS;
-            i64 x = LEFT+2+(i-row*COLS)*BRICK_DX, y = BRICK_TOP+row*BRICK_DY;
+            i64 x = LEFT+2+(i%COLS)*BRICK_DX, y = BRICK_TOP+row*BRICK_DY;
             c.fillRect(x,y,BRICK_W,BRICK_H,COLORS[row]);
             c.fillRect(x,y,BRICK_W,2,WHITE);
         }
@@ -235,7 +235,7 @@ struct Game {
     int lastMouse;
 
     // Read and act on the controls
-    val _input = { ->
+    val _input = { sys.draw.Canvas c ->
         val gfx = sys.gfx;
         bool serve  = gfx.key(' ') || gfx.button(gfx.LEFT);
         bool pause  = gfx.key('P');
@@ -243,7 +243,7 @@ struct Game {
 
         // Keyboard direction and mouse position
         int direction = (gfx.key(KEY_RIGHT) ? 1 : 0)-(gfx.key(KEY_LEFT) ? 1 : 0);
-        int mouse = gfx.mouseX();
+        int mouse = c.localX(gfx.mouseX());
 
         // Restart requested
         restartHeld = debounce( restart, restartHeld, { -> _reset();  sys.audio.stop(); } );
@@ -254,7 +254,7 @@ struct Game {
             pauseHeld = debounce( pause, pauseHeld, { -> paused = !paused; } );
 
             // If no key and mouse moved, set paddle to mouse
-            if( mouse != lastMouse && direction == 0 && !paused ) {
+            if( mouse >= 0 && mouse != lastMouse && direction == 0 && !paused ) {
                 _paddle(mouse*1.0); // Set paddle to mouse
                 // If READY and not PLAY, ball tracks paddle directly
                 if( phase == READY ) x = paddle;
@@ -291,7 +291,7 @@ struct Game {
 // Fixed-width decimal labels avoid allocating new strings on every frame.
 val _number = { !sys.draw.Canvas c, i64 x, i64 y, int value, int digits, int scale, u32 color ->
     for( int i = 0; i < digits; i++ ) {
-        c.text(x+(digits-1-i)*4*scale,y,DIGITS[value-value/10*10],scale,color);
+        c.text(x+(digits-1-i)*4*scale,y,DIGITS[value%10],scale,color);
         value /= 10;
     }
 };
@@ -299,7 +299,7 @@ val _number = { !sys.draw.Canvas c, i64 x, i64 y, int value, int digits, int sca
 // Short, fading triangle waves; the array initializer builds PCM once at startup.
 val _tone = { int period ->
     val samples = new i16[~2400]{int i ->
-        int phase = i-i/period*period;
+        int phase = i%period;
         int triangle = phase < period/2 ? phase : period-phase;
         return (triangle*4-period)*6000/period*(2400-i)/2400;
     };
@@ -341,7 +341,12 @@ val main = { u8[~][] args ->
 
     while( status == gfx.OK ) {
         if( gfx.key('Q') || gfx.key(gfx.ESCAPE) ) break;
-        int direction = g._input();
+        // Physics stays in base coordinates; only drawing and input scale.
+        if( c.resize(gfx.width(),gfx.height()) ) {
+            g.lastMouse = c.localX(gfx.mouseX());
+            frame_ms = 0;
+        }
+        int direction = g._input(c);
         i64 now_ms = sys.time.monotonic(), elapsed_ms = now_ms-last_ms;
         last_ms = now_ms;
         // Drop long stalls instead of teleporting the ball after a window drag.
@@ -353,7 +358,7 @@ val main = { u8[~][] args ->
         }
         if( now_ms >= frame_ms ) {
             g._draw(c);
-            status = gfx.present(c.pixels);
+            status = gfx.presentSize(c.pixels,c.width,c.height);
             frame_ms = now_ms+FRAME_ms;
             if( args# > 1 && ++frames == 10 ) break;
         }

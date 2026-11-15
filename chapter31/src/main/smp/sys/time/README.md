@@ -1,5 +1,9 @@
 # Time and single-threaded animation
 
+[Chapter 31](../../../../../README.md#time-library) introduces the library.
+The implementation is in [time.smp](../time.smp), [DateTime.smp](DateTime.smp),
+and [Timers.smp](Timers.smp).
+
 `sys.time` uses bare `i64` values: absolute instants are milliseconds since
 the Unix epoch in UTC; durations are milliseconds. Monotonic readings belong
 to a separate clock domain. Never subtract a wall-clock reading from a
@@ -114,12 +118,12 @@ zero polls, `-1` waits indefinitely, values below `-1` fail. It returns the same
 monotonic clock after each wake. This allows one thread to handle timers,
 input, simulation, and drawing without busy waiting.
 
-The [digital and analog clock example](examples/Clock.smp) combines these pieces. From
+The [digital and analog clock example](../../../../../docs/examples/Clock.smp) combines these pieces. From
 the repository root, with graphics dependencies already cached:
 
 ```sh
-make -C chapter31 clock-example CTAGS=  # Build without opening a window.
-make -C chapter31 run-clock CTAGS=      # Build the backend and run.
+make -C chapter31 clock-example  # Build without opening a window.
+make -C chapter31 run-clock      # Build the backend and run.
 ```
 
 Click the button or press Space to switch between green seven-segment digits

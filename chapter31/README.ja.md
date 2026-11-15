@@ -8,12 +8,17 @@
 Simple で描画する `sys.draw.Canvas` と、MiniFB を使うオプションの
 ウィンドウ・入力 API `sys.gfx` を使って、グラフィカルな三目並べを実装します。
 矩形、円、太い線、色、ビットマップ文字を扱えます。
-詳細は[英語版の描画ライブラリとゲームの説明](docs/drawing.md)を参照してください。
+詳細は[英語版の描画ライブラリとゲームの説明](src/main/smp/sys/draw/README.md)を参照してください。
 通常のビルドとテストに MiniFB や画面表示は必要ありません。
 
 ```sh
-make -C chapter31 run-graphical-tictactoe CTAGS=
+make -C chapter31 run-graphical-tictactoe
 ```
+
+`%` は Java の `%` と同じ符号規則を使う剰余演算子です。`*`、`/` と同じ優先順位で、
+左から右に結合します。例えば `-17 % 5` は `-2`、`17 % -5` は `2` です。
+整数と浮動小数点数に対応し、整数のゼロ除算は Simple の `/` と同様にゼロを返します。
+詳しい意味と実装は[英語版の説明](README.md#remainder)を参照してください。
 
 このスナップショットの[文法](docs/31-grammar.ja.md)と
 [実行可能な例](docs/examples/)を用意しています。

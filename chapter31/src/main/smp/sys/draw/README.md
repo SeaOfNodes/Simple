@@ -1,8 +1,12 @@
 # Drawing in Simple
 
+[Chapter 31](../../../../../README.md#graphics-and-sound) introduces the library.
+The implementation is in [Canvas.smp](Canvas.smp), [Button.smp](Button.smp),
+and the [draw module](../draw.smp).
+
 `sys.draw` draws into an ordinary `u32[]`. It has no native dependencies and
 does not open a window. `sys.gfx` presents the resulting pixels using the
-optional [MiniFB backend](graphics.md).
+optional [MiniFB backend](../gfx.md).
 
 ```simple
 val canvas = new sys.draw.Canvas(600,780);
@@ -15,7 +19,7 @@ canvas.fillCircle(420,200,20,sys.draw.GREEN);
 canvas.line(40,320,250,440,12,orange);
 canvas.text(40,500,"YOUR TURN",4,sys.draw.BLACK);
 // After sys.gfx.open succeeds:
-sys.gfx.present(canvas.pixels);
+sys.gfx.presentSize(canvas.pixels,canvas.width,canvas.height);
 ```
 
 ## Small raster API
@@ -31,6 +35,8 @@ extents, and stroke widths.
 | --- | --- |
 | `rgb(r,g,b)` | Clamp components to 0–255 and pack RGB. `BLACK`, `WHITE`, `RED`, `GREEN`, and `BLUE` are available too. |
 | `new Canvas(width,height)` | Allocate a zero-filled pixel array. Dimensions must be positive and their product must fit a signed 32-bit index; invalid sizes exit with status 1. Allocation can still fail for lack of memory. |
+| `resize(width,height)` | Fit the original layout into new drawable dimensions; return whether they changed. Ignore zero dimensions. |
+| `localX(x)`, `localY(y)` | Convert drawable pixels to base coordinates for input; return -1 in the margins. |
 | `clear(color)` | Fill the entire canvas. |
 | `pixel(x,y,color)` | Set one pixel; ignore points outside the canvas. |
 | `fillRect(x,y,w,h,color)` | Fill a half-open rectangle: x through x+w-1, y through y+h-1. |
@@ -45,6 +51,21 @@ text scale do nothing; negative circle radii do nothing. Line and circle
 coverage scans only the clipped bounding box, which is sufficient for small
 turn-based games. This is a starting raster library rather than a fast animated
 renderer. The pixel array remains available for direct drawing and inspection.
+
+The constructor sets the layout's `baseWidth` and `baseHeight`. Resizing uses
+`scale = min(width/baseWidth, height/baseHeight)` in floating point and centers
+the result with `offsetX` and `offsetY`. Sizes, offsets, glyph cells, and stroke
+widths all use this transform; circles stay circular. Positive line and circle
+strokes retain at least one drawable pixel. Existing drawing coordinates remain
+in base units, while `width`, `height`, and direct pixel indexing use the actual
+framebuffer dimensions. `clear` fills the whole framebuffer, including margins.
+At very small sizes, details smaller than a pixel naturally disappear.
+
+Canvas reuses its pixel storage and grows its capacity geometrically when needed.
+Only the first `width*height` elements are active; use `gfx.presentSize` after
+resizing. This avoids allocating on every drag event, including repeated shrink
+and grow cycles. Use `localX`/`localY` before button or game hit tests so drawing
+and input share the same scale and centering.
 
 Packed colors use hexadecimal literals (`0xRRGGBB`); `rgb(r,g,b)` remains handy
 for computed components. The font masks use leading-zero octal, with five
@@ -67,7 +88,7 @@ pending press and disable activation; `label` can be changed at any time.
 `contains(x,y)` uses half-open bounds. `draw(canvas,scale,foreground,background,active)`
 paints the button and centers its 3x5 label when it fits. Colors belong to the
 caller. Keyboard shortcuts belong to the application; this small widget has
-no focus system. The [clock example](examples/Clock.smp) shows mouse activation
+no focus system. The [clock example](../../../../../docs/examples/Clock.smp) shows mouse activation
 and a Space shortcut in the same single-threaded loop.
 
 ## Graphical tic-tac-toe
@@ -75,7 +96,7 @@ and a Space shortcut in the same single-threaded loop.
 From `chapter31`:
 
 ```sh
-make run-graphical-tictactoe CTAGS=
+make run-graphical-tictactoe
 ```
 
 Click an empty square or press **1–9**, numbered left-to-right, top-to-bottom.
@@ -85,19 +106,19 @@ the winning line highlighted. Press **R** or **Space** to start a new game,
 or **Q**/**Escape** to quit. Restart is also available during a game.
 
 Held buttons and keys do not take repeated turns. Moving the pointer highlights
-empty cells. The canvas is redrawn only after a move, restart, or hover change;
+empty cells. The canvas is redrawn after a move, restart, hover change, or resize;
 polling still processes window events and waits between polls.
 
-`make graphical-tictactoe CTAGS=` builds without opening a window or requiring
+`make graphical-tictactoe` builds without opening a window or requiring
 MiniFB. Its output is `build/examples/x86_64_v2_win64/TicTacToeGraphical.exe`
 on Windows or `build/examples/x86_64_v2_SystemV/TicTacToeGraphical` on Linux.
-Backend discovery and explicit overrides follow [the pixel-window instructions](graphics.md).
+Backend discovery and explicit overrides follow [the pixel-window instructions](../gfx.md).
 Passing any argument performs a five-poll, self-closing smoke test.
 
 The original `make tictactoe` still builds the terminal game.
-The graphical game also uses optional [background audio](audio.md): a soft
+The graphical game also uses optional [background audio](../audio.md): a soft
 boop for accepted moves, rising tones for a player win, and falling tones for
 a CPU win. Bad input is silent. The run target builds/configures both backends.
-`make test CLASS=DrawTest CTAGS=` checks raster pixels and complete game turns
-without a display. `make tests_nographics CTAGS=` runs the ordinary suite with
+`make test CLASS=DrawTest` checks raster pixels and complete game turns
+without a display. `make tests_nographics` runs the ordinary suite with
 the backend disabled.

@@ -203,7 +203,7 @@ public abstract class TestC {
             params.add(runtimeObject("simple_args"));
         }
         params.addAll(new String[] {
-            "-lm", // Picks up 'sqrt' for newtonFloat tests to compare
+            "-lm", // sys.math functions, floating remainder, and C test drivers
             "-g",  // debug symbols
             "-o",  // name the output file
             exe,   // name the output file

@@ -165,12 +165,17 @@ read of an uninitialized field is legal. These are separate checks. The runnable
 construction and escape snapshots now make that border available for review.
 Neither topic requires the other to be taught first.
 
+The [module chapter](../chapter28a/README.md#escaping-or-the-startstop-cycle)
+extends this cycle to foreign identities and class initialization.
+[Chapter 29](../chapter29/README.md#keeping-private-code-out-of-the-outside-world-summary)
+explains the later precision fixes and links the detailed implementation notes.
+
 ## Build and check
 
-From this directory, run `make lib tests CTAGS=`. From the repository root, run:
+From this directory, run `make lib tests`. From the repository root, run:
 
 ```bash
-make tests CHAPTERS=chapter27 CTAGS=
+make tests CHAPTERS=chapter27
 ```
 
 `EscapeTest` checks the recursive callback, direct and indirect returned

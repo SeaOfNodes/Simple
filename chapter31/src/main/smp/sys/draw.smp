@@ -1,4 +1,5 @@
 // Software raster drawing. No window or native calls; pixels are packed RGB (0x00RRGGBB).
+// API reference: draw/README.md.
 u32 BLACK = 0x000000;
 u32 WHITE = 0xffffff;
 u32 RED   = 0xff0000;

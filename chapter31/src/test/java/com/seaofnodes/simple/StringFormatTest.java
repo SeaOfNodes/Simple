@@ -25,6 +25,11 @@ public class StringFormatTest extends TestC {
                "+00017|0x00002a|abc  |1.25|A|false\n");
     }
 
+    @Test public void testRemainderInInterpolation() throws Exception {
+        prints("int mod=17; sys.io.p(\"%(mod%5)|%02d(mod%5)|%%|\\%|%(mod %= 5)|%(mod)\");",
+               "2|02|%|%|2|2");
+    }
+
     @Test public void testIntegerLimits() throws Exception {
         prints("i64 lo=-9223372036854775807-1; sys.io.p(\"%(lo)|%(9223372036854775807)|%u(-1)|%X(-1)\");",
                "-9223372036854775808|9223372036854775807|18446744073709551615|FFFFFFFFFFFFFFFF");

@@ -74,7 +74,8 @@ static int load_graphics(void) {
     if (!candidate || candidate->version != SIMPLE_GRAPHICS_VERSION ||
         !candidate->open || !candidate->present || !candidate->poll ||
         !candidate->mouse_x || !candidate->mouse_y || !candidate->button ||
-        !candidate->key || !candidate->close || !candidate->wait) {
+        !candidate->key || !candidate->close || !candidate->wait ||
+        !candidate->width || !candidate->height || !candidate->present_size) {
         fprintf(stderr, "Simple graphics: incompatible MiniFB backend '%s'. Rebuild with make graphics.\n", path);
         dlclose(library);
         library = NULL;
@@ -93,6 +94,11 @@ int32_t simple_gfx_open(const char *title, uint32_t width, uint32_t height) {
 int32_t simple_gfx_present(const uint32_t *pixels, uint32_t count) {
     return api ? api->present(pixels, count) : -1;
 }
+int32_t simple_gfx_present_size(const uint32_t *pixels, uint32_t count, uint32_t width, uint32_t height) {
+    return api ? api->present_size(pixels, count, width, height) : -1;
+}
+uint32_t simple_gfx_width(void) { return api ? api->width() : 0; }
+uint32_t simple_gfx_height(void) { return api ? api->height() : 0; }
 int32_t simple_gfx_poll(int32_t wait) { return api ? api->poll(wait) : -1; }
 int32_t simple_gfx_mouse_x(void) { return api ? api->mouse_x() : 0; }
 int32_t simple_gfx_mouse_y(void) { return api ? api->mouse_y() : 0; }
