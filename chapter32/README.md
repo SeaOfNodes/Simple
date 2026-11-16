@@ -314,6 +314,60 @@ the native allocator checks. Benchmark sources, saved baseline classes, raw
 timings, and follow-up JFR recordings are in `build/ifg-profile/`; the suite log
 is `build/test-profile/ifg-full.log`.
 
+## Reduce allocation in load folding and packed writes
+
+The x86 [load-fold legality check](src/main/java/com/seaofnodes/simple/node/cpus/x86_64_v2/x86_64_v2.java)
+walks the other operand's inputs to ensure that combining it with a load cannot
+move the read across a conflicting write. Its visited set now uses node IDs in
+a local BitSet. The traversal, including control dependencies, is unchanged;
+the check avoids growing arrays of identity-map keys and values.
+
+[BAOS](src/main/java/com/seaofnodes/simple/util/BAOS.java)'s packed-value
+histogram was exploratory instrumentation for choosing smaller encodings.
+Its map and updates are commented out, ready to restore for another packing
+study. Normal compilation no longer boxes histogram keys and counts. Packed
+bytes and their readers are unchanged.
+
+Against `6643e8fd`, an interleaved comparison measured sys compiler-thread
+allocation falling from 119.6 to 69.4 MiB and median compile time from 1,017 to
+942 ms. Breakout fell from 54.5 to 43.6 MiB and 652 to 617 ms. The smaller timing
+differences were mixed: Clock measured 315 to 318 ms, graphical tic-tac-toe
+292 to 291 ms, and HelloWorld 65 to 64 ms. All five allocate less. These use the
+same three-warmup, six-measurement method and JVM settings as the IFG comparison.
+All 26 resulting objects have byte-identical `.text` and `.simple` sections.
+The Windows suite at log8 and the Linux suite at the default log10 each pass
+all 805 test executions, including native scheduling and import coverage.
+
+## Measure serialized IR size before changing its packing
+
+The ELF `.simple` section stores reloadable ideal IR, declarations, and import
+metadata. It can be much larger than the native code. For the same x86-64/win64
+objects, including all 22 sys modules:
+
+| Workload | Whole ELF bytes | `.simple` bytes | Share of ELF |
+| --- | ---: | ---: | ---: |
+| sys library, all modules | 597,399 | 469,881 | 78.7% |
+| Clock | 64,317 | 43,854 | 68.2% |
+| Breakout | 118,163 | 80,950 | 68.5% |
+| Graphical tic-tac-toe | 64,605 | 44,353 | 68.7% |
+| HelloWorld | 16,355 | 14,635 | 89.5% |
+
+Temporary byte-offset counters around [Serialize](src/main/java/com/seaofnodes/simple/codegen/Serialize.java)'s
+existing write stages divide sys's payload into 67,844 bytes of strings and
+unit metadata, 73,564 of identity mappings, 180,456 of types, 2,447 of function
+summaries, and 145,482 of node records and input references, plus 88 header
+bytes. HelloWorld's strings, mappings, and types alone take 14,161 of its 14,635
+bytes; its graph records and inputs take only 447 bytes.
+
+That suggests investigating metadata scope before choosing a different integer
+encoding. The current writer emits the full compilation's alias, function, and
+return-PC mappings into each object, along with their names. Restricting them
+to identities needed by that object's declarations, summaries, and graph may
+save space, but requires coordinated remapping in the writer and reader.
+These measurements make no packing or format changes. Profiling helpers,
+saved baseline classes, per-object sizes, byte breakdowns, and timings are in
+`build/packing-profile/`.
+
 ## Build and test
 
 From `chapter32`, using the existing offline dependency caches:

@@ -1,6 +1,6 @@
 package com.seaofnodes.simple.util;
 
-import java.util.HashMap;
+//import java.util.HashMap;
 import java.util.Arrays;
 
 // "ByteArrayOutputStream", and Input Stream and not synchronized and has
@@ -96,12 +96,12 @@ public class BAOS {
     }
 
     // -----------------------------------------------------------------------
-    // Write a packed integer to the BAOS.  Track a histogram to make more
-    // intelligent choices in the future.
-    private static final HashMap<Long,Integer> PACKED_HISTOGRAM = new HashMap<>();
+    // Optional profiling for choosing smaller packed representations. Leave
+    // disabled during normal compilation; re-enable when studying .simple size.
+    //private static final HashMap<Long,Integer> PACKED_HISTOGRAM = new HashMap<>();
     private BAOS histo(long x) {
-        Integer cnt = PACKED_HISTOGRAM.get(x);
-        PACKED_HISTOGRAM.put(x,cnt==null ? 1 : cnt+1);
+        //Integer cnt = PACKED_HISTOGRAM.get(x);
+        //PACKED_HISTOGRAM.put(x,cnt==null ? 1 : cnt+1);
         return this;
     }
 

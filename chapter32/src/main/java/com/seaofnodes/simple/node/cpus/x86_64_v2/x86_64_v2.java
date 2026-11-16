@@ -5,7 +5,7 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Utils;
 import com.seaofnodes.simple.util.Ary;
-import java.util.IdentityHashMap;
+import java.util.BitSet;
 
 public class x86_64_v2 extends Machine {
     public x86_64_v2( CodeGen code ) {}
@@ -461,12 +461,13 @@ public class x86_64_v2 extends Machine {
         if( load.nOuts()!=1 ) return false;
         Ary<Node> writers=load.antiDeps(new Ary<>(Node.class));
         if( writers.isEmpty() ) return true;
-        var seen=new IdentityHashMap<Node,Boolean>();
+        var seen=new BitSet();
         Ary<Node> work=new Ary<>(Node.class);
         work.push(value);
         while( !work.isEmpty() ) {
             Node n=work.pop();
-            if( seen.put(n,Boolean.TRUE)!=null ) continue;
+            if( seen.get(n._nid) ) continue;
+            seen.set(n._nid);
             if( writers.find(n)!=-1 ) return false;
             for( Node def : n._inputs ) if( def!=null ) work.push(def);
         }
