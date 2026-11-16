@@ -4,9 +4,9 @@ English | [日本語](README.ja.md)
 
 [Previous: Chapter 31 — Software Drawing, Time, and Graphical Games](../chapter31/README.md)
 
-Chapter 31 completes the graphics, games, and library work. This chapter keeps
+Chapter 31 completes the graphics, games, and library work.  This chapter keeps
 that language and those programs, then investigates the cost of compiling and
-testing them. Larger programs have made repeated graph walks, unnecessary
+testing them.  Larger programs have made repeated graph walks, unnecessary
 worklist visits, and uneven test parallelism visible in the test runtime.
 
 The starting changes address four costs: test JVM scheduling, scratch-state
@@ -55,6 +55,89 @@ partitions its outer type loop across four JVMs. Together they check every
 pair and triple. Separate processes also isolate the mutable type interning
 and traversal state. A direct JUnit or IDE invocation still runs the complete
 lattice test in one JVM; part zero of the Make run also runs the other type tests.
+
+## Reduce test overhead before reducing coverage
+
+The November 16 follow-up uses `make -j8 tests` as the normal run. On the same
+Windows/JDK 21 host, warm runs took 25.4–26.0 seconds; four workers took 30.5
+seconds and sixteen took 33.1. More concurrent JVMs did not help. Keep the
+two-processor JVM sizing and distinguish warm testing from rebuilding the
+compiler and released library.
+
+The serial attribution run spent 29.8 seconds in 153 GCC calls, mostly linking,
+and 29.7 seconds in compiler phases. These are summed serial costs, not portions
+of the parallel elapsed time. Four changes reduce work while retaining the
+existing test methods and their value checks:
+
+* [TypeTest](src/test/java/com/seaofnodes/simple/TypeTest.java) constructs lattice
+  assertion messages only when the identity comparison fails. Formatting types
+  inside every successful triple was more expensive than the comparison. The
+  standalone lattice fell from 10.6 to 4.5 seconds, with all pairs and triples
+  still checked.
+* [ModTest](src/test/java/com/seaofnodes/simple/ModTest.java) puts its native
+  division/remainder matrix into constant arrays and loops. All 200 checks,
+  including zero divisors and signed overflow, remain. This avoids compiling a
+  long chain of calls and conditional returns; the isolated test fell from
+  2.75 to 0.62 seconds.
+* [StringFormatTest](src/test/java/com/seaofnodes/simple/StringFormatTest.java)
+  shares three small native programs between compatible cases. Each original
+  test checks its own output, including embedded NULs and UTF-8 bytes. Separate
+  import, forward-reference, evaluator, and error tests remain. The class now
+  makes seven GCC calls instead of nineteen.
+* [AssemblyDumpTest](src/test/java/com/seaofnodes/simple/AssemblyDumpTest.java)
+  compiles two small modules containing the real Canvas font declaration. It
+  still checks unit headings, all 96 glyphs, exported data aliases, and repeated
+  dumps without changing the active encoding. Drawing integration remains in
+  DrawTest; inspecting assembly no longer requires recompiling all of `sys`.
+
+The Make groups redistribute the now-cheaper formatting and assembly work and
+the tests accumulated in the fallback group. Remaining chapter cohorts start
+before the short lattice partitions so their native links can overlap earlier
+work. Rebalanced warm runs took 22.1 and 24.3 seconds and passed the same 819
+executions, including the three additional lattice partitions. Their mean is
+about 10% below the earlier baseline; individual parallel runs vary. Compiler
+verification remains enabled.
+
+## Keep the lattice in the fast checks
+
+`make -j8 sanity` retains the entire lattice, chapters 1–24's existing test
+cohorts, saved fuzzer regression seeds, and the focused compiler tests. Its
+three compiler groups have private native-output directories just like the
+full suite. New compiler test classes enter the last sanity group automatically.
+Warm runs on the same host took 8.77 and 8.85 seconds and passed 680 executions.
+`make -j8 tests` still runs all 819 executions.
+
+The fast set leaves graphics, audio, time, math-library, formatting, game, terminal, stream,
+runtime-argument, CLI-diagnostic, and native-harness integration in the full
+suite, along with Chapter25Test and the larger BrainFuck/MergeSort programs.
+It retains native execution for arithmetic, memory encoding, static data,
+receivers, separate compilation, incremental rebuilds, and the chapter backend
+tests. This selects a cheaper set of checks; it does not replace native
+execution with evaluator-only coverage. Full tests remain necessary when
+changing the omitted libraries, interfaces, or programs.
+
+The lattice itself now does less redundant work. It caches each pair's meet
+and join, computing both operand orders before checking commutativity. For
+associativity it visits `i <= j <= k`: `n(n+1)(n+2)/6` triples instead of `n^3`.
+For each triple it checks all six intermediate results:
+
+```
+(a & b) & c     c & (a & b)
+(a & c) & b     b & (a & c)
+(b & c) & a     a & (b & c)
+```
+
+Once the original pairs commute, the six original associativity equalities
+connect these results in a cycle. Comparing all six to one common result
+checks the same property. Both operand orders involving an intermediate meet
+remain explicit: that intermediate type need not belong to the gathered set.
+Repeated operands are included, and all comparable-pair monotonicity checks
+remain. No random sampling or smaller type collection is used.
+
+The unpartitioned TypeTest now takes about 0.7 seconds, following the earlier
+reduction to roughly four seconds from lazy assertion messages. The existing
+four process partitions remain; in the warm sanity run each took 0.3–0.4
+seconds. Reducing duplicate operations made additional JVMs unnecessary.
 
 ## Shallow type queries need no recursive scratch state
 

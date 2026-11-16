@@ -35,6 +35,17 @@ callers promise no initialized fields. No new passes or backward demand walks.
 
 ## Chapter 32: restart guidance (2026-11-15)
 
+Use `make -j8 tests` as the normal validation/timing command going forward.
+The November 16 sweep found both `-j4` and `-j16` slower on this Windows host;
+retain `ActiveProcessorCount=2`. Keep lattice checks in their own JVMs: combining
+them after compiler-heavy tests can exhaust the existing 16-bit type IDs.
+The full lattice is required even in fast checks. `make -j8 sanity` keeps its
+four partitions plus chapter/backend and focused compiler regressions; full
+`make -j8 tests` retains library/application/CLI integration. The lattice now
+caches pairs and checks all six intermediate results per unordered triple;
+do not reduce it to one associativity equality per unordered triple, which
+would assume commutativity for intermediate types outside the gathered set.
+
 On 2026-11-16, Cliff requested backporting the shared class receiver to chapter
 28a, imported-summary handling to 28b, and both through the later snapshots.
 The chapter28a README now owns that explanation. Preserve 28a/28b's monolithic

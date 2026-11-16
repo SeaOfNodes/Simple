@@ -276,74 +276,77 @@ public class TypeTest {
     public void testLatticeTheory() {
         Type[] ts = Type.gather();
         // Make partitions the outer loop between independent JVMs. A direct
-        // JUnit/IDE invocation retains the full Cartesian-product coverage.
+        // JUnit/IDE invocation retains the full coverage.
         int parts = Integer.parseInt(System.getProperty("simple.lattice.parts","1"));
         int part  = Integer.parseInt(System.getProperty("simple.lattice.part" ,"0"));
         Assert.assertTrue("Invalid lattice partition",parts > 0 && parts <= ts.length && part >= 0 && part < parts);
 
-        // Confirm commutative & complete
+        // Every triple reuses these pairs. Compute both operand orders rather
+        // than assuming commutativity in the table we are about to check.
+        Type[][] meets = new Type[ts.length][ts.length];
+        Type[][] joins = new Type[ts.length][ts.length];
+        for( int i=0; i<ts.length; i++ )
+            for( int j=0; j<ts.length; j++ ) {
+                meets[i][j] = ts[i].meet(ts[j]);
+                joins[i][j] = ts[i].join(ts[j]);
+            }
+
+        // Confirm commutative & complete, once per unordered pair.
         for( int i=part; i<ts.length; i+=parts ) {
-            Type t0 = ts[i];
-            for( Type t1 : ts ) {
-                check_commute  (t0,t1);
-                check_symmetric(t0,t1);
+            assertSame(ts[i],meets[i][i]);
+            for( int j=i; j<ts.length; j++ ) {
+                assertSame(meets[i][j],meets[j][i]);
+                check_symmetric(ts[i],ts[j],meets[i][j]);
             }
         }
 
-        // Confirm associative
-        for( int i=part; i<ts.length; i+=parts ) {
-            Type t0 = ts[i];
-            for( Type t1 : ts )
-                for( Type t2 : ts )
-                    assoc(t0,t1,t2);
-        }
+        // Each unordered triple represents all six permutations. Check every
+        // intermediate result in both operand orders; a pair's meet need not
+        // itself be in ts, so its commutativity must not be assumed.
+        for( int i=part; i<ts.length; i+=parts )
+            for( int j=i; j<ts.length; j++ )
+                for( int k=j; k<ts.length; k++ )
+                    assoc(ts[i],ts[j],ts[k],meets[i][j],meets[i][k],meets[j][k]);
 
         // Confirm symmetry.  If A isa B, then A.join(C) isa B.join(C)
         for( int i=part; i<ts.length; i+=parts ) {
             Type t0 = ts[i];
-            for( Type t1 : ts )
-                if( t0.isa(t1) )
-                    for( Type t2 : ts ) {
-                        Type t02 = t0.join(t2);
-                        Type t12 = t1.join(t2);
+            for( int j=0; j<ts.length; j++ )
+                if( meets[i][j]==ts[j] )
+                    for( int k=0; k<ts.length; k++ ) {
+                        Type t02 = joins[i][k];
+                        Type t12 = joins[j][k];
                         Type mt  = t02.meet(t12);
-                        assertSame(t0+" isa "+t1+" joined "+t2, mt,t12);
+                        if( mt!=t12 ) assertSame(t0+" isa "+ts[j]+" joined "+ts[k], mt,t12);
                     }
         }
-    }
-
-    // By design in meet, args are already flipped to order _type, which forces
-    // symmetry for things with badly ordered _type fields.  The question is
-    // still interesting for other orders.
-    private static void check_commute( Type t0, Type t1 ) {
-        if( t0==t1 ) return;
-        if( t0.is_simple() && !t1.is_simple() ) return; // By design, flipped the only allowed order
-        Type mta = t0.meet(t1);
-        Type mtb = t1.meet(t0); // Reverse args and try again
-        assertSame(mta,mtb);
     }
 
     // A & B = MT
     // Expect: ~A & ~MT == ~A
     // Expect: ~B & ~MT == ~B
     private static void check_symmetric( Type t0, Type t1 ) {
+        check_symmetric(t0,t1,t0.meet(t1));
+    }
+
+    private static void check_symmetric( Type t0, Type t1, Type mt ) {
         if( t1==t0 ) return;
-        Type mt = t0.meet(t1);
         Type dm = mt.dual();
         Type d0 = t0.dual();
         Type d1 = t1.dual();
         Type ta = dm.meet(d1);
         Type tb = dm.meet(d0);
-        assertSame(t0+" & "+t1+" mt="+mt, ta,d1);
-        assertSame(t0+" & "+t1+" mt="+mt, tb,d0);
+        if( ta!=d1 ) assertSame(t0+" & "+t1+" mt="+mt, ta,d1);
+        if( tb!=d0 ) assertSame(t0+" & "+t1+" mt="+mt, tb,d0);
     }
 
-    private static void assoc( Type t0, Type t1, Type t2 ) {
-        Type t01   = t0 .meet(t1 );
-        Type t12   = t1 .meet(t2 );
-        Type t01_2 = t01.meet(t2 );
-        Type t0_12 = t0 .meet(t12);
-        assertSame(t0+" & "+t1+" & "+t2, t01_2,t0_12);
+    private static void assoc( Type a, Type b, Type c, Type ab, Type ac, Type bc ) {
+        // The six original associativity equalities connect these six values
+        // in a cycle. Equality to one common result checks the same property.
+        Type result = ab.meet(c);
+        if( result!=c.meet(ab) || result!=ac.meet(b) || result!=b.meet(ac) ||
+            result!=bc.meet(a) || result!=a.meet(bc) )
+            Assert.fail("Associativity: "+a+" & "+b+" & "+c);
     }
 
     // Test cyclic types and meets

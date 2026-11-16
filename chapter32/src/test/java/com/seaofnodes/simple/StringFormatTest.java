@@ -11,28 +11,88 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class StringFormatTest extends TestC {
-    private static void prints(String body, String expected) throws Exception {
-        runSYS("val main={ -> "+body+" return 0; };", "stringFormat",expected,-1);
+    // Share a few native programs, retaining a separately reported assertion
+    // for each case. Blocks isolate locals; the delimiter preserves embedded
+    // NULs and newlines in the expected output.
+    private enum Format {
+        DefaultsAndNestedStrings("sys.io.p(\"CPU plays %(2+3). %(\"nested %(7)\") %(true) %(1.5)\\n\");",
+               "CPU plays 5. nested 7 1 1.5\n"),
+        Formats("sys.io.p(\"%+06d(17)|%#08x(42)|%-5.3s(\"abcdef\")|%.2f(1.25)|%c(65)|%b(false)\\n\");",
+               "+00017|0x00002a|abc  |1.25|A|false\n"),
+        RemainderInInterpolation("int mod=17; sys.io.p(\"%(mod%5)|%02d(mod%5)|%%|\\%|%(mod %= 5)|%(mod)\");",
+               "2|02|%|%|2|2"),
+        IntegerLimits("i64 lo=-9223372036854775807-1; sys.io.p(\"%(lo)|%(9223372036854775807)|%u(-1)|%X(-1)\");",
+               "-9223372036854775808|9223372036854775807|18446744073709551615|FFFFFFFFFFFFFFFF"),
+        IntegerPaddingRules("sys.io.p(\"%#.0o(0)|%#.3o(1)|%#x(0)|%-08d(17)|%08.4d(-17)|%+d(0)|% d(0)\");",
+               "0|001|0|17      |   -0017|+0| 0"),
+        BuilderNumberUsesFormatter("val b=new sys.aryu8(); b.num(-9223372036854775807-1).add('|').num(9223372036854775807); sys.io.p(sys.text.end(b));",
+               "-9223372036854775808|9223372036854775807"),
+        EvaluationOrder("int x=0; val s=\"%(x++)%(x++)%(x++)\"; sys.io.p(\"%(s):%(s#):%(x)|%%|\\%\");",
+               "012:3:3|%|%"),
+        EvaluationMutatesBytes("val a=new u8[1]; a[0]='A'; sys.io.p(\"%(a)%(a[0]='B')%(a)\");", "A66B"),
+        Converters("sys.io.p(sys.text.int(17)); sys.io.p(sys.text.char(65)); sys.io.p(sys.text.bool(true)); sys.io.p(sys.text.flt(1.5));",
+               "17Atrue1.5"),
+        FieldNamedInt("struct S { int int=7; }; sys.io.p(\"%((new S).int)\");", "7"),
+        FloatAndAlternateFormats("f32 x=1.25f; sys.io.p(\"%(x)|%f(x)|%.2e(x)|%.2G(x)|%#o(9)|% d(7)|%.0d(0)|%a(1.5)\");",
+               "1.25|1.250000|1.25e+00|1.2|011| 7||0x1.8p+0"),
+        BufferGrowth("sys.io.p(\"%0100d(17)|%.100f(1.0)\");", "0".repeat(98)+"17|1."+"0".repeat(100)),
+        BytesAndEmptyStrings("val empty=\"%(\"\")\"; val bytes=\"a\\0b\"; sys.io.p(\"%(empty#):%s(bytes):%.2s(bytes):%c(0)\");",
+               "0:a\0b:a\0:\0"),
+        Utf8String("val s=\"π\"; sys.io.p(\"%(s):%(s#):%(s[0]):π\");", "π:2:207:π"),
+        DeferredParsing("""
+            struct S { u8[~] s; new S={ -> s="%("}) %(3)")"; }; };
+            val s=new S;
+            sys.io.p(s.s);
+            for(int i=0; i<2; sys.io.p("%(i++) %("(")")) { }
+            """, "}) 30 (1 (");
+
+        final String body, expected;
+        Format(String body, String expected) { this.body=body; this.expected=expected; }
+    }
+    private static final String END="\n--end-format-case--\n";
+    private static final int BATCH_SIZE=5;
+    private static final String[] OUTPUTS=new String[Format.values().length];
+
+    @org.junit.BeforeClass public static void resetNativeBatches() {
+        java.util.Arrays.fill(OUTPUTS,null);
+    }
+
+    private static void prints(Format test) throws Exception {
+        int index=test.ordinal();
+        if( OUTPUTS[index]==null ) {
+            Format[] cases=Format.values();
+            int first=index/BATCH_SIZE*BATCH_SIZE, limit=Math.min(first+BATCH_SIZE,cases.length);
+            StringBuilder source=new StringBuilder("val main={ -> ");
+            for( int i=first; i<limit; i++ ) {
+                assertFalse("Reserved batch delimiter",cases[i].expected.contains(END));
+                source.append('{').append(cases[i].body).append('}');
+                source.append("sys.io.p(\"\\n--end-format-case--\\n\");");
+            }
+            source.append("return 0; };");
+            String exe=compile(source.toString(),"stringFormat"+first,
+                new Ary<>(new String[]{RELEASE_SYS_DIR}),CALL_CONVENTION,null,null,-1);
+            String[] outputs=exec(TEST_TIMEOUT_SECONDS,exe).split(java.util.regex.Pattern.quote(END),-1);
+            assertEquals("Each format case must complete",limit-first+1,outputs.length);
+            assertEquals("No output after final case", "",outputs[outputs.length-1]);
+            for( int i=first; i<limit; i++ ) OUTPUTS[i]=outputs[i-first];
+        }
+        assertEquals(test.name(),test.expected,OUTPUTS[index]);
     }
 
     @Test public void testDefaultsAndNestedStrings() throws Exception {
-        prints("sys.io.p(\"CPU plays %(2+3). %(\"nested %(7)\") %(true) %(1.5)\\n\");",
-               "CPU plays 5. nested 7 1 1.5\n");
+        prints(Format.DefaultsAndNestedStrings);
     }
 
     @Test public void testFormats() throws Exception {
-        prints("sys.io.p(\"%+06d(17)|%#08x(42)|%-5.3s(\"abcdef\")|%.2f(1.25)|%c(65)|%b(false)\\n\");",
-               "+00017|0x00002a|abc  |1.25|A|false\n");
+        prints(Format.Formats);
     }
 
     @Test public void testRemainderInInterpolation() throws Exception {
-        prints("int mod=17; sys.io.p(\"%(mod%5)|%02d(mod%5)|%%|\\%|%(mod %= 5)|%(mod)\");",
-               "2|02|%|%|2|2");
+        prints(Format.RemainderInInterpolation);
     }
 
     @Test public void testIntegerLimits() throws Exception {
-        prints("i64 lo=-9223372036854775807-1; sys.io.p(\"%(lo)|%(9223372036854775807)|%u(-1)|%X(-1)\");",
-               "-9223372036854775808|9223372036854775807|18446744073709551615|FFFFFFFFFFFFFFFF");
+        prints(Format.IntegerLimits);
     }
 
     @Test public void testSignedAndUnsignedRadices() throws Exception {
@@ -49,13 +109,11 @@ public class StringFormatTest extends TestC {
     }
 
     @Test public void testIntegerPaddingRules() throws Exception {
-        prints("sys.io.p(\"%#.0o(0)|%#.3o(1)|%#x(0)|%-08d(17)|%08.4d(-17)|%+d(0)|% d(0)\");",
-               "0|001|0|17      |   -0017|+0| 0");
+        prints(Format.IntegerPaddingRules);
     }
 
     @Test public void testBuilderNumberUsesFormatter() throws Exception {
-        prints("val b=new sys.aryu8(); b.num(-9223372036854775807-1).add('|').num(9223372036854775807); sys.io.p(sys.text.end(b));",
-               "-9223372036854775808|9223372036854775807");
+        prints(Format.BuilderNumberUsesFormatter);
     }
 
     @Test public void testFormattingInEvaluatorFromSource() {
@@ -74,15 +132,13 @@ public class StringFormatTest extends TestC {
     }
 
     @Test public void testEvaluationOrderAndLength() throws Exception {
-        prints("int x=0; val s=\"%(x++)%(x++)%(x++)\"; sys.io.p(\"%(s):%(s#):%(x)|%%|\\%\");",
-               "012:3:3|%|%");
-        prints("val a=new u8[1]; a[0]='A'; sys.io.p(\"%(a)%(a[0]='B')%(a)\");", "A66B");
+        prints(Format.EvaluationOrder);
+        prints(Format.EvaluationMutatesBytes);
     }
 
     @Test public void testConverters() throws Exception {
-        prints("sys.io.p(sys.text.int(17)); sys.io.p(sys.text.char(65)); sys.io.p(sys.text.bool(true)); sys.io.p(sys.text.flt(1.5));",
-               "17Atrue1.5");
-        prints("struct S { int int=7; }; sys.io.p(\"%((new S).int)\");", "7");
+        prints(Format.Converters);
+        prints(Format.FieldNamedInt);
     }
 
     @Test public void testForwardReturnTypes() throws Exception {
@@ -91,14 +147,13 @@ public class StringFormatTest extends TestC {
     }
 
     @Test public void testFloatAndAlternateFormats() throws Exception {
-        prints("f32 x=1.25f; sys.io.p(\"%(x)|%f(x)|%.2e(x)|%.2G(x)|%#o(9)|% d(7)|%.0d(0)|%a(1.5)\");",
-               "1.25|1.250000|1.25e+00|1.2|011| 7||0x1.8p+0");
+        prints(Format.FloatAndAlternateFormats);
         runSYS("val format_noInline={ f32 x -> \"%(x)|%f(x)\"; }; val main={ -> sys.io.p(format_noInline(1.25f)); return 0; };",
                "stringFormatFloat","1.25|1.250000",-1);
     }
 
     @Test public void testBufferGrowth() throws Exception {
-        prints("sys.io.p(\"%0100d(17)|%.100f(1.0)\");", "0".repeat(98)+"17|1."+"0".repeat(100));
+        prints(Format.BufferGrowth);
     }
 
     @Test public void testLiteralRemainsConstant() {
@@ -107,18 +162,12 @@ public class StringFormatTest extends TestC {
     }
 
     @Test public void testBytesAndEmptyStrings() throws Exception {
-        prints("val empty=\"%(\"\")\"; val bytes=\"a\\0b\"; sys.io.p(\"%(empty#):%s(bytes):%.2s(bytes):%c(0)\");",
-               "0:a\0b:a\0:\0");
-        prints("val s=\"π\"; sys.io.p(\"%(s):%(s#):%(s[0]):π\");", "π:2:207:π");
+        prints(Format.BytesAndEmptyStrings);
+        prints(Format.Utf8String);
     }
 
     @Test public void testDeferredParsing() throws Exception {
-        prints("""
-            struct S { u8[~] s; new S={ -> s="%("}) %(3)")"; }; };
-            val s=new S;
-            sys.io.p(s.s);
-            for(int i=0; i<2; sys.io.p("%(i++) %("(")")) { }
-            """, "}) 30 (1 (");
+        prints(Format.DeferredParsing);
     }
 
     @Test public void testImportedFormatter() throws Exception {

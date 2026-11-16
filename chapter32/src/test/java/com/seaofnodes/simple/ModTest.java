@@ -166,20 +166,31 @@ public class ModTest {
         return integerEdges(new long[]{Long.MIN_VALUE,Long.MIN_VALUE+1,-17,-5,-1,0,1,5,17,Long.MAX_VALUE});
     }
     private static String integerEdges(long[] values) {
+        // Keep the full value matrix in data, rather than compiling a long
+        // chain of constant calls and conditional returns for every pair.
         StringBuilder source=new StringBuilder("""
             val rem_noInline={ i64 x,i64 y -> x%y; };
             val div_noInline={ i64 x,i64 y -> x/y; };
             val main={ ->
+                val values=new i64[~]{
             """);
-        int failure=1;
-        for( long x : values )
-            for( long y : values ) {
-                source.append("if(rem_noInline(").append(literal(x)).append(',').append(literal(y))
-                    .append(")!=").append(literal(y==0 ? 0 : x%y)).append(") return ").append(failure++).append(';');
-                source.append("if(div_noInline(").append(literal(x)).append(',').append(literal(y))
-                    .append(")!=").append(literal(y==0 ? 0 : x/y)).append(") return ").append(failure++).append(';');
+        for(int i=0;i<values.length;i++) source.append(i==0 ? "" : ",").append(literal(values[i]));
+        source.append("}; val expectedRem=new i64[~]{");
+        int n=0;
+        for(long x:values) for(long y:values) source.append(n++==0 ? "" : ",").append(literal(y==0 ? 0 : x%y));
+        source.append("}; val expectedDiv=new i64[~]{");
+        n=0;
+        for(long x:values) for(long y:values) source.append(n++==0 ? "" : ",").append(literal(y==0 ? 0 : x/y));
+        return source.append("""
+            };
+            int index=0;
+            for(int i=0;i<values#;i++) for(int j=0;j<values#;j++) {
+                if(rem_noInline(values[i],values[j])!=expectedRem[index]) return index*2+1;
+                if(div_noInline(values[i],values[j])!=expectedDiv[index]) return index*2+2;
+                index++;
             }
-        return source.append("return 0; };").toString();
+            return 0; };
+            """).toString();
     }
     @Test public void nativeFloatingEdges() throws Exception {
         double[][] cases={{Double.MAX_VALUE,0.1},{-Double.MAX_VALUE,0.1},

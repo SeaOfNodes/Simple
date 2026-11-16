@@ -30,12 +30,22 @@ test_cp      := $(filter-out $(test_sys)  ,$(test_cp4))
 test_group0 := com.seaofnodes.simple.DrawTest
 test_group1 := com.seaofnodes.simple.GraphicsTest
 test_group2 := $(addprefix com.seaofnodes.simple.,TimeTest MemoryEncodingTest ChainedComparisonTest ParserTest Chapter28bTest)
-test_group3 := $(addprefix com.seaofnodes.simple.,StringFormatTest FinalConstructionTest PartialReadTest EscapeFlowTest CallEndTest BulkMemPhiTest)
-test_group4 := $(addprefix com.seaofnodes.simple.,BreakoutTest ArithNodeTest PhaseTest MethodAccessTest Int32Test MinusNodeTest ConstructorCompletionTest)
-test_group5 := $(addprefix com.seaofnodes.simple.,TerminalInputTest ParserDiagnosticTest StaticDataTest ArrayInitTest MethodFieldsTest ConstantArrayTest BoundaryTest IntegerLiteralTest ConstructionRequirementsTest)
-test_group6 := $(addprefix com.seaofnodes.simple.,AssemblyDumpTest AudioTest MathTest TicTacToeTest SelectiveLoadingTest FloatComparisonNativeTest SchedulingTest SeparateCompilationTest ConstructionGroupTest CompoundAssignmentTest)
+test_group3 := $(addprefix com.seaofnodes.simple.,StringFormatTest StaticDataTest PhaseTest FinalConstructionTest PartialReadTest EscapeFlowTest CallEndTest BulkMemPhiTest)
+test_group4 := $(addprefix com.seaofnodes.simple.,BreakoutTest ConvertNodeTest ArithNodeTest MethodAccessTest Int32Test MinusNodeTest ConstructorCompletionTest)
+test_group5 := $(addprefix com.seaofnodes.simple.,TerminalInputTest ParserDiagnosticTest ArrayInitTest MethodFieldsTest ConstantArrayTest BoundaryTest IntegerLiteralTest ConstructionRequirementsTest)
+test_group6 := $(addprefix com.seaofnodes.simple.,AssemblyDumpTest AudioTest MathTest TicTacToeTest ModTest SelectiveLoadingTest FloatComparisonNativeTest SchedulingTest SeparateCompilationTest ConstructionGroupTest CompoundAssignmentTest)
 test_group7 := $(filter-out $(test_group0) $(test_group1) $(test_group2) $(test_group3) $(test_group4) $(test_group5) $(test_group6),$(test_cp))
 test_groups := $(addprefix tests_group,0 1 2 3 4 5 6 7)
+
+# Fast compiler checks retain the full lattice, chapter/backend regressions,
+# fuzzer regression seeds, and focused compiler tests. Library/application and
+# CLI integration remains in `tests`. New compiler tests join sanity group 2.
+sanity_omit := $(addprefix com.seaofnodes.simple.,DrawTest GraphicsTest TimeTest StringFormatTest BreakoutTest TerminalInputTest AudioTest MathTest TicTacToeTest StreamIOTest RuntimeArgsTest NativeExecutionTest ParserDiagnosticTest)
+sanity_cp := $(filter-out $(sanity_omit),$(test_cp))
+sanity_group0 := $(addprefix com.seaofnodes.simple.,ClassInitDependenciesTest ConvertNodeTest ArithNodeTest MemoryEncodingTest ModTest IntrinsicTest AssemblyDumpTest)
+sanity_group1 := $(addprefix com.seaofnodes.simple.,StaticDataTest FloatComparisonNativeTest ArrayInitTest ConstantArrayTest BoundaryTest Int32Test ReceiverTest GlobalAssignmentTest IncrementalBuildTest SeparateCompilationTest)
+sanity_group2 := $(filter-out $(sanity_group0) $(sanity_group1),$(sanity_cp))
+sanity_groups := $(addprefix sanity_group,0 1 2)
 
 # Size each test JVM for a share of the machine, instead of giving every JVM
 # JIT and GC pools sized for all cores. Absolute paths also serve child JVMs
@@ -158,6 +168,15 @@ $(test_groups): tests_group%: $(test_classes) $(TEST_SYS) $(RELEASE_SYS) $(RELEA
 	@echo "testing $@: $(test_group$*)"
 	@cd build/tests/$@ && $(TEST_JVM) org.junit.runner.JUnitCore $(test_group$*)
 
+.PHONY: sanity $(sanity_groups)
+$(sanity_groups): sanity_group%: $(test_classes) $(TEST_SYS) $(RELEASE_SYS) $(RELEASE_CRT)
+	@$(TEST_JVM) com.seaofnodes.simple.TestWorkspace $@ $(CPU_ABI)
+	@echo "testing $@: $(sanity_group$*)"
+	@cd build/tests/$@ && $(TEST_JVM) org.junit.runner.JUnitCore $(sanity_group$*)
+
+sanity: $(sanity_groups) tests_raw0 tests_raw1 fuzzer tests_lattice0 tests_lattice1 tests_lattice2 tests_lattice3
+	@echo "All sanity checks passed"
+
 # One test method (or the whole class when METHOD is omitted).
 CLASS ?= Chapter25Test
 METHOD ?=
@@ -165,7 +184,9 @@ METHOD ?=
 test: $(main_classes) $(test_classes) $(RELEASE_SYS) $(RELEASE_CRT)
 	@$(TEST_JVM) com.seaofnodes.simple.TestRunner "$(CLASS)" "$(METHOD)"
 
-tests: $(test_groups) tests_sys fuzzer tests_alone tests_raw1 tests_raw0
+# At -j8, start the remaining chapter cohorts before the short lattice parts
+# so their native links overlap the earlier groups instead of forming a tail.
+tests: $(test_groups) tests_sys fuzzer tests_raw1 tests_raw0 tests_alone
 	@echo "All tests passed"
 
 

@@ -7,7 +7,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 /** Prepare a Make test group's working directory without sharing native outputs. */
 public class TestWorkspace {
     public static void main(String[] args) throws IOException {
-        if( args.length!=2 || !args[0].matches("tests_group[0-7]") || !args[1].matches("[A-Za-z0-9_]+") )
+        if( args.length!=2 || !args[0].matches("tests_group[0-7]|sanity_group[0-2]") || !args[1].matches("[A-Za-z0-9_]+") )
             throw new IllegalArgumentException("Expected test group and CPU_ABI");
         Path root = Path.of("").toAbsolutePath().normalize();
         Path work = root.resolve("build/tests").resolve(args[0]).normalize();
