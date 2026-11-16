@@ -248,7 +248,7 @@ public class TypeFunPtr extends TypeNil {
     @Override int TAGOFF() { return 8; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         assert _open;           // Open: Passing extra args is fine, and extras ignored.
-        if( _nil==2 && nargs()<6 && nfcns() == 1 && fidx() < 64 ) {
+        if( _nil==2 && nargs()<6 && nfcns() == 1 && fidx()<=65535 ) {
             baos.write(TAGOFFS[_type] + nargs());
             baos.packed2(fidx());
         } else {
@@ -259,8 +259,7 @@ public class TypeFunPtr extends TypeNil {
     }
     static TypeFunPtr packed( int tag, BAOS bais ) {
         if( tag < 6 ) {
-            int fidx = bais.read();
-            assert fidx < 64; // Need a larger fidx space
+            int fidx = bais.packed2();
             return malloc((byte)2,true,new Type[tag],null, XInt.make(fidx));
         }
         byte nil = (byte)(tag==6 ? 2 : 3);

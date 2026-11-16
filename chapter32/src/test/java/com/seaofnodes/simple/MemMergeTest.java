@@ -20,9 +20,8 @@ public class MemMergeTest {
         assertEquals(10000,mem.aliasAt(4));
         assertSame(value,mem.alias(10000));
         assertSame(defaults,mem.alias(512));
-        assertEquals(10001,mem.packedSize());
-        assertNull(mem.packedInput(9999));
-        assertSame(value,mem.packedInput(10000));
+        assertNull(mem.explicitAlias(9999));
+        assertSame(value,mem.explicitAlias(10000));
         mem.alias(513,null);
         assertEquals(4,mem.nIns());
         assertEquals(10000,mem.aliasAt(3));

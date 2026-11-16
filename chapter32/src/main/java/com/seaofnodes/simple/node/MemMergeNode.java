@@ -24,7 +24,7 @@ public class MemMergeNode extends Node {
     private AryInt _aliases;
     private IntHashMap _aliasToInput;
     private int _readSize;
-    // Retain the old sparse extent for encoding and fold eligibility, without its holes.
+    // Retain the old sparse extent for fold eligibility, without its holes.
     private int _aliasLimit=2;
 
     public MemMergeNode(MemMergeNode mem) { super(mem); copyAliases(mem); _aliasLimit=mem._aliasLimit; }
@@ -50,10 +50,8 @@ public class MemMergeNode extends Node {
         return input==0 ? null : in(input);
     }
 
-    // Preserve the existing sparse object encoding; input indices on disk are aliases.
-    public int packedSize() { return _aliasLimit; }
+    // The reader has not wired the dense inputs yet.
     public int readSize() { return _readSize; }
-    public Node packedInput(int alias) { return alias<2 ? in(alias) : explicitAlias(alias); }
 
     private void reindex() {
         _aliasToInput.clear();
@@ -68,18 +66,17 @@ public class MemMergeNode extends Node {
     }
     @Override public Tag serialTag() { return Tag.MemMerge; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
-        // A memory merge always has inputs. Zero escapes a wide alias table,
-        // preserving every existing nonzero single-byte count.
-        assert nIns()>0;
-        baos.packed1(packedSize()<=255 ? packedSize() : 0);
-        if( packedSize()>255 ) baos.packed4(packedSize());
+        // Keep the extent even if its last precise slice was removed. Edges
+        // are dense: control/default followed by explicit (alias,input) pairs.
+        baos.packed4(_aliasLimit);
+        baos.packed2(nIns());
     }
     static Node make( BAOS bais ) {
-        int count=bais.packed1();
-        if( count==0 ) count=bais.packed4();
+        int limit=bais.packed4(), count=bais.packed2();
+        assert 2<=count && count<=limit;
         MemMergeNode mem=new MemMergeNode(null,null);
         mem._readSize=count;
-        mem._aliasLimit=count;
+        mem._aliasLimit=limit;
         return mem;
     }
 

@@ -103,8 +103,10 @@ public class Serialize {
         Type startType = TypeTuple.make(Type.CONTROL,stopType.mem(),((StartNode)nodes.at(0)).arg());
 
         BAOS baos = new BAOS();
-        // A - Print the C0DE header. The format is not versioned yet.
-        baos.write('C').write('0').write('D').write('E');
+        // A - Print the C0DE header; last byte is the version number.
+        // Format 2: gradual packed ints, UTF-8 strings, sparse MemMerge edges,
+        // and wider singleton function IDs.  Reject old cached objects clearly.
+        baos.write('C').write('0').write('D').write('2');
 
         // Count unique Types
         var types = new HashMap<Type,Integer>();
@@ -265,10 +267,12 @@ public class Serialize {
         }
         // Write out the input indices packed.
         for( Node n : nodes ) {
-            int count = n instanceof MemMergeNode mem ? mem.packedSize() : n.nIns();
+            int count = n.nIns();
             for( int j=0; j<count; j++ ) {
                 if( !writeInput(n,j,anodes) ) continue;
-                Node def = n instanceof MemMergeNode mem ? mem.packedInput(j) : n.in(j);
+                if( n instanceof MemMergeNode mem && j>=2 )
+                    baos.packed2(mem.aliasAt(j));
+                Node def = n.in(j);
                 Integer idx = def==null ? Integer.valueOf(0) : anodes.get(def);
                 // Imported function constants retain their symbol, not a body.
                 if( idx==null && n instanceof FunPtrNode && j==1 ) idx=0;
@@ -331,7 +335,7 @@ public class Serialize {
         Type.TAGOFFS();
 
         // A - Read a header
-        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='E' )
+        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='2' )
             throw new IllegalArgumentException("Unsupported serialized IR format; rebuild the object file");
 
         // B - Packed read of #strings, then strings
@@ -364,7 +368,7 @@ public class Serialize {
         String[] strs = elf._strs;
         if( strs == null ) {
             // A - Read a header
-            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != 'E' )
+            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != '2' )
                 throw new IllegalArgumentException( "Unsupported serialized IR format; rebuild the object file" );
 
             // B - Packed read of #strings, then strings
@@ -503,14 +507,13 @@ public class Serialize {
         for( Node n : nodes ) {
             int len = n instanceof MemMergeNode mem ? mem.readSize() : n.nIns();
             for( int i = 0; i<len; i++ ) {
+                int fileAlias = n instanceof MemMergeNode && i>=2 ? bais.packed2() : 0;
                 int idx = bais.packed2();
                 Node def = idx==0 ? null : nodes.at(idx-1);
-                // MemMerge precise aliases are encoded by their input slot.
-                // Remap populated file-local slots into this compilation's
-                // local alias numbering; null holes carry no identity.
+                // Remap only explicit slices; omitted aliases use the default.
                 if( n instanceof MemMergeNode mem && i>=2 ) {
                     if( def==null ) continue;
-                    int alias = i>=GlobalBits.RESERVED ? aliases.map(fileAliases,i) : i;
+                    int alias = aliases.map(fileAliases,fileAlias);
                     mem.alias(alias,def);
                 } else n.setDefX(i,def);
                 // Call's output[0] is always the CallEnd

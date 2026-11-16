@@ -10,6 +10,42 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class SeparateCompilationTest {
+    @Test public void testSparseWideMemoryImport() throws Exception {
+        Path build=Path.of("build/objs/separate");
+        Files.createDirectories(build);
+        Path lib=Files.createTempDirectory(build,"wide-memory-");
+        StringBuilder source=new StringBuilder("int f0=7;\n");
+        for( int i=1; i<300; i++ ) source.append("int f").append(i).append("=0;\n");
+        source.append("val touch={int n -> f299+=n; return f0+f299;};");
+        new CodeGen(null,lib.toString(),null,"Wide",source.toString(),123,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+        var paths=new Ary<>(new String[]{lib.toString()});
+        CodeGen code=new CodeGen(null,null,paths,"WideEval","return Wide.touch((arg<<32)>>32);",123,true,TypeInteger.BOT)
+            .driver(CodeGen.Phase.TypeCheck);
+        assertEquals("12",Eval2.eval(code,5));
+        TestC.run("return Wide.touch(5)==12 ? 0 : 1;","wide_memory_client",paths,
+            TestC.CALL_CONVENTION,null,null,"",-1);
+    }
+
+    @Test public void testOldObjectFormatRequestsRebuild() throws Exception {
+        Path build=Path.of("build/objs/separate");
+        Files.createDirectories(build);
+        Path lib=Files.createTempDirectory(build,"old-format-");
+        new CodeGen(null,lib.toString(),null,"Old","val value=7;",123,true,TypeInteger.BOT)
+            .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
+        Path file=lib.resolve("Old.o");
+        ElfReader elf=ElfReader.load(file.toFile(),null);
+        byte[] bytes=Files.readAllBytes(file);
+        bytes[elf._bais.size()+3]='E'; // Previous C0DE header, before format 2.
+        Files.write(file,bytes);
+        try {
+            ElfReader.load(file.toFile(),null).loadPublicTypes(new CodeGen(""));
+            fail("old format accepted");
+        } catch( IllegalArgumentException expected ) {
+            assertTrue(expected.getMessage().contains("rebuild the object file"));
+        }
+    }
+
     @Test public void testImportedReadOnlyPrimitiveArray() throws Exception {
         Path build=Path.of("build/objs/separate");
         Files.createDirectories(build);

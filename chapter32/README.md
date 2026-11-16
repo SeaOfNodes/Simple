@@ -359,14 +359,106 @@ summaries, and 145,482 of node records and input references, plus 88 header
 bytes. HelloWorld's strings, mappings, and types alone take 14,161 of its 14,635
 bytes; its graph records and inputs take only 447 bytes.
 
-That suggests investigating metadata scope before choosing a different integer
-encoding. The current writer emits the full compilation's alias, function, and
+The broad metadata footprint warrants a separate investigation. The current
+writer emits the full compilation's alias, function, and
 return-PC mappings into each object, along with their names. Restricting them
 to identities needed by that object's declarations, summaries, and graph may
 save space, but requires coordinated remapping in the writer and reader.
-These measurements make no packing or format changes. Profiling helpers,
+Those measurements made no packing or format changes. Profiling helpers,
 saved baseline classes, per-object sizes, byte breakdowns, and timings are in
 `build/packing-profile/`.
+
+### Which packed fields have avoidable overhead?
+
+A deeper byte-count pass on `c21026c5` found three localized candidates:
+
+| Candidate | Modeled saving across sys | Clock | Breakout |
+| --- | ---: | ---: | ---: |
+| Unsigned varints for type-child IDs | 40,137 bytes | 2,757 | 3,561 |
+| Sparse serialized MemMerge inputs | 34,280 bytes | 7,133 | 12,683 |
+| Extend singleton function-ID encoding beyond ID 63 | 23,441 bytes | 1,140 | 1,409 |
+
+At that baseline, type-child IDs used `packed4`: IDs 128 through 16,383 took five bytes
+where an unsigned varint would take two. [MemMerge](src/main/java/com/seaofnodes/simple/node/MemMergeNode.java)
+was dense in memory, but its serialized representation retained the old alias
+slot space; sys's MemMerge input data contained 36,138 zero bytes for default
+slots. The sparse model keeps the first two inputs and encodes a non-default
+count plus `(alias, node ID)` pairs, including the extra count/pair cost.
+[TypeFunPtr](src/main/java/com/seaofnodes/simple/type/TypeFunPtr.java) had a
+compact singleton form for non-null functions with fewer than six arguments,
+but only below function ID 64. Larger singleton IDs became mostly-zero bitsets.
+
+These estimates concern disjoint fields and together amount to about 21% of
+sys's `.simple` payload, 25% of Clock's, and 22% of Breakout's. The implementation
+and actual measurements follow below. A generic signed-varint substitution is not equivalent:
+zigzag encoding would make ordinary ASCII characters 64 through 127 larger.
+
+The metadata scan also explains HelloWorld's size. One constant pointing to
+`class:sys` reaches 672 of its 700 serialized types, including unrelated
+namespace members. Consequently, 363 of its 364 alias-map rows are referenced
+by the current type representation. Dropping those rows alone is insufficient;
+imported-type references or more selective namespace types need investigation.
+Return-PC tables are a clearer candidate: only 214 of 7,788 RPC rows written
+across sys objects are referenced by the serialized types, nodes, and summaries.
+
+Adding a general XInt dictionary is less promising: storing unique existing
+encodings plus references is already slightly larger across sys, before table
+headers. The singleton encoding addresses the common case more directly.
+Detailed field counts, size models, and reproduction helpers are in
+`build/simple-size/`. The instrumented exports preserve `.text` and `.simple`
+bytes in all 27 measured objects; that investigation changed no format.
+
+## Pack the serialized IR more tightly
+
+[BAOS.packed4](src/main/java/com/seaofnodes/simple/util/BAOS.java) now uses
+signed zigzag varints: -64 through 63 fit in one byte, -8192 through 8191 in
+two, and the full signed int range takes at most five bytes. Each byte carries
+seven payload bits and a continuation bit. Strings use a packed byte length
+followed by raw UTF-8, keeping ordinary ASCII at one byte per character.
+
+MemMerge writes its control/default inputs and explicit `(alias, node ID)`
+pairs, omitting default holes. It retains the old alias extent separately
+because that value still affects folding eligibility. The reader remaps each
+explicit alias into the importing compilation. Non-null singleton function
+types with fewer than six arguments now use the compact form through function
+ID 65535, with the matching `packed2` reader.
+
+Actual `.simple` sizes against `c21026c5`, including all 22 sys objects:
+
+| Workload | Before, bytes | After, bytes | Reduction |
+| --- | ---: | ---: | ---: |
+| sys library | 469,881 | 368,694 | 21.5% |
+| Clock | 43,854 | 31,906 | 27.2% |
+| Breakout | 80,950 | 62,139 | 23.2% |
+| Graphical tic-tac-toe | 44,353 | 35,961 | 18.9% |
+| HelloWorld | 14,635 | 11,523 | 21.3% |
+
+Across these 26 objects, the payload falls from 653,673 to 510,223 bytes,
+saving 143,450 bytes (21.9%). Sys's type records and child IDs shrink from
+180,456 to 116,948 bytes; node inputs shrink from 85,189 to 50,635. Together
+those two chunks account for 96.9% of sys's saving. Identity mappings remain
+73,564 bytes, leaving the metadata questions above for another pass.
+
+Compile timings are mixed. Baseline/new median milliseconds were sys
+1,056/1,065, Clock 335/352, Breakout 689/674, graphical tic-tac-toe 282/283,
+and HelloWorld 69/68. There is no consistent speed win in this run. The
+comparison alternates two isolated compiler class loaders, with three warmups
+and six measured rounds per workload, Java 21, two active processors, log10
+assertions, and a 256 MiB initial / 2 GiB maximum heap. Each compiler reads
+its own freshly generated sys objects. Linking and execution are excluded.
+
+Every pair has matching peephole/no-progress counts, code sizes, and spill
+metrics. All 26 `.text` sections are byte-identical. New tests cover signed
+integer boundaries and overflow, Unicode strings, singleton function IDs,
+sparse memory imports beyond alias 255, and rejection of the old format.
+The Windows suite at log8 and Linux suite at log10 each pass 811 test executions.
+Raw measurements, byte breakdowns, helpers, and saved baseline classes are in
+`build/format-profile/`.
+
+The object header changes from `C0DE` to `C0D2`. Existing `.simple` objects
+must be rebuilt; an old header produces an explicit rebuild error. For an
+existing chapter32 build, `make clean` followed by `make -j 8 release` rebuilds
+the generated artifacts. Rebuild any separately maintained Simple libraries too.
 
 ## Build and test
 

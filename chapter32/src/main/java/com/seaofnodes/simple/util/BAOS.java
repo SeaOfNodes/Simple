@@ -2,6 +2,7 @@ package com.seaofnodes.simple.util;
 
 //import java.util.HashMap;
 import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
 
 // "ByteArrayOutputStream", and Input Stream and not synchronized and has
 // matching pack/unpack strategies.
@@ -125,15 +126,29 @@ public class BAOS {
         return x==0xFF ? read2() : x;
     }
 
-    // Write a packed i32
+    // Signed zigzag varint: -64..63 use one byte, -8192..8191 two,
+    // and the full int range needs at most five. Seven payload bits per byte.
     public void packed4(int x) {
-        ((-127 <= x && x <= 127 ) ? write(x) : write(-128).write4(x)).histo(x);
+        histo(x);
+        int bits = (x<<1) ^ (x>>31);
+        while( (bits & ~127)!=0 ) {
+            write((bits & 127) | 128);
+            bits >>>= 7;
+        }
+        write(bits);
     }
 
     // Read a packed i32
     public int packed4() {
-        int x = _buf[_len++];   // Signed byte read
-        return x== -128 ? read4() : x;
+        int bits=0;
+        for( int shift=0; shift<32; shift+=7 ) {
+            int b = read();
+            if( shift==28 && (b & 0xF0)!=0 )
+                throw new IllegalArgumentException("Packed int overflow");
+            bits |= (b & 127)<<shift;
+            if( (b & 128)==0 ) return (bits>>>1) ^ -(bits & 1);
+        }
+        throw new IllegalArgumentException("Unterminated packed int");
     }
 
     // Write a packed i64
@@ -148,14 +163,16 @@ public class BAOS {
     }
 
     public void packedS(String s) {
-        packed4(s.length());
-        for( int i=0; i<s.length(); i++ )
-            packed4(s.charAt(i));
+        // Strings are bytes, not signed packed integers. Keep ASCII at one
+        // byte per character and agree on the representation of non-ASCII.
+        byte[] utf8 = s.getBytes(StandardCharsets.UTF_8);
+        packed4(utf8.length);
+        write(utf8);
     }
 
     public String packedS() {
         int len = packed4();
-        String s = new String(_buf,_len,len).intern();
+        String s = new String(_buf,_len,len,StandardCharsets.UTF_8).intern();
         _len += len;
         return s;
     }
