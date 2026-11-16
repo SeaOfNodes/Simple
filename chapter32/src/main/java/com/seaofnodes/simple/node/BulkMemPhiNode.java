@@ -118,7 +118,7 @@ public class BulkMemPhiNode extends PhiNode {
             } else if( m instanceof MemMergeNode mmm &&
                        mmm.in(1) instanceof BulkMemPhiNode bulk &&
                        bulk._aliases.get(alias) &&
-                       (alias >= mmm.nIns() || mmm.in(alias)==null) )
+                       mmm.explicitAlias(alias)==null )
                 return false;
         return true;
     }
@@ -187,11 +187,9 @@ public class BulkMemPhiNode extends PhiNode {
     // First explicit MemMerge slice still covered by this Phi. A user's slice
     // may point to this Phi after a precise Phi folds; splitting is still valid.
     private int missingAlias( MemMergeNode mmm ) {
-        for( int alias=2; alias<mmm.nIns(); alias++ )
-            if( mmm.in(alias)!=null &&
-                mmm.alias(alias)!=mmm.in(1) &&
-                !_aliases.get(alias) )
-                return alias;
+        for( int i=2; i<mmm.nIns(); i++ )
+            if( mmm.in(i)!=null && mmm.in(i)!=mmm.in(1) && !_aliases.get(mmm.aliasAt(i)) )
+                return mmm.aliasAt(i);
         return 0;
     }
 
@@ -310,7 +308,7 @@ public class BulkMemPhiNode extends PhiNode {
     static boolean checkMerge(MemMergeNode mmm) {
         if( !(mmm.in(1) instanceof BulkMemPhiNode bulk) ) return true;
         for( int alias = bulk._aliases.nextSetBit(0); alias >= 0; alias = bulk._aliases.nextSetBit(alias+1) )
-            if( alias >= mmm.nIns() || mmm.in(alias)==null )
+            if( mmm.explicitAlias(alias)==null )
                 return false;
         return true;
     }

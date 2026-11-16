@@ -8,30 +8,78 @@ import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.util.BAOS;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.Utils;
+import com.seaofnodes.simple.util.AryInt;
+import com.seaofnodes.simple.util.IntHashMap;
 
 import java.util.*;
 
 /**
- *  Memory Merge - a merge of many aliases into a "fat memory".  All aliases
- *  are here, but most will be lazy - take the default fat memory.
+ * Memory merge: default bulk memory plus dense inputs for explicit alias slices.
  */
 public class MemMergeNode extends Node {
 
     public MemMergeNode( Node ...nodes) { super(nodes); _type = TypeMem.BOT; }
-    public MemMergeNode(MemMergeNode mem) { super(mem); }
+    // Inputs 0/1 are control/default; the remaining inputs are dense precise slices.
+    // Keep alias order so graph walks retain the old sparse representation's order.
+    private AryInt _aliases;
+    private IntHashMap _aliasToInput;
+    private int _readSize;
+    // Retain the old sparse extent for encoding and fold eligibility, without its holes.
+    private int _aliasLimit=2;
+
+    public MemMergeNode(MemMergeNode mem) { super(mem); copyAliases(mem); _aliasLimit=mem._aliasLimit; }
+
+    private void copyAliases(MemMergeNode mem) {
+        if( mem._aliases==null ) return;
+        _aliases = new AryInt().addAll(mem._aliases);
+        _aliasToInput = new IntHashMap(0);
+        reindex();
+    }
+
+    @Override protected Object clone() throws CloneNotSupportedException {
+        MemMergeNode copy = (MemMergeNode)super.clone();
+        copy.copyAliases(this);
+        return copy;
+    }
+
+    public int aliasAt(int input) { return _aliases.at(input-2); }
+
+    // Explicit input, or null when the default supplies this alias.
+    public Node explicitAlias(int alias) {
+        int input = _aliasToInput==null ? 0 : _aliasToInput.get(alias);
+        return input==0 ? null : in(input);
+    }
+
+    // Preserve the existing sparse object encoding; input indices on disk are aliases.
+    public int packedSize() { return _aliasLimit; }
+    public int readSize() { return _readSize; }
+    public Node packedInput(int alias) { return alias<2 ? in(alias) : explicitAlias(alias); }
+
+    private void reindex() {
+        _aliasToInput.clear();
+        for( int i=0; i<_aliases.len(); i++ ) _aliasToInput.put(_aliases.at(i),i+2);
+    }
+
+    private void removeAlias(int input) {
+        setDef(input,null);
+        _inputs.remove(input);
+        _aliases.remove(input-2);
+        reindex();
+    }
     @Override public Tag serialTag() { return Tag.MemMerge; }
     public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         // A memory merge always has inputs. Zero escapes a wide alias table,
         // preserving every existing nonzero single-byte count.
         assert nIns()>0;
-        baos.packed1(nIns()<=255 ? nIns() : 0);
-        if( nIns()>255 ) baos.packed4(nIns());
+        baos.packed1(packedSize()<=255 ? packedSize() : 0);
+        if( packedSize()>255 ) baos.packed4(packedSize());
     }
     static Node make( BAOS bais ) {
         int count=bais.packed1();
         if( count==0 ) count=bais.packed4();
-        Node mem=new MemMergeNode();
-        mem.setDefX(count-1,null);
+        MemMergeNode mem=new MemMergeNode(null,null);
+        mem._readSize=count;
+        mem._aliasLimit=count;
         return mem;
     }
 
@@ -42,7 +90,7 @@ public class MemMergeNode extends Node {
     protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         p.p("MEM[ ");
         for( int j=2; j<nIns(); j++ ) {
-            p.p(j);
+            p.p(aliasAt(j));
             p.p(":");
             Node n = in(j);
             while( n instanceof ScopeNode loop ) {
@@ -93,7 +141,7 @@ public class MemMergeNode extends Node {
         TypeMem mem = defmem;
         for( int i=2; i<nIns(); i++ ) {
             // Has this alias escaped?
-            if( XInt.bit(mem._escAs,i) &&
+            if( XInt.bit(mem._escAs,aliasAt(i)) &&
                 in(i) != null && !in(i)._type.isHigh() ) {
                 mem = (TypeMem)mem.meet(in(i)._type);
             }
@@ -104,11 +152,13 @@ public class MemMergeNode extends Node {
     @Override public Node idealize() {
         assert nIns() != 0 && in(1)!=null; // Always have a default.  if( nIns()==0 ) return null;
 
-        // Fold defaults into the default
-        boolean progress=false, allDefault=true;
+        // Preserve the existing fold rule for this storage experiment: every alias
+        // slot must explicitly equal the default. Do not also change which empty
+        // aggregates fold away; that changes optimization order and spill decisions.
+        boolean progress=false, allDefault=nIns()==_aliasLimit;
         for( int i=2; i<nIns(); i++ ) {
-            if( in(1) == in(i) ) { setDef(i,null); progress=true; }
-            else                 { allDefault=false; }
+            if( in(1)==in(i) ) { removeAlias(i--); progress=true; }
+            else allDefault=false;
         }
 
         // If not merging any memory (all memory is just the default)
@@ -124,8 +174,9 @@ public class MemMergeNode extends Node {
             for( int i=2; i<mem.nIns(); i++ ) {
                 if( mem.in(i) != null ) {
                     // deeper default mem has a non-default
-                    if( i>=nIns() || in(i)==null )
-                        setDefX(i,mem.in(i));
+                    int alias = mem.aliasAt(i);
+                    if( explicitAlias(alias)==null )
+                        alias(alias,mem.in(i));
                 }
             }
             CodeGen.CODE.add(mem.in(1));
@@ -140,12 +191,33 @@ public class MemMergeNode extends Node {
     public Node in( Var v ) { return in(v._idx); }
 
     public Node alias( int alias ) {
-        assert !(in(1) instanceof BulkMemPhiNode bulk && bulk.isSplit(alias) &&
-                 (alias >= nIns() || in(alias)==null));
-        return alias < nIns() && in(alias)!=null ? in(alias) : in(1);
+        Node precise = explicitAlias(alias);
+        assert !(in(1) instanceof BulkMemPhiNode bulk && bulk.isSplit(alias) && precise==null);
+        return precise==null ? in(1) : precise;
     }
 
-    public Node alias( int alias, Node st ) { return setDefX(alias,st); }
+    public Node alias( int alias, Node st ) {
+        if( alias==1 ) return setDef(1,st);
+        assert alias>1;
+        _aliasLimit=Math.max(_aliasLimit,alias+1);
+        int input = _aliasToInput==null ? 0 : _aliasToInput.get(alias);
+        if( st==null ) {
+            if( input!=0 ) removeAlias(input);
+            return st;
+        }
+        if( input!=0 ) return setDef(input,st);
+        if( _aliases==null ) {
+            _aliases = new AryInt();
+            _aliasToInput = new IntHashMap(0);
+        }
+        int pos = Arrays.binarySearch(_aliases._es,0,_aliases.len(),alias);
+        assert pos<0;
+        pos = -pos-1;
+        _aliases.insert(pos,alias);
+        for( int i=pos; i<_aliases.len(); i++ ) _aliasToInput.put(_aliases.at(i),i+2);
+        insertDef(pos+2,st);
+        return st;
+    }
 
     // Now one-time do a useless-phi removal
     void _useless( ) {

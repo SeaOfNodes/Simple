@@ -265,9 +265,10 @@ public class Serialize {
         }
         // Write out the input indices packed.
         for( Node n : nodes ) {
-            for( int j=0; j<n.nIns(); j++ ) {
+            int count = n instanceof MemMergeNode mem ? mem.packedSize() : n.nIns();
+            for( int j=0; j<count; j++ ) {
                 if( !writeInput(n,j,anodes) ) continue;
-                Node def = n.in(j);
+                Node def = n instanceof MemMergeNode mem ? mem.packedInput(j) : n.in(j);
                 Integer idx = def==null ? Integer.valueOf(0) : anodes.get(def);
                 // Imported function constants retain their symbol, not a body.
                 if( idx==null && n instanceof FunPtrNode && j==1 ) idx=0;
@@ -500,19 +501,18 @@ public class Serialize {
 
         // Node edges
         for( Node n : nodes ) {
-            int len = n.nIns();
+            int len = n instanceof MemMergeNode mem ? mem.readSize() : n.nIns();
             for( int i = 0; i<len; i++ ) {
                 int idx = bais.packed2();
                 Node def = idx==0 ? null : nodes.at(idx-1);
                 // MemMerge precise aliases are encoded by their input slot.
                 // Remap populated file-local slots into this compilation's
                 // local alias numbering; null holes carry no identity.
-                int local = i;
-                if( n instanceof MemMergeNode && i >= GlobalBits.RESERVED ) {
-                    if( def == null )  continue;
-                    local = aliases.map(fileAliases,i);
-                }
-                n.setDefX(local,def);
+                if( n instanceof MemMergeNode mem && i>=2 ) {
+                    if( def==null ) continue;
+                    int alias = i>=GlobalBits.RESERVED ? aliases.map(fileAliases,i) : i;
+                    mem.alias(alias,def);
+                } else n.setDefX(i,def);
                 // Call's output[0] is always the CallEnd
                 if( n instanceof CallEndNode cend && i==0 ) {
                     var outs = cend.call()._outputs;

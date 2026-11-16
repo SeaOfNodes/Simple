@@ -221,6 +221,54 @@ After these fixes, all 802 suite executions pass at log 8; 444 chapter tests and
 34 focused worklist, scheduling, and memory tests pass at log 1. Existing spill
 expectations are unchanged.
 
+### Dense MemMerge inputs
+
+`MemMergeNode` now keeps precise alias slices in a dense input list, with an
+`IntHashMap` from alias to input index and a reverse array for iteration.
+Alias order is preserved. Missing aliases use input 1, the bulk default.
+Deletion compacts the list and rebuilds the small map; graph copies own their
+maps. Bulk-Phi splitting and object loading use alias lookup rather than
+assuming an alias is an input index. The existing sparse object encoding remains
+compatible with the baseline compiler.
+
+This is deliberately a storage experiment. `_aliasLimit` retains the previous
+sparse extent for encoding and fold eligibility. The old `allDefault` test
+counts null holes as non-defaults; simply folding whenever the dense list is
+empty introduces additional optimizations. That separate trial altered code
+quality: graphical Tic-tac-toe's weighted spill score rose from 1085 to 1240
+with its rebuilt library. The retained version preserves the old folding
+behavior and matches baseline peephole counts, code sizes, and spill counts on
+all measured workloads.
+
+Against commit `8b80d94c`, the final interleaved comparison measured:
+
+| Workload | Compile time change | Compiler-thread allocation change |
+| --- | ---: | ---: |
+| sys library | -5.8% | -3.7% |
+| Clock | -2.1% | -10.8% |
+| Breakout | -2.9% | -6.4% |
+| Graphical tic-tac-toe | -0.5% | -5.3% |
+| HelloWorld | -0.6% | -4.5% |
+
+The timing improvement is modest; sub-percent differences are within noise.
+The structural reduction is much larger. After Lower, sys's live MemMerge input
+slots fall from 54,388 to 2,462, Clock's from 54,255 to 2,237, and Breakout's from
+61,286 to 2,592. These are input-slot counts, not total heap measurements; the
+maps and reverse arrays have their own cost.
+
+Measurements use Java 21, assertions at log10, two active processors, and a
+256 MiB initial / 2 GiB maximum heap. The compiler runs through object export,
+without gcc, linking, or execution. Isolated compiler class loaders alternate
+in one JVM; six measured rounds follow three warmups for each workload. Games
+read the same baseline sys objects. Time changes are medians of paired ratios;
+allocation uses ThreadMXBean. Earlier separate-process runs drifted enough that
+the interleaved comparison is the basis for the table.
+
+The full suite passes at log8; 444 chapter tests and 18 memory/import tests pass
+with every-step verification. Raw measurements, saved compiler classes, and
+reproduction commands are in `build/memmerge-dense/`; verification logs are in
+`build/test-profile/dense-final-*.log`.
+
 ## Build and test
 
 From `chapter32`, using the existing offline dependency caches:

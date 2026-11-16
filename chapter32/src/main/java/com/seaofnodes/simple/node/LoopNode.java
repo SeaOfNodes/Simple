@@ -60,12 +60,12 @@ public class LoopNode extends RegionNode {
         // executing. Keep synthetic nodes local; do not GVN into that graph.
         Node top = ConstantNode.raw(Type.TOP);
         top.setDef(0,fun);
-        Node memout = new MemMergeNode();
+        MemMergeNode memout = new MemMergeNode();
         memout.addDef(f); // placeholder for control
         memout.addDef(top);
         for( Node u : _outputs )
             if( u instanceof PhiNode phi && phi._type.isa(TypeMem.BOT) )
-                memout.addDef(phi);
+                memout.alias(memout.nIns(),phi);
         memout.init();
 
         Node ctrl = ret.ctrl(), mem = ret.mem(), expr = ret.expr();
