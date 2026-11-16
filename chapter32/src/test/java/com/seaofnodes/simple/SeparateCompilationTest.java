@@ -16,7 +16,7 @@ public class SeparateCompilationTest {
         Path lib=Files.createTempDirectory(build,"wide-memory-");
         StringBuilder source=new StringBuilder("int f0=7;\n");
         for( int i=1; i<300; i++ ) source.append("int f").append(i).append("=0;\n");
-        source.append("val touch={int n -> f299+=n; return f0+f299;};");
+        source.append("val touch={int n -> f299=n; return f0+f299;};");
         new CodeGen(null,lib.toString(),null,"Wide",source.toString(),123,true,TypeInteger.BOT)
             .driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
         var paths=new Ary<>(new String[]{lib.toString()});

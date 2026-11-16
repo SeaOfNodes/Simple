@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -201,4 +202,38 @@ return a;
         catch( RuntimeException e ) { assertEquals("Undefined name 'ififif'",e.getMessage()); }
     }
 
+    @Test public void testDoublingBeforeAndAfterStrengthReduction() {
+        for( boolean shift : new boolean[]{false,true} )
+            for( boolean reverse : new boolean[]{false,true} ) {
+                CodeGen code = new CodeGen("");
+                Node ctrl = new CProjNode(code._start,0,"Ctrl").init();
+                RegionNode region = new RegionNode(null,null,ctrl,ctrl).init();
+                Node p = code.con(TypeInteger.BOT), i = code.con(TypeInteger.I32);
+                Node twice = shift ? new ShlNode(null,p,code.con(1)).init()
+                                   : new AddNode(p,p,(byte)1).init();
+                Node sum = new AddNode(i,p,(byte)1).init();
+                PhiNode phi = new PhiNode("sum",region,reverse ? sum : twice,reverse ? twice : sum).init();
+                phi.keep();
+                Node factored = phi.idealize();
+                assertTrue(factored instanceof AddNode);
+                assertSame(p,factored.in(2));
+                assertTrue(factored.in(1) instanceof PhiNode);
+                assertSame(reverse ? i : p,factored.in(1).in(1));
+                assertSame(reverse ? p : i,factored.in(1).in(2));
+                phi.unkeep();
+            }
+    }
+
+    @Test public void testOtherShiftIsNotDoubling() {
+        CodeGen code = new CodeGen("");
+        Node ctrl = new CProjNode(code._start,0,"Ctrl").init();
+        RegionNode region = new RegionNode(null,null,ctrl,ctrl).init();
+        Node p = code.con(TypeInteger.BOT), i = code.con(TypeInteger.I32);
+        Node shift = new ShlNode(null,p,code.con(2)).init();
+        Node sum = new AddNode(i,p,(byte)1).init();
+        PhiNode phi = new PhiNode("sum",region,shift,sum).init();
+        phi.keep();
+        assertNull(phi.idealize());
+        phi.unkeep();
+    }
 }

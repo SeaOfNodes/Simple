@@ -68,7 +68,7 @@ public class RegionNode extends CFGNode {
                         if( use instanceof PhiNode phi ) {
                             PhiNode phi2 = phi.in(i) instanceof PhiNode phi2x && phi2x.region()==region ? phi2x : null;
                             for( int j=1; j<region.nIns(); j++ )
-                                phi.addDef(phi2==null ? phi.in(i) : phi2.in(j));
+                                phi.addDef(CodeGen.CODE.add(phi2==null ? phi.in(i) : phi2.in(j)));
                             CodeGen.CODE.add(phi);
                         }
                     }

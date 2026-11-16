@@ -68,6 +68,7 @@ constructorParameter : type '^'? bindingModifier? IDENTIFIER ;
 
 // A method is an ordinary fixed function binding in a struct definition.
 // The compiler supplies self; it is not written in parameterList.
+// Global functions use their owning class singleton as self.
 // Function types and expressions both receive their implicit receiver here.
 methodDeclaration : 'val' bindingModifier? memberName '=' functionExpression ';' ;
 memberName : IDENTIFIER | primitiveType ;
@@ -254,10 +255,10 @@ one-pass IR builder:
 - A statement beginning with `{` might be a block or a function-type binding.
   `Declarations` and `Types` use speculative parsing and cursor restore;
   qualified type lookup also stops before a suffix that belongs to an expression.
-- Bare assignment, field assignment, and compound updates share the grammar's
-  precedence but use different IR paths. `References` decides between an SSA
-  local, a constructor field's local value, and an actual memory access. A
-  function-valued field may also supply an implicit receiver to a call.
+- Bare fields resolve through their receiver, so reads, assignments, and
+  updates share the field-access path. Locals use SSA; class declarations
+  retain Scope values until initializer exit. Global functions receive their
+  owning class singleton as `self`; instance methods receive their object.
 - `for` updates are scanned first and parsed after the body, where their effects
   belong. Explicit constructor bodies are scanned first and parsed after field
   discovery, so later fields have local slots. Both use `Lexer.skipTo`, which

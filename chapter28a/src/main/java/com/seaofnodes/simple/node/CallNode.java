@@ -5,6 +5,7 @@ import com.seaofnodes.print.ExprPrinter;
 import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypePtr;
 import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.type.TypeMem;
 import com.seaofnodes.simple.type.TypeRPC;
@@ -73,13 +74,14 @@ public class CallNode extends CFGNode {
         // A broad scalar target can refine to a function pointer during Iter.
         // It cannot yet promise that the call exposes nothing.
         if( _type!=Type.CONTROL ) return TypeMem.BOT;
-        if( !(fptr()._type instanceof TypeFunPtr) )
+        if( !(fptr()._type instanceof TypeFunPtr tfp) )
             return fptr()._type.isHigh() ? TypeMem.START : TypeMem.BOT;
         if( !external() ) return TypeMem.START;
         Type input = dep.addDepForwards(mem())._type;
         TypeMem escaped = input instanceof TypeMem m ? m : input.isHigh() ? TypeMem.TOP : TypeMem.BOT;
         TypeMem outside = CodeGen.CODE._start.outside(dep);
-        for( int i = 2; i<nIns()-1; i++ )
+        // A class receiver belongs to the callee; the caller does not expose its class.
+        for( int i = tfp.nargs()>0 && tfp.arg(0)==TypePtr.PTR ? 3 : 2; i<nIns()-1; i++ )
             escaped = escaped.escapesFrom(dep.addDepForwards(arg(i))._type,outside);
         return TypeMem.make(1,Type.BOTTOM,false,false,false,escaped._escFs,escaped._escAs);
     }
@@ -156,7 +158,10 @@ public class CallNode extends CFGNode {
         CodeGen.CODE.add(fun).addDef(this);
         for( Node use : fun._outputs )
             if( use instanceof ParmNode parm ) {
-                Node def = parm._idx==0 ? ConstantNode.seed(cend()._rpc).peephole() : arg(parm._idx);
+                // Match the callee's declared receiver view, including forward fields.
+                Node def = parm._idx==0 ? ConstantNode.seed(cend()._rpc).peephole()
+                    : parm._idx==2 && fun.sig().arg(0)==TypePtr.PTR
+                    ? ConstantNode.seed(parm._declaredType).peephole() : arg(parm._idx);
                 CodeGen.CODE.add(parm).addDef(def);
                 // Linking can happen during post-SCCP inlining.  Keep an RPC
                 // Parm's cached finite set synchronized with its newly added

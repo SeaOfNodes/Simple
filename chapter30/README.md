@@ -12,6 +12,9 @@ squares are rejected, and play ends with a win or draw.
 Runnable programs, including sorting, file I/O, and shortest-path examples,
 live in [`docs/examples`](docs/examples/).
 
+This snapshot retains [chapter 28a's shared class receiver](../chapter28a/README.md#globals-use-the-same-receiver-as-fields)
+and chapter 28b's imported-callback handling.
+
 ## Terminal input and diagnostics
 
 [`sys.io.getch()`](src/main/smp/sys/io.smp) reads one byte without waiting for

@@ -380,7 +380,8 @@ public class Chapter21Test {
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.
-        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 92, false);
+        // Phi factoring changes split placement in this chapter's allocator.
+        EvalRisc5 R5 = TestRisc5.build("sieve", 100, 164, false);
         int trap = R5.step(10000);
         assertEquals(0,trap);
         // Return register A0 holds sieve(100)

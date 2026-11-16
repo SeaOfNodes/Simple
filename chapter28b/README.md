@@ -120,7 +120,14 @@ those exclusions by owner and slot, then restores the complement. Treating
 this set as FULL would expose private library functions. Unknown callback
 arguments, results, and unloaded summaries use the evolving Start/Stop state;
 no frozen public-function list supplies their bounds. Hidden class receivers
-default to the defining class singleton even after import. The
+default to the defining class singleton even after import, following
+[chapter 28a's receiver model](../chapter28a/README.md#globals-use-the-same-receiver-as-fields).
+`SummaryNode` excludes that hidden receiver from its conservative argument-escape
+scan: the caller supplies no class object through the ABI, and actual publication
+of the callee's class fields is already represented by the saved summary state.
+Instance receivers remain ordinary arguments and participate in that scan.
+[ReceiverTest](src/test/java/com/seaofnodes/simple/ReceiverTest.java) checks a
+callback forwarded by another compiled class with a different field value. The
 [escape-flow implementation notes](../chapter29/docs/escape-flow.md) explain
 the shared design and the identity-remapping checks in more detail.
 

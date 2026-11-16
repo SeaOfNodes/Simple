@@ -14,6 +14,9 @@ backporting the cleanups, in part to show the normal progression of large
 project development.
 
 
+This snapshot retains [chapter 28a's shared class receiver](../chapter28a/README.md#globals-use-the-same-receiver-as-fields)
+and chapter 28b's imported-callback handling.
+
 ## Following the grammar
 
 The old `Parser.java` had grown beyond 3,000 lines, mixing recursive descent,

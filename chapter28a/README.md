@@ -23,6 +23,52 @@ This chapter adds file and class semantics to the escape analysis we already
 have. All required Simple source is available in one compilation.
 
 
+## Globals use the same receiver as fields
+
+Every function has a source-visible `self`. An instance method receives its
+instance; a global function receives its defining file's class singleton.
+For example:
+
+```simple
+int f0=7;
+int f1=0;
+val touch={int n -> f1=n; return f0+f1;};
+```
+
+The function body means `self.f1=n; return self.f0+self.f1;`. Once the class is
+initialized, `touch(5)` returns 12. Bare reads, assignments, and compound updates
+all resolve the field's receiver and use the same field-access path. A bare
+assignment must emit a Store, rather than updating only a lexical Scope slot.
+Locals and explicit parameters still shadow fields; an explicitly declared
+parameter named `self` shadows the implicit receiver.
+
+The [parser](src/main/java/com/seaofnodes/simple/Parser.java) supplies a receiver
+parameter instead of manufacturing a class constant for each global read.
+Normal constant folding removes that parameter for class functions. Its function
+signature retains `TypePtr.PTR`, the marker for a hidden receiver with no native
+argument slot, so ordinary C callers and callbacks retain their ABI.
+[CallNode](src/main/java/com/seaofnodes/simple/node/CallNode.java) binds that slot
+to the callee's declared class view even when another class forwards the callback
+or an instance stores its function pointer. An instance method can also name its
+enclosing class's fields through that declaration's receiver. This does not add
+closures or bound method values.
+
+The class view keeps fields discovered so far and remains open until SCCP
+installs the completed shape. This matters for forward functions and for globals
+declared after a struct. Class declarations still accumulate Scope values until
+initializer exit; this chapter also retains its existing Scope-based instance
+constructor handling. Active field uses retain their class-initialization checks.
+Passing the hidden class receiver does not itself publish the caller's class to
+unknown code; actual escaping fields are tracked normally.
+
+[GlobalAssignmentTest](src/test/java/com/seaofnodes/simple/GlobalAssignmentTest.java)
+checks assignments, branches, chained updates, RHS effects, local shadowing,
+conversions, constructors, and rejected stores.
+[ReceiverTest](src/test/java/com/seaofnodes/simple/ReceiverTest.java) checks explicit
+class `self`, nested functions, instance/global name collisions, forward fields,
+and native argument/callback ABI behavior. Chapter 28b extends this to imported
+functions and summaries.
+
 ## Example: Lazy class initialization, or Pay-As-You-Go
 
 Suppose an application sometimes needs a `Table` but not often; many runs may

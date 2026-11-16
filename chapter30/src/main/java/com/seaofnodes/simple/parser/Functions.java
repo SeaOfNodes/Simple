@@ -30,7 +30,7 @@ final class Functions {
         BitSet finals = new BitSet();
         Type self = P.types.implicitSelfType();
         ts.push(self);
-        ids.push(self == TypePtr.PTR ? "#self" : "self");
+        ids.push("self");
 
         // Parse other arguments
         P._lexer.skipWhiteSpace();
@@ -85,6 +85,10 @@ final class Functions {
             P._lexer.skipWhiteSpace();
             Lexer nameLoc=P.loc();
             String id = P.requireId();
+            // Older free functions may explicitly name a source argument
+            // "self". It shadows the implicit class receiver, not its ABI slot.
+            if( id=="self" && ts.at(0)==TypePtr.PTR && ids.at(0)=="self" )
+                ids.set(0,"#self");
             if( ids.find(id)!=-1 ) throw Parser.error("Duplicate parameter '"+id+"'",nameLoc);
             ts .push(t );       // Push type/arg pairs
             ids.push(id);
@@ -300,8 +304,16 @@ final class Functions {
         // All args, "as-if" called externally
         for( int i = 0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
+            // The body sees its owning class receiver. PTR remains in the
+            // signature as the ABI marker for a receiver with no machine slot.
+            if( i==0 && t==TypePtr.PTR ) {
+                TypeStruct clz = ((TypeMemPtr)fun.defaultArg(i))._obj;
+                // A file can add globals after its struct declaration closes.
+                // Keep this view open until SCCP installs the completed class.
+                t = TypeMemPtr.make((byte)2,TypeStruct.make(clz._name,true,clz._fields),true);
+            }
             // Args take a default input if called from Start/external-world
-            Node parm = new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(fun.defaultArg(i)).peephole()).peephole();
+            Node parm = new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(i==0 && t instanceof TypeMemPtr ? t : fun.defaultArg(i)).peephole()).peephole();
             if( t instanceof TypeMemPtr ptr && ptr._partial ) parm = new ConstructNode(parm).peephole();
             P._scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), parm, loc);
         }

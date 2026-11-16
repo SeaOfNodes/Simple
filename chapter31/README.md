@@ -10,6 +10,9 @@ octal parsing, move constant arrays into the ELF constant pool.  We then write
 a few games, with the drawing and game logic written in Simple.
 
 
+This snapshot retains [chapter 28a's shared class receiver](../chapter28a/README.md#globals-use-the-same-receiver-as-fields)
+and chapter 28b's imported-callback handling.
+
 ## Games and demos
 
 All graphical demos support resizing. Canvas scales their base layouts and

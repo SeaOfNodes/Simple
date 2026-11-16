@@ -35,6 +35,20 @@ callers promise no initialized fields. No new passes or backward demand walks.
 
 ## Chapter 32: restart guidance (2026-11-15)
 
+On 2026-11-16, Cliff requested backporting the shared class receiver to chapter
+28a, imported-summary handling to 28b, and both through the later snapshots.
+The chapter28a README now owns that explanation. Preserve 28a/28b's monolithic
+parser and Scope-based instance construction when adapting this fix; do not
+copy chapter29's parser or construction machinery backward. Native fixtures
+must also respect the older chapters' 64-bit `int` ABI.
+
+The Phi factoring fix starts in chapter5: match `x*2` as `x+x` without expanding
+the graph. Chapter14 also recognizes `x<<1`; chapter19 and later use that shift
+as doubling's strength-reduced representation. Keep each snapshot's existing
+factoring guards, type checks, and dependency direction. The chapter5 README
+teaches the rule; chapter32 retains the investigation and measurements. No
+allocator scoring experiments were adopted or backported.
+
 Continue in `chapter32/` on branch `ch32`. Chapter 31 is complete as the
 graphics, games, and library snapshot; keep its compiler before the speedups.
 The chapter32 README teaches the current performance work: parallel test JVMs

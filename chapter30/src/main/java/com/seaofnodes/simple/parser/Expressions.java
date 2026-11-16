@@ -36,6 +36,9 @@ final class Expressions {
             {  P.pos(old);  return parseExpression();  }
 
         P.references.checkAssignment(def,site);
+        // All fields use the same receiver-based lvalue path.
+        if( P.references.fieldSelf(def)!=null )
+            { P.pos(old); return parseExpression(); }
         return P.references.assign(def,parseAssignment());
     }
 

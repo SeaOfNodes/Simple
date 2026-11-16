@@ -413,6 +413,21 @@ return a;
 
 
 
+### Factoring after strength reduction
+
+Peephole order should not hide the same arithmetic from Phi factoring.
+`Phi(x+x,y+x)` can become `Phi(x,y)+x`, but an earlier peephole may already have
+replaced `x+x` with `x*2`. The Phi matcher therefore views `x*2` as two copies of
+`x` while factoring mixed Add/Mul arms. It does not expand the graph into an Add
+that would immediately fold back to a multiply. If all arms are multiplies,
+ordinary multiply factoring still applies.
+
+[Chapter05Test](src/test/java/com/seaofnodes/simple/Chapter05Test.java)
+checks the factored operands before and after strength reduction and with either
+arm order. Later chapters extend this same view to `x<<1` when shifts arrive.
+The rule stays local to doubling; arbitrary coefficients would require creating
+another multiplication, with a less clear benefit.
+
 [^1]: Click, C. (1995).
   Combining Analyses, Combining Optimizations, 132.
 

@@ -36,7 +36,7 @@ final class Functions {
         Type self = P.types.implicitSelfType();
         if( P.structs.inStructDeclaration() ) self = self.makeRO();
         ts.push(self);
-        ids.push(self == TypePtr.PTR ? "#self" : "self");
+        ids.push("self");
 
         // Parse other arguments
         P._lexer.skipWhiteSpace();
@@ -130,6 +130,10 @@ final class Functions {
             P._lexer.skipWhiteSpace();
             Lexer nameLoc=P.loc();
             String id = P.requireId();
+            // Older free functions may explicitly name a source argument
+            // "self". It shadows the implicit class receiver, not its ABI slot.
+            if( id=="self" && ts.at(0)==TypePtr.PTR && ids.at(0)=="self" )
+                ids.set(0,"#self");
             if( ids.find(id)!=-1 ) throw Parser.error("Duplicate parameter '"+id+"'",nameLoc);
             ts .push(t );       // Push type/arg pairs
             ids.push(id);
@@ -359,6 +363,14 @@ final class Functions {
             if( i == 0 && ids[0].equals("self") && !FunNode.isInit(funName) &&
                 !(sig.ret() instanceof TypeMem) && t instanceof TypeMemPtr ptr )
                 t = ptr.withAccess(false);
+            // The body sees its owning class receiver. PTR remains in the
+            // signature as the ABI marker for a receiver with no machine slot.
+            if( i==0 && t==TypePtr.PTR ) {
+                TypeStruct clz = ((TypeMemPtr)fun.defaultArg(i))._obj;
+                // A file can add globals after its struct declaration closes.
+                // Keep this view open until SCCP installs the completed class.
+                t = TypeMemPtr.make((byte)2,TypeStruct.make(clz._name,true,clz._fields),true);
+            }
             // Args take a default input if called from Start/external-world
             Type seed = i == 0 && t instanceof TypeMemPtr ? t : fun.defaultArg(i);
             Node parm = new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(seed).peephole()).peephole();

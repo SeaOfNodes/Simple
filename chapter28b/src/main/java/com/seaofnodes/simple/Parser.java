@@ -291,8 +291,16 @@ public class Parser {
         // All args, "as-if" called externally
         for( int i=0; i<ids.length; i++ ) {
             Type t = sig.arg(i);
+            // The body sees its owning class receiver. PTR remains in the
+            // signature as the ABI marker for a receiver with no machine slot.
+            if( i==0 && t==TypePtr.PTR ) {
+                TypeStruct clz = ((TypeMemPtr)fun.defaultArg(i))._obj;
+                // A file can add globals after its struct declaration closes.
+                // Keep this view open until SCCP installs the completed class.
+                t = TypeMemPtr.make((byte)2,TypeStruct.make(clz._name,true,clz._fields),true);
+            }
             // Args take a default input if called from Start/external-world
-            _scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(fun.defaultArg(i)).peephole()).peephole(), loc);
+            _scope.define(ids[i], t, (i==0 && ids[0]=="self") || (finals!=null && finals.get(i)), new ParmNode(ids[i],i+2,t,fun,ConstantNode.seed(i==0 && t instanceof TypeMemPtr ? t : fun.defaultArg(i)).peephole()).peephole(), loc);
         }
 
         if( isCtor && !isInit ) {
@@ -1085,6 +1093,10 @@ public class Parser {
             throw error("Cannot reassign final '"+name+"'");
         checkSharedFunction(def);
 
+        // All fields use the same receiver-based lvalue path.
+        if( fieldSelf(def)!=null )
+            { pos(old); return parseExpression(); }
+
         // Parse assignment expression
         Node expr = parseAsgn();
 
@@ -1094,27 +1106,6 @@ public class Parser {
         // Update
         _scope.update(name,lift);
 
-        // Check for storing into an instance field instead of a local var
-        int kx = _scope.kindx(def); // Declaration scope
-        int fx = _scope.enclosingFunction(); // Enclosing function scope
-        Kind kk = _scope._kinds.at(kx);
-        Kind fk = _scope._kinds.at(fx);
-        // Access instance field from 'self'
-        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) &&
-            fk instanceof Kind.Func method && !inExplicitConstructor() ) {
-            // Named field offset on an unknown struct type
-            TypeMemPtr self = (TypeMemPtr)_scope.var(fk._lexSize).type();
-            TypeStruct sobj = (TypeStruct)TYPES.get(self._obj._name);
-            Field fld = sobj.field(name);
-            int alias = fld._alias;
-            Node ptr = _scope.in(method._lexSize);
-            Node off = fldoff(ptr,name);
-            Node prior = mem().keep();
-            Node st = new StoreNode(loc(), name, alias, decl, ctrl(), prior, ptr, off, lift, inExplicitConstructor()).peephole().keep();
-            storeMem(st,alias,prior);
-            st.unkeep();
-            prior.unkeep();
-        }
         lift.unkill();
 
 
@@ -2109,35 +2100,12 @@ public class Parser {
         if( inExplicitConstructor() && var._uninit && missingInit(rvalue,new BitSet()) )
             throw error("Field '"+id+"' might not be initialized",var._loc);
 
-        // Check for an instance field load
-        int kx = _scope.kindx(var); // Declaration scope
-        int fx = _scope.enclosingFunction(); // Enclosing function scope
-        Kind kk = _scope._kinds.at(kx);
-        Kind fk = _scope._kinds.at(fx);
-        // Access instance field from 'self'
-        if( kx+1 == fx && kk instanceof Kind.Func inst && FunNode.isInstance(inst._name) && fk instanceof Kind.Func method && !inExplicitConstructor() )
-            return parsePostfixName(_scope.in(method._lexSize),id,pre);
-
-        // Check for a function-escaping variable; these require true
-        // closures.  Final constants are OK; final vars require a hidden var
-        // argument; not-final fields can just use an explicit struct arg.
-        if( kx < fx && !inExplicitConstructor() && // Out of scope
-            !(var._final && rvalue._type.isConstant()) ) { // Not a final constant
-            if( kx > 0  ) // Global scope is OK, only ever one of these (not one per function invoke)
-                throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
-
-            // var.idx==2 is self argument, 3 is args, 4 or more are now static globals
-            if( var._idx >= 4 ) {
-                // Read from global scope.
-                // Surely a nicer way to get the top-level scope compile name?
-                Var clzptr = _scope.var( 2 );
-                // Get the most recent sharpen global
-                TypeStruct clz = (TypeStruct) TYPES.get( ((TypeMemPtr) clzptr.type())._obj._name );
-                TypeMemPtr clztmp = TypeMemPtr.make( (byte) 2, clz, true );
-                return parsePostfixName( con( clztmp ), id,pre );
-                //return parsePostfixName(_scope.in(2),id);
-            }
-        }
+        Node self = fieldSelf(var);
+        if( self!=null ) return parsePostfixName(self,id,pre);
+        int kx = _scope.kindx(var), fx = _scope.enclosingFunction();
+        if( kx>0 && kx<fx && !inExplicitConstructor() &&
+            !(var._final && rvalue._type.isConstant()) )
+            throw error("Variable '"+var._name+"' is out of function scope and must be a final constant");
 
         // Check for assign-update, x += e0;
         char ch = pre==0 ? _lexer.matchOperAssign() : (char)pre;
@@ -2382,6 +2350,31 @@ public class Parser {
         return parsePostfixMethod(value,defaultSelf());
     }
 
+    // Find the receiver for a field lvalue. Initializers retain Scope values;
+    // class declarations retain their Scope values until initializer exit.
+    private Node fieldSelf(Var var) {
+        int kx = _scope.kindx(var);
+        ScopeNode.Kind kind = _scope._kinds.at(kx);
+        if( !(kind instanceof Kind.Func owner) || !FunNode.isInit(owner._name) || var._idx<owner._lexSize+2 ) return null;
+        // Instance constructors still accumulate their fields in Scope here.
+        if( FunNode.isInstance(owner._name) && (inExplicitConstructor() || _scope.enclosingFuncOrDecl()==kx) ) return null;
+        // Class declarations still accumulate their initial values in Scope.
+        // This also preserves declaration-time struct default expressions.
+        if( FunNode.isClz(owner._name) && _scope.enclosingFunction()==kx ) return null;
+        // Nested functions have their own receiver parameter. Resolve fields
+        // through it even across intervening function and block scopes.
+        Node self = defaultSelf();
+        Var receiver = _scope.var(owner._lexSize);
+        if( self._type instanceof TypeMemPtr ptr && receiver.type() instanceof TypeMemPtr declared &&
+            ptr._obj._name.equals(declared._obj._name) ) return self;
+        // An instance method can also name fields of its enclosing class.
+        // Use that declaration's receiver; normal folding handles its identity.
+        if( !FunNode.isClz(owner._name) ) return null;
+        // The enclosing declaration may have discovered more fields since
+        // creating its receiver. View that same receiver with its current type.
+        return peep(new ConvertNode(receiver.type().upgradeType(TYPES),_scope.in(receiver)));
+    }
+
     private void checkSharedFunction(Var v) {
         if( _scope.canInit(v) && v._final && v.type() instanceof TypeFunPtr t && t.isConstant() )
             throw error("Cannot reassign shared function '"+v._name+"'");
@@ -2573,7 +2566,7 @@ public class Parser {
         java.util.BitSet finals = new java.util.BitSet();
         Type self = implicitSelfType();
         ts.push(self);
-        ids.push(self == TypePtr.PTR ? "#self" : "self");
+        ids.push("self");
 
         // Parse other arguments
         _lexer.skipWhiteSpace();
@@ -2583,6 +2576,10 @@ public class Parser {
             if( t==null ) break;
             finals.set(ids.size(),bindingFinal(t));
             String id = requireId();
+            // Older free functions may explicitly name a source argument
+            // "self". It shadows the implicit class receiver, not its ABI slot.
+            if( id=="self" && ts.at(0)==TypePtr.PTR && ids.at(0)=="self" )
+                ids.set(0,"#self");
             ts .push(t );       // Push type/arg pairs
             ids.push(id);
             match(",");

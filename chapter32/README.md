@@ -460,6 +460,109 @@ must be rebuilt; an old header produces an explicit rebuild error. For an
 existing chapter32 build, `make clean` followed by `make -j 8 release` rebuilds
 the generated artifacts. Rebuild any separately maintained Simple libraries too.
 
+## Receiver backport and spill investigation
+
+The shared class receiver is taught in
+[chapter 28a](../chapter28a/README.md#globals-use-the-same-receiver-as-fields),
+with imported summaries in [chapter 28b](../chapter28b/README.md).
+Those fixes are carried through the later snapshots. Phi factoring after
+strength reduction starts in
+[chapter 5](../chapter05/README.md#factoring-after-strength-reduction), using
+multiply-by-two there and shift-by-one where that representation is introduced.
+
+The receiver investigation also exposed a missed notification in
+[RegionNode](src/main/java/com/seaofnodes/simple/node/RegionNode.java): flattening
+regions adds Phi inputs, so their definitions must be queued too. A newly added
+precise memory user can require its bulk-memory input to split immediately.
+That prerequisite accompanies the receiver backport.
+
+The following measurements describe the chapter32 investigation before backporting.
+
+Validation: all 817 test executions pass on Windows with log8 verification and
+Linux with the default log10. A focused 62-test run passes with log1, checking
+every progress step. Native callbacks, imported receivers, FileIO, and ARM/RISC-V
+execution remain covered.
+
+There is a compilation/code-size cost to review. The following Windows comparison
+uses the preceding uncommitted assignment fix as its baseline, assertions enabled,
+two JVM processors, seed 456, and each compiler's freshly built libraries. Times
+are medians of four warm rounds after discarding the first round; this is a small
+local sample, not a timing guarantee. Sys sizes sum its 22 object files.
+
+| Compile | Time, ms (before → after) | Peepholes (before → after) | `.text` bytes (before → after) |
+| --- | ---: | ---: | ---: |
+| sys | 961 → 977 | 185,960 → 208,552 | 37,725 → 40,355 |
+| Clock | 256 → 381 | 86,873 → 106,615 | 6,717 → 7,053 |
+| Breakout | 553 → 593 | 158,712 → 174,500 | 14,868 → 15,031 |
+| TicTacToe | 161 → 177 | 56,222 → 63,774 | 4,251 → 4,411 |
+
+The small String and HelloWorld examples also retain additional initialization
+checks, and their spill expectations have been updated. The receiver-only change
+exposed an existing ordering sensitivity in Sieve: across seeds 120–127, both
+compilers produced seven 28-split/343-weight results and one 26-split/215-weight
+result, with the smaller result moving from seed 126 to 121.
+
+The spill investigation separates compile time from generated moves: Clock's
+weighted split score improves from 785 to 762. These scores count all retained
+SplitNodes, including register copies, with weight `8^loopDepth`; they are not
+counts of stack spills. Sieve's 215-to-343 change is two extra register copies
+inside its depth-two loop. Early `p+p` strength reduction in
+[AddNode](src/main/java/com/seaofnodes/simple/node/AddNode.java) turns the entry
+value into `p<<1` before [PhiNode](src/main/java/com/seaofnodes/simple/node/PhiNode.java)
+can factor `Phi(p+p,i+p)` into `Phi(p,i)+p`.
+
+Phi factoring now views `x<<1` as `x+x` when matching mixed Add/Shl arms. It uses
+the existing factoring checks and trial graph, without expanding a shift into
+an Add that would immediately strength-reduce again. Pure shift arms retain
+ordinary shift factoring. Multiply-by-two already reduces to this shift, so it
+is covered too. This is a local canonicalization: peeling one `x` from `k*x` for
+arbitrary k would require a new `(k-1)*x` expression, with less clear cost and
+rewrite-order benefits. The implementation stops at doubling.
+
+All eight Sieve seeds now produce 26 splits and score 215, with every-step
+verification; the spill expectation is 215. Direct graph tests check factoring
+before and after strength reduction, either arm order, and rejection of a
+different shift count. The 819-test Windows sweep passes with log8 verification
+(the Sieve group rerun after updating its expectation), and 64 focused tests
+pass with log1. Native and emulator Sieve results are checked too.
+
+The largest individual sys increase in the receiver-only comparison was
+`Canvas._circle`, from 455 to 517.
+Allocation keeps the loop-invariant boolean in a general register and the pixel
+pointer in an XMM register; recovering the pointer adds a transfer at each pixel
+store. The baseline makes the opposite choice. Both ranges receive the default
+score 1000 in [IFG.pickRiskyScore](src/main/java/com/seaofnodes/simple/codegen/IFG.java),
+leaving their selection sensitive to ordering. An isolated trial giving SetX86
+candidates one extra priority point brings `_circle` to 454 and total sys to
+8869, versus baseline 8719 and current 8932. Other sys functions' weighted scores
+are unchanged by that trial. This identifies an allocator sensitivity; the
+opcode-specific preference is diagnostic, not an adopted heuristic.
+
+With Phi factoring fixed, sys's weighted score is 8850 and `_circle` returns to
+455 through another ordering change. Clock stays at 762, Breakout changes from
+3387 to 3393, and TicTacToe stays at 1468. A bounded allocator follow-up tried
+three cheap refinements of the default score: breaking ties toward fewer excess
+neighbors (degree minus available colors), toward more excess neighbors, and a
+bonus for cheap single-def/single-use splits based on loop depth. Sys scored
+9039, 8844, and 8850 respectively; the three games were unchanged. The tiny
+six-point gain does not justify adopting the degree tie-break on this evidence.
+The production allocator remains unchanged; no additional graph walks or
+searches were added.
+
+Backporting retains each chapter's allocator. Code-quality expectations are
+therefore checked locally: chapter21's RISC-V Sieve score changes from 92 to
+164, despite the chapter32 improvement above, and chapter31's forward-field
+scanner test changes from 23 to 31 on x86-64/Win64. Execution checks remain in
+place; these earlier snapshots do not inherit the later allocator experiments.
+Chapter31 also groups `TimeTest` with its sys tests: its wide-library compile
+passes in a fresh JVM, but following the large catch-all suite exhausted that
+snapshot's existing 16-bit type IDs. This keeps the checks and the older type
+implementation intact; it does not remove the compiler's type-ID limit.
+
+The saved baseline, comparison drivers, measurements, and verification logs are
+under `build/receiver-profile/`. Proving initialization checks redundant is the
+main follow-up suggested by these measurements.
+
 ## Build and test
 
 From `chapter32`, using the existing offline dependency caches:

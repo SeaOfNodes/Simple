@@ -15,7 +15,9 @@ test_raw_sys   := 25
 # Convert chapter numbers to test files
 test_raw0    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums0))
 test_raw1    := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_nums1))
-test_sys     := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_sys)  )
+# TimeTest uses sys and compiles a wide library. Keep it out of the catch-all
+# JVM, whose accumulated pooled types can exhaust this snapshot's 16-bit IDs.
+test_sys     := $(patsubst %,com.seaofnodes.simple.Chapter%Test,$(test_raw_sys)  ) com.seaofnodes.simple.TimeTest
 # All the 'src/test/java' files ending in 'Test'
 test_cp0     := $(patsubst $(TST)/$(SIMPLE)/%.java,com.seaofnodes.simple.%,$(wildcard $(TST)/$(SIMPLE)/*Test.java))
 # Minus raw0, raw1, alone tests

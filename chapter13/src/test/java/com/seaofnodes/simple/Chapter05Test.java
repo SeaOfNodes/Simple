@@ -225,4 +225,27 @@ return a;
         }
     }
 
+    private static <N extends Node> N init(N n) { n._type=n.compute(); return n; }
+
+    @Test public void testDoublingBeforeAndAfterStrengthReduction() {
+        for( boolean reduced : new boolean[]{false,true} )
+            for( boolean reverse : new boolean[]{false,true} ) {
+                new Parser("");
+                Node ctrl = init(new CProjNode(Parser.START,0,"Ctrl"));
+                RegionNode region = init(new RegionNode(new Node[]{null,ctrl,ctrl}));
+                Node p = init(new ConstantNode(TypeInteger.BOT));
+                Node i = init(new MinusNode(p));
+                Node twice = reduced ? init(new MulNode(p,init(new ConstantNode(TypeInteger.constant(2))))) : init(new AddNode(p,p));
+                Node sum = init(new AddNode(i,p));
+                PhiNode phi = init(new PhiNode("sum",TypeInteger.BOT,region,reverse ? sum : twice,reverse ? twice : sum));
+                phi.keep();
+                Node factored = phi.idealize();
+                assertTrue(factored instanceof AddNode);
+                assertSame(p,factored.in(2));
+                assertTrue(factored.in(1) instanceof PhiNode);
+                assertSame(reverse ? i : p,factored.in(1).in(1));
+                assertSame(reverse ? p : i,factored.in(1).in(2));
+                phi.unkeep();
+            }
+    }
 }

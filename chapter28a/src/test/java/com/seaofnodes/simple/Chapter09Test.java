@@ -41,7 +41,7 @@ else {
 return x;
                 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return Phi(Region,(arg<<1),(Shl+1));", code.print());
+        assertEquals("return (Phi(Region,arg,1)+Phi(Region,arg,(arg<<1)));", code.print());
         Assert.assertEquals( "2", Eval2.eval(code,  1));
         Assert.assertEquals("23", Eval2.eval(code, 11));
     }

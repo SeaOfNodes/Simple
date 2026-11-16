@@ -386,8 +386,8 @@ val hashCode = { !String self ->
 """;
         // Return the public hashCode wrapper; keep its helper private.
         testCPU(src,"x86_64_v2", "SystemV",28,null);
-        testCPU(src,"riscv"    , "SystemV",8,null);
-        testCPU(src,"arm"      , "SystemV",6,null);
+        testCPU(src,"riscv"    , "SystemV",11,null);
+        testCPU(src,"arm"      , "SystemV",11,null);
     }
 
     @Test public void testStringExport() throws IOException {
@@ -531,7 +531,7 @@ val sieve = { int N ->
         String sprimes = sb.p("]").toString();
 
         // Compile, link against native C; expect the above string of primes to be printed out by C
-        TestC.runC(src, "sieve", sprimes,344);
+        TestC.runC(src, "sieve", sprimes,216);
 
         // Evaluate on RISC5 emulator; expect return of an array of primes in
         // the simulated heap.

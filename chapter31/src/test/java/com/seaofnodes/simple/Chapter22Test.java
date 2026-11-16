@@ -302,17 +302,17 @@ val p = { u8[~] str ->
 p("Hello, World!");
 return 0;
 """;
-        TestC.runSF(src,"helloWorld", "Hello, World!",2);
+        TestC.runSF(src,"helloWorld", "Hello, World!",4);
 
         // Evaluate on RISC5 emulator
-        EvalRisc5 R5 = TestRisc5.build( src, "helloWorld", 0, 5, false);
+        EvalRisc5 R5 = TestRisc5.build( src, "helloWorld", 0, 8, false);
         int trap = R5.step(100);
         assertEquals(0,trap);
         assertEquals(0,R5.regs[riscv.A0]);
         assertEquals("Hello, World!",R5._stdout.toString());
 
         // Evaluate on ARM emulator
-        EvalArm64 arm = TestArm64.build("helloWorld", src,0, 5, false);
+        EvalArm64 arm = TestArm64.build("helloWorld", src,0, 8, false);
         trap = arm.step(100);
         assertEquals(0,trap);
         assertEquals(0,arm.regs[0]);

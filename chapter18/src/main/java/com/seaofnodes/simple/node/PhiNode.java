@@ -72,7 +72,8 @@ public class PhiNode extends Node {
 
         // Phi(op(a,b,...),op(c,d,...)) -> op(Phi(a,c),Phi(b,d),...).
         Node down;
-        if( same_op() && (down=drop_same_op())!=null ) return down;
+        Node op = factoringOp();
+        if( same_op(op) && (down=drop_same_op(op))!=null ) return down;
 
         // If merging Phi(N, cast(N)) - we are losing the cast JOIN effects, so just remove.
         if( nIns()==3 ) {
@@ -103,8 +104,26 @@ public class PhiNode extends Node {
         return null;
     }
 
-    private boolean same_op() {
+    // View x*2 and x<<1 as x+x only while matching mixed Phi arms. Do not
+    // expand the graph into Adds that would immediately strength-reduce again.
+    private Node factoringOp() {
         Node op = in(1);
+        if( doubled(op) )
+            for( int i=2; i<nIns(); i++ )
+                if( in(i) instanceof AddNode ) return in(i);
+        return op;
+    }
+
+    private boolean doubled(Node n) {
+        return (n instanceof MulNode || n instanceof ShlNode) &&
+            n.in(2).addDep(this)._type instanceof TypeInteger con && con.isConstant() && con.value()==(n instanceof MulNode ? 2 : 1);
+    }
+
+    private static Node factoringInput(Node op, Node n, int j) {
+        return op instanceof AddNode && !(n instanceof AddNode) ? n.in(1) : n.in(j);
+    }
+
+    private boolean same_op(Node op) {
         if( op instanceof CFGNode || op instanceof ConstantNode || op instanceof PhiNode ||
             op instanceof ProjNode || op instanceof NewNode || op instanceof ScopeNode || op instanceof MemMergeNode ) return false;
         // A bulk Phi must split its aliases before factoring precise Stores.
@@ -122,7 +141,8 @@ public class PhiNode extends Node {
         for( int i=1; i<nIns(); i++ ) {
             Node n = in(i);
             if( region().in(i).addDep(this)._type==Type.XCONTROL ||
-                op.getClass()!=n.getClass() || n.nIns()!=op.nIns() || n.in(0)!=null || !op.eq(n) ) return false;
+                !((op.getClass()==n.getClass() && op.eq(n)) || (op instanceof AddNode && doubled(n))) ||
+                n.nIns()!=op.nIns() || n.in(0)!=null ) return false;
             if( n instanceof MemOpNode mem && !mem.canDrop((MemOpNode)op,this) ) return false;
             // Moving a Store must remove the old effect, not duplicate it.
             // Allow one shared arm: the other arms disappear into the single
@@ -140,21 +160,21 @@ public class PhiNode extends Node {
         return true;
     }
 
-    private Node drop_same_op() {
-        Node op = in(1), cp = op.copyEmpty();
+    private Node drop_same_op(Node op) {
+        Node cp = op.copyEmpty();
         cp._type = null;
         cp.addDef(null);
         for( int j=1; j<op.nIns(); j++ ) {
-            Node x = op.in(j);
+            Node x = factoringInput(op,in(1),j);
             boolean different = false;
             for( int i=2; i<nIns(); i++ )
-                if( in(i).in(j)!=x ) different=true;
+                if( factoringInput(op,in(i),j)!=x ) different=true;
             if( different ) {
                 Node[] ins = new Node[nIns()];
                 ins[0] = region();
                 Type t = Type.TOP;
                 for( int i=1; i<nIns(); i++ ) {
-                    ins[i] = in(i).in(j);
+                    ins[i] = factoringInput(op,in(i),j);
                     t = t.meet(ins[i]._type);
                 }
                 PhiNode phi = j==1 && op instanceof MemOpNode mem

@@ -70,23 +70,9 @@ final class References {
         // Check for a function-escaping variable; these require true
         // closures.  Final constants are OK; final vars require a hidden var
         // argument; not-final fields can just use an explicit struct arg.
-        if( kx < fx && !P.structs.inExplicitConstructor() && // Out of scope
-            !(var._final && rvalue._type.isConstant()) ) { // Not a final constant
-            if( kx > 0  ) // Global scope is OK, only ever one of these (not one per function invoke)
-                throw P.error("Variable '"+var._name+"' is out of function scope and must be a final constant");
-
-            // var.idx==2 is self argument, 3 is args, 4 or more are now static globals
-            if( var._idx >= 4 ) {
-                // Read from global scope.
-                // Surely a nicer way to get the top-level scope compile name?
-                Var clzptr = P._scope.var( 2 );
-                // Get the most recent sharpen global
-                TypeStruct clz = (TypeStruct) Parser.TYPES.get( ((TypeMemPtr) clzptr.type())._obj._name );
-                TypeMemPtr clztmp = TypeMemPtr.make( (byte) 2, clz, true );
-                return parseField( P.con( clztmp ), id,pre );
-                //return parseField(_scope.in(2),id);
-            }
-        }
+        if( kx>0 && kx<fx && !P.structs.inExplicitConstructor() &&
+            !(var._final && rvalue._type.isConstant()) )
+            throw P.error("Variable '"+var._name+"' is out of function scope and must be a final constant");
 
         // Check for assign-update, x += e0;
         char ch = pre==0 ? P._lexer.matchOperAssign() : (char)pre;
@@ -119,19 +105,6 @@ final class References {
     }
 
     Node assign(Var def, Node expr) {
-        Node self = fieldSelf(def);
-        if( self!=null ) {
-            TypeStruct ts = P.types.latestStruct(((TypeMemPtr)self._type)._obj);
-            Field fld = ts.field(def._name);
-            Node val = expr.keep();
-            Node lift = P.conversions.convertExpr(val,def.type());
-            Node mem = P.construction.storeMemory(self).keep();
-            Node st = new StoreNode(P.loc(),fld._fname,fld._alias,fld._t,P.ctrl(),mem,self,
-                                    ConFldOffNode.make(ts,fld._fname),lift,P.construction.own(self)).peephole();
-            P.construction.store(self,fld._alias,st,mem);
-            mem.unkeep();
-            return val.unkeep();
-        }
         String name = def._name;
         // Lift expression, based on type
         Type decl = def.type(); // Declared type
@@ -280,14 +253,27 @@ final class References {
         return P._scope.in(P._scope.update(P._scope.var(selfx),null));
     }
 
-    // Fields are lvalues in memory, including inside their initializer and
-    // explicit constructor. Scope slots retain declaration metadata only.
-    private Node fieldSelf(Var var) {
-        int kx = P._scope.kindx(var), fx = P._scope.enclosingFuncOrDecl();
+    // Find the receiver for a field lvalue. Instance initializers use memory;
+    // class declarations retain their Scope values until initializer exit.
+    Node fieldSelf(Var var) {
+        int kx = P._scope.kindx(var);
         ScopeNode.Kind kind = P._scope._kinds.at(kx);
-        if( !(kind instanceof Kind.Func inst) || !FunNode.isInstance(inst._name) || var._idx<inst._lexSize+2 ) return null;
-        if( kx==fx || kx+1==fx ) return defaultSelf();
-        return null;
+        if( !(kind instanceof Kind.Func owner) || !FunNode.isInit(owner._name) || var._idx<owner._lexSize+2 ) return null;
+        // Class declarations still accumulate their initial values in Scope.
+        // This also preserves declaration-time struct default expressions.
+        if( FunNode.isClz(owner._name) && P._scope.enclosingFunction()==kx ) return null;
+        // Nested functions have their own receiver parameter. Resolve fields
+        // through it even across intervening function and block scopes.
+        Node self = defaultSelf();
+        Var receiver = P._scope.var(owner._lexSize);
+        if( self._type instanceof TypeMemPtr ptr && receiver.type() instanceof TypeMemPtr declared &&
+            ptr._obj._name.equals(declared._obj._name) ) return self;
+        // An instance method can also name fields of its enclosing class.
+        // Use that declaration's receiver; normal folding handles its identity.
+        if( !FunNode.isClz(owner._name) ) return null;
+        // The enclosing declaration may have discovered more fields since
+        // creating its receiver. View that same receiver with its current type.
+        return P.peep(new ConvertNode(receiver.type().upgradeType(Parser.TYPES),P._scope.in(receiver)));
     }
 
     private void checkSharedFunction(Var v) {

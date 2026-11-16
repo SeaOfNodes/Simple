@@ -2,6 +2,7 @@ package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.codegen.CodeGen;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeInteger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -198,4 +199,27 @@ return a;
         catch( RuntimeException e ) { assertEquals("Undefined name 'ififif'",e.getMessage()); }
     }
 
+    private static <N extends Node> N init(N n) { n._type=n.compute(); return n; }
+
+    @Test public void testDoublingBeforeAndAfterStrengthReduction() {
+        for( boolean reduced : new boolean[]{false,true} )
+            for( boolean reverse : new boolean[]{false,true} ) {
+                CodeGen code = new CodeGen("");
+                Node ctrl = init(new CProjNode(code._start,0,"Ctrl"));
+                RegionNode region = init(new RegionNode(null,null,ctrl,ctrl));
+                Node p = init(new ConstantNode(TypeInteger.BOT));
+                Node i = init(new MinusNode(p));
+                Node twice = reduced ? init(new ShlNode(null,p,init(new ConstantNode(TypeInteger.constant(1))))) : init(new AddNode(p,p,(byte)1));
+                Node sum = init(new AddNode(i,p,(byte)1));
+                PhiNode phi = init(new PhiNode("sum",region,reverse ? sum : twice,reverse ? twice : sum));
+                phi.keep();
+                Node factored = phi.idealize();
+                assertTrue(factored instanceof AddNode);
+                assertSame(p,factored.in(2));
+                assertTrue(factored.in(1) instanceof PhiNode);
+                assertSame(reverse ? i : p,factored.in(1).in(1));
+                assertSame(reverse ? p : i,factored.in(1).in(2));
+                phi.unkeep();
+            }
+    }
 }

@@ -26,7 +26,7 @@ public class SummaryNode extends CFGNode implements MultiNode {
         // A library summary does not forget escapes already present in the caller.
         TypeMem mem = in(1)._type instanceof TypeMem m ? m : in(1)._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
         mem = (TypeMem)mem.meet(_state.mem());
-        for( int i = 2; i<nIns(); i++ ) {
+        for( int i = firstArgument(); i<nIns(); i++ ) {
             Type arg = in(i)._type;
             // Only opaque arguments can hide identities supplied by outside code.
             TypeMem outside = TypeMem.opaque(arg) ? CodeGen.CODE._start.outside(this) : TypeMem.BOT;
@@ -39,12 +39,19 @@ public class SummaryNode extends CFGNode implements MultiNode {
         dep.addDepForwards(this);
         if( dep.addDepForwards(in(0))._type.isHigh() ) return TypeMem.START;
         TypeMem mem = (TypeMem)_state.mem();
-        for( int i = 2; i<nIns(); i++ ) {
+        for( int i = firstArgument(); i<nIns(); i++ ) {
             Type arg = dep.addDepForwards(in(i))._type;
             TypeMem outside = TypeMem.opaque(arg) ? CodeGen.CODE._start.outside(dep) : TypeMem.BOT;
             mem = mem.escapesFrom(arg,outside);
         }
         return TypeMem.make(1,Type.BOTTOM,false,false,false,mem._escFs,mem._escAs);
+    }
+    // A class receiver is supplied by the callee, not exposed by its caller.
+    // Actual uses which publish self are already represented in _state.
+    private int firstArgument() {
+        if( !(in(0) instanceof FunNode fun) ) return 2;
+        TypeFunPtr sig = fun.sig();
+        return sig.nargs()>0 && sig.arg(0)==TypePtr.PTR ? 3 : 2;
     }
     @Override boolean _upgradeType(HashMap<String,Type> types) {
         TypeTuple state = (TypeTuple)_state.upgradeType(types);

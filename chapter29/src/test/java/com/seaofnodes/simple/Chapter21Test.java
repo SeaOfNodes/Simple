@@ -384,9 +384,9 @@ val hashCode = { !String self ->
 };
 """;
         // Return the public hashCode wrapper; keep its helper private.
-        testCPU(src,"x86_64_v2", "SystemV",12,null);
-        testCPU(src,"riscv"    , "SystemV",8,null);
-        testCPU(src,"arm"      , "SystemV",6,null);
+        testCPU(src,"x86_64_v2", "SystemV",15,null);
+        testCPU(src,"riscv"    , "SystemV",11,null);
+        testCPU(src,"arm"      , "SystemV",11,null);
     }
 
     @Test public void testStringExport() throws IOException {
@@ -423,7 +423,7 @@ val hashCode = { !String self ->
     : (self._hashCode = _hashCodeString(self));
 };
 """;
-        TestC.runC(src, "stringHash", "",12);
+        TestC.runC(src, "stringHash", "",15);
     }
 
     @Test public void testLoop2() {
