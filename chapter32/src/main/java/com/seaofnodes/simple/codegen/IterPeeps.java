@@ -125,7 +125,13 @@ public class IterPeeps {
                     // A self-returning peephole can have rewritten its input
                     // edges.  The new defs gained a user and may have
                     // backwards, user-sensitive peepholes of their own.
-                    for( Node z : x._inputs ) _work.push(z);
+                    boolean edited = x!=n || x.isUnlocked();
+                    for( Node z : x._inputs )
+                        // A type-only update adds no users. A stable memory
+                        // Phi has no backwards rewrite based on user types.
+                        // Keep first-use and edited/unprocessed Phis queued.
+                        if( edited || !(z instanceof MemPhiNode) || z.nOuts()<=1 || z.isUnlocked() )
+                            _work.push(z);
                     // If the result is not self, revisit all inputs (because
                     // there's a new user), and replace in the graph.
                     if( x != n ) {
@@ -237,7 +243,9 @@ public class IterPeeps {
                 }
             return found;
         }
-        return CFGNode.safeCFG(use);
+        // A memory op can execute after its control (e.g. a range check).
+        // Like schedEarly, include its data inputs before constraining its defs.
+        return use instanceof MemOpNode ? CFGNode.earlyCFG(use,earlyCache,VISIT) : CFGNode.safeCFG(use);
     }
 
     private static String badSchedule(Node n, CFGNode early, CFGNode lca) {

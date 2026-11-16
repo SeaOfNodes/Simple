@@ -56,7 +56,9 @@ public class IfNode extends CFGNode implements MultiNode {
     public Node idealize() {
         // Hunt up the immediate dominator tree.  If we find an identical if
         // test on either the true or false branch, that side wins.
-        if( !pred()._type.isHighOrConst() )
+        // Known branches fold through CProj; they need no dominator search
+        // or subscriptions to changes higher up the control flow.
+        if( _type==TypeTuple.IF_BOTH )
             for( CFGNode dom = idom(), prior=this; dom!=null;  prior = dom, dom = dom.idom() )
                 if( addDep(dom) instanceof IfNode iff &&
                     prior instanceof CProjNode prj &&

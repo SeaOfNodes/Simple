@@ -162,6 +162,65 @@ also wake on use-count changes. Any narrower filter must preserve the topology
 and use-count changes that actually enable a rewrite; deleting subscriptions
 just because a sample showed no progress is not enough.
 
+### MemPhi and IfNode follow-up
+
+The next trace records the notifying node as well as the enqueue stack.
+BulkMemPhi splitting and MemMerge cleanup repeatedly queue precise memory Phis
+as inputs of successful peepholes. Removing memory Phis also changes a Region's
+users, waking IfNodes which subscribed while walking the dominator chain.
+Unlinking callers produces similar notifications from CallNodes.
+
+Two small filters are retained. A type-only update of a user no longer queues
+an already-used, stable MemPhi input. New or edited inputs and first-use Phis
+remain eligible; replacement and edge-edit notifications retain their existing
+behavior. `IfNode.idealize` searches dominators only when both branches remain
+possible. Known branches already fold through CProj and need no new distant
+subscriptions.
+
+On the same 794-method profiling sweep, MemPhi visits fell from 474,510 to
+469,866, IfNode visits from 254,787 to 249,609, and total visits from 3,695,609
+to 3,661,560. The total reduction is 0.9%; whole-suite elapsed times of 91.88
+and 91.64 seconds do not establish a meaningful timing improvement. Existing
+spill expectations still pass. One graph expectation loses a redundant integer
+narrowing; both branches also have execution checks.
+
+A broader experiment separated dependency use-count notifications from type
+and input-edge notifications, and filtered more MemPhi use-count revisits.
+That version changed optimizer ordering enough to increase the Sieve spill
+score from 216 to 343 and the forward-field example from 23 to 31. It is not
+enabled: reducing compiler work is not a reason to silently raise code-quality
+expectations. The broader filter also requires notifying a node's dependents
+when `delDef` changes its inputs, rather than redundantly notifying the old
+input's use-count listeners.
+
+In the 302-method non-chapter group, that isolated experiment reduced MemPhi
+visits from 367,387 to 205,245 and IfNode visits from 144,652 to 59,185. Total
+visits fell 9.7%, but elapsed time was essentially unchanged at 57.48 versus
+57.75 seconds. Fewer visits alone do not demonstrate a runtime improvement.
+
+These measurements precede the verifier fixes below.
+
+### Every-step verifier fixes
+
+Checking every progress step exposed two bugs, both reproducible before the
+MemPhi/IfNode filters:
+
+- `Chapter05Test.testMerge4` fails at iteration 38: replacing `Phi#44` with
+  `arg` changes `If#52`'s predicate and enables `Phi#75`'s guard-merge rewrite.
+  `matchingGuardMerge` had no dependency on that predicate comparison. It now
+  subscribes to the If for direct input edits and to its predicate for replacement
+  through `subsume`. Tests cover both notification paths.
+- `Chapter15Test.testArrayLoadDominatingControl` fails at iteration 30, when a
+  bulk memory Phi splits into a MemMerge. The verifier treated the consuming
+  load's earlier range-check control as its execution block. A memory operation's
+  control is only a lower bound: its data inputs can force it later. The check
+  now includes those inputs, matching early scheduling. Regression tests accept
+  this legal placement and still reject a load used before its memory is ready.
+
+After these fixes, all 802 suite executions pass at log 8; 444 chapter tests and
+34 focused worklist, scheduling, and memory tests pass at log 1. Existing spill
+expectations are unchanged.
+
 ## Build and test
 
 From `chapter32`, using the existing offline dependency caches:

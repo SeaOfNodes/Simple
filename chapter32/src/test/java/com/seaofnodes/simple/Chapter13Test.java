@@ -116,7 +116,9 @@ if (v1) {
 return v0.f;
 """);
         code.driver(CodeGen.Phase.FinalizeIR);
-        assertEquals("return ((Phi(Region,((.f<<32)>>32),2)<<32)>>32);", code.print());
+        assertEquals("return Phi(Region,((.f<<32)>>32),2);", code.print());
+        assertEquals("2",Eval2.eval(code,0));
+        assertEquals("0",Eval2.eval(code,1));
     }
 
 

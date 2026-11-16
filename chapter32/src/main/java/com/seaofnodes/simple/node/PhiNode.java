@@ -147,6 +147,9 @@ public class PhiNode extends Node {
             return null;
         if( !(r.in(3-nzIdx) instanceof CProjNode z && z._idx==1 && z.ctrl()==iff) )
             return null;
+        // A rewritten predicate can make this guard match without changing the Phi inputs.
+        addDep(iff);
+        addDep(iff.pred()); // subsume wakes the replaced predicate's dependents.
         // Predicate was guarded?
         Node n = cast.in(1), tested = null;
         while( true ) {

@@ -1,8 +1,47 @@
 package com.seaofnodes.simple;
 
 import org.junit.Test;
+import com.seaofnodes.simple.codegen.CodeGen;
+import com.seaofnodes.simple.codegen.IterPeeps;
+import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.*;
+import static org.junit.Assert.*;
 
 public class SchedulingTest {
+    @Test public void verifierAllowsLoadAfterMemoryMerge() {
+        CodeGen code = loadAfterMemoryMerge();
+        assertTrue(IterPeeps.schedulableUses(code));
+    }
+
+    @Test public void verifierRejectsLoadUsedBeforeMemoryMerge() {
+        CodeGen code = loadAfterMemoryMerge();
+        ReturnNode ret = (ReturnNode)code._stop.walk(n -> n instanceof ReturnNode ? n : null);
+        LoadNode load = (LoadNode)ret.expr();
+        // The load may move below its check, but cannot serve a use above its memory.
+        ret.setDef(0,load.in(0));
+        try {
+            IterPeeps.schedulableUses(code);
+            fail("A load cannot execute before its memory is available");
+        } catch( AssertionError error ) {
+            assertTrue(error.getMessage(),error.getMessage().contains("Unschedulable data node LoadNode"));
+        }
+    }
+
+    private static CodeGen loadAfterMemoryMerge() {
+        CodeGen code = new CodeGen("return arg;").parse();
+        ReturnNode ret = (ReturnNode)code._stop.walk(n -> n instanceof ReturnNode ? n : null);
+        Node ctrl = ret.ctrl();
+        IfNode iff = new IfNode(ctrl,ret.expr()).init();
+        Node yes = new CProjNode(iff,0,"True").init();
+        Node no = new CProjNode(iff,1,"False").init();
+        RegionNode region = new RegionNode(null,null,yes,no).init();
+        Node phi = new BulkMemPhiNode("mem",region,ret.mem(),ret.mem()).init();
+        Node mem = new MemMergeNode(null,phi).init();
+        Node load = new LoadNode(null,"[]",2,ctrl,mem,code.con(TypeMemPtr.BOT),code.con(TypeInteger.ZERO)).init();
+        ret.setDef(0,region);
+        ret.setDef(2,load);
+        return code;
+    }
     @Test public void nativeFoldedLoadsWithLaterOperands() throws Exception {
         TestC.runSYS("""
             val compare_noInline={ i64[] a, int flag ->
