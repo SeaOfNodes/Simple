@@ -472,7 +472,8 @@ val test_sqrt = { flt x ->
     }
 };
 """;
-        TestC.runC(src, "newtonFloat", result, TestC.CALL_CONVENTION.equals("win64") ? 42 : 34);
+        // With the zero-input guard, both SystemV and win64 score 42.
+        TestC.runC(src, "newtonFloat", result, 42);
 
         EvalRisc5 R5 = TestRisc5.build( src, "test_sqrt", 0, 10, false);
         R5.fregs[riscv.FA0 - riscv.F_OFFSET] = 3.0;
