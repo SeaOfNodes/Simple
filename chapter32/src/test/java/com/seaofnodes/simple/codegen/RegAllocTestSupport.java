@@ -85,7 +85,7 @@ public class RegAllocTestSupport {
         new Op(null,A,null,false,code._start,def);
         RegAlloc alloc = new RegAlloc(code);
         assertTrue(BuildLRG.run(0,alloc));
-        assertFalse("A live value cannot survive a register kill",IFG.build(0,alloc));
+        assertFalse("A live value cannot survive a register kill",new IFG().build(0,alloc));
     }
 
     public static void nullUseMask() {
@@ -95,7 +95,7 @@ public class RegAllocTestSupport {
         new Op(null,null,null,false,code._start,def); // Scheduling dependency only.
         RegAlloc alloc = new RegAlloc(code);
         assertTrue(BuildLRG.run(0,alloc));
-        assertTrue(IFG.build(0,alloc));
+        assertTrue(new IFG().build(0,alloc));
     }
 
     public static void independentFunctions() {
@@ -262,7 +262,7 @@ public class RegAllocTestSupport {
             assertTrue(BuildLRG.run(0,alloc));
             assertNull(alloc.lrg(top));
             assertSame(alloc.lrg(def),alloc.lrg(phi));
-            assertTrue(IFG.build(0,alloc));
+            assertTrue(new IFG().build(0,alloc));
             alloc.insertBefore(phi,slot,"test",(byte)0,alloc.lrg(phi));
             assertSame(top,phi.in(slot));
         }

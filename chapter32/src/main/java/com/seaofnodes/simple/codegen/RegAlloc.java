@@ -213,8 +213,9 @@ public class RegAlloc {
     }
 
     private void allocateFunction() {
+        IFG ifg = new IFG();
         _deferredLoopSelf.clear();
-        for( byte round=0; !graphColor(round); round++ ) {
+        for( byte round=0; !graphColor(round,ifg); round++ ) {
             split(round);
             if( round >= 10 ) {
                 FunNode fun = _cfg.at(0).fun();
@@ -281,7 +282,7 @@ public class RegAlloc {
         return cfg==null ? null : cfg.fun();
     }
 
-    private boolean graphColor(byte round) {
+    private boolean graphColor(byte round, IFG ifg) {
         _failed.clear();
         _lrgs.clear();
         _lrg_num = 1;
@@ -291,7 +292,7 @@ public class RegAlloc {
             // Build Live Ranges
             BuildLRG.run(round,this) && // if no hard register conflicts
             // Build Interference Graph
-            IFG.build(round,this) &&    // If no self conflicts or uncolorable
+            ifg.build(round,this) &&    // If no self conflicts or uncolorable
             // Conservative coalesce copies
             Coalesce.coalesce(round,this) &&
             // Color attempt

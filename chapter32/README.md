@@ -269,6 +269,51 @@ with every-step verification. Raw measurements, saved compiler classes, and
 reproduction commands are in `build/memmerge-dense/`; verification logs are in
 `build/test-profile/dense-final-*.log`.
 
+## Match interference scratch lifetime to function allocation
+
+[RegAlloc](src/main/java/com/seaofnodes/simple/codegen/RegAlloc.java) already
+allocates one function at a time, retrying after spills before moving to the
+next function. But [IFG](src/main/java/com/seaofnodes/simple/codegen/IFG.java)'s
+static `BBOUTS` retained basic-block keys from every previous allocation, even
+across compilations. Each interference build cleared all their live-out maps.
+Repeated sys compiles added 2,558 keys apiece, making later compiles slower.
+
+Each function now creates an IFG instance. Its live-out maps, temporary live
+set, and worklist survive that function's spill retries and become unreachable
+when allocation returns. The shared interference bitsets still reuse capacity:
+they contain live-range numbers, with no references to compiler graphs.
+
+Risky spill scoring also repeatedly walked the function's scheduled blocks to
+compute the same area. Coloring now computes that area once, after coalescing,
+and passes the integer to the scoring routines. A later spill retry recomputes
+it because splitting can change the schedule. An assertion checks that the
+live ranges being colored belong to the current function.
+
+Compared with `b8bcd9c0`, median compile times through object export were:
+
+| Workload | Before | After | RegAlloc before / after |
+| --- | ---: | ---: | ---: |
+| sys library | 1,290 ms | 913 ms | 494 / 91 ms |
+| Clock | 537 ms | 279 ms | 274 / 27 ms |
+| Breakout | 1,007 ms | 609 ms | 428 / 51 ms |
+| Graphical tic-tac-toe | 1,362 ms | 292 ms | 1,113 / 40 ms |
+
+These are repeated compilations: six measured rounds after three warmups,
+alternating isolated baseline and changed compiler class loaders. Each workload
+starts with fresh loaders. The old implementation accumulates block keys even
+during warmup, so these gains depend on compilation history; they are not
+single-shot CLI startup measurements. Java 21 uses two active processors,
+assertions at log10, and a 256 MiB initial / 2 GiB maximum heap. Both compilers
+read the same sys objects; gcc, linking, and native execution are excluded.
+HelloWorld remains about 69 ms, within measurement noise.
+
+Peephole counts, code sizes, and spill counts match in every benchmark pair.
+The final 26 objects, including sys submodules, have identical `.text` bytes.
+The full non-graphical suite passes all 805 test executions at log8, including
+the native allocator checks. Benchmark sources, saved baseline classes, raw
+timings, and follow-up JFR recordings are in `build/ifg-profile/`; the suite log
+is `build/test-profile/ifg-full.log`.
+
 ## Build and test
 
 From `chapter32`, using the existing offline dependency caches:

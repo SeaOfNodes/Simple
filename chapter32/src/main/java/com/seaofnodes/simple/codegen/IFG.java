@@ -8,18 +8,20 @@ import java.util.BitSet;
 import java.util.IdentityHashMap;
 
 // Interference Graph
-abstract public class IFG {
+public class IFG {
     // Interference Graph Support
 
+    // Scratch for one function, reused across its spill retries.
     // Map from a Basic Block to Live-Out: {a map from a Live Range to a Def}
-    private static final IdentityHashMap<CFGNode,IdentityHashMap<LRG,Node>> BBOUTS = new IdentityHashMap<>();
-    static void resetBBLiveOut() {
-        for( IdentityHashMap<LRG,Node> bbout : BBOUTS.values() )
+    private final IdentityHashMap<CFGNode,IdentityHashMap<LRG,Node>> _bbouts = new IdentityHashMap<>();
+    private void resetBBLiveOut() {
+        for( IdentityHashMap<LRG,Node> bbout : _bbouts.values() )
             bbout.clear();
     }
-    static final IdentityHashMap<LRG,Node> TMP = new IdentityHashMap<>();
+    private final IdentityHashMap<LRG,Node> _tmp = new IdentityHashMap<>();
 
-    // Inteference Graph: Array of Bitsets
+    // Interference Graph: Array of Bitsets. Reuse capacity across functions;
+    // these contain only live-range numbers, not references to the graph.
     static final Ary<BitSet> IFG = new Ary<>(BitSet.class);
     static void resetIFG() {
         for( BitSet bs : IFG )
@@ -42,10 +44,10 @@ abstract public class IFG {
     }
 
 
-    private static final Ary<CFGNode> WORK = new Ary<>(CFGNode.class);
-    static void pushWork(CFGNode bb) {
-        if( WORK.find(bb) == -1 )
-            WORK.push(bb);
+    private final Ary<CFGNode> _work = new Ary<>(CFGNode.class);
+    private void pushWork(CFGNode bb) {
+        if( _work.find(bb) == -1 )
+            _work.push(bb);
     }
 
     // ------------------------------------------------------------------------
@@ -65,20 +67,20 @@ abstract public class IFG {
     // - At block head, "push" the new live-out to prior blocks.
     // - - If they pick up new live-outs, put them on the worklist.
 
-    public static boolean build( int round, RegAlloc alloc ) {
+    public boolean build( int round, RegAlloc alloc ) {
         // Reset all to empty
         resetBBLiveOut();
         resetIFG();
-        WORK.clear();
+        _work.clear();
 
         // Last block has nothing live out
         for( CFGNode bb : alloc._cfg )
             if( bb.blockHead())
-                WORK.push( bb );
+                _work.push( bb );
 
         // Process blocks until no more changes
-        while( !WORK.isEmpty() )
-            do_block(round,alloc,WORK.pop());
+        while( !_work.isEmpty() )
+            do_block(round,alloc,_work.pop());
 
         if( alloc.success() )
             convert2DAdjacency(alloc);
@@ -86,12 +88,12 @@ abstract public class IFG {
     }
 
     // Walk one block backwards, compute live-in from live-out, and build IFG
-    static void do_block( int round, RegAlloc alloc, CFGNode bb ) {
+    private void do_block( int round, RegAlloc alloc, CFGNode bb ) {
         assert bb.blockHead();
-        IdentityHashMap<LRG,Node> live_out = BBOUTS.get(bb);
-        TMP.clear();
+        IdentityHashMap<LRG,Node> live_out = _bbouts.get(bb);
+        _tmp.clear();
         if( live_out != null )
-            TMP.putAll(live_out);   // Copy bits to temp
+            _tmp.putAll(live_out);   // Copy bits to temp
 
         // A backwards walk over instructions in the basic block
         for( int inum = bb.nOuts()-1; inum >= 0; inum-- ) {
@@ -118,14 +120,14 @@ abstract public class IFG {
             mergeLiveOut(alloc,bb,0);
     }
 
-    private static void do_node(RegAlloc alloc, Node n) {
+    private void do_node(RegAlloc alloc, Node n) {
         // Defining means killing live LRG
         LRG lrg = alloc.lrg(n);
         if( lrg != null ) {
             // Check for def-side self-conflict live ranges.  These must split,
             // and only happens during the first round a particular LRG splits.
             selfConflict(alloc,n,lrg);
-            TMP.remove(lrg);    // Kill def
+            _tmp.remove(lrg);    // Kill def
         }
 
         // Phis use and define the same live range, i.e. these LRGs already
@@ -141,7 +143,7 @@ abstract public class IFG {
         // Interfere n with all live
         if( lrg!=null ) {
             // Interfere n with all live
-            for( LRG tlrg : TMP.keySet() ) {
+            for( LRG tlrg : _tmp.keySet() ) {
                 assert tlrg.leader();
                 // Skip self
                 if( lrg != tlrg &&
@@ -177,7 +179,7 @@ abstract public class IFG {
             selfConflict(alloc,def,lrg1);
 
             // All operands are live together, regardless of their input order.
-            TMP.put(lrg1,def);
+            _tmp.put(lrg1,def);
         }
 
         // Check fixed-register uses after gathering every operand. An indirect
@@ -191,9 +193,9 @@ abstract public class IFG {
                 RegMask ni_mask = m.regmap(i);
                 if( ni_mask!=null && ni_mask.size1() ) { // Must-use single register
                     // Search all current live
-                    for( LRG tlrg : TMP.keySet() ) {
+                    for( LRG tlrg : _tmp.keySet() ) {
                         assert tlrg.leader();
-                        Node live = TMP.get(tlrg);
+                        Node live = _tmp.get(tlrg);
                         if( live != def && live instanceof MachNode lmach && lmach.outregmap().overlap(ni_mask) ) {
                             // Deny the register, since it absolutely must be used here
                             if( !tlrg.clr(ni_mask.firstReg()) )
@@ -210,15 +212,15 @@ abstract public class IFG {
     // Single-register defines *must* have their register; other live ranges
     // *must* avoid this register, so instead of interfering we remove the
     // single register from the other rmask.
-    private static void kills( RegAlloc alloc, MachNode m ) {
+    private void kills( RegAlloc alloc, MachNode m ) {
         RegMask killMask = m.killmap();
         if( killMask==null ) return;
         // Kill registers with all live
-        for( LRG tlrg : TMP.keySet() ) {
+        for( LRG tlrg : _tmp.keySet() ) {
             assert tlrg.leader();
             // Always, tlrg cannot use kills
             if( tlrg._mask.overlap(killMask) ) {
-                Node live = TMP.get(tlrg);
+                Node live = _tmp.get(tlrg);
                 // Disallow clone-ables from living across killed registers.
                 // Fail them and let splitting re-clone closer to the target use.
                 if( live instanceof MachNode mach && mach.isClone() )
@@ -231,8 +233,8 @@ abstract public class IFG {
 
     // Check for self-conflict live ranges.  These must split, and only happens
     // during the first round a particular LRG splits.
-    private static void selfConflict(RegAlloc alloc, Node n, LRG lrg) {
-        selfConflict(alloc,n,lrg,TMP.get(lrg));
+    private void selfConflict(RegAlloc alloc, Node n, LRG lrg) {
+        selfConflict(alloc,n,lrg,_tmp.get(lrg));
     }
     private static void selfConflict(RegAlloc alloc, Node n, LRG lrg, Node prior) {
         if( prior!=null && prior != n ) {
@@ -242,17 +244,17 @@ abstract public class IFG {
         }
     }
 
-    // Merge TMP into bb's live-out set; if changes put bb on WORK
-    private static void mergeLiveOut( RegAlloc alloc, CFGNode priorbb, int i ) {
+    // Merge _tmp into bb's live-out set; if changes put bb on _work
+    private void mergeLiveOut( RegAlloc alloc, CFGNode priorbb, int i ) {
         CFGNode bb = priorbb.cfg(i);
         if( bb == null ) return; // Start has no prior
         while( !bb.blockHead() ) bb = bb.cfg0();
 
         // Lazy get live-out set for bb
-        IdentityHashMap<LRG, Node> lrgs = BBOUTS.computeIfAbsent( bb, k -> new IdentityHashMap<>() );
+        IdentityHashMap<LRG, Node> lrgs = _bbouts.computeIfAbsent( bb, k -> new IdentityHashMap<>() );
 
-        for( LRG lrg : TMP.keySet() ) {
-            Node def = TMP.get(lrg);
+        for( LRG lrg : _tmp.keySet() ) {
+            Node def = _tmp.get(lrg);
             // Effective def comes from phi input from prior block
             if( def instanceof PhiNode phi && phi.cfg0()==priorbb ) {
                 assert i!=0;
@@ -306,6 +308,9 @@ abstract public class IFG {
     // If there's no spare color we'll have to spill this at-risk live range.
 
     public static boolean color(int round, RegAlloc alloc) {
+        // Coalescing is finished; splitting may change this area next round.
+        FunNode fun = alloc._cfg.at(0).fun();
+        int functionArea = functionArea(fun,alloc);
         int maxlrg = alloc._LRGS.length, nlrgs=0;
         for( int i=1; i<maxlrg; i++ )
             if( alloc._LRGS[i] != null )
@@ -325,6 +330,7 @@ abstract public class IFG {
         for( int i=0, j=0; i<maxlrg; i++ ) {
             LRG lrg = alloc._LRGS[i];
             if( lrg==null ) continue; // Unified lrgs are null here
+            assert lrg._fun==fun;
             color_stack[j++] = lrg;
             if( lrg.lowDegree() ) swap(color_stack, swork++, j-1);
         }
@@ -332,7 +338,7 @@ abstract public class IFG {
         // Pull all lrgs from IFG, in trivial order if possible
         while( sptr < color_stack.length ) {
             // Swap best color up front
-            pickColor(color_stack,sptr,swork,alloc);
+            pickColor(color_stack,sptr,swork,functionArea);
 
             // Pick a trivial lrg, and (temporarily) remove from the IFG.
             LRG lrg = color_stack[sptr++];
@@ -388,10 +394,10 @@ abstract public class IFG {
     }
 
     // Pick LRG from color stack
-    private static void pickColor(LRG[] color_stack, int sptr, int swork, RegAlloc alloc) {
+    private static void pickColor(LRG[] color_stack, int sptr, int swork, int functionArea) {
         // Out of trivial colorable, pick an at-risk to pull
         if( sptr==swork )
-            swap(color_stack,sptr,pickRisky(color_stack,sptr,alloc));
+            swap(color_stack,sptr,pickRisky(color_stack,sptr,functionArea));
         // When coloring, we'd like to give more choices; so when coloring we'd
         // like to see the single-def first (since no choices anyway), then
         // non-split related (so more live ranges get colored), then
@@ -426,12 +432,12 @@ abstract public class IFG {
 
     // Pick a live range that hasn't already spilled, or has a single-def-
     // single-use that are not adjacent.
-    private static int pickRisky( LRG[] color_stack, int sptr, RegAlloc alloc ) {
+    private static int pickRisky( LRG[] color_stack, int sptr, int functionArea ) {
         int best=sptr;
-        int bestScore = pickRiskyScore(color_stack[best],alloc);
+        int bestScore = pickRiskyScore(color_stack[best],functionArea);
         for( int i=sptr+1; i<color_stack.length; i++ ) {
             if( bestScore == 1000000 ) return best; // Already max score
-            int iScore = pickRiskyScore(color_stack[i],alloc);
+            int iScore = pickRiskyScore(color_stack[i],functionArea);
             if( iScore > bestScore )
                 { best = i; bestScore = iScore; }
         }
@@ -446,16 +452,16 @@ abstract public class IFG {
     //
     // Picking a live range that is very close to coloring might allow it to
     // color despite being risky.
-    private static int pickRiskyScore( LRG lrg, RegAlloc alloc ) {
+    private static int pickRiskyScore( LRG lrg, int functionArea ) {
         // Callee-save live ranges cover the whole function and are cheap to
         // split.  Rank scheduled area recovered against the loop-scaled cost
         // of the def- and use-side moves.
         if( lrg._machDef instanceof CalleeSaveNode )
-            return areaScore(functionArea(lrg._fun,alloc),
+            return areaScore(functionArea,
                              splitCost((Node)lrg._machDef,(Node)lrg._machUse));
         if( lrg._splitDef != null && lrg._splitDef. in(1) instanceof CalleeSaveNode &&
             lrg._splitUse != null && lrg._splitUse.out(0) instanceof ReturnNode )
-            return areaScore(functionArea(lrg._fun,alloc),
+            return areaScore(functionArea,
                              splitCost(lrg._splitDef,lrg._splitUse));
 
         // Pick single-def clonables that are not right next to their single-use.
@@ -465,7 +471,7 @@ abstract public class IFG {
             Node use = ((Node)lrg._machUse);
             CFGNode cfg = def.cfg0();
             int area = cfg != use.cfg0()
-                ? functionArea(lrg._fun,alloc)
+                ? functionArea
                 : cfg._outputs.find(use)-cfg._outputs.find(def)-1;
             // A single-use function address can move next to its use without
             // adding an instruction.  Prefer that to saving a callee-save
