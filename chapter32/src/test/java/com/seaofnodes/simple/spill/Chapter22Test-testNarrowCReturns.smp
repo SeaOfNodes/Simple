@@ -1,0 +1,12 @@
+{i8} c_i8="C"; {u8} c_u8="C";
+{i16} c_i16="C"; {u16} c_u16="C";
+{i32} c_i32="C"; {u32} c_u32="C";
+{int} c_i64="C";
+val test_i8={->return c_i8();};
+val test_u8={->return c_u8();};
+val test_i16={->return c_i16();};
+val test_u16={->return c_u16();};
+val test_i32={->return c_i32();};
+val test_u32={->return c_u32();};
+val test_i64={->return c_i64();};
+val test_cmp={->return c_i32()==-1;};

@@ -2,7 +2,8 @@
 
 [English](README.md) | 日本語
 
-[前の章：第30章 — テキスト整形と診断](../chapter30/README.ja.md)
+[前の章：第30章 — テキスト整形と診断](../chapter30/README.ja.md) |
+[次の章：第32章 — コンパイラ内部の高速化](../chapter32/README.ja.md)
 
 第30章で完成したコンパイラと標準ライブラリを出発点とする章です。
 Simple で描画する `sys.draw.Canvas` と、MiniFB を使うオプションの

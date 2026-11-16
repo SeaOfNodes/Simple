@@ -1,0 +1,201 @@
+struct Canvas {
+    u32 !width;
+    u32 !height;
+    u32[] !pixels;
+    // Layout coordinates are relative to the constructor's base size.
+    // A single float scale preserves circles and game geometry on resize.
+    u32 baseWidth, baseHeight;
+    f64 scale = 1.0;
+    int offsetX = 0, offsetY = 0;
+
+    new Canvas = { u32 w, u32 h ->
+        if( w > sys.integer.MAX_I32 || h > sys.integer.MAX_I32 ) libc._exit(1);
+        i64 count = w;
+        count *= h;
+        if( w <= 0 || h <= 0 || count > sys.integer.MAX_I32 ) libc._exit(1);
+        width = w;
+        height = h;
+        baseWidth = w;
+        baseHeight = h;
+        pixels = new u32[count];
+    };
+
+    // Ignore minimized windows. Return true only when a redraw is needed.
+    val resize = { u32 w, u32 h ->
+        if( w == 0 || h == 0 || (w == width && h == height) ) return false;
+        if( w > sys.integer.MAX_I32 || h > sys.integer.MAX_I32 ) libc._exit(1);
+        i64 count = w; count *= h;
+        if( count > sys.integer.MAX_I32 ) libc._exit(1);
+        // Reuse storage while dragging. Geometric growth bounds total allocation
+        // even in the current runtime, which does not yet collect old arrays.
+        if( count > pixels# ) {
+            i64 capacity = pixels#*2;
+            if( capacity < count ) capacity = count;
+            if( capacity > sys.integer.MAX_I32 ) capacity = sys.integer.MAX_I32;
+            pixels = new u32[capacity];
+        }
+        width = w; height = h;
+        f64 sx = w*1.0/baseWidth, sy = h*1.0/baseHeight;
+        scale = sx < sy ? sx : sy;
+        offsetX = (w-baseWidth*scale)/2;
+        offsetY = (h-baseHeight*scale)/2;
+        return true;
+    };
+
+    // Inverse of the drawing transform. Margins are outside the layout;
+    // reject them before integer truncation can turn a small negative into 0.
+    val localX = { int x ->
+        if( x < offsetX || x >= offsetX+baseWidth*scale ) return -1;
+        int local = (x-offsetX)/scale;
+        return local;
+    };
+    val localY = { int y ->
+        if( y < offsetY || y >= offsetY+baseHeight*scale ) return -1;
+        int local = (y-offsetY)/scale;
+        return local;
+    };
+
+    val clear = { u32 color ->
+        i64 count = width; count *= height;
+        for( int i = 0; i < count; i++ ) pixels[i] = color;
+        return self;
+    };
+
+    val pixel = { i64 x, i64 y, u32 color ->
+        return fillRect(x,y,1,1,color);
+    };
+
+    // Integer coordinates, top-left origin. Rectangle extents are half-open.
+    val fillRect = { i64 x, i64 y, i64 w, i64 h, u32 color ->
+        if( w <= 0 || h <= 0 ) return self;
+        i64 right = offsetX+(x+w)*scale;
+        i64 bottom = offsetY+(y+h)*scale;
+        x = offsetX+x*scale; y = offsetY+y*scale;
+        if( right <= 0 || bottom <= 0 || x >= width || y >= height ) return self;
+        int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y;
+        int x1 = right > width ? width : right, y1 = bottom > height ? height : bottom;
+        for( int py = y0; py < y1; py++ )
+            for( int px = x0; px < x1; px++ ) pixels[py*width+px] = color;
+        return self;
+    };
+
+    // Outline stays inside the rectangle. Wide borders become a filled rect.
+    val rect = { i64 x, i64 y, i64 w, i64 h, i64 thickness, u32 color ->
+        if( w <= 0 || h <= 0 || thickness <= 0 ) return self;
+        if( thickness >= w || thickness >= h || thickness >= w-thickness || thickness >= h-thickness )
+            return fillRect(x,y,w,h,color);
+        fillRect(x,y,w,thickness,color);
+        fillRect(x,y+h-thickness,w,thickness,color);
+        fillRect(x,y+thickness,thickness,h-2*thickness,color);
+        return fillRect(x+w-thickness,y+thickness,thickness,h-2*thickness,color);
+    };
+
+    // Integer centers are pixel centers. Circle outlines extend inward.
+    val fillCircle = { i64 cx, i64 cy, int radius, u32 color ->
+        return _circle(cx,cy,radius,0,true,color);
+    };
+    val circle = { i64 cx, i64 cy, int radius, int thickness, u32 color ->
+        return _circle(cx,cy,radius,thickness,false,color);
+    };
+    val _circle = { i64 cx, i64 cy, int radius, int thickness, bool filled, u32 color ->
+        if( radius < 0 || (!filled && thickness <= 0) ) return self;
+        cx = offsetX+cx*scale; cy = offsetY+cy*scale;
+        radius *= scale;
+        thickness *= scale;
+        if( !filled && thickness < 1 ) thickness = 1;
+        i64 left = cx; left -= radius;
+        i64 top = cy; top -= radius;
+        i64 right = cx; right += radius;
+        i64 bottom = cy; bottom += radius;
+        if( right < 0 || bottom < 0 || left >= width || top >= height ) return self;
+        int x0 = left < 0 ? 0 : left, y0 = top < 0 ? 0 : top;
+        int x1 = right >= width ? width-1 : right, y1 = bottom >= height ? height-1 : bottom;
+        i64 outer2 = radius;
+        outer2 *= radius;
+        i64 inner = filled ? -1 : radius-thickness;
+        for( int py = y0; py <= y1; py++ )
+            for( int px = x0; px <= x1; px++ ) {
+                i64 dx = px; dx -= cx;
+                i64 dy = py; dy -= cy;
+                i64 d2 = dx*dx+dy*dy;
+                if( d2 <= outer2 && (inner <= 0 || d2 > inner*inner) ) pixels[py*width+px] = color;
+            }
+        return self;
+    };
+
+    // Round caps; a zero-length segment is a dot. Only the clipped bounding
+    // box is scanned. Floating distances avoid overflowing coordinate squares.
+    val line = { i64 x0, i64 y0, i64 x1, i64 y1, i64 thickness, u32 color ->
+        if( thickness <= 0 ) return self;
+        x0 = offsetX+x0*scale; y0 = offsetY+y0*scale;
+        x1 = offsetX+x1*scale; y1 = offsetY+y1*scale;
+        thickness *= scale;
+        if( thickness < 1 ) thickness = 1;
+        i64 pad = thickness/2+1;
+        i64 left = x0 < x1 ? x0 : x1; left -= pad;
+        i64 top = y0 < y1 ? y0 : y1; top -= pad;
+        i64 right = x0 > x1 ? x0 : x1; right += pad;
+        i64 bottom = y0 > y1 ? y0 : y1; bottom += pad;
+        if( right < 0 || bottom < 0 || left >= width || top >= height ) return self;
+        int bx0 = left < 0 ? 0 : left, by0 = top < 0 ? 0 : top;
+        int bx1 = right >= width ? width-1 : right, by1 = bottom >= height ? height-1 : bottom;
+        for( int py = by0; py <= by1; py++ )
+            for( int px = bx0; px <= bx1; px++ )
+                if( _onLine(px,py,x0,y0,x1,y1,thickness) ) pixels[py*width+px] = color;
+        return self;
+    };
+
+    // Small 3x5 bitmap font for game labels. Lowercase maps to uppercase.
+    // Newline returns to x; unsupported characters draw a question mark.
+    val text = { i64 x, i64 y, u8[~] str, int scale, u32 color ->
+        if( scale <= 0 ) return self;
+        i64 px = x, py = y;
+        for( int i = 0; i < str#; i++ ) {
+            u8 c = str[i];
+            if( c == '\n' ) { px = x; py += 6*scale; continue; }
+            int bits = _glyph(c);
+            for( int row = 0; row < 5; row++ )
+                for( int col = 0; col < 3; col++ )
+                    if( (bits >> (14-row*3-col)) & 1 )
+                        fillRect(px+col*scale,py+row*scale,scale,scale,color);
+            px += 4*scale;
+        }
+        return self;
+    };
+};
+
+// An old-school 3x5 font, ASCII 32..127. Five octal row digits need u16.
+// Lowercase uses uppercase shapes; unsupported characters use '?'.
+val _glyphs = new u16[~96]{
+    000000,022202,055000,057575,061202,051245,061202,022000, // space..'
+    012221,042224,005250,002720,000024,000700,000002,011244, // (../
+    075557,026227,061247,061216,055711,074616,034757,071222, // 0..7
+    075757,075716,002020,002024,012421,007070,042124,061202, // 8..?
+    061202,025755,065656,034443,065556,074647,074644,034553, // @..G
+    055755,072227,011152,055655,044447,057755,057775,025552, // H..O
+    065644,025573,065655,034216,072222,055557,055552,055775, // P..W
+    055255,055222,071247,032223,044211,062226,025000,000007, // X.._
+    042000,025755,065656,034443,065556,074647,074644,034553, // `..g
+    055755,072227,011152,055655,044447,057755,057775,025552, // h..o
+    065644,025573,065655,034216,072222,055557,055552,055775, // p..w
+    055255,055222,071247,032423,022222,062126,003600,061202, // x..DEL
+};
+
+val _glyph = { u8 c ->
+    return 32 <= c < 128 ? _glyphs[c-32] : 061202;
+};
+
+// Pixel coverage for a round-ended segment, separate from traversal.
+val _onLine = { i64 px, i64 py, i64 x0, i64 y0, i64 x1, i64 y1, i64 thickness ->
+    f64 dx = x1; dx -= x0;
+    f64 dy = y1; dy -= y0;
+    f64 vx = px; vx -= x0;
+    f64 vy = py; vy -= y0;
+    f64 length2 = dx*dx+dy*dy;
+    bool point = x0 == x1 && y0 == y1;
+    f64 t = point ? 0.0 : (vx*dx+vy*dy)/length2;
+    t = t < 0 ? 0.0 : t > 1 ? 1.0 : t;
+    f64 ex = vx-t*dx, ey = vy-t*dy;
+    f64 half = thickness/2.0;
+    return ex*ex+ey*ey <= half*half;
+};

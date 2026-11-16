@@ -1,6 +1,7 @@
 # Chapter 31: Software Drawing, Time, and Graphical Games
 
-[Previous: Chapter 30 — Text Formatting and Diagnostics](../chapter30/README.md)
+[Previous: Chapter 30 — Text Formatting and Diagnostics](../chapter30/README.md) |
+[Next: Chapter 32 — Compiler Internal Speedups](../chapter32/README.md)
 
 In this chapter we use small graphical games to drive the language and library
 work.  We add graphics, sound, and time support, with a few small C adapters
@@ -182,7 +183,7 @@ that library. See the native references for
 [trigonometry](https://sourceware.org/glibc/manual/2.43/html_node/Trig-Functions.html)
 and [exponents, logarithms, and square roots](https://sourceware.org/glibc/manual/latest/html_node/Exponents-and-Logarithms.html).
 They remain ordinary C calls, so they are not constant-folded or discarded as
-pure intrinsics. Clock uses `sin` and `cos` for its dial and hands.
+pure intrinsics.  Clock uses `sin` and `cos` for its dial and hands.
 `make test CLASS=MathTest` checks native results, special values, indirect calls,
 and code generation for all three targets.
 
@@ -225,10 +226,10 @@ to preserve representations without aliasing tricks. A replacement definition
 must honor the same contract. Ordinary C functions remain opaque to the optimizer.
 
 The ideal nodes support constant folding, inverse cancellation, evaluation, and
-serialization. Floating-point constant interning and serialization retain raw
-NaN bits. x86 emits `MOVQ` between XMM and integer registers; ARM emits `FMOV`,
-and RISC-V emits `FMV.X.D` / `FMV.D.X`. Register allocation may add copies or
-spills, and normal module-initialization checks still apply.
+serialization.  Floating-point constant interning and serialization retain raw
+NaN bits.  x86 emits `MOVQ` between XMM and integer registers; ARM emits
+`FMOV`, and RISC-V emits `FMV.X.D` / `FMV.D.X`.  Register allocation may add
+copies or spills, and normal module-initialization checks still apply.
 
 Future intrinsics such as compare-and-swap or fences must define their memory
 and escape effects explicitly, using nodes with the required ordering
@@ -257,6 +258,7 @@ Simple also now recognizes hexadecimal (`0xff0000`) and leading-zero octal
 - Imported read-only primitive arrays retain their types.  Object files can
   represent more than 255 distinct memory regions.
 - Floating-point constants and register copies preserve raw NaN bits.
+- Fixed X86 combined Load+Cmp op scheduling.
 
 ## Further reading
 

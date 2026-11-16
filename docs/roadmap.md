@@ -7,6 +7,10 @@ snapshots on 2026-11-08. These are future changes, not promises about the
 language implemented by the tutorial. Language changes still need their own
 design decisions and chapter boundaries.
 
+Current implementation work is in [Chapter 32](../chapter32/README.md), focused
+on compiler and test-runtime costs. Chapter 31 is the completed graphics, games,
+and library snapshot.
+
 ## Contents
 
 - [Compilation and optimization](#compilation-and-optimization) — diagnostics, analysis costs, builds, loading, and code quality.

@@ -1,0 +1,13 @@
+// Calendar view of an instant. Month/day start at 1; weekday is Sunday=0.
+// year==0 means out of the supported calendar range (years 1 through 9999).
+
+// All values default zero/false
+struct DateTime {
+    int year, month, day;
+    int hour, minute, second, millisecond;
+    int weekday, offsetSeconds;
+    bool daylight;
+};
+
+// Factory in the defining unit, so callers need no forward instance type.
+val empty = { -> new DateTime(); };

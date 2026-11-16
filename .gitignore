@@ -30,6 +30,9 @@ TAGS
 /chapter31/lib/minifb-*/
 /chapter31/lib/minifb-*.tar.gz
 /chapter31/lib/miniaudio-*/
+/chapter32/lib/minifb-*/
+/chapter32/lib/minifb-*.tar.gz
+/chapter32/lib/miniaudio-*/
 
 # Portable IDEA descriptors; personal IDE settings stay ignored.
 !chapter*/*.iml

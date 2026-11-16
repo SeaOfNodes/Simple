@@ -20,8 +20,15 @@ On 2026-11-08, Cliff merged and pushed Chapter 30, then requested
 [Chapter 31](../chapter31/README.md) on branch `ch31`. It starts from the
 completed Chapter 30 compiler. Chapter 31 develops software drawing, audio,
 time and math libraries, array initialization and static data, and graphical
-games including tic-tac-toe and Breakout. New work belongs in `chapter31/`,
+games including tic-tac-toe and Breakout. That work completed in `chapter31/`,
 preserving Chapter 30 as the preceding snapshot.
+
+On 2026-11-15, Cliff closed Chapter 31 as the graphics, games, and library
+snapshot and requested [Chapter 32: Compiler Internal Speedups](../chapter32/README.md)
+on branch `ch32`. Move the test parallelism/JVM sizing, shallow type queries,
+verification sampling, and worklist filtering into the new complete snapshot.
+Keep the completed graphics/library code, including current runtime-argument
+and README edits, in Chapter 31. New compiler work belongs in `chapter32/`.
 
 | Previous directory | Final chapter |
 |---|---|

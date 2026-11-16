@@ -33,9 +33,24 @@ field shapes, existing Iter/SCCP propagates them, and TypeCheck checks and erase
 the views. Borrowed partials can read proven fields but cannot write; unknown
 callers promise no initialized fields. No new passes or backward demand walks.
 
-## Chapter 31: restart guidance (2026-11-14)
+## Chapter 32: restart guidance (2026-11-15)
 
-Continue work in `chapter31/`; preserve the preceding chapter snapshots.
+Continue in `chapter32/` on branch `ch32`. Chapter 31 is complete as the
+graphics, games, and library snapshot; keep its compiler before the speedups.
+The chapter32 README teaches the current performance work: parallel test JVMs
+and lattice partitions, shallow isConstant/isFinal, log-10 verification, and
+narrow worklist notifications. It also records measurements and next targets.
+Each snapshot remains independently runnable. Retain native coverage and the
+existing Make/JUnit harness; use identity maps for Node bookkeeping.
+
+The copied local profiling scripts and evidence are under chapter32/build/test-profile,
+outside the tracked compiler. Full tests passed before the move at default and
+log-8 verification, with focused regressions at log 1. These are dated results.
+Read current Git state; the chapter split does not imply a commit or push.
+
+## Chapter 31: completed snapshot (2026-11-14 guidance, superseded by Chapter 32)
+
+Chapter 31 is complete; preserve it and the preceding chapter snapshots.
 There is no unfinished task from this session. Check Git status before editing:
 Cliff is actively refactoring Breakout and editing README/Canvas alongside us.
 Preserve those edits and let him do the game-method moves himself. No commit,
@@ -169,7 +184,7 @@ arbitrary TypePtr values at outside escapes.
 ## Chapter 29 parser snapshot (historical)
 
 Chapter 29 is **Tech Debt Cleanup**. Cliff approved keeping the parser split
-and moving it into that snapshot; current work belongs in Chapter 31. Chapter 28b
+and moving it into that snapshot; current work belongs in Chapter 32. Chapter 28b
 retains the original parser. The new `parser/` package follows the grammar;
 `Var` belongs there and `IterPeeps` belongs in `codegen/`.
 

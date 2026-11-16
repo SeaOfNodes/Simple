@@ -10,7 +10,7 @@
     </parent>
     <artifactId>chapter31</artifactId>
     <packaging>jar</packaging>
-    <name>Work in Progress</name>
+    <name>Software Drawing, Games, and Libraries</name>
     <properties>
         <simple.graph.directory>${project.basedir}/../graph</simple.graph.directory>
         <simple.print.directory>${project.basedir}/../print</simple.print.directory>
