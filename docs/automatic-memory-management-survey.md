@@ -186,7 +186,23 @@ issues.
 
 ### Cliff: constructor Stores and final-field optimization
 
-I want to drill into the opts allowed on a final-field with a delete-and-reused value. The change has to come by a Store in the constructor, so any optimization restrictoin should be limited to the constructor (including inlining it), which can be done with an empty "memory barrier" kind of Node. `val p = old; delete(old); new Thing() { fin_fld = "change"; print(p.fin_fld); /*read old fin_fld after writing*/`. If we deny the p.fin_fld read from bypassing the store, then essentially we've declared "old==new" Thing at the allocation top. What other issues arise and how do they pan out (because user-visible for recycling final fields)?
+I want to drill into the opts allowed on a final-field with a delete-and-reused
+value. The change has to come by a Store in the constructor, so any
+optimization restriction should be limited to the constructor (including
+inlining it), which can be done with an empty "memory barrier" kind of Node.
+
+```java
+val p = old;
+delete(old);
+new Thing =  { ->
+    fin_fld = "change";
+    print(p.fin_fld); /*read old fin_fld after writing*/
+};
+```.
+
+If we deny the p.fin_fld read from bypassing the store, then essentially we've
+declared "old==new" Thing at the allocation top. What other issues arise and
+how do they pan out (because user-visible for recycling final fields)?
 
 ### Assistant: initial analysis under stronger coherence assumptions
 
@@ -377,5 +393,42 @@ Three concrete problems:
    We would need to delay that field Store until the child is sufficiently initialized, reject the construction pattern, or prevent the callback from observing it.
 
 These problems share one requirement: every field observable through a stale reference must always contain a safely usable value of its declared type. Keeping old values during reconstruction helps considerably, but the third case is where Simple’s existing partial-construction rules need particular attention.
+
+--------------------------------------------------------
+
+
+(1) - Solved with e.g. ArrayList/Vector/seperate_metadata of free items
+(2) - Delete does not wipe any fields.
+(3) - Yeah, dunno how to solve that directly.  Could be we restrict classes that are "deletable" in some ways; no nested-unfinished allocations
+
+Me trying to expand your example above...
+
+```simple
+new Foo = { ->
+    child = new Child(self);
+    helper(); // uses old.child.notnull and sees self.child.notnull
+    notnull = some_prior_thing;
+};
+```
+
+Things coming off the free list *already* are type-safe, so the above example,
+`helper` expects at least the guarantees it gets from any `old` thing, which is
+true for things from the free list.
+
+So - counter-example me here, or declare this is "OK"
+
+I think we should ascribe solid semantics for "Simple plus `delete`" language.
+Without `delete` the rules are as-is.  With delete some things change:
+
+- Object used after delete can have *any* field change value, to another legal
+  value, including final fields.  No "undefined behavior", but yes "final
+  can change" and "writing into my new private object rewrote this old object".
+
+- Legal to ask `if( new==old )` and have it return `true`
+
+- New objects have the old prior semantics: you cannot read an uninitiualized
+  field; even indirectly through a chain of ptrs.  Fields always hold valid
+  values, including not-null fields.  Same normal restrictions for a set of
+  nested iner-locking allocations.
 
 --------------------------------------------------------
