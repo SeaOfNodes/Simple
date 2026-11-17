@@ -1,0 +1,1 @@
+return {int i, flt f, int j->return i+f+j;};

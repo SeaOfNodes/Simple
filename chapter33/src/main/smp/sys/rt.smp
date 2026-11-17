@@ -1,0 +1,3 @@
+// Run Time support: "rt" has the same meaning as Java's rt.jar or C's crt.o.
+// Native entry helpers are compiled and linked independently of ordinary sys
+// imports, so programs without library imports can use the same startup code.

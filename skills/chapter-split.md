@@ -28,7 +28,14 @@ snapshot and requested [Chapter 32: Compiler Internal Speedups](../chapter32/REA
 on branch `ch32`. Move the test parallelism/JVM sizing, shallow type queries,
 verification sampling, and worklist filtering into the new complete snapshot.
 Keep the completed graphics/library code, including current runtime-argument
-and README edits, in Chapter 31. New compiler work belongs in `chapter32/`.
+and README edits, in Chapter 31.
+
+On 2026-11-16, Cliff closed Chapter 32 and requested rebasing `ch32` onto
+`main`, then starting [Chapter 33](../chapter33/README.md) on branch `ch33`.
+Chapter 33 starts from the complete Chapter 32 compiler. Cliff subsequently
+selected automatic memory management as its topic; the design remains open.
+New compiler work belongs in `chapter33/`. Preserve Chapter 32 as the
+completed compiler-speedup and faster-testing snapshot.
 
 | Previous directory | Final chapter |
 |---|---|

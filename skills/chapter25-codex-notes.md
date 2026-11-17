@@ -33,7 +33,22 @@ field shapes, existing Iter/SCCP propagates them, and TypeCheck checks and erase
 the views. Borrowed partials can read proven fields but cannot write; unknown
 callers promise no initialized fields. No new passes or backward demand walks.
 
-## Chapter 32: restart guidance (2026-11-15)
+## Chapter 33: restart guidance (2026-11-16)
+
+Cliff closed Chapter 32 and requested `ch32` rebased onto `main`, then a new
+complete snapshot on branch `ch33`. Continue in `chapter33/`. Cliff selected
+automatic memory management as the next topic, with the design still open.
+The latest request is cleanup and preparation for that task, not implementation.
+Do not treat earlier roadmap sketches as a chosen lifetime mechanism.
+Preserve Chapter 32's compiler and performance narrative.
+The test commands and invariants below also apply to Chapter 33.
+
+The initial Chapter 33 snapshot passed `make -j8 tests` (819 executions) and
+`make -j8 release`. Subsequent edits only update documentation and the Maven
+display name. The chapter cut and roadmap cleanup remain uncommitted; check
+Git status on restart. No push was requested.
+
+## Chapter 32: completed snapshot (2026-11-15 guidance)
 
 Use `make -j8 tests` as the normal validation/timing command going forward.
 The November 16 sweep found both `-j4` and `-j16` slower on this Windows host;
@@ -60,7 +75,7 @@ factoring guards, type checks, and dependency direction. The chapter5 README
 teaches the rule; chapter32 retains the investigation and measurements. No
 allocator scoring experiments were adopted or backported.
 
-Continue in `chapter32/` on branch `ch32`. Chapter 31 is complete as the
+Chapter 32 is complete. Chapter 31 is complete as the
 graphics, games, and library snapshot; keep its compiler before the speedups.
 The chapter32 README teaches the current performance work: parallel test JVMs
 and lattice partitions, shallow isConstant/isFinal, log-10 verification, and

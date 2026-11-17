@@ -4,6 +4,8 @@ English | [日本語](README.ja.md)
 
 [Previous: Chapter 31 — Software Drawing, Time, and Graphical Games](../chapter31/README.md)
 
+[Next: Chapter 33](../chapter33/README.md)
+
 The games and libraries from chapter 31 made both compiling and testing slow
 enough to interrupt development. This chapter makes room for future work:
 faster feedback for Simple's developers, and faster compilation for its users.

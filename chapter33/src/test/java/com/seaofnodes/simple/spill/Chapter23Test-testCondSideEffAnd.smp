@@ -1,0 +1,17 @@
+{i32 i64 u32 -> u32} write="C";
+val _p={u8[~] str -> i64 ptr=str; return write(1,ptr,str#);};
+int a = 1;
+int b = 1;
+
+int x=1;
+int y=1;
+int z=0;
+
+int g = x++ && y++ && z++;
+
+if(x == 2 && y == 2 && z == 1 && g == 0) {
+    _p("Effected");
+} else {
+    _p("Not effected");
+}
+return 0;

@@ -71,7 +71,8 @@ Simple 言語のスタイルは、C または Java のサブセットに倣っ�
 * [第29章](chapter29/README.ja.md)：技術的負債の整理
 * [第30章](chapter30/README.ja.md)：テキスト整形と診断
 * [第31章](chapter31/README.ja.md)：ソフトウェア描画、ゲーム、ライブラリ
-* [第32章](chapter32/README.ja.md)：コンパイラ内部の高速化（作業中）
+* [第32章](chapter32/README.ja.md)：コンパイラ内部の高速化
+* [第33章](chapter33/README.ja.md)：自動メモリ管理（作業中）
 
 付録：[ネイティブライブラリ](docs/appendices/native-libraries.md)、
 [最適化とバックエンドの調整](docs/appendices/optimizer-tuning.ja.md)。

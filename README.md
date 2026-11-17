@@ -85,7 +85,8 @@ The Simple language is styled after a subset of C or Java.
 * [Chapter 29](chapter29/README.md): Tech Debt Cleanup, Partial Objects
 * [Chapter 30](chapter30/README.md): Text Formatting and Diagnostics
 * [Chapter 31](chapter31/README.md): Software Drawing, Games, and Libraries
-* [Chapter 32](chapter32/README.md): Compiler Internal Speedups (work in progress)
+* [Chapter 32](chapter32/README.md): Compiler Internal Speedups
+* [Chapter 33](chapter33/README.md): Automatic Memory Management (work in progress)
 
 Appendices: [Native libraries](docs/appendices/native-libraries.md),
 [optimizer and backend tuning](docs/appendices/optimizer-tuning.md).

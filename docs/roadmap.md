@@ -3,17 +3,20 @@
 English | [日本語](roadmap.ja.md)
 
 Open compiler work and language proposals, reviewed against the current
-snapshots on 2026-11-08. These are future changes, not promises about the
+snapshots on 2026-11-16. These are future changes, not promises about the
 language implemented by the tutorial. Language changes still need their own
 design decisions and chapter boundaries.
 
-Current implementation work is in [Chapter 32](../chapter32/README.md), focused
-on compiler and test-runtime costs. Chapter 31 is the completed graphics, games,
-and library snapshot.
+Current work is in [Chapter 33](../chapter33/README.md), which will explore
+automatic memory management; the design is still open.
+Chapter 32 is the completed compiler-speedup snapshot.
+Chapter 31 completed [graphical games](../chapter31/README.md#games-and-demos),
+[array initializers and read-only arrays](../chapter31/README.md#array-initializers),
+and the supporting libraries.
 
 ## Contents
 
-- [Compilation and optimization](#compilation-and-optimization) — diagnostics, analysis costs, builds, loading, and code quality.
+- [Compilation and optimization](#compilation-and-optimization) — analysis costs, builds, loading, and code quality.
   - [General cleanup](#general-cleanup) - Some general quality-of-life suggestions
   - [Phase ordering and incremental analysis](#phase-ordering-and-incremental-analysis) — scheduling costs, shared escape scans, and late identity precision.
   - [Reliable incremental builds](#reliable-incremental-builds) — input identities, compatibility, and relinking.
@@ -35,9 +38,7 @@ and library snapshot.
 - [Longer-term proposals](#longer-term-language-and-library-proposals) — deferred language and library designs.
   - [Partial-initialization contracts](#inferred-partial-initialization-contracts--deferred) — inferred requirements, nested guarantees, and imported contracts.
   - [Automatic memory management](#automatic-memory-management) — ownership, sharing, cycles, and native retention.
-  - [A graphical game](#a-small-graphical-game) — exercise graphics, keyboard, and audio APIs.
   - [Trailing arrays](#structs-with-trailing-arrays) — inline elements after named fields.
-  - [Array initialization](#array-initialization) — generate each element during allocation.
   - [String libraries](#string-libraries) — ownership, Unicode, and additional representations beyond byte buffers.
   - [Struct values](#struct-values) — inline storage, copying, and by-value calls.
 
@@ -51,8 +52,6 @@ to `CodeGen`.
 Consider whether an allocation-free use of try-with-resources makes keep/unkeep
 pairing clearer; this remains an experiment, not a new resource-management
 convention.
-
-
 
 ### Phase ordering and incremental analysis
 
@@ -73,8 +72,9 @@ Remaining work:
   monotone propagation and imported callback behavior when refining this bound.
 
 Whole-program TypeCheck is acceptable for now; incremental checking is an
-optional later improvement. Expensive assertion walks are outside this
-performance work.
+optional later improvement. [Chapter 32](../chapter32/README.md#wake-nodes-when-something-relevant-changes)
+already reduced expensive verification walks through sampling and removed
+redundant checks; the analysis work above remains open.
 
 ### Reliable incremental builds
 
@@ -396,14 +396,6 @@ Growing such an object requires a replacement allocation. An extra level of
 indirection, as in a growable-buffer wrapper, instead preserves the wrapper's
 identity. Specify ownership before treating a growing call as consuming or
 freeing its receiver.
-
-### Array initialization
-
-Allow an element-producing function at allocation, for example
-`new u8[buffer#, { u32 idx -> buffer[idx] }]`. This would support final arrays
-and fully initialized non-null reference arrays. Define when each element is
-evaluated and when the array can be published. Existing zero-filled array
-allocation does not provide this constructor operation.
 
 ### String libraries
 

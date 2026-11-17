@@ -1,0 +1,45 @@
+package com.seaofnodes.simple.node.cpus.x86_64_v2;
+
+import com.seaofnodes.isa.X86;
+import com.seaofnodes.simple.codegen.*;
+import com.seaofnodes.simple.node.FunNode;
+import com.seaofnodes.simple.node.Node;
+import com.seaofnodes.simple.node.SplitNode;
+import com.seaofnodes.simple.type.Type;
+import com.seaofnodes.simple.type.TypeFloat;
+import com.seaofnodes.simple.type.TypeInteger;
+import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.Utils;
+
+public class SplitX86 extends SplitNode {
+    SplitX86( LRG lrg, String kind, byte round ) { super(lrg,kind,round, new Node[2]); }
+    @Override public RegMask regmap(int i) { return x86_64_v2.SPLIT_MASK; }
+    @Override public RegMask outregmap() { return x86_64_v2.SPLIT_MASK; }
+
+    // Moves among GPRs, XMM registers, and stack slots.
+    @Override public void encoding( Encoding enc ) {
+        short dst=enc.reg(this), src=enc.reg(in(1));
+        assert dst!=x86_64_v2.FLAGS && src!=x86_64_v2.FLAGS;
+        boolean dstX=dst>=x86_64_v2.XMM_OFFSET, srcX=src>=x86_64_v2.XMM_OFFSET;
+        // Stack spills
+        if( dst >= x86_64_v2.MAX_REG ) {
+            int off = fun(enc).computeStackOffset(enc._code,dst);
+            if( src >= x86_64_v2.MAX_REG ) {
+                // Rare stack-stack move.  push [RSP+soff]; pop [RSP+doff]
+                int soff = fun(enc).computeStackOffset(enc._code,src);
+                X86.stackCopy(enc,soff,off);
+                return;
+            }
+            StoreX86.encVal(enc, srcX ? TypeFloat.F64 : TypeInteger.BOT, (short)x86_64_v2.RSP, (short)-1/*index*/, src, off, 0);
+            return;
+        }
+        if( src >= x86_64_v2.MAX_REG ) {
+            int off = fun(enc).computeStackOffset(enc._code,src);
+            LoadX86.enc(enc, dstX ? TypeFloat.F64 : TypeInteger.BOT, dst, (short)x86_64_v2.RSP, (short)-1, off, 0);
+            return;
+        }
+
+        X86.move(enc,dstX,srcX,dstX ? dst-x86_64_v2.XMM_OFFSET : dst,
+                 srcX ? src-x86_64_v2.XMM_OFFSET : src);
+    }
+}

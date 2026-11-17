@@ -1,0 +1,179 @@
+package com.seaofnodes.simple.util;
+
+//import java.util.HashMap;
+import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
+
+// "ByteArrayOutputStream", and Input Stream and not synchronized and has
+// matching pack/unpack strategies.
+public class BAOS {
+
+    private byte[] _buf;
+    private int _len;
+
+    public BAOS() { _buf = new byte[1]; }
+    public BAOS(byte[] buf) { _buf = buf; }
+    public BAOS(byte[] buf, int x) { _buf = buf; _len = x; }
+
+    public byte[] toByteArray() {
+        return Arrays.copyOf(_buf,_len);
+    }
+
+    public byte[] buf() { return _buf; }
+    public int size() { return _len; }
+    public void set( byte[] buf, int len ) { _buf=buf; _len=len; }
+    public void clear() { _len=0; }
+
+    // -----------------------------------------------------------------------
+    // Basic read, write (expand)
+
+    private void grow(int len) {
+        while( _len+len >= _buf.length )
+            _buf = Arrays.copyOf(_buf,_buf.length*2);
+    }
+
+    // Write a byte, grow as needed; silent chop
+    public BAOS write(int b) {
+        grow(1);
+        _buf[_len++] = (byte)b; // Silent chop
+        return this;
+    }
+
+    // Read an UNSIGNED bytes at INDEX, AIOOBE if off end
+    public int read1(int idx) { return _buf[idx] & 0xFF; }
+
+    // Read an UNSIGNED byte, AIOOBE if off end
+    public int read() { return read1(_len++); }
+
+    // write 2 bytes
+    public BAOS write2( int x ) {
+        grow(2);
+        _buf[_len++] = (byte)(x>> 0);
+        _buf[_len++] = (byte)(x>> 8);
+        return this;
+    }
+
+    // Read a u16 in 2 bytes
+    public int read2(int idx) { return read1(idx) | (read1(idx+1)<<8);  }
+    public int read2() { int rez = read2(_len); _len+=2; return rez; }
+
+    // write 4 bytes
+    public BAOS write4( int x ) {
+        grow(4);
+        _buf[_len++] = (byte)(x>> 0);
+        _buf[_len++] = (byte)(x>> 8);
+        _buf[_len++] = (byte)(x>>16);
+        _buf[_len++] = (byte)(x>>24);
+        return this;
+    }
+
+    // Read a i32 in 4 bytes
+    public int read4(int idx) { return read2(idx) | (read2(idx+2)<<16);  }
+    public int read4() { int rez = read4(_len); _len+=4; return rez; }
+
+    // write 8 bytes
+    public BAOS write8( long x ) {
+        write4((int) x     );
+        write4((int)(x>>32));
+        return this;
+    }
+
+    // Read a i64 in 8 bytes
+    public long read8(int idx) { return ((long)read4(idx) & 0xFFFFFFFFL) | ((long)read4(idx+4)<<32); }
+    public long read8() { long rez = read8(_len); _len+=8; return rez; }
+
+    // Write byte array
+    public void write( byte[] bs ) {
+        grow(bs.length);
+        System.arraycopy(bs,0,_buf,_len,bs.length);
+        _len += bs.length;
+    }
+
+    // Read/fill byte array
+    public byte[] read( byte[] bs ) {
+        System.arraycopy(_buf,_len,bs,0,bs.length);
+        _len += bs.length;
+        return bs;
+    }
+
+    // -----------------------------------------------------------------------
+    // Optional profiling for choosing smaller packed representations. Leave
+    // disabled during normal compilation; re-enable when studying .simple size.
+    //private static final HashMap<Long,Integer> PACKED_HISTOGRAM = new HashMap<>();
+    private BAOS histo(long x) {
+        //Integer cnt = PACKED_HISTOGRAM.get(x);
+        //PACKED_HISTOGRAM.put(x,cnt==null ? 1 : cnt+1);
+        return this;
+    }
+
+    // Write a u8 (checked)
+    public void packed1(int x) {
+        assert 0 <= x && x <= 255;
+        histo(x).write(x);
+    }
+
+    public int packed1() { return read(); }
+
+    // Write a u16 (checked)
+    public void packed2(int x) {
+        assert 0 <= x && x <= 65535;
+        (( x <= 254 ) ? write(x) : write(0xFF).write2(x)).histo(x);
+    }
+
+    // Read a packed u16
+    public int packed2() {
+        int x = read();
+        return x==0xFF ? read2() : x;
+    }
+
+    // Signed zigzag varint: -64..63 use one byte, -8192..8191 two,
+    // and the full int range needs at most five. Seven payload bits per byte.
+    public void packed4(int x) {
+        histo(x);
+        int bits = (x<<1) ^ (x>>31);
+        while( (bits & ~127)!=0 ) {
+            write((bits & 127) | 128);
+            bits >>>= 7;
+        }
+        write(bits);
+    }
+
+    // Read a packed i32
+    public int packed4() {
+        int bits=0;
+        for( int shift=0; shift<32; shift+=7 ) {
+            int b = read();
+            if( shift==28 && (b & 0xF0)!=0 )
+                throw new IllegalArgumentException("Packed int overflow");
+            bits |= (b & 127)<<shift;
+            if( (b & 128)==0 ) return (bits>>>1) ^ -(bits & 1);
+        }
+        throw new IllegalArgumentException("Unterminated packed int");
+    }
+
+    // Write a packed i64
+    public void packed8(long x) {
+        ((-127 <= x && x <= 127 ) ? write((int)x) : write(-128).write8(x)).histo(x);
+    }
+
+    // Read a packed i64
+    public long packed8() {
+        int x = _buf[_len++];   // Signed byte read
+        return x== -128 ? read8() : x;
+    }
+
+    public void packedS(String s) {
+        // Strings are bytes, not signed packed integers. Keep ASCII at one
+        // byte per character and agree on the representation of non-ASCII.
+        byte[] utf8 = s.getBytes(StandardCharsets.UTF_8);
+        packed4(utf8.length);
+        write(utf8);
+    }
+
+    public String packedS() {
+        int len = packed4();
+        String s = new String(_buf,_len,len,StandardCharsets.UTF_8).intern();
+        _len += len;
+        return s;
+    }
+}

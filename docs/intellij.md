@@ -36,7 +36,7 @@ intended snapshot.
 
 Tests that compile native code still need the C toolchain on IntelliJ's PATH.
 Tests using the native runtime or saved `sys` library in Chapter 28b and later
-also need the Make prerequisites. Run `make -C chapter32 release`
+also need the Make prerequisites. Run `make -C chapter33 release`
 (or `chapter28b` for that snapshot) before debugging those tests. IntelliJ's Java build does not build the native runtime or library.
 
 For the JUnit working directory and module classpath settings, see
