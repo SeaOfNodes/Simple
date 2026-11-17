@@ -176,4 +176,206 @@ I also agree with atomic replacement as the language rule. Single-threaded execu
 
 The central choice in this proposal is explicit region ownership with mostly inferred reference lifetimes. The programmer chooses the lifetime of a graph; the compiler handles temporary storage and checks the boundaries. That seems like a small enough model to explain, while covering much more than individually stack-shaped objects.
 
+## Follow-up: final fields, stale reads, and reconstruction
+
+Discussion appended on 2026-11-17. The exchanges below preserve the progression
+of the design: Cliff's historical-value rule revises the stronger coherence
+assumptions in the first response. Examples are design sketches, not a claim
+that recycling is implemented. The final exchange lists unresolved type-safety
+issues.
+
+### Cliff: constructor Stores and final-field optimization
+
+I want to drill into the opts allowed on a final-field with a delete-and-reused value. The change has to come by a Store in the constructor, so any optimization restrictoin should be limited to the constructor (including inlining it), which can be done with an empty "memory barrier" kind of Node. `val p = old; delete(old); new Thing() { fin_fld = "change"; print(p.fin_fld); /*read old fin_fld after writing*/`. If we deny the p.fin_fld read from bypassing the store, then essentially we've declared "old==new" Thing at the allocation top. What other issues arise and how do they pan out (because user-visible for recycling final fields)?
+
+### Assistant: initial analysis under stronger coherence assumptions
+
+Yes—the restriction can be anchored at recycling construction. We don’t need to make final fields behave as if arbitrary code could write them. But the constructor’s effects must also reach callers, and recycling changes allocation-freshness assumptions as well as load ordering.
+
+For your example, if allocation selects `old`’s slot, then `self == p` from the start. The store to `self.fin_fld` must reach the subsequent load through `p`, so it prints `"change"`. If another slot is selected, `p` retains its previous contents. Thus the general compiler fact is “may alias”; it becomes equality only when we know which slot was selected.
+
+I see five main consequences.
+
+1. The barrier must connect constructor memory to existing aliases.
+
+   Today Simple explicitly assumes separate allocations cannot alias in [LoadNode.neverAlias](../chapter33/src/main/java/com/seaofnodes/simple/node/LoadNode.java). It also treats construction memory as private until publication.
+
+   Neither assumption holds for a recycled slot. A barrier that merely stops load motion at constructor entry would be insufficient if subsequent constructor Stores still update private memory invisible to `p`.
+
+   Your node could establish the connection between the selected slot and public memory. From there, ordinary Store/Load dependencies should do most of the work. It needs no hardware fence in this single-threaded model.
+
+2. Ordering must work in both directions, including across calls.
+
+   ```text
+   before = p.fin_fld
+   new Thing() { fin_fld = "change"; }
+   after = p.fin_fld
+   ```
+
+   `before` must not sink past the overwrite; `after` must not hoist before it. Inlining must preserve those dependencies. A separately compiled call that can recycle `Thing` must report the corresponding memory effects.
+
+   The useful scope is the affected fields and, where distinguishable, the pool—not all memory.
+
+   | Optimization | When it remains valid |
+   |---|---|
+   | Forward a constructor Store to a Load | Pointers and field match |
+   | Combine repeated final-field Loads | No intervening operation can rewrite that slot |
+   | Hoist a final-field Load out of a loop | The loop cannot recycle its object |
+   | Fold a declared constant shared by every incarnation | Recycling preserves that constant |
+   | Assume two allocations differ | They are proven fresh or otherwise disjoint |
+
+3. Previously learned values must remain tied to memory.
+
+   Consider:
+
+   ```text
+   if (p.fin_fld == 7) {
+       makeAnotherThing();   // possibly recycles p's slot
+       print(p.fin_fld);
+   }
+   ```
+
+   The second load cannot inherit `7` merely because the pointer is unchanged and the field is final. A saved scalar containing the first load remains `7`; a new load might differ.
+
+   This matters if field-value facts have been embedded in pointer types or used for branch elimination. An empty barrier cannot repair an already unconditional constant. The relevant facts must depend on the memory version, or be restricted to properties true of every incarnation.
+
+4. Construction becomes observable through old references.
+
+   This corrects my earlier suggestion of atomic whole-object replacement. Your example deliberately permits observation inside construction. Single-threaded execution gives ordered observations; it does not make the whole constructor indivisible.
+
+   A callback can observe one field already replaced and another still holding its old value. That can be legal under the proposed semantics, but it prevents rearranging constructor Stores across those observations.
+
+   Type safety is the harder boundary. We cannot first zero a recycled object containing non-null fields and then let an old, fully initialized reference read those zeros. Nor can we publish a reference to an incomplete child through a field that old aliases treat as complete.
+
+   Preserving old values until valid replacements are available helps. Supporting all existing partial-construction patterns may require additional restrictions or delayed publication of particular fields.
+
+5. An otherwise unused allocation can have observable effects.
+
+   ```text
+   delete(old);
+   new Thing() { fin_fld = "change"; }  // result discarded
+   print(p.fin_fld);
+   ```
+
+   That allocation and initialization cannot disappear merely because nobody uses the returned pointer. Likewise, allocation reordering can change which deleted slot gets reused. We should decide how much pool-selection behavior is specified before allowing such transformations.
+
+I think your approach is sound as an implementation direction: model recycling construction as an aliasing memory update, then retain ordinary optimization between those updates. The two substantial additions are withdrawing the fresh/private-object assumptions and defining which partially reconstructed states old references may safely observe.
+
+### Cliff: stale reads may observe historical values
+
+In example 5, I think you CAN discard the unused Thing; the rules do not say "delete/alloc use a simple linked list of frees". Semantics are more annoying: if you delete something, then use it anyways, you get something someone wrote at any time in the past. This is a classic dangling pointer bug, and the fix is easy: stop deleteing things. Hand-n-hand with `delete` come dangling ptr bugs. Actually redo your analysis here with this in mind, how many of these issues become allowed behavior because dangling-ptr loads can see anything from the past?
+
+### Assistant: revised analysis under the historical-value rule
+
+Yes. With that rule, I was imposing too much coherence on references used after `delete`. You’re allowing those reads to become unreliable, while retaining type and memory safety.
+
+I’ll interpret “anything from the past” as a value previously valid for that slot and field—not arbitrary bits or a value from an unrelated object.
+
+That substantially changes the analysis:
+
+| Earlier concern | Under the revised rule |
+|---|---|
+| Discard an unused allocation | Allowed, absent other observable constructor effects |
+| Reorder which deleted slots get reused | Allowed; stale references cannot demand a particular replacement |
+| Keep a cached final-field value across recycling | Allowed for the stale reference |
+| Let a stale load bypass constructor Stores | Allowed; seeing the old value satisfies the rule |
+| Observe a mixture of old and new fields | Allowed; cross-field invariants are no longer promised through stale references |
+| Expose uninitialized or invalid representations | Still forbidden |
+
+In your original example, `print(p.fin_fld)` may therefore print the old value even after the constructor stores `"change"`. We don’t need the barrier to force that stale read to observe the Store.
+
+The distinction is now between the stale reference and the current object’s valid references:
+
+```text
+p = old
+delete(old)
+q = new Thing() { fin_fld = "change"; }
+
+print(p.fin_fld)  // historical value permitted
+print(q.fin_fld)  // must observe q's initialization
+```
+
+Even if `p == q` numerically, they have different guarantees. That is a specification distinction; it doesn’t necessarily require runtime tags.
+
+Revisiting the five issues:
+
+1. Private constructor memory can remain private for optimization purposes.
+
+   Old stale readers need not observe the new Stores, so they don’t force us to publish every constructor update to public memory. However, reads through `self` and valid references derived from the new object must still see the appropriate writes.
+
+2. Most of the proposed barriers disappear.
+
+   A cached old value is an allowed stale-read result. Constructor effects need not invalidate that cached value merely because storage might be reused.
+
+   Reads performed before deletion still have ordinary semantics. We cannot move such a read later and accidentally substitute a replacement value that was impossible at the original read. Likewise, “past values” does not automatically authorize observing future writes.
+
+3. Historical constant facts can survive.
+
+   If we know `p.fin_fld` was `7`, keeping that value after deletion is permitted. The optimizer needn’t model every possible replacement merely to preserve stale-read behavior.
+
+   This is permission to choose an allowed result. It doesn’t mean two actual reloads are guaranteed to agree.
+
+4. Partial reconstruction becomes mostly a type-safety issue.
+
+   Mixed incarnations and broken object invariants become acceptable stale-reference behavior. But an old reference must not read an uninitialized non-null pointer, an invalid function pointer, or a pointer into reclaimed storage.
+
+   In particular, a historical pointer value is safe to return only while its target storage remains valid. Keeping the owning region alive is essential.
+
+5. You’re right about unused allocation elimination.
+
+   Removing an otherwise effect-free allocation removes some possible replacement observations, but stale readers can still observe older values. That fits the proposed freedom. Printing, I/O, or other ordinary side effects in the constructor still cannot be removed.
+
+Two questions remain significant.
+
+First, what may a stale reference write? Allowing stale reads to return historical values doesn’t specify whether a stale write can modify the current incarnation—including its supposedly final fields. We should settle reads and writes separately.
+
+Second, pointer equality: ordinary alias optimizations must respect this distinction. Proving equal addresses must not let the compiler substitute a stale cached value for a load through the valid new reference.
+
+So yes: most of my coherence objections disappear. The remaining obligations are preserving valid-reference behavior, keeping every permitted historical value memory/type-safe, and defining stale writes. This is considerably more permissive than the model I was analyzing.
+
+### Cliff: pick one issue
+
+Ok, pick an issue and list problems with it
+
+### Assistant: type safety during reconstruction
+
+Let’s pick type safety while a deleted slot is being reconstructed. Historical-value semantics relax which valid value a stale read sees; they don’t make every intermediate machine representation valid.
+
+Three concrete problems:
+
+1. Free-list bookkeeping can overwrite readable fields.
+
+   A conventional pool might store its next-free pointer inside the deleted slot. But an old reference can still read that location as an integer, object reference, or function pointer.
+
+   An arbitrary free-list pointer is not necessarily a valid value of that field’s type. We would need separate metadata, reserved header space, or some other representation that leaves readable fields valid.
+
+2. Clearing the slot can destroy non-null guarantees.
+
+   Suppose `Thing` contains a non-null `Child` reference. The previous constructor installed a valid child.
+
+   ```text
+   delete(old)
+   // allocator selects old's slot and zeroes it
+   // constructor calls code that reads old.child.value
+   ```
+
+   The stale read encounters null, even though its type allows the compiler to omit a null check. “Any past value” doesn’t permit this: null was never a valid initialized value of that field.
+
+   Keeping the old field until its replacement is ready avoids that particular problem.
+
+3. A valid pointer can lead to an incomplete object.
+
+   Suppose the replacement constructor stores a newly allocated, unfinished `Child` into the recycled slot, then calls code holding `old`.
+
+   ```text
+   self.child = unfinishedChild
+   callback()  // reads old.child.requiredField
+   ```
+
+   `old` looks fully constructed to the compiler. Following it can bypass the restrictions we normally impose on reads through an incomplete constructor receiver. Even preserving non-null pointers would not suffice.
+
+   We would need to delay that field Store until the child is sufficiently initialized, reject the construction pattern, or prevent the callback from observing it.
+
+These problems share one requirement: every field observable through a stale reference must always contain a safely usable value of its declared type. Keeping old values during reconstruction helps considerably, but the third case is where Simple’s existing partial-construction rules need particular attention.
+
 --------------------------------------------------------
