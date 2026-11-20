@@ -86,6 +86,7 @@ public class ConstantNode extends TypeNode {
     }
 
     @Override public boolean isConst() { return true; }
+    @Override public boolean isFunLeaf() { return true; }
     @Override public Type compute() { return _con; }
     @Override public Node idealize() { return null; }
 }

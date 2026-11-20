@@ -20,6 +20,7 @@ public class SummaryNode extends CFGNode implements MultiNode {
     }
 
     @Override public String label() { return "Summary"; }
+    @Override public boolean isFunLeaf() { return true; }
     @Override public boolean blockHead() { return true; }
     @Override public Type compute() {
         if( in(0)._type.isHigh() ) return TypeTuple.STATE.dual();

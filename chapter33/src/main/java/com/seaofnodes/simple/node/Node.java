@@ -154,6 +154,11 @@ public abstract class Node extends BaseNode<Node> implements Cloneable {
 
     public boolean isConst() { return false; }
 
+    // Stop a backward, function-local input walk here. Entry/caller links,
+    // constant anchors, and opaque summaries are not part of the local body.
+    // This is not a CFG-exit or serialization-boundary predicate.
+    public boolean isFunLeaf() { return false; }
+
     // ------------------------------------------------------------------------
     // Graph Node & Edge manipulation
 

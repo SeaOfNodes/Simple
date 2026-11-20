@@ -372,6 +372,12 @@ design candidate, independent of compact pointer storage.
 
 ### Structs with trailing arrays
 
+Chapter 33 selected the combined struct-and-array layout on 2026-11-19:
+fixed named fields followed by a tail that can grow until finalized. Length
+and element storage are separate layout components, and length widths may be
+smaller than four bytes. See the [accepted design](automatic-memory-management-survey.md#array-length-is-separate-from-element-storage).
+The declarations below remain syntax sketches, not implemented features.
+
 Allow named fields followed by an array length and inline element storage:
 
 ```simple
@@ -392,10 +398,10 @@ overhead. Arrays with different length representations would be distinct
 types, with explicit conversions and capacity checks. The spelling and
 alignment rules remain to be decided.
 
-Growing such an object requires a replacement allocation. An extra level of
-indirection, as in a growable-buffer wrapper, instead preserves the wrapper's
-identity. Specify ownership before treating a growing call as consuming or
-freeing its receiver.
+The selected in-place growth model preserves the object's address while its
+tail grows, then fixes its extent at finalization. It requires suitable growth
+space. A wrapper with replaceable backing storage remains a separate container
+choice; it cannot silently replace an object's stable-storage promise.
 
 ### String libraries
 
@@ -418,13 +424,66 @@ buffer helpers provide the basic builder and formatting operations.
 
 ### Struct values
 
-Allow a struct to be stored inline in another object, array, or argument list
-rather than always through a reference. A proposed `*Complex` or `inline`
-spelling would place both coordinates of `struct Complex { f64 x,y; };`
-directly in the containing value.
+The original "Structs can be inlined" proposal below is restored from commit
+`69e4a21f71aca4954469063387063434af35e679`, before the roadmap cleanup.
+Its examples retain the original syntax and proposed pointer size. The current
+Chapter 33 design allows interior references bounded by their storage's
+lifetime, superseding the older address-taking restriction below. The placement
+of `*` reflects what it binds to; the original spellings are preserved.
 
-Define whole-value copying, reference-to-value conversion, and assignment
-through an existing reference. A value must not silently become a reference
-or expose an interior address with an invalid lifetime. Decide how consuming
-an enclosing object's lifetime could permit such an address. Keep method
-syntax uniform and define the calling convention for by-value arguments.
+Cliff accepted the expanded [object/value/reference design](automatic-memory-management-survey.md#agreed-design-embedded-objects-values-and-references)
+on 2026-11-19, including `*(T[4])` for embedded fixed buffers. That design is
+the current decision; the historical proposal below remains for its examples.
+
+Structs are normally by-reference, but can be converted to by-value by using
+the `*` operator, pronounced "contents of" (this name might be changed to
+e.g. `inline`).
+
+This is a name-space change only, you cannot take the address of the internal
+struct without entirely consuming its lifetime.  No "escaping".
+
+```java
+// 2 64-bit words, no other overheads
+struct Complex { f64 x,y; val len = { ->Math.sqrt(x*x+y*y); }; };
+
+// Current Simple rules: always by-reference
+struct ByRef {
+    !Complex !c;          // 4-byte pointer to a Complex
+};
+print(new ByRef.c.y);   // Lookup requires 1 extra memory load from ref to c
+
+// New behavior: by value (inlining a struct)
+// The '*' syntax indicator can be something else, e.g. a keyword "inline"
+// I am pronouncing '*' as "contents of"
+struct ByValue {
+    *!Complex !c;         // c is inlined, full 16 bytes into ByValue
+};
+print(new ByValue.c.y); // x,y inlined into ByValue, no extra memory load
+
+// Mixing Refs and Struct Values.  Basically, a ref can be converted
+// to a value by taking the "contents of" the ref, and values cannot
+// be *converted* to a ref, although they can be copied over a ref.
+ref. c =  val.c; // Error, mixing refs and values
+ref.*c =  val.c; // Allowed, whole structure copy.  Does not allocate, requires ref.c not-null
+val. c =  ref.c; // Error, mixing refs and values
+val. c = *ref.c; // Allowed, whole structure copy
+ref. c =  ref.c; // Allowed, pointer copy
+val. c =  val.c; // Allowed, whole structure copy.
+val *c =  val.c; // Error, cannot take "contents of" a value
+
+// Alternative syntax, to avoid the "contents of" being on LHS and field applying to being on RHS:
+ref.c = val.*c; // Assign into ref.c the "contents of" val.c
+
+// Arrays of inlined structures
+var ary = new *Complex[99]; // Array of 99 !Complex !objects, inlined
+
+// Calling methods has the same syntax
+ref.c.len();
+val.c.len();
+
+// Function arguments use the same typing, so can pass-by-value
+val math.sin = { *Complex c -> ... }; // Passes a complex by value
+math.sin(ref.*c); // Requires de-reference to pass by value
+math.sin(val. c); // Pass by value
+
+```

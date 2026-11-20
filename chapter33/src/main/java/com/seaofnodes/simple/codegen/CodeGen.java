@@ -27,6 +27,7 @@ public class CodeGen {
         Opto,                   // SCCP, numeric modes, seed the peephole worklist
         IterPostOpto,           // Peepholes and inlining using SCCP results
         FinalizeIR,             // Field layout, offset cleanup, function/CU roots
+        Allocation,             // Symbolic allocation destinations; analysis only
         TypeCheck,              // Last check for bad programs
         Serialize,              // Save ideal IR, including opaque class initialization
         Lower,                  // Expand checked class initialization to ordinary IR
@@ -196,6 +197,7 @@ public class CodeGen {
         step(target, Phase.IterPostOpto, this::iterPostOpto, dump);
         // Field layouts; field symbols become constant offsets
         step(target, Phase.FinalizeIR,   this::finalizeIR,   dump);
+        step(target, Phase.Allocation,   this::allocation,   dump);
         // Final error check - bad programs fail here
         step(target, Phase.TypeCheck,    this::typeCheck,    dump);
         // Save reloadable ideal IR for a later seperate compilation
@@ -518,7 +520,18 @@ public class CodeGen {
 
     // ---------------------------
     // Last check for bad programs
-    public CodeGen typeCheck() { return phase(Phase.TypeCheck, _phase==Phase.FinalizeIR, () -> TypeCheck.run(this)); }
+    public Allocation _allocation;
+    public CodeGen allocation() {
+        return phase(Phase.Allocation, _phase==Phase.FinalizeIR, () -> {
+            _allocation = new Allocation(this);
+            if( Boolean.getBoolean("simple.alloc.dump") ) System.out.print(_allocation);
+            if( Boolean.getBoolean("simple.alloc.check") ) _allocation.requireSupported();
+        });
+    }
+    public CodeGen typeCheck() {
+        if( _phase==Phase.FinalizeIR ) allocation();
+        return phase(Phase.TypeCheck, _phase==Phase.Allocation, () -> TypeCheck.run(this));
+    }
 
     // ---------------------------
     // TypeCheck queued surviving CLInits during its existing error walk.

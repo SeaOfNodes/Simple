@@ -49,6 +49,8 @@ public class ParmNode extends PhiNode {
 
     public FunNode fun() { return (FunNode)in(0); }
 
+    @Override public boolean isFunLeaf() { return true; }
+
     // The hidden constructor receiver has private memory for checking reads.
     // Only borrowed source parameters need an initially empty field promise.
     private Type declaredBound() {

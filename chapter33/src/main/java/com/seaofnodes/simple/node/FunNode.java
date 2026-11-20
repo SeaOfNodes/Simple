@@ -83,6 +83,8 @@ public class FunNode extends RegionNode {
     }
     public ParmNode rpc() { return parm(0); }
 
+    @Override public boolean isFunLeaf() { return true; }
+
     // An unloaded body's Summary is constructed before every other user.
     public SummaryNode summary() { return nOuts()>0 && out(0) instanceof SummaryNode summary ? summary : null; }
 

@@ -37,9 +37,77 @@ callers promise no initialized fields. No new passes or backward demand walks.
 
 Cliff closed Chapter 32 and requested `ch32` rebased onto `main`, then a new
 complete snapshot on branch `ch33`. Continue in `chapter33/`. Cliff selected
-automatic memory management as the next topic, with the design still open.
-The latest request is cleanup and preparation for that task, not implementation.
-Do not treat earlier roadmap sketches as a chosen lifetime mechanism.
+automatic memory management as the next topic. On 2026-11-19 Cliff requested
+the first analysis pass after Opto and before TypeCheck, few new classes,
+ASCII debugging, conservative rejections, and 3-4 poster children. The agreed decisions and remaining
+questions are in [the survey's base design](../docs/automatic-memory-management-survey.md#agreed-base-design--2026-11-17).
+The initial implementation is `codegen/Allocation.java`, after FinalizeIR and
+before TypeCheck. One call-DAG DFS composes symbolic summaries in postorder;
+local reference-edge closure uses a worklist. Four poster children and boundary
+checks live in Chapter33Test. The phase is analysis-only: existing allocation
+lowering is unchanged. `simple.alloc.dump` prints ASCII, `simple.alloc.check`
+requires all plans to be supported; otherwise unsupported summaries record a
+rejection without blocking the existing allocator. Loops, SCCs, variable sizes,
+opaque calls, raw addresses, and unresolved pointer-load origins are deferred.
+No new language syntax or serialized lifetime summaries are implemented yet.
+Update 2026-11-19: Cliff accepted the entire
+[embedded-object design](../docs/automatic-memory-management-survey.md#agreed-design-embedded-objects-values-and-references),
+including `*T` object values, `&` interior references, and `*(T[4])` embedded
+fixed buffers. Length and element storage are separate layout components;
+length widths may be smaller than four bytes. Each array representation has a
+known maximum element count; preventing length wrap follows from enforcing
+that maximum, rather than being the primary semantic rule. Removing constant length fields
+is future work, not an implementation request. A uniform struct with fixed
+named fields and a growing final array tail is also selected; exact tail and
+length-width syntax remains open. The tail grows until scope-based finishing.
+Placement uses `new(destination) T(args)`; `region` declarations are top-level
+only and denote program-lifetime storage with no language-level size bound.
+Labeled scopes supply lexical destinations. Free lists from delete are compiler
+internals, not user-visible pools. These distinctions supersede older pool
+terminology below. `new E[]` begins growth, `es += e` appends, and the creating
+scope's end finishes growth without necessarily ending storage lifetime.
+Obsolete backing arrays can be internally recycled only after proving no usable
+references survive; arrays still have no user delete operation.
+Classes opt into deletion/recycling; stale reads remain type-safe but can see
+historical field values, including finals. Incomplete references cannot be
+stored into deletable objects, including during construction. Arrays are never
+deletable; do not reintroduce array delete/reuse free lists. Non-moving growable
+arrays are a separate requested discussion topic. Deletable
+constructors use ordinary aliasable memory from entry, while non-deletable
+constructors retain private memory. Keep initialization obligations separate
+from storage privacy; withholding TMP._one is a suggested implementation route
+to audit, not a verified sufficient change. Preserve these decisions; older
+discussion in the survey includes superseded assumptions.
+Do not treat other roadmap sketches as chosen mechanisms.
+Pools have global or shorter lexical lifetimes (2026-11-18 decision), rather
+than transferred/object-owned lifetimes. Global pools retain their storage.
+Pool reclamation requires proving all usable references gone, including stale
+references after object delete and reachable historical pointer values. Object
+delete never waives the region-lifetime proof. Analysis design remains deferred.
+Function lifetime contracts infer borrowing, result origins/destinations, and
+retention for ordinary definitions; opaque callback interfaces default to
+borrowing arguments for the call, with retention explicit and implementations
+checked. Result contracts remain necessary. Specializing functions by argument
+treatment is an optional optimization, never a condition of language legality.
+Native functions use the same external lifetime contracts: their written Simple
+FFI type supplies trusted promises that the native implementation must honor.
+No separate native lifetime mechanism is needed; mismatches are binding or
+implementation bugs.
+Returned-borrow syntax agreed 2026-11-19: function result `T from arg`, or
+`T from (a | b)` for alternative origins. Only arguments mentioned in `from`
+need names in the function type; other parameters may remain unnamed. `T` is
+a struct reference, while `*T` is an object value. Bodies infer contracts or
+are checked against written ones; annotations do not silently extend storage.
+For now FFI cannot directly return borrowed interior references into Simple
+objects. Native array adapters return indices/ranges and Simple constructs
+checked interior references. Field-reference FFI returns are deferred.
+Apparent unbounded growth under inferred lifetimes must be an error, never a
+warning or merely a report. The user fixes it with a cheap explicit choice of
+the default stack destination or an appropriate pool. Neither annotation waives
+lifetime safety. Growth-check repetition means an unknown loop bound, a known
+upper bound greater than 10, or recursion; small bounded loops are exempt on
+that account. Support make-and-test loops retaining only the winner, where
+failed candidates provably do not escape. Syntax and implementation remain open.
 Preserve Chapter 32's compiler and performance narrative.
 The test commands and invariants below also apply to Chapter 33.
 
@@ -331,6 +399,8 @@ The roadmap retains language candidates, including automatic memory management
 and a small game with graphics, keyboard input, and sound.
 
 ## Collaboration preferences
+
+- Avoid Java streams; Cliff finds ordinary loops easier to read, including in tests.
 
 - For densely keyed integer maps, use indexed `Ary<T>` storage rather than
   `HashMap<Integer,T>`.

@@ -1,7 +1,367 @@
 # Automatic memory management: design survey
 
-Research notes for Chapter 33, 2026-11-16. These are candidates for discussion,
-not a selected design.
+Research notes for Chapter 33, begun 2026-11-16. The base design below records
+agreed decisions. The survey and discussion that follow retain alternatives
+and earlier reasoning, including positions subsequently revised. None of the
+new runtime memory-management behavior is implemented yet. Chapter 33 now has
+an analysis-only allocation pass and small poster-child tests; see its
+[README](../chapter33/README.md#first-allocation-plans) for the supported subset.
+
+## Agreed base design — 2026-11-17
+
+Placement and array-growth decisions updated 2026-11-18. Embedded objects,
+references, and array layouts reviewed and accepted 2026-11-19; see the
+[detailed design below](#agreed-design-embedded-objects-values-and-references).
+
+- Reject programs whose lifetime safety the compiler cannot establish. Common
+  cases should need little annotation; diagnostics must identify the lifetime
+  conflict and offer a sensible restructuring or longer-lifetime choice.
+- The compiler manages ordinary stack-like lifetimes. `region`, declared only
+  at file top level, names an additional growable storage area with program
+  lifetime and no language-level size bound. Labeled scopes name lexical
+  allocation destinations, not separate growable areas. `new T(args)` infers
+  placement; `new(destination) T(args)` selects a region or lexical destination.
+  Destinations may pass through functions; the compiler must establish the
+  lexical relationship from definition to use. Transferred or independently
+  object-owned region lifetimes are not selected.
+- Free lists populated by `delete` are compiler-managed and never user-named.
+  They are distinct from allocation regions; reuse must preserve both type
+  compatibility and the requested storage lifetime.
+- Reclaiming lexical storage
+  requires proof that no usable references into it survive. This includes stale
+  references to deleted objects and references recoverable from retained fields
+  or permitted historical pointer values. Deleting an object does not discharge
+  any reference's lifetime obligation. Dead pointer bits need not be erased;
+  they must be unusable after reclamation. If safety cannot be proved, reject
+  reclamation or the enclosing lifetime arrangement. Earlier discussion of
+  named lexical pools and explicit pool deletion predates the region/scope
+  distinction; no explicit region-delete syntax has been selected.
+- Infer safe reclamation boundaries through factory layers, while letting the
+  programmer explicitly choose better groups of objects that die together.
+  Returned allocations may be assigned to caller-owned storage; retaining an
+  allocation in another object can require its storage to live at least as
+  long as that retaining object's region. Extending a borrowed object's lifetime
+  is not implicitly authorized by these allocation-destination choices.
+- Apparent unbounded growth in an inferred region is a compile-time error,
+  never a warning. A cheap explicit annotation chooses either the default
+  stack destination or an appropriate pool for that growth. Choosing the default
+  stack explicitly acknowledges retention there; it does not promise bounded
+  space or cause earlier reclamation. Choosing a pool likewise still requires
+  lifetime safety. For this growth check, repetition is significant when a loop
+  has an unknown trip bound, a known upper bound greater than 10, or involves
+  recursion. Loops bounded by at most 10 iterations are exempt from requiring
+  a growth annotation on that account. The check concerns accumulating storage,
+  not a blanket ban on allocation in large loops. This is a language check,
+  not an optional profiling report or a check whose result depends on optimizer
+  success. Syntax and details of the bound analysis remain to be specified.
+- Support the common make-and-test loop: reclaim rejected candidates each
+  iteration and retain the winner on loop exit, where analysis establishes
+  that rejected candidates do not escape. The winning exit alone must not force
+  every candidate to accumulate in an enclosing region. This applies to
+  automatic reclamation and does not require explicit delete. The compiler
+  mechanism for retaining the winning allocation graph remains to be chosen.
+- Classes explicitly opt into being deletable; the spelling is undecided.
+  `delete` permits storage recycling rather than immediately invalidating the
+  storage. Automatic reclamation still governs the enclosing region's lifetime.
+- Arrays are never user-deletable. Their storage follows automatic lifetimes.
+  A container's obsolete backing storage may be internally recycled only when
+  the compiler proves no usable references into it survive. This is distinct
+  from class-slot recycling with permitted stale references after `delete`.
+- `new E[N]` creates a fixed-length array, with N possibly computed at runtime.
+  `new E[]` starts empty and permits append with `es += elem`. Access and
+  indexed assignment are checked against the current length and do not extend
+  it. The creating scope's end finishes growth through all aliases, while the
+  storage can outlive that scope under allocation-destination inference.
+  Braces can explicitly delimit growth; an earlier end can be inferred.
+  Finishing fixes length, not element mutability. Physical placement can reserve
+  fixed allocations ahead of a growing tail without moving their construction
+  effects. Standard growable containers use embedded small vectors; arraylets
+  and dedicated address-space reservations remain optional alternatives.
+- Reads after deletion remain memory- and type-safe, but may observe permitted
+  historical values. Reuse may change any field, including final fields.
+  Mixed incarnations are possible; stale references do not require a particular
+  free-list policy or force an otherwise effect-free unused allocation to run.
+  Comparing an old reference with a replacement allocation may return equal.
+- Ordinary construction rules still apply to new objects: uninitialized fields
+  cannot be read, including indirectly through other objects. Recycled storage
+  must remain safely readable: free-list metadata is separate from readable
+  fields, and deletion/recycling must not clear fields to invalid values.
+- Disallow storing incomplete references into deletable objects. This applies
+  during their construction too, whether allocation returns fresh or recycled
+  storage. In particular, an incomplete constructor `self` cannot be stored in
+  a deletable object. A constructor may store a completed child; nested
+  allocation itself is not forbidden. More precise proofs may relax this rule
+  later, but are not required by the base design.
+- Disallow deletion through an incomplete reference, including `delete(self)`
+  while the constructor's receiver is incomplete. This avoids directly making
+  unfinished storage available for recycling.
+- Deleting an occupied slot makes it available; deleting an already available
+  slot does nothing. Deleting through an old alias after reuse deletes the
+  current occupant, whose references then acquire post-delete guarantees.
+  No incarnation check is required to diagnose the programmer's mistake.
+- Deletion of a slot currently under construction does nothing, including
+  deletion through an old completed alias. Construction tracking need only
+  exist during construction: use a short stack of pointers to active
+  constructions, checked by delete. The
+  availability bookkeeping must prevent duplicate free-list entries.
+- Writes through stale references are ordinary checked Stores to the referenced
+  slot and may modify its current occupant. A valid reference to that occupant
+  must observe those writes under ordinary memory semantics. Historical-read
+  permissions do not justify ignoring a potentially aliasing stale Store.
+  Final-field assignment restrictions, read-only access, region-lifetime checks,
+  and the prohibition on storing incomplete references remain in force.
+- Constructors for deletable classes use potentially already escaped storage,
+  with ordinary aliasable field memory from construction entry. Constructors
+  for non-deletable classes retain the existing private-construction model.
+  Incompleteness and private storage are separate properties: deletable `self`
+  remains incomplete until this construction satisfies its initialization
+  obligations, even though old aliases can access the storage.
+
+### Why deletable objects cannot retain incomplete references
+
+A recycled object initially contains valid old fields. That fact does not
+justify overwriting one of them with a reference into an unfinished, genuinely
+fresh object. A stale alias to the recycled object would expose that unfinished
+object as if it were complete.
+
+Schematic counterexample:
+
+```text
+// oldLink is complete; Link is deletable.
+delete(oldLink)
+
+// Root receives genuinely fresh storage.
+root = new Root {
+    link = new Link(self)  // reuses oldLink's slot
+    helper()              // reads oldLink.parent.required
+    required = some_prior_thing
+}
+
+// Link's constructor:
+new Link(parent) {
+    self.parent = parent  // REJECT: parent is an incomplete Root
+}
+```
+
+The Store makes a fresh, uninitialized `Root.required` reachable through the
+completed view `oldLink`. Historical-value permissions do not authorize reading
+an invalid representation. Rejecting that Store preserves the safety promised
+to stale references without requiring runtime incarnation tracking.
+
+The earlier example with a back-reference into an already valid recycled parent
+can be physically safe. The base rule deliberately rejects it if that reference
+is still classified as incomplete. Proving continuous validity of old contents
+separately from completion of the new incarnation is a possible later refinement.
+
+### Why deletable constructors use aliasable memory
+
+An old completed reference can write a mutable field of the recycled object
+while its new constructor runs. No incomplete reference needs to escape:
+
+```text
+p = new Thing { x = 1; }  // mutable x; Thing is deletable
+delete(p)
+q = new Thing {
+    x = 2;
+    overwriteOld();      // writes p.x = 3
+    print(self.x);
+}
+```
+
+If q reuses p's slot, the read through self must observe 3. Updating public
+memory in overwriteOld while forwarding 2 from unchanged private constructor
+memory would be incorrect. Constructor Stores and calls therefore participate
+in the ordinary field-memory chains from the start, including after inlining
+and through separately compiled effect summaries. Calls proven not to affect
+the field can still permit forwarding. Peepholes must not infer disjointness
+merely because pointers come from distinct recycling allocations.
+
+Old field contents do not satisfy the new incarnation's definite-initialization
+requirements. Keep construction-completeness tracking separate from memory
+privacy. Cliff suggested that withholding TMP._one might select the needed
+aliasing behavior; this is an implementation candidate to audit, not a claim
+that changing one flag is sufficient across TypeMem, constructor summaries,
+publication, and initialization checks.
+
+We choose this aliasable-memory model rather than mandatory retention of all
+constructor field values followed by bulk publication, or a blanket prohibition
+on writing other same-class objects during construction. Linked-list splicing
+after construction remains ordinary mutation. Publishing incomplete self into
+a deletable neighbor remains rejected by the separate incomplete-reference
+rule. Any later relaxation requires an additional completion proof.
+
+For final fields after publication, ordinary memory-chain reasoning can forward
+the new constructor's value to an old alias when equality is established; that
+is a permitted stale-read result. The earlier example of equal pointers with
+historical final-field values was not a new semantic obstacle. Implementation
+still needs an audit of freshness assumptions and memory-dependent value facts.
+
+### Function lifetime contracts — 2026-11-18
+
+Contracts describe lifetime relationships between arguments, results, and
+retained storage. Ordinary function definitions infer these relationships;
+separately compiled metadata exposes them to callers.
+
+- Borrowing an argument for the duration of a call does not retain it afterward.
+  Mutation is independent: sum and in-place sort can have the same lifetime
+  contract while having different memory effects.
+- A returned reference into an argument's reachable storage does not extend
+  that storage's lifetime. If the result can come from either of two arguments,
+  the caller must account for both possibilities unless it can establish which
+  applies. The arguments need not belong to the same pool.
+- Fresh results can be constructed in a caller-selected destination, with that
+  relationship propagated through factory wrappers. References retained inside
+  the new result must satisfy its destination's lifetime constraints.
+- Retaining an argument through another argument, a global, or a result is an
+  explicit part of the contract. A void result does not imply non-retention.
+- Each call must satisfy the contract, and each implementation must satisfy
+  the promises its callers use. An indirect-call interface has a common contract
+  that every permissible target must satisfy.
+- At an opaque callback interface, unspecified argument retention defaults to
+  borrowing only for the call. Retention requires an explicit contract there;
+  ordinary visible definitions can infer it. Implementations are checked against
+  this default, rather than callers blindly assuming it. Result borrowing and
+  fresh-result destinations still need their own specified or inferred rules.
+
+Functions may be specialized according to how arguments are treated. Cliff
+explicitly identifies this as an optimization, not a language design choice.
+Specialization must preserve the contract and observable behavior; program
+legality must not depend on whether specialization or inlining occurs. Exact
+syntax for retention and growth contracts, analysis representation, and metadata
+encoding remain open. Returned-borrow syntax is settled below.
+
+Native functions use the same lifetime contracts as other external functions.
+Their FFI wrapper type, written in Simple, states the borrowing, retention,
+result-lifetime, and allocation-destination promises on which Simple callers
+rely. There is no separate native lifetime mechanism. For a Simple implementation
+the compiler can check those promises against its body; for native code the
+FFI declaration is trusted. A mismatch is a bug in the binding contract or its
+implementation, not a reason to weaken the ordinary call-site lifetime rules.
+
+#### Returned-borrow syntax and FFI boundary — agreed 2026-11-19
+
+`from` introduces a result's borrowed-storage origin in a function type.
+Only arguments named in the `from` clause require parameter names; all other
+arguments may remain unnamed. For example:
+
+```text
+{ (*Complex)[] as, (*Complex)[] -> Complex from as }
+{ (*Complex)[] as, (*Complex)[] bs -> Complex from (as | bs) }
+```
+
+The first signature permits returning an interior reference such as `&as[i]`.
+The second permits either argument as the source; their lifetimes need not
+be equal. The caller accounts for all possible sources unless it can establish
+which source applies. Names in `from` must resolve to named parameters of that
+signature; no separate declaration of lifetime variables is required.
+
+For a Complex containing only numeric coordinates, returning `*Complex`
+copies the value and requires no borrowed-result relationship:
+
+```text
+{ (*Complex)[], (*Complex)[] -> *Complex }
+```
+
+Copies of object values containing reference fields still preserve those
+references' lifetime obligations. A written contract is checked against the
+body, not trusted, and does not silently extend allocations to make it fit.
+Visible bodies infer relationships when omitted; separately compiled metadata
+preserves inferred contracts. This syntax is agreed but not implemented.
+
+For now, FFI functions may not directly return borrowed interior references
+into Simple objects. Array-oriented native adapters can return an index or
+range; Simple performs checked access and forms the reference, making its
+origin visible to the compiler. Bindings returning interior field references
+are deferred until a use case warrants revisiting the restriction. This limits
+the available FFI contracts without introducing a separate lifetime system.
+
+### Still open
+
+The delete/recycling policy is largely settled above. Remaining language-design
+questions concern the automatic lifetime system:
+
+Cliff wants to settle these language choices before designing the analysis.
+"How are we tracking this?" is explicitly deferred: representation of lifetime
+constraints, path-sensitive escape information, loop-exit winners, recursive
+summaries, and reclamation checkpoints are not selected implementation designs.
+First settle the programmer-visible ownership and lifetime rules below.
+
+- Allocation-destination analysis: implement the agreed inferred placement,
+  named lexical scopes, top-level regions, and destination forwarding through
+  factories. The source-level choice is settled; tracking it remains deferred.
+- Apply the agreed growth threshold (unknown loop bound, bound greater than 10,
+  or recursion) to repeated allocation that accumulates in an inferred owner,
+  distinguishing temporary storage reclaimed each iteration or activation.
+  Specify stable bound analysis and how loop-exit winners retain storage without
+  retaining failed candidates. Apply the selected destination syntax through
+  factories without annotating every helper.
+  Errors should identify the accumulating allocation, retaining owner, and
+  repetition, then show the explicit destination choices.
+- References across regions: allowed stores, returns, and retained views;
+  proving that reclamation leaves no accessible dangling storage, including
+  historical pointer values permitted after delete. The safety obligation is
+  settled; its enforcement remains part of the deferred analysis design.
+- Remaining function-contract syntax and enforcement: returned-borrow `from`
+  syntax is settled above; retention, destination, and growth interface
+  spellings remain. Implement the agreed relationships
+  and borrowing default across direct calls, separate compilation, and indirect
+  calls, including the written FFI types for native functions. Define useful
+  diagnostics and rewrite paths when a proof fails.
+- Array-layout details: spell selectable length widths and construction/append
+  for the combined struct-and-tail type. Fixed-buffer notation, embedded object
+  access, and scope-based finishing are settled below. Any shrinking or
+  reconstruction operations need explicit reference-validity rules; they are
+  not implied by append or whole-object assignment.
+
+Implementation obligations, rather than new permission to change semantics:
+
+- Audit optimizer freshness assumptions, historical reads, pointer equality,
+  and initialization tracking under aliasable construction.
+- Implement real array bounds checks, eliminating them only with adequate
+  proofs. Cliff notes the current unchecked accesses; memory safety is an
+  intended guarantee, not a claim about the current compiler.
+- Specify concrete syntax and runtime metadata for the agreed lifetime and
+  recycling rules after the remaining lifetime choices are settled.
+
+### Node-construction check — 2026-11-17
+
+Cliff asked whether Simple's IR Nodes actually have recursive constructors,
+rather than merely nested constructor expressions in argument lists. Inspection
+of Chapter 33's Java sources found:
+
+- The ideal-IR constructors inspected do not construct other Nodes. The base
+  [Node constructor](../chapter33/src/main/java/com/seaofnodes/simple/node/Node.java)
+  creates its edge arrays and installs use edges. Constructor worklist additions
+  enqueue work rather than running peepholes recursively.
+- Some machine constructors do construct other concrete Node classes. For example,
+  [NegFX86](../chapter33/src/main/java/com/seaofnodes/simple/node/cpus/x86_64_v2/NegFX86.java)
+  creates a ConstantNode and FltX86 inside its constructor body. ExtendX86,
+  ExtendARM, and ExtendRISC create projection/parameter nodes in delegating
+  constructor arguments. No path back into the same concrete Node constructor
+  was found in this inspection; this is not a whole-program proof.
+- `new AddNode(new MulNode(...), ...)` finishes constructing its argument before
+  entering AddNode's constructor. Reserving/protecting the outer pool slot after
+  argument evaluation avoids making that expression overlap pool construction.
+- Cyclic graph topology is distinct from recursive construction. Completed
+  Nodes can be wired into cycles afterward; deleting cyclic graph nodes need
+  not be forbidden merely to simplify construction tracking.
+- A Simple port has a separate publication issue: Node's base constructor calls
+  `n.addUse(this)` on its inputs before the concrete subclass finishes.
+  CallNode also registers itself in the global call list. If these containers
+  are deletable, they cannot retain the incomplete receiver under the base
+  rule. Moving reverse-edge wiring and registration after full construction
+  provides a straightforward rewrite, without banning graph cycles.
+
+A pool-wide busy bit cannot identify which slot is under construction. Ignoring
+all deletions in that pool while busy would be a broader semantic policy than
+the agreed per-slot rule. With at most one active construction per class-pool,
+a nullable current-slot pointer suffices to identify that object. Reentrant
+construction can instead use temporary constructor-frame records; delete can
+search those records, with cost proportional to active construction depth.
+Cliff accepted a short stack of construction pointers as the base approach;
+the single-pointer case remains a possible optimization.
+
+## Original survey
 
 There are several approaches worth inspecting. For Simple, I would give the closest attention to inferred regions, Lobster-style ownership inference with an RC fallback, and ownership of whole object graphs. Goose is particularly useful because it shows how much cheaper memory management can become when the language constrains storage layout and lifetimes together.
 
@@ -432,3 +792,416 @@ Without `delete` the rules are as-is.  With delete some things change:
   nested iner-locking allocations.
 
 --------------------------------------------------------
+
+## Follow-up: syntax choices — 2026-11-18
+
+There are several choices, but most should appear only where inference needs
+help. Here is the inventory, with illustrative spellings, not proposed final
+grammar.
+
+### 1. Allocation destination
+
+Keep ordinary allocation unchanged:
+
+```text
+new Thing(args)            // inferred destination
+new Thing(args) in pool    // explicit destination
+new Thing(args) in stack   // explicitly accept default-stack retention
+```
+
+We need to decide whether destination selection attaches to one allocation,
+a surrounding block, or both. A block default would avoid repeating
+annotations, but must propagate sensibly through factory calls. Also, `stack`
+must mean the appropriate owning frame, not necessarily the frame executing
+`new`.
+
+### 2. Pool declaration and lifetime
+
+We need a way to declare a global or lexical pool and name it as a destination.
+Separate choices include:
+
+- Whether a pool serves one class or multiple types.
+- How to request a dedicated growth space.
+- Whether lexical exit is sufficient initially, or we also expose explicit
+  early reclamation.
+
+These can largely be library operations, although the compiler must understand
+their lifetime effects.
+
+### 3. Growing arrays and finishing
+
+We need to distinguish an in-place growing array from an ordinary fixed-length
+array. For example:
+
+```text
+val a = new Pixel[grow];
+a.push(pixel);
+finish(a);
+```
+
+The choices are:
+
+- A type suffix versus a constructor or builder type.
+- Whether append uses ordinary method syntax.
+- Whether `finish(a)` is a statement, or returns a fixed-length view:
+  `val b = finish(a)`.
+
+I lean toward a finish operation usable without introducing another name. It
+changes growth permission for the storage, including aliases; it does not make
+elements read-only. Existing `~` access syntax should remain separate.
+
+Appending inline objects also needs a way to construct the new element directly
+in its slot, without requiring an intermediate object and copy.
+
+### 4. Inline versus separately stored objects
+
+This is the biggest layout syntax choice. For illustration:
+
+```text
+inline Complex position;   // object occupies this field's storage
+Complex other;             // existing reference field
+```
+
+Should embedding be chosen per field/type use, declared as a default on
+`Complex`, or both? Per-use choice seems necessary: the same type may be
+embedded in one place and shared through a reference elsewhere.
+
+Arrays need the same distinction:
+
+```text
+Complex[]                 // array of references, under existing conventions
+(inline Complex)[]        // array containing Complex objects
+```
+
+Those parentheses are illustrative. Whatever spelling we choose must clearly
+distinguish embedding the elements from embedding the array descriptor or a
+fixed-capacity array.
+
+### 5. Value access versus interior-reference access
+
+For embedded objects, we need to distinguish:
+
+```text
+copy of a[i]
+reference to a[i]
+```
+
+Whether those become `copy(a[i])`, `&a[i]`, an explicit reference type, or
+contextual operations is undecided. We also need assignment rules: does
+assigning an inline object copy its fields, and what happens to existing
+interior references?
+
+Container-and-index handles can probably be ordinary library types. We should
+not make the same syntax silently alternate between a direct reference and a
+handle.
+
+### 6. Lifetime and growth contracts
+
+Most relationships should be inferred, but external functions and explicit
+interfaces need spellings for:
+
+- Result borrows storage from an argument.
+- Argument may be retained in another argument or pool.
+- Fresh result uses the caller's destination.
+- Function may grow an array, only access it, or finish it.
+
+These belong in function types or associated declarations. The existing `^`
+already denotes incomplete references; I would keep that distinct from lifetime
+relationships.
+
+### 7. Deletable classes
+
+We need a class qualifier and an operation:
+
+```text
+deletable struct Thing { ... };
+delete(p);
+```
+
+The exact spelling is small compared with the rules already settled. It should
+be apparent from the type that instances permit recycling.
+
+I would choose inline/reference/value syntax first. It determines field
+declarations, array element types, construction, assignment, and function
+signatures. Allocation destinations and finish syntax are comparatively
+independent and can stay lightweight.
+
+## Agreed design: embedded objects, values, and references
+
+Proposed 2026-11-18; reviewed and accepted in full by Cliff on 2026-11-19,
+including the fixed-buffer notation. This resolves syntax items (4) and (5)
+and builds on the restored [struct-value notes](roadmap.md#struct-values).
+None of this is implemented yet; the examples describe the accepted direction,
+not programs accepted by the current parser. Array-length and trailing-array
+extensions agreed on 2026-11-19 follow at the end of this section.
+
+### Objects have storage; references identify storage
+
+Keep `T` as the existing reference type for a struct. Use `*T`, pronounced
+"contents of T", for its object value. A field of type `*T` embeds the object;
+a local or argument of that type has value semantics. Registers and scalar
+replacement remain implementation choices when an address is not observable.
+
+```text
+struct Complex { f64 x, y; };
+struct Example {
+    Complex ref;       // reference to separately owned storage
+    *Complex value;    // two embedded coordinates
+};
+```
+
+Embedding is chosen at the type use, not forced on every use of the class.
+An embedding cycle with no intervening reference is rejected: it would require
+an infinitely sized object. Existing access and binding modifiers remain
+independent of reference-versus-value representation.
+
+### Contents, addresses, and copying
+
+An addressable expression denotes a storage location. Reading that expression
+in a value context obtains its value; assignment writes the destination
+location; address-taking obtains a reference to the location. This distinction
+lets field access avoid first copying the whole enclosing object.
+
+```text
+Complex p = new Complex(args);    // construct storage and obtain a reference
+Complex q = p;                    // copy reference; same target
+*Complex v = *p;                  // initialize a new object by copying contents
+*Complex w = v;                   // another object copy
+Complex r = &v;                   // borrow v's existing storage; no allocation
+*p = v;                           // copy contents into p's existing target
+```
+
+`*p` denotes the target object; `&v` denotes its address. Taking an address
+requires existing addressable storage, not an arbitrary temporary expression.
+Give a temporary a named owner before borrowing it. Nullable references must
+be proven non-null before dereferencing, following the existing safety rules.
+
+No implicit conversion changes a reference into an object copy or an object
+into a reference. `p = v` and `v = p` are type errors. A value copy copies
+embedded values recursively and copies reference fields as references; it
+does not clone the reachable object graph. Those copied references retain
+their original lifetime obligations.
+
+Field access and method syntax remain uniform: `p.x`, `v.x`, `p.len()`, and
+`v.len()`. A method on an addressable object uses that object's storage as its
+receiver; the call does not silently copy the receiver. Retaining that receiver
+is governed by the ordinary function lifetime contract.
+
+Preserve the useful binding distinction from the roadmap:
+
+```text
+holder.*c       // contents of the reference field: *(holder.c)
+(*holder).c     // field c of the object referenced by holder
+```
+
+These are not the same operation. Ordinary prefix `*holder.c` binds as
+`*(holder.c)`, with field selection preceding prefix dereference. The `.*`
+form makes the field being dereferenced explicit. Dereferencing an already
+inline value is an error. The old tentative alternative `ref.c = val.*c`
+would therefore not be adopted: it cannot implicitly turn a reference
+assignment into an object assignment.
+
+### Construction and assignment are separate
+
+Use `new *T(args)` for constructing an object value directly in its
+destination, alongside `new T(args)` for constructing storage and returning
+a reference. Value results may be constructed in caller-provided storage;
+the language need not require a temporary allocation and copy.
+
+Copy initialization can initialize final fields. Assignment into an existing
+object can write only fields permitted at that program point. Thus `*p = v`
+is not a back door for changing final fields or writing through read-only
+references. Initially reject whole-object assignment when it would overwrite
+protected fields; do not silently skip them.
+
+Whole-object assignment preserves the destination's identity and addresses of
+its embedded fields. Existing interior references observe the resulting normal
+field updates. Semantically obtain the source value before writing the
+destination so overlapping copies do not corrupt the source. Assignment does
+not rerun constructors or perform user-defined copy callbacks.
+
+Ending an object's lifetime and reconstructing its storage is a separate
+operation, not an alternative interpretation of assignment. In particular,
+reusing a removed vector element's slot must not invalidate surviving interior
+references or silently bypass final-field rules. General reconstruction syntax
+is outside this proposal.
+
+### Arrays distinguish element layout from element access
+
+```text
+Complex[] refs;                 // array of Complex references
+(*Complex)[] objects;           // array of embedded Complex objects
+var a = new *Complex[N];        // allocate embedded element storage
+```
+
+Elements must still be completely initialized before exposure; the final line
+is a layout sketch, not permission to omit required initialization. Array
+initializers and append must support construction or copy initialization into
+the element destination. Only initialized elements contribute to visible length.
+
+For an embedded-element array:
+
+```text
+*Complex v = a[i];              // copy the element's value
+Complex p = &a[i];              // borrow the element's fixed storage
+a[i].x = 3;                    // update in place
+a[i] = v;                      // whole-object assignment, subject to permissions
+```
+
+For `Complex[]`, `refs[i]` copies a reference, not a Complex. For `int[]`,
+`a[i]` produces an integer value. Indexing itself therefore remains uniform;
+the element type determines what is copied in a value context. Bounds checks
+apply before access or address-taking.
+
+Use `&V` as the type of a reference to storage holding
+a value of type V. `&(*Complex)` is the existing `Complex` reference type;
+`&int` references an integer slot; `&Complex` references a slot that itself
+holds a Complex reference. This permits primitive and reference-slot borrowing
+without inventing wrapper objects. Nested references carry the corresponding
+storage lifetime constraints at each level.
+
+### Interior references borrow the actual backing storage
+
+`&a[i]` has a lifetime bounded by that particular array, not by a container
+that happens to point to it. `&owner.value` is bounded by the owner's storage.
+Creating a reference does not transfer ownership, allocate a copy, or extend
+the source lifetime. Several references may alias; no blanket exclusive-borrow
+rule is proposed. Access permissions and memory-effect rules still apply.
+
+A function returning such a reference exposes that origin in its lifetime
+contract. Functions can infer it; external declarations must state it. Exact
+contract spelling remains item (6). Ordinary direct references need not carry
+a runtime owner pointer merely because the checker tracks their origin.
+
+An array never moves. A vector may select a different backing array. A direct
+reference returned into the old array continues to identify the old element;
+replacement does not retarget it. The old storage cannot be reclaimed or
+recycled while that reference remains usable. Such a reference is not a promise
+to follow the vector's current logical element.
+
+An interface promising a stable reference to a current container element must
+instead prevent conflicting relocation during the reference's usable lifetime,
+or use a representation that preserves element storage. The implementer chooses
+the contract; it must not depend on whether this particular append happened to
+fit within capacity. Proven non-relocating operations can be allowed.
+
+A `(container, index)` handle is an ordinary library value with explicitly
+different behavior: it resolves the current storage and checks the current
+length on access. Removal or reordering may change which element it identifies;
+it does not promise persistent element identity.
+
+### Embedded small vectors
+
+The descriptor is an embedded object. Its small fixed buffer also needs an
+embedded layout. The accepted extension of the same type notation is:
+
+```text
+T[4]               // reference to an array with fixed extent 4
+*(T[4])            // the fixed array itself, embedded in its owner
+(*T)[4]            // reference to an array of four embedded T objects
+```
+
+The parentheses distinguish embedding the array from embedding its elements.
+An embedded array followed by other storage needs a statically known extent;
+a dynamic trailing array is the additional layout described below. The fixed
+extent can make a stored length redundant. Bounds checks still apply. This
+fixed-buffer spelling was accepted on 2026-11-19 and is not part of the older
+recovered notes.
+
+A Node can then embed vector descriptors and small arrays of Node references.
+Reading a small element needs no separately allocated descriptor or backing
+array. Overflow uses a backing pointer. Initially the fixed buffer and overflow
+pointer can coexist; sharing their bytes would require a safely discriminated
+layout, which is not needed to obtain the main indirection savings.
+
+Reference-valued `get` returns the stored Node reference and does not borrow
+the vector slot. Value-valued `get` copies the embedded element. Direct slot
+borrowing should be a separately named library operation with an explicit
+storage contract; current indexing syntax need not gain overloads to implement
+the first vector library.
+
+### Interaction with delete
+
+An embedded object cannot be independently deleted: its storage belongs to its
+owner, not to a separately recyclable slot. This must be checked from allocation
+origin even if a borrowed reference has nominal type T and T permits deletion.
+Deleting the containing object, when permitted, affects the whole slot.
+
+Consequently, an embedded child of a deletable owner inherits the possibility
+of stale aliases and reconstruction, even if the child's nominal class is not
+deletable. Its constructor cannot assume private memory merely from that class.
+The prohibition on publishing incomplete references into deletable storage
+also applies through embedded fields. Final-field reads through old interior
+references follow the containing slot's post-delete rules.
+
+Likewise, recycling a vector's old backing storage requires proving that no
+usable references remain, including references recoverable through permitted
+historical fields of a deletable owner. Merely replacing its backing pointer
+does not establish that proof.
+
+These are necessary consequences of embedding in recyclable storage, not a
+proposal to weaken the existing type-safety or initialization guarantees.
+
+### Array length is separate from element storage
+
+Agreed addition, 2026-11-19: an embedded array's logical length and its element
+data are separate layout components. Embedding must not force a four-byte
+length header immediately before every buffer. A containing object can carry
+the length separately from the inline elements. Fixed-buffer extent, a
+container's used length, and any overflow capacity remain distinct quantities.
+
+For `*(T[4])`, the array extent is the constant four. Constant propagation can
+fold uses of that extent. Eliminating the redundant physical length field is
+future work (possibly dead-field elimination); it is not part of the current
+implementation task. A vector using that buffer can still have a separate
+changing used length between zero and four.
+
+Lengths need not occupy four bytes. A short-string representation can select
+a one-byte unsigned length, for example. Each array representation has a known
+maximum element count; an unsigned one-byte length supports a maximum of 255.
+Allocation and growth must respect that maximum as well as any applicable
+storage capacity. Preventing length wrap or truncation is a consequence of
+enforcing the maximum, not a separate array rule. The length's storage width
+is part of the layout contract, and access must use that representation.
+The exact declaration spelling and conversions
+between layouts remain to be specified; a universal four-byte header must not
+be assumed by the design.
+
+### A uniform struct with an array tail
+
+Agreed addition, 2026-11-19: support a single object containing fixed named
+fields followed by a variable-length array tail. The object supports named
+field access and array access; no separately allocated backing array or wrapper
+is required. The tail is physically last and may grow until finalized under
+the same scope-based growth rules as other in-place growing arrays.
+
+The older roadmap's field notation is a useful syntax candidate, not a newly
+settled spelling:
+
+```text
+struct ShortText {
+    // Other fixed named fields may precede the tail.
+    u8 #;       // compact logical length
+    u8 [];      // trailing byte elements in this same object
+};
+```
+
+An unsigned one-byte length gives this representation a known maximum of 255
+elements; a wider length can support a larger maximum. An open tail has a
+changing length up to that maximum, rather than a fixed declared element count.
+Named fields retain their offsets while the tail extends. Newly
+appended elements must be initialized before becoming accessible. Indexing is
+checked against the current logical length.
+
+Finalization ends tail growth without moving the object or making its mutable
+fields read-only. The resulting storage can survive the creating scope when
+its inferred or explicit destination permits that lifetime. Interior references
+remain tied to the same storage. The layout planner must preserve room for
+physical growth; this type cannot silently relocate merely because a container
+with replaceable backing storage could do so.
+
+This generalizes embedded arrays to a dynamic final field. It does not permit
+arbitrary variable-sized fields followed by other fields, and it does not add
+array deletion. How to spell construction and append for the combined type,
+and whether any combined type may independently opt into class deletion,
+remain explicit follow-up questions; neither follows just from the layout.

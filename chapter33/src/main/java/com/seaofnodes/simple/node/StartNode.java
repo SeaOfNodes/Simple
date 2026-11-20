@@ -35,6 +35,8 @@ public class StartNode extends LoopNode implements MultiNode {
     @Override public Tag serialTag() { return Tag.Start; }
     public Type arg() { return _arg; }
 
+    @Override public boolean isFunLeaf() { return true; }
+
     @Override protected ExprPrinter<Node> _print1(ExprPrinter<Node> p) {
         return p.p(label());
     }
