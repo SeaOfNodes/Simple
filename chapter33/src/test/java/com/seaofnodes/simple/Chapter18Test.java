@@ -21,7 +21,16 @@ public class Chapter18Test {
             "int x=0; while(arg) { if(arg==2) while(1) { x++; } x++; arg--; } return x;"
         };
         for( String src : sources ) {
-            CodeGen code = new CodeGen(src).driver(CodeGen.Phase.LoopTree);
+            CodeGen code = new CodeGen(src).driver(CodeGen.Phase.TypeCheck);
+            code._stop.walk(n -> {
+                assertFalse("Analysis must not insert synthetic exits",n instanceof NeverNode);
+                if( n instanceof LoopNode loop && !(loop instanceof StartNode) ) {
+                    assertSame(loop,loop._ltree._head);
+                    assertNotNull(loop._ltree._par);
+                }
+                return null;
+            });
+            code.driver(CodeGen.Phase.Unlink);
             int[] nevers = {0};
             code._stop.walk(n -> {
                 if( n instanceof FunNode fun )

@@ -193,7 +193,9 @@ final class Statements {
         // Our current scope is the body Scope
         P.ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         P._scope.addGuards(ifT,pred.unkeep(),false); // Up-cast predicate
+        P._scope.pushKeep(); // An unbraced body also has an iteration lifetime.
         parseStatement().isKill();                 // Parse loop body
+        P._scope.popKeep();
         P._scope.removeGuards(ifT);
 
         // Merge the loop bottom into other continue statements
@@ -206,8 +208,10 @@ final class Statements {
         // Now append the next code onto the body code
         if( doFor ) {
             int old = P.pos(nextPos);
+            P._scope.pushKeep();
             if( !P.peek(')') )
               P.expressions.parseAssignment().isKill();
+            P._scope.popKeep();
             if( P.pos() != nextEnd )
                 throw P.errorSyntax( "Unexpected code after expression" );
             P.pos(old);
@@ -264,6 +268,7 @@ final class Statements {
         // copy forward references into the jump scope with their own indices.
         while( cur.depth() > _breakScope.depth() )
             cur._pop();
+        cur.popKeepsTo(_breakScope.keepDepth());
         cur.balanceLoopFRefs(P._scope);
         // If this is a continue then first time the target is null
         // So we just use the pruned current scope as the base for the

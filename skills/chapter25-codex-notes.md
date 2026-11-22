@@ -42,14 +42,73 @@ the first analysis pass after Opto and before TypeCheck, few new classes,
 ASCII debugging, conservative rejections, and 3-4 poster children. The agreed decisions and remaining
 questions are in [the survey's base design](../docs/automatic-memory-management-survey.md#agreed-base-design--2026-11-17).
 The initial implementation is `codegen/Allocation.java`, after FinalizeIR and
-before TypeCheck. One call-DAG DFS composes symbolic summaries in postorder;
+LoopTree, before TypeCheck. One call-DAG DFS composes symbolic summaries in postorder;
 local reference-edge closure uses a worklist. Four poster children and boundary
 checks live in Chapter33Test. The phase is analysis-only: existing allocation
 lowering is unchanged. `simple.alloc.dump` prints ASCII, `simple.alloc.check`
 requires all plans to be supported; otherwise unsupported summaries record a
-rejection without blocking the existing allocator. Loops, SCCs, variable sizes,
-opaque calls, raw addresses, and unresolved pointer-load origins are deferred.
+rejection without blocking the existing allocator. SCCs, variable sizes,
+opaque calls, and raw addresses are deferred. Pointer-valued loads now select
+field targets; borrowed paths such as arg3.c have their own destination identity.
+Local weak-union closure covers loads, stores, and call substitutions before
+owner propagation. Actual aliases are resolved at calls; array indices share
+one field. Fresh sites are imported once per call. Incoming borrowed paths are
+separate from store edges: returning a child must not retain its holder. Weak
+updates that expand paths beyond the body's reads plus imported path depths
+reject instead of truncating; memory-ordered updates remain future work.
+Loop Phis now join the same local monotone reference calculation. Allocation
+uses CFG `_ltree` membership and LoopTree parent links, without rediscovering
+loop bodies. Reducibility is asserted by LoopTree. The early tree build does
+not insert synthetic exits: doing so would change nonreturning summaries before
+serialization. Unlink rebuilds the tree after Lower's CFG changes and inserts
+one synthetic exit only for loops with zero exits. Any fresh
+allocation reachable across a backedge rejects the plan, via pointer Phis or
+memory retention (including helper effects). Collection starts from both the
+function entry and Return, so zero-exit bodies are analyzed without synthetic
+exits. Exit-only winners get fixed storage
+before the loop; unrelated scratch uses iteration storage. Inner-loop winners
+can live in the outer iteration. Bound exemptions and overwrite/liveness proofs
+are not implemented yet. Functions and loop iterations now use the same Summary
+class, with entry/normal-exit/continuation ports, retention effects, and scratch
+cleanup sets. One function-wide reference closure shares SSA/Site identities
+with nested loop summaries; calls substitute those identities. Summary interfaces
+drive promotion through parent frames, replacing the separate loop placement
+scan. Continuation cleanup and normal-exit cleanup use the same scratch set.
+Borrowed continuation references are supported. Tests include scalar exit values,
+nested returns, mixed winner/scratch, helper allocations, exit-only stores, winner
+graphs, and rejected linked/array/helper retention. No stack lowering is emitted.
 No new language syntax or serialized lifetime summaries are implemented yet.
+Update 2026-11-21: Cliff requires the temporary LoopTree ordering above to be
+replaced before closing Chapter 33, but explicitly deferred implementation.
+Insert NeverExits in the original LoopTree build, then remove Allocation's
+zero-exit-body support and its extra forward CFG traversal. Resolve the
+nonreturning-summary issue rather than delaying synthetic exits. Lower should
+maintain LoopTree with minor local edits, eliminating the full rebuild before
+scheduling. Track completion in the roadmap's phase-ordering section.
+The 2026-11-21 [allocation survey](../chapter33/docs/allocation-survey.md)
+measures `sys` (98/179 supported summaries, 11 with user-storage sites) and ten
+examples (43/68 own summaries, three with user-storage sites). First-cause
+rejections are mostly native/opaque calls and raw addresses; they mask dynamic
+arrays and potentially later failures. Scalar libm/clock calls need targeted
+contracts; do not interpret arbitrary i64 arguments as pointer-free. The native
+`simple_text_float` allocates its returned Simple byte array with malloc, outside
+NewNode analysis, so needs an allocation contract or a caller-buffer interface.
+Local variable-sized scratch and returned variable-sized arrays both reject;
+fixed-size Holder overwrites reject while explicit object reuse passes. These
+are survey findings, not authorization to change contracts or allocation lowering.
+The standalone probe and function-level snapshot live beside the report.
+Update 2026-11-21, native borrowing: Cliff authorized Plan A: native calls borrow
+references through the call and do not hide, publish, or retain them. Allocation
+now recognizes finite all-native target sets via externFunc, accepts scalar
+results, and follows PtrToInt provenance through SSA arithmetic/Phis. Raw returns,
+memory stores, and Simple integer-argument forwarding still reject; typed-pointer
+wrappers work. Native Simple-pointer results still require origin contracts.
+No ABI or runtime allocator changes. Scope lifetime is the documented upper
+bound; brace-level scopes are absent here, so current plans use function/iteration
+frames. Tests cover raw Phis/offsets, loop scratch, typed wrappers, and backedge
+and memory escape rejection. `_exit` no-return CFG work remains open; Cliff's
+Return-merge alternative is recorded in the roadmap. Do not use dead CallEnd
+control alone: it can discard the very terminating path that must remain rooted.
 Update 2026-11-19: Cliff accepted the entire
 [embedded-object design](../docs/automatic-memory-management-survey.md#agreed-design-embedded-objects-values-and-references),
 including `*T` object values, `&` interior references, and `*(T[4])` embedded

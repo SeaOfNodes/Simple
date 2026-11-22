@@ -168,6 +168,7 @@ final class ArrayInitializers {
         // Saved paths share Var records with the active scope. Drop locals
         // without promoting them, then copy forward references explicitly.
         while( cur.depth()>_frame._depth ) cur._pop();
+        cur.popKeepsTo(_frame._kind._keepSize+1);
         cur.balanceLoopFRefs(P._scope);
         cur.update(_frame._value,value.unkeep());
         if( _frame._returns==null ) _frame._returns=cur;

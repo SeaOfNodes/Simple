@@ -235,8 +235,15 @@ public class Type /*implements Cloneable*/ {
     public int nkids() { return 0; }   // Number of kids
 
 
+    // Reset recycles Type objects still referenced by old compilation graphs.
+    // Debuggers must not inspect those types, even if they have been reused and
+    // look valid again. The generation lets a CodeGen detect that situation.
+    private static long RESET_GENERATION;
+    public static long resetGeneration() { return RESET_GENERATION; }
+
     // Clear and re-insert the basic Type INTERN table
     public static void reset() {
+        RESET_GENERATION++;
         VISIT.clear();
         FREES.clear();
         if( INTERN0.isEmpty() ) {

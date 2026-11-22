@@ -21,10 +21,20 @@ final class Conversions {
         if( expr instanceof FunPtrNode && t instanceof TypeFunPtr )
             return expr;
         // Auto-widen array to i64 (cast ptr to raw int bits)
-        if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() )
-            return P.peep(new AddNode(P.peep(new PtrToIntNode(expr)),ConFldOffNode.make(tmp._obj,"[]")));
+        if( t == TypeInteger.BOT && expr._type instanceof TypeMemPtr tmp && tmp._obj.isAry() ) {
+            Node raw=P.peep(new AddNode(P.peep(new PtrToIntNode(expr)),ConFldOffNode.make(tmp._obj,"[]")));
+            P._scope.keepValue(raw);
+            return raw;
+        }
         // Widen ints to floats, narrow wide types
-        return P.peep(new ConvertNode(t,expr));
+        Type src=expr._type;
+        boolean possibleArray=!(expr instanceof ArithNode) && (src==Type.BOTTOM || src==TypeScalar.BOT);
+        Node converted=P.peep(new ConvertNode(t,expr));
+        // A forward call can acquire its array result type after parsing.
+        // ConvertNode will then introduce PtrToInt; save its endpoint now.
+        if( t==TypeInteger.BOT && possibleArray )
+            P._scope.keepValue(converted);
+        return converted;
     }
 
     // Inferred `var` declarations describe writable slots, not the exact

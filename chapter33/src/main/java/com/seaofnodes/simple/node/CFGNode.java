@@ -200,7 +200,34 @@ public abstract class CFGNode extends Node {
     // Tag all CFG Nodes with their containing LoopNode; LoopNodes themselves
     // also refer to *their* containing LoopNode, as well as have their depth.
     // Start contains the function bodies at depth 0; real loops add depth.
+    public void rebuildLoopTree(Ary<FunNode> funs, StopNode stop) {
+        // Reset just these function bodies, not other graphs that Eval2 might
+        // already be executing. Call/Return links are not intraprocedural CFG.
+        BitSet seen=new BitSet();
+        Ary<CFGNode> work=new Ary<>(CFGNode.class);
+        for( FunNode fun : funs )
+            if( fun!=null && !fun.isDead() && !fun._type.isHigh() && fun.summary()==null ) {
+                work.push(fun);
+                if( fun.in(1) instanceof StartCUNode start ) start._pre=0;
+            }
+        while( !work.isEmpty() ) {
+            CFGNode cfg=work.pop();
+            if( seen.get(cfg._nid) ) continue;
+            seen.set(cfg._nid);
+            cfg._pre=0;
+            cfg._ltree=null;
+            if( cfg instanceof ReturnNode ) continue;
+            for( Node use : cfg._outputs )
+                if( use instanceof CFGNode next && !cfg.skip(next) ) work.push(next);
+        }
+        buildLoopTree(funs,stop);
+    }
+
     public void buildLoopTree( Ary<FunNode> funs, StopNode stop) {
+        buildLoopTree(funs,stop,true);
+    }
+
+    public void buildLoopTree( Ary<FunNode> funs, StopNode stop, boolean forceExits) {
         _ltree = stop._ltree = CodeGen.CODE.XCTRL._ltree = new LoopTree((StartNode)this);
         Ary<FunNode> work = new Ary<>(FunNode.class);
 
@@ -221,17 +248,21 @@ public abstract class CFGNode extends Node {
         }
 
         for( int i=0; i<work._len; i++ )
-            pre = work.at(i)._bltWalk(pre,work.at(i),stop, post, work);
+            pre = work.at(i)._bltWalk(pre,work.at(i),stop, post, work,forceExits);
         post.clear();
     }
 
-    int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post, Ary<FunNode> work ) {
+    int _bltWalk( int pre, FunNode fun, StopNode stop, BitSet post, Ary<FunNode> work, boolean forceExits ) {
         // Pre-walked?
         if( _pre!=0 ) return pre;
         _pre = pre++;
         // Seed the function's outer tree before walking its body.  Synthetic
         // exits can be added before the post-order walk reaches the entry.
-        if( this instanceof FunNode ) _ltree = stop._ltree;
+        if( this instanceof FunNode ) {
+            _ltree = stop._ltree;
+            // A zero-exit function's Return is not reachable through control.
+            fun.ret()._ltree = _ltree;
+        }
         if( this instanceof ReturnNode ) {
             _ltree = fun._ltree;
             post.set(_nid);
@@ -243,7 +274,7 @@ public abstract class CFGNode extends Node {
                 if( skip( usecfg ) ) {
                     if( usecfg._pre==0 && usecfg instanceof FunNode fun2 && fun2.summary()==null ) work.add( fun2 );
                 } else
-                    pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post, work );
+                    pre = usecfg._bltWalk( pre, use instanceof FunNode fuse ? fuse : fun, stop, post, work,forceExits );
             }
 
         // Post-order work: find innermost loop
@@ -257,16 +288,21 @@ public abstract class CFGNode extends Node {
             // Child visited but not post-visited?
             if( !post.get(usecfg._nid) ) {
                 // Must be a backedge to a LoopNode then
+                assert usecfg instanceof LoopNode : "Simple CFGs must be reducible";
                 ltree = usecfg._ltree = new LoopTree((LoopNode)usecfg);
             } else {
                 // Take child's loop choice, which must exist
                 ltree = usecfg._ltree;
                 // If falling into a loop, use the target loop's parent instead
                 if( ltree._head == usecfg ) {
-                    if( ltree._par == null )
+                    if( ltree._par == null ) {
                         // This loop never had an If test choose to take its
                         // exit, i.e. it is a no-exit infinite loop.
-                        ltree._par = ltree._head.forceExit(fun,stop)._ltree;
+                        // Analysis needs its nesting, but a synthetic exit
+                        // must not change nonreturning summaries in .simple.
+                        if( forceExits ) ltree._head.forceExit(fun,stop);
+                        ltree._par = fun._ltree;
+                    }
                     ltree = ltree._par;
                 }
             }

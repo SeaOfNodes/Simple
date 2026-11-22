@@ -44,6 +44,15 @@ and the supporting libraries.
 
 ## Compilation and optimization
 
+### Inferred global result storage
+
+Chapter 33's `testAllocationLoopWinnerAndScratch` exposes a pre-existing bug if
+its top-level `Thing? t=find_noInline(arg)` is changed to `val t=...`. The nullable
+winner's optimized result type is correct, but the canonical class field remains
+`BOTTOM`; its Store never resolves a width and fails `StoreNode.err`. Reproduced
+with the Allocation phase skipped. Fix inferred global field/layout finalization;
+an explicit field type currently avoids the failure.
+
 ### General cleanup
 
 Keep the recursive-descent path aligned with the grammar. Review moving `TYPES`
@@ -55,8 +64,26 @@ convention.
 
 ### Phase ordering and incremental analysis
 
+Required before closing Chapter 33 (deferred for now):
+
+- Insert NeverExits during the original LoopTree build, before Allocation.
+  Preserve nonreturning-function semantics through TypeCheck and serialization;
+  synthetic scheduling exits must not make a function appear to return.
+- With those exits present, remove Allocation's special support for zero-exit
+  bodies, including the extra forward CFG traversal added for them.
+- Maintain LoopTree membership with local edits when Lower changes the CFG;
+  remove the full loop-tree rebuild before scheduling.
+
 Remaining work:
 
+- Recognize `_exit` as nonreturning without dropping the call or its memory
+  dependencies. The current native-borrowing analysis accepts it, but does not
+  change CFG behavior. Preferred direction under discussion: connect a synthetic
+  live-control/TOP-value path to the function's existing Return merge, preserving
+  ordinary function walks, while killing the source continuation. Share the
+  NeverExit merge machinery if practical. Check synthetic-only return diagnostics,
+  serialization, and propagation through callers; do not merely set CallEnd to
+  dead control or introduce an unhandled edge to StopCU.
 - Review the remaining node-ID bitset costs in Eval2 scheduling. Scratch
   arrays now retain capacity and reset only touched entries, but bitsets
   still span previously allocated node IDs. Scheduling a newly loaded

@@ -9,6 +9,7 @@ abstract class Unlink {
     // Disconnect compiler-only interprocedural edges before scheduling. Keep
     // signatures in the linker; runtime calls resolve FIDXs, not graph edges.
     static Ary<FunNode> forEval(CodeGen code, StartNode start, StopNode stop) {
+        KeepAliveNode.erase(start);
         Ary<Node> nodes = new Ary<>(Node.class);
         start.walk(n -> { nodes.add(n); return null; });
         Ary<FunNode> funs = new Ary<>(FunNode.class);

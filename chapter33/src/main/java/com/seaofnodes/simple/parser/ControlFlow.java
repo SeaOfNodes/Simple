@@ -32,6 +32,7 @@ final class ControlFlow {
         P.ctrl(ifT.unkeep());     // set ctrl token to ifTrue projection
         P._scope.addGuards(ifT,pred,false); // Up-cast predicate
         // Parse true-side flavor
+        if( fside.equals("else") ) P._scope.pushKeep();
         Node lhs = switch( fside ) {
         case "else" -> P.statements.parseStatement(); // if( pred )  stmts;
         case ":"    -> P.expressions.parseAssignment();      //     pred ?  asgn;
@@ -40,6 +41,7 @@ final class ControlFlow {
         default     -> throw TODO();
         };
         lhs.keep();
+        if( fside.equals("else") ) P._scope.popKeep();
         P._scope.removeGuards(ifT);
 
         // See if a one-sided def was made: "if(pred) int x = 1;" and throw.
@@ -57,6 +59,7 @@ final class ControlFlow {
         P._scope.addGuards(ifF,pred,true);
         // Parse false-side flavor
         boolean doRHS = false;  // RHS is optional for if/else and trinary
+        if( fside.equals("else") ) P._scope.pushKeep();
         Node rhs = switch( fside ) {
         case "else" -> (doRHS = P.match(fside)) ? P.statements.parseStatement() : P.con(lhs._type.makeZero());
         case ":"    -> (doRHS = P.match(fside)) ? P.expressions.parseAssignment()      : P.con(lhs._type.makeZero());
@@ -65,6 +68,7 @@ final class ControlFlow {
         default     -> throw TODO();
         };
         rhs.keep();
+        if( fside.equals("else") ) P._scope.popKeep();
         P._scope.removeGuards(ifF);
         // The RHS of `||` is parsed on the false side, so retain its updated
         // control, memory and locals just as an explicit else arm does.

@@ -16,6 +16,7 @@ public class CodeGen {
 
     // Last created CodeGen as a global; used all over to avoid passing about a "context".
     public static CodeGen CODE;
+    private final long _typeGeneration;
 
     // Location of built-in CPU ports
     public static final String PORTS = "com.seaofnodes.simple.node.cpus";
@@ -27,11 +28,11 @@ public class CodeGen {
         Opto,                   // SCCP, numeric modes, seed the peephole worklist
         IterPostOpto,           // Peepholes and inlining using SCCP results
         FinalizeIR,             // Field layout, offset cleanup, function/CU roots
+        LoopTree,               // Containing loops for allocation analysis
         Allocation,             // Symbolic allocation destinations; analysis only
         TypeCheck,              // Last check for bad programs
         Serialize,              // Save ideal IR, including opaque class initialization
         Lower,                  // Expand checked class initialization to ordinary IR
-        LoopTree,               // Build a loop tree; break infinite loops
         Unlink,                 // Unlink call sites before machine code generation
         Select,                 // Convert to target hardware nodes
         Schedule,               // Global schedule (code motion) nodes
@@ -136,6 +137,7 @@ public class CodeGen {
         // of places.  Probably becomes a TLS at some point.
         CODE = this;
         if( resetTypes ) Type.reset();           // Reset to recover from failed test
+        _typeGeneration = Type.resetGeneration();
 
         _cwd = System.getProperty("user.dir")+"/";
         _modDir   =   modDir == null ? _cwd :   modDir;
@@ -197,6 +199,7 @@ public class CodeGen {
         step(target, Phase.IterPostOpto, this::iterPostOpto, dump);
         // Field layouts; field symbols become constant offsets
         step(target, Phase.FinalizeIR,   this::finalizeIR,   dump);
+        step(target, Phase.LoopTree,     this::loopTree,     dump);
         step(target, Phase.Allocation,   this::allocation,   dump);
         // Final error check - bad programs fail here
         step(target, Phase.TypeCheck,    this::typeCheck,    dump);
@@ -205,9 +208,6 @@ public class CodeGen {
         // Eval2 executes ideal operations, including CLInit, directly. Only
         // machine compilation expands them before scheduling.
         step(target, Phase.Lower, () -> { if( cpu!=null ) lower(); }, dump);
-        // Compute the loop-tree, used for approximating exec frequencies for
-        // scheduling and register allocation
-        step(target, Phase.LoopTree,     this::loopTree,     dump);
         // Detach call-graph edges; ideal execution retains unloaded summaries
         // as dispatch targets and schedules their bodies on first use.
         step(target, Phase.Unlink, () -> unlink(cpu!=null), dump);
@@ -522,14 +522,15 @@ public class CodeGen {
     // Last check for bad programs
     public Allocation _allocation;
     public CodeGen allocation() {
-        return phase(Phase.Allocation, _phase==Phase.FinalizeIR, () -> {
+        if( _phase==Phase.FinalizeIR ) loopTree();
+        return phase(Phase.Allocation, _phase==Phase.LoopTree, () -> {
             _allocation = new Allocation(this);
             if( Boolean.getBoolean("simple.alloc.dump") ) System.out.print(_allocation);
             if( Boolean.getBoolean("simple.alloc.check") ) _allocation.requireSupported();
         });
     }
     public CodeGen typeCheck() {
-        if( _phase==Phase.FinalizeIR ) allocation();
+        if( _phase==Phase.FinalizeIR || _phase==Phase.LoopTree ) allocation();
         return phase(Phase.TypeCheck, _phase==Phase.Allocation, () -> TypeCheck.run(this));
     }
 
@@ -540,10 +541,11 @@ public class CodeGen {
     }
 
     // ---------------------------
-    // Build the loop tree; break never-exit loops
+    // Build containing loops without changing control flow before TypeCheck
+    // and serialization. Scheduling adds exits to zero-exit loops later.
     public CodeGen loopTree() {
-        return phase(Phase.LoopTree, (_phase==Phase.Lower || _phase==Phase.TypeCheck || _phase==Phase.Serialize),
-                     () -> _start.buildLoopTree(_linker,_stop));
+        return phase(Phase.LoopTree, _phase==Phase.FinalizeIR,
+                     () -> _start.buildLoopTree(_linker,_stop,false));
     }
 
     // ---------------------------
@@ -584,7 +586,11 @@ public class CodeGen {
         unlink(true);
     }
     private void unlink(boolean removeImports) {
-        phase(Phase.Unlink, _phase==Phase.LoopTree, () -> {
+        phase(Phase.Unlink, (_phase==Phase.Lower || _phase==Phase.TypeCheck || _phase==Phase.Serialize), () -> {
+            KeepAliveNode.erase(_start);
+            // Lower can change CFG membership. Rebuild for scheduling, now
+            // including synthetic exits for loops with no exits at all.
+            _start.rebuildLoopTree(_linker,_stop);
             _start.setDef(2,null); // Releases the compiler-only escape analysis.
             if( removeImports ) Unlink.run(this,true);
             else Unlink.forEval(this,_start,_stop);
@@ -815,6 +821,8 @@ public class CodeGen {
 
     // Debugging helper
     @Override public String toString() {
+        if( _typeGeneration != Type.resetGeneration() )
+            return "IR unavailable: shared types were reset after this compilation.";
         if( _stop == null )
             return "No StopNode";
         return IRPrinter.prettyPrint(this);

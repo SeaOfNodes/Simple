@@ -389,6 +389,7 @@ final class Functions {
         // travel in expr's private memory; only their scope layout is retained.
         int lexN = P._scope.enclosingFuncOrDecl();
         Kind.Func k = (Kind.Func)P._scope._kinds.at(lexN);
+        P._scope.endKeeps(k._keepSize);
         if( FunNode.isInit(k._name) ) {
             int nestedLexSize = lexN+1 < P._scope.depth() ? P._scope._kinds.at(lexN+1)._lexSize : P._scope.nIns();
             if( k._name.endsWith(".<clinit>") )
@@ -412,6 +413,7 @@ final class Functions {
             _returnScope = P._scope.dup();
             while( lexN+1 < _returnScope.depth() )
                 _returnScope._pop(); // Pop a nested block scope until we hit the function scope
+            _returnScope.popKeepsTo(k._keepSize+1);
             _returnScope.define("$expr", Conversions.inferredReturnType(expr._type), true, expr, null);
 
         } else {

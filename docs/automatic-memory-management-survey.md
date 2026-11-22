@@ -63,10 +63,15 @@ references, and array layouts reviewed and accepted 2026-11-19; see the
 - Classes explicitly opt into being deletable; the spelling is undecided.
   `delete` permits storage recycling rather than immediately invalidating the
   storage. Automatic reclamation still governs the enclosing region's lifetime.
-- Arrays are never user-deletable. Their storage follows automatic lifetimes.
-  A container's obsolete backing storage may be internally recycled only when
-  the compiler proves no usable references into it survive. This is distinct
-  from class-slot recycling with permitted stale references after `delete`.
+- Ordinary arrays are not deletable; their storage follows automatic lifetimes.
+  Agreed extension, 2026-11-21: deletable arrays have a distinct type (spelling
+  undecided), disallow interior references, and require unique access and no
+  escaping aliases. The compiler must establish that no usable aliases or
+  outstanding borrows survive `delete`; deletion consumes the owning access.
+  Growable library containers can use this type for power-of-two backing arrays,
+  explicitly deleting replaced buffers into a buddy allocator. Such arrays do
+  not permit the stale-reference behavior of deletable class slots. Separate
+  length storage remains a layout design, not a safety requirement for recycling.
 - `new E[N]` creates a fixed-length array, with N possibly computed at runtime.
   `new E[]` starts empty and permits append with `es += elem`. Access and
   indexed assignment are checked against the current length and do not extend
@@ -237,6 +242,24 @@ rely. There is no separate native lifetime mechanism. For a Simple implementatio
 the compiler can check those promises against its body; for native code the
 FFI declaration is trusted. A mismatch is a bug in the binding contract or its
 implementation, not a reason to weaken the ordinary call-site lifetime rules.
+
+Update 2026-11-21: for the first native-call implementation, assume native code
+borrows passed references only until the call returns. It does not hide, escape,
+or retain them. Keep the existing pointer-to-integer ABI conversion (Plan A),
+while preserving the storage lifetime through the native call. A raw address
+does not itself grant a longer lifetime: using the containing lexical scope as
+the keep-alive bound is acceptable, and storage may be reclaimed/reused when
+that scope ends. This limitation belongs in the user documentation. Changing
+native signatures to typed pointers with correctly extended machine arguments
+is a fallback, not required for this first cut.
+
+The current analysis tracks raw-address SSA expressions, including arithmetic
+and Phis, in its function/iteration frames. Brace-level lifetime markers are not
+present after Opto. Raw-address returns, memory stores, and forwarding through
+Simple integer parameters remain conservative rejections; typed-reference
+wrappers can perform the conversion at the native boundary. Native-produced
+Simple pointers still need a result-storage contract. These are implementation
+limits, not a claim that all such programs inherently require unbounded storage.
 
 #### Returned-borrow syntax and FFI boundary — agreed 2026-11-19
 

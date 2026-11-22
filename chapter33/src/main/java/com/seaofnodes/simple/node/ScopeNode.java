@@ -18,6 +18,14 @@ import java.util.*;
  */
 public class ScopeNode extends MemMergeNode {
 
+    // Parser root for pending lifetime uses. Real edges let Phi replacement
+    // update the pending values, just like the ordinary variable bindings.
+    private static class Pending extends Node {
+        @Override public Type compute() { return Type.BOTTOM; }
+        @Override public Node idealize() { return null; }
+        @Override public boolean eq(Node n) { return this==n; }
+    }
+
     /**
      * The control is a name that binds to the currently active control
      * node in the graph
@@ -52,6 +60,7 @@ public class ScopeNode extends MemMergeNode {
         }
 
         public int _lexSize;     // Number of Vars in this scope
+        public int _keepSize;    // Lifetime scopes outside this lexical scope
     }
     public final Ary<Kind> _kinds;
     // Lexical scope nesting depth
@@ -60,6 +69,8 @@ public class ScopeNode extends MemMergeNode {
 
     // Extra guards; tested predicates and cast results
     private final Ary<Node> _guards;
+    private Pending _keeps; // Materialized only when a scope has a real address use
+    private final Ary<Node> _emptyKeeps = new Ary<>(Node.class); // Zeroes and lazy loop sentinels
 
     // A new ScopeNode
     public ScopeNode() {
@@ -114,8 +125,66 @@ public class ScopeNode extends MemMergeNode {
 
     public void push( Kind kind ) {
         kind._lexSize = _vars.size();
+        kind._keepSize = keepDepth();
         _kinds.push(kind);
+        pushKeep();
     }
+
+    public int keepDepth() { return _keeps==null ? _emptyKeeps.size() : _keeps.nIns(); }
+    private Node keepAt(int i) { return _keeps==null ? _emptyKeeps.at(i) : _keeps.in(i); }
+    private void materializeKeeps(Node value) {
+        if( _keeps!=null || value==CodeGen.CODE.ZERO || value instanceof ScopeNode ) return;
+        _keeps=new Pending().keep();
+        for( Node n : _emptyKeeps ) _keeps.addDef(n);
+        _emptyKeeps.clear();
+    }
+    private void addKeep(Node value) {
+        materializeKeeps(value);
+        if( _keeps==null ) _emptyKeeps.add(value); else _keeps.addDef(value);
+    }
+    public void pushKeep() { addKeep(CodeGen.CODE.ZERO); }
+    private Node setKeep(int i, Node n) {
+        Node old=keepAt(i);
+        if( old!=n ) {
+            materializeKeeps(n);
+            if( _keeps==null ) _emptyKeeps.set(i,n); else _keeps.setDef(i,n);
+        }
+        return n;
+    }
+    private Node getKeep(int i) { return getKeep(i,false); }
+    private Node getKeep(int i, boolean writing) {
+        Node old=keepAt(i);
+        if( old instanceof ScopeNode loop ) {
+            Node def=loop.getKeep(i,writing);
+            // Reading an empty obligation needs no loop Phi. A conversion
+            // must create one before adding its address to this iteration.
+            if( def==CodeGen.CODE.ZERO && !writing ) return def;
+            old=def instanceof PhiNode phi && loop.ctrl()==phi.region() ? def :
+                loop.setKeep(i,new PhiNode("$keep",loop.ctrl(),def,null).init());
+            setKeep(i,old);
+        }
+        return old;
+    }
+    public void keepValue(Node value) {
+        int i=keepDepth()-1;
+        setKeep(i,new KeepAliveNode.Values(getKeep(i,true),value).peephole());
+    }
+    // Flush just the scopes being exited; outer obligations remain pending.
+    public void endKeeps(int first) {
+        for( int i=keepDepth()-1; i>=first; i-- ) {
+            if( ctrl()._type!=Type.XCONTROL ) {
+                Node value=getKeep(i);
+                if( value._type!=TypeInteger.ZERO )
+                    ctrl(new KeepAliveNode(ctrl(),value).peephole());
+            }
+            setKeep(i,CodeGen.CODE.ZERO);
+        }
+    }
+    public void popKeepsTo(int size) {
+        endKeeps(size);
+        if( _keeps==null ) _emptyKeeps.setLen(size); else _keeps.popUntil(size);
+    }
+    public void popKeep() { popKeepsTo(keepDepth()-1); }
 
     // Pop a lexical scope
     public void pop() {
@@ -124,7 +193,9 @@ public class ScopeNode extends MemMergeNode {
     }
     // Pop a scope, no promote FRefs
     public void _pop() {
-        int n = _kinds.pop()._lexSize;
+        Kind kind=_kinds.pop();
+        popKeepsTo(kind._keepSize);
+        int n = kind._lexSize;
         popUntil(n);            // Pop off inputs going out of scope
         _vars.setLen(n);        // Pop off variables going out of scope
     }
@@ -352,6 +423,7 @@ public class ScopeNode extends MemMergeNode {
         dup._vars   .addAll(_vars   );
         dup._kinds  .addAll(_kinds  );
         dup._guards .addAll(_guards );
+        for( int i=0; i<keepDepth(); i++ ) dup.addKeep(loop ? this : keepAt(i));
         // The dup'd guards all need dup'd keepers, to keep proper accounting
         // when later removing all guards
         for( Node n : _guards )
@@ -391,6 +463,11 @@ public class ScopeNode extends MemMergeNode {
         _merge(that,r,nIns());
     }
     public void _merge(ScopeNode that, RegionNode r, int max ) {
+        for( int i=0; i<keepDepth(); i++ ) {
+            if( keepAt(i)==that.keepAt(i) ) continue;
+            Node lhs=getKeep(i), rhs=that.getKeep(i);
+            if( lhs!=rhs ) setKeep(i,new PhiNode("$keep",r,lhs,rhs).peephole());
+        }
         for( int i = 1; i < max; i++)
             if( in(i) != that.in(i) ) { // No need for redundant Phis
                 // If we are in lazy phi mode we need to a lookup
@@ -446,10 +523,23 @@ public class ScopeNode extends MemMergeNode {
         back.kill();            // Loop backedge is dead
         // Now one-time do a useless-phi removal
         this._useless();
+        for( int i=0; i<keepDepth(); i++ )
+            if( keepAt(i) instanceof PhiNode phi ) {
+                Node n=phi.peephole();
+                if( n!=phi ) phi.subsume(n);
+            }
     }
 
     // Fill in the backedge of any inserted Phis
     void _endLoop( ScopeNode scope, Node back, Node exit ) {
+        ScopeNode bscope=(ScopeNode)back, escope=(ScopeNode)exit;
+        for( int i=0; i<keepDepth(); i++ ) {
+            Node n=keepAt(i);
+            if( n instanceof PhiNode phi && phi.region()==scope.ctrl() && phi.in(2)==null ) {
+                phi.setDef(2,bscope.getKeep(i));
+            }
+            if( escope.keepAt(i)==scope ) escope.setKeep(i,n);
+        }
         for( int i=1; i<nIns(); i++ ) {
             if( !loopVar(var(i)) ) continue;
             Node n = in(i);
@@ -654,8 +744,10 @@ public class ScopeNode extends MemMergeNode {
                 n.unkill();
         _guards.clear();
         // Can have lazy uses remaining
-        if( isUnused() )
+        if( isUnused() ) {
+            if( _keeps!=null ) _keeps.unkill();
             super.kill();
+        }
     }
 
 

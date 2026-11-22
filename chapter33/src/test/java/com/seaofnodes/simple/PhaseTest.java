@@ -27,7 +27,7 @@ public class PhaseTest {
         code.driver(Phase.TypeCheck); // A repeated request does not rerun anything.
         assertEquals("45",Eval2.eval(code,10));
         code.driver(Phase.LocalSched);
-        assertEquals("Parse Iter Opto IterPostOpto FinalizeIR Allocation TypeCheck LoopTree Unlink Schedule LocalSched",
+        assertEquals("Parse Iter Opto IterPostOpto FinalizeIR LoopTree Allocation TypeCheck Unlink Schedule LocalSched",
                      String.join(" ",phases));
         assertNull(code._serial);
         assertNull(code._mach);

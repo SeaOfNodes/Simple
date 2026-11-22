@@ -14,8 +14,6 @@ import static org.junit.Assert.assertEquals;
 public class BrainFuckTest {
 
     @Test public void testBrainFuckAryu8() throws IOException {
-
-
         String brain_fuck = "Hello World!\n";
         String src =
 """

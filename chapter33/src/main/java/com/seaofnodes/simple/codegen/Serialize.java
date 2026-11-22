@@ -106,7 +106,8 @@ public class Serialize {
         // A - Print the C0DE header; last byte is the version number.
         // Format 2: gradual packed ints, UTF-8 strings, sparse MemMerge edges,
         // and wider singleton function IDs.  Reject old cached objects clearly.
-        baos.write('C').write('0').write('D').write('2');
+        // Format 3 retains lexical raw-address lifetime endpoints in bodies.
+        baos.write('C').write('0').write('D').write('3');
 
         // Count unique Types
         var types = new HashMap<Type,Integer>();
@@ -335,7 +336,7 @@ public class Serialize {
         Type.TAGOFFS();
 
         // A - Read a header
-        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='2' )
+        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='3' )
             throw new IllegalArgumentException("Unsupported serialized IR format; rebuild the object file");
 
         // B - Packed read of #strings, then strings
@@ -368,7 +369,7 @@ public class Serialize {
         String[] strs = elf._strs;
         if( strs == null ) {
             // A - Read a header
-            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != '2' )
+            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != '3' )
                 throw new IllegalArgumentException( "Unsupported serialized IR format; rebuild the object file" );
 
             // B - Packed read of #strings, then strings
