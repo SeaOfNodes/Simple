@@ -4,13 +4,14 @@ import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 
 // The small, eagerly readable part of a function's serialized implementation.
-record FunctionSummary(TypeFunPtr sig, TypeTuple state, String name, int size, int[] classDependencyFIDXs) {
+record FunctionSummary(TypeFunPtr sig, TypeTuple state, String name, int size, int[] classDependencyFIDXs,
+                       FunctionEffects effects, Allocation.Summary allocation) {
     void install(CodeGen code, CompUnit cu) {
         FunNode fun = new FunNode(null,sig,name,cu,null,cu._start);
         fun._approxUIDs=size;
         fun.init();
         // First user stays in output slot zero until the summary is removed.
-        SummaryNode body = new SummaryNode(state,classDependencyFIDXs,fun);
+        SummaryNode body = new SummaryNode(state,classDependencyFIDXs,effects,allocation,fun);
         ParmNode rpc = new ParmNode("$rpc",0,TypeRPC.BOT,fun,code.con(TypeRPC.BOT)).init();
         ParmNode mem = new ParmNode("$mem",1,TypeMem.BOT,fun,cu._start.proj(1)).init();
         body.addDef(mem);

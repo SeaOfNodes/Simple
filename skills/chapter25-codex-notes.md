@@ -33,6 +33,67 @@ field shapes, existing Iter/SCCP propagates them, and TypeCheck checks and erase
 the views. Borrowed partials can read proven fields but cannot write; unknown
 callers promise no initialized fields. No new passes or backward demand walks.
 
+## Current checkpoint before reset (2026-11-23)
+
+Cliff requested another attempt at normal array-wrapper ownership composition,
+then intends to review/commit and step back to assess the architecture. That
+attempt is finished and validated. The next conversation should start from
+[the survey's review checkpoint](../chapter33/docs/array-delete-survey.md#checkpoint-for-design-review),
+not automatically continue adding exceptions or implementing recycling.
+
+Workspace: `C:/Users/cliffc/Desktop/Simple`, PowerShell, branch `ch33`; HEAD when
+saved was `96f150b0` (Simple loops, loop escapes and loop scratch). The large dirty
+workspace includes several earlier turns' work. Nothing was committed or pushed.
+Preserve it all, including untracked `ArrayDelete.java`, `FunctionEffects.java`,
+`docs/ArrayDeleteSurvey.java`, and `docs/array-delete-survey.md` under chapter33.
+
+The latest change is mainly ArrayDelete's per-call field substitution. The
+allocation graph remains flow-insensitive; deletion checks follow memory SSA.
+Interned Ref identities distinguish incoming fields, callee allocations, and
+exclusive outgoing call/loop versions. Effects maps callee may-stores and return
+origins into the caller. Initializers use this machinery too. `arrayOwned` proves
+exclusive outgoing fields from the boundary graph; dumps now print that guarantee.
+Loop versions distinguish previous-iteration call results, and backedge checks
+cover explicit stores AND helper-retained aliases. The longer design/invariants
+entry below describes this and the separate, still-unfixed verifier reproducer.
+
+Serialized IR is now format 8. `_opaqueEffects` prevents raw/native/initialization
+effects missing from the field graph from being treated as no-retention. The
+release sys library was rebuilt. Previous library caches were moved, not deleted,
+to `chapter33/build/array-delete-format3` through `array-delete-format7`.
+
+Debugger cases at the end of `Chapter33Test.java`:
+
+- `testArrayConsumeTwoGrows` (near line 2003) now PASSES; breakpoint comment exposes
+  `code`, `first`, and `second` caller checkpoints. It used to assert rejection.
+- `testArrayConsumeGrowLoop` (near line 1864) is the single-grow loop example.
+- `testArrayConsumeComposedCalls` covers branches, multiple grows per iteration,
+  buffer-taking initializers, borrowed input arrays, saved aliases, and helper stores.
+- `testArrayConsumeImportedOpaqueEffects` proves the raw-effect marker survives
+  serialization. Keep the class in a separate module from the helper so loading
+  its constructor does not restore the helper's body and defeat this test.
+
+Validation: `make -j8 tests_nographics` PASSED; log is
+`chapter33/build/compose-full.log`. `git diff --check` passed. Latest source survey:
+`chapter33/build/array-delete-survey/run-10730582824125651151/results.tsv`, with
+console output in `chapter33/build/compose-survey.log`. Full migrations pass for
+aryi64, bitset, and Canvas. aryu8's ordinary grow/add/append, string/integer
+formatting, aryi64.str, and elapsed formatting checks pass; the whole aryu8
+migration still rejects native read, floating-result origins, and time.local's
+native effects. Timers still rejects consuming recursion. No survey crashes.
+Runtime array recycling is NOT implemented.
+
+The survey runner accepts `-Dsimple.delete.graph=true` to save graph.txt and
+allocation.txt per case (quote this option in PowerShell). Run from chapter33;
+the survey document gives javac/java commands. Temporary probes and backups in
+build are debugging artifacts. In particular, DO NOT rerun
+`build/compose-array-delete.py`: it generated an intermediate implementation and
+would overwrite subsequent fixes. Current source files are authoritative.
+
+User preferences: no bold in terminal responses; no streams/StringJoiner;
+append new tests to Chapter33Test rather than separate test classes; use -j8;
+keep debugger examples small. No subagents unless explicitly requested.
+
 ## Chapter 33: restart guidance (2026-11-16)
 
 Cliff closed Chapter 32 and requested `ch32` rebased onto `main`, then a new
@@ -77,7 +138,7 @@ scan. Continuation cleanup and normal-exit cleanup use the same scratch set.
 Borrowed continuation references are supported. Tests include scalar exit values,
 nested returns, mixed winner/scratch, helper allocations, exit-only stores, winner
 graphs, and rejected linked/array/helper retention. No stack lowering is emitted.
-No new language syntax or serialized lifetime summaries are implemented yet.
+Serialized lifetime summaries were added on 2026-11-23; see the update below.
 Update 2026-11-21: Cliff requires the temporary LoopTree ordering above to be
 replaced before closing Chapter 33, but explicitly deferred implementation.
 Insert NeverExits in the original LoopTree build, then remove Allocation's
@@ -106,9 +167,10 @@ wrappers work. Native Simple-pointer results still require origin contracts.
 No ABI or runtime allocator changes. Scope lifetime is the documented upper
 bound; brace-level scopes are absent here, so current plans use function/iteration
 frames. Tests cover raw Phis/offsets, loop scratch, typed wrappers, and backedge
-and memory escape rejection. `_exit` no-return CFG work remains open; Cliff's
-Return-merge alternative is recorded in the roadmap. Do not use dead CallEnd
-control alone: it can discard the very terminating path that must remain rooted.
+and memory escape rejection. Update 2026-11-22: known native `_exit` calls keep
+ordinary live CallEnd control, with TypeMem.TOP memory and TypeScalar.TOP result.
+The concrete machine call remains. Mixed/unknown targets stay conservative;
+there is no exception edge or dead-control rewrite.
 Update 2026-11-19: Cliff accepted the entire
 [embedded-object design](../docs/automatic-memory-management-survey.md#agreed-design-embedded-objects-values-and-references),
 including `*T` object values, `&` interior references, and `*(T[4])` embedded
@@ -125,13 +187,113 @@ Labeled scopes supply lexical destinations. Free lists from delete are compiler
 internals, not user-visible pools. These distinctions supersede older pool
 terminology below. `new E[]` begins growth, `es += e` appends, and the creating
 scope's end finishes growth without necessarily ending storage lifetime.
-Obsolete backing arrays can be internally recycled only after proving no usable
-references survive; arrays still have no user delete operation.
+Update 2026-11-21: ordinary arrays remain non-deletable. Cliff approved a distinct
+deletable-array type with provisional modifier `^` and explicit `.del()`. It
+disallows interior pointers and requires proof that no usable aliases or borrows
+survive deletion. Blocks may then share a type-independent buddy allocator with
+internal metadata. Automatic deletion on overwrite is deferred. ArrayDelete is
+also an opt-in checkpoint query; old native-call fixtures are not executable
+deletes. It follows memory-ordered field kills and SSA uses, with narrow borrowing
+helper contracts. Incoming ownership is reported as an unmet unique-entry
+requirement, not silently assumed. Source syntax is now `E[^]`, `new E[^N]`, and
+`.del()`: a deferred member Load folds to a memory-effecting intrinsic call.
+TypeCheck requires every deletion proof. Caller contract checking and runtime
+recycling are still pending. TypeMemPtr._del is an AND/dual capability coordinate;
+ordinary array parameters accept borrowed deletable arrays. NewNode preserves
+the allocation flag through cloning and serialization; IR format is now 4.
+The five-library migration survey has no crashes; bitset discharges local kills,
+aryu8/aryi64 now hit sys.ary.capacity's effects, Timers/Canvas hit class-init effects. All incoming cases
+still reject without checked caller uniqueness. Tests end Chapter33Test.
+Update 2026-11-22: the reduced aryu8 case's Test.$init load now folds by proving
+the flag on every incoming memory path, including across Parm nodes. It reaches
+the unique-entry requirement. Nonreturning TOP memory contributes no retained
+references to deletion checks. Allocation plans mark ^ arrays as buddy storage,
+allow dynamic sizes and overlapping loop allocations, and exclude these blocks
+from stack cleanup. Ownership/reference tracking remains; runtime buddy lowering
+is not implemented.
+Update 2026-11-22, function effects: FunctionEffects scans each live body and
+unions written aliases, reference-write flags, and introduced escapes along
+call edges to a fixed point. Serialize saves those per-function effects, never
+StopCU's compilation-wide escape set; IR format is now 5. Imported initializer
+dependencies do not expose their incidental return value. Late body loading
+restores only its summary dependency closure and repairs types after reattaching
+the graph. The integer-init regression no longer retains unrelated DateTime
+functions and reaches the unique-entry requirement. Production aryi64, bitset,
+and Canvas pass local deletion checks; aryu8 needs ary.copy's reference-result
+contract. Timers' first buffer passes locally; subsequent buffers hit preceding
+deletions' unknown effects. All incoming ownership still needs caller checks.
+Update 2026-11-23: IR format 6 saves Allocation boundary contracts in function
+metadata. Allocation.write/read preserve symbolic argument and field origins,
+return sets, reference-store edges (including cycles), ownership destinations,
+fresh allocation sizes and buddy flags, and unsupported-plan diagnostics. Local
+scratch/loop frames are not exported. No IR nodes are needed to load or compose
+these contracts. Site._fresh distinguishes unloaded fresh storage from borrowed
+storage even when _allocation is null. Callers import fresh sites separately for
+each call. Returned-argument borrowing now handles ary.copy and tracks the result
+alias through deletion checks. aryu8 joins aryi64/bitset/Canvas at the incoming
+uniqueness requirement. Timers still needs preceding deletion effects handled.
+Tests at the end of Chapter33Test cover the copy debugger case, imported field
+paths/retention, fresh and cyclic graphs, re-export, unsupported plans, buddy
+sizes, and rejection of surviving returned aliases. Runtime recycling remains
+unimplemented.
+Update 2026-11-23, consuming ownership: Summary._consumes holds argument/field
+entry paths (ArrayDelete.Consume), serialized even for unsupported allocation
+plans in IR format 8 (format 7 introduced the consuming paths). A separate ownership DAG walk uses the already-collected
+calls/nodes, including finite indirect targets; it discharges fresh caller
+storage or propagates requirements outward. ArrayDelete checks both direct
+deletion and consuming calls. The selected owner's post-call field reload is
+valid; saved aliases, retained other slots, and conditional kills reject.
+Nested paths follow preceding stores: o.b=b; grow(o.b) requires b.buf, not the
+old o.b.buf. Non-inlined initializers now use the same call-field substitution
+as other helpers; the former initializedArrays special case is removed.
+Recursive consuming groups and callbacks without ownership contracts reject;
+call field effects compose at their memory outputs. ArrayDelete interns Ref
+identities for local nodes, incoming fields, callee allocations, and call/loop
+ownership versions. Node identity hashes avoid touching GVN. Effects substitutes
+the existing summary graph's may-stores and result origins; a proven unique
+outgoing field is a strong ownership transfer. Unknown raw/native/CLInit effects
+set Summary._opaqueEffects, propagated and serialized in format 8. Do not infer
+no-retention merely because a partial field graph has no reference stores.
+Loop backedges now end the current deletion checkpoint's CFG walk. Pointer Phis,
+invariant references reused by the next iteration, and stored replacement aliases
+are checked at that boundary. The updated owner field has a distinct ownership
+version; ArrayDelete must not mistake it for a saved copy of the entry array.
+Loop-entry versions separate previous-iteration call results from current ones;
+the check includes preheader origins and aliases of the backedge's current value.
+Allocation.arrayOwned additionally checks the callee's existing boundary graph
+for aliases of the outgoing field (also works on imported summaries). A consume
+requirement alone does NOT prove unique outgoing ownership. Merge queries after
+the checkpoint exclude arms that bypassed it, including zero-iteration exits.
+Recursive SCC heads need this same boundary check when their graphs are built.
+Reduced aryu8 copy/integer tests pass caller checks. The source survey passes
+aryi64 (including parseAryI64), bitset, and Canvas. aryu8's normal grow/add/append,
+string/integer formatting, aryi64.str, and elapsed formatting checks pass. Its
+remaining blockers are native read, floating result origins, and time.local's
+native effects; Timers still stops on consuming recursion. Separate array
+parameters may rely on the propagated unique-entry requirement; callers reject
+actual aliases. Do not extend that assumption to arbitrary owner field paths:
+two wrapper parameters can name the same wrapper.
+Tests at Chapter33Test's end cover wrapper sharing, saved
+reads/lengths/writes, stored aliases, forwarding/redirection, finite indirect
+calls, rejected callbacks/recursion, imported/re-exported requirements, repeated
+grows (testArrayConsumeGrowLoop is the debugger example), nested loops/breaks,
+and stale or replacement aliases crossing a backedge. Scratch field copies
+across iterations remain conservative even if a later iteration would kill them.
+Separate verifier follow-up found during ownership tests: a constructor-supplied
+callback can fail EscapeNode monotonicity in IterPostOpto, before Allocation runs.
+Reproducer (wrap in a block, use new CodeGen(source).driver(TypeCheck), assertions on):
+`val consume_noInline={u8[^] a -> a.del(); return 0;};`
+`val leave_noInline={u8[^] a -> a#;};`
+`struct Handler { {u8[^] -> i64} f; new Handler={ {u8[^] -> i64} f -> self.f=f;}; };`
+`{ {Handler -> i64} invoke="C"; return invoke(new Handler(consume_noInline)); }`
+Observed Esc#5 at node119 widens escaped aliases from a restricted outside set
+to FULL. This is not fixed by the consuming pass. The native-callback ownership
+regression uses a direct `val f=consume_noInline` field and rejects correctly.
 Classes opt into deletion/recycling; stale reads remain type-safe but can see
 historical field values, including finals. Incomplete references cannot be
-stored into deletable objects, including during construction. Arrays are never
-deletable; do not reintroduce array delete/reuse free lists. Non-moving growable
-arrays are a separate requested discussion topic. Deletable
+stored into deletable objects, including during construction. The older ban on
+array deletion is superseded only by the distinct, strictly checked array type
+above; class-slot stale-reference semantics do not apply to arrays. Deletable
 constructors use ordinary aliasable memory from entry, while non-deletable
 constructors retain private memory. Keep initialization obligations separate
 from storage privacy; withholding TMP._one is a suggested implementation route

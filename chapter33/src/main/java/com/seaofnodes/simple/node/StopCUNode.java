@@ -79,7 +79,9 @@ public class StopCUNode extends StopNode {
                 // Capture (precisely?) all escaping pointer aliases and fidxs.
                 // Escaped fidxs means the linked world can call that function;
                 // escaped aliases means the linked world can R/W those aliases.
-                xmem = xmem.escapesFrom(tret.ret(),start.outside(this));
+                // A dependency on an imported initializer is an internal call.
+                // Its incidental last expression is not an exported result.
+                if( !fun.isClz() || pub ) xmem = xmem.escapesFrom(tret.ret(),start.outside(this));
                 xmem = (TypeMem)xmem.meet(tret.mem());
             }
         }

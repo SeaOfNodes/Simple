@@ -9,12 +9,22 @@ import java.util.HashMap;
 public class SummaryNode extends CFGNode implements MultiNode {
 
     public TypeTuple _state;
+    public final FunctionEffects _effects;
+    public final Allocation.Summary _allocation;
     // Callees and touched class initializers, by FIDX, for class-init cycle checks.
     public final int[] _classDependencyFIDXs;
 
     public SummaryNode(TypeTuple state, int[] classDependencyFIDXs, Node... inputs) {
+        this(state,classDependencyFIDXs,new FunctionEffects(XInt.FULL,true,state.mem()),inputs);
+    }
+    public SummaryNode(TypeTuple state, int[] classDependencyFIDXs, FunctionEffects effects, Node... inputs) {
+        this(state,classDependencyFIDXs,effects,null,inputs);
+    }
+    public SummaryNode(TypeTuple state, int[] classDependencyFIDXs, FunctionEffects effects, Allocation.Summary allocation, Node... inputs) {
         super(inputs);
         _state = state;
+        _effects = effects;
+        _allocation = allocation;
         _classDependencyFIDXs = classDependencyFIDXs;
         CodeGen.CODE.add(CodeGen.CODE._globalEscapes);
     }
@@ -26,7 +36,9 @@ public class SummaryNode extends CFGNode implements MultiNode {
         if( in(0)._type.isHigh() ) return TypeTuple.STATE.dual();
         // A library summary does not forget escapes already present in the caller.
         TypeMem mem = in(1)._type instanceof TypeMem m ? m : in(1)._type.isHigh() ? TypeMem.TOP : TypeMem.BOT;
-        mem = (TypeMem)mem.meet(_state.mem());
+        if( _effects._writes!=XInt.EMPTY || _state.mem()._one )
+            mem = (TypeMem)mem.meet(_state.mem());
+        else mem = mem.escapes(_state.mem());
         for( int i = firstArgument(); i<nIns(); i++ ) {
             Type arg = in(i)._type;
             // Only opaque arguments can hide identities supplied by outside code.
@@ -52,7 +64,7 @@ public class SummaryNode extends CFGNode implements MultiNode {
     private int firstArgument() {
         if( !(in(0) instanceof FunNode fun) ) return 2;
         TypeFunPtr sig = fun.sig();
-        return sig.nargs()>0 && sig.arg(0)==TypePtr.PTR ? 3 : 2;
+        return fun.isClz() || sig.nargs()>0 && sig.arg(0)==TypePtr.PTR ? 3 : 2;
     }
     @Override boolean _upgradeType(HashMap<String,Type> types) {
         TypeTuple state = (TypeTuple)_state.upgradeType(types);

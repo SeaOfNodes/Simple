@@ -287,6 +287,9 @@ public abstract class ParseAll {
         // into its callers without restarting whole-program analysis.
         ProjNode startMem = cunit._start.proj(1);
         if( startMem!=null ) code.keepUntilFinalize(startMem);
+        // Opto may have discarded declarations referenced by the saved body.
+        // Restore its dependency closure, not every declaration in the library.
+        restoreSummaries(code,elf);
         Iter.imports(code,elf._nodes);
 
         // Add the new top-level loaded class
@@ -309,6 +312,32 @@ public abstract class ParseAll {
         } catch( IOException ioe ) {
             throw new RuntimeException(ioe);
         }
+    }
+
+    private static void restoreSummaries(CodeGen code, ElfReader loaded) {
+        BitSet needed=new BitSet();
+        for( FunctionSummary summary : loaded._functions )
+            for( int fidx : summary.classDependencyFIDXs() ) needed.set(fidx);
+        boolean changed;
+        do {
+            changed=false;
+            for( CompUnit cu : code._compunits.values() ) {
+                if( cu._src!=null || cu._obj==null ) continue;
+                ElfReader elf=code.getElf(cu._obj);
+                if( elf._nodes!=null || elf._functions==null || !elf._units[0].equals(cu._fname) ) continue;
+                for( FunctionSummary summary : elf._functions ) {
+                    if( !needed.get(summary.sig().fidx()) ) continue;
+                    FunNode old=code._link(summary.sig().fidx());
+                    if( old!=null && !old.isDead() ) continue;
+                    if( cu._start==null || cu._start.isDead() ) cu.setStart(code);
+                    if( cu._start.proj(1)==null )
+                        code.keepUntilFinalize(new ProjNode(cu._start,1,"$mem").init());
+                    summary.install(code,cu);
+                    for( int fidx : summary.classDependencyFIDXs() ) needed.set(fidx);
+                    changed=true;
+                }
+            }
+        } while( changed );
     }
 
     // Find the symbol in module, starting from cunit.  This searches up the nested

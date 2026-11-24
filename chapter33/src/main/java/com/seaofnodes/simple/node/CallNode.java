@@ -205,7 +205,7 @@ public class CallNode extends CFGNode {
         // may bring escapes absent from the cached formal parameter types.
         // Repair affected bounds before the next type-lifting peephole.
         CodeGen code = CodeGen.CODE;
-        if( code._phase.ordinal()>CodeGen.Phase.Opto.ordinal() &&
+        if( !code._loadingBody && code._phase.ordinal()>CodeGen.Phase.Opto.ordinal() &&
             code._phase.ordinal()<CodeGen.Phase.Lower.ordinal() ) {
             boolean repair = !fun.compute().isa(fun._type) || !cend().compute().isa(cend()._type);
             for( Node use : fun._outputs )

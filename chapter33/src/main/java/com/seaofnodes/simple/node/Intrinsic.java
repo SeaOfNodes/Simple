@@ -9,6 +9,16 @@ import com.seaofnodes.simple.type.*;
 // for calls whose target is not known at compile time.
 public final class Intrinsic {
     private Intrinsic() {}
+    public static final String ARRAY_DELETE="simple_array_delete";
+
+    public static boolean arrayDelete(CallNode call) {
+        return call.fptr()._type instanceof TypeFunPtr fp && fp.isConstant() &&
+            ARRAY_DELETE.equals(CodeGen.CODE.externFunc(fp.fidx()));
+    }
+
+    public static boolean arrayDeleteType(TypeFunPtr fp) {
+        return fp.nargs()==1 && fp.arg(0)==TypeMemPtr.NOTBOT && fp.ret()==TypeInteger.BOT;
+    }
 
     private enum Op {
         F64_BITS("simple_f64_bits",TypeFloat.F64,TypeInteger.BOT,true),
@@ -42,6 +52,9 @@ public final class Intrinsic {
     }
 
     public static Parser.ParseException err(CallNode call) {
+        if( arrayDelete(call) && (!arrayDeleteType(call.tfp()) || call.nargs()!=1 ||
+            !(call.arg(2)._type instanceof TypeMemPtr p && p._obj.isAry() && p._del && !p.nullable())) )
+            return Parser.error("Array .del() requires a non-null [^] array and no arguments",call._loc);
         Op op=lookup(call);
         return op==null || op.signature(call.tfp()) ? null : Parser.error(
             "Intrinsic '"+op.symbol+"' requires { "+op.arg.str()+" -> "+op.ret.str()+" }",call._loc);

@@ -187,6 +187,7 @@ final class References {
             }
         }
 
+        boolean arrayMethod="del".equals(name) && (ts==null || ts.isAry());
         Field fld = ts==null ? null : ts.field(name);
         if( fld==null && ts!=null && !TypeStruct.startsClzPrefix(ts._name) ) {
             Type clz0 = Parser.TYPES.get(TypeStruct.addClzPrefix(ts._name));
@@ -198,7 +199,7 @@ final class References {
         }
         if( fld==null && ts!=null )
             fld = P.types.fieldOrOpen(ts,name,false);
-        if( fld==null && ts!=null && !P.types.latestStruct(ts)._open )
+        if( fld==null && ts!=null && !arrayMethod && !P.types.latestStruct(ts)._open )
             throw Parser.error("Accessing unknown field '"+name+"' from '*"+ts._name+"'",site);
 
         // We have to record "active touches" of a new class, to track when we
@@ -222,6 +223,7 @@ final class References {
 
         // Disambiguate "obj.fld==x" boolean test from "obj.fld=x" field assignment
         if( pre==0 && P.matchOpx('=','=') ) {
+            if( arrayMethod && ts!=null && ts.isAry() ) throw Parser.error("Array .del is not a writable field",site);
             // Field assignment
             Node val = P.expressions.parseAssignment().keep();
             // Lift value for store
@@ -248,11 +250,21 @@ final class References {
             decl = conary.elem();
 
         // Load field
-        Node load = P.peep(new LoadNode(site,name,alias,P.ctrl(),mem,expr,off));
+        LoadNode member=new LoadNode(site,name,alias,P.ctrl(),mem,expr,off);
+        if( arrayMethod ) {
+            // Resolve like a field load, including forward receiver types.
+            // The generic memory-pointer receiver is a real ABI argument;
+            // the intrinsic checks the array capability after types settle.
+            int fidx=P._code.fidx(P._ref._cname);
+            P._code.externFunc(fidx,Intrinsic.ARRAY_DELETE);
+            member._con=TypeFunPtr.make(false,new Type[]{TypeMemPtr.NOTBOT},TypeInteger.BOT).makeFrom(fidx);
+        }
+        Node load = P.peep(member);
 
         // Check for assign-update, "ptr.fld += expr" or "ary[idx]++"
         char ch = pre==0 ? P._lexer.matchOperAssign() : (char)pre;
         if( ch!=0 ) {
+            if( arrayMethod && ts!=null && ts.isAry() ) throw Parser.error("Array .del is not a writable field",site);
             if( fld!=null && decl==Type.BOTTOM && !ts._fref )
                 throw Parser.error( "'" + ts._name + "' is not fully initialized, field '" + fld._fname + "' needs to be set in a constructor",site );
             Node op = P.expressions.opAssign(ch,load, decl ).keep();

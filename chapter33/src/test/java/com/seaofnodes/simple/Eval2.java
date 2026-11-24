@@ -215,6 +215,8 @@ public abstract class Eval2 {
 
     // Make a call.
     private static CFGNode call( CallNode call ) {
+        if( Intrinsic.arrayDelete(call) )
+            throw new UnsupportedOperationException("Array .del(): runtime recycling is not implemented yet");
         int nargs = call.nargs()+1; // Include memory.
         for( int i = 0; i<nargs; i++ ) VALUE_CACHE.setX(i,val(call.in(i+1)));
         return enter(CODE.link(tfp(call.fptr())),call.cend());

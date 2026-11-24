@@ -64,14 +64,24 @@ references, and array layouts reviewed and accepted 2026-11-19; see the
   `delete` permits storage recycling rather than immediately invalidating the
   storage. Automatic reclamation still governs the enclosing region's lifetime.
 - Ordinary arrays are not deletable; their storage follows automatic lifetimes.
-  Agreed extension, 2026-11-21: deletable arrays have a distinct type (spelling
-  undecided), disallow interior references, and require unique access and no
+  Agreed extension, 2026-11-21: deletable arrays have a distinct type (provisional
+  spelling `E[^]`), disallow interior references, and require unique access and no
   escaping aliases. The compiler must establish that no usable aliases or
-  outstanding borrows survive `delete`; deletion consumes the owning access.
+  outstanding borrows survive `.del()`; deletion consumes the owning access.
   Growable library containers can use this type for power-of-two backing arrays,
   explicitly deleting replaced buffers into a buddy allocator. Such arrays do
   not permit the stale-reference behavior of deletable class slots. Separate
   length storage remains a layout design, not a safety requirement for recycling.
+  All such backing arrays can share a buddy allocator regardless of element type;
+  freed blocks may contain allocator metadata. New allocations must establish
+  valid headers and elements before access. Start with explicit `.del()` and
+  modest static tracking of stores, overwrites, and borrows; reject when the
+  proof fails. Automatic deletion at a proven last-reference overwrite is later
+  work, not a runtime reference-counting fallback.
+  Chapter 33 now parses `E[^]`, `new E[^N]`, and `.del()` and requires the local
+  ownership proof at TypeCheck. Incoming uniqueness remains an unresolved
+  contract and rejects; it is not assumed from the qualifier. Ordinary array
+  parameters can borrow a deletable array. Runtime recycling remains absent.
 - `new E[N]` creates a fixed-length array, with N possibly computed at runtime.
   `new E[]` starts empty and permits append with `es += elem`. Access and
   indexed assignment are checked against the current length and do not extend
@@ -82,6 +92,15 @@ references, and array layouts reviewed and accepted 2026-11-19; see the
   fixed allocations ahead of a growing tail without moving their construction
   effects. Standard growable containers use embedded small vectors; arraylets
   and dedicated address-space reservations remain optional alternatives.
+- Finished variable-sized results use a separate growable data stack. Its top
+  passes through calls as hidden state, with the updated top available on return.
+  Result storage survives the callee's control frame; the owning lifetime later
+  restores the data-stack mark. Reserve contiguous non-moving address space,
+  with a checked capacity limit (for example 4 GiB) and backing committed as
+  needed. Fixed-size objects may use either stack in preallocated space; do not
+  move control-stack spills or return addresses to enlarge a growing hole.
+  A nested temporary growth must unwind before the outer builder resumes.
+  A retained inner result above the outer builder still blocks its growth.
 - Reads after deletion remain memory- and type-safe, but may observe permitted
   historical values. Reuse may change any field, including final fields.
   Mixed incarnations are possible; stale references do not require a particular

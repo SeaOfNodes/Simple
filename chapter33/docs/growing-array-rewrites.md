@@ -244,12 +244,13 @@ Both examples have a natural end of growth, so neither needs `finish(buf)` or
 while growth is allowed. Scope exit does not guess the number of bytes a native
 call wrote: `io.read` must explicitly set the final length from `used`.
 
-For a non-moving implementation, the returned storage must already be in an
-area that survives the callee, or its owning storage group must transfer to the
-result's destination. Ordinary callee-local RSP storage cannot simply survive a
-return. A chunk-chain handle can transfer ownership of storage, but a chain of
-nonadjacent chunks is not one contiguous `u8[]`. Neither syntax example resolves
-that placement choice by itself.
+The agreed placement is a parallel growable data stack, separate from the control
+stack. Its top is hidden call state; the updated top returns with the finished
+array. The caller's owning lifetime eventually restores the saved data-stack
+mark. A contiguous reserved address range lets the array grow without moving,
+subject to a checked capacity limit. This resolves the result destination without
+a final copy or relocating return addresses and spills. Actual lowering is still
+pending; retained inner results can still block an outer builder's growth.
 
 Growing a non-moving array preserves existing interior references. Trimming is
 different: references into the removed tail must be gone before that storage is

@@ -32,13 +32,16 @@ public class TypeMemPtr extends TypeNil {
     // This reference may still depend on unfinished construction. Independent
     // two-point lattice: meet ORs the restriction, dual complements it.
     public boolean _partial;
+    // Capability to consume this array. Ordinary array types also accept
+    // borrowed deletable arrays; meet therefore ANDs this capability.
+    public boolean _del;
 
-    public boolean _one;      // Singleton pointer value; the pointer itself is constant.
+    public boolean _one;      // Singleton identity; arrays also need a concrete payload.
     public boolean _pub;      // Escaped/public pointer.  False means constructor-private.
 
     private static final Ary<TypeMemPtr> FREE = new Ary<>(TypeMemPtr.class);
     private TypeMemPtr(byte nil, TypeStruct obj, boolean one, boolean pub) { super(TMEMPTR,nil); init(nil,obj,one,pub); }
-    private TypeMemPtr init(byte nil, TypeStruct obj, boolean one, boolean pub) { _nil = nil; _obj = obj; _ro = obj==TypeStruct.BOT; _partial = obj==TypeStruct.BOT; _one = one; _pub = pub; return this; }
+    private TypeMemPtr init(byte nil, TypeStruct obj, boolean one, boolean pub) { _nil = nil; _obj = obj; _ro = obj==TypeStruct.BOT; _partial = obj==TypeStruct.BOT; _del=false; _one = one; _pub = pub; return this; }
     // Return a filled-in TypeMemPtr; either from free list or alloc new.
     static TypeMemPtr malloc(byte nil, TypeStruct obj, boolean one, boolean pub) {
         return FREE.isEmpty() ? new TypeMemPtr(nil,obj,one,pub) : FREE.pop().init(nil,obj,one,pub);
@@ -49,10 +52,10 @@ public class TypeMemPtr extends TypeNil {
         return make(nil,obj,one,true);
     }
     public static TypeMemPtr make(byte nil, TypeStruct obj, boolean one, boolean pub) {
-        return make(nil,obj,one,pub,obj==TypeStruct.BOT,obj==TypeStruct.BOT);
+        return make(nil,obj,one,pub,obj==TypeStruct.BOT,obj==TypeStruct.BOT,false);
     }
-    private static TypeMemPtr make(byte nil, TypeStruct obj, boolean one, boolean pub, boolean ro, boolean partial) {
-        TypeMemPtr tmp = malloc(nil, obj, one, pub).access(ro).partial(partial);
+    private static TypeMemPtr make(byte nil, TypeStruct obj, boolean one, boolean pub, boolean ro, boolean partial, boolean del) {
+        TypeMemPtr tmp = malloc(nil, obj, one, pub).access(ro).partial(partial).deletable(del);
         TypeMemPtr t2 = tmp.intern();
         if( t2==tmp ) return tmp;
         return VISIT.isEmpty() ? t2.free(tmp) : t2.delayFree(tmp);
@@ -75,20 +78,25 @@ public class TypeMemPtr extends TypeNil {
     public static TypeMemPtr makeNullable(TypeStruct obj) { return make((byte)3, obj); }
     public static TypeMemPtr makePrivate (TypeStruct obj) { return make((byte)2, obj, false, false); }
 
-    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one, _pub,_ro,_partial); }
+    public TypeMemPtr makeFrom(TypeStruct obj) { return obj==_obj ? this : make(_nil, obj, _one, _pub,_ro,_partial,_del); }
     public TypeMemPtr makeNullable() { return makeFrom((byte)3); }
     /** Inferred mutable local: nullable, public and non-singleton. */
     public TypeMemPtr makeVar() { return (TypeMemPtr)makeStorage(); }
     /** Public-memory shape: nullable and non-singleton, preserving the referent. */
-    @Override TypeMemPtr _makeStorage() { return make(_nil,_obj._makeStorage(),false,true,_ro,_partial); }
-    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one, _pub,_ro,_partial); }
+    @Override TypeMemPtr _makeStorage() { return make(_nil,_obj._makeStorage(),false,true,_ro,_partial,_del); }
+    @Override TypeMemPtr makeFrom(byte nil) { return nil==_nil ? this : make(nil, _obj, _one, _pub,_ro,_partial,_del); }
     @Override public Type nonZero() { return makeFrom((byte)(_nil <= 1 ? 1 : 2)); }
 
     private TypeMemPtr access(boolean ro) { _ro=ro; return this; }
     private TypeMemPtr partial(boolean partial) { _partial = partial; return this; }
+    private TypeMemPtr deletable(boolean del) { _del=del; return this; }
+
+    public TypeMemPtr withDelete(boolean del) {
+        return del==_del ? this : make(_nil,_obj,_one,_pub,_ro,_partial,del);
+    }
 
     public TypeMemPtr withPartial(boolean partial) {
-        return partial==_partial ? this : make(_nil,_obj,_one,_pub,_ro,partial);
+        return partial==_partial ? this : make(_nil,_obj,_one,_pub,_ro,partial,_del);
     }
 
     // A partial declaration promises no initialized slots. Actual callers may
@@ -121,6 +129,7 @@ public class TypeMemPtr extends TypeNil {
         TypeMemPtr ptr = malloc(_nil, _obj, _one, _pub);
         ptr._ro = ro;
         ptr._partial = _partial;
+        ptr._del = _del;
         TypeMemPtr res = ptr.intern();
         if( res==ptr ) return ptr;
         return VISIT.isEmpty() ? res.free(ptr) : res.delayFree(ptr);
@@ -130,6 +139,7 @@ public class TypeMemPtr extends TypeNil {
     // must agree in both directions. A read-only outer view can weaken access.
     @Override public boolean accessISA(Type dst) {
         if( !(dst instanceof TypeMemPtr ptr) ) return true;
+        if( ptr._del && !_del ) return false;
         if( _ro && !ptr._ro ) return false;
         if( ptr._ro || _obj._fields==null || ptr._obj._fields==null || !_obj.isAry() || !ptr._obj.isAry() ) return true;
         Type a = _obj._fields[1]._t, b = ptr._obj._fields[1]._t;
@@ -143,54 +153,65 @@ public class TypeMemPtr extends TypeNil {
     public static final TypeMemPtr NOTBOT = make((byte)2,TypeStruct.BOT);
 
     public static final TypeMemPtr TEST= make((byte)2, TypeStruct.TEST);
-    public static void gather(ArrayList<Type> ts) { ts.add(NOTBOT); ts.add(BOT); ts.add(TEST); ts.add(TEST.makeRO()); ts.add(TEST.withPartial(true)); ts.add(TEST.withPartial(true).makeRO()); }
+    public static void gather(ArrayList<Type> ts) { ts.add(NOTBOT); ts.add(BOT); ts.add(TEST); ts.add(TEST.makeRO()); ts.add(TEST.withPartial(true)); ts.add(TEST.withPartial(true).makeRO()); ts.add(TEST.withDelete(true)); }
 
     @Override
     public TypeNil xmeet(Type t) {
         TypeMemPtr that = (TypeMemPtr) t;
         assert !isFree() && !that.isFree();
-        // Can't keep _one if mixing two unequal singletons; the result is not
-        // either singleton.  Once either side is public, the meet is public.
-        boolean one = _one && that._one && (_obj==that._obj || !(_obj.isConAry() || that._obj.isConAry()));
-        return make(xmeet0(that), (TypeStruct)_obj.meet(that._obj), one, _pub | that._pub,_ro | that._ro, _partial | that._partial);
+        // Shape and singleton are independent lattice coordinates. Testing
+        // shape equality here breaks associativity and meet/join symmetry.
+        boolean one = _one && that._one;
+        return make(xmeet0(that), (TypeStruct)_obj.meet(that._obj), one, _pub | that._pub,_ro | that._ro, _partial | that._partial, _del & that._del);
     }
 
     @Override
-    TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), !_one, !_pub).access(!_ro).partial(!_partial); }
+    TypeMemPtr xdual() { return malloc( dual0(), _obj.dual(), !_one, !_pub).access(!_ro).partial(!_partial).deletable(!_del); }
 
     @Override TypeMemPtr rdual() {
         if( _dual!=null ) return dual();
         assert !_terned;
-        TypeMemPtr d = malloc(dual0(), null, !_one, !_pub).access(!_ro).partial(!_partial);
+        TypeMemPtr d = malloc(dual0(), null, !_one, !_pub).access(!_ro).partial(!_partial).deletable(!_del);
         (_dual = d)._dual = this; // Cross link duals
         d._obj = _obj._terned ? _obj.dual() : _obj.rdual();
         return d;
     }
 
     // RHS is NIL; do not deep-dual when crossing the center line
-    @Override Type meet0() { return _nil==3 ? this : make((byte)3,_obj,false,true,_ro,_partial); }
+    @Override Type meet0() { return _nil==3 ? this : make((byte)3,_obj,false,true,_ro,_partial,_del); }
 
-    @Override boolean _isConstant() { return _one; }
+    @Override boolean _isConstant() {
+        // A union of literal arrays can retain the singleton coordinate but
+        // no longer describes one concrete payload. Class objects have their
+        // own singleton identity, independent of their mutable field values.
+        return _one && (!_obj.isAry() || _obj.isConAry() &&
+            _obj._fields[0]._t instanceof TypeInteger len && len.isConstant() &&
+            len.value()==((TypeConAry)_obj._fields[1]._t).len());
+    }
     @Override boolean _isFinal() { return _ro; }
     @Override TypeMemPtr _makeRO() { return withAccess(true); }
-    @Override TypeMemPtr _close( String name, HashMap<String, Type> TYPES ) { return malloc(_nil,_obj._close(name, TYPES ),_one,_pub).access(_ro).partial(_partial); }
+    @Override TypeMemPtr _close( String name, HashMap<String, Type> TYPES ) {
+        if( _obj==TypeStruct.BOT || _obj==TypeStruct.TOP ) return this;
+        return malloc(_nil,_obj._close(name, TYPES ),_one,_pub).access(_ro).partial(_partial).deletable(_del);
+    }
 
     @Override Type _upgradeType(HashMap<String,Type> TYPES) {
+        if( _obj==TypeStruct.BOT || _obj==TypeStruct.TOP ) return this;
         return makeFrom((TypeStruct)_obj._upgradeType(TYPES));
     }
 
     @Override public int log_size() { return 3; } // (1<<3)==8-byte pointers
 
-    @Override int hash() { return (_partial ? 16384 : 0) ^ (_ro ? 8192 : 0) ^ _obj.hashCode() ^ super.hash() ^ (_one ? 2048 : 0) ^ (_pub ? 4096 : 0); }
+    @Override int hash() { return (_del ? 32768 : 0) ^ (_partial ? 16384 : 0) ^ (_ro ? 8192 : 0) ^ _obj.hashCode() ^ super.hash() ^ (_one ? 2048 : 0) ^ (_pub ? 4096 : 0); }
 
     @Override boolean eq(Type t) {
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return _partial==ptr._partial && _ro==ptr._ro && super.eq(ptr) && _one == ptr._one && _pub == ptr._pub && _obj == ptr._obj;
+        return _del==ptr._del && _partial==ptr._partial && _ro==ptr._ro && super.eq(ptr) && _one == ptr._one && _pub == ptr._pub && _obj == ptr._obj;
     }
     @Override boolean cycle_eq(Type t) {
         if( t._type != TMEMPTR ) return false;
         TypeMemPtr ptr = (TypeMemPtr)t; // Invariant
-        return _partial==ptr._partial && _ro==ptr._ro && super.eq(ptr) && _one == ptr._one && _pub == ptr._pub && _obj.cycle_eq(ptr._obj);
+        return _del==ptr._del && _partial==ptr._partial && _ro==ptr._ro && super.eq(ptr) && _one == ptr._one && _pub == ptr._pub && _obj.cycle_eq(ptr._obj);
     }
 
     @Override public int nkids() { return 1; }
@@ -198,7 +219,7 @@ public class TypeMemPtr extends TypeNil {
     @Override public void set( int idx, Type t ) { _obj = (TypeStruct)t; }
 
     // Reserve tags for null/not, one/general, public/private and read-only and incomplete access
-    @Override int TAGOFF() { return 32; }
+    @Override int TAGOFF() { return 64; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs ) {
         assert _nil>=2;
         baos.write(TAGOFFS[_type]
@@ -206,23 +227,24 @@ public class TypeMemPtr extends TypeNil {
                    + (!_one   ? 0 : 2)
                    + (!_pub    ? 0 : 4)
                    + (!_ro     ? 0 : 8)
-                   + (!_partial ? 0 : 16) );
+                   + (!_partial ? 0 : 16)
+                   + (!_del     ? 0 : 32) );
     }
     static TypeMemPtr packed( int tag, BAOS bais ) {
-        return malloc((byte)((tag&1)+2),null,(tag&2)==2,(tag&4)==4).access((tag&8)==8).partial((tag&16)==16);
+        return malloc((byte)((tag&1)+2),null,(tag&2)==2,(tag&4)==4).access((tag&8)==8).partial((tag&16)==16).deletable((tag&32)==32);
     }
 
     @Override public String str() {
         if( this==BOT ) return "PtrBot";
         if( this==TOP ) return "PtrTop";
         if( this== NOTBOT) return "*void";
-        return (_partial ? "^" : "")+x()+"*"+(_obj==null?"---":_obj.str())+q();
+        return (_partial ? "^" : "")+x()+"*"+(_obj==null?"---":_obj.str())+(_del ? "[^]" : "")+q();
     }
 
     @Override SB _print(SB sb, BitSet visit, boolean html ) {
         if( this==BOT ) return sb.p("PtrBot");
         if( this==TOP ) return sb.p("PtrTop");
         if( this== NOTBOT) return sb.p("*void");
-        return _obj.print(sb.p(_partial ? "^" : "").p(x()).p("*"),visit,html).p(q());
+        return _obj.print(sb.p(_partial ? "^" : "").p(x()).p("*"),visit,html).p(_del ? "[^]" : "").p(q());
     }
 }

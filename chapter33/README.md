@@ -184,13 +184,14 @@ they require no registers or machine instructions. Zero/null, duplicate adjacent
 markers, and unused address expressions fold away. Placement still chooses whole
 function/iteration frames, so a lexical endpoint can conservatively retain storage
 in a larger frame. Actual stack lowering is still pending. Serialized IR is now
-format 3; older objects must be rebuilt to supply these lifetime endpoints.
+format 4, retaining these endpoints and the deletable-array capability;
+older objects must be rebuilt.
 
 Native results that are Simple pointers also need an explicit origin/allocation
 contract; they are not assumed to be borrowed or freshly allocated.
 
-The first cut also rejects plans for recursive calls, unknown/opaque Simple calls,
-variable-size allocations, and reference origins that it cannot trace.
+The first cut also rejects plans for recursive calls, unknown Simple targets,
+variable-size stack allocations, and reference origins that it cannot trace.
 Weak updates can also invent endlessly longer field paths in
 code such as `p.next = p.next.next`; the pass rejects these plans when paths
 exceed the body's reads plus the path depths supplied by its callees. Tracking
@@ -208,8 +209,110 @@ implemented by this analysis experiment.
 [Allocation.java](src/main/java/com/seaofnodes/simple/codegen/Allocation.java)
 contains the walk, one summary class, and one storage-site class. Comments mark
 the next work: collection and SCC destinations, memory-ordered field updates, bin packing,
-free lists, and parallel growth areas. No new IR nodes or serialized contracts
-are introduced yet.
+free lists, and parallel growth areas. Allocation contracts are saved beside
+function types and effects. They describe argument/field origins, returned and
+retained references, and fresh storage sizes and destinations. Imports compose
+these contracts without loading implementation bodies. Local scratch and loop
+frames stay private to the implementation; rejected plans retain their rejection.
+
+## Array deletion: first ownership checks
+
+Explicit array recycling needs stronger guarantees than class-slot recycling:
+after `old.del()`, no usable reference to the old array may remain. The source
+spelling is `E[^]`, allocated with `new E[^N]` or `new E[^]{...}`. This keeps the
+modifier beside the existing array read-only notation `E[~]`, separate from
+constructor-parameter `^`. The spelling remains provisional.
+
+[ArrayDelete.java](src/main/java/com/seaofnodes/simple/codegen/ArrayDelete.java)
+checks the intrinsic at its control/memory boundary. `.del()` resolves as an array
+member load followed by an ordinary call, including when the receiver's type
+becomes known later. Other classes can still define their own `del` methods.
+The intended resize pattern is:
+
+```text
+val old = self.buf;
+val next = new ...;
+copy(next, old, len);
+self.buf = next;
+old.del();
+```
+
+The checker follows memory edges to distinguish an earlier reference from one
+that still occupies a field. A definite overwrite kills that field's old value;
+branches must kill it on every path. SSA aliases and Phis are followed to their
+uses. Borrowing helpers may read references and copy scalar elements, but this
+contract excludes pointer-field writes and raw addresses. Returned references
+can forward arguments when the allocation contract identifies their origins;
+those aliases are checked for surviving uses too.
+
+The new cases at the end of Chapter33Test cover local buffers, container resize,
+and a small hash-table rehash. Saved aliases, retaining fields/helpers, and
+one-sided overwrites reject. Copying an object reference out of an array does
+not keep the array alive. Incoming buffers report `requires unique entry`:
+this becomes a consuming requirement in the function's contract. For example,
+`may consume entry(arg2.buf)` requires exclusive access to the buffer held there
+on entry. Each caller substitutes its actual owner and incoming memory, then
+checks for surviving aliases. A fresh wrapper can satisfy the requirement;
+a saved buffer reference used after the call rejects. Sharing the wrapper and
+reloading its current field are allowed. Forwarders propagate unmet incoming
+requirements, including nested paths, and object files preserve them.
+
+Calls compose in memory order. A grow's summary can require unique `v.buf` on
+entry and guarantee unique `v.buf` on return. The next grow uses that outgoing
+version. Other helper stores remain may-stores until a definite overwrite kills
+them. Initializers and returned references use this same substitution, including
+imported summaries. `testArrayConsumeTwoGrows` is the straight-line debugger case.
+A separate input-array parameter can be borrowed while growing; the caller must
+prove it is not the buffer being consumed. Passing `v.buf` as that input rejects.
+
+Repeated grows can pass: a loop backedge carries the wrapper's current buffer,
+not a saved copy of its old buffer. The checker stops at that boundary, checks
+carried references, and verifies that the callee leaves its field uniquely owned.
+Saved locals or fields crossing the backedge reject, including aliases of the
+replacement. Breaks and zero-iteration exits keep their separate memory paths.
+Loop-entry versions distinguish last iteration's buffer from this iteration's
+call results, allowing several grows per iteration.
+`testArrayConsumeGrowLoop` is the small debugger example; the imported forwarder
+test exercises the same rule using serialized contracts.
+
+Every surviving source `.del()` now requires a proof during TypeCheck. A `[^]`
+type supplies deletion capability, not an unchecked uniqueness promise.
+Allocation plans mark these arrays `[buddy]`, accepting dynamic sizes and
+keeping their blocks out of function/iteration stack cleanup. Reference-lifetime
+tracking and deletion proofs still apply; runtime buddy allocation comes later.
+Ordinary array parameters can borrow these arrays; assigning an ordinary
+allocation to a `[^]` declaration is rejected. The original checkpoint query,
+`Allocation.checkArrayDelete(call,arg)`, remains available for focused tests.
+Unresolved reference cycles, array-element ownership slots, raw-address borrows,
+and unknown call or class initialization effects reject. Recursive consuming
+groups and consuming callbacks without ownership contracts also reject. Recursive
+group heads need the same boundary proof once their allocation graphs are built.
+General callee may-stores cannot yet prove an alias was definitely cleared, and
+loop-carried replacement aliases remain conservative. Buddy allocation and
+automatic recycling on overwrite come later.
+
+Runtime recycling is not implemented. Compile-only checks and object emission
+work; generated objects reference `simple_array_delete`, which has no runtime
+definition yet. Eval2 reports an explicit unsupported-operation error if that
+call executes. It is never silently erased or treated as a successful deletion.
+
+The [source migration survey](docs/array-delete-survey.md) tries the five production
+resize implementations. Migrated `aryi64`, `bitset`, and `Canvas` pass TypeCheck.
+The `aryu8` grow/add/append paths, string and integer formatting, and `aryi64.str`
+pass their ownership checks; the full migration still rejects native boundaries
+in file input, floating formatting, and calendar formatting. Timers reaches the
+recursive-consuming-call restriction. Serialized IR format 8 marks effects
+outside the field graph, so imported raw/native helpers cannot silently acquire
+a no-retention guarantee.
+
+Imported function summaries now distinguish effects introduced by the function
+from memory supplied by its caller: written aliases, possible reference writes,
+and escaping identities. Effects propagate through callees, including recursion
+and paths that never return. This lets the checker recognize that initializing
+`sys.integer` cannot retain an array. It also prevents one imported function from
+making unrelated library functions reachable. Library metadata is still loaded
+eagerly; unused functions disappear from the optimized graph and allocation dump.
+The serialized IR format is now 7; older object files must be rebuilt.
 
 ## Build and use this chapter
 

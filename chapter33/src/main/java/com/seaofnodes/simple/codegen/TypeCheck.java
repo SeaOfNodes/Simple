@@ -4,6 +4,7 @@ import com.seaofnodes.simple.parser.Parser;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeScalar;
+import com.seaofnodes.simple.type.TypeFunPtr;
 import com.seaofnodes.simple.util.Ary;
 
 // Reject invalid optimized programs before lowering erases their source-level
@@ -23,6 +24,11 @@ abstract class TypeCheck {
         Ary<InitViewNode> views = new Ary<>(InitViewNode.class);
         Ary<ArrayInitNode> arrays = new Ary<>(ArrayInitNode.class);
         code._stop.walk( n -> {
+                if( n instanceof ConstantNode && n._type instanceof TypeFunPtr fp && fp.isConstant() &&
+                    Intrinsic.ARRAY_DELETE.equals(code.externFunc(fp.fidx())) )
+                    for( Node use : n._outputs )
+                        if( !(use instanceof CallNode call && call.fptr()==n && Intrinsic.arrayDelete(call)) )
+                            throw Parser.error("Array .del() must be called directly",null);
                 if( n.err() != null )
                     errs.add(n);
                 if( n instanceof CLInitNode ) code.add(n);
@@ -52,6 +58,13 @@ abstract class TypeCheck {
             if( code._obs != null ) code._obs.error(min, min.err().getMessage());
             throw min.err();
         }
+        // Incoming requirements are part of the function's checked contract;
+        // Allocation has substituted and checked them at each concrete caller.
+        for( ArrayDelete deletion : code._allocation._deletes ) {
+            if( deletion._reject!=null || (!deletion.proven() && deletion._requirement==null) )
+                throw Parser.error(deletion.toString(),deletion._call._loc);
+        }
+        code._allocation.checkOwnership();
         // Checked construction boundaries and views have no runtime behavior. Gathered
         // above during the existing error walk; no separate graph pass/solve.
 

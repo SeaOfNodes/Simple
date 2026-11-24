@@ -47,7 +47,7 @@ public class ConstantNode extends TypeNode {
             return raw(type);
         if( type instanceof TypeFunPtr tfp && tfp.isConstant() ) {
             FunNode fun = CodeGen.CODE._link(tfp);
-            if( fun != null )
+            if( fun != null && !fun.isDead() && !fun.ret().isDead() )
                 return new FunPtrNode(tfp,CodeGen.CODE._start,fun.ret()).init();
             // TODO: A singleton FIDX can also emerge after merging and
             // guarding several function pointers.  Preserve that identity

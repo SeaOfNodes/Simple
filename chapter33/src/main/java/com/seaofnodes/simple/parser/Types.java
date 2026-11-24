@@ -70,6 +70,8 @@ final class Types {
                     throw Parser.error("Type "+t0+" cannot be null",site);
             } else if( P.match("[~]") ) {
                 t2 = TypeMemPtr.make(typeAry(t2,true)).makeRO();
+            } else if( P.match("[^]") ) {
+                t2 = TypeMemPtr.make(typeAry(t2,false)).withDelete(true);
             } else if( P.match("[]") ) {
                 t2 = TypeMemPtr.make(typeAry(t2,false));
             } else

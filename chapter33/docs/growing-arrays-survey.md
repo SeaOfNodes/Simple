@@ -96,13 +96,13 @@ For Timers the programmer can choose either representation:
 Agreed allocator direction: growable containers use power-of-two backing arrays
 and deleted backing arrays are recycled through a buddy allocator. Resize obtains
 a larger chunk, copies the used elements, publishes the replacement, and calls
-`delete(old)` to retire the old backing allocation. This moving representation
+`old.del()` to retire the old backing allocation. This moving representation
 does not promise stable
 direct interior references through resize. Container/index handles and copied
 primitive/reference values remain useful interfaces.
 
 Agreed safety rule: a deletable array has a different type from an ordinary
-array; its spelling is still undecided. It disallows interior references and
+array; its provisional modifier is `^`. It disallows interior references and
 requires unique access and no escaping aliases. Deletion consumes the owning
 access, with no outstanding borrows or other usable aliases surviving it.
 The compiler checks this rule; it is not an unchecked promise by the library.
@@ -124,6 +124,14 @@ class-slot post-delete guarantees. The agreed uniqueness rule excludes those
 stale accesses, allowing the buddy allocator to recycle the whole block.
 Moving the length field out of the allocation is therefore not needed for this
 safety argument; it remains a separate, useful layout optimization.
+The same buddy allocator can serve every element type and keep metadata inside
+freed blocks. Automatic deletion on a proven last-reference overwrite is deferred;
+the first interface uses explicit `.del()`. The
+[first ownership experiment](../README.md#array-deletion-first-ownership-checks)
+now accepts source `E[^]` and `.del()` and checks local aliases and field kills.
+The [migration survey](array-delete-survey.md) records which real resize bodies
+pass these local checks and which proof obligations remain. The runtime
+intrinsic is not implemented yet.
 
 `text.begin()` currently returns a newly created builder. For the proposed
 scope-owned growing array, interpolation should establish that storage in the
@@ -157,12 +165,12 @@ the normal allocation analysis rejects the program. There is no separate
 interpolation allocation rule. Helpers growing a caller's destination likewise
 use the general call-frame placement rules.
 
-Finished growth does not solve the return destination. `io.read`, parsed number
-arrays, formatted strings, and BrainFuck results can finish before returning,
-but the caller still does not know their size in advance. A chunk-backed lifetime
-group with a fixed-size handle is a candidate for the previously deferred result
-storage decision. An explicit copy/destination remains another option. We should
-not silently introduce returning a still-growing stack-tail array.
+The agreed return destination is now a separate growable data stack. `io.read`,
+parsed number arrays, formatted strings, and BrainFuck results finish growth
+before returning; their bytes survive the callee's control frame. The hidden
+data-stack top is updated on return, and the owning lifetime later restores its
+mark. This supplies contiguous non-moving storage without a final copy; lowering
+and the calling convention remain implementation work.
 
 ## Aliases and future inline elements
 

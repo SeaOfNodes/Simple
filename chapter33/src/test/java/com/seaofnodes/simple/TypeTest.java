@@ -383,4 +383,23 @@ public class TypeTest {
         Type mt = open.meet(list);
         Assert.assertEquals(list,mt);
     }
+
+    @Test public void testConstantArrayPointerLattice() {
+        TypeMemPtr empty=TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8",2,3,TypeConAry.make("")),true);
+        TypeMemPtr now=TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8",2,3,TypeConAry.make("now")),true);
+        TypeMemPtr abc=TypeMemPtr.make((byte)2,TypeStruct.makeAry("[]u8",2,3,TypeConAry.make("abc")),true);
+        Assert.assertTrue(empty.isConstant());
+        Assert.assertTrue(now.isConstant());
+        Assert.assertFalse(empty.meet(now).isConstant());
+        Assert.assertFalse(now.meet(abc).isConstant());
+        Type[] types={empty,now,abc,empty.dual(),now.dual(),abc.dual(),now.makeVar()};
+        for( Type a : types ) for( Type b : types ) {
+            check_symmetric(a,b);
+            Assert.assertTrue(a.isa(a.meet(b)));
+            for( Type c : types ) {
+                assertSame(a.meet(b).meet(c),a.meet(b.meet(c)));
+                Assert.assertTrue(a.join(c).isa(a.meet(b).join(c)));
+            }
+        }
+    }
 }

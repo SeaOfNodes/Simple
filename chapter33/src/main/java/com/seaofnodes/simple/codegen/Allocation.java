@@ -3,6 +3,8 @@ package com.seaofnodes.simple.codegen;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.*;
 import com.seaofnodes.simple.util.SB;
+import com.seaofnodes.simple.util.BAOS;
+import com.seaofnodes.simple.parser.Parser;
 import java.util.*;
 
 /** First allocation-lifetime experiment. Builds plans, not machine allocations.
@@ -15,6 +17,7 @@ public final class Allocation {
     private final Summary[] _summaries;
     private final Summary _entrySummary;
     private final ArrayList<Summary> _postorder = new ArrayList<>();
+    public final ArrayList<ArrayDelete> _deletes = new ArrayList<>();
 
     // Destination bits: result, static storage, Call/Parm input indices, then
     // borrowed field paths. A child's storage need not share its holder's owner.
@@ -23,10 +26,12 @@ public final class Allocation {
     /** One abstract storage object. Imported allocations are distinct per call
      *  site; a parameter denotes borrowed storage, not an allocation to move. */
     public static final class Site {
-        public final NewNode _allocation; // null for borrowed or static storage
+        public final NewNode _allocation; // null for borrowed/static storage or unloaded allocations
         public final int _arg;            // >=2: Parm index, -1: static, 0: fresh/path
         public final String _name;
         public final long _bytes;         // snapshot before later IR rewrites
+        public final boolean _fresh;      // also true for allocations in unloaded bodies
+        private final boolean _buddy;
         public final BitSet _owners = new BitSet();
         public final HashMap<String,HashSet<Site>> _fields = new HashMap<>();
         public Summary _frame;           // activation creating this object
@@ -34,20 +39,25 @@ public final class Allocation {
         private CFGNode _birth;          // allocation control, or importing call
         private final ArrayList<String> _destinations;
         private final HashMap<String,Site> _loads = new HashMap<>();
-        private Site _base;              // borrowed field origin, e.g. arg3.c
-        private String _field;
+        Site _base;                      // borrowed field origin, e.g. arg3.c
+        String _field;
         private int _depth;
 
         private Site(Summary sum, NewNode allocation, int arg, String name) {
+            this(sum,allocation,arg,name,
+                 allocation!=null && allocation.size()._type instanceof TypeInteger size && size.isConstant() ? size.value() : -1,
+                 allocation!=null,allocation!=null && allocation._deletable);
+        }
+        private Site(Summary sum, NewNode allocation, int arg, String name, long bytes, boolean fresh, boolean buddy) {
             _allocation=allocation; _arg=arg; _name=name;
             _destinations=sum._destinations;
-            _bytes=allocation!=null && allocation.size()._type instanceof TypeInteger size && size.isConstant()
-                ? size.value() : -1;
+            _bytes=bytes; _fresh=fresh; _buddy=buddy;
             if( arg>=2 ) _owners.set(arg);
             if( arg==-1 ) _owners.set(STATIC);
         }
 
         public String destination() {
+            if( buddy() ) return "buddy";
             if( _owners.isEmpty() ) return _scope==null || _scope._loop==null ? "frame" : _scope.name()+" iteration";
             SB sb = new SB();
             if( _owners.get(RESULT) ) sb.p("result & ");
@@ -59,6 +69,8 @@ public final class Allocation {
             for( String name : names ) sb.p(name).p(" & ");
             return sb.unchar(3).toString();
         }
+
+        public boolean buddy() { return _buddy; }
     }
 
     /** Symbolic summary, with separate destinations for separate arguments.
@@ -84,9 +96,13 @@ public final class Allocation {
         public final HashSet<Site> _retained = new HashSet<>();
         public final HashSet<Site> _continues = new HashSet<>();
         public final HashSet<Site> _scratch = new HashSet<>();
+        public final ArrayList<ArrayDelete.Consume> _consumes = new ArrayList<>();
+        boolean _opaqueEffects; // raw/native effects absent from the field graph
         private final HashSet<Site> _escapes = new HashSet<>();
         public String _reject;
         private byte _state; // 0 pre/unseen, 1 mid/active DFS, 2 post/complete
+        private byte _ownershipState;
+        private boolean _ownershipCycle;
         // All allocation-interesting Nodes; Calls, Stores, News, Ptr ops
         private final ArrayList<Node> _nodes = new ArrayList<>();
         // Just the Calls
@@ -99,7 +115,7 @@ public final class Allocation {
         private final BitSet _raw; // Scalar expressions feeding lexical lifetime endpoints
         private final IdentityHashMap<LoopNode,Summary> _loops = new IdentityHashMap<>();
         private final ArrayList<String> _destinations;
-        private final Site _static;
+        private Site _static;
         private int _pathLimit; // own reads plus the path depths imported at calls
         private boolean _changed;
 
@@ -118,7 +134,7 @@ public final class Allocation {
             _raw=fun._raw;
             _destinations=fun._destinations; _static=fun._static;
         }
-        public String name() { return _loop==null ? _fun.label() : "loop#"+_loop._nid; }
+        public String name() { return _loop!=null ? "loop#"+_loop._nid : _fun==null ? "saved contract" : _fun.label(); }
         // Hit the end of summary findings with no errors.
         public boolean supported() { return _state==2 && _reject==null; }
         // Throw or return valid summary
@@ -143,6 +159,71 @@ public final class Allocation {
         for( Summary sum : _summaries )
             if( sum!=null )
                 visit(sum);
+        // Callees precede callers. Discharged requirements disappear; incoming
+        // ones become the caller's own contract. This is separate from placement.
+        for( Summary sum : _postorder ) ownership(sum);
+    }
+
+    private void ownership(Summary sum) {
+        if( sum._ownershipState==2 ) return;
+        if( sum._ownershipState==1 ) { sum._ownershipCycle=true; return; }
+        sum._ownershipState=1;
+        for( CallNode call : sum._calls ) {
+            if( call.fptr()._type instanceof TypeFunPtr fp && !XInt.isHigh(fp.fidxs()) )
+                for( int fidx=XInt.next(fp.fidxs(),0); fidx>=0; fidx=XInt.next(fp.fidxs(),fidx) ) {
+                    Summary callee=fidx<_summaries.length ? _summaries[fidx] : null;
+                    if( callee!=null ) { ownership(callee); sum._ownershipCycle |= callee._ownershipCycle; }
+                }
+        }
+        for( CallNode call : sum._calls ) {
+            if( Intrinsic.arrayDelete(call) && Intrinsic.arrayDeleteType(call.tfp()) && call.nargs()==1 )
+                consume(sum,new ArrayDelete(this,sum._nodes,call,2));
+            else if( call.fptr()._type instanceof TypeFunPtr fp && !XInt.isHigh(fp.fidxs()) )
+                for( int fidx=XInt.next(fp.fidxs(),0); fidx>=0; fidx=XInt.next(fp.fidxs(),fidx) ) {
+                    Summary callee=fidx<_summaries.length ? _summaries[fidx] : null;
+                    if( callee!=null )
+                        for( ArrayDelete.Consume requirement : new ArrayList<>(callee._consumes) )
+                            consume(sum,new ArrayDelete(this,sum._nodes,call,requirement));
+                }
+        }
+        sum._ownershipState=2;
+    }
+
+    private void consume(Summary sum, ArrayDelete check) {
+        // Recursive SCC heads need the same entry/outgoing ownership boundary
+        // as loop heads. Their allocation graphs are not built yet; do not
+        // assume a consuming requirement also proves a unique outgoing field.
+        if( sum._ownershipCycle ) check._reject="recursive consuming contracts are not supported";
+        _deletes.add(check);
+        if( check._reject==null && check._requirement!=null && !sum._consumes.contains(check._requirement) )
+            sum._consumes.add(check._requirement);
+    }
+
+    void checkOwnership() {
+        // A first-class callback type does not yet carry consuming paths.
+        // Do not let it erase a requirement established on a concrete function.
+        for( Summary sum : _postorder ) for( CallNode call : sum._calls ) {
+            TypeFunPtr target=call.fptr()._type instanceof TypeFunPtr fp ? fp : null;
+            int first=target!=null && target.nargs()>0 && target.arg(0)==TypePtr.PTR ? 3 : 2;
+            for( int i=first; i<call.nIns()-1; i++ ) {
+                Type arg=call.arg(i)._type;
+                int[] callbacks=arg instanceof TypeFunPtr fp ? fp.fidxs() :
+                    nativeCall(call) && arg instanceof TypeMemPtr ? TypeMem.START.escapesFrom(arg)._escFs : XInt.EMPTY;
+                if( callbacks!=XInt.EMPTY ) for( Summary callee : _summaries )
+                    if( callee!=null && !callee._consumes.isEmpty() && XInt.bit(callbacks,callee._fun.sig().fidx()) )
+                        throw Parser.error("Consuming callback requires an explicit ownership contract",call._loc);
+                if( (target==null || XInt.isHigh(target.fidxs())) && deletableStorage(arg,new HashSet<>()) )
+                    throw Parser.error("Unknown call cannot verify ownership of deletable storage",call._loc);
+            }
+        }
+    }
+
+    private static boolean deletableStorage(Type t, HashSet<Type> seen) {
+        if( !seen.add(t) || !(t instanceof TypeMemPtr ptr) ) return false;
+        if( ptr._del ) return true;
+        if( ptr._obj._fields!=null )
+            for( Field field : ptr._obj._fields ) if( deletableStorage(field._t,seen) ) return true;
+        return false;
     }
 
     public Summary summary(String name) {
@@ -151,9 +232,201 @@ public final class Allocation {
         throw new IllegalArgumentException("No allocation summary for "+name);
     }
 
+    Summary summary(FunNode fun) { return _summaries[fun.sig().fidx()]; }
+
+    // Boundary contracts contain symbolic storage, never graph node IDs or
+    // implementation frames. Site zero is static storage. Local scratch is
+    // omitted; only external destinations and their reference graph survive.
+    static void write(BAOS out, Summary sum) {
+        assert sum._state==2;
+        out.packed4(sum._consumes.size());
+        for( ArrayDelete.Consume consume : sum._consumes ) {
+            out.packed4(consume.arg()); out.packed4(consume.path().size());
+            for( String field : consume.path() ) out.packedS(field);
+        }
+        out.packed1(sum._opaqueEffects ? 1 : 0);
+        out.packedS(sum._reject==null ? "" : sum._reject);
+        if( !sum.supported() ) return;
+        out.packed4(sum._destinations.size());
+        for( String name : sum._destinations ) out.packedS(name);
+        ArrayList<Site> sites=new ArrayList<>();
+        HashMap<Site,Integer> ids=new HashMap<>();
+        ids.put(sum._static,0);
+        sites.add(sum._static);
+        for( Site site : sum._sites )
+            if( site!=sum._static && !site._owners.isEmpty() ) {
+                ids.put(site,sites.size()); sites.add(site);
+            }
+        // Include field/path dependencies even when they have no destination
+        // of their own. Assign IDs before writing so cycles need no recursion.
+        for( int i=0; i<sites.size(); i++ ) {
+            Site site=sites.get(i);
+            if( site._base!=null && !ids.containsKey(site._base) ) {
+                ids.put(site._base,sites.size()); sites.add(site._base);
+            }
+            for( HashSet<Site> values : site._fields.values() )
+                for( Site child : values ) if( !ids.containsKey(child) ) {
+                    ids.put(child,sites.size()); sites.add(child);
+                }
+        }
+        out.packed4(sites.size());
+        for( Site site : sites ) {
+            out.packed4(site._arg); out.packedS(site._name);
+            out.packed8(site._bytes);
+            out.packed1((site._fresh ? 1 : 0) | (site.buddy() ? 2 : 0));
+            out.packed4(site._owners.cardinality());
+            for( int bit=site._owners.nextSetBit(0); bit>=0; bit=site._owners.nextSetBit(bit+1) ) out.packed4(bit);
+        }
+        for( Site site : sites ) {
+            out.packed4(site._base==null ? -1 : ids.get(site._base));
+            if( site._base!=null ) out.packedS(site._field);
+            out.packed4(site._depth);
+            out.packed4(site._fields.size());
+            for( var field : site._fields.entrySet() ) {
+                out.packedS(field.getKey()); out.packed4(field.getValue().size());
+                for( Site child : field.getValue() ) out.packed4(ids.get(child));
+            }
+        }
+        out.packed4(sum._returns.size());
+        for( Site site : sum._returns ) out.packed4(ids.get(site));
+    }
+
+    static Summary read(BAOS in) {
+        Summary sum=new Summary((FunNode)null);
+        sum._state=2;
+        int consumes=in.packed4();
+        for( int i=0; i<consumes; i++ ) {
+            int arg=in.packed4(), count=in.packed4();
+            ArrayList<String> path=new ArrayList<>();
+            for( int j=0; j<count; j++ ) path.add(in.packedS());
+            sum._consumes.add(new ArrayDelete.Consume(arg,path));
+        }
+        sum._opaqueEffects=in.packed1()!=0;
+        String reject=in.packedS();
+        if( !reject.isEmpty() ) { sum.reject(reject); return sum; }
+        sum._destinations.clear();
+        int names=in.packed4();
+        for( int i=0; i<names; i++ ) sum._destinations.add(in.packedS());
+        int count=in.packed4();
+        for( int i=0; i<count; i++ ) {
+            int arg=in.packed4(); String name=in.packedS();
+            long bytes=in.packed8(); int flags=in.packed1();
+            Site site=new Site(sum,null,arg,name,bytes,(flags&1)!=0,(flags&2)!=0);
+            site._owners.clear();
+            int owners=in.packed4();
+            for( int j=0; j<owners; j++ ) site._owners.set(in.packed4());
+            sum._sites.add(site);
+        }
+        sum._static=sum._sites.get(0);
+        for( Site site : sum._sites ) {
+            int base=in.packed4();
+            if( base>=0 ) {
+                site._base=sum._sites.get(base); site._field=in.packedS();
+                site._base._loads.put(site._field,site);
+            }
+            site._depth=in.packed4();
+            int fields=in.packed4();
+            for( int j=0; j<fields; j++ ) {
+                String field=in.packedS(); int size=in.packed4();
+                HashSet<Site> values=new HashSet<>();
+                for( int k=0; k<size; k++ ) values.add(sum._sites.get(in.packed4()));
+                site._fields.put(field,values);
+            }
+        }
+        int returns=in.packed4();
+        for( int i=0; i<returns; i++ ) sum._returns.add(sum._sites.get(in.packed4()));
+        // Retention is represented by stores through incoming/static sites.
+        for( Site site : sum._sites ) if( !site._fresh )
+            for( HashSet<Site> children : site._fields.values() ) sum._retained.addAll(children);
+        return sum;
+    }
+
     public void requireSupported() {
         for( Summary sum : _postorder )
             sum.requireSupported();
+    }
+
+    /** Analysis-only deletion checkpoint. No storage is freed. A proof about
+     *  incoming storage also reports the unique-entry contract still required. */
+    public ArrayDelete checkArrayDelete(CallNode call, int arg) {
+        for( Summary sum : _postorder )
+            if( sum._calls.contains(call) ) return new ArrayDelete(this,sum._nodes,call,arg);
+        throw new IllegalArgumentException("Deletion checkpoint is not in an analyzed body");
+    }
+
+    // A deliberately narrow helper contract: pointer fields are not changed,
+    // and the result is scalar or forwards known arguments. Scalar element
+    // copies, including loops, qualify. Scalar results need only effects;
+    // reference results also require an allocation contract for their origins.
+    boolean arrayBorrow(CallNode call) {
+        // A nonreturning call contributes no retained references to its caller.
+        if( call.cend()._type instanceof TypeTuple tt && tt.mem()==TypeMem.TOP ) return true;
+        if( nativeCall(call) ) return false; // No pointer-memory effect contract yet.
+        Summary sum=target(call);
+        if( sum==null || sum._fun._extern ) return false;
+        Type ret=sum._fun.ret().expr()._type;
+        if( !(ret instanceof TypeInteger || ret instanceof TypeFloat) && arrayResult(call)==null ) return false;
+        return noReferenceEffects(sum._fun);
+    }
+
+    // Direct argument forwarding is enough for copy/identity helpers. Field
+    // paths and fresh return storage are serialized too, but their deletion
+    // proofs need richer memory-origin queries before allowing these borrows.
+    ArrayList<Node> arrayResult(CallNode call) {
+        Summary sum=target(call);
+        if( sum==null || !sum.supported() ) return null;
+        ArrayList<Node> args=new ArrayList<>();
+        for( Site site : sum._returns ) {
+            if( site._arg<2 || site._arg>=call.nIns()-1 ) return null;
+            args.add(call.arg(site._arg));
+        }
+        return args;
+    }
+
+    // Repeated consumption also needs an exclusive outgoing slot. Consuming
+    // the entry value alone does not promise that: a helper could publish its
+    // replacement into a second field before returning. The existing boundary
+    // graph (including imported graphs) suffices for this narrow proof.
+    boolean arrayOwned(CallNode call, ArrayDelete.Consume consume) {
+        return arrayOwned(target(call),consume);
+    }
+
+    private static boolean arrayOwned(Summary sum, ArrayDelete.Consume consume) {
+        if( sum==null || !sum.supported() || sum._opaqueEffects || consume.path().isEmpty() ) return false;
+        Site owner=null;
+        for( Site site : sum._sites ) if( site._arg==consume.arg() ) owner=site;
+        if( owner==null ) return false;
+        for( int i=0; i<consume.path().size()-1; i++ ) {
+            String field=consume.path().get(i);
+            Set<Site> stored=owner._fields.get(field);
+            Site incoming=owner._loads.get(field);
+            if( stored!=null && !stored.isEmpty() ) {
+                if( stored.size()!=1 || incoming!=null && !stored.contains(incoming) ) return false;
+                owner=stored.iterator().next();
+            } else owner=incoming;
+            if( owner==null ) return false;
+        }
+        String field=consume.path().getLast();
+        HashSet<Site> values=new HashSet<>();
+        Set<Site> stored=owner._fields.get(field);
+        if( stored!=null ) values.addAll(stored);
+        Site incoming=owner._loads.get(field);
+        if( incoming!=null ) values.add(incoming);
+        for( Site value : values ) {
+            if( value!=incoming && !value._fresh || sum._returns.contains(value) ) return false;
+            for( Site site : sum._sites ) for( var edge : site._fields.entrySet() )
+                if( edge.getValue().contains(value) && (site!=owner || !edge.getKey().equals(field)) ) return false;
+        }
+        return true;
+    }
+
+    boolean arrayBorrow(CLInitNode init) {
+        return init.bypass() || noReferenceEffects(CodeGen.CODE.link(init.cu()));
+    }
+
+    private static boolean noReferenceEffects(FunNode fun) {
+        FunctionEffects effects=CodeGen.CODE._effects.get(fun);
+        return effects!=null && !effects._referenceWrites;
     }
 
     private void visit(Summary sum) {
@@ -166,13 +439,27 @@ public final class Allocation {
         }
         // Was pre-order, now mid-order
         sum._state=1;
-        if( sum._fun._extern || sum._fun.summary()!=null ) {
+        if( sum._fun.summary()!=null && sum._fun.summary()._allocation!=null ) {
+            Summary contract=sum._fun.summary()._allocation;
+            sum._reject=contract._reject;
+            sum._destinations.clear(); sum._destinations.addAll(contract._destinations);
+            sum._static=contract._static;
+            sum._sites.addAll(contract._sites);
+            sum._returns.addAll(contract._returns);
+            sum._retained.addAll(contract._retained);
+            sum._consumes.addAll(contract._consumes);
+            sum._opaqueEffects=contract._opaqueEffects;
+        } else if( sum._fun._extern || sum._fun.summary()!=null ) {
             sum.reject("opaque body: allocation contract unavailable");
         } else {
             // Collection interesting function body and call sites
             collect(sum);
+            for( Node n : sum._nodes )
+                if( n instanceof PtrToIntNode || n instanceof CLInitNode init && !arrayBorrow(init) ) sum._opaqueEffects=true;
             for( CallNode call : sum._calls ) {
                 if( nativeCall(call) ) {
+                    if( !Intrinsic.pure(call) && !Intrinsic.arrayDelete(call) &&
+                        !(call.cend()._type instanceof TypeTuple tt && tt.mem()==TypeMem.TOP) ) sum._opaqueEffects=true;
                     // Native code borrows its arguments for this call only.
                     // Returned storage still needs an explicit origin contract.
                     Type ret=call.tfp().ret();
@@ -185,6 +472,7 @@ public final class Allocation {
                 else {
                     // Recursive walk Call Graph DAG
                     visit(callee);
+                    sum._opaqueEffects |= callee._opaqueEffects;
                     // If some callee is rejected, so is this caller
                     if( callee._reject!=null )
                         sum.reject("call #"+call._nid+" -> "+callee._fun.label()+": "+callee._reject);
@@ -198,7 +486,7 @@ public final class Allocation {
         _postorder.add(sum);
     }
 
-    private Summary target(CallNode call) {
+    Summary target(CallNode call) {
         if( !(call.fptr()._type instanceof TypeFunPtr fp) || !fp.isConstant() ) return null;
         int idx=fp.fidx();
         return idx>=0 && idx<_summaries.length ? _summaries[idx] : null;
@@ -288,7 +576,7 @@ public final class Allocation {
         for( Node n : sum._nodes ) {
             // Gather allocation sites
             if( n instanceof NewNode alloc ) {
-                if( !(alloc.size()._type instanceof TypeInteger size) || !size.isConstant() )
+                if( !alloc._deletable && (!(alloc.size()._type instanceof TypeInteger size) || !size.isConstant()) )
                     sum.reject("variable-size allocation #"+alloc._nid);
                 Site site = new Site(sum,alloc,0,"new#"+alloc._nid+":"+alloc._ts._name);
                 site._birth=(CFGNode)alloc.ctrl();
@@ -321,8 +609,8 @@ public final class Allocation {
                 depth=Math.max(depth,site._depth);
                 if( site==callee._static ) continue;
                 HashSet<Site> values=new HashSet<>();
-                if( site._allocation!=null && !site._owners.isEmpty() ) {
-                    Site copy=new Site(sum,site._allocation,0,"call#"+call._nid+"/"+site._name);
+                if( site._fresh && !site._owners.isEmpty() ) {
+                    Site copy=new Site(sum,site._allocation,0,"call#"+call._nid+"/"+site._name,site._bytes,true,site.buddy());
                     copy._birth=call;
                     if( site._owners.get(STATIC) ) copy._owners.set(STATIC);
                     sum._sites.add(copy);
@@ -451,7 +739,7 @@ public final class Allocation {
     // the IR. New's pointer AND private-memory projections inherit its control.
     // Floating scalar calculations can finish before returning from a frame;
     // only their scalar result then crosses the boundary.
-    private static CFGNode control(Node n, IdentityHashMap<Node,CFGNode> cache, BitSet active) {
+    static CFGNode control(Node n, IdentityHashMap<Node,CFGNode> cache, BitSet active) {
         if( n instanceof CFGNode cfg ) return cfg;
         if( n instanceof PhiNode phi ) return phi.region();
         if( n.isFunLeaf() ) return null;
@@ -546,7 +834,7 @@ public final class Allocation {
             if( child._reject!=null ) frame.reject(child._reject);
         }
         HashSet<Site> born=new HashSet<>();
-        for( Site site : frame._sites ) if( site._allocation!=null ) born.add(site);
+        for( Site site : frame._sites ) if( site._fresh ) born.add(site);
         for( Node value : frame._exit.values() )
             if( frame._loop!=null || pointer(value) ) frame._returns.addAll(refs(sum,value));
         for( Site site : sum._sites )
@@ -573,7 +861,7 @@ public final class Allocation {
             }
             frame._continues.addAll(reachable(frame._continues));
             for( Site site : frame._continues )
-                if( born.contains(site) ) {
+                if( born.contains(site) && !site.buddy() ) {
                     frame.reject(frame.name()+" carries "+site._name+" across its backedge; collection/overlap destinations not implemented");
                     break;
                 }
@@ -587,6 +875,9 @@ public final class Allocation {
     // No RSP adjustment or actual reclamation is emitted by this planning pass.
     private static void placeFrames(Summary sum) {
         for( Site site : sum._sites ) if( site._frame!=null ) {
+            // Buddy blocks are independent allocations, released by .del().
+            // Keep tracking their references, but never put them in stack cleanup.
+            if( site.buddy() ) { site._scope=site._frame; continue; }
             Summary scope=site._frame;
             while( scope!=null && scope._escapes.contains(site) ) scope=scope._parent;
             site._scope=scope;
@@ -614,7 +905,7 @@ public final class Allocation {
     private HashSet<Site> field(Summary sum, HashSet<Site> bases, String name) {
         HashSet<Site> values=new HashSet<>();
         for( Site base : bases ) {
-            if( base._allocation==null ) {
+            if( !base._fresh ) {
                 Site child=base._loads.get(name);
                 if( child==null ) {
                     // Weak updates can invent an unbounded path even in straight
@@ -759,6 +1050,11 @@ public final class Allocation {
                 out.append("\nOther retained functions (not reachable by direct calls from entry):\n");
             Summary sum=order.get(i);
             out.append("\n+-- ").append(sum._fun.label()).append("\n");
+            for( ArrayDelete.Consume consume : sum._consumes ) {
+                out.append("|   may consume entry(").append(consume).append("); requires unique access");
+                if( arrayOwned(sum,consume) ) out.append("; returns unique ").append(consume);
+                out.append('\n');
+            }
             ArrayList<CallNode> calls=new ArrayList<>(sum._calls);
             calls.sort(Comparator.comparingInt(n -> n._nid));
             for( CallNode call : calls ) {
@@ -787,7 +1083,12 @@ public final class Allocation {
         sites.sort(Comparator.comparing(s -> s._name));
         for( Site site : sites ) {
             out.append(indent).append('[').append(site.destination()).append("] ").append(site._name);
-            if( site._allocation!=null ) out.append(" (").append(site._bytes).append(" bytes)");
+            if( site._fresh ) {
+                out.append(" (");
+                if( site._bytes<0 ) out.append("dynamic size");
+                else out.append(site._bytes).append(" bytes");
+                out.append(')');
+            }
             if( site._frame!=null && site._frame._loop!=null && site._scope!=site._frame )
                 out.append("; ").append(site._frame.name()).append(" winner");
             out.append('\n');

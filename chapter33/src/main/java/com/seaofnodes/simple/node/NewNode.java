@@ -16,20 +16,23 @@ import java.util.IdentityHashMap;
 */
 public class NewNode extends Node implements MultiNode {
     public TypeStruct _ts;
-    public NewNode( TypeStruct ts, Node ctrl, Node size ) { super(ctrl,size); _ts = ts; }
+    public final boolean _deletable;
+    public NewNode( TypeStruct ts, Node ctrl, Node size ) { this(ts,ctrl,size,false); }
+    public NewNode( TypeStruct ts, Node ctrl, Node size, boolean deletable ) { super(ctrl,size); _ts = ts; _deletable=deletable; }
 
     public Node ctrl() { return in(0); }
     public Node size() { return in(1); }
 
     // --- Serialization
-    public NewNode(NewNode nnn) { super(nnn); _ts = nnn._ts; }
+    public NewNode(NewNode nnn) { super(nnn); _ts = nnn._ts; _deletable=nnn._deletable; }
     @Override public Tag serialTag() { return Tag.New; }
     @Override public void packed( BAOS baos, HashMap<String,Integer> strs, HashMap<Type,Integer> types, IdentityHashMap<Node, Integer> anodes ) {
         baos.packed2(types.get(_ts));
+        baos.write(_deletable ? 1 : 0);
     }
     static Node make( BAOS bais, Type[] types)  {
         TypeStruct ts = (TypeStruct)types[bais.packed2()];
-        return new NewNode(ts,null,null);
+        return new NewNode(ts,null,null,bais.read()!=0);
     }
 
     @Override public String label() { return "new_"+(_ts.isAry() ? "ary_"+_ts._fields[1]._t.str() : _ts.str()); }
@@ -42,7 +45,7 @@ public class NewNode extends Node implements MultiNode {
         if( ctrl()._type.isHigh() )
             return TypeTuple.DEAD_NEW;
         TypeStruct ts = _ts.isAry() ? _ts : _ts.makeInit();
-        return TypeTuple.make(TypeMemPtr.make(_ts),
+        return TypeTuple.make(TypeMemPtr.make(_ts).withDelete(_deletable),
                               // Arrays get pre-zeroed by constructor.
                               // Object fields start at Scalar.BOT; declaration
                               // defaults are explicit Stores. This is private

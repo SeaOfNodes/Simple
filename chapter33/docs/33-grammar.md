@@ -85,14 +85,16 @@ bindingModifier : '!' | '~' ;
 initializer : assignment ;
 
 // The prefix qualifies the named struct reference, not an enclosing array.
-// Each [] / [~] suffix qualifies its own array layer. ? requires a reference.
+// Each [] / [~] / [^] suffix qualifies its own array layer. ? requires a reference.
 type
     : functionType
     | primitiveType typeSuffix*
     | accessModifier? typeName typeSuffix*
     ;
 accessModifier : '!' | '~' ;
-typeSuffix : '?' | '[]' | '[~]' ;
+typeSuffix : '?' | '[]' | '[~]' | '[^]' ;
+// [^] permits checked .del(); it is not a promise of uniqueness.
+// .del() uses ordinary member/call syntax. Runtime recycling is not implemented.
 typeName : IDENTIFIER ('.' IDENTIFIER)* ;
 
 primitiveType
@@ -187,9 +189,9 @@ argumentList : assignment (',' assignment)* ','? ;
 // Allocation invokes the declared constructor; inline initializer blocks from
 // earlier chapters are replaced by constructor arguments.
 newExpression
-    : 'new' type ('[' '~'? assignment ']' arrayInitializer? | arrayInitializer | callSuffix)?
+    : 'new' type ('[' ('~' | '^')? assignment ']' arrayInitializer? | arrayInitializer | callSuffix)?
     ;
-// With no explicit length, type must end in [] or [~] and the initializer is a list.
+// With no explicit length, type ends in [], [~], or [^]; the initializer is a list.
 arrayInitializer
     : '{' (assignment (',' assignment)* ','?)? '}'
     | '{' ('int' | 'i32' | 'i64' | 'u32') IDENTIFIER '->' statement* '}'

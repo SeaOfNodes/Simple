@@ -107,7 +107,12 @@ public class Serialize {
         // Format 2: gradual packed ints, UTF-8 strings, sparse MemMerge edges,
         // and wider singleton function IDs.  Reject old cached objects clearly.
         // Format 3 retains lexical raw-address lifetime endpoints in bodies.
-        baos.write('C').write('0').write('D').write('3');
+        // Format 4 adds the deletable-array capability and allocation flag.
+        // Format 5 stores per-function effects, not the unit's incoming memory.
+        // Format 6 adds symbolic allocation contracts beside function effects.
+        // Format 7 carries consuming argument/field requirements.
+        // Format 8 marks effects not represented by the allocation field graph.
+        baos.write('C').write('0').write('D').write('8');
 
         // Count unique Types
         var types = new HashMap<Type,Integer>();
@@ -129,10 +134,10 @@ public class Serialize {
                 fun.sig().gather(types);
                 TypeTuple state = (TypeTuple)fun.ret()._type;
                 TypeMem mem = (TypeMem)state.mem();
-                // Retention can happen on a path that never returns. The
-                // unit's escape summary includes those native-call effects.
-                TypeMem escaped = (TypeMem)((TypeTuple)fun._compunit._stop._type).mem();
-                mem=mem.makeFrom(XInt.meet(mem._escFs,escaped._escFs),XInt.meet(mem._escAs,escaped._escAs));
+                // Only effects introduced by this function and its callees.
+                // Incoming memory and unrelated exported functions are not effects.
+                TypeMem escaped = CodeGen.CODE._effects.get(fun)._escapes;
+                mem=mem.makeFrom(escaped._escFs,escaped._escAs);
                 state=state.makeFrom(1,mem);
                 summaries.put(fun,state);
                 state.gather(types);
@@ -252,6 +257,14 @@ public class Serialize {
             int[] edges = _init._edgess[fun.sig().fidx()];
             baos.packed4(edges==null ? 0 : edges.length);
             if( edges!=null ) for( int edge : edges ) baos.packed4(edge);
+            FunctionEffects effect=CodeGen.CODE._effects.get(fun);
+            baos.packed1(effect._referenceWrites ? 1 : 0);
+            if( effect._writes==XInt.FULL ) baos.packed4(-1);
+            else {
+                baos.packed4(XInt.bitCount(effect._writes));
+                for( int alias=XInt.next(effect._writes,0); alias>=0; alias=XInt.next(effect._writes,alias) ) baos.packed4(alias);
+            }
+            Allocation.write(baos,CodeGen.CODE._allocation.summary(fun));
         }
 
         // D - Write the nodes.  Since this is expected to be the bulk of the
@@ -336,7 +349,7 @@ public class Serialize {
         Type.TAGOFFS();
 
         // A - Read a header
-        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='3' )
+        if( bais.read()!='C' || bais.read()!='0' || bais.read()!='D' || bais.read()!='8' )
             throw new IllegalArgumentException("Unsupported serialized IR format; rebuild the object file");
 
         // B - Packed read of #strings, then strings
@@ -369,7 +382,7 @@ public class Serialize {
         String[] strs = elf._strs;
         if( strs == null ) {
             // A - Read a header
-            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != '3' )
+            if( bais.read() != 'C' || bais.read() != '0' || bais.read() != 'D' || bais.read() != '8' )
                 throw new IllegalArgumentException( "Unsupported serialized IR format; rebuild the object file" );
 
             // B - Packed read of #strings, then strings
@@ -445,7 +458,12 @@ public class Serialize {
             int size = bais.packed4();
             int[] edges = new int[bais.packed4()];
             for( int j = 0; j<edges.length; j++ ) edges[j]=fidxs.map(fileFidxs,bais.packed4());
-            elf._functions[i]=new FunctionSummary(sig,state,name.isEmpty() ? fidxs.symbol(sig.fidx()) : name,size,edges);
+            boolean refs=bais.packed1()!=0;
+            int count=bais.packed4();
+            int[] writes=count<0 ? XInt.FULL : XInt.EMPTY;
+            for( int j=0; j<count; j++ ) writes=XInt.make(writes,aliases.map(fileAliases,bais.packed4()));
+            elf._functions[i]=new FunctionSummary(sig,state,name.isEmpty() ? fidxs.symbol(sig.fidx()) : name,size,edges,
+                                                 new FunctionEffects(writes,refs,state.mem()),Allocation.read(bais));
         }
         return elf._types = new TypeRead(types,strs,fileAliases,fileFidxs,fileRpcs);
     }

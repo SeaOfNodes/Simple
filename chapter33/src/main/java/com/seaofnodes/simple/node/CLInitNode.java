@@ -148,7 +148,7 @@ public class CLInitNode extends CFGNode implements MultiNode {
                 };
                 CodeGen.CODE.add(parm).addDef(arg);
             }
-        if( CodeGen.CODE._phase.ordinal()>CodeGen.Phase.Opto.ordinal() ) {
+        if( !CodeGen.CODE._loadingBody && CodeGen.CODE._phase.ordinal()>CodeGen.Phase.Opto.ordinal() ) {
             boolean repair = !target.compute().isa(target._type);
             for( Node use : target._outputs )
                 if( use instanceof ParmNode && !use.compute().isa(use._type) ) repair = true;

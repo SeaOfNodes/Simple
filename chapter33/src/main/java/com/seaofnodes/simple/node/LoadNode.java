@@ -66,6 +66,8 @@ public class LoadNode extends MemOpNode {
         // Validate argument types
         if( ptr0.isHigh() )
             return TypeScalar.TOP;
+        if( _con instanceof TypeFunPtr && ptr0 instanceof TypeMemPtr array && array._obj.isAry() && "del".equals(_name) )
+            return _con;
         if( !(mem0 instanceof TypeMem mem) )
             return mem0.isHigh() ? TypeScalar.TOP : TypeScalar.BOT;
         if( mem._t == Type.TOP )
@@ -136,6 +138,14 @@ public class LoadNode extends MemOpNode {
 
     @Override
     public Node idealize() {
+        if( _con instanceof TypeFunPtr && "del".equals(_name) && ptr()._type instanceof TypeMemPtr p ) {
+            if( p._obj.isAry() ) return new ExternNode(_con,Intrinsic.ARRAY_DELETE).peephole();
+            if( p._obj!=TypeStruct.BOT && !p._obj.isHigh() && !p._obj._fref ) {
+                // A forward receiver turned out to be an ordinary class with
+                // its own del member. Keep ordinary field/method semantics.
+                unlock(); _con=Type.BOTTOM; return this;
+            }
+        }
         if( _type==TypeScalar.BOT ) return null;
         Node mem = mem();
         Node ptr = ptr();
@@ -162,6 +172,15 @@ public class LoadNode extends MemOpNode {
         // Must sharpen alias first
         if( _alias == 1 )
             return null;
+
+        // Whole-memory parameters lose individual alias types. Recover the
+        // class flag from every caller, without moving a load across a call.
+        // Wait for SCCP to finish discovering callers before folding it away.
+        if( "$init".equals(_name) && ptr._type instanceof TypeMemPtr clz &&
+            TypeStruct.startsClzPrefix(clz._obj._name) &&
+            CodeGen.CODE._phase.ordinal()>=CodeGen.Phase.IterPostOpto.ordinal() &&
+            classInitialized(mem,new BitSet()) )
+            return CodeGen.CODE.con(TypeInteger.TRUE);
 
         Node slice = CLInitNode.slice(mem,_alias,this);
         if( slice!=mem ) { setDef(1,slice); return this; }
@@ -228,6 +247,57 @@ public class LoadNode extends MemOpNode {
         }
 
         return null;
+    }
+
+    // A class flag has one global slot per alias. Unknown memory and cycles
+    // fail the proof; a cycle must not establish its own initialization.
+    private boolean classInitialized(Node mem, BitSet active) {
+        addDep(mem);
+        if( mem._type.isHigh() ) return true;
+        if( mem._type instanceof TypeMem tm && tm._alias==_alias && tm._t==TypeInteger.TRUE ) return true;
+        if( active.get(mem._nid) ) return false;
+        active.set(mem._nid);
+        boolean ready=false;
+        if( mem instanceof MemMergeNode merge )
+            ready=classInitialized(merge.alias(_alias),active);
+        else if( mem instanceof ProjNode proj && proj._idx==1 && proj.in(0) instanceof CLInitNode init ) {
+            addDep(init);
+            FunNode target=CodeGen.CODE.link(init.cu());
+            if( target!=null ) {
+                addDep(target);
+                SummaryNode summary=target.summary();
+                if( summary!=null && !XInt.bit(summary._effects._writes,_alias) )
+                    ready=classInitialized(init.mem(),active);
+            }
+        }
+        else if( mem instanceof ProjNode proj && proj._idx==1 && proj.in(0) instanceof CallEndNode end ) {
+            addDep(end);
+            if( end.in(0) instanceof CallNode call ) {
+                Type ftype=addDep(call.fptr())._type;
+                FunNode target=ftype instanceof TypeFunPtr fp && fp.isConstant() ? CodeGen.CODE.link(fp.fidx()) : null;
+                var effects=CodeGen.CODE._effects;
+                if( target!=null && effects!=null ) {
+                    addDep(target);
+                    var effect=effects.get(target);
+                    if( effect!=null && !XInt.bit(effect._writes,_alias) )
+                        ready=classInitialized(call.mem(),active);
+                }
+            }
+        }
+        else if( mem instanceof StoreNode st ) {
+            if( st._alias==_alias ) ready=addDep(st.val())._type==TypeInteger.TRUE;
+            else if( st._alias>1 ) ready=classInitialized(st.mem(),active);
+        } else if( mem instanceof PhiNode phi ) {
+            addDep(phi.region());
+            if( !phi.inProgress() ) {
+                ready=true;
+                for( int i=1; i<phi.nIns(); i++ )
+                    if( !addDep(phi.region().in(i))._type.isHigh() &&
+                        !classInitialized(phi.in(i),active) ) { ready=false; break; }
+            }
+        }
+        active.clear(mem._nid);
+        return ready;
     }
 
     // Load a flavored zero from a New

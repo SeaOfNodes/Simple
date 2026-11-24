@@ -431,13 +431,21 @@ public class CodeGen {
     // SCCP and numeric-mode resolution; leave cleanup work queued for Iter.
     public CodeGen opto() { return phase(Phase.Opto, _phase==Phase.Iter, () -> Opto.opto(this)); }
 
-    public CodeGen iterPostOpto() { return phase(Phase.IterPostOpto, _phase==Phase.Opto, () -> _iter.iterate(this)); }
+    public CodeGen iterPostOpto() { return phase(Phase.IterPostOpto, _phase==Phase.Opto, () -> {
+        // The call graph is settled. Peepholes can now ask which aliases a
+        // call preserves; later inlining only removes possible effects.
+        _effects=FunctionEffects.analyze(this);
+        _iter.iterate(this);
+    }); }
 
     // Materialize an inline candidate at an empty worklist. Loading queues
     // the new body and affected callers before CallEnd considers inlining.
+    public boolean _loadingBody;
     public void loadForInline(CompUnit cu) {
         assert _phase==Phase.IterPostOpto && _iter._work.isEmpty();
-        ParseAll.loadCompUnit(this,cu);
+        _loadingBody=true;
+        try { ParseAll.loadCompUnit(this,cu); }
+        finally { _loadingBody=false; }
     }
 
     // TypeCheck saves its successful analysis for Serialize. Loading bodies
@@ -521,9 +529,11 @@ public class CodeGen {
     // ---------------------------
     // Last check for bad programs
     public Allocation _allocation;
+    public IdentityHashMap<FunNode,FunctionEffects> _effects;
     public CodeGen allocation() {
         if( _phase==Phase.FinalizeIR ) loopTree();
         return phase(Phase.Allocation, _phase==Phase.LoopTree, () -> {
+            _effects = FunctionEffects.analyze(this);
             _allocation = new Allocation(this);
             if( Boolean.getBoolean("simple.alloc.dump") ) System.out.print(_allocation);
             if( Boolean.getBoolean("simple.alloc.check") ) _allocation.requireSupported();

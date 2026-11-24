@@ -24,7 +24,7 @@ final class ArrayInitializers {
     ArrayInitializers(Parser P) { this.P=P; }
 
     // Opening brace consumed; an absent length means a list with inferred size.
-    Node parse(Type elem, boolean readonly, Node len, Lexer site) {
+    Node parse(Type elem, boolean readonly, boolean deletable, Node len, Lexer site) {
         int pos=P.pos();
         Type indexType=P.types.parseType();
         String index=indexType==null ? null : P._lexer.matchId();
@@ -50,7 +50,7 @@ final class ArrayInitializers {
         Field body=ts.field("[]"), length=ts.field("#");
         Node size=new AddNode(ConFldOffNode.make(ts,"[]"),
                              new ShlNode(null,len,P.con(ts.aryScale())).peephole()).peephole();
-        NewNode alloc=new NewNode(ts,P.ctrl(),size).init();
+        NewNode alloc=new NewNode(ts,P.ctrl(),size,deletable).init();
         Node self=new ProjNode(alloc,0,ts.str()).init().keep();
         Node mem=new ProjNode(alloc,1,"#arrayMem").init().keep();
         Node slen=new StoreNode(site,"#",length._alias,TypeInteger.U32,null,mem,self,

@@ -224,12 +224,13 @@ public class SelectiveLoadingTest {
             "if(arg==0) return -1; return Lib.api.p_noInline(((arg<<32)>>32));",123,true,TypeInteger.BOT).driver(CodeGen.Phase.TypeCheck);
         assertNotNull(function(code,"Lib.Api.p_noInline").summary());
         assertNotNull(function(code,"Lib.Work.write_noInline").summary());
-        assertNotNull(function(code,"Lib.Unused.f").summary());
+        assertAbsent(code,"Lib.Unused.f");
         assertEquals("-1",Eval2.eval(code,0));
         assertNotNull("An untaken branch does not load its target",function(code,"Lib.Api.p_noInline").summary());
         assertEquals("42",Eval2.eval(code,41));
         assertNull(function(code,"Lib.Work.write_noInline").summary());
-        assertNotNull("Evaluation leaves unrelated objects unloaded",function(code,"Lib.Unused.f").summary());
+        assertNull("Evaluation leaves unrelated objects unloaded",
+                   code.getElf(code._compunits.get("Lib/Unused")._obj)._nodes);
         assertEquals("6",Eval2.eval(code,5));
 
         code=new CodeGen(null,app.toString(),paths,"Main",
@@ -237,7 +238,7 @@ public class SelectiveLoadingTest {
             .driver(CodeGen.Phase.TypeCheck);
         assertNull("p requested Api's implementation",function(code,"Lib.Api.p").summary());
         assertNotNull("The remaining call needs a signature, not a body",function(code,"Lib.Work.write_noInline").summary());
-        assertNotNull("A namespace reexport does not request IR",function(code,"Lib.Unused.f").summary());
+        assertAbsent(code,"Lib.Unused.f");
         code.driver(TestC.CPU_PORT,TestC.CALL_CONVENTION,false,false);
         Path driver = app.resolve("driver.c");
         Files.writeString(driver,"""
@@ -258,6 +259,11 @@ public class SelectiveLoadingTest {
                 "if(arg==0) return -1; return Lib.api.p_noInline(((arg<<32)>>32));",123,true,TypeInteger.BOT),0);
             fail("Missing transitive code must fail before evaluation");
         } catch( RuntimeException ex ) { assertTrue(ex.getMessage(),ex.getMessage().contains("Lib/Work")); }
+    }
+
+    private static void assertAbsent(CodeGen code, String name) {
+        for( FunNode fun : code._linker )
+            assertTrue(name,fun==null || fun.isDead() || !name.equals(fun._name));
     }
 
     private static FunNode function(CodeGen code, String name) {

@@ -85,6 +85,10 @@ public class CallEndNode extends CFGNode implements MultiNode {
             return ftype.isHigh() ? TypeTuple.STATE.dual() : TypeTuple.STATE;
         // Mid-fold, just take the inlined callee's return.
         if( _folding ) return in(1)._type;
+        // Keep the ordinary call/continuation CFG for this non-returning native.
+        // No memory or value comes back; mixed/unknown targets stay conservative.
+        if( tfp.isConstant() && "_exit".equals(CodeGen.CODE.externFunc(tfp.fidx())) )
+            return TypeTuple.make(Type.CONTROL,TypeMem.TOP,TypeScalar.TOP);
         TypeTuple intrinsic=Intrinsic.compute(call,this);
         if( intrinsic!=null ) return intrinsic;
 
